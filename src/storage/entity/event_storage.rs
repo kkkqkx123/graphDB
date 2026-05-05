@@ -119,7 +119,9 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self
     }
 
-    fn get_schema_manager(&self) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
+    fn get_schema_manager(
+        &self,
+    ) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
         self.inner.get_schema_manager()
     }
 

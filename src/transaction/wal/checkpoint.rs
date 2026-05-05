@@ -6,8 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::types::{
-    Lsn, PageId, Timestamp, TransactionId, WalError, WalFileHeader, WalResult,
-    WAL_FILE_HEADER_SIZE,
+    Lsn, PageId, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
 };
 
 /// Checkpoint information
@@ -65,8 +64,7 @@ impl CheckpointManager {
     /// Initialize checkpoint manager and load existing checkpoint info
     pub fn init(&mut self) -> WalResult<()> {
         if !self.wal_dir.exists() {
-            fs::create_dir_all(&self.wal_dir)
-                .map_err(|e| WalError::IoError(e.to_string()))?;
+            fs::create_dir_all(&self.wal_dir).map_err(|e| WalError::IoError(e.to_string()))?;
         }
 
         self.load_checkpoint_meta()?;
@@ -111,8 +109,7 @@ impl CheckpointManager {
             self.last_checkpoint_lsn.as_u64()
         );
 
-        fs::write(&self.checkpoint_file, content)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        fs::write(&self.checkpoint_file, content).map_err(|e| WalError::IoError(e.to_string()))?;
 
         Ok(())
     }
@@ -152,17 +149,13 @@ impl CheckpointManager {
     }
 
     /// Create a new checkpoint
-    pub fn create_checkpoint(
-        &mut self,
-        timestamp: Timestamp,
-        lsn: Lsn,
-    ) -> WalResult<Checkpoint> {
+    pub fn create_checkpoint(&mut self, timestamp: Timestamp, lsn: Lsn) -> WalResult<Checkpoint> {
         self.current_seq += 1;
         self.last_checkpoint_ts = timestamp;
         self.last_checkpoint_lsn = lsn;
 
         let wal_files = self.get_wal_files_before_checkpoint()?;
-        
+
         let redo_lsn = self.calculate_redo_lsn();
 
         let checkpoint = Checkpoint {
@@ -208,8 +201,7 @@ impl CheckpointManager {
             return Ok(wal_files);
         }
 
-        let entries = fs::read_dir(&self.wal_dir)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        let entries = fs::read_dir(&self.wal_dir).map_err(|e| WalError::IoError(e.to_string()))?;
 
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
@@ -228,8 +220,7 @@ impl CheckpointManager {
         use std::fs::File;
         use std::io::Read;
 
-        let mut file = File::open(path)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        let mut file = File::open(path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         let mut buffer = [0u8; WAL_FILE_HEADER_SIZE];
         match file.read_exact(&mut buffer) {
@@ -250,8 +241,7 @@ impl CheckpointManager {
 
         for path in &checkpoint.wal_files {
             if path.exists() {
-                fs::remove_file(path)
-                    .map_err(|e| WalError::IoError(e.to_string()))?;
+                fs::remove_file(path).map_err(|e| WalError::IoError(e.to_string()))?;
                 deleted_count += 1;
             }
         }

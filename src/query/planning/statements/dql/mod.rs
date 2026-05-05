@@ -62,8 +62,8 @@ pub mod with_planner;
 pub mod yield_planner;
 
 pub use composite_index_analyzer::{
-    ColumnStats, CompositeIndexAnalyzer, CompositeIndexSelection, IndexSelectionResult,
-    MatchType, PredicateInfo, PredicateOp, SingleColumnSelection,
+    ColumnStats, CompositeIndexAnalyzer, CompositeIndexSelection, IndexSelectionResult, MatchType,
+    PredicateInfo, PredicateOp, SingleColumnSelection,
 };
 pub use pipe_variable_resolver::{
     ColumnDataType, ColumnSchema, FromClausePlan, ParsedPipeVariable, PipeVariableResolver,

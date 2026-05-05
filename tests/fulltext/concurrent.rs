@@ -377,7 +377,11 @@ async fn test_concurrent_different_indexes() {
         .search(1, "Article", "content_bm25", "BM25", 50)
         .await
         .expect("BM25 search should succeed");
-    assert_eq!(bm25_results.len(), num_tasks, "BM25 should have all documents");
+    assert_eq!(
+        bm25_results.len(),
+        num_tasks,
+        "BM25 should have all documents"
+    );
 
     let inv_results = ctx
         .search(1, "Article", "content_inv", "Inversearch", 50)
@@ -406,12 +410,7 @@ async fn test_concurrent_index_creation() {
             barrier_clone.wait().await;
 
             ctx_clone
-                .create_test_index(
-                    1,
-                    &format!("Tag{}", i),
-                    "content",
-                    Some(EngineType::Bm25),
-                )
+                .create_test_index(1, &format!("Tag{}", i), "content", Some(EngineType::Bm25))
                 .await
         });
 

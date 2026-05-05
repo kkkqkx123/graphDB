@@ -10,8 +10,8 @@ pub mod update_nodes;
 
 // Re-export info structures
 pub use info::{
-    EdgeDeleteInfo, EdgeInsertInfo, EdgeUpdateInfo, IndexDeleteInfo, TagDeleteInfo,
-    TagInsertSpec, UpdateTargetType, VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
+    EdgeDeleteInfo, EdgeInsertInfo, EdgeUpdateInfo, IndexDeleteInfo, TagDeleteInfo, TagInsertSpec,
+    UpdateTargetType, VertexDeleteInfo, VertexInsertInfo, VertexUpdateInfo,
 };
 
 pub use delete_nodes::{

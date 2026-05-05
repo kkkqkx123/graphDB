@@ -477,8 +477,8 @@ mod tests {
     use crate::core::Value;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
-    use crate::query::QueryRequestContext;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use crate::query::QueryRequestContext;
     use std::sync::Arc;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {

@@ -7,7 +7,7 @@
 //! - Error handling - invalid formats
 
 use super::common::{create_test_linestring, create_test_point, create_test_polygon};
-use graphdb::core::value::geography::{Geography, GeoJsonGeometry};
+use graphdb::core::value::geography::{GeoJsonGeometry, Geography};
 
 /// TC-GEO-FMT-001: WKT Point Round-trip
 #[test]
@@ -38,13 +38,7 @@ fn test_wkt_linestring_roundtrip() {
 #[test]
 fn test_wkt_polygon_roundtrip() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
     let wkt = polygon.to_wkt();
@@ -86,13 +80,7 @@ fn test_geojson_linestring_conversion() {
 #[test]
 fn test_geojson_polygon_conversion() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
     let geojson = polygon.to_geojson();

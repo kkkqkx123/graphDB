@@ -11,13 +11,18 @@ use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
-use crate::core::{Edge, EdgeDirection, NullType, RoleType, StorageError, StorageResult, Value, Vertex};
+use crate::core::{
+    Edge, EdgeDirection, NullType, RoleType, StorageError, StorageResult, Value, Vertex,
+};
 use crate::storage::api::{StorageClient, StorageStats};
-use crate::storage::metadata::{InMemorySchemaManager, InMemoryIndexMetadataManager, Schema, SchemaManager, IndexMetadataManager};
+use crate::storage::metadata::{
+    InMemoryIndexMetadataManager, InMemorySchemaManager, IndexMetadataManager, Schema,
+    SchemaManager,
+};
 use crate::storage::property_graph::{PropertyGraph, PropertyGraphConfig};
 use crate::storage::shared_state::{StorageInner, StorageSharedState};
-use crate::transaction::version_manager::VersionManager;
 use crate::transaction::context::TransactionContext;
+use crate::transaction::version_manager::VersionManager;
 
 #[derive(Clone)]
 pub struct GraphStorage {
@@ -257,7 +262,11 @@ impl StorageClient for GraphStorage {
     }
 
     fn space_exists(&self, space: &str) -> bool {
-        self.schema_manager.get_space(space).ok().flatten().is_some()
+        self.schema_manager
+            .get_space(space)
+            .ok()
+            .flatten()
+            .is_some()
     }
 
     fn clear_space(&mut self, _space: &str) -> Result<bool, StorageError> {
@@ -295,10 +304,15 @@ impl StorageClient for GraphStorage {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        self.schema_manager.alter_tag(space, tag_name, additions, deletions)
+        self.schema_manager
+            .alter_tag(space, tag_name, additions, deletions)
     }
 
-    fn create_edge_type(&mut self, space: &str, edge_type: &EdgeTypeInfo) -> Result<bool, StorageError> {
+    fn create_edge_type(
+        &mut self,
+        space: &str,
+        edge_type: &EdgeTypeInfo,
+    ) -> Result<bool, StorageError> {
         self.schema_manager.create_edge_type(space, edge_type)
     }
 
@@ -306,7 +320,11 @@ impl StorageClient for GraphStorage {
         self.schema_manager.drop_edge_type(space, edge_type_name)
     }
 
-    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> {
+    fn get_edge_type(
+        &self,
+        space: &str,
+        edge_type_name: &str,
+    ) -> Result<Option<EdgeTypeInfo>, StorageError> {
         self.schema_manager.get_edge_type(space, edge_type_name)
     }
 
@@ -321,7 +339,8 @@ impl StorageClient for GraphStorage {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        self.schema_manager.alter_edge_type(space, edge_type_name, additions, deletions)
+        self.schema_manager
+            .alter_edge_type(space, edge_type_name, additions, deletions)
     }
 
     fn create_tag_index(&mut self, space: &str, index: &Index) -> Result<bool, StorageError> {
@@ -356,7 +375,9 @@ impl StorageClient for GraphStorage {
         self.schema_manager.list_edge_indexes(space)
     }
 
-    fn get_schema_manager(&self) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
+    fn get_schema_manager(
+        &self,
+    ) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
         Some(self.schema_manager.clone())
     }
 
@@ -504,13 +525,19 @@ impl StorageClient for GraphStorage {
     fn load_from_disk(&mut self) -> Result<(), StorageError> {
         let work_dir = match &self.work_dir {
             Some(path) => path,
-            None => return Err(StorageError::StorageError("Work directory not set".to_string())),
+            None => {
+                return Err(StorageError::StorageError(
+                    "Work directory not set".to_string(),
+                ))
+            }
         };
 
         let schema_path = work_dir.join("schema").join("schema.json");
         if schema_path.exists() {
             Arc::get_mut(&mut self.schema_manager)
-                .ok_or_else(|| StorageError::StorageError("Cannot mutate schema manager".to_string()))?
+                .ok_or_else(|| {
+                    StorageError::StorageError("Cannot mutate schema manager".to_string())
+                })?
                 .load_schema(&schema_path)?;
         }
 
@@ -525,16 +552,18 @@ impl StorageClient for GraphStorage {
     fn save_to_disk(&self) -> Result<(), StorageError> {
         let work_dir = match &self.work_dir {
             Some(path) => path,
-            None => return Err(StorageError::StorageError("Work directory not set".to_string())),
+            None => {
+                return Err(StorageError::StorageError(
+                    "Work directory not set".to_string(),
+                ))
+            }
         };
 
-        std::fs::create_dir_all(work_dir)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+        std::fs::create_dir_all(work_dir).map_err(|e| StorageError::IOError(e.to_string()))?;
 
         let schema_dir = work_dir.join("schema");
-        std::fs::create_dir_all(&schema_dir)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
-        
+        std::fs::create_dir_all(&schema_dir).map_err(|e| StorageError::IOError(e.to_string()))?;
+
         let schema_path = schema_dir.join("schema.json");
         self.schema_manager.save_schema(&schema_path)?;
 

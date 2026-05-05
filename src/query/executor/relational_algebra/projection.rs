@@ -340,7 +340,10 @@ impl<S: StorageClient> ProjectExecutor<S> {
                                 if edge_idx < row.len() {
                                     context.set_variable("edge".to_string(), row[edge_idx].clone());
                                     if let Value::Edge(ref edge_val) = row[edge_idx] {
-                                        context.set_variable(edge_val.edge_type().to_string(), row[edge_idx].clone());
+                                        context.set_variable(
+                                            edge_val.edge_type().to_string(),
+                                            row[edge_idx].clone(),
+                                        );
                                     }
                                 }
                             }

@@ -265,12 +265,7 @@ impl VectorMatchNode {
         }
     }
 
-    pub fn with_metadata(
-        mut self,
-        space_id: u64,
-        tag_name: String,
-        field_name: String,
-    ) -> Self {
+    pub fn with_metadata(mut self, space_id: u64, tag_name: String, field_name: String) -> Self {
         self.space_id = space_id;
         self.tag_name = tag_name;
         self.field_name = field_name;

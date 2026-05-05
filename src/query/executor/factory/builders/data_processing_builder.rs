@@ -139,12 +139,8 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
             })
             .collect();
 
-        let executor = TopNExecutor::with_sort_keys(
-            node.id(),
-            storage,
-            node.limit() as usize,
-            sort_keys,
-        );
+        let executor =
+            TopNExecutor::with_sort_keys(node.id(), storage, node.limit() as usize, sort_keys);
         Ok(ExecutorEnum::TopN(executor))
     }
 

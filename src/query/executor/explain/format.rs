@@ -317,7 +317,14 @@ pub fn format_plan_with_output_table(
     let mut output = String::new();
 
     // Calculate column widths
-    let headers = ["id", "name", "deps", "profiling_data", "operator_info", "output_var"];
+    let headers = [
+        "id",
+        "name",
+        "deps",
+        "profiling_data",
+        "operator_info",
+        "output_var",
+    ];
     let mut widths = headers.iter().map(|h| h.len()).collect::<Vec<_>>();
 
     let rows: Vec<Vec<String>> = plan_desc

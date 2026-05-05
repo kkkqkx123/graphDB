@@ -256,7 +256,8 @@ impl FlatCsr {
         self.edges = new_edges;
         self.offsets = new_offsets;
         self.degrees = new_degrees;
-        self.edge_count.store(current_offset as u64, Ordering::Relaxed);
+        self.edge_count
+            .store(current_offset as u64, Ordering::Relaxed);
     }
 
     pub fn dump(&self) -> Vec<u8> {
@@ -290,7 +291,8 @@ impl FlatCsr {
 
         let mut offset = 0;
 
-        let vertex_capacity = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+        let vertex_capacity =
+            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
         offset += 8;
 
         let edge_count = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
@@ -298,7 +300,8 @@ impl FlatCsr {
 
         self.vertex_capacity = vertex_capacity;
 
-        let offsets_len = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+        let offsets_len =
+            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
         offset += 8;
 
         self.offsets.clear();
@@ -306,7 +309,8 @@ impl FlatCsr {
             if offset + 8 > data.len() {
                 break;
             }
-            let val = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+            let val =
+                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
             self.offsets.push(val);
             offset += 8;
         }
@@ -314,7 +318,8 @@ impl FlatCsr {
         if offset + 8 > data.len() {
             return;
         }
-        let degrees_len = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+        let degrees_len =
+            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
         offset += 8;
 
         self.degrees.clear();
@@ -322,7 +327,8 @@ impl FlatCsr {
             if offset + 8 > data.len() {
                 break;
             }
-            let val = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+            let val =
+                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
             self.degrees.push(val);
             offset += 8;
         }
@@ -330,7 +336,8 @@ impl FlatCsr {
         if offset + 8 > data.len() {
             return;
         }
-        let edges_len = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+        let edges_len =
+            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
         offset += 8;
 
         self.edges.clear();
@@ -484,11 +491,23 @@ mod tests {
         assert!(result2);
 
         assert_eq!(csr.degree(0, 50), 0, "At ts=50, no edges should be visible");
-        assert_eq!(csr.degree(0, 120), 1, "At ts=120, only edge 0 should be visible");
-        assert_eq!(csr.degree(0, 180), 2, "At ts=180, both edges should be visible");
+        assert_eq!(
+            csr.degree(0, 120),
+            1,
+            "At ts=120, only edge 0 should be visible"
+        );
+        assert_eq!(
+            csr.degree(0, 180),
+            2,
+            "At ts=180, both edges should be visible"
+        );
 
         csr.delete(0, 1, 200);
-        assert_eq!(csr.degree(0, 250), 1, "At ts=250, only edge 1 should be visible (edge 0 deleted)");
+        assert_eq!(
+            csr.degree(0, 250),
+            1,
+            "At ts=250, only edge 1 should be visible (edge 0 deleted)"
+        );
     }
 
     #[test]

@@ -310,7 +310,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
         if let Some(expressions) = property_expressions {
             let mut context = DefaultExpressionContext::new();
-            
+
             for tag in vertex.tags() {
                 for (prop_name, prop_value) in &tag.properties {
                     context.set_variable(prop_name.clone(), prop_value.clone());
@@ -322,14 +322,15 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
             for (key, ctx_expr) in expressions {
                 if let Some(expr) = ctx_expr.get_expression() {
-                    let value = ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
-                        crate::core::error::DBError::Query(
-                            crate::core::error::QueryError::ExecutionError(format!(
-                                "Failed to evaluate expression for property '{}': {}",
-                                key, e
-                            )),
-                        )
-                    })?;
+                    let value =
+                        ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
+                            crate::core::error::DBError::Query(
+                                crate::core::error::QueryError::ExecutionError(format!(
+                                    "Failed to evaluate expression for property '{}': {}",
+                                    key, e
+                                )),
+                            )
+                        })?;
                     result.insert(key.clone(), value);
                 } else if let Some(value) = base_properties.get(key) {
                     result.insert(key.clone(), value.clone());
@@ -352,21 +353,22 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
         if let Some(expressions) = property_expressions {
             let mut context = DefaultExpressionContext::new();
-            
+
             for (prop_name, prop_value) in &edge.props {
                 context.set_variable(prop_name.clone(), prop_value.clone());
             }
 
             for (key, ctx_expr) in expressions {
                 if let Some(expr) = ctx_expr.get_expression() {
-                    let value = ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
-                        crate::core::error::DBError::Query(
-                            crate::core::error::QueryError::ExecutionError(format!(
-                                "Failed to evaluate expression for edge property '{}': {}",
-                                key, e
-                            )),
-                        )
-                    })?;
+                    let value =
+                        ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
+                            crate::core::error::DBError::Query(
+                                crate::core::error::QueryError::ExecutionError(format!(
+                                    "Failed to evaluate expression for edge property '{}': {}",
+                                    key, e
+                                )),
+                            )
+                        })?;
                     result.insert(key.clone(), value);
                 } else if let Some(value) = base_properties.get(key) {
                     result.insert(key.clone(), value.clone());

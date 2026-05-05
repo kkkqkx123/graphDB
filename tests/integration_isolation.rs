@@ -39,8 +39,8 @@ fn test_create_space_with_directory_isolation() {
 #[test]
 fn test_create_space_with_device_isolation() {
     let custom_path = PathBuf::from("/mnt/fastdisk/graphdb");
-    let space = SpaceInfo::new("device_space".to_string())
-        .with_storage_path(Some(custom_path.clone()));
+    let space =
+        SpaceInfo::new("device_space".to_string()).with_storage_path(Some(custom_path.clone()));
 
     assert_eq!(space.isolation_level, IsolationLevel::Device);
     assert_eq!(space.storage_path, Some(custom_path));
@@ -70,7 +70,12 @@ fn test_fulltext_index_id_format() {
     let test_cases = vec![
         (1, "Article", "content", "space_ft_1_Article_content"),
         (42, "User", "email", "space_ft_42_User_email"),
-        (999, "Product", "description", "space_ft_999_Product_description"),
+        (
+            999,
+            "Product",
+            "description",
+            "space_ft_999_Product_description",
+        ),
     ];
 
     for (space_id, tag, field, expected) in test_cases {
@@ -92,7 +97,12 @@ fn test_vector_collection_name_format() {
     let test_cases = vec![
         (1, "Article", "content", "space_vec_1_Article_content"),
         (42, "User", "email", "space_vec_42_User_email"),
-        (999, "Product", "description", "space_vec_999_Product_description"),
+        (
+            999,
+            "Product",
+            "description",
+            "space_vec_999_Product_description",
+        ),
     ];
 
     for (space_id, tag, field, expected) in test_cases {
@@ -132,8 +142,14 @@ fn test_naming_consistency_vector_fulltext() {
     assert!(vec_collection.contains(field));
 
     // Prefixes should be distinct and consistent
-    assert!(ft_index_id.starts_with("space_ft_"), "Fulltext should use 'space_ft_' prefix");
-    assert!(vec_collection.starts_with("space_vec_"), "Vector should use 'space_vec_' prefix");
+    assert!(
+        ft_index_id.starts_with("space_ft_"),
+        "Fulltext should use 'space_ft_' prefix"
+    );
+    assert!(
+        vec_collection.starts_with("space_vec_"),
+        "Vector should use 'space_vec_' prefix"
+    );
 }
 
 // ==================== Storage Path Integration Tests ====================
@@ -205,8 +221,12 @@ async fn test_directory_isolation_storage_path() {
     let metadata2 = manager.get_metadata(2, "Product", "description").unwrap();
 
     // Both paths should be under the same base path
-    assert!(metadata1.storage_path.starts_with(base_path.to_str().unwrap()));
-    assert!(metadata2.storage_path.starts_with(base_path.to_str().unwrap()));
+    assert!(metadata1
+        .storage_path
+        .starts_with(base_path.to_str().unwrap()));
+    assert!(metadata2
+        .storage_path
+        .starts_with(base_path.to_str().unwrap()));
 }
 
 // ==================== Cross-Space Isolation Tests ====================
@@ -319,7 +339,10 @@ fn test_index_naming_with_special_chars() {
             "Index ID should start with correct prefix"
         );
         assert!(index_id.contains(tag), "Index ID should contain tag name");
-        assert!(index_id.contains(field), "Index ID should contain field name");
+        assert!(
+            index_id.contains(field),
+            "Index ID should contain field name"
+        );
     }
 }
 
@@ -339,7 +362,11 @@ fn test_space_with_zero_id() {
 async fn test_custom_path_auto_creation() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let base_path = temp_dir.path().to_path_buf();
-    let custom_path = temp_dir.path().join("nonexistent").join("nested").join("path");
+    let custom_path = temp_dir
+        .path()
+        .join("nonexistent")
+        .join("nested")
+        .join("path");
 
     // Path doesn't exist yet
     assert!(!custom_path.exists());
@@ -404,12 +431,24 @@ async fn test_list_space_indexes() {
     let manager = FulltextIndexManager::new(config).expect("Failed to create manager");
 
     // Create multiple indexes for space 1
-    manager.create_index(1, "Article", "title", None).await.unwrap();
-    manager.create_index(1, "Article", "content", None).await.unwrap();
-    manager.create_index(1, "Product", "name", None).await.unwrap();
+    manager
+        .create_index(1, "Article", "title", None)
+        .await
+        .unwrap();
+    manager
+        .create_index(1, "Article", "content", None)
+        .await
+        .unwrap();
+    manager
+        .create_index(1, "Product", "name", None)
+        .await
+        .unwrap();
 
     // Create index for space 2
-    manager.create_index(2, "User", "profile", None).await.unwrap();
+    manager
+        .create_index(2, "User", "profile", None)
+        .await
+        .unwrap();
 
     // List indexes for space 1
     let space1_indexes = manager.get_space_indexes(1);

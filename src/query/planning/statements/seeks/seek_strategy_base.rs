@@ -283,10 +283,7 @@ impl SeekStrategySelector {
         ]
     }
 
-    fn evaluate_vertex_seek(
-        &self,
-        context: &SeekStrategyContext,
-    ) -> Option<StrategyEvaluation> {
+    fn evaluate_vertex_seek(&self, context: &SeekStrategyContext) -> Option<StrategyEvaluation> {
         if !context.has_explicit_vid() {
             return None;
         }
@@ -299,10 +296,7 @@ impl SeekStrategySelector {
         })
     }
 
-    fn evaluate_index_seek(
-        &self,
-        context: &SeekStrategyContext,
-    ) -> Option<StrategyEvaluation> {
+    fn evaluate_index_seek(&self, context: &SeekStrategyContext) -> Option<StrategyEvaluation> {
         let index = context.get_index_for_labels(&context.node_pattern.labels)?;
         let total_rows = context.total_vertices;
         let selectivity = index.selectivity as f64;
@@ -331,7 +325,9 @@ impl SeekStrategySelector {
         let total_rows = context.total_vertices;
 
         let cost = self.cost_config.random_page_cost * (total_rows as f64 * selectivity)
-            + self.cost_config.cpu_operator_cost * index.field_count as f64 * total_rows as f64
+            + self.cost_config.cpu_operator_cost
+                * index.field_count as f64
+                * total_rows as f64
                 * selectivity;
         let estimated_rows = (total_rows as f64 * selectivity) as usize;
 

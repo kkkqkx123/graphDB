@@ -74,11 +74,19 @@ impl PartialIndexCondition {
     }
 
     pub fn is_null(field: impl Into<String>) -> Self {
-        Self::new(field.into(), ComparisonOperator::IsNull, Value::Null(crate::core::NullType::Null))
+        Self::new(
+            field.into(),
+            ComparisonOperator::IsNull,
+            Value::Null(crate::core::NullType::Null),
+        )
     }
 
     pub fn is_not_null(field: impl Into<String>) -> Self {
-        Self::new(field.into(), ComparisonOperator::IsNotNull, Value::Null(crate::core::NullType::Null))
+        Self::new(
+            field.into(),
+            ComparisonOperator::IsNotNull,
+            Value::Null(crate::core::NullType::Null),
+        )
     }
 
     /// Evaluate the condition against a value
@@ -88,41 +96,31 @@ impl PartialIndexCondition {
             ComparisonOperator::NotEqual => value != &self.value,
             ComparisonOperator::IsNull => matches!(value, Value::Null(_)),
             ComparisonOperator::IsNotNull => !matches!(value, Value::Null(_)),
-            ComparisonOperator::GreaterThan => {
-                match (value, &self.value) {
-                    (Value::Int(a), Value::Int(b)) => a > b,
-                    (Value::Float(a), Value::Float(b)) => a > b,
-                    (Value::String(a), Value::String(b)) => a > b,
-                    _ => false,
-                }
-            }
-            ComparisonOperator::GreaterThanOrEqual => {
-                match (value, &self.value) {
-                    (Value::Int(a), Value::Int(b)) => a >= b,
-                    (Value::Float(a), Value::Float(b)) => a >= b,
-                    (Value::String(a), Value::String(b)) => a >= b,
-                    _ => false,
-                }
-            }
-            ComparisonOperator::LessThan => {
-                match (value, &self.value) {
-                    (Value::Int(a), Value::Int(b)) => a < b,
-                    (Value::Float(a), Value::Float(b)) => a < b,
-                    (Value::String(a), Value::String(b)) => a < b,
-                    _ => false,
-                }
-            }
-            ComparisonOperator::LessThanOrEqual => {
-                match (value, &self.value) {
-                    (Value::Int(a), Value::Int(b)) => a <= b,
-                    (Value::Float(a), Value::Float(b)) => a <= b,
-                    (Value::String(a), Value::String(b)) => a <= b,
-                    _ => false,
-                }
-            }
-            ComparisonOperator::In | ComparisonOperator::NotIn => {
-                false
-            }
+            ComparisonOperator::GreaterThan => match (value, &self.value) {
+                (Value::Int(a), Value::Int(b)) => a > b,
+                (Value::Float(a), Value::Float(b)) => a > b,
+                (Value::String(a), Value::String(b)) => a > b,
+                _ => false,
+            },
+            ComparisonOperator::GreaterThanOrEqual => match (value, &self.value) {
+                (Value::Int(a), Value::Int(b)) => a >= b,
+                (Value::Float(a), Value::Float(b)) => a >= b,
+                (Value::String(a), Value::String(b)) => a >= b,
+                _ => false,
+            },
+            ComparisonOperator::LessThan => match (value, &self.value) {
+                (Value::Int(a), Value::Int(b)) => a < b,
+                (Value::Float(a), Value::Float(b)) => a < b,
+                (Value::String(a), Value::String(b)) => a < b,
+                _ => false,
+            },
+            ComparisonOperator::LessThanOrEqual => match (value, &self.value) {
+                (Value::Int(a), Value::Int(b)) => a <= b,
+                (Value::Float(a), Value::Float(b)) => a <= b,
+                (Value::String(a), Value::String(b)) => a <= b,
+                _ => false,
+            },
+            ComparisonOperator::In | ComparisonOperator::NotIn => false,
         }
     }
 }
@@ -268,12 +266,10 @@ impl Index {
     /// Check if a value should be indexed based on partial condition
     pub fn should_index(&self, field_values: &std::collections::HashMap<String, Value>) -> bool {
         match &self.partial_condition {
-            Some(condition) => {
-                field_values
-                    .get(&condition.field)
-                    .map(|v| condition.evaluate(v))
-                    .unwrap_or(false)
-            }
+            Some(condition) => field_values
+                .get(&condition.field)
+                .map(|v| condition.evaluate(v))
+                .unwrap_or(false),
             None => true,
         }
     }

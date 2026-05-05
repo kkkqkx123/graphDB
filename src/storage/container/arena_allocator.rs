@@ -198,7 +198,11 @@ impl ArenaAllocator {
     /// Get the number of chunks
     pub fn chunk_count(&self) -> usize {
         unsafe {
-            let current_count = if (*self.current.get()).is_some() { 1 } else { 0 };
+            let current_count = if (*self.current.get()).is_some() {
+                1
+            } else {
+                0
+            };
             (*self.chunks.get()).len() + current_count
         }
     }
@@ -370,7 +374,9 @@ mod tests {
     #[test]
     fn test_arena_slice() {
         let arena = ArenaAllocator::new().expect("Failed to create arena");
-        let ptr = arena.allocate_slice::<u64>(10).expect("Failed to allocate slice");
+        let ptr = arena
+            .allocate_slice::<u64>(10)
+            .expect("Failed to allocate slice");
 
         unsafe {
             let slice = std::slice::from_raw_parts_mut(ptr.as_ptr(), 10);

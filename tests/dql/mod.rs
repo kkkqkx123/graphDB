@@ -11,13 +11,13 @@
 //! - SUBGRAPH - Subgraph retrieval
 //! - Optimizer - Query plan optimization tests
 
-mod common;
-mod go;
-mod match_query;
-mod fetch;
-mod lookup;
 mod aggregation;
-mod subquery;
+mod common;
+mod fetch;
 mod find_path;
-mod subgraph;
+mod go;
+mod lookup;
+mod match_query;
 mod optimizer;
+mod subgraph;
+mod subquery;

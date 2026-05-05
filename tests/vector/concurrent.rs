@@ -14,8 +14,7 @@
 use std::sync::Arc;
 
 use super::common::{
-    create_test_points, generate_random_vector,
-    generate_test_vectors, VectorTestContext,
+    create_test_points, generate_random_vector, generate_test_vectors, VectorTestContext,
 };
 use tokio::task::JoinSet;
 use vector_client::types::{DistanceMetric, VectorPoint};
@@ -25,9 +24,15 @@ use vector_client::types::{DistanceMetric, VectorPoint};
 async fn test_concurrent_inserts() {
     let ctx = Arc::new(VectorTestContext::with_dimension(64));
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let mut tasks = JoinSet::new();
     let num_tasks = 3;
@@ -40,11 +45,9 @@ async fn test_concurrent_inserts() {
             let points: Vec<VectorPoint> = vectors
                 .into_iter()
                 .enumerate()
-                .map(|(i, v)| {
-                    VectorPoint::new(format!("task_{}_doc_{}", task_id, i), v)
-                })
+                .map(|(i, v)| VectorPoint::new(format!("task_{}_doc_{}", task_id, i), v))
                 .collect();
-            
+
             ctx_clone
                 .insert_test_vectors(1, "Document", "embedding", points)
                 .await
@@ -54,8 +57,15 @@ async fn test_concurrent_inserts() {
 
     while tasks.join_next().await.is_some() {}
 
-    let count = ctx.count(1, "Document", "embedding").await.expect("Failed to count");
-    assert_eq!(count, (num_tasks * vectors_per_task) as u64, "Should have all vectors inserted");
+    let count = ctx
+        .count(1, "Document", "embedding")
+        .await
+        .expect("Failed to count");
+    assert_eq!(
+        count,
+        (num_tasks * vectors_per_task) as u64,
+        "Should have all vectors inserted"
+    );
 }
 
 /// TC-VEC-CONC-002: Concurrent Searches
@@ -63,9 +73,15 @@ async fn test_concurrent_inserts() {
 async fn test_concurrent_searches() {
     let ctx = Arc::new(VectorTestContext::with_dimension(64));
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(20, 64, 42);
     let ids: Vec<String> = (0..20).map(|i| format!("doc_{}", i)).collect();
@@ -102,9 +118,15 @@ async fn test_concurrent_searches() {
 async fn test_concurrent_mixed_operations() {
     let ctx = Arc::new(VectorTestContext::with_dimension(64));
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let initial_vectors = generate_test_vectors(10, 64, 0);
     let initial_ids: Vec<String> = (0..10).map(|i| format!("initial_doc_{}", i)).collect();
@@ -150,7 +172,10 @@ async fn test_concurrent_mixed_operations() {
 
     while tasks.join_next().await.is_some() {}
 
-    let count = ctx.count(1, "Document", "embedding").await.expect("Failed to count");
+    let count = ctx
+        .count(1, "Document", "embedding")
+        .await
+        .expect("Failed to count");
     assert!(count >= 10, "Should have at least initial vectors");
 }
 
@@ -159,9 +184,15 @@ async fn test_concurrent_mixed_operations() {
 async fn test_concurrent_reads_and_writes() {
     let ctx = Arc::new(VectorTestContext::with_dimension(64));
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let ids: Vec<String> = (0..5).map(|i| format!("doc_{}", i)).collect();
@@ -181,9 +212,7 @@ async fn test_concurrent_reads_and_writes() {
         let ctx_clone = ctx.clone();
         let id = ids[i].clone();
         tasks.spawn(async move {
-            let result = ctx_clone
-                .get_vector(1, "Document", "embedding", &id)
-                .await;
+            let result = ctx_clone.get_vector(1, "Document", "embedding", &id).await;
             assert!(result.is_ok(), "Get should succeed");
         });
     }
@@ -225,7 +254,13 @@ async fn test_concurrent_index_operations() {
         let ctx_clone = ctx.clone();
         tasks.spawn(async move {
             let result = ctx_clone
-                .create_test_index(i, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
+                .create_test_index(
+                    i,
+                    "Document",
+                    "embedding",
+                    Some(64),
+                    Some(DistanceMetric::Cosine),
+                )
                 .await;
             assert!(result.is_ok(), "Index creation should succeed");
         });

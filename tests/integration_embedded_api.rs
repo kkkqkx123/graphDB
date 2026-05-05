@@ -404,12 +404,11 @@ async fn test_session_with_transaction_rollback_on_error() {
     let db = &test_db.db;
     let session = db.session().expect("创建会话失败");
 
-    let result: Result<i32, graphdb::api::CoreError> = session
-        .with_transaction(|_txn| {
-            Err::<i32, _>(graphdb::api::core::CoreError::Internal(
-                "测试错误".to_string(),
-            ))
-        });
+    let result: Result<i32, graphdb::api::CoreError> = session.with_transaction(|_txn| {
+        Err::<i32, _>(graphdb::api::core::CoreError::Internal(
+            "测试错误".to_string(),
+        ))
+    });
 
     assert!(result.is_err());
 }

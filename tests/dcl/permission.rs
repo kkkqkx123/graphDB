@@ -22,7 +22,11 @@ fn test_grant_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GRANT basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GRANT basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GRANT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GRANT");
@@ -74,7 +78,11 @@ fn test_revoke_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "REVOKE basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "REVOKE basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("REVOKE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REVOKE");

@@ -187,7 +187,12 @@ fn test_update_edge_and_verify() {
         .exec_dml("UPDATE 1 -> 2 OF KNOWS SET strength = 0.9")
         .assert_success()
         .query("FETCH PROP ON KNOWS 1 -> 2")
-        .assert_result_contains(vec![graphdb::core::Value::Int(1), graphdb::core::Value::Int(2), graphdb::core::Value::String("strength".into()), graphdb::core::Value::Float(0.9)]);
+        .assert_result_contains(vec![
+            graphdb::core::Value::Int(1),
+            graphdb::core::Value::Int(2),
+            graphdb::core::Value::String("strength".into()),
+            graphdb::core::Value::Float(0.9),
+        ]);
 }
 
 // ==================== Error Handling Tests ====================

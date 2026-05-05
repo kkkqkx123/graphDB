@@ -221,7 +221,9 @@ impl CycleDetector {
     pub fn validate(&self, root: &PlanNodeEnum) -> Result<(), String> {
         let result = self.detect(root);
         if result.has_cycle {
-            Err(result.error_message.unwrap_or_else(|| "Cycle detected".to_string()))
+            Err(result
+                .error_message
+                .unwrap_or_else(|| "Cycle detected".to_string()))
         } else {
             Ok(())
         }

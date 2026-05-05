@@ -132,13 +132,7 @@ fn test_geojson_linestring() {
 #[test]
 fn test_centroid_calculation() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 2.0),
-            (2.0, 2.0),
-            (2.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 
@@ -157,13 +151,7 @@ fn test_geometry_type() {
     assert_eq!(linestring.geometry_type(), "LineString");
 
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
     assert_eq!(polygon.geometry_type(), "Polygon");
@@ -193,13 +181,7 @@ fn test_point_bearing() {
 #[test]
 fn test_polygon_area() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 
@@ -230,13 +212,7 @@ fn test_linestring_length() {
 #[test]
 fn test_polygon_perimeter() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 
@@ -253,13 +229,7 @@ fn test_polygon_perimeter() {
 #[test]
 fn test_point_in_polygon() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 2.0),
-            (2.0, 2.0),
-            (2.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 

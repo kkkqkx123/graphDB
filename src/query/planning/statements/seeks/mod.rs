@@ -30,8 +30,7 @@ pub use prop_index_seek::{PredicateOp, PropIndexSeek, PropertyPredicate};
 pub use scan_seek::ScanSeek;
 pub use seek_strategy::{AnySeekStrategy, SeekStrategy};
 pub use seek_strategy_base::{
-    IndexInfo, NodePattern, SeekResult, SeekStrategyContext, SeekStrategySelector,
-    SeekStrategyType,
+    IndexInfo, NodePattern, SeekResult, SeekStrategyContext, SeekStrategySelector, SeekStrategyType,
 };
 pub use variable_prop_index_seek::VariablePropIndexSeek;
 pub use vertex_seek::VertexSeek;

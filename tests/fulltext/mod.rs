@@ -15,12 +15,12 @@
 //!
 //! Note: Dead letter queue tests have been moved to unit tests in src/sync/dead_letter_queue.rs
 
-mod common;
-mod basic;
-mod engine_comparison;
-mod concurrent;
-mod sync;
-mod edge_cases;
-mod transaction;
 mod advanced_queries;
+mod basic;
+mod common;
+mod concurrent;
+mod edge_cases;
+mod engine_comparison;
 mod persistence;
+mod sync;
+mod transaction;

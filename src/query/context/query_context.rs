@@ -101,9 +101,7 @@ impl QueryContext {
     }
 
     /// Create a builder.
-    pub fn builder(
-        rctx: Arc<QueryRequestContext>,
-    ) -> super::QueryContextBuilder {
+    pub fn builder(rctx: Arc<QueryRequestContext>) -> super::QueryContextBuilder {
         super::QueryContextBuilder::new(rctx)
     }
 

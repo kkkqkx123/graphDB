@@ -2,7 +2,7 @@
 //!
 //! Fixed-size page with header and data area.
 
-use super::{PageHeader, PageType, PAGE_SIZE, PAGE_DATA_SIZE};
+use super::{PageHeader, PageType, PAGE_DATA_SIZE, PAGE_SIZE};
 use crate::core::StorageResult;
 
 #[derive(Debug)]

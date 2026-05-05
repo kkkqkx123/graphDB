@@ -12,8 +12,8 @@
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, InsertEdgesNode,
-    InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode,
-    UpdateNode, UpdateVerticesNode,
+    InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode, UpdateNode,
+    UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
     EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
@@ -42,8 +42,8 @@ pub use crate::query::planning::plan::core::nodes::control_flow::control_flow_no
 pub use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::{
-    ApplyNode, AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
-    RollUpApplyNode, UnionNode, UnwindNode,
+    ApplyNode, AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode,
+    RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::{
     IntersectNode, MinusNode,
@@ -86,7 +86,9 @@ pub use crate::query::planning::plan::core::nodes::management::space_nodes::{
     AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
     ShowCreateSpaceNode, ShowSpacesNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode,
 };
-pub use crate::query::planning::plan::core::nodes::management::stats_nodes::{ShowStatsNode as ShowStatsNodeType, ShowStatsType};
+pub use crate::query::planning::plan::core::nodes::management::stats_nodes::{
+    ShowStatsNode as ShowStatsNodeType, ShowStatsType,
+};
 pub use crate::query::planning::plan::core::nodes::management::tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
     TagAlterInfo, TagManageInfo,

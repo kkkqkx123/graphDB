@@ -17,9 +17,7 @@ use super::common;
 
 use common::test_scenario::TestScenario;
 use graphdb::core::Value;
-use graphdb::transaction::{
-    TransactionManager, TransactionManagerConfig, TransactionOptions,
-};
+use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -297,7 +295,9 @@ fn test_savepoint_multiple_rollback() {
     let savepoints = manager.get_active_savepoints(txn_id);
     assert_eq!(savepoints.len(), 2);
 
-    manager.release_savepoint(txn_id, sp1).expect("Failed to release savepoint");
+    manager
+        .release_savepoint(txn_id, sp1)
+        .expect("Failed to release savepoint");
 
     let savepoints_after = manager.get_active_savepoints(txn_id);
     assert_eq!(savepoints_after.len(), 1);
@@ -340,7 +340,9 @@ fn test_max_concurrent_transactions() {
     }
 
     for txn_id in txn_ids {
-        manager.commit_transaction(txn_id).expect("Failed to commit");
+        manager
+            .commit_transaction(txn_id)
+            .expect("Failed to commit");
     }
 }
 

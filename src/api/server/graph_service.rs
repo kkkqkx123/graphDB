@@ -543,7 +543,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 // If the error is a write conflict, try cleaning up expired transactions
                 // and retry once. This handles the case where a stale transaction
                 // is blocking new write transactions.
-                if matches!(e, crate::transaction::TransactionError::WriteTransactionConflict) {
+                if matches!(
+                    e,
+                    crate::transaction::TransactionError::WriteTransactionConflict
+                ) {
                     txn_manager.cleanup_expired_transactions();
                     let options = session.transaction_options();
                     match txn_manager.begin_transaction(options) {

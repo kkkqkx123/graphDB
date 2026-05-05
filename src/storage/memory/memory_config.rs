@@ -393,14 +393,10 @@ mod tests {
 
     #[test]
     fn test_invalid_huge_page_size() {
-        let config = MemoryConfigBuilder::default()
-            .huge_page_size(0)
-            .build();
+        let config = MemoryConfigBuilder::default().huge_page_size(0).build();
         assert!(config.is_err());
 
-        let config = MemoryConfigBuilder::default()
-            .huge_page_size(1000)
-            .build();
+        let config = MemoryConfigBuilder::default().huge_page_size(1000).build();
         assert!(config.is_err());
     }
 

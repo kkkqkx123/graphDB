@@ -402,7 +402,10 @@ max_memory_per_query = 1073741824
         assert_eq!(config.common.transaction.default_timeout, 60);
         assert_eq!(config.common.transaction.max_concurrent_transactions, 500);
         assert_eq!(config.common.log.level, "debug");
-        assert_eq!(config.common.storage.compression, CompressionAlgorithm::None);
+        assert_eq!(
+            config.common.storage.compression,
+            CompressionAlgorithm::None
+        );
         assert_eq!(config.common.storage.compression_level, 5);
         assert_eq!(config.common.query_resource.max_concurrent_queries, 50);
     }

@@ -2,10 +2,13 @@
 //!
 //! Re-exports common test utilities from the parent directory.
 
+use graphdb::core::Value;
+use graphdb::search::{
+    EngineType, FulltextConfig, FulltextIndexManager, IndexMetadata, IndexStats, SearchError,
+    SearchResult,
+};
 use std::sync::Arc;
 use tempfile::TempDir;
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SearchError, SearchResult, IndexStats, IndexMetadata};
-use graphdb::core::Value;
 
 /// Fulltext Test Context with multi-engine support
 ///

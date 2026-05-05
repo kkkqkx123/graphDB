@@ -336,29 +336,27 @@ impl YieldValidator {
         // Fallback to basic type inference
         use crate::core::types::expr::Expression;
         match expression {
-            Expression::Literal(value) => {
-                match value {
-                    crate::core::Value::Null(_) => Ok(ValueType::Null),
-                    crate::core::Value::Bool(_) => Ok(ValueType::Bool),
-                    crate::core::Value::SmallInt(_)
-                    | crate::core::Value::Int(_)
-                    | crate::core::Value::BigInt(_) => Ok(ValueType::Int),
-                    crate::core::Value::Float(_) | crate::core::Value::Double(_) => {
-                        Ok(ValueType::Float)
-                    }
-                    crate::core::Value::String(_) => Ok(ValueType::String),
-                    crate::core::Value::Date(_) => Ok(ValueType::Date),
-                    crate::core::Value::Time(_) => Ok(ValueType::Time),
-                    crate::core::Value::DateTime(_) => Ok(ValueType::DateTime),
-                    crate::core::Value::Vertex(_) => Ok(ValueType::Vertex),
-                    crate::core::Value::Edge(_) => Ok(ValueType::Edge),
-                    crate::core::Value::Path(_) => Ok(ValueType::Path),
-                    crate::core::Value::List(_) => Ok(ValueType::List),
-                    crate::core::Value::Map(_) => Ok(ValueType::Map),
-                    crate::core::Value::Set(_) => Ok(ValueType::Set),
-                    _ => Ok(ValueType::Unknown),
+            Expression::Literal(value) => match value {
+                crate::core::Value::Null(_) => Ok(ValueType::Null),
+                crate::core::Value::Bool(_) => Ok(ValueType::Bool),
+                crate::core::Value::SmallInt(_)
+                | crate::core::Value::Int(_)
+                | crate::core::Value::BigInt(_) => Ok(ValueType::Int),
+                crate::core::Value::Float(_) | crate::core::Value::Double(_) => {
+                    Ok(ValueType::Float)
                 }
-            }
+                crate::core::Value::String(_) => Ok(ValueType::String),
+                crate::core::Value::Date(_) => Ok(ValueType::Date),
+                crate::core::Value::Time(_) => Ok(ValueType::Time),
+                crate::core::Value::DateTime(_) => Ok(ValueType::DateTime),
+                crate::core::Value::Vertex(_) => Ok(ValueType::Vertex),
+                crate::core::Value::Edge(_) => Ok(ValueType::Edge),
+                crate::core::Value::Path(_) => Ok(ValueType::Path),
+                crate::core::Value::List(_) => Ok(ValueType::List),
+                crate::core::Value::Map(_) => Ok(ValueType::Map),
+                crate::core::Value::Set(_) => Ok(ValueType::Set),
+                _ => Ok(ValueType::Unknown),
+            },
             Expression::Variable(name) => {
                 // Look up in input columns
                 for input in &self.inputs {

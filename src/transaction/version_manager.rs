@@ -344,7 +344,10 @@ impl VersionManager {
         let _guard = self.lock.lock();
 
         if ts == self.read_ts.load(Ordering::SeqCst) + 1 {
-            while self.buffer.atomic_reset_with_ret((ts + 1) & RING_INDEX_MASK) {
+            while self
+                .buffer
+                .atomic_reset_with_ret((ts + 1) & RING_INDEX_MASK)
+            {
                 // Continue advancing read timestamp
             }
             self.read_ts.store(ts, Ordering::SeqCst);
@@ -369,17 +372,19 @@ impl VersionManager {
     /// Acquire an update timestamp with explicit timeout
     ///
     /// Returns an error if timeout is reached before acquiring exclusive access.
-    pub fn acquire_update_timestamp_with_timeout(&self, timeout: Duration) -> VersionManagerResult<Timestamp> {
+    pub fn acquire_update_timestamp_with_timeout(
+        &self,
+        timeout: Duration,
+    ) -> VersionManagerResult<Timestamp> {
         let start = Instant::now();
         let mut guard = self.lock.lock();
 
         // Phase 1: Acquire update lock (only one update transaction at a time)
-        while self.pending_update_reqs.compare_exchange(
-            0,
-            1,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
-        ).is_err() {
+        while self
+            .pending_update_reqs
+            .compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
             let elapsed = start.elapsed();
             if elapsed >= timeout {
                 return Err(VersionManagerError::Timeout);

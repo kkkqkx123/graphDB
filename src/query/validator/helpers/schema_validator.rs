@@ -22,8 +22,8 @@ use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::query::validator::validator_trait::ValueType;
-use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 
 /// Schema Validator
 /// Encapsulate all the validation logic related to the Schema.
@@ -727,7 +727,11 @@ impl SchemaValidator {
                 }
                 Ok(())
             }
-            Expression::Case { test_expr, conditions, default } => {
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
                 if let Some(test) = test_expr {
                     self.validate_expression_properties(test, space_name, available_vars)?;
                 }
@@ -770,12 +774,13 @@ impl SchemaValidator {
             Expression::Variable(var_name) => {
                 available_vars.get(var_name).cloned().unwrap_or_default()
             }
-            Expression::Label(label_name) => {
-                label_name.clone()
-            }
+            Expression::Label(label_name) => label_name.clone(),
             _ => {
                 return Err(CoreValidationError::new(
-                    format!("Invalid property access: property '{}' on non-variable object", property),
+                    format!(
+                        "Invalid property access: property '{}' on non-variable object",
+                        property
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -796,20 +801,29 @@ impl SchemaValidator {
             return Ok(());
         }
 
-        let properties = if let Ok(Some(tag_info)) = self.schema_manager.get_tag(space_name, &schema_name) {
-            tag_info.properties
-        } else if let Ok(Some(edge_info)) = self.schema_manager.get_edge_type(space_name, &schema_name) {
-            edge_info.properties
-        } else {
-            return Err(CoreValidationError::new(
-                format!("Schema '{}' not found in space '{}'", schema_name, space_name),
-                ValidationErrorType::SemanticError,
-            ));
-        };
+        let properties =
+            if let Ok(Some(tag_info)) = self.schema_manager.get_tag(space_name, &schema_name) {
+                tag_info.properties
+            } else if let Ok(Some(edge_info)) =
+                self.schema_manager.get_edge_type(space_name, &schema_name)
+            {
+                edge_info.properties
+            } else {
+                return Err(CoreValidationError::new(
+                    format!(
+                        "Schema '{}' not found in space '{}'",
+                        schema_name, space_name
+                    ),
+                    ValidationErrorType::SemanticError,
+                ));
+            };
 
         if !properties.iter().any(|p| p.name == property) {
             return Err(CoreValidationError::new(
-                format!("Property '{}' not found in schema '{}'", property, schema_name),
+                format!(
+                    "Property '{}' not found in schema '{}'",
+                    property, schema_name
+                ),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -837,45 +851,42 @@ impl SchemaValidator {
         use crate::core::types::expr::Expression;
 
         match expr {
-            Expression::Literal(value) => {
-                Self::value_to_value_type(value)
-            }
-            Expression::Variable(name) => {
-                input_columns.get(name).cloned().unwrap_or(ValueType::Unknown)
-            }
+            Expression::Literal(value) => Self::value_to_value_type(value),
+            Expression::Variable(name) => input_columns
+                .get(name)
+                .cloned()
+                .unwrap_or(ValueType::Unknown),
             Expression::Property { object, property } => {
                 self.infer_property_type(object, property, space_name, available_vars)
             }
-            Expression::Binary { op, .. } => {
-                match op {
-                    crate::core::types::operators::BinaryOperator::Add
-                    | crate::core::types::operators::BinaryOperator::Subtract
-                    | crate::core::types::operators::BinaryOperator::Multiply
-                    | crate::core::types::operators::BinaryOperator::Divide => ValueType::Float,
-                    crate::core::types::operators::BinaryOperator::Equal
-                    | crate::core::types::operators::BinaryOperator::NotEqual
-                    | crate::core::types::operators::BinaryOperator::LessThan
-                    | crate::core::types::operators::BinaryOperator::LessThanOrEqual
-                    | crate::core::types::operators::BinaryOperator::GreaterThan
-                    | crate::core::types::operators::BinaryOperator::GreaterThanOrEqual
-                    | crate::core::types::operators::BinaryOperator::And
-                    | crate::core::types::operators::BinaryOperator::Or => ValueType::Bool,
-                    _ => ValueType::Unknown,
-                }
-            }
-            Expression::Unary { op, .. } => {
-                match op {
-                    crate::core::types::operators::UnaryOperator::Not => ValueType::Bool,
-                    crate::core::types::operators::UnaryOperator::Minus => ValueType::Float,
-                    _ => ValueType::Unknown,
-                }
-            }
-            Expression::Function { name, .. } => {
-                Self::infer_function_return_type(name)
-            }
+            Expression::Binary { op, .. } => match op {
+                crate::core::types::operators::BinaryOperator::Add
+                | crate::core::types::operators::BinaryOperator::Subtract
+                | crate::core::types::operators::BinaryOperator::Multiply
+                | crate::core::types::operators::BinaryOperator::Divide => ValueType::Float,
+                crate::core::types::operators::BinaryOperator::Equal
+                | crate::core::types::operators::BinaryOperator::NotEqual
+                | crate::core::types::operators::BinaryOperator::LessThan
+                | crate::core::types::operators::BinaryOperator::LessThanOrEqual
+                | crate::core::types::operators::BinaryOperator::GreaterThan
+                | crate::core::types::operators::BinaryOperator::GreaterThanOrEqual
+                | crate::core::types::operators::BinaryOperator::And
+                | crate::core::types::operators::BinaryOperator::Or => ValueType::Bool,
+                _ => ValueType::Unknown,
+            },
+            Expression::Unary { op, .. } => match op {
+                crate::core::types::operators::UnaryOperator::Not => ValueType::Bool,
+                crate::core::types::operators::UnaryOperator::Minus => ValueType::Float,
+                _ => ValueType::Unknown,
+            },
+            Expression::Function { name, .. } => Self::infer_function_return_type(name),
             Expression::List(_) => ValueType::List,
             Expression::Map(_) => ValueType::Map,
-            Expression::Case { conditions, default, .. } => {
+            Expression::Case {
+                conditions,
+                default,
+                ..
+            } => {
                 if !conditions.is_empty() {
                     let (_, result) = &conditions[0];
                     self.infer_expression_type(result, space_name, available_vars, input_columns)
@@ -903,9 +914,7 @@ impl SchemaValidator {
             Expression::Variable(var_name) => {
                 available_vars.get(var_name).cloned().unwrap_or_default()
             }
-            Expression::Label(label_name) => {
-                label_name.clone()
-            }
+            Expression::Label(label_name) => label_name.clone(),
             _ => return ValueType::Unknown,
         };
 
@@ -913,13 +922,16 @@ impl SchemaValidator {
             return ValueType::Unknown;
         }
 
-        let properties = if let Ok(Some(tag_info)) = self.schema_manager.get_tag(space_name, &schema_name) {
-            tag_info.properties
-        } else if let Ok(Some(edge_info)) = self.schema_manager.get_edge_type(space_name, &schema_name) {
-            edge_info.properties
-        } else {
-            return ValueType::Unknown;
-        };
+        let properties =
+            if let Ok(Some(tag_info)) = self.schema_manager.get_tag(space_name, &schema_name) {
+                tag_info.properties
+            } else if let Ok(Some(edge_info)) =
+                self.schema_manager.get_edge_type(space_name, &schema_name)
+            {
+                edge_info.properties
+            } else {
+                return ValueType::Unknown;
+            };
 
         for prop in &properties {
             if prop.name == property {
@@ -957,7 +969,9 @@ impl SchemaValidator {
             "count" | "sum" | "avg" | "min" | "max" => ValueType::Int,
             "size" | "length" => ValueType::Int,
             "contains" | "startswith" | "endswith" | "haskey" => ValueType::Bool,
-            "substr" | "lower" | "upper" | "trim" | "ltrim" | "rtrim" | "replace" => ValueType::String,
+            "substr" | "lower" | "upper" | "trim" | "ltrim" | "rtrim" | "replace" => {
+                ValueType::String
+            }
             "abs" | "round" | "floor" | "ceil" | "sqrt" | "log" | "exp" | "pow" => ValueType::Float,
             "type" | "label" => ValueType::String,
             "id" => ValueType::Int,

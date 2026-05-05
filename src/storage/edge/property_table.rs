@@ -80,7 +80,7 @@ impl PropertyTable {
             name_to_index: HashMap::new(),
             rows: Vec::new(),
             free_list: Vec::new(),
-            next_offset: 0,
+            next_offset: 1,
         }
     }
 
@@ -90,7 +90,7 @@ impl PropertyTable {
             name_to_index: HashMap::new(),
             rows: Vec::with_capacity(capacity),
             free_list: Vec::new(),
-            next_offset: 0,
+            next_offset: 1,
         }
     }
 
@@ -111,10 +111,9 @@ impl PropertyTable {
         let offset = if let Some(free) = self.free_list.pop() {
             free
         } else {
-            let offset = self.next_offset;
-            self.next_offset += 1;
             self.rows.push(PropertyRow::new(self.schema.len()));
-            offset
+            self.next_offset = self.rows.len() as u32;
+            self.next_offset
         };
 
         self.update(offset, values)?;
@@ -123,11 +122,11 @@ impl PropertyTable {
 
     pub fn update(&mut self, offset: u32, values: &[(String, Value)]) -> StorageResult<()> {
         let offset_idx = offset as usize;
-        if offset_idx >= self.rows.len() {
+        if offset_idx == 0 || offset_idx > self.rows.len() {
             return Err(StorageError::InvalidOffset(offset));
         }
 
-        let row = &mut self.rows[offset_idx];
+        let row = &mut self.rows[offset_idx - 1];
         for (name, value) in values {
             if let Some(&col_idx) = self.name_to_index.get(name) {
                 row.set(col_idx, Some(value.clone()));
@@ -139,11 +138,11 @@ impl PropertyTable {
 
     pub fn get(&self, offset: u32) -> Option<Vec<(String, Option<Value>)>> {
         let offset_idx = offset as usize;
-        if offset_idx >= self.rows.len() {
+        if offset_idx == 0 || offset_idx > self.rows.len() {
             return None;
         }
 
-        let row = &self.rows[offset_idx];
+        let row = &self.rows[offset_idx - 1];
         Some(
             self.schema
                 .iter()
@@ -157,34 +156,40 @@ impl PropertyTable {
         let col_idx = *self.name_to_index.get(name)?;
         let offset_idx = offset as usize;
 
-        if offset_idx >= self.rows.len() {
+        if offset_idx == 0 || offset_idx > self.rows.len() {
             return None;
         }
 
-        self.rows[offset_idx].get(col_idx).cloned()
+        self.rows[offset_idx - 1].get(col_idx).cloned()
     }
 
-    pub fn set_property(&mut self, offset: u32, name: &str, value: Option<Value>) -> StorageResult<()> {
-        let col_idx = *self.name_to_index
+    pub fn set_property(
+        &mut self,
+        offset: u32,
+        name: &str,
+        value: Option<Value>,
+    ) -> StorageResult<()> {
+        let col_idx = *self
+            .name_to_index
             .get(name)
             .ok_or_else(|| StorageError::ColumnNotFound(name.to_string()))?;
 
         let offset_idx = offset as usize;
-        if offset_idx >= self.rows.len() {
+        if offset_idx == 0 || offset_idx > self.rows.len() {
             return Err(StorageError::InvalidOffset(offset));
         }
 
-        self.rows[offset_idx].set(col_idx, value);
+        self.rows[offset_idx - 1].set(col_idx, value);
         Ok(())
     }
 
     pub fn delete(&mut self, offset: u32) -> bool {
         let offset_idx = offset as usize;
-        if offset_idx >= self.rows.len() {
+        if offset_idx == 0 || offset_idx > self.rows.len() {
             return false;
         }
 
-        self.rows[offset_idx] = PropertyRow::new(self.schema.len());
+        self.rows[offset_idx - 1] = PropertyRow::new(self.schema.len());
         self.free_list.push(offset);
         true
     }
@@ -216,7 +221,9 @@ impl PropertyTable {
     }
 
     pub fn get_schema(&self, name: &str) -> Option<&PropertySchema> {
-        self.name_to_index.get(name).and_then(|&idx| self.schema.get(idx))
+        self.name_to_index
+            .get(name)
+            .and_then(|&idx| self.schema.get(idx))
     }
 
     pub fn dump(&self) -> Vec<u8> {
@@ -265,7 +272,8 @@ impl PropertyTable {
         if offset + 4 > data.len() {
             return;
         }
-        let schema_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+        let schema_len =
+            u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
         offset += 4;
 
         self.schema.clear();
@@ -275,7 +283,8 @@ impl PropertyTable {
             if offset + 4 > data.len() {
                 break;
             }
-            let name_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+            let name_len =
+                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
             offset += 4;
 
             if offset + name_len > data.len() {
@@ -294,7 +303,8 @@ impl PropertyTable {
             let nullable = data[offset] == 1;
             offset += 1;
 
-            let prop_schema = PropertySchema::new(name.clone(), prop_id, data_type).nullable(nullable);
+            let prop_schema =
+                PropertySchema::new(name.clone(), prop_id, data_type).nullable(nullable);
             self.name_to_index.insert(name, self.schema.len());
             self.schema.push(prop_schema);
         }
@@ -302,7 +312,8 @@ impl PropertyTable {
         if offset + 4 > data.len() {
             return;
         }
-        let rows_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+        let rows_len =
+            u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
         offset += 4;
 
         self.rows.clear();
@@ -311,7 +322,8 @@ impl PropertyTable {
             if offset + 4 > data.len() {
                 break;
             }
-            let values_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+            let values_len =
+                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
             offset += 4;
 
             let mut row = PropertyRow::new(values_len);
@@ -335,7 +347,8 @@ impl PropertyTable {
         if offset + 4 > data.len() {
             return;
         }
-        let free_list_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
+        let free_list_len =
+            u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
         offset += 4;
 
         self.free_list.clear();
@@ -343,13 +356,15 @@ impl PropertyTable {
             if offset + 4 > data.len() {
                 break;
             }
-            let free_offset = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+            let free_offset =
+                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
             offset += 4;
             self.free_list.push(free_offset);
         }
 
         if offset + 4 <= data.len() {
-            self.next_offset = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+            self.next_offset =
+                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
         }
     }
 }
@@ -371,15 +386,20 @@ mod tests {
         table.add_property("weight".to_string(), DataType::Double, false);
         table.add_property("since".to_string(), DataType::Int, true);
 
-        let offset = table.insert(&[
-            ("weight".to_string(), Value::Double(1.5)),
-            ("since".to_string(), Value::Int(2020)),
-        ]).unwrap();
+        let offset = table
+            .insert(&[
+                ("weight".to_string(), Value::Double(1.5)),
+                ("since".to_string(), Value::Int(2020)),
+            ])
+            .unwrap();
 
         let props = table.get(offset).unwrap();
         assert_eq!(props.len(), 2);
 
-        assert_eq!(table.get_property(offset, "weight"), Some(Value::Double(1.5)));
+        assert_eq!(
+            table.get_property(offset, "weight"),
+            Some(Value::Double(1.5))
+        );
         assert_eq!(table.get_property(offset, "since"), Some(Value::Int(2020)));
     }
 
@@ -388,11 +408,18 @@ mod tests {
         let mut table = PropertyTable::new();
         table.add_property("weight".to_string(), DataType::Double, false);
 
-        let offset = table.insert(&[("weight".to_string(), Value::Double(1.0))]).unwrap();
+        let offset = table
+            .insert(&[("weight".to_string(), Value::Double(1.0))])
+            .unwrap();
 
-        table.update(offset, &[("weight".to_string(), Value::Double(2.0))]).unwrap();
+        table
+            .update(offset, &[("weight".to_string(), Value::Double(2.0))])
+            .unwrap();
 
-        assert_eq!(table.get_property(offset, "weight"), Some(Value::Double(2.0)));
+        assert_eq!(
+            table.get_property(offset, "weight"),
+            Some(Value::Double(2.0))
+        );
     }
 
     #[test]
@@ -400,13 +427,19 @@ mod tests {
         let mut table = PropertyTable::new();
         table.add_property("weight".to_string(), DataType::Double, false);
 
-        let offset1 = table.insert(&[("weight".to_string(), Value::Double(1.0))]).unwrap();
-        let offset2 = table.insert(&[("weight".to_string(), Value::Double(2.0))]).unwrap();
+        let offset1 = table
+            .insert(&[("weight".to_string(), Value::Double(1.0))])
+            .unwrap();
+        let offset2 = table
+            .insert(&[("weight".to_string(), Value::Double(2.0))])
+            .unwrap();
 
         assert!(table.delete(offset1));
         assert_eq!(table.row_count(), 1);
 
-        let offset3 = table.insert(&[("weight".to_string(), Value::Double(3.0))]).unwrap();
+        let offset3 = table
+            .insert(&[("weight".to_string(), Value::Double(3.0))])
+            .unwrap();
         assert_eq!(offset3, offset1);
     }
 }

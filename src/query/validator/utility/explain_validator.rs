@@ -79,12 +79,13 @@ impl ExplainValidator {
     fn validate_impl(&mut self, stmt: &ExplainStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
-        let mut inner_validator = Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
-            ValidationError::new(
-                "Failed to create validator for inner statement".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
+        let mut inner_validator =
+            Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
+                ValidationError::new(
+                    "Failed to create validator for inner statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                )
+            })?;
 
         if let Some(ref sm) = self.schema_manager {
             inner_validator.set_schema_manager(sm.clone());
@@ -252,12 +253,13 @@ impl ProfileValidator {
     fn validate_impl(&mut self, stmt: &ProfileStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
-        let mut inner_validator = Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
-            ValidationError::new(
-                "Failed to create validator for inner statement".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
+        let mut inner_validator =
+            Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
+                ValidationError::new(
+                    "Failed to create validator for inner statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                )
+            })?;
 
         if let Some(ref sm) = self.schema_manager {
             inner_validator.set_schema_manager(sm.clone());

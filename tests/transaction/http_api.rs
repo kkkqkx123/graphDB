@@ -14,7 +14,9 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::api::server::http::handlers::query_types::{QueryData, QueryMetadata, QueryRequest, QueryResponse};
+use graphdb::api::server::http::handlers::query_types::{
+    QueryData, QueryMetadata, QueryRequest, QueryResponse,
+};
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -42,7 +44,11 @@ async fn test_http_transaction_begin_commit() {
 
     assert!(result.is_ok(), "BEGIN via HTTP should not timeout");
     let response = result.unwrap();
-    assert!(response.success, "BEGIN should succeed: {:?}", response.error);
+    assert!(
+        response.success,
+        "BEGIN should succeed: {:?}",
+        response.error
+    );
 
     // Simulate HTTP API call for COMMIT
     let commit_request = QueryRequest {
@@ -59,7 +65,11 @@ async fn test_http_transaction_begin_commit() {
 
     assert!(result.is_ok(), "COMMIT via HTTP should not timeout");
     let response = result.unwrap();
-    assert!(response.success, "COMMIT should succeed: {:?}", response.error);
+    assert!(
+        response.success,
+        "COMMIT should succeed: {:?}",
+        response.error
+    );
 }
 
 /// Test transaction rollback via HTTP API
@@ -117,22 +127,26 @@ async fn test_http_concurrent_transaction_requests() {
     for i in 0..5 {
         let handle = tokio::spawn(async move {
             let session_id = 100 + i;
-            
+
             // BEGIN
             let begin_req = QueryRequest {
                 query: "BEGIN".to_string(),
                 session_id,
                 parameters: Default::default(),
             };
-            
+
             let result = timeout(
                 Duration::from_secs(10),
                 simulate_http_query_execute(begin_req),
             )
             .await;
-            
+
             assert!(result.is_ok(), "Concurrent BEGIN {} should not timeout", i);
-            assert!(result.unwrap().success, "Concurrent BEGIN {} should succeed", i);
+            assert!(
+                result.unwrap().success,
+                "Concurrent BEGIN {} should succeed",
+                i
+            );
 
             // Small delay to simulate work
             tokio::time::sleep(Duration::from_millis(10)).await;
@@ -143,17 +157,21 @@ async fn test_http_concurrent_transaction_requests() {
                 session_id,
                 parameters: Default::default(),
             };
-            
+
             let result = timeout(
                 Duration::from_secs(10),
                 simulate_http_query_execute(commit_req),
             )
             .await;
-            
+
             assert!(result.is_ok(), "Concurrent COMMIT {} should not timeout", i);
-            assert!(result.unwrap().success, "Concurrent COMMIT {} should succeed", i);
+            assert!(
+                result.unwrap().success,
+                "Concurrent COMMIT {} should succeed",
+                i
+            );
         });
-        
+
         handles.push(handle);
     }
 
@@ -187,7 +205,7 @@ async fn test_http_transaction_with_data_operations() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(begin_req).await;
     assert!(result.success, "BEGIN should succeed");
 
@@ -197,7 +215,7 @@ async fn test_http_transaction_with_data_operations() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(insert_req).await;
     assert!(result.success, "INSERT should succeed");
 
@@ -207,7 +225,7 @@ async fn test_http_transaction_with_data_operations() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(commit_req).await;
     assert!(result.success, "COMMIT should succeed");
 
@@ -233,13 +251,13 @@ async fn test_http_rapid_transaction_requests() {
             session_id,
             parameters: Default::default(),
         };
-        
+
         let result = timeout(
             Duration::from_secs(5),
             simulate_http_query_execute(begin_req),
         )
         .await;
-        
+
         assert!(result.is_ok(), "Rapid BEGIN {} should not timeout", i);
         assert!(result.unwrap().success, "Rapid BEGIN {} should succeed", i);
 
@@ -249,13 +267,13 @@ async fn test_http_rapid_transaction_requests() {
             session_id,
             parameters: Default::default(),
         };
-        
+
         let result = timeout(
             Duration::from_secs(5),
             simulate_http_query_execute(commit_req),
         )
         .await;
-        
+
         assert!(result.is_ok(), "Rapid COMMIT {} should not timeout", i);
         assert!(result.unwrap().success, "Rapid COMMIT {} should succeed", i);
     }
@@ -276,7 +294,7 @@ async fn test_http_transaction_savepoints() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(req).await;
     assert!(result.success, "BEGIN should succeed");
 
@@ -286,7 +304,7 @@ async fn test_http_transaction_savepoints() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(req).await;
     assert!(result.success, "SAVEPOINT should succeed");
 
@@ -296,7 +314,7 @@ async fn test_http_transaction_savepoints() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(req).await;
     assert!(result.success, "RELEASE SAVEPOINT should succeed");
 
@@ -306,7 +324,7 @@ async fn test_http_transaction_savepoints() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(req).await;
     assert!(result.success, "COMMIT should succeed");
 }
@@ -326,7 +344,7 @@ async fn test_http_transaction_error_handling() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(invalid_req).await;
     assert!(!result.success, "Invalid query should fail");
     assert!(result.error.is_some(), "Error should be present");
@@ -337,7 +355,7 @@ async fn test_http_transaction_error_handling() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = simulate_http_query_execute(unknown_req).await;
     assert!(!result.success, "Unknown command should fail");
 }
@@ -357,13 +375,13 @@ async fn test_http_streaming_transaction() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = timeout(
         Duration::from_secs(5),
         simulate_http_stream_execute(begin_req),
     )
     .await;
-    
+
     assert!(result.is_ok(), "Streaming BEGIN should not timeout");
     assert!(result.unwrap().success, "Streaming BEGIN should succeed");
 
@@ -373,13 +391,13 @@ async fn test_http_streaming_transaction() {
         session_id,
         parameters: Default::default(),
     };
-    
+
     let result = timeout(
         Duration::from_secs(5),
         simulate_http_stream_execute(commit_req),
     )
     .await;
-    
+
     assert!(result.is_ok(), "Streaming COMMIT should not timeout");
     assert!(result.unwrap().success, "Streaming COMMIT should succeed");
 }
@@ -388,9 +406,7 @@ async fn test_http_streaming_transaction() {
 /// Ensures consistency between different access patterns
 #[tokio::test]
 async fn test_mixed_api_transaction_consistency() {
-    use graphdb::transaction::{
-        TransactionManager, TransactionManagerConfig, TransactionOptions,
-    };
+    use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
     use std::sync::Arc;
 
     let manager = Arc::new(TransactionManager::new(TransactionManagerConfig::default()));
@@ -426,12 +442,12 @@ async fn test_mixed_api_transaction_consistency() {
 async fn simulate_http_query_execute(request: QueryRequest) -> QueryResponse {
     // Simulate the async execution pattern used in the fixed HTTP handlers
     // This directly awaits instead of using spawn_blocking + block_on
-    
+
     // In a real scenario, this would call graph_service.execute().await
     // For testing, we simulate the response based on the query type
-    
+
     let query_upper = request.query.trim().to_uppercase();
-    
+
     let empty_data = QueryData::empty();
     let empty_metadata = QueryMetadata {
         execution_time_ms: 0,
@@ -439,7 +455,7 @@ async fn simulate_http_query_execute(request: QueryRequest) -> QueryResponse {
         rows_returned: 0,
         space_id: None,
     };
-    
+
     if query_upper.starts_with("BEGIN") {
         // Simulate successful BEGIN
         QueryResponse::success(empty_data, empty_metadata)
@@ -449,13 +465,14 @@ async fn simulate_http_query_execute(request: QueryRequest) -> QueryResponse {
     } else if query_upper.starts_with("ROLLBACK") {
         // Simulate successful ROLLBACK
         QueryResponse::success(empty_data, empty_metadata)
-    } else if query_upper.starts_with("SAVEPOINT") && !query_upper.starts_with("RELEASE SAVEPOINT") {
+    } else if query_upper.starts_with("SAVEPOINT") && !query_upper.starts_with("RELEASE SAVEPOINT")
+    {
         // Simulate successful SAVEPOINT
         QueryResponse::success(empty_data, empty_metadata)
     } else if query_upper.starts_with("RELEASE SAVEPOINT") {
         // Simulate successful RELEASE
         QueryResponse::success(empty_data, empty_metadata)
-    } else if query_upper.starts_with("INSERT") 
+    } else if query_upper.starts_with("INSERT")
         || query_upper.starts_with("UPDATE")
         || query_upper.starts_with("DELETE")
         || query_upper.starts_with("CREATE")
@@ -464,7 +481,8 @@ async fn simulate_http_query_execute(request: QueryRequest) -> QueryResponse {
         || query_upper.starts_with("SELECT")
         || query_upper.starts_with("SHOW")
         || query_upper.starts_with("USE")
-        || query_upper.starts_with("FETCH") {
+        || query_upper.starts_with("FETCH")
+    {
         // Simulate successful DML/DDL/DQL
         QueryResponse::success(empty_data, empty_metadata)
     } else {
@@ -499,7 +517,7 @@ async fn test_no_deadlock_in_async_transaction_handling() {
         let handle = tokio::spawn(async move {
             // Simulate the pattern: async fn -> await graph_service.execute()
             // This should NOT use spawn_blocking + block_on
-            
+
             let request = QueryRequest {
                 query: "BEGIN".to_string(),
                 session_id: i as i64,
@@ -508,7 +526,7 @@ async fn test_no_deadlock_in_async_transaction_handling() {
 
             // Direct await - this is the fixed pattern
             let result = simulate_http_query_execute(request).await;
-            
+
             if result.success {
                 counter.fetch_add(1, Ordering::SeqCst);
             }
@@ -523,7 +541,7 @@ async fn test_no_deadlock_in_async_transaction_handling() {
             };
 
             let result = simulate_http_query_execute(request).await;
-            
+
             if result.success {
                 counter.fetch_add(1, Ordering::SeqCst);
             }

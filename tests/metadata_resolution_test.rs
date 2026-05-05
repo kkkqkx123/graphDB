@@ -17,7 +17,7 @@ use graphdb::query::planning::plan::core::nodes::search::fulltext::data_access::
     FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
 };
 use graphdb::query::planning::plan::core::nodes::search::vector::data_access::{
-    OutputField, VectorMatchNode, VectorSearchParams, VectorSearchNode,
+    OutputField, VectorMatchNode, VectorSearchNode, VectorSearchParams,
 };
 use graphdb::query::planning::vector_planner::VectorSearchPlanner;
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
@@ -291,10 +291,7 @@ fn test_vector_search_metadata_flow() {
     // 2. Verify vector index can be found by field
     let found_index = metadata_context.find_vector_index_by_field(1, "embedding");
     assert!(found_index.is_some());
-    assert_eq!(
-        found_index.unwrap().index_name,
-        "idx_person_embedding"
-    );
+    assert_eq!(found_index.unwrap().index_name, "idx_person_embedding");
 }
 
 // ==================== Error Handling Tests ====================
@@ -351,18 +348,14 @@ fn test_multiple_fulltext_indexes() {
     context.set_index_metadata("idx_product_description".to_string(), index3);
 
     // Verify all indexes are accessible
-    assert!(context
-        .get_index_metadata("idx_article_content")
-        .is_some());
+    assert!(context.get_index_metadata("idx_article_content").is_some());
     assert!(context.get_index_metadata("idx_article_title").is_some());
     assert!(context
         .get_index_metadata("idx_product_description")
         .is_some());
 
     // Verify correct metadata for each
-    let article_content = context
-        .get_index_metadata("idx_article_content")
-        .unwrap();
+    let article_content = context.get_index_metadata("idx_article_content").unwrap();
     assert_eq!(article_content.field_name, "content");
 
     let article_title = context.get_index_metadata("idx_article_title").unwrap();
@@ -433,15 +426,11 @@ fn test_cross_space_metadata_isolation() {
     context.set_index_metadata("space2_idx_content".to_string(), space2_index);
 
     // Verify space isolation
-    let space1 = context
-        .get_index_metadata("space1_idx_content")
-        .unwrap();
+    let space1 = context.get_index_metadata("space1_idx_content").unwrap();
     assert_eq!(space1.space_id, 1);
     assert_eq!(space1.tag_name, "article");
 
-    let space2 = context
-        .get_index_metadata("space2_idx_content")
-        .unwrap();
+    let space2 = context.get_index_metadata("space2_idx_content").unwrap();
     assert_eq!(space2.space_id, 2);
     assert_eq!(space2.tag_name, "post");
 }

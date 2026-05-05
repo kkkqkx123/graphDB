@@ -547,7 +547,11 @@ fn test_dcl_error_handling() {
 
     for query in invalid_queries {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_err(), "Invalid query should return error: {}", query);
+        assert!(
+            result.is_err(),
+            "Invalid query should return error: {}",
+            query
+        );
     }
 }
 

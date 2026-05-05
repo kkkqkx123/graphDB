@@ -71,7 +71,9 @@ impl StorageMigrator {
             if let Some(vertex) = source.get_by_internal_id(internal_id, ts) {
                 let record = VertexRecord::new(internal_id as u64, ts);
 
-                if current_page.is_none() || !self.can_fit_vertex_record(current_page.as_ref().unwrap()) {
+                if current_page.is_none()
+                    || !self.can_fit_vertex_record(current_page.as_ref().unwrap())
+                {
                     if let Some(page) = current_page.take() {
                         page_manager.put_page(page)?;
                         self.stats.pages_created += 1;
@@ -119,13 +121,7 @@ impl StorageMigrator {
             let edges = source.out_edges(src, ts);
 
             for edge in edges {
-                let record = EdgeRecord::new(
-                    edge.src_vid,
-                    edge.dst_vid,
-                    edge.edge_id,
-                    0,
-                    ts,
-                );
+                let record = EdgeRecord::new(edge.src_vid, edge.dst_vid, edge.edge_id, 0, ts);
                 flat_csr.insert(src, record);
                 self.stats.edges_migrated += 1;
             }
@@ -225,17 +221,15 @@ pub fn verify_migration(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::vertex::{VertexSchema, PropertyDef};
     use crate::core::{DataType, Value};
+    use crate::storage::vertex::{PropertyDef, VertexSchema};
     use tempfile::tempdir;
 
     fn create_test_vertex_schema() -> VertexSchema {
         VertexSchema {
             label_id: 0,
             label_name: "person".to_string(),
-            properties: vec![
-                PropertyDef::new("name".to_string(), DataType::String),
-            ],
+            properties: vec![PropertyDef::new("name".to_string(), DataType::String)],
             primary_key_index: 0,
         }
     }

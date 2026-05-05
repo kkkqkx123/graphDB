@@ -191,10 +191,7 @@ async fn test_metadata_persistence() {
     let manager = create_manager_with_path(temp_dir.path());
 
     let metadata = manager.get_metadata(1, "Article", "content");
-    assert!(
-        metadata.is_some(),
-        "Metadata should persist after restart"
-    );
+    assert!(metadata.is_some(), "Metadata should persist after restart");
 
     let metadata = metadata.unwrap();
     assert_eq!(metadata.space_id, 1);
@@ -293,10 +290,7 @@ async fn test_stats_persistence() {
         .await
         .expect("Should get stats");
 
-    assert_eq!(
-        stats.doc_count, 5,
-        "Document count should persist in stats"
-    );
+    assert_eq!(stats.doc_count, 5, "Document count should persist in stats");
 }
 
 /// TC-FT-PERSIST-008: Deleted Document Persistence
@@ -313,8 +307,14 @@ async fn test_deleted_document_persistence() {
             .expect("Failed to create index");
 
         if let Some(engine) = manager.get_engine(1, "Article", "content") {
-            engine.index("doc_1", "To be deleted").await.expect("Failed to index");
-            engine.index("doc_2", "To keep").await.expect("Failed to index");
+            engine
+                .index("doc_1", "To be deleted")
+                .await
+                .expect("Failed to index");
+            engine
+                .index("doc_2", "To keep")
+                .await
+                .expect("Failed to index");
             engine.commit().await.expect("Failed to commit");
 
             engine.delete("doc_1").await.expect("Failed to delete");
@@ -328,21 +328,13 @@ async fn test_deleted_document_persistence() {
         .search(1, "Article", "content", "deleted", 10)
         .await
         .expect("Search should succeed");
-    assert_eq!(
-        results.len(),
-        0,
-        "Deleted document should not persist"
-    );
+    assert_eq!(results.len(), 0, "Deleted document should not persist");
 
     let results_keep = manager
         .search(1, "Article", "content", "keep", 10)
         .await
         .expect("Search should succeed");
-    assert_eq!(
-        results_keep.len(),
-        1,
-        "Non-deleted document should persist"
-    );
+    assert_eq!(results_keep.len(), 1, "Non-deleted document should persist");
 }
 
 /// TC-FT-PERSIST-009: Mixed Engine Persistence
@@ -387,20 +379,14 @@ async fn test_mixed_engine_persistence() {
         bm25_metadata.is_some(),
         "BM25 index metadata should persist"
     );
-    assert_eq!(
-        bm25_metadata.unwrap().engine_type,
-        EngineType::Bm25
-    );
+    assert_eq!(bm25_metadata.unwrap().engine_type, EngineType::Bm25);
 
     let inv_metadata = manager.get_metadata(1, "Article", "inv_field");
     assert!(
         inv_metadata.is_some(),
         "Inversearch index metadata should persist"
     );
-    assert_eq!(
-        inv_metadata.unwrap().engine_type,
-        EngineType::Inversearch
-    );
+    assert_eq!(inv_metadata.unwrap().engine_type, EngineType::Inversearch);
 }
 
 /// TC-FT-PERSIST-010: Dropped Index Persistence

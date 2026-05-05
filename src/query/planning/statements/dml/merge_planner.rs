@@ -17,8 +17,8 @@ use crate::core::{Expression, Value};
 use crate::query::parser::ast::{MergeStmt, Pattern, SetClause, Stmt};
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::{
-    ArgumentNode, InsertEdgesNode, InsertVerticesNode, SelectNode, TagInsertSpec, UpdateNode,
-    UpdateTargetType, VertexInsertInfo, VertexUpdateInfo, EdgeInsertInfo,
+    ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, SelectNode, TagInsertSpec,
+    UpdateNode, UpdateTargetType, VertexInsertInfo, VertexUpdateInfo,
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -62,7 +62,7 @@ impl MergePlanner {
                         PlannerError::PlanGenerationFailed(
                             "MERGE node pattern must have a label".to_string(),
                         )
-    })?
+                    })?
                     .clone();
 
                 let (prop_names, prop_values, vid_expr) =
@@ -109,8 +109,7 @@ impl MergePlanner {
                     })?
                     .clone();
 
-                let (prop_names, prop_values) = if let Some(props_expr) = &edge_pattern.properties
-                {
+                let (prop_names, prop_values) = if let Some(props_expr) = &edge_pattern.properties {
                     if let Some(Expression::Map(entries)) = props_expr.get_expression() {
                         let mut names = Vec::new();
                         let mut values = Vec::new();
@@ -118,7 +117,8 @@ impl MergePlanner {
                             names.push(key.clone());
                             let value_meta = ExpressionMeta::new(value.clone());
                             let value_id = expr_context.register_expression(value_meta);
-                            let ctx_value = ContextualExpression::new(value_id, expr_context.clone());
+                            let ctx_value =
+                                ContextualExpression::new(value_id, expr_context.clone());
                             values.push(ctx_value);
                         }
                         (names, values)
@@ -245,7 +245,8 @@ impl MergePlanner {
 
         if let Some(set_clause) = on_create {
             let update_info = self.build_update_info(set_clause, space_name, expr_context)?;
-            let update_node = UpdateNode::new(next_node_id(), UpdateTargetType::Vertex(update_info));
+            let update_node =
+                UpdateNode::new(next_node_id(), UpdateTargetType::Vertex(update_info));
             current_node = PlanNodeEnum::Update(update_node);
         }
 
@@ -308,8 +309,11 @@ impl Planner for MergePlanner {
             return Ok(sub_plan);
         }
 
-        let vertex_info =
-            self.pattern_to_vertex_info(&merge_stmt.pattern, space_name.clone(), validated.expr_context())?;
+        let vertex_info = self.pattern_to_vertex_info(
+            &merge_stmt.pattern,
+            space_name.clone(),
+            validated.expr_context(),
+        )?;
 
         let has_on_match = merge_stmt.on_match.is_some();
         let has_on_create = merge_stmt.on_create.is_some();
@@ -332,11 +336,8 @@ impl Planner for MergePlanner {
         let mut select_node = SelectNode::new(next_node_id(), condition);
 
         if let Some(ref on_match) = merge_stmt.on_match {
-            let if_branch = self.build_on_match_branch(
-                on_match,
-                space_name.clone(),
-                validated.expr_context(),
-            )?;
+            let if_branch =
+                self.build_on_match_branch(on_match, space_name.clone(), validated.expr_context())?;
             select_node.set_if_branch(if_branch);
         }
 

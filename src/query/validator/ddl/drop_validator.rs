@@ -109,7 +109,11 @@ impl DropValidator {
                 index_name,
             } => {
                 self.target_type = DropTargetType::TagIndex;
-                self.space_name = if space_name.is_empty() { None } else { Some(space_name.clone()) };
+                self.space_name = if space_name.is_empty() {
+                    None
+                } else {
+                    Some(space_name.clone())
+                };
                 self.target_name = index_name.clone();
 
                 if index_name.is_empty() {
@@ -124,7 +128,11 @@ impl DropValidator {
                 index_name,
             } => {
                 self.target_type = DropTargetType::EdgeIndex;
-                self.space_name = if space_name.is_empty() { None } else { Some(space_name.clone()) };
+                self.space_name = if space_name.is_empty() {
+                    None
+                } else {
+                    Some(space_name.clone())
+                };
                 self.target_name = index_name.clone();
 
                 if index_name.is_empty() {

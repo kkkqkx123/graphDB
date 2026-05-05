@@ -34,7 +34,10 @@ struct MockCollection {
 impl std::fmt::Debug for MockVectorEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MockVectorEngine")
-            .field("collections", &self.collections.read().unwrap().keys().collect::<Vec<_>>())
+            .field(
+                "collections",
+                &self.collections.read().unwrap().keys().collect::<Vec<_>>(),
+            )
             .field("default_dimension", &self.default_dimension)
             .finish()
     }
@@ -55,10 +58,8 @@ impl MockVectorEngine {
         {
             let mut cols = engine.collections.write().unwrap();
             for (name, (config, points)) in collections {
-                let points_map: HashMap<String, VectorPoint> = points
-                    .into_iter()
-                    .map(|p| (p.id.clone(), p))
-                    .collect();
+                let points_map: HashMap<String, VectorPoint> =
+                    points.into_iter().map(|p| (p.id.clone(), p)).collect();
                 cols.insert(
                     name,
                     MockCollection {
@@ -133,7 +134,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         let expected_dim = col.config.vector_size;
         if point.vector.len() != expected_dim {
             return Err(VectorClientError::InvalidVectorDimension {
@@ -141,7 +142,7 @@ impl VectorEngine for MockVectorEngine {
                 actual: point.vector.len(),
             });
         }
-        
+
         col.points.insert(point.id.clone(), point);
         Ok(UpsertResult {
             operation_id: None,
@@ -158,7 +159,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         let expected_dim = col.config.vector_size;
         for point in &points {
             if point.vector.len() != expected_dim {
@@ -168,7 +169,7 @@ impl VectorEngine for MockVectorEngine {
                 });
             }
         }
-        
+
         for point in points {
             col.points.insert(point.id.clone(), point);
         }
@@ -183,7 +184,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         let removed = col.points.remove(point_id).is_some();
         Ok(DeleteResult {
             operation_id: None,
@@ -196,7 +197,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         let mut deleted_count = 0u64;
         for id in point_ids {
             if col.points.remove(id).is_some() {
@@ -218,7 +219,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         let count = col.points.len() as u64;
         col.points.clear();
         Ok(DeleteResult {
@@ -232,7 +233,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         let mut results: Vec<SearchResult> = col
             .points
             .values()
@@ -240,7 +241,7 @@ impl VectorEngine for MockVectorEngine {
                 if !matches_filter(&query.filter, point) {
                     return None;
                 }
-                
+
                 let score = compute_similarity(&query.vector, &point.vector, col.config.distance);
                 if let Some(threshold) = query.score_threshold {
                     if score < threshold {
@@ -263,16 +264,16 @@ impl VectorEngine for MockVectorEngine {
                 })
             })
             .collect();
-        
+
         results.sort_by(|a, b| {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        
+
         let offset = query.offset.unwrap_or(0);
         let limit = query.limit;
-        
+
         results = results.into_iter().skip(offset).take(limit).collect();
         Ok(results)
     }
@@ -306,7 +307,10 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        Ok(point_ids.into_iter().map(|id| col.points.get(id).cloned()).collect())
+        Ok(point_ids
+            .into_iter()
+            .map(|id| col.points.get(id).cloned())
+            .collect())
     }
 
     async fn count(&self, collection: &str) -> Result<u64> {
@@ -327,7 +331,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         for id in point_ids {
             if let Some(point) = col.points.get_mut(id) {
                 let existing = point.payload.get_or_insert_with(HashMap::new);
@@ -349,7 +353,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         for id in point_ids {
             if let Some(point) = col.points.get_mut(id) {
                 if let Some(ref mut payload) = point.payload {
@@ -374,7 +378,7 @@ impl VectorEngine for MockVectorEngine {
         let col = collections
             .get(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
-        
+
         let mut points: Vec<VectorPoint> = col
             .points
             .values()
@@ -389,22 +393,26 @@ impl VectorEngine for MockVectorEngine {
                 point
             })
             .collect();
-        
+
         points.sort_by(|a, b| a.id.cmp(&b.id));
-        
+
         let skip = if let Some(offset_id) = offset {
-            points.iter().position(|p| p.id == offset_id).map(|i| i + 1).unwrap_or(0)
+            points
+                .iter()
+                .position(|p| p.id == offset_id)
+                .map(|i| i + 1)
+                .unwrap_or(0)
         } else {
             0
         };
-        
+
         let result: Vec<VectorPoint> = points.into_iter().skip(skip).take(limit).collect();
         let next_offset = if result.len() == limit {
             result.last().map(|p| p.id.clone())
         } else {
             None
         };
-        
+
         Ok((result, next_offset))
     }
 
@@ -475,7 +483,7 @@ fn matches_filter(filter: &Option<VectorFilter>, point: &VectorPoint) -> bool {
     let Some(filter) = filter else {
         return true;
     };
-    
+
     if let Some(ref must) = filter.must {
         for condition in must {
             if !matches_condition(condition, point) {
@@ -483,7 +491,7 @@ fn matches_filter(filter: &Option<VectorFilter>, point: &VectorPoint) -> bool {
             }
         }
     }
-    
+
     if let Some(ref must_not) = filter.must_not {
         for condition in must_not {
             if matches_condition(condition, point) {
@@ -491,15 +499,18 @@ fn matches_filter(filter: &Option<VectorFilter>, point: &VectorPoint) -> bool {
             }
         }
     }
-    
+
     if let Some(ref should) = filter.should {
         let min_count = filter.min_should.as_ref().map(|m| m.min_count).unwrap_or(1);
-        let match_count = should.iter().filter(|c| matches_condition(c, point)).count();
+        let match_count = should
+            .iter()
+            .filter(|c| matches_condition(c, point))
+            .count();
         if match_count < min_count {
             return false;
         }
     }
-    
+
     true
 }
 
@@ -507,7 +518,7 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
     let Some(ref payload) = point.payload else {
         return false;
     };
-    
+
     match &condition.condition {
         ConditionType::Match { value } => {
             if let Some(field_value) = payload.get(&condition.field) {
@@ -555,33 +566,25 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
             }
             false
         }
-        ConditionType::IsEmpty => {
-            match payload.get(&condition.field) {
-                None => true,
-                Some(v) => v.is_null(),
-            }
-        }
+        ConditionType::IsEmpty => match payload.get(&condition.field) {
+            None => true,
+            Some(v) => v.is_null(),
+        },
         ConditionType::IsNull => payload.get(&condition.field).is_none(),
         ConditionType::HasId { ids } => ids.contains(&point.id),
         ConditionType::Contains { value } => {
             if let Some(field_value) = payload.get(&condition.field) {
                 if let Some(arr) = field_value.as_array() {
-                    return arr.iter().any(|v| {
-                        v.as_str().map(|s| s == value).unwrap_or(false)
-                    });
+                    return arr
+                        .iter()
+                        .any(|v| v.as_str().map(|s| s == value).unwrap_or(false));
                 }
             }
             false
         }
-        ConditionType::Nested { filter } => {
-            matches_filter(&Some(*filter.clone()), point)
-        }
-        ConditionType::Payload { key: _, value: _ } => {
-            true
-        }
-        ConditionType::GeoRadius(_) | ConditionType::GeoBoundingBox(_) => {
-            true
-        }
+        ConditionType::Nested { filter } => matches_filter(&Some(*filter.clone()), point),
+        ConditionType::Payload { key: _, value: _ } => true,
+        ConditionType::GeoRadius(_) | ConditionType::GeoBoundingBox(_) => true,
         ConditionType::ValuesCount(_) => true,
     }
 }
@@ -896,12 +899,12 @@ impl Default for VectorTestContext {
 /// Generate a random vector with specified dimension
 pub fn generate_random_vector(dimension: usize) -> Vec<f32> {
     use std::collections::hash_map::RandomState;
-    use std::hash::{BuildHasher, Hasher, Hash};
-    
+    use std::hash::{BuildHasher, Hash, Hasher};
+
     let state = RandomState::new();
     let mut hasher = state.build_hasher();
     std::time::SystemTime::now().hash(&mut hasher);
-    
+
     let mut vector = Vec::with_capacity(dimension);
     for i in 0..dimension {
         let mut h = hasher.clone();
@@ -909,7 +912,7 @@ pub fn generate_random_vector(dimension: usize) -> Vec<f32> {
         let val = h.finish() as f32 / u64::MAX as f32;
         vector.push(val * 2.0 - 1.0);
     }
-    
+
     let norm: f32 = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
     if norm > 0.0 {
         for val in vector.iter_mut() {

@@ -28,12 +28,12 @@ use crate::query::planning::plan::core::nodes::management::space_nodes::{
     AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
     ShowCreateSpaceNode, ShowSpacesNode, SwitchSpaceNode,
 };
-use crate::query::planning::plan::core::nodes::management::user_nodes::{
-    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode,
-    RevokeRoleNode, ShowRolesNode, ShowUsersNode,
-};
 use crate::query::planning::plan::core::nodes::management::tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
+};
+use crate::query::planning::plan::core::nodes::management::user_nodes::{
+    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
+    ShowRolesNode, ShowUsersNode,
 };
 use crate::query::planning::plan::core::nodes::search::fulltext::management::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,

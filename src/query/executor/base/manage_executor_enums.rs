@@ -16,6 +16,10 @@ use crate::query::executor::admin::edge::{
     AlterEdgeExecutor, CreateEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
 };
 use crate::query::executor::admin::index::{
+    AlterFulltextIndexExecutor, CreateFulltextIndexExecutor, DescribeFulltextIndexExecutor,
+    DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
+};
+use crate::query::executor::admin::index::{
     CreateEdgeIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor, DescTagIndexExecutor,
     DropEdgeIndexExecutor, DropTagIndexExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor,
     ShowEdgeIndexesExecutor, ShowTagIndexesExecutor,
@@ -32,13 +36,7 @@ use crate::query::executor::admin::user::{
     AlterUserExecutor, ChangePasswordExecutor, CreateUserExecutor, DropUserExecutor,
     GrantRoleExecutor, RevokeRoleExecutor,
 };
-use crate::query::executor::admin::index::{
-    AlterFulltextIndexExecutor, CreateFulltextIndexExecutor, DescribeFulltextIndexExecutor,
-    DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
-};
-use crate::query::executor::data_access::{
-    CreateVectorIndexExecutor, DropVectorIndexExecutor,
-};
+use crate::query::executor::data_access::{CreateVectorIndexExecutor, DropVectorIndexExecutor};
 use crate::storage::StorageClient;
 
 macro_rules! define_manage_executor_enum {

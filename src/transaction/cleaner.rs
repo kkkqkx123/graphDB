@@ -9,7 +9,9 @@ use dashmap::DashMap;
 use crate::storage::shared_state::StorageInner;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
-use crate::transaction::types::{TransactionError, TransactionId, TransactionState, TransactionStats};
+use crate::transaction::types::{
+    TransactionError, TransactionId, TransactionState, TransactionStats,
+};
 
 /// Transaction Cleaner
 ///

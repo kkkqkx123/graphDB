@@ -225,7 +225,9 @@ pub struct TimeBasedInvalidation {
 
 impl TimeBasedInvalidation {
     pub fn new(default_ttl_seconds: u64) -> Self {
-        Self { default_ttl_seconds }
+        Self {
+            default_ttl_seconds,
+        }
     }
 
     pub fn default_ttl(&self) -> std::time::Duration {
@@ -359,12 +361,15 @@ impl InvalidationManager {
 
     /// Register a table dependency for a cache key
     pub fn register_dependency(&self, cache_key: CacheKey, table_name: TableName) {
-        self.table_strategy.register_dependency(cache_key, table_name);
+        self.table_strategy
+            .register_dependency(cache_key, table_name);
     }
 
     /// Register multiple table dependencies for a cache key
     pub fn register_dependencies(&self, cache_key: CacheKey, tables: Vec<TableName>) {
-        self.table_strategy.tracker().register_dependencies(cache_key, tables);
+        self.table_strategy
+            .tracker()
+            .register_dependencies(cache_key, tables);
     }
 
     /// Handle a data change event
@@ -454,7 +459,8 @@ mod tests {
 
     #[test]
     fn test_data_change_event_with_ids() {
-        let event = DataChangeEvent::update("users").with_affected_ids(vec!["1".into(), "2".into()]);
+        let event =
+            DataChangeEvent::update("users").with_affected_ids(vec!["1".into(), "2".into()]);
         assert_eq!(event.table_name, "users");
         assert_eq!(event.change_type, DataChangeType::Update);
         assert_eq!(event.affected_ids.as_ref().map(|v| v.len()), Some(2));

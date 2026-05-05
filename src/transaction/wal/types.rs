@@ -5,9 +5,9 @@
 use std::fmt;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
-use oxicode::{Encode, Decode};
 use crc32fast::Hasher;
+use oxicode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 
 /// WAL magic number for file identification
 pub const WAL_MAGIC: u32 = 0x47524150; // "GRAP" in hex
@@ -63,7 +63,9 @@ pub type TransactionId = u64;
 pub type PageId = u64;
 
 /// LSN (Log Sequence Number) - monotonically increasing byte offset
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode,
+)]
 pub struct Lsn(pub u64);
 
 impl Lsn {
@@ -229,7 +231,7 @@ impl WalFileHeader {
     pub fn new(thread_id: u32, checkpoint_seq: u64, start_lsn: Lsn) -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        
+
         Self {
             magic: WAL_MAGIC,
             version: WAL_VERSION,
@@ -259,7 +261,8 @@ impl WalFileHeader {
         if bytes.len() < Self::SIZE {
             return None;
         }
-        let header: WalFileHeader = unsafe { std::ptr::read(bytes.as_ptr() as *const WalFileHeader) };
+        let header: WalFileHeader =
+            unsafe { std::ptr::read(bytes.as_ptr() as *const WalFileHeader) };
         Some(header)
     }
 
@@ -391,8 +394,7 @@ impl WalHeader {
     }
 
     pub fn with_compression(mut self, compression: WalCompression) -> Self {
-        self.flags = (self.flags & !wal_flags::COMPRESSION_MASK) 
-            | (compression.flag_byte() as u16);
+        self.flags = (self.flags & !wal_flags::COMPRESSION_MASK) | (compression.flag_byte() as u16);
         self
     }
 
@@ -756,13 +758,9 @@ pub enum SyncPolicy {
     #[default]
     EveryWrite,
     /// Sync periodically with specified interval
-    Periodic {
-        interval_ms: u64,
-    },
+    Periodic { interval_ms: u64 },
     /// Sync after N writes (batch sync)
-    Batch {
-        batch_size: usize,
-    },
+    Batch { batch_size: usize },
     /// Sync after group commit (combines with group commit feature)
     GroupCommit,
 }
@@ -827,7 +825,7 @@ pub struct WalConfig {
 impl Default for WalConfig {
     fn default() -> Self {
         Self {
-            truncate_size: 4 * 1024 * 1024, // 4MB
+            truncate_size: 4 * 1024 * 1024,  // 4MB
             max_file_size: 64 * 1024 * 1024, // 64MB
             sync_policy: SyncPolicy::default(),
             group_commit_enabled: true,
@@ -935,11 +933,11 @@ mod tests {
     fn test_lsn() {
         let mut lsn = Lsn::new(100);
         assert_eq!(lsn.as_u64(), 100);
-        
+
         let old = lsn.increment(50);
         assert_eq!(old.as_u64(), 100);
         assert_eq!(lsn.as_u64(), 150);
-        
+
         let display = format!("{}", lsn);
         assert!(display.contains("LSN"));
     }
@@ -958,21 +956,15 @@ mod tests {
     fn test_wal_header_with_lsn() {
         let header = WalHeader::new(WalOpType::InsertVertex, 12345, 100)
             .with_lsn(Lsn::new(1000), Lsn::new(900));
-        
+
         assert_eq!(header.lsn().as_u64(), 1000);
         assert_eq!(header.prev_lsn().as_u64(), 900);
     }
 
     #[test]
     fn test_wal_op_type() {
-        assert_eq!(
-            WalOpType::try_from(0).unwrap(),
-            WalOpType::InsertVertex
-        );
-        assert_eq!(
-            WalOpType::try_from(6).unwrap(),
-            WalOpType::UpdateVertexProp
-        );
+        assert_eq!(WalOpType::try_from(0).unwrap(), WalOpType::InsertVertex);
+        assert_eq!(WalOpType::try_from(6).unwrap(), WalOpType::UpdateVertexProp);
         assert!(WalOpType::try_from(100).is_err());
     }
 
@@ -993,9 +985,9 @@ mod tests {
         let header = WalHeader::new(WalOpType::InsertVertex, 12345, payload.len() as u32)
             .with_lsn(Lsn::new(100), Lsn::new(0))
             .with_checksum(payload);
-        
+
         assert!(header.verify_checksum(payload));
-        
+
         let corrupted_payload = b"corrupted_data";
         assert!(!header.verify_checksum(corrupted_payload));
     }
@@ -1007,10 +999,10 @@ mod tests {
         assert_eq!(header.thread_id, 1);
         assert_eq!(header.checkpoint_seq, 0);
         assert_eq!(header.start_lsn().as_u64(), 1000);
-        
+
         let bytes = header.as_bytes();
         assert_eq!(bytes.len(), WalFileHeader::SIZE);
-        
+
         let parsed = WalFileHeader::from_bytes(bytes).unwrap();
         assert!(parsed.is_valid());
         assert_eq!(parsed.thread_id, 1);
@@ -1025,7 +1017,7 @@ mod tests {
             .with_recovery_mode(WalRecoveryMode::AbortOnCorruption)
             .with_sync_policy(SyncPolicy::Batch { batch_size: 100 })
             .with_parallel_recovery(8);
-        
+
         assert!(config.checksum_enabled);
         assert!(config.group_commit_enabled);
         assert_eq!(config.group_commit_delay_us, 200);

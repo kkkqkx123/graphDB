@@ -40,8 +40,8 @@ pub use config::{
 
 // Re-export stats types
 pub use stats::{
-    CacheCounters, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot,
-    MemoryStats, MetricsRecorder, PlanCacheStats, PlanCacheStatsSnapshot,
+    CacheCounters, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, MemoryStats,
+    MetricsRecorder, PlanCacheStats, PlanCacheStatsSnapshot,
 };
 
 // Re-export invalidation types
@@ -56,14 +56,10 @@ pub use plan_cache::{
 };
 
 // Re-export the CTE cache types
-pub use cte_cache::{
-    CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
-};
+pub use cte_cache::{CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager};
 
 // Re-export the manager types
-pub use manager::{
-    CacheManager, CacheStatsSummary, GlobalCacheManager, GlobalCacheStats,
-};
+pub use manager::{CacheManager, CacheStatsSummary, GlobalCacheManager, GlobalCacheStats};
 
 // Re-export the warmup module types
 pub use warmup::{

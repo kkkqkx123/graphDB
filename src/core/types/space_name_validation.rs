@@ -18,8 +18,12 @@ impl fmt::Display for SpaceNameValidationError {
         match self {
             Self::Empty => write!(f, "Space name cannot be empty"),
             Self::TooLong(len) => write!(f, "Space name too long: {} characters (max 64)", len),
-            Self::InvalidStart(c) => write!(f, "Space name must start with a letter, found: '{}'", c),
-            Self::InvalidCharacter(c) => write!(f, "Space name contains invalid character: '{}'", c),
+            Self::InvalidStart(c) => {
+                write!(f, "Space name must start with a letter, found: '{}'", c)
+            }
+            Self::InvalidCharacter(c) => {
+                write!(f, "Space name contains invalid character: '{}'", c)
+            }
             Self::ReservedName(name) => write!(f, "Space name '{}' is reserved", name),
         }
     }
@@ -28,8 +32,15 @@ impl fmt::Display for SpaceNameValidationError {
 impl std::error::Error for SpaceNameValidationError {}
 
 const MAX_SPACE_NAME_LENGTH: usize = 64;
-const INVALID_CHARS: &[char] = &[' ', '\t', '\n', '\r', ',', ';', '(', ')', '[', ']', '{', '}', '.', '/', '\\', '\'', '"'];
-const RESERVED_NAMES: &[&str] = &["system", "information_schema", "mysql", "performance_schema"];
+const INVALID_CHARS: &[char] = &[
+    ' ', '\t', '\n', '\r', ',', ';', '(', ')', '[', ']', '{', '}', '.', '/', '\\', '\'', '"',
+];
+const RESERVED_NAMES: &[&str] = &[
+    "system",
+    "information_schema",
+    "mysql",
+    "performance_schema",
+];
 
 pub fn validate_space_name(name: &str) -> Result<(), SpaceNameValidationError> {
     if name.is_empty() {
@@ -84,30 +95,54 @@ mod tests {
 
     #[test]
     fn test_empty_name() {
-        assert_eq!(validate_space_name(""), Err(SpaceNameValidationError::Empty));
+        assert_eq!(
+            validate_space_name(""),
+            Err(SpaceNameValidationError::Empty)
+        );
     }
 
     #[test]
     fn test_too_long_name() {
         let long_name = "a".repeat(65);
-        assert_eq!(validate_space_name(&long_name), Err(SpaceNameValidationError::TooLong(65)));
-        
+        assert_eq!(
+            validate_space_name(&long_name),
+            Err(SpaceNameValidationError::TooLong(65))
+        );
+
         let max_name = "a".repeat(64);
         assert!(validate_space_name(&max_name).is_ok());
     }
 
     #[test]
     fn test_invalid_start() {
-        assert_eq!(validate_space_name("_test"), Err(SpaceNameValidationError::InvalidStart('_')));
-        assert_eq!(validate_space_name("123space"), Err(SpaceNameValidationError::InvalidStart('1')));
-        assert_eq!(validate_space_name("-test"), Err(SpaceNameValidationError::InvalidStart('-')));
+        assert_eq!(
+            validate_space_name("_test"),
+            Err(SpaceNameValidationError::InvalidStart('_'))
+        );
+        assert_eq!(
+            validate_space_name("123space"),
+            Err(SpaceNameValidationError::InvalidStart('1'))
+        );
+        assert_eq!(
+            validate_space_name("-test"),
+            Err(SpaceNameValidationError::InvalidStart('-'))
+        );
     }
 
     #[test]
     fn test_invalid_characters() {
-        assert_eq!(validate_space_name("test space"), Err(SpaceNameValidationError::InvalidCharacter(' ')));
-        assert_eq!(validate_space_name("test;drop"), Err(SpaceNameValidationError::InvalidCharacter(';')));
-        assert_eq!(validate_space_name("test.name"), Err(SpaceNameValidationError::InvalidCharacter('.')));
+        assert_eq!(
+            validate_space_name("test space"),
+            Err(SpaceNameValidationError::InvalidCharacter(' '))
+        );
+        assert_eq!(
+            validate_space_name("test;drop"),
+            Err(SpaceNameValidationError::InvalidCharacter(';'))
+        );
+        assert_eq!(
+            validate_space_name("test.name"),
+            Err(SpaceNameValidationError::InvalidCharacter('.'))
+        );
     }
 
     #[test]

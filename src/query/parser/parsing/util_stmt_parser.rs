@@ -163,7 +163,7 @@ impl UtilStmtParser {
             } else {
                 Some(ctx.expect_identifier()?)
             };
-            
+
             let first_expr = self.parse_expression(ctx)?;
             if ctx.check_token(TokenKind::Arrow) {
                 ctx.expect_token(TokenKind::Arrow)?;

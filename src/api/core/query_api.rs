@@ -119,9 +119,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let start_time = Instant::now();
 
         // Constructing a QueryRequestContext
-        let rctx = Arc::new(
-            crate::query::QueryRequestContext::new(query.to_string()),
-        );
+        let rctx = Arc::new(crate::query::QueryRequestContext::new(query.to_string()));
 
         // Build space info from request context if space_id is provided
         let space_info = ctx.space_id.map(|id| {
@@ -214,8 +212,14 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             crate::query::executor::base::ExecutionResult::SpaceSwitched(summary) => {
                 // Space switched successfully
                 let mut row = crate::api::core::types::Row::new();
-                row.values.insert("space_name".to_string(), crate::core::Value::String(summary.name.clone()));
-                row.values.insert("space_id".to_string(), crate::core::Value::BigInt(summary.id as i64));
+                row.values.insert(
+                    "space_name".to_string(),
+                    crate::core::Value::String(summary.name.clone()),
+                );
+                row.values.insert(
+                    "space_id".to_string(),
+                    crate::core::Value::BigInt(summary.id as i64),
+                );
                 Ok(QueryResult {
                     columns: vec!["space_name".to_string(), "space_id".to_string()],
                     rows: vec![row],

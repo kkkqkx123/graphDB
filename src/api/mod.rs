@@ -5,7 +5,7 @@
 //! "server" refers to a network service API (HTTP).
 //! "Embedded" refers to an API that is designed to be used on a standalone device (i.e., without the need for any additional servers or networks).
 
-use log::{info, error, warn};
+use log::{error, info, warn};
 use std::sync::Arc;
 
 pub mod core;
@@ -102,14 +102,19 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 match VectorManager::new(config.vector.clone()).await {
                     Ok(vm) => {
                         let vector_manager = Arc::new(vm);
-                        let vector_coordinator = Arc::new(
-                            crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
-                        );
+                        let vector_coordinator =
+                            Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
+                                vector_manager,
+                                None,
+                            ));
                         sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
                         info!("Vector index sync enabled");
                     }
                     Err(e) => {
-                        warn!("Failed to create VectorManager: {}. Vector search will be disabled.", e);
+                        warn!(
+                            "Failed to create VectorManager: {}. Vector search will be disabled.",
+                            e
+                        );
                     }
                 }
             }
@@ -135,14 +140,19 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 match VectorManager::new(config.vector.clone()).await {
                     Ok(vm) => {
                         let vector_manager = Arc::new(vm);
-                        let vector_coordinator = Arc::new(
-                            crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
-                        );
+                        let vector_coordinator =
+                            Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
+                                vector_manager,
+                                None,
+                            ));
                         sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
                         info!("Vector index sync enabled");
                     }
                     Err(e) => {
-                        warn!("Failed to create VectorManager: {}. Vector search will be disabled.", e);
+                        warn!(
+                            "Failed to create VectorManager: {}. Vector search will be disabled.",
+                            e
+                        );
                     }
                 }
             }
@@ -203,13 +213,12 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         None
     };
 
-    let graph_service =
-        GraphService::<SyncStorage<GraphStorage>>::new_with_transaction_manager(
-            config.clone(),
-            storage.clone(),
-            transaction_manager.clone(),
-        )
-        .await;
+    let graph_service = GraphService::<SyncStorage<GraphStorage>>::new_with_transaction_manager(
+        config.clone(),
+        storage.clone(),
+        transaction_manager.clone(),
+    )
+    .await;
     info!("Graph service initialized with transaction management");
 
     // Create HTTP server

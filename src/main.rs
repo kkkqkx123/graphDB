@@ -48,9 +48,7 @@ mod server_main {
 
                 // Create Tokio runtime and start service
                 let rt = tokio::runtime::Runtime::new()?;
-                let result = rt.block_on(async {
-                    api::start_service_with_config(cfg).await
-                });
+                let result = rt.block_on(async { api::start_service_with_config(cfg).await });
 
                 // Ensure logging is flushed before exiting
                 logging::shutdown();

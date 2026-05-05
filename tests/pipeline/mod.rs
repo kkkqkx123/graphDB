@@ -9,5 +9,5 @@
 //! the end-to-end tests in dcl/ddl/dml/dql directories.
 
 pub mod parsing;
-pub mod validation;
 pub mod planning;
+pub mod validation;

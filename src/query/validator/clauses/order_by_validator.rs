@@ -327,7 +327,9 @@ impl OrderByValidator {
                 crate::core::Value::SmallInt(_)
                 | crate::core::Value::Int(_)
                 | crate::core::Value::BigInt(_) => Ok(ValueType::Int),
-                crate::core::Value::Float(_) | crate::core::Value::Double(_) => Ok(ValueType::Float),
+                crate::core::Value::Float(_) | crate::core::Value::Double(_) => {
+                    Ok(ValueType::Float)
+                }
                 crate::core::Value::String(_) => Ok(ValueType::String),
                 crate::core::Value::Date(_) => Ok(ValueType::Date),
                 crate::core::Value::Time(_) => Ok(ValueType::Time),

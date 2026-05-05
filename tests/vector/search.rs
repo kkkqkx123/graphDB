@@ -12,7 +12,9 @@ use super::common::{
     assert_results_sorted_by_score, assert_search_result_contains, create_payload,
     create_test_points, generate_test_vectors, VectorTestContext,
 };
-use vector_client::types::{DistanceMetric, SearchQuery, VectorFilter, FilterCondition, VectorPoint};
+use vector_client::types::{
+    DistanceMetric, FilterCondition, SearchQuery, VectorFilter, VectorPoint,
+};
 
 // ==================== Distance Metric Tests ====================
 
@@ -21,9 +23,15 @@ use vector_client::types::{DistanceMetric, SearchQuery, VectorFilter, FilterCond
 async fn test_cosine_similarity_search() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let mut vectors = Vec::new();
     for i in 0..5 {
@@ -49,8 +57,14 @@ async fn test_cosine_similarity_search() {
         .expect("Search should succeed");
 
     assert!(!results.is_empty(), "Should have results");
-    assert_eq!(results[0].id, "doc_1", "First result should be doc_1 with highest similarity");
-    assert!(results[0].score > 0.99, "Score should be close to 1.0 for identical vectors");
+    assert_eq!(
+        results[0].id, "doc_1",
+        "First result should be doc_1 with highest similarity"
+    );
+    assert!(
+        results[0].score > 0.99,
+        "Score should be close to 1.0 for identical vectors"
+    );
 }
 
 /// TC-VEC-SEARCH-002: Euclidean Distance Search
@@ -58,9 +72,15 @@ async fn test_cosine_similarity_search() {
 async fn test_euclidean_distance_search() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Euclid))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Euclid),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let ids: Vec<&str> = vec!["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"];
@@ -85,9 +105,15 @@ async fn test_euclidean_distance_search() {
 async fn test_dot_product_search() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Dot))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Dot),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let ids: Vec<&str> = vec!["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"];
@@ -113,22 +139,32 @@ async fn test_dot_product_search() {
 async fn test_search_with_payload_filter() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let payloads: Vec<_> = (0..5)
-        .map(|i| create_payload(vec![("category", serde_json::json!(if i < 3 { "tech" } else { "news" }))]))
+        .map(|i| {
+            create_payload(vec![(
+                "category",
+                serde_json::json!(if i < 3 { "tech" } else { "news" }),
+            )])
+        })
         .collect();
-    
+
     let ids: Vec<&str> = vec!["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"];
     let points: Vec<VectorPoint> = ids
         .iter()
         .enumerate()
         .map(|(i, &id)| {
-            VectorPoint::new(id.to_string(), vectors[i].clone())
-                .with_payload(payloads[i].clone())
+            VectorPoint::new(id.to_string(), vectors[i].clone()).with_payload(payloads[i].clone())
         })
         .collect();
 
@@ -138,10 +174,10 @@ async fn test_search_with_payload_filter() {
 
     let query = vectors[0].clone();
     let filter = VectorFilter::new().must(FilterCondition::match_value("category", "tech"));
-    
+
     let collection_name = "space_1_Document_embedding";
     let search_query = SearchQuery::new(query, 10).with_filter(filter);
-    
+
     let results = ctx
         .manager
         .search(collection_name, search_query)
@@ -151,7 +187,11 @@ async fn test_search_with_payload_filter() {
     for result in &results {
         if let Some(ref payload) = result.payload {
             if let Some(cat) = payload.get("category") {
-                assert_eq!(cat.as_str().unwrap(), "tech", "Should only return tech category");
+                assert_eq!(
+                    cat.as_str().unwrap(),
+                    "tech",
+                    "Should only return tech category"
+                );
             }
         }
     }
@@ -162,22 +202,27 @@ async fn test_search_with_payload_filter() {
 async fn test_search_with_range_filter() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let payloads: Vec<_> = (0..5)
         .map(|i| create_payload(vec![("score", serde_json::json!(i as f64 * 10.0))]))
         .collect();
-    
+
     let ids: Vec<&str> = vec!["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"];
     let points: Vec<VectorPoint> = ids
         .iter()
         .enumerate()
         .map(|(i, &id)| {
-            VectorPoint::new(id.to_string(), vectors[i].clone())
-                .with_payload(payloads[i].clone())
+            VectorPoint::new(id.to_string(), vectors[i].clone()).with_payload(payloads[i].clone())
         })
         .collect();
 
@@ -188,12 +233,14 @@ async fn test_search_with_range_filter() {
     let query = vectors[0].clone();
     let filter = VectorFilter::new().must(FilterCondition::range(
         "score",
-        vector_client::types::RangeCondition::new().gte(20.0).lt(50.0),
+        vector_client::types::RangeCondition::new()
+            .gte(20.0)
+            .lt(50.0),
     ));
-    
+
     let collection_name = "space_1_Document_embedding";
     let search_query = SearchQuery::new(query, 10).with_filter(filter);
-    
+
     let results = ctx
         .manager
         .search(collection_name, search_query)
@@ -204,7 +251,10 @@ async fn test_search_with_range_filter() {
         if let Some(ref payload) = result.payload {
             if let Some(score) = payload.get("score") {
                 let score_val = score.as_f64().unwrap();
-                assert!(score_val >= 20.0 && score_val < 50.0, "Score should be in range [20, 50)");
+                assert!(
+                    score_val >= 20.0 && score_val < 50.0,
+                    "Score should be in range [20, 50)"
+                );
             }
         }
     }
@@ -217,13 +267,23 @@ async fn test_search_with_range_filter() {
 async fn test_batch_search() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(10, 64, 42);
     let ids: Vec<String> = (0..10).map(|i| format!("doc_{}", i)).collect();
-    let points = create_test_points(ids.iter().map(|s| s.as_str()).collect(), vectors.clone(), None);
+    let points = create_test_points(
+        ids.iter().map(|s| s.as_str()).collect(),
+        vectors.clone(),
+        None,
+    );
 
     ctx.insert_test_vectors(1, "Document", "embedding", points)
         .await
@@ -244,7 +304,11 @@ async fn test_batch_search() {
 
     assert_eq!(results.len(), 3, "Should have 3 result sets");
     for (i, result_set) in results.iter().enumerate() {
-        assert!(!result_set.is_empty(), "Result set {} should not be empty", i);
+        assert!(
+            !result_set.is_empty(),
+            "Result set {} should not be empty",
+            i
+        );
     }
 }
 
@@ -255,23 +319,33 @@ async fn test_batch_search() {
 async fn test_search_with_offset() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(20, 64, 42);
     let ids: Vec<String> = (0..20).map(|i| format!("doc_{}", i)).collect();
-    let points = create_test_points(ids.iter().map(|s| s.as_str()).collect(), vectors.clone(), None);
+    let points = create_test_points(
+        ids.iter().map(|s| s.as_str()).collect(),
+        vectors.clone(),
+        None,
+    );
 
     ctx.insert_test_vectors(1, "Document", "embedding", points)
         .await
         .expect("Failed to insert vectors");
 
     let query = vectors[0].clone();
-    
+
     let collection_name = "space_1_Document_embedding";
     let search_query = SearchQuery::new(query.clone(), 10).with_offset(5);
-    
+
     let results = ctx
         .manager
         .search(collection_name, search_query)
@@ -286,9 +360,15 @@ async fn test_search_with_offset() {
 async fn test_search_with_vector_return() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let ids: Vec<&str> = vec!["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"];
@@ -299,10 +379,10 @@ async fn test_search_with_vector_return() {
         .expect("Failed to insert vectors");
 
     let query = vectors[0].clone();
-    
+
     let collection_name = "space_1_Document_embedding";
     let search_query = SearchQuery::new(query, 10).with_vector(true);
-    
+
     let results = ctx
         .manager
         .search(collection_name, search_query)
@@ -311,7 +391,11 @@ async fn test_search_with_vector_return() {
 
     for result in &results {
         assert!(result.vector.is_some(), "Vector should be returned");
-        assert_eq!(result.vector.as_ref().unwrap().len(), 64, "Vector dimension should be 64");
+        assert_eq!(
+            result.vector.as_ref().unwrap().len(),
+            64,
+            "Vector dimension should be 64"
+        );
     }
 }
 
@@ -320,22 +404,27 @@ async fn test_search_with_vector_return() {
 async fn test_search_without_payload() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let payloads: Vec<_> = (0..5)
         .map(|i| create_payload(vec![("title", serde_json::json!(format!("Doc {}", i)))]))
         .collect();
-    
+
     let ids: Vec<&str> = vec!["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"];
     let points: Vec<VectorPoint> = ids
         .iter()
         .enumerate()
         .map(|(i, &id)| {
-            VectorPoint::new(id.to_string(), vectors[i].clone())
-                .with_payload(payloads[i].clone())
+            VectorPoint::new(id.to_string(), vectors[i].clone()).with_payload(payloads[i].clone())
         })
         .collect();
 
@@ -344,10 +433,10 @@ async fn test_search_without_payload() {
         .expect("Failed to insert vectors");
 
     let query = vectors[0].clone();
-    
+
     let collection_name = "space_1_Document_embedding";
     let search_query = SearchQuery::new(query, 10).with_payload(false);
-    
+
     let results = ctx
         .manager
         .search(collection_name, search_query)
@@ -364,13 +453,25 @@ async fn test_search_without_payload() {
 async fn test_multi_space_isolation() {
     let ctx = VectorTestContext::with_dimension(64);
 
-    ctx.create_test_index(1, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index for space 1");
-    
-    ctx.create_test_index(2, "Document", "embedding", Some(64), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index for space 2");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index for space 1");
+
+    ctx.create_test_index(
+        2,
+        "Document",
+        "embedding",
+        Some(64),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index for space 2");
 
     let vectors = generate_test_vectors(5, 64, 42);
     let ids: Vec<&str> = vec!["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"];
@@ -388,8 +489,14 @@ async fn test_multi_space_isolation() {
         .await
         .expect("Failed to insert vectors to space 2");
 
-    let count1 = ctx.count(1, "Document", "embedding").await.expect("Failed to count space 1");
-    let count2 = ctx.count(2, "Document", "embedding").await.expect("Failed to count space 2");
+    let count1 = ctx
+        .count(1, "Document", "embedding")
+        .await
+        .expect("Failed to count space 1");
+    let count2 = ctx
+        .count(2, "Document", "embedding")
+        .await
+        .expect("Failed to count space 2");
 
     assert_eq!(count1, 5, "Space 1 should have 5 vectors");
     assert_eq!(count2, 3, "Space 2 should have 3 vectors");
@@ -398,7 +505,7 @@ async fn test_multi_space_isolation() {
         .search(1, "Document", "embedding", vectors[0].clone(), 10)
         .await
         .expect("Search in space 1 should succeed");
-    
+
     let results2 = ctx
         .search(2, "Document", "embedding", vectors2[0].clone(), 10)
         .await

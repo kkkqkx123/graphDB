@@ -21,7 +21,7 @@ use super::invalidation::{
     CacheInvalidator, DataChangeEvent, InvalidationManager, InvalidationStats,
 };
 use super::plan_cache::QueryPlanCache;
-use super::stats::{GlobalCacheStatsSnapshot, PlanCacheStatsSnapshot, CteCacheStatsSnapshot};
+use super::stats::{CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, PlanCacheStatsSnapshot};
 
 /// Unified Cache Manager
 ///

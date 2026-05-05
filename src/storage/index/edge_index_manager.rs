@@ -64,7 +64,8 @@ impl EdgeIndexManager {
             let index_key =
                 IndexKeyCodec::build_edge_index_key(space_id, index_name, prop_value, src, dst)?;
 
-            let reverse_key = IndexKeyCodec::build_edge_reverse_key_v2(space_id, src, dst, index_name)?;
+            let reverse_key =
+                IndexKeyCodec::build_edge_reverse_key_v2(space_id, src, dst, index_name)?;
 
             let entry = IndexEntry::new(write_ts);
             forward_entries.push((index_key.0, entry.clone()));
@@ -105,7 +106,8 @@ impl EdgeIndexManager {
         index_names: &[String],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let reverse_prefix = IndexKeyCodec::build_edge_reverse_prefix_v2_with_dst(space_id, src, dst)?;
+        let reverse_prefix =
+            IndexKeyCodec::build_edge_reverse_prefix_v2_with_dst(space_id, src, dst)?;
         let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
 
         let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
@@ -126,14 +128,13 @@ impl EdgeIndexManager {
 
                         let forward_key_start =
                             IndexKeyCodec::build_edge_index_prefix(space_id, &index_name);
-                        let forward_key_end =
-                            IndexKeyCodec::build_range_end(&forward_key_start);
+                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
 
                         let src_bytes = IndexKeyCodec::serialize_value(src)?;
                         let dst_bytes = IndexKeyCodec::serialize_value(dst)?;
                         let forward_index = self.forward_index.read();
-                        for (fwd_key_bytes, fwd_entry) in forward_index
-                            .range(forward_key_start.0.clone()..forward_key_end.0)
+                        for (fwd_key_bytes, fwd_entry) in
+                            forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
                         {
                             if !fwd_entry.is_visible_at(write_ts) {
                                 continue;
@@ -157,20 +158,18 @@ impl EdgeIndexManager {
                                     if fwd_key_bytes.len() >= src_start + src_len + 4 {
                                         let dst_len_start = src_start + src_len;
                                         let dst_len = u32::from_le_bytes(
-                                            fwd_key_bytes
-                                                [dst_len_start..dst_len_start + 4]
+                                            fwd_key_bytes[dst_len_start..dst_len_start + 4]
                                                 .try_into()
                                                 .unwrap_or([0; 4]),
-                                        ) as usize;
+                                        )
+                                            as usize;
                                         let dst_start = dst_len_start + 4;
                                         if fwd_key_bytes.len() >= dst_start + dst_len {
-                                            let stored_src = &fwd_key_bytes
-                                                [src_start..src_start + src_len];
-                                            let stored_dst = &fwd_key_bytes
-                                                [dst_start..dst_start + dst_len];
-                                            if stored_src == src_bytes
-                                                && stored_dst == dst_bytes
-                                            {
+                                            let stored_src =
+                                                &fwd_key_bytes[src_start..src_start + src_len];
+                                            let stored_dst =
+                                                &fwd_key_bytes[dst_start..dst_start + dst_len];
+                                            if stored_src == src_bytes && stored_dst == dst_bytes {
                                                 forward_keys_to_delete.push(fwd_key_bytes.clone());
                                             }
                                         }
@@ -369,10 +368,12 @@ impl EdgeIndexManager {
 
                 let prop_value_start = prop_len_start + 4;
                 if prop_value_start + prop_value_len <= key_bytes.len() {
-                    let stored_prop_value = &key_bytes[prop_value_start..prop_value_start + prop_value_len];
-                    
-                    if stored_prop_value >= start_bytes.as_slice() 
-                        && stored_prop_value < end_bytes.as_slice() {
+                    let stored_prop_value =
+                        &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+
+                    if stored_prop_value >= start_bytes.as_slice()
+                        && stored_prop_value < end_bytes.as_slice()
+                    {
                         let src_len_start = prop_value_start + prop_value_len;
                         if key_bytes.len() >= src_len_start + 4 {
                             let src_len = u32::from_le_bytes(
@@ -465,8 +466,9 @@ impl EdgeIndexManager {
 
                 let prop_value_start = prop_len_start + 4;
                 if prop_value_start + prop_value_len <= key_bytes.len() {
-                    let stored_prop_value = &key_bytes[prop_value_start..prop_value_start + prop_value_len];
-                    
+                    let stored_prop_value =
+                        &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+
                     if let Ok(prop_value) = IndexKeyCodec::deserialize_value(stored_prop_value) {
                         let src_len_start = prop_value_start + prop_value_len;
                         if key_bytes.len() >= src_len_start + 8 {
@@ -476,7 +478,7 @@ impl EdgeIndexManager {
                                     .unwrap_or([0; 4]),
                             ) as usize;
                             let src_start = src_len_start + 4;
-                            
+
                             if key_bytes.len() >= src_start + src_len + 4 {
                                 let src_bytes = &key_bytes[src_start..src_start + src_len];
                                 let dst_len_start = src_start + src_len;
@@ -486,7 +488,7 @@ impl EdgeIndexManager {
                                         .unwrap_or([0; 4]),
                                 ) as usize;
                                 let dst_start = dst_len_start + 4;
-                                
+
                                 if key_bytes.len() >= dst_start + dst_len {
                                     let dst_bytes = &key_bytes[dst_start..dst_start + dst_len];
                                     if let (Ok(src), Ok(dst)) = (
@@ -693,7 +695,9 @@ impl EdgeIndexManager {
             let keys_to_remove: Vec<IndexKey> = forward_index
                 .iter()
                 .filter(|(_, entry)| {
-                    entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                    entry
+                        .deleted_ts
+                        .map_or(false, |deleted_ts| deleted_ts < safe_ts)
                 })
                 .map(|(key, _)| key.clone())
                 .collect();
@@ -709,7 +713,9 @@ impl EdgeIndexManager {
             let keys_to_remove: Vec<IndexKey> = reverse_index
                 .iter()
                 .filter(|(_, entry)| {
-                    entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                    entry
+                        .deleted_ts
+                        .map_or(false, |deleted_ts| deleted_ts < safe_ts)
                 })
                 .map(|(key, _)| key.clone())
                 .collect();
@@ -733,16 +739,19 @@ impl EdgeIndexManager {
         {
             let mut forward_index = self.forward_index.write();
             let mut keys_to_remove = Vec::with_capacity(batch_size.min(1000));
-            
+
             for (key, entry) in forward_index.iter() {
                 if keys_to_remove.len() >= batch_size {
                     break;
                 }
-                if entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts) {
+                if entry
+                    .deleted_ts
+                    .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                {
                     keys_to_remove.push(key.clone());
                 }
             }
-            
+
             total_removed += keys_to_remove.len();
             for key in &keys_to_remove {
                 forward_index.remove(key);
@@ -757,16 +766,19 @@ impl EdgeIndexManager {
             let mut reverse_index = self.reverse_index.write();
             let remaining = batch_size - total_removed;
             let mut keys_to_remove = Vec::with_capacity(remaining.min(1000));
-            
+
             for (key, entry) in reverse_index.iter() {
                 if keys_to_remove.len() >= remaining {
                     break;
                 }
-                if entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts) {
+                if entry
+                    .deleted_ts
+                    .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                {
                     keys_to_remove.push(key.clone());
                 }
             }
-            
+
             total_removed += keys_to_remove.len();
             for key in &keys_to_remove {
                 reverse_index.remove(key);
@@ -777,17 +789,300 @@ impl EdgeIndexManager {
     }
 
     pub fn tombstone_count(&self) -> usize {
-        let forward_count = self.forward_index.read()
+        let forward_count = self
+            .forward_index
+            .read()
             .iter()
             .filter(|(_, entry)| entry.deleted_ts.is_some())
             .count();
-        
-        let reverse_count = self.reverse_index.read()
+
+        let reverse_count = self
+            .reverse_index
+            .read()
             .iter()
             .filter(|(_, entry)| entry.deleted_ts.is_some())
             .count();
-        
+
         forward_count + reverse_count
+    }
+
+    // ========================================================================
+    // Native ID Type Support (CSR-compatible)
+    // ========================================================================
+
+    /// Update edge indexes with native VertexId
+    pub fn update_edge_indexes_native(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_edge_indexes_native_mvcc(space_id, src, dst, index_name, props, MAX_TIMESTAMP)
+    }
+
+    /// Update edge indexes with native VertexId and MVCC timestamp
+    pub fn update_edge_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        let mut forward_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+
+        for (_prop_name, prop_value) in props {
+            let index_key = IndexKeyCodec::build_edge_index_key_native(
+                space_id, index_name, prop_value, src, dst,
+            )?;
+
+            let reverse_key =
+                IndexKeyCodec::build_edge_reverse_key_native(space_id, src, dst, index_name);
+
+            let entry = IndexEntry::new(write_ts);
+            forward_entries.push((index_key.0, entry.clone()));
+            reverse_entries.push((reverse_key.0, entry));
+        }
+
+        {
+            let mut forward_index = self.forward_index.write();
+            for (key, entry) in forward_entries {
+                forward_index.insert(key, entry);
+            }
+        }
+        {
+            let mut reverse_index = self.reverse_index.write();
+            for (key, entry) in reverse_entries {
+                reverse_index.insert(key, entry);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Delete edge indexes with native VertexId
+    pub fn delete_edge_indexes_native(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_names: &[String],
+    ) -> Result<(), StorageError> {
+        self.delete_edge_indexes_native_mvcc(space_id, src, dst, index_names, MAX_TIMESTAMP)
+    }
+
+    /// Delete edge indexes with native VertexId and MVCC timestamp
+    pub fn delete_edge_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_names: &[String],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        let reverse_prefix =
+            IndexKeyCodec::build_edge_reverse_prefix_native_with_dst(space_id, src, dst);
+        let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
+
+        let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
+        let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
+
+        {
+            let reverse_index = self.reverse_index.read();
+            for (key_bytes, entry) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+                if !entry.is_visible_at(write_ts) {
+                    continue;
+                }
+
+                if let Ok((_src, _dst, index_name)) =
+                    IndexKeyCodec::parse_edge_reverse_key_native(key_bytes)
+                {
+                    if index_names.contains(&index_name) {
+                        reverse_keys_to_delete.push(key_bytes.clone());
+
+                        let forward_key_start =
+                            IndexKeyCodec::build_edge_index_prefix(space_id, &index_name);
+                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+
+                        let forward_index = self.forward_index.read();
+                        for (fwd_key_bytes, fwd_entry) in
+                            forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
+                        {
+                            if !fwd_entry.is_visible_at(write_ts) {
+                                continue;
+                            }
+
+                            if let Ok((stored_src, stored_dst)) =
+                                IndexKeyCodec::parse_edge_ids_from_key_native(fwd_key_bytes)
+                            {
+                                if stored_src == src && stored_dst == dst {
+                                    forward_keys_to_delete.push(fwd_key_bytes.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        {
+            let mut reverse_index = self.reverse_index.write();
+            for key in &reverse_keys_to_delete {
+                if let Some(entry) = reverse_index.get_mut(key) {
+                    entry.mark_deleted(write_ts);
+                }
+            }
+        }
+
+        {
+            let mut forward_index = self.forward_index.write();
+            for key in &forward_keys_to_delete {
+                if let Some(entry) = forward_index.get_mut(key) {
+                    entry.mark_deleted(write_ts);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Lookup edge index with native VertexId return type
+    /// Returns Vec<(src, dst)> pairs
+    pub fn lookup_edge_index_native(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+    ) -> Result<Vec<(u64, u64)>, StorageError> {
+        self.lookup_edge_index_native_mvcc(space_id, index, value, MAX_TIMESTAMP)
+    }
+
+    /// Lookup edge index with native VertexId return type and MVCC timestamp
+    pub fn lookup_edge_index_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<(u64, u64)>, StorageError> {
+        let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
+        let end = IndexKeyCodec::build_range_end(&prefix);
+
+        let mut results = Vec::new();
+        let value_bytes = IndexKeyCodec::serialize_value(value)?;
+
+        let forward_index = self.forward_index.read();
+        for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
+            if !entry.is_visible_at(read_ts) {
+                continue;
+            }
+
+            if key_bytes.len() > prefix.0.len() + 4 {
+                let prop_len_start = prefix.0.len();
+                let prop_value_len = u32::from_le_bytes(
+                    key_bytes[prop_len_start..prop_len_start + 4]
+                        .try_into()
+                        .unwrap_or([0; 4]),
+                ) as usize;
+
+                if prop_value_len == value_bytes.len() {
+                    let prop_value_start = prop_len_start + 4;
+                    let stored_prop_value =
+                        &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+
+                    if stored_prop_value == value_bytes.as_slice() {
+                        if let Ok((src, dst)) =
+                            IndexKeyCodec::parse_edge_ids_from_key_native(key_bytes)
+                        {
+                            results.push((src, dst));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Lookup edge index range with native VertexId return type
+    pub fn lookup_edge_index_range_native(
+        &self,
+        space_id: u64,
+        index: &Index,
+        start_value: &Value,
+        end_value: &Value,
+    ) -> Result<Vec<(u64, u64)>, StorageError> {
+        self.lookup_edge_index_range_native_mvcc(
+            space_id,
+            index,
+            start_value,
+            end_value,
+            MAX_TIMESTAMP,
+        )
+    }
+
+    /// Lookup edge index range with native VertexId return type and MVCC timestamp
+    pub fn lookup_edge_index_range_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        start_value: &Value,
+        end_value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<(u64, u64)>, StorageError> {
+        let start_bytes = IndexKeyCodec::serialize_value(start_value)?;
+        let end_bytes = IndexKeyCodec::serialize_value(end_value)?;
+
+        let range_start =
+            IndexKeyCodec::build_edge_index_key_native(space_id, &index.name, start_value, 0, 0)?;
+        let range_end = IndexKeyCodec::build_edge_index_key_native(
+            space_id,
+            &index.name,
+            end_value,
+            u64::MAX,
+            u64::MAX,
+        )?;
+
+        let mut results = Vec::new();
+        let forward_index = self.forward_index.read();
+
+        for (key_bytes, entry) in forward_index.range(range_start.0.clone()..range_end.0.clone()) {
+            if !entry.is_visible_at(read_ts) {
+                continue;
+            }
+
+            let prefix = IndexKeyCodec::build_edge_index_prefix(space_id, &index.name);
+            if key_bytes.len() > prefix.0.len() + 4 {
+                let prop_len_start = prefix.0.len();
+                let prop_value_len = u32::from_le_bytes(
+                    key_bytes[prop_len_start..prop_len_start + 4]
+                        .try_into()
+                        .unwrap_or([0; 4]),
+                ) as usize;
+
+                let prop_value_start = prop_len_start + 4;
+                if prop_value_start + prop_value_len <= key_bytes.len() {
+                    let stored_prop_value =
+                        &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+
+                    if stored_prop_value >= start_bytes.as_slice()
+                        && stored_prop_value < end_bytes.as_slice()
+                    {
+                        if let Ok((src, dst)) =
+                            IndexKeyCodec::parse_edge_ids_from_key_native(key_bytes)
+                        {
+                            results.push((src, dst));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results)
     }
 }
 

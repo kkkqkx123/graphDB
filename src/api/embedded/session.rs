@@ -533,11 +533,11 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .txn_manager()
             .get_context(txn_handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
-        
+
         let savepoint_info = context
             .find_savepoint_by_id(savepoint.0)
             .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
-        
+
         context.truncate_operation_log(savepoint_info.operation_log_index);
         Ok(())
     }

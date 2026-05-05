@@ -1,8 +1,8 @@
 //! Cache Invalidation Tests
 
 use graphdb::query::cache::{
-    DataChangeEvent, DataChangeType, DependencyTracker, InvalidationManager,
-    InvalidationStats, TableBasedInvalidation,
+    DataChangeEvent, DataChangeType, DependencyTracker, InvalidationManager, InvalidationStats,
+    TableBasedInvalidation,
 };
 
 #[test]

@@ -20,7 +20,10 @@ pub struct StoragePageId {
 
 impl StoragePageId {
     pub fn new(file_id: u32, page_number: u32) -> Self {
-        Self { file_id, page_number }
+        Self {
+            file_id,
+            page_number,
+        }
     }
 
     pub fn to_u64(&self) -> u64 {
@@ -169,7 +172,8 @@ impl PageManager {
     }
 
     fn get_page_path(&self, page_id: &StoragePageId) -> PathBuf {
-        self.base_path.join(format!("page_{:08}.bin", page_id.page_number))
+        self.base_path
+            .join(format!("page_{:08}.bin", page_id.page_number))
     }
 
     pub fn delete_page(&self, page_id: &StoragePageId) -> StorageResult<bool> {

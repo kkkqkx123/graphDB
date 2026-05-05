@@ -26,8 +26,8 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 
 /// Verified deletion information
 #[derive(Debug, Clone)]
@@ -115,14 +115,22 @@ impl DeleteValidator {
     }
 
     /// Basic validation (not dependent on a Schema)
-    fn validate_delete(&self, stmt: &DeleteStmt, space_name: Option<&str>) -> Result<(), ValidationError> {
+    fn validate_delete(
+        &self,
+        stmt: &DeleteStmt,
+        space_name: Option<&str>,
+    ) -> Result<(), ValidationError> {
         self.validate_target(&stmt.target, space_name)?;
         self.validate_where_clause(stmt.where_clause.as_ref())?;
         Ok(())
     }
 
     /// Verify the deletion target.
-    fn validate_target(&self, target: &DeleteTarget, space_name: Option<&str>) -> Result<(), ValidationError> {
+    fn validate_target(
+        &self,
+        target: &DeleteTarget,
+        space_name: Option<&str>,
+    ) -> Result<(), ValidationError> {
         match target {
             DeleteTarget::Vertices(vids) => {
                 if vids.is_empty() {
@@ -205,7 +213,9 @@ impl DeleteValidator {
         let role = &format!("vertex {}", idx);
 
         // Get vid_type from schema_manager if available, otherwise default to String
-        let vid_type = if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
+        let vid_type = if let (Some(ref schema_manager), Some(space_name)) =
+            (&self.schema_manager, space_name)
+        {
             match schema_manager.get_space(space_name) {
                 Ok(Some(space_info)) => space_info.vid_type,
                 _ => crate::core::types::DataType::String,

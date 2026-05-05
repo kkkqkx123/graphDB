@@ -1,6 +1,6 @@
 //! CTE Cache Tests
 
-use graphdb::query::cache::{CteCacheDecisionMaker, CteCacheManager, CteCacheEntry, CachePriority};
+use graphdb::query::cache::{CachePriority, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager};
 use std::sync::Arc;
 use std::time::Instant;
 

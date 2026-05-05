@@ -651,9 +651,7 @@ impl ParameterizedQueryHandler {
     /// (parameterized query, parameter list)
     pub fn parameterize(&self, query: &str) -> (String, Vec<ParamPosition>) {
         let positions = self.extract_params(query);
-        let parameterized = self.placeholder_pattern
-            .replace_all(query, "?")
-            .to_string();
+        let parameterized = self.placeholder_pattern.replace_all(query, "?").to_string();
 
         (parameterized, positions)
     }

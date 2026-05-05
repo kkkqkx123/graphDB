@@ -153,7 +153,7 @@ fn test_rollback_multiple_operations() {
             "INSERT VERTEX Person(name) VALUES \
             1:('Alice'), \
             2:('Bob'), \
-            3:('Charlie')"
+            3:('Charlie')",
         )
         .assert_success()
         // Insert multiple edges
@@ -161,7 +161,7 @@ fn test_rollback_multiple_operations() {
             "INSERT EDGE KNOWS VALUES \
             1->2, \
             2->3, \
-            3->1"
+            3->1",
         )
         .assert_success()
         // Verify all exist
@@ -215,7 +215,7 @@ fn test_operation_sequence_with_modifications() {
         .exec_dml(
             "INSERT VERTEX Person(name, age) VALUES \
             1:('Alice', 30), \
-            2:('Bob', 25)"
+            2:('Bob', 25)",
         )
         .assert_success()
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 1->2:(2020)")

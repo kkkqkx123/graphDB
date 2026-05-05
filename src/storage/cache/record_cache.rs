@@ -21,7 +21,10 @@ pub struct VertexCacheKey {
 
 impl VertexCacheKey {
     pub fn new(label_id: u16, internal_id: u32) -> Self {
-        Self { label_id, internal_id }
+        Self {
+            label_id,
+            internal_id,
+        }
     }
 }
 
@@ -223,8 +226,12 @@ impl RecordCache {
 
     pub fn with_config(config: RecordCacheConfig) -> Self {
         let shard_count = config.shard_count;
-        let vertex_shards = (0..shard_count).map(|_| Mutex::new(CacheShard::new())).collect();
-        let edge_shards = (0..shard_count).map(|_| Mutex::new(CacheShard::new())).collect();
+        let vertex_shards = (0..shard_count)
+            .map(|_| Mutex::new(CacheShard::new()))
+            .collect();
+        let edge_shards = (0..shard_count)
+            .map(|_| Mutex::new(CacheShard::new()))
+            .collect();
 
         Self {
             vertex_shards,
@@ -384,7 +391,11 @@ impl RecordCache {
         RecordCacheStats {
             hits,
             misses,
-            hit_rate: if total > 0 { hits as f64 / total as f64 } else { 0.0 },
+            hit_rate: if total > 0 {
+                hits as f64 / total as f64
+            } else {
+                0.0
+            },
             evictions: self.evictions.load(Ordering::Relaxed),
             memory_usage: self.memory_usage.load(Ordering::Relaxed),
             max_memory: self.config.max_memory,

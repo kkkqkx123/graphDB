@@ -90,10 +90,9 @@ impl RewriteRule for ConvertSortLimitToTopNRule {
         let sort_items = sort_node.sort_items().to_vec();
         let sort_input = sort_node.input().clone();
 
-        let topn_node = TopNNode::new(sort_input, sort_items, limit_count)
-            .map_err(|e| RewriteError::rewrite_failed(
-                format!("Failed to create TopNNode: {}", e)
-            ))?;
+        let topn_node = TopNNode::new(sort_input, sort_items, limit_count).map_err(|e| {
+            RewriteError::rewrite_failed(format!("Failed to create TopNNode: {}", e))
+        })?;
 
         let mut result = TransformResult::new();
         result.erase_all = true;
@@ -107,7 +106,9 @@ impl RewriteRule for ConvertSortLimitToTopNRule {
 mod tests {
     use super::*;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planning::plan::core::nodes::operation::sort_node::{LimitNode, SortItem, SortNode};
+    use crate::query::planning::plan::core::nodes::operation::sort_node::{
+        LimitNode, SortItem, SortNode,
+    };
 
     #[test]
     fn test_rule_name() {
@@ -133,7 +134,8 @@ mod tests {
         let rule = ConvertSortLimitToTopNRule::new();
         let mut ctx = RewriteContext::new();
 
-        let result = rule.apply(&mut ctx, &PlanNodeEnum::Limit(limit_node))
+        let result = rule
+            .apply(&mut ctx, &PlanNodeEnum::Limit(limit_node))
             .expect("Rule application failed");
 
         assert!(result.is_some());
@@ -156,7 +158,8 @@ mod tests {
         let rule = ConvertSortLimitToTopNRule::new();
         let mut ctx = RewriteContext::new();
 
-        let result = rule.apply(&mut ctx, &PlanNodeEnum::Limit(limit_node))
+        let result = rule
+            .apply(&mut ctx, &PlanNodeEnum::Limit(limit_node))
             .expect("Rule application failed");
 
         assert!(result.is_none());

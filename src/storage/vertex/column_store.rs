@@ -3,8 +3,8 @@
 //! Columnar storage for vertex properties.
 //! Each column stores values of a single property type.
 
-use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::core::value::DateValue;
+use crate::core::{DataType, StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone)]
 pub struct Column {
@@ -13,6 +13,7 @@ pub struct Column {
     pub data_type: DataType,
     pub nullable: bool,
     data: Vec<u8>,
+    offsets: Vec<usize>,
     null_bitmap: Option<Vec<bool>>,
     row_count: usize,
 }
@@ -25,12 +26,19 @@ impl Column {
             data_type,
             nullable,
             data: Vec::new(),
+            offsets: Vec::new(),
             null_bitmap: if nullable { Some(Vec::new()) } else { None },
             row_count: 0,
         }
     }
 
-    pub fn with_capacity(name: String, col_id: i32, data_type: DataType, nullable: bool, capacity: usize) -> Self {
+    pub fn with_capacity(
+        name: String,
+        col_id: i32,
+        data_type: DataType,
+        nullable: bool,
+        capacity: usize,
+    ) -> Self {
         let element_size = Self::element_size(&data_type);
         Self {
             name,
@@ -38,7 +46,12 @@ impl Column {
             data_type,
             nullable,
             data: Vec::with_capacity(capacity * element_size),
-            null_bitmap: if nullable { Some(Vec::with_capacity(capacity)) } else { None },
+            offsets: Vec::with_capacity(capacity),
+            null_bitmap: if nullable {
+                Some(Vec::with_capacity(capacity))
+            } else {
+                None
+            },
             row_count: 0,
         }
     }
@@ -54,37 +67,75 @@ impl Column {
             DataType::Date => 12,
             DataType::Time => 8,
             DataType::Uuid => 16,
-            _ => 8,
+            _ => 0,
         }
     }
 
+    fn is_variable_length(&self) -> bool {
+        matches!(self.data_type, DataType::String)
+    }
+
     pub fn set(&mut self, row_idx: usize, value: Option<&Value>) -> StorageResult<()> {
-        let element_size = Self::element_size(&self.data_type);
-        let offset = row_idx * element_size;
+        if self.is_variable_length() {
+            while self.offsets.len() <= row_idx {
+                self.offsets.push(self.data.len());
+            }
 
-        if offset >= self.data.len() {
-            self.data.resize(offset + element_size, 0);
-        }
+            match value {
+                Some(v) => {
+                    let start = self.data.len();
+                    self.write_variable_value(v)?;
+                    self.offsets[row_idx] = start;
 
-        match value {
-            Some(v) => {
-                self.write_value(offset, v)?;
-                if let Some(ref mut bitmap) = self.null_bitmap {
-                    if row_idx >= bitmap.len() {
-                        bitmap.resize(row_idx + 1, false);
+                    if let Some(ref mut bitmap) = self.null_bitmap {
+                        while bitmap.len() <= row_idx {
+                            bitmap.push(false);
+                        }
+                        bitmap[row_idx] = false;
                     }
-                    bitmap[row_idx] = false;
+                }
+                None => {
+                    if !self.nullable {
+                        return Err(StorageError::NullValueNotAllowed(self.name.clone()));
+                    }
+                    self.offsets[row_idx] = usize::MAX;
+
+                    if let Some(ref mut bitmap) = self.null_bitmap {
+                        while bitmap.len() <= row_idx {
+                            bitmap.push(false);
+                        }
+                        bitmap[row_idx] = true;
+                    }
                 }
             }
-            None => {
-                if !self.nullable {
-                    return Err(StorageError::NullValueNotAllowed(self.name.clone()));
-                }
-                if let Some(ref mut bitmap) = self.null_bitmap {
-                    if row_idx >= bitmap.len() {
-                        bitmap.resize(row_idx + 1, false);
+        } else {
+            let element_size = Self::element_size(&self.data_type);
+            let offset = row_idx * element_size;
+
+            if offset >= self.data.len() {
+                self.data.resize(offset + element_size, 0);
+            }
+
+            match value {
+                Some(v) => {
+                    self.write_fixed_value(offset, v)?;
+                    if let Some(ref mut bitmap) = self.null_bitmap {
+                        while bitmap.len() <= row_idx {
+                            bitmap.push(false);
+                        }
+                        bitmap[row_idx] = false;
                     }
-                    bitmap[row_idx] = true;
+                }
+                None => {
+                    if !self.nullable {
+                        return Err(StorageError::NullValueNotAllowed(self.name.clone()));
+                    }
+                    if let Some(ref mut bitmap) = self.null_bitmap {
+                        while bitmap.len() <= row_idx {
+                            bitmap.push(false);
+                        }
+                        bitmap[row_idx] = true;
+                    }
                 }
             }
         }
@@ -97,23 +148,34 @@ impl Column {
     }
 
     pub fn get(&self, row_idx: usize) -> Option<Value> {
-        let element_size = Self::element_size(&self.data_type);
-        let offset = row_idx * element_size;
-
         if let Some(ref bitmap) = self.null_bitmap {
             if row_idx < bitmap.len() && bitmap[row_idx] {
                 return None;
             }
         }
 
-        if offset + element_size > self.data.len() {
-            return None;
-        }
+        if self.is_variable_length() {
+            if row_idx >= self.offsets.len() {
+                return None;
+            }
+            let start = self.offsets[row_idx];
+            if start == usize::MAX {
+                return None;
+            }
+            self.read_variable_value(start)
+        } else {
+            let element_size = Self::element_size(&self.data_type);
+            let offset = row_idx * element_size;
 
-        self.read_value(offset)
+            if offset + element_size > self.data.len() {
+                return None;
+            }
+
+            self.read_fixed_value(offset)
+        }
     }
 
-    fn write_value(&mut self, offset: usize, value: &Value) -> StorageResult<()> {
+    fn write_fixed_value(&mut self, offset: usize, value: &Value) -> StorageResult<()> {
         match (&self.data_type, value) {
             (DataType::Bool, Value::Bool(b)) => {
                 self.data[offset] = if *b { 1 } else { 0 };
@@ -138,10 +200,21 @@ impl Column {
                 self.data[offset + 4..offset + 8].copy_from_slice(&d.month.to_le_bytes());
                 self.data[offset + 8..offset + 12].copy_from_slice(&d.day.to_le_bytes());
             }
+            _ => {
+                return Err(StorageError::TypeMismatch {
+                    expected: self.data_type.clone(),
+                    actual: value.data_type(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn write_variable_value(&mut self, value: &Value) -> StorageResult<()> {
+        match (&self.data_type, value) {
             (DataType::String, Value::String(s)) => {
                 let bytes = s.as_bytes();
                 let len = bytes.len() as u64;
-                let start = self.data.len();
                 self.data.extend_from_slice(&len.to_le_bytes());
                 self.data.extend_from_slice(bytes);
             }
@@ -155,7 +228,7 @@ impl Column {
         Ok(())
     }
 
-    fn read_value(&self, offset: usize) -> Option<Value> {
+    fn read_fixed_value(&self, offset: usize) -> Option<Value> {
         let element_size = Self::element_size(&self.data_type);
         if offset + element_size > self.data.len() {
             return None;
@@ -192,6 +265,27 @@ impl Column {
                     month: u32::from_le_bytes(month_bytes),
                     day: u32::from_le_bytes(day_bytes),
                 }))
+            }
+            _ => None,
+        }
+    }
+
+    fn read_variable_value(&self, start: usize) -> Option<Value> {
+        if start + 8 > self.data.len() {
+            return None;
+        }
+
+        let len_bytes: [u8; 8] = self.data[start..start + 8].try_into().ok()?;
+        let len = u64::from_le_bytes(len_bytes) as usize;
+
+        if start + 8 + len > self.data.len() {
+            return None;
+        }
+
+        match &self.data_type {
+            DataType::String => {
+                let bytes = &self.data[start + 8..start + 8 + len];
+                String::from_utf8(bytes.to_vec()).ok().map(Value::String)
             }
             _ => None,
         }
@@ -279,11 +373,15 @@ impl ColumnStore {
     }
 
     pub fn get_column(&self, name: &str) -> Option<&Column> {
-        self.name_to_index.get(name).and_then(|&idx| self.columns.get(idx))
+        self.name_to_index
+            .get(name)
+            .and_then(|&idx| self.columns.get(idx))
     }
 
     pub fn get_column_mut(&mut self, name: &str) -> Option<&mut Column> {
-        self.name_to_index.get(name).and_then(|&idx| self.columns.get_mut(idx))
+        self.name_to_index
+            .get(name)
+            .and_then(|&idx| self.columns.get_mut(idx))
     }
 
     pub fn get_column_by_id(&self, col_id: i32) -> Option<&Column> {
@@ -314,8 +412,14 @@ impl ColumnStore {
         self.get_column(col_name)?.get(row_idx)
     }
 
-    pub fn set_property(&mut self, row_idx: usize, col_name: &str, value: Option<&Value>) -> StorageResult<()> {
-        let col = self.get_column_mut(col_name)
+    pub fn set_property(
+        &mut self,
+        row_idx: usize,
+        col_name: &str,
+        value: Option<&Value>,
+    ) -> StorageResult<()> {
+        let col = self
+            .get_column_mut(col_name)
             .ok_or_else(|| StorageError::ColumnNotFound(col_name.to_string()))?;
         col.set(row_idx, value)
     }
@@ -348,7 +452,12 @@ impl ColumnStore {
         self.columns.iter().map(|c| c.name.as_str()).collect()
     }
 
-    pub fn load_column(&mut self, name: &str, data: Vec<u8>, null_bitmap: Option<Vec<bool>>) -> StorageResult<()> {
+    pub fn load_column(
+        &mut self,
+        name: &str,
+        data: Vec<u8>,
+        null_bitmap: Option<Vec<bool>>,
+    ) -> StorageResult<()> {
         if let Some(col) = self.get_column_mut(name) {
             col.load_data(data, null_bitmap);
             Ok(())
@@ -358,9 +467,9 @@ impl ColumnStore {
     }
 
     pub fn iter_columns(&self) -> impl Iterator<Item = (&String, &Column)> {
-        self.name_to_index.iter().filter_map(|(name, &idx)| {
-            self.columns.get(idx).map(|col| (name, col))
-        })
+        self.name_to_index
+            .iter()
+            .filter_map(|(name, &idx)| self.columns.get(idx).map(|col| (name, col)))
     }
 }
 
@@ -395,17 +504,30 @@ mod tests {
         store.add_column("name".to_string(), DataType::String, false);
         store.add_column("age".to_string(), DataType::Int, true);
 
-        store.set(0, &[
-            ("name".to_string(), Value::String("Alice".to_string())),
-            ("age".to_string(), Value::Int(30)),
-        ]).unwrap();
+        store
+            .set(
+                0,
+                &[
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(30)),
+                ],
+            )
+            .unwrap();
 
-        store.set(1, &[
-            ("name".to_string(), Value::String("Bob".to_string())),
-            ("age".to_string(), Value::Int(25)),
-        ]).unwrap();
+        store
+            .set(
+                1,
+                &[
+                    ("name".to_string(), Value::String("Bob".to_string())),
+                    ("age".to_string(), Value::Int(25)),
+                ],
+            )
+            .unwrap();
 
         assert_eq!(store.get_property(0, "age"), Some(Value::Int(30)));
-        assert_eq!(store.get_property(1, "name"), Some(Value::String("Bob".to_string())));
+        assert_eq!(
+            store.get_property(1, "name"),
+            Some(Value::String("Bob".to_string()))
+        );
     }
 }

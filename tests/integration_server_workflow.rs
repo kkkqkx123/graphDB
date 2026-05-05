@@ -15,9 +15,9 @@ use graphdb::config::Config;
 use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::GraphStorage;
-use graphdb::storage::entity::event_storage::SyncStorage;
 use graphdb::storage::api::StorageClient;
+use graphdb::storage::entity::event_storage::SyncStorage;
+use graphdb::storage::GraphStorage;
 use std::sync::Arc;
 use vector_client::VectorClientConfig;
 
@@ -38,7 +38,11 @@ async fn test_graph_service_creation_with_sync_storage() {
 
     // Verify the service was created
     assert!(
-        graph_service.get_session_manager().list_sessions().await.is_empty(),
+        graph_service
+            .get_session_manager()
+            .list_sessions()
+            .await
+            .is_empty(),
         "GraphService should be created with empty sessions"
     );
 }
@@ -68,8 +72,11 @@ fn test_pipeline_manager_schema_manager_behavior() {
     let optimizer_engine = Arc::new(OptimizerEngine::default());
 
     // Test 1: Without schema_manager, CREATE SPACE should fail
-    let mut pipeline_manager_without =
-        QueryPipelineManager::with_optimizer(storage.clone(), stats_manager.clone(), optimizer_engine.clone());
+    let mut pipeline_manager_without = QueryPipelineManager::with_optimizer(
+        storage.clone(),
+        stats_manager.clone(),
+        optimizer_engine.clone(),
+    );
 
     let result = pipeline_manager_without.execute_query("CREATE SPACE test (vid_type=STRING)");
     assert!(

@@ -47,15 +47,15 @@ impl Planner for AssignmentPlanner {
             validated.validation_info.clone(),
         );
 
-        let mut inner_planner =
-            PlannerEnum::from_stmt(&Arc::new((*assignment_stmt.statement).clone())).ok_or_else(
-                || {
-                    PlannerError::NoSuitablePlanner(format!(
-                        "assignment inner statement: {}",
-                        assignment_stmt.statement.kind()
-                    ))
-                },
-            )?;
+        let mut inner_planner = PlannerEnum::from_stmt(&Arc::new(
+            (*assignment_stmt.statement).clone(),
+        ))
+        .ok_or_else(|| {
+            PlannerError::NoSuitablePlanner(format!(
+                "assignment inner statement: {}",
+                assignment_stmt.statement.kind()
+            ))
+        })?;
 
         let inner_plan = inner_planner.transform(&inner_validated, qctx)?;
 

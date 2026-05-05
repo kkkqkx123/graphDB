@@ -52,17 +52,17 @@ pub mod manager_test;
 
 pub use cleaner::TransactionCleaner;
 pub use compact_transaction::{
-    CompactTransaction, CompactTransactionError, CompactTransactionResult, CompactTarget,
+    CompactTarget, CompactTransaction, CompactTransactionError, CompactTransactionResult,
 };
 pub use context::TransactionContext;
 pub use index_buffer::IndexUpdateBuffer;
 pub use insert_transaction::{
-    InsertTransaction, InsertTransactionError, InsertTransactionResult, InsertTarget,
+    InsertTarget, InsertTransaction, InsertTransactionError, InsertTransactionResult,
 };
 pub use manager::TransactionManager;
 pub use monitor::TransactionMonitor;
 pub use read_transaction::{
-    ReadTransaction, ReadTransactionError, ReadTransactionResult, ReadTarget, VertexRecord,
+    ReadTarget, ReadTransaction, ReadTransactionError, ReadTransactionResult, VertexRecord,
     INVALID_TIMESTAMP,
 };
 pub use types::*;
@@ -86,9 +86,9 @@ pub use version_manager::{
 pub use wal::{
     ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
     DummyWalWriter, EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, LocalWalParser,
-    LocalWalWriter, Timestamp, UpdateEdgePropRedo, UpdateVertexPropRedo, UpdateWalUnit,
-    WalConfig, WalContentUnit, WalEntry, WalEntryIter, WalError, WalHeader, WalOpType,
-    WalParser, WalParserFactory, WalResult, WalWriter, WalWriterFactory, VertexId,
+    LocalWalWriter, Timestamp, UpdateEdgePropRedo, UpdateVertexPropRedo, UpdateWalUnit, VertexId,
+    WalConfig, WalContentUnit, WalEntry, WalEntryIter, WalError, WalHeader, WalOpType, WalParser,
+    WalParserFactory, WalResult, WalWriter, WalWriterFactory,
 };
 
 /// Transaction Management Module Version
@@ -100,7 +100,9 @@ pub fn create_transaction_manager() -> TransactionManager {
 }
 
 /// Create transaction manager with custom configuration
-pub fn create_transaction_manager_with_config(config: TransactionManagerConfig) -> TransactionManager {
+pub fn create_transaction_manager_with_config(
+    config: TransactionManagerConfig,
+) -> TransactionManager {
     TransactionManager::new(config)
 }
 

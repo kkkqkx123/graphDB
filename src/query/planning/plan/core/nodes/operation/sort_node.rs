@@ -20,7 +20,10 @@ pub struct SortItem {
 impl SortItem {
     /// Create a new sorting item with an expression.
     pub fn new(expression: Expression, direction: OrderDirection) -> Self {
-        Self { expression, direction }
+        Self {
+            expression,
+            direction,
+        }
     }
 
     /// Create items for ascending sorting with an expression.

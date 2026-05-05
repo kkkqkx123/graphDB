@@ -120,7 +120,9 @@ fn test_join_001_join_algorithm_selection() {
     for i in 0..100 {
         scenario = scenario.exec_dml(&format!(
             "INSERT VERTEX employee(name, salary) VALUES {}: (\"Employee_{:03}\", {})",
-            100 + i, i, 5000 + i * 100
+            100 + i,
+            i,
+            5000 + i * 100
         ));
     }
 
@@ -128,7 +130,8 @@ fn test_join_001_join_algorithm_selection() {
         let company_id = i % 10;
         scenario = scenario.exec_dml(&format!(
             "INSERT EDGE works_at(position) VALUES {} -> {}:(\"Engineer\")",
-            100 + i, company_id
+            100 + i,
+            company_id
         ));
     }
 
@@ -171,14 +174,11 @@ fn test_agg_001_hash_aggregate() {
 
     scenario
         .assert_success()
-        .query("EXPLAIN MATCH (s:sales) RETURN s.category, sum(s.amount) AS total GROUP BY s.category")
+        .query(
+            "EXPLAIN MATCH (s:sales) RETURN s.category, sum(s.amount) AS total GROUP BY s.category",
+        )
         .assert_success()
-        .assert_plan_contains_any(&[
-            "Aggregate",
-            "aggregate",
-            "HashAggregate",
-            "hash_aggregate",
-        ]);
+        .assert_plan_contains_any(&["Aggregate", "aggregate", "HashAggregate", "hash_aggregate"]);
 }
 
 // ==================== TopN Optimization Tests ====================
@@ -246,7 +246,9 @@ fn test_profile_001_basic_profile() {
     for i in 0..50 {
         scenario = scenario.exec_dml(&format!(
             "INSERT VERTEX person(name, age) VALUES \"p{:03}\":(\"Person_{:03}\", {})",
-            i, i, 20 + i
+            i,
+            i,
+            20 + i
         ));
     }
 

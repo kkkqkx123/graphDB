@@ -7,7 +7,9 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Expression, Value};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorEnum, InputExecutor};
+use crate::query::executor::base::{
+    BaseExecutor, ExecutionResult, Executor, ExecutorEnum, InputExecutor,
+};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{
     DefaultExpressionContext, ExpressionContext as EvalContext,
@@ -91,15 +93,13 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
             ExecutionResult::DataSet(input_data) => {
                 let col_names = input_data.col_names.clone();
                 if input_data.rows.is_empty() {
-                    let unwind_value = ExpressionEvaluator::evaluate(
-                        &self.unwind_expression,
-                        &mut expr_context,
-                    )
-                    .map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?;
+                    let unwind_value =
+                        ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
+                            .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -111,11 +111,12 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                         for (i, value) in row.iter().enumerate() {
                             if i < col_names.len() {
                                 expr_context.set_variable(col_names[i].clone(), value.clone());
-                                
+
                                 if col_names[i].contains('.') {
                                     if let Some(dot_pos) = col_names[i].find('.') {
                                         let var_name = &col_names[i][..dot_pos];
-                                        expr_context.set_variable(var_name.to_string(), value.clone());
+                                        expr_context
+                                            .set_variable(var_name.to_string(), value.clone());
                                     }
                                 }
                             }
@@ -141,7 +142,9 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     }
                 }
             }
-            ExecutionResult::Success | ExecutionResult::Empty | ExecutionResult::SpaceSwitched(_) => {
+            ExecutionResult::Success
+            | ExecutionResult::Empty
+            | ExecutionResult::SpaceSwitched(_) => {
                 let unwind_value =
                     ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                         .map_err(|e| {

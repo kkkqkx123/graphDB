@@ -324,15 +324,12 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::PipeDeleteExecutor;
 
-        let executor = PipeDeleteExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        )
-        .with_vertex_expressions(node.vertex_ids().to_vec())
-        .with_space(node.space_name().to_string())
-        .with_edge_flag(node.with_edge())
-        .with_condition(node.condition().cloned());
+        let executor =
+            PipeDeleteExecutor::new(node.id(), storage, context.expression_context().clone())
+                .with_vertex_expressions(node.vertex_ids().to_vec())
+                .with_space(node.space_name().to_string())
+                .with_edge_flag(node.with_edge())
+                .with_condition(node.condition().cloned());
 
         Ok(ExecutorEnum::PipeDelete(executor))
     }
@@ -345,15 +342,12 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::PipeDeleteExecutor;
 
-        let executor = PipeDeleteExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        )
-        .with_edge_expressions(node.edges().to_vec())
-        .with_edge_type(node.edge_type().map(|s: &str| s.to_string()))
-        .with_space(node.space_name().to_string())
-        .with_condition(node.condition().cloned());
+        let executor =
+            PipeDeleteExecutor::new(node.id(), storage, context.expression_context().clone())
+                .with_edge_expressions(node.edges().to_vec())
+                .with_edge_type(node.edge_type().map(|s: &str| s.to_string()))
+                .with_space(node.space_name().to_string())
+                .with_condition(node.condition().cloned());
 
         Ok(ExecutorEnum::PipeDelete(executor))
     }
@@ -453,7 +447,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                         key,
                         expr_opt
                     );
-                    
+
                     if let Some(expr) = expr_opt {
                         if let Some(value) = Self::evaluate_literal(&expr) {
                             properties.insert(key.clone(), value);
@@ -474,7 +468,11 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 let vertex_update = VertexUpdate {
                     vertex_id,
                     properties,
-                    property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
+                    property_expressions: if has_non_literal_expr {
+                        Some(property_expressions)
+                    } else {
+                        None
+                    },
                     tags_to_add: None,
                     tags_to_remove: None,
                 };
@@ -552,7 +550,11 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     edge_type,
                     rank,
                     properties,
-                    property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
+                    property_expressions: if has_non_literal_expr {
+                        Some(property_expressions)
+                    } else {
+                        None
+                    },
                 };
 
                 let executor = UpdateExecutor::new(
@@ -614,7 +616,11 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             vertex_updates.push(VertexUpdate {
                 vertex_id,
                 properties,
-                property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
+                property_expressions: if has_non_literal_expr {
+                    Some(property_expressions)
+                } else {
+                    None
+                },
                 tags_to_add: None,
                 tags_to_remove: None,
             });
@@ -710,7 +716,11 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 edge_type,
                 rank,
                 properties,
-                property_expressions: if has_non_literal_expr { Some(property_expressions) } else { None },
+                property_expressions: if has_non_literal_expr {
+                    Some(property_expressions)
+                } else {
+                    None
+                },
             });
         }
 

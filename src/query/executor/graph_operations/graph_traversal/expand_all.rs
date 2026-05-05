@@ -155,7 +155,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
     }
 
     pub fn with_filter(mut self, filter: Option<ContextualExpression>) -> Self {
-        self.filter = filter.and_then(|ctx_expr| ctx_expr.expression().map(|meta| meta.inner().clone()));
+        self.filter =
+            filter.and_then(|ctx_expr| ctx_expr.expression().map(|meta| meta.inner().clone()));
         self
     }
 
@@ -271,7 +272,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         // Build a DataSet with separate columns for src, edge, and dst
         // Use the configured column names, which may include custom dst column names
         let mut dataset = crate::query::DataSet::new();
-        
+
         // If we have an input dataset, we need to join the expansion results with input rows
         // This is for multi-hop MATCH queries where we need to preserve all intermediate variables
         let (input_cols, input_rows) = if let Some(ref input_ds) = self.input_dataset {
@@ -279,7 +280,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         } else {
             (Vec::new(), Vec::new())
         };
-        
+
         // Set column names: if we have input columns, combine them with our output columns
         // But we need to avoid duplicates - the input_var column is the same as our src column
         if !input_cols.is_empty() {
@@ -331,7 +332,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                             row.push(Value::edge((*step.edge).clone()));
                         }
                     }
-                    
+
                     // Join with input row if available
                     if !input_rows.is_empty() {
                         if let Some(row_idx) = self.input_vertex_to_row.get(&path.src.vid) {
@@ -353,7 +354,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                             }
                         }
                     }
-                    
+
                     // Apply filter if present
                     if self.should_include_row(&row, &dataset.col_names) {
                         dataset.rows.push(row);
@@ -371,7 +372,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     if edge_alias_index.is_some() {
                         row.push(Value::Null(crate::core::NullType::Null));
                     }
-                    
+
                     // Join with input row if available
                     if !input_rows.is_empty() {
                         if let Some(row_idx) = self.input_vertex_to_row.get(&path.src.vid) {
@@ -392,7 +393,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                             }
                         }
                     }
-                    
+
                     // Apply filter if present
                     if self.should_include_row(&row, &dataset.col_names) {
                         dataset.rows.push(row);
@@ -412,7 +413,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                             row.push(Value::edge((*last_step.edge).clone()));
                         }
                     }
-                    
+
                     // Join with input row if available
                     if !input_rows.is_empty() {
                         if let Some(row_idx) = self.input_vertex_to_row.get(&path.src.vid) {
@@ -433,7 +434,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                             }
                         }
                     }
-                    
+
                     // Apply filter if present
                     if self.should_include_row(&row, &dataset.col_names) {
                         dataset.rows.push(row);
@@ -444,19 +445,19 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
         ExecutionResult::DataSet(dataset)
     }
-    
+
     /// Check if a row should be included based on the filter condition
     fn should_include_row(&self, row: &[Value], col_names: &[String]) -> bool {
         if let Some(ref filter) = self.filter {
             let mut context = DefaultExpressionContext::new();
-            
+
             // Set column values as variables
             for (i, col_name) in col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
                 }
             }
-            
+
             // Map GO query special variables: $$ -> dst, $^ -> src, target -> dst, edge -> edge
             if let Some(dst_idx) = col_names.iter().position(|c| c == "dst") {
                 if dst_idx < row.len() {
@@ -474,13 +475,17 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     context.set_variable("edge".to_string(), row[edge_idx].clone());
                     // Map edge type name to the edge value for GO queries like WHERE friend.strength > 5
                     if let Value::Edge(ref edge_val) = row[edge_idx] {
-                        context.set_variable(edge_val.edge_type().to_string(), row[edge_idx].clone());
+                        context
+                            .set_variable(edge_val.edge_type().to_string(), row[edge_idx].clone());
                     }
                 }
             }
-            
+
             // Evaluate the filter condition
-            matches!(ExpressionEvaluator::evaluate(filter, &mut context), Ok(Value::Bool(true)))
+            matches!(
+                ExpressionEvaluator::evaluate(filter, &mut context),
+                Ok(Value::Bool(true))
+            )
         } else {
             true
         }
@@ -535,7 +540,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                             if let Some(idx) = col_names.iter().position(|c| c == input_var) {
                                 if idx < row.len() {
                                     if let Value::Vertex(vertex) = &row[idx] {
-                                        self.input_vertex_to_row.insert((*vertex.vid).clone(), row_idx);
+                                        self.input_vertex_to_row
+                                            .insert((*vertex.vid).clone(), row_idx);
                                     }
                                 }
                             }

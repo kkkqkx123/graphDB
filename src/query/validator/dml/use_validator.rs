@@ -115,9 +115,8 @@ impl UseValidator {
 
     /// Verify the space name
     fn validate_space_name(&self) -> Result<(), ValidationError> {
-        validate_space_name(&self.space_name).map_err(|e| {
-            ValidationError::new(e.to_string(), ValidationErrorType::SemanticError)
-        })
+        validate_space_name(&self.space_name)
+            .map_err(|e| ValidationError::new(e.to_string(), ValidationErrorType::SemanticError))
     }
 
     /// Verify whether the space exists.

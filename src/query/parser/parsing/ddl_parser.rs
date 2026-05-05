@@ -994,7 +994,11 @@ impl DdlParser {
                 ctx.next_token();
                 Ok("STRING".to_string())
             }
-            TokenKind::Int | TokenKind::Int8 | TokenKind::Int16 | TokenKind::Int32 | TokenKind::Int64 => {
+            TokenKind::Int
+            | TokenKind::Int8
+            | TokenKind::Int16
+            | TokenKind::Int32
+            | TokenKind::Int64 => {
                 ctx.next_token();
                 Ok("INT64".to_string())
             }

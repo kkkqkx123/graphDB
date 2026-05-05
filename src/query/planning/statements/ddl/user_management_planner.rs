@@ -2,8 +2,8 @@
 //! Handling query planning related to user management (CREATE USER, ALTER USER, DROP USER, CHANGE PASSWORD)
 
 use crate::query::parser::ast::Stmt;
-use crate::query::planning::plan::core::{ArgumentNode, PlanNodeEnum};
 use crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode;
+use crate::query::planning::plan::core::{ArgumentNode, PlanNodeEnum};
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;

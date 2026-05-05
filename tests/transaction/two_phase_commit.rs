@@ -5,9 +5,7 @@
 //! - Multiple transactions with two-phase commit
 //! - Transaction options with two-phase commit
 
-use graphdb::transaction::{
-    TransactionManager, TransactionManagerConfig, TransactionOptions,
-};
+use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 use std::time::Duration;
 
 /// Test basic two-phase commit flow
@@ -84,8 +82,7 @@ fn test_two_phase_commit_rollback() {
 fn test_two_phase_commit_with_timeout() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let mut options = TransactionOptions::new()
-        .with_timeout(Duration::from_secs(60));
+    let mut options = TransactionOptions::new().with_timeout(Duration::from_secs(60));
     options.two_phase_commit = true;
 
     let txn_id = manager

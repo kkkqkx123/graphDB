@@ -149,10 +149,8 @@ impl Planner for UpdatePlanner {
                     is_upsert: update_stmt.is_upsert,
                 };
 
-                let update_node = UpdateNode::new(
-                    next_node_id(),
-                    UpdateTargetType::Vertex(vertex_info),
-                );
+                let update_node =
+                    UpdateNode::new(next_node_id(), UpdateTargetType::Vertex(vertex_info));
 
                 let scan_enum = PlanNodeEnum::ScanVertices(scan_node);
                 let update_enum = PlanNodeEnum::Update(update_node);

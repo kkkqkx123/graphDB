@@ -108,12 +108,16 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
     /// Resolve metadata from fulltext_manager if not pre-resolved
     fn resolve_metadata(&self) -> DBResult<(u64, String, String)> {
         if !self.tag_name.is_empty() && !self.field_name.is_empty() {
-            return Ok((self.space_id, self.tag_name.clone(), self.field_name.clone()));
+            return Ok((
+                self.space_id,
+                self.tag_name.clone(),
+                self.field_name.clone(),
+            ));
         }
 
         let index_name = &self.statement.index_name;
         let indexes = self.fulltext_manager.list_indexes();
-        
+
         for index in indexes {
             if &index.index_name == index_name {
                 return Ok((index.space_id, index.tag_name, index.field_name));
@@ -399,11 +403,15 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
     /// Resolve metadata from fulltext_manager if not pre-resolved
     fn resolve_metadata(&self) -> DBResult<(u64, String, String)> {
         if !self.tag_name.is_empty() && !self.field_name.is_empty() {
-            return Ok((self.space_id, self.tag_name.clone(), self.field_name.clone()));
+            return Ok((
+                self.space_id,
+                self.tag_name.clone(),
+                self.field_name.clone(),
+            ));
         }
 
         let indexes = self.fulltext_manager.list_indexes();
-        
+
         for index in indexes {
             if index.index_name == self.index_name {
                 return Ok((index.space_id, index.tag_name, index.field_name));

@@ -8,9 +8,7 @@
 //! - Transaction context cleanup on query failure
 //! - StorageInner lock ordering consistency
 
-use graphdb::transaction::{
-    TransactionManager, TransactionManagerConfig, TransactionOptions,
-};
+use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
@@ -153,19 +151,33 @@ async fn test_cleanup_multiple_expired_transactions() {
         .expect("Should begin write transaction");
 
     let read1 = manager
-        .begin_transaction(TransactionOptions::new().read_only().with_timeout(Duration::from_millis(50)))
+        .begin_transaction(
+            TransactionOptions::new()
+                .read_only()
+                .with_timeout(Duration::from_millis(50)),
+        )
         .expect("Should begin read transaction 1");
 
     let read2 = manager
-        .begin_transaction(TransactionOptions::new().read_only().with_timeout(Duration::from_millis(50)))
+        .begin_transaction(
+            TransactionOptions::new()
+                .read_only()
+                .with_timeout(Duration::from_millis(50)),
+        )
         .expect("Should begin read transaction 2");
 
     sleep(Duration::from_millis(100)).await;
 
     manager.cleanup_expired_transactions();
 
-    assert!(!manager.is_transaction_active(read1), "Read txn 1 should be cleaned up");
-    assert!(!manager.is_transaction_active(read2), "Read txn 2 should be cleaned up");
+    assert!(
+        !manager.is_transaction_active(read1),
+        "Read txn 1 should be cleaned up"
+    );
+    assert!(
+        !manager.is_transaction_active(read2),
+        "Read txn 2 should be cleaned up"
+    );
 
     manager
         .abort_transaction(write_txn)
@@ -315,8 +327,5 @@ fn test_rapid_cycles_with_cleanup() {
     }
 
     let active = manager.list_active_transactions();
-    assert!(
-        active.is_empty(),
-        "No transactions should remain active"
-    );
+    assert!(active.is_empty(), "No transactions should remain active");
 }

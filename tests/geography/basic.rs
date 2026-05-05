@@ -10,9 +10,9 @@
 //! Test cases: TC-GEO-001 ~ TC-GEO-015
 
 use super::common::{
-    assert_geography_equals, create_test_linestring, create_test_multipoint,
-    create_test_multilinestring, create_test_multipolygon, create_test_point,
-    create_test_polygon, get_edge_case_geometries, get_standard_test_geometries,
+    assert_geography_equals, create_test_linestring, create_test_multilinestring,
+    create_test_multipoint, create_test_multipolygon, create_test_point, create_test_polygon,
+    get_edge_case_geometries, get_standard_test_geometries,
 };
 use graphdb::core::value::geography::Geography;
 
@@ -51,13 +51,7 @@ fn test_create_linestring() {
 #[test]
 fn test_create_polygon() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 
@@ -88,8 +82,10 @@ fn test_create_multipoint() {
 /// TC-GEO-005: Create MultiLineString Geometry
 #[test]
 fn test_create_multilinestring() {
-    let multilinestring =
-        create_test_multilinestring(vec![vec![(0.0, 0.0), (1.0, 1.0)], vec![(2.0, 2.0), (3.0, 3.0)]]);
+    let multilinestring = create_test_multilinestring(vec![
+        vec![(0.0, 0.0), (1.0, 1.0)],
+        vec![(2.0, 2.0), (3.0, 3.0)],
+    ]);
 
     match multilinestring {
         Geography::MultiLineString(mls) => {
@@ -105,23 +101,11 @@ fn test_create_multilinestring() {
 fn test_create_multipolygon() {
     let multipolygon = create_test_multipolygon(vec![
         (
-            vec![
-                (0.0, 0.0),
-                (0.0, 1.0),
-                (1.0, 1.0),
-                (1.0, 0.0),
-                (0.0, 0.0),
-            ],
+            vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
             vec![],
         ),
         (
-            vec![
-                (2.0, 2.0),
-                (2.0, 3.0),
-                (3.0, 3.0),
-                (3.0, 2.0),
-                (2.0, 2.0),
-            ],
+            vec![(2.0, 2.0), (2.0, 3.0), (3.0, 3.0), (3.0, 2.0), (2.0, 2.0)],
             vec![],
         ),
     ]);
@@ -155,11 +139,21 @@ fn test_valid_point() {
 fn test_invalid_point() {
     let edge_cases = get_edge_case_geometries();
 
-    let invalid_lat = edge_cases.get("invalid_point_lat").expect("Should have invalid_point_lat");
-    assert!(!invalid_lat.is_valid(), "Point with latitude > 90 should be invalid");
+    let invalid_lat = edge_cases
+        .get("invalid_point_lat")
+        .expect("Should have invalid_point_lat");
+    assert!(
+        !invalid_lat.is_valid(),
+        "Point with latitude > 90 should be invalid"
+    );
 
-    let invalid_lon = edge_cases.get("invalid_point_lon").expect("Should have invalid_point_lon");
-    assert!(!invalid_lon.is_valid(), "Point with longitude > 180 should be invalid");
+    let invalid_lon = edge_cases
+        .get("invalid_point_lon")
+        .expect("Should have invalid_point_lon");
+    assert!(
+        !invalid_lon.is_valid(),
+        "Point with longitude > 180 should be invalid"
+    );
 }
 
 /// TC-GEO-009: Geometry Validation - Closed LineString
@@ -222,13 +216,7 @@ fn test_wkt_linestring_conversion() {
 #[test]
 fn test_wkt_polygon_conversion() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
     let wkt = polygon.to_wkt();
@@ -265,13 +253,7 @@ fn test_memory_estimation() {
     );
 
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
     let polygon_size = polygon.estimated_size();
@@ -288,7 +270,10 @@ fn test_memory_estimation() {
 fn test_standard_geometries() {
     let geometries = get_standard_test_geometries();
 
-    assert!(geometries.len() >= 10, "Should have at least 10 standard test geometries");
+    assert!(
+        geometries.len() >= 10,
+        "Should have at least 10 standard test geometries"
+    );
 
     for (name, geo) in &geometries {
         assert!(geo.is_valid(), "Geometry '{}' should be valid", name);
@@ -300,7 +285,9 @@ fn test_standard_geometries() {
 fn test_edge_case_geometries() {
     let edge_cases = get_edge_case_geometries();
 
-    let empty_linestring = edge_cases.get("empty_linestring").expect("Should have empty_linestring");
+    let empty_linestring = edge_cases
+        .get("empty_linestring")
+        .expect("Should have empty_linestring");
     match empty_linestring {
         Geography::LineString(ls) => {
             assert_eq!(ls.points.len(), 0);
@@ -308,7 +295,9 @@ fn test_edge_case_geometries() {
         _ => panic!("Expected LineString geometry"),
     }
 
-    let empty_multipoint = edge_cases.get("empty_multipoint").expect("Should have empty_multipoint");
+    let empty_multipoint = edge_cases
+        .get("empty_multipoint")
+        .expect("Should have empty_multipoint");
     match empty_multipoint {
         Geography::MultiPoint(mp) => {
             assert_eq!(mp.points.len(), 0);
@@ -327,13 +316,7 @@ fn test_geometry_type_name() {
     assert_eq!(linestring.geometry_type(), "LineString");
 
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
     assert_eq!(polygon.geometry_type(), "Polygon");
@@ -343,24 +326,24 @@ fn test_geometry_type_name() {
 #[test]
 fn test_bounding_box() {
     let point = create_test_point(0.0, 0.0);
-    let bbox = point.bounding_box().expect("Point should have bounding box");
+    let bbox = point
+        .bounding_box()
+        .expect("Point should have bounding box");
     assert_eq!(bbox, (0.0, 0.0, 0.0, 0.0));
 
     let linestring = create_test_linestring(vec![(0.0, 0.0), (2.0, 2.0)]);
-    let bbox = linestring.bounding_box().expect("LineString should have bounding box");
+    let bbox = linestring
+        .bounding_box()
+        .expect("LineString should have bounding box");
     assert_eq!(bbox, (0.0, 2.0, 0.0, 2.0));
 
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 2.0),
-            (2.0, 2.0),
-            (2.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)],
         vec![],
     );
-    let bbox = polygon.bounding_box().expect("Polygon should have bounding box");
+    let bbox = polygon
+        .bounding_box()
+        .expect("Polygon should have bounding box");
     assert_eq!(bbox, (0.0, 2.0, 0.0, 2.0));
 }
 
@@ -373,7 +356,9 @@ fn test_centroid() {
     assert_eq!(centroid.longitude, 0.0);
 
     let linestring = create_test_linestring(vec![(0.0, 0.0), (2.0, 2.0)]);
-    let centroid = linestring.centroid().expect("LineString should have centroid");
+    let centroid = linestring
+        .centroid()
+        .expect("LineString should have centroid");
     assert_eq!(centroid.latitude, 1.0);
     assert_eq!(centroid.longitude, 1.0);
 }

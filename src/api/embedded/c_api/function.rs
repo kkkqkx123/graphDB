@@ -174,10 +174,7 @@ pub unsafe extern "C" fn graphdb_create_aggregate(
 
         // Register for the session.
         if let Err(e) = handle.inner.register_custom_function(func) {
-            error!(
-                "Registration of the aggregate function failed: {:?}",
-                e
-            );
+            error!("Registration of the aggregate function failed: {:?}", e);
             return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
         }
     }

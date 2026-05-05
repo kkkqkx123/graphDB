@@ -161,7 +161,12 @@ impl super::SchemaManager for InMemorySchemaManager {
         drop(name_index);
 
         let mut spaces = self.spaces.write();
-        spaces.insert(space_id, SpaceData { info: space.clone() });
+        spaces.insert(
+            space_id,
+            SpaceData {
+                info: space.clone(),
+            },
+        );
 
         Ok(true)
     }
@@ -216,7 +221,12 @@ impl super::SchemaManager for InMemorySchemaManager {
     fn update_space(&self, space: &SpaceInfo) -> Result<bool, StorageError> {
         let mut spaces = self.spaces.write();
         if spaces.contains_key(&space.space_id) {
-            spaces.insert(space.space_id, SpaceData { info: space.clone() });
+            spaces.insert(
+                space.space_id,
+                SpaceData {
+                    info: space.clone(),
+                },
+            );
             Ok(true)
         } else {
             Ok(false)
@@ -249,9 +259,10 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let mut tags = self.tags.write();
-        let tag_key = tags.iter().find(|(_, data)| {
-            data.info.tag_name == tag_name
-        }).map(|(k, _)| *k);
+        let tag_key = tags
+            .iter()
+            .find(|(_, data)| data.info.tag_name == tag_name)
+            .map(|(k, _)| *k);
 
         if let Some(key) = tag_key {
             tags.remove(&key);
@@ -267,9 +278,10 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let tags = self.tags.read();
-        Ok(tags.values().find(|data| {
-            data.info.tag_name == tag_name
-        }).map(|d| d.info.clone()))
+        Ok(tags
+            .values()
+            .find(|data| data.info.tag_name == tag_name)
+            .map(|d| d.info.clone()))
     }
 
     fn list_tags(&self, space_name: &str) -> Result<Vec<TagInfo>, StorageError> {
@@ -278,7 +290,8 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let tags = self.tags.read();
-        Ok(tags.iter()
+        Ok(tags
+            .iter()
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
@@ -290,9 +303,10 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let mut tags = self.tags.write();
-        let tag_key = tags.iter().find(|(_, data)| {
-            data.info.tag_name == tag.tag_name
-        }).map(|(k, _)| *k);
+        let tag_key = tags
+            .iter()
+            .find(|(_, data)| data.info.tag_name == tag.tag_name)
+            .map(|(k, _)| *k);
 
         if let Some(key) = tag_key {
             if let Some(data) = tags.get_mut(&key) {
@@ -303,13 +317,20 @@ impl super::SchemaManager for InMemorySchemaManager {
         Ok(false)
     }
 
-    fn create_edge_type(&self, space_name: &str, edge_type: &EdgeTypeInfo) -> Result<bool, StorageError> {
+    fn create_edge_type(
+        &self,
+        space_name: &str,
+        edge_type: &EdgeTypeInfo,
+    ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let existing = self.list_edge_types(space_name)?;
-        if existing.iter().any(|e| e.edge_type_name == edge_type.edge_type_name) {
+        if existing
+            .iter()
+            .any(|e| e.edge_type_name == edge_type.edge_type_name)
+        {
             return Ok(false);
         }
 
@@ -318,7 +339,10 @@ impl super::SchemaManager for InMemorySchemaManager {
         edge_with_id.edge_type_id = edge_type_id;
 
         let mut edge_types = self.edge_types.write();
-        edge_types.insert((space_info.space_id, edge_type_id), EdgeTypeData { info: edge_with_id });
+        edge_types.insert(
+            (space_info.space_id, edge_type_id),
+            EdgeTypeData { info: edge_with_id },
+        );
 
         Ok(true)
     }
@@ -329,9 +353,10 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let mut edge_types = self.edge_types.write();
-        let key = edge_types.iter().find(|(_, data)| {
-            data.info.edge_type_name == edge_type_name
-        }).map(|(k, _)| *k);
+        let key = edge_types
+            .iter()
+            .find(|(_, data)| data.info.edge_type_name == edge_type_name)
+            .map(|(k, _)| *k);
 
         if let Some(k) = key {
             edge_types.remove(&k);
@@ -341,15 +366,20 @@ impl super::SchemaManager for InMemorySchemaManager {
         }
     }
 
-    fn get_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> {
+    fn get_edge_type(
+        &self,
+        space_name: &str,
+        edge_type_name: &str,
+    ) -> Result<Option<EdgeTypeInfo>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let edge_types = self.edge_types.read();
-        Ok(edge_types.values().find(|data| {
-            data.info.edge_type_name == edge_type_name
-        }).map(|d| d.info.clone()))
+        Ok(edge_types
+            .values()
+            .find(|data| data.info.edge_type_name == edge_type_name)
+            .map(|d| d.info.clone()))
     }
 
     fn list_edge_types(&self, space_name: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
@@ -358,21 +388,27 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let edge_types = self.edge_types.read();
-        Ok(edge_types.iter()
+        Ok(edge_types
+            .iter()
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
     }
 
-    fn update_edge_type(&self, space_name: &str, edge_type: &EdgeTypeInfo) -> Result<bool, StorageError> {
+    fn update_edge_type(
+        &self,
+        space_name: &str,
+        edge_type: &EdgeTypeInfo,
+    ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut edge_types = self.edge_types.write();
-        let key = edge_types.iter().find(|(_, data)| {
-            data.info.edge_type_name == edge_type.edge_type_name
-        }).map(|(k, _)| *k);
+        let key = edge_types
+            .iter()
+            .find(|(_, data)| data.info.edge_type_name == edge_type.edge_type_name)
+            .map(|(k, _)| *k);
 
         if let Some(k) = key {
             if let Some(data) = edge_types.get_mut(&k) {
@@ -385,15 +421,27 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn get_tag_schema(&self, space_name: &str, tag_name: &str) -> Result<Schema, StorageError> {
         let tag = self.get_tag(space_name, tag_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Tag \"{}\" does not exist in space \"{}\"", tag_name, space_name))
+            StorageError::DbError(format!(
+                "Tag \"{}\" does not exist in space \"{}\"",
+                tag_name, space_name
+            ))
         })?;
         Ok(tag_info_to_schema(tag_name, &tag))
     }
 
-    fn get_edge_type_schema(&self, space_name: &str, edge_type_name: &str) -> Result<Schema, StorageError> {
-        let edge_type = self.get_edge_type(space_name, edge_type_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Edge type \"{}\" does not exist in space \"{}\"", edge_type_name, space_name))
-        })?;
+    fn get_edge_type_schema(
+        &self,
+        space_name: &str,
+        edge_type_name: &str,
+    ) -> Result<Schema, StorageError> {
+        let edge_type = self
+            .get_edge_type(space_name, edge_type_name)?
+            .ok_or_else(|| {
+                StorageError::DbError(format!(
+                    "Edge type \"{}\" does not exist in space \"{}\"",
+                    edge_type_name, space_name
+                ))
+            })?;
         Ok(edge_type_info_to_schema(edge_type_name, &edge_type))
     }
 
@@ -403,7 +451,8 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let indexes = self.tag_indexes.read();
-        Ok(indexes.iter()
+        Ok(indexes
+            .iter()
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
@@ -415,7 +464,8 @@ impl super::SchemaManager for InMemorySchemaManager {
         })?;
 
         let indexes = self.edge_indexes.read();
-        Ok(indexes.iter()
+        Ok(indexes
+            .iter()
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
@@ -426,40 +476,58 @@ impl super::SchemaManager for InMemorySchemaManager {
         use std::io::Write;
 
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+            fs::create_dir_all(parent).map_err(|e| StorageError::IOError(e.to_string()))?;
         }
 
-        let spaces: Vec<SpaceInfo> = self.spaces.read().values().map(|d| d.info.clone()).collect();
-        
-        let tags: Vec<(u64, TagInfo)> = self.tags.read()
+        let spaces: Vec<SpaceInfo> = self
+            .spaces
+            .read()
+            .values()
+            .map(|d| d.info.clone())
+            .collect();
+
+        let tags: Vec<(u64, TagInfo)> = self
+            .tags
+            .read()
             .iter()
             .map(|((space_id, _), data)| (*space_id, data.info.clone()))
             .collect();
 
-        let edge_types: Vec<(u64, EdgeTypeInfo)> = self.edge_types.read()
+        let edge_types: Vec<(u64, EdgeTypeInfo)> = self
+            .edge_types
+            .read()
             .iter()
             .map(|((space_id, _), data)| (*space_id, data.info.clone()))
             .collect();
 
-        let tag_indexes: Vec<(u64, Index)> = self.tag_indexes.read()
+        let tag_indexes: Vec<(u64, Index)> = self
+            .tag_indexes
+            .read()
             .iter()
             .map(|((space_id, _), data)| (*space_id, data.info.clone()))
             .collect();
 
-        let edge_indexes: Vec<(u64, Index)> = self.edge_indexes.read()
+        let edge_indexes: Vec<(u64, Index)> = self
+            .edge_indexes
+            .read()
             .iter()
             .map(|((space_id, _), data)| (*space_id, data.info.clone()))
             .collect();
 
-        let space_id_counter = self.space_id_counter.load(std::sync::atomic::Ordering::SeqCst);
+        let space_id_counter = self
+            .space_id_counter
+            .load(std::sync::atomic::Ordering::SeqCst);
 
-        let tag_id_counters: Vec<(u64, u32)> = self.tag_id_counter.read()
+        let tag_id_counters: Vec<(u64, u32)> = self
+            .tag_id_counter
+            .read()
             .iter()
             .map(|(k, v)| (*k, v.load(std::sync::atomic::Ordering::SeqCst)))
             .collect();
 
-        let edge_type_id_counters: Vec<(u64, u32)> = self.edge_type_id_counter.read()
+        let edge_type_id_counters: Vec<(u64, u32)> = self
+            .edge_type_id_counter
+            .read()
             .iter()
             .map(|(k, v)| (*k, v.load(std::sync::atomic::Ordering::SeqCst)))
             .collect();
@@ -479,9 +547,8 @@ impl super::SchemaManager for InMemorySchemaManager {
         let json = serde_json::to_string_pretty(&snapshot)
             .map_err(|e| StorageError::SerializeError(e.to_string()))?;
 
-        let mut file = File::create(path)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
-        
+        let mut file = File::create(path).map_err(|e| StorageError::IOError(e.to_string()))?;
+
         file.write_all(json.as_bytes())
             .map_err(|e| StorageError::IOError(e.to_string()))?;
 
@@ -496,8 +563,7 @@ impl super::SchemaManager for InMemorySchemaManager {
             return Ok(());
         }
 
-        let mut file = File::open(path)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+        let mut file = File::open(path).map_err(|e| StorageError::IOError(e.to_string()))?;
 
         let mut json = String::new();
         file.read_to_string(&mut json)
@@ -522,31 +588,46 @@ impl super::SchemaManager for InMemorySchemaManager {
 
         for space in snapshot.spaces {
             let space_id = space.space_id;
-            self.space_name_index.write().insert(space.space_name.clone(), space_id);
-            self.spaces.write().insert(space_id, SpaceData { info: space });
+            self.space_name_index
+                .write()
+                .insert(space.space_name.clone(), space_id);
+            self.spaces
+                .write()
+                .insert(space_id, SpaceData { info: space });
         }
 
         for (space_id, tag) in snapshot.tags {
             let tag_id = tag.tag_id;
-            self.tags.write().insert((space_id, tag_id), TagData { info: tag });
+            self.tags
+                .write()
+                .insert((space_id, tag_id), TagData { info: tag });
         }
 
         for (space_id, edge_type) in snapshot.edge_types {
             let edge_type_id = edge_type.edge_type_id;
-            self.edge_types.write().insert((space_id, edge_type_id), EdgeTypeData { info: edge_type });
+            self.edge_types
+                .write()
+                .insert((space_id, edge_type_id), EdgeTypeData { info: edge_type });
         }
 
         for (space_id, index) in snapshot.tag_indexes {
             let index_name = index.name.clone();
-            self.tag_indexes.write().insert((space_id, index_name), IndexData { info: index });
+            self.tag_indexes
+                .write()
+                .insert((space_id, index_name), IndexData { info: index });
         }
 
         for (space_id, index) in snapshot.edge_indexes {
             let index_name = index.name.clone();
-            self.edge_indexes.write().insert((space_id, index_name), IndexData { info: index });
+            self.edge_indexes
+                .write()
+                .insert((space_id, index_name), IndexData { info: index });
         }
 
-        self.space_id_counter.store(snapshot.space_id_counter, std::sync::atomic::Ordering::SeqCst);
+        self.space_id_counter.store(
+            snapshot.space_id_counter,
+            std::sync::atomic::Ordering::SeqCst,
+        );
 
         {
             let mut counters = self.tag_id_counter.write();
@@ -581,9 +662,10 @@ impl InMemorySchemaManager {
         })?;
 
         let mut tags = self.tags.write();
-        let tag_key = tags.iter().find(|(_, data)| {
-            data.info.tag_name == tag_name
-        }).map(|(k, _)| *k);
+        let tag_key = tags
+            .iter()
+            .find(|(_, data)| data.info.tag_name == tag_name)
+            .map(|(k, _)| *k);
 
         if let Some(key) = tag_key {
             if let Some(data) = tags.get_mut(&key) {
@@ -592,7 +674,9 @@ impl InMemorySchemaManager {
                         data.info.properties.push(prop);
                     }
                 }
-                data.info.properties.retain(|p| !deletions.contains(&p.name));
+                data.info
+                    .properties
+                    .retain(|p| !deletions.contains(&p.name));
                 return Ok(true);
             }
         }
@@ -611,9 +695,10 @@ impl InMemorySchemaManager {
         })?;
 
         let mut edge_types = self.edge_types.write();
-        let key = edge_types.iter().find(|(_, data)| {
-            data.info.edge_type_name == edge_type_name
-        }).map(|(k, _)| *k);
+        let key = edge_types
+            .iter()
+            .find(|(_, data)| data.info.edge_type_name == edge_type_name)
+            .map(|(k, _)| *k);
 
         if let Some(k) = key {
             if let Some(data) = edge_types.get_mut(&k) {
@@ -622,7 +707,9 @@ impl InMemorySchemaManager {
                         data.info.properties.push(prop);
                     }
                 }
-                data.info.properties.retain(|p| !deletions.contains(&p.name));
+                data.info
+                    .properties
+                    .retain(|p| !deletions.contains(&p.name));
                 return Ok(true);
             }
         }
@@ -639,7 +726,12 @@ impl InMemorySchemaManager {
         if indexes.contains_key(&key) {
             return Ok(false);
         }
-        indexes.insert(key, IndexData { info: index.clone() });
+        indexes.insert(
+            key,
+            IndexData {
+                info: index.clone(),
+            },
+        );
         Ok(true)
     }
 
@@ -653,13 +745,19 @@ impl InMemorySchemaManager {
         Ok(indexes.remove(&key).is_some())
     }
 
-    pub fn get_tag_index(&self, space_name: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
+    pub fn get_tag_index(
+        &self,
+        space_name: &str,
+        index_name: &str,
+    ) -> Result<Option<Index>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let indexes = self.tag_indexes.read();
-        Ok(indexes.get(&(space_info.space_id, index_name.to_string())).map(|d| d.info.clone()))
+        Ok(indexes
+            .get(&(space_info.space_id, index_name.to_string()))
+            .map(|d| d.info.clone()))
     }
 
     pub fn create_edge_index(&self, space_name: &str, index: &Index) -> Result<bool, StorageError> {
@@ -672,11 +770,20 @@ impl InMemorySchemaManager {
         if indexes.contains_key(&key) {
             return Ok(false);
         }
-        indexes.insert(key, IndexData { info: index.clone() });
+        indexes.insert(
+            key,
+            IndexData {
+                info: index.clone(),
+            },
+        );
         Ok(true)
     }
 
-    pub fn drop_edge_index(&self, space_name: &str, index_name: &str) -> Result<bool, StorageError> {
+    pub fn drop_edge_index(
+        &self,
+        space_name: &str,
+        index_name: &str,
+    ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
@@ -686,16 +793,26 @@ impl InMemorySchemaManager {
         Ok(indexes.remove(&key).is_some())
     }
 
-    pub fn get_edge_index(&self, space_name: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
+    pub fn get_edge_index(
+        &self,
+        space_name: &str,
+        index_name: &str,
+    ) -> Result<Option<Index>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let indexes = self.edge_indexes.read();
-        Ok(indexes.get(&(space_info.space_id, index_name.to_string())).map(|d| d.info.clone()))
+        Ok(indexes
+            .get(&(space_info.space_id, index_name.to_string()))
+            .map(|d| d.info.clone()))
     }
 
-    pub fn get_schema(&self, space_name: &str, schema_name: &str) -> Result<Option<Schema>, StorageError> {
+    pub fn get_schema(
+        &self,
+        space_name: &str,
+        schema_name: &str,
+    ) -> Result<Option<Schema>, StorageError> {
         if let Some(tag) = self.get_tag(space_name, schema_name)? {
             return Ok(Some(tag_info_to_schema(schema_name, &tag)));
         }
@@ -708,6 +825,8 @@ impl InMemorySchemaManager {
     pub fn get_space_id(&self, space_name: &str) -> Result<u64, StorageError> {
         self.get_space(space_name)?
             .map(|s| s.space_id)
-            .ok_or_else(|| StorageError::DbError(format!("Space \"{}\" does not exist", space_name)))
+            .ok_or_else(|| {
+                StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            })
     }
 }

@@ -9,9 +9,7 @@
 //!
 //! Test cases: TC-FT-ADV-001 ~ TC-FT-ADV-010
 
-use super::common::{
-    assert_search_result_contains, FulltextTestContext,
-};
+use super::common::{assert_search_result_contains, FulltextTestContext};
 use graphdb::search::EngineType;
 
 /// TC-FT-ADV-001: Boolean OR Query (Default Behavior)

@@ -31,8 +31,8 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 
 /// Verified creation information
 #[derive(Debug, Clone)]
@@ -673,7 +673,15 @@ impl CreateValidator {
                 }
 
                 // Verify whether vid_type is valid.
-                let valid_vid_types = ["INT64", "INT32", "INT16", "INT8", "FIXEDSTRING", "STRING", "FIXED_STRING"];
+                let valid_vid_types = [
+                    "INT64",
+                    "INT32",
+                    "INT16",
+                    "INT8",
+                    "FIXEDSTRING",
+                    "STRING",
+                    "FIXED_STRING",
+                ];
                 let vid_type_upper = vid_type.to_uppercase();
                 let is_valid_vid_type = valid_vid_types
                     .iter()

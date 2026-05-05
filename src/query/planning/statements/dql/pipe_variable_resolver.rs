@@ -73,10 +73,7 @@ impl ColumnSchema {
     }
 
     pub fn is_vid_type(&self) -> bool {
-        matches!(
-            self.data_type,
-            ColumnDataType::Vid | ColumnDataType::Vertex
-        )
+        matches!(self.data_type, ColumnDataType::Vid | ColumnDataType::Vertex)
     }
 }
 
@@ -405,7 +402,10 @@ pub fn parse_pipe_variable(expr_str: &str) -> Option<ParsedPipeVariable> {
 pub enum ParsedPipeVariable {
     PipeResult,
     NamedVariable(String),
-    NamedColumn { var_name: String, column_name: String },
+    NamedColumn {
+        var_name: String,
+        column_name: String,
+    },
 }
 
 impl ParsedPipeVariable {
@@ -494,7 +494,10 @@ mod tests {
             ]),
         ]);
 
-        resolver.set_variable("result".to_string(), VariableInfo::new("result".to_string(), value));
+        resolver.set_variable(
+            "result".to_string(),
+            VariableInfo::new("result".to_string(), value),
+        );
 
         let names = resolver.resolve_column("result", "name").unwrap();
         assert_eq!(names.len(), 2);
@@ -544,14 +547,15 @@ mod tests {
     fn test_infer_schema() {
         let mut resolver = PipeVariableResolver::new();
 
-        let value = make_list(vec![
-            make_map(vec![
-                ("vid", Value::Int(1)),
-                ("name", Value::String("Alice".to_string())),
-            ]),
-        ]);
+        let value = make_list(vec![make_map(vec![
+            ("vid", Value::Int(1)),
+            ("name", Value::String("Alice".to_string())),
+        ])]);
 
-        resolver.set_variable("result".to_string(), VariableInfo::new("result".to_string(), value));
+        resolver.set_variable(
+            "result".to_string(),
+            VariableInfo::new("result".to_string(), value),
+        );
 
         let schema = resolver.infer_schema("result").unwrap();
         assert_eq!(schema.columns.len(), 2);

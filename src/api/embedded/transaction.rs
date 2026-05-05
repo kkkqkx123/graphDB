@@ -330,11 +330,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             .txn_manager()
             .get_context(self.txn_handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
-        
+
         let savepoint_info = context
             .find_savepoint_by_id(savepoint_id)
             .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
-        
+
         context.truncate_operation_log(savepoint_info.operation_log_index);
         Ok(())
     }
@@ -371,7 +371,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             return None;
         }
 
-        let context = self.session.txn_manager().get_context(self.txn_handle.0).ok()?;
+        let context = self
+            .session
+            .txn_manager()
+            .get_context(self.txn_handle.0)
+            .ok()?;
         context.find_savepoint_by_name(name).map(|info| info.id)
     }
 

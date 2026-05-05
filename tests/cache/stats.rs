@@ -1,8 +1,8 @@
 //! Cache Statistics Tests
 
 use graphdb::query::cache::{
-    CacheCounters, CteCacheStats, GlobalCacheStatsSnapshot, MemoryStats,
-    PlanCacheStats, PlanCacheStatsSnapshot, CteCacheStatsSnapshot,
+    CacheCounters, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, MemoryStats,
+    PlanCacheStats, PlanCacheStatsSnapshot,
 };
 use std::sync::Arc;
 

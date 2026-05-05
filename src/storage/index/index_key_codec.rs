@@ -785,6 +785,260 @@ impl IndexKeyCodec {
 
         field_count > 1
     }
+
+    // ========================================================================
+    // Native ID Type Support (CSR-compatible)
+    // ========================================================================
+
+    /// Build vertex forward index key with native VertexId
+    /// Format: [space_id: u64] [type: u8=0x03] [index_name_len: u32] [index_name]
+    ///         [prop_value_len: u32] [prop_value] [vertex_id: u64]
+    pub fn build_vertex_index_key_native(
+        space_id: u64,
+        index_name: &str,
+        prop_value: &Value,
+        vertex_id: u64,
+    ) -> Result<ByteKey, StorageError> {
+        let prop_value_bytes = Self::serialize_value(prop_value)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_VERTEX_FORWARD);
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+        key.extend_from_slice(&(prop_value_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&prop_value_bytes);
+        key.extend_from_slice(&vertex_id.to_le_bytes());
+
+        Ok(ByteKey(key))
+    }
+
+    /// Parse native VertexId from vertex index key
+    pub fn parse_vertex_id_from_key_native(key_bytes: &[u8]) -> Result<u64, StorageError> {
+        let mut pos = 9;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError("Invalid key: too short".to_string()));
+        }
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4 + index_name_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid key: missing prop_value_len".to_string(),
+            ));
+        }
+        let prop_value_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4 + prop_value_len;
+
+        if key_bytes.len() < pos + 8 {
+            return Err(StorageError::DbError(
+                "Invalid key: vertex_id exceeds key length".to_string(),
+            ));
+        }
+        let vertex_id = u64::from_le_bytes(key_bytes[pos..pos + 8].try_into().unwrap_or([0; 8]));
+
+        Ok(vertex_id)
+    }
+
+    /// Build vertex reverse index key with native VertexId
+    /// Format: [space_id: u64] [type: u8=0x01] [vertex_id: u64] [index_name_len: u32] [index_name]
+    pub fn build_vertex_reverse_key_native(
+        space_id: u64,
+        vertex_id: u64,
+        index_name: &str,
+    ) -> ByteKey {
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_VERTEX_REVERSE);
+        key.extend_from_slice(&vertex_id.to_le_bytes());
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+
+        ByteKey(key)
+    }
+
+    /// Build prefix for vertex reverse index key by native VertexId
+    /// Format: [space_id: u64] [type: u8=0x01] [vertex_id: u64]
+    pub fn build_vertex_reverse_prefix_native(space_id: u64, vertex_id: u64) -> ByteKey {
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_VERTEX_REVERSE);
+        key.extend_from_slice(&vertex_id.to_le_bytes());
+
+        ByteKey(key)
+    }
+
+    /// Parse native VertexId from vertex reverse index key
+    pub fn parse_vertex_reverse_key_native(
+        key_bytes: &[u8],
+    ) -> Result<(u64, String), StorageError> {
+        if key_bytes.len() < 17 {
+            return Err(StorageError::DbError(
+                "Invalid reverse key native: too short".to_string(),
+            ));
+        }
+
+        let vertex_id = u64::from_le_bytes(key_bytes[9..17].try_into().unwrap_or([0; 8]));
+
+        let mut pos = 17;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid reverse key native: missing index_name_len".to_string(),
+            ));
+        }
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + index_name_len {
+            return Err(StorageError::DbError(
+                "Invalid reverse key native: index_name exceeds key length".to_string(),
+            ));
+        }
+        let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
+            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+
+        Ok((vertex_id, index_name))
+    }
+
+    /// Build edge forward index key with native VertexId
+    /// Format: [space_id: u64] [type: u8=0x04] [index_name_len: u32] [index_name]
+    ///         [prop_value_len: u32] [prop_value] [src: u64] [dst: u64]
+    pub fn build_edge_index_key_native(
+        space_id: u64,
+        index_name: &str,
+        prop_value: &Value,
+        src: u64,
+        dst: u64,
+    ) -> Result<ByteKey, StorageError> {
+        let prop_value_bytes = Self::serialize_value(prop_value)?;
+
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_FORWARD);
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+        key.extend_from_slice(&(prop_value_bytes.len() as u32).to_le_bytes());
+        key.extend_from_slice(&prop_value_bytes);
+        key.extend_from_slice(&src.to_le_bytes());
+        key.extend_from_slice(&dst.to_le_bytes());
+
+        Ok(ByteKey(key))
+    }
+
+    /// Parse native (src, dst) from edge index key
+    pub fn parse_edge_ids_from_key_native(key_bytes: &[u8]) -> Result<(u64, u64), StorageError> {
+        let mut pos = 9;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid edge key: too short".to_string(),
+            ));
+        }
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4 + index_name_len;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid edge key: missing prop_value_len".to_string(),
+            ));
+        }
+        let prop_value_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4 + prop_value_len;
+
+        if key_bytes.len() < pos + 16 {
+            return Err(StorageError::DbError(
+                "Invalid edge key: src/dst exceeds key length".to_string(),
+            ));
+        }
+        let src = u64::from_le_bytes(key_bytes[pos..pos + 8].try_into().unwrap_or([0; 8]));
+        let dst = u64::from_le_bytes(key_bytes[pos + 8..pos + 16].try_into().unwrap_or([0; 8]));
+
+        Ok((src, dst))
+    }
+
+    /// Build edge reverse index key with native VertexId
+    /// Format: [space_id: u64] [type: u8=0x02] [src: u64] [dst: u64] [index_name_len: u32] [index_name]
+    pub fn build_edge_reverse_key_native(
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+    ) -> ByteKey {
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_REVERSE);
+        key.extend_from_slice(&src.to_le_bytes());
+        key.extend_from_slice(&dst.to_le_bytes());
+        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
+        key.extend_from_slice(index_name.as_bytes());
+
+        ByteKey(key)
+    }
+
+    /// Build prefix for edge reverse index key by native src
+    /// Format: [space_id: u64] [type: u8=0x02] [src: u64]
+    pub fn build_edge_reverse_prefix_native(space_id: u64, src: u64) -> ByteKey {
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_REVERSE);
+        key.extend_from_slice(&src.to_le_bytes());
+
+        ByteKey(key)
+    }
+
+    /// Build prefix for edge reverse index key by native src and dst
+    /// Format: [space_id: u64] [type: u8=0x02] [src: u64] [dst: u64]
+    pub fn build_edge_reverse_prefix_native_with_dst(space_id: u64, src: u64, dst: u64) -> ByteKey {
+        let mut key = Vec::new();
+        key.extend_from_slice(&space_id.to_le_bytes());
+        key.push(KEY_TYPE_EDGE_REVERSE);
+        key.extend_from_slice(&src.to_le_bytes());
+        key.extend_from_slice(&dst.to_le_bytes());
+
+        ByteKey(key)
+    }
+
+    /// Parse native (src, dst) from edge reverse index key
+    pub fn parse_edge_reverse_key_native(
+        key_bytes: &[u8],
+    ) -> Result<(u64, u64, String), StorageError> {
+        if key_bytes.len() < 25 {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key native: too short".to_string(),
+            ));
+        }
+
+        let src = u64::from_le_bytes(key_bytes[9..17].try_into().unwrap_or([0; 8]));
+        let dst = u64::from_le_bytes(key_bytes[17..25].try_into().unwrap_or([0; 8]));
+
+        let mut pos = 25;
+
+        if key_bytes.len() < pos + 4 {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key native: missing index_name_len".to_string(),
+            ));
+        }
+        let index_name_len =
+            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
+        pos += 4;
+
+        if key_bytes.len() < pos + index_name_len {
+            return Err(StorageError::DbError(
+                "Invalid edge reverse key native: index_name exceeds key length".to_string(),
+            ));
+        }
+        let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
+            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+
+        Ok((src, dst, index_name))
+    }
 }
 
 #[cfg(test)]

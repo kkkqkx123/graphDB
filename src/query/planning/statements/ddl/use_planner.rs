@@ -3,11 +3,11 @@
 //! Query planning for handling the USE <space> statement
 
 use crate::query::parser::ast::{Stmt, UseStmt};
+use crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode;
 use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, SwitchSpaceNode},
 };
-use crate::query::planning::plan::core::nodes::management::manage_node_enums::SpaceManageNode;
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;

@@ -3,12 +3,12 @@
 //! Adapter layer for vertex storage using columnar storage backend.
 //! Provides vertex additions, deletions and tag management.
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
-use crate::storage::index::{IndexDataManager, InMemoryIndexDataManager};
+use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
@@ -218,11 +218,7 @@ impl VertexStorage {
         let all_vertices = self.scan_vertices_by_tag(space, tag)?;
         let filtered: Vec<Vertex> = all_vertices
             .into_iter()
-            .filter(|v| {
-                v.tags
-                    .iter()
-                    .any(|t| t.properties.get(prop) == Some(value))
-            })
+            .filter(|v| v.tags.iter().any(|t| t.properties.get(prop) == Some(value)))
             .collect();
 
         Ok(filtered)
@@ -352,7 +348,8 @@ impl VertexStorage {
             }
         }
 
-        self.index_data_manager.delete_vertex_indexes_mvcc(space_id, id, ts)?;
+        self.index_data_manager
+            .delete_vertex_indexes_mvcc(space_id, id, ts)?;
 
         self.release_write_timestamp(ts);
         Ok(())
@@ -549,7 +546,13 @@ impl VertexStorage {
             {
                 let mut graph = self.graph.write();
                 for (prop_name, prop_value) in &properties {
-                    graph.update_vertex_property(label_id, &external_id, prop_name, prop_value, ts)?;
+                    graph.update_vertex_property(
+                        label_id,
+                        &external_id,
+                        prop_name,
+                        prop_value,
+                        ts,
+                    )?;
                 }
             }
 
@@ -585,12 +588,9 @@ impl VertexStorage {
         use oxicode::encode_to_vec;
 
         if let Some(vertex) = self.get_vertex(space, id)? {
-            let tag_info = self
-                .schema_manager
-                .get_tag(space, tag)?
-                .ok_or_else(|| {
-                    StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
-                })?;
+            let tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
+                StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+            })?;
             let schema = self.build_vertex_schema(&tag_info)?;
             let vertex_data = encode_to_vec(&vertex)?;
             return Ok(Some((schema, vertex_data)));
@@ -606,12 +606,9 @@ impl VertexStorage {
         use oxicode::encode_to_vec;
 
         let mut results = Vec::new();
-        let tag_info = self
-            .schema_manager
-            .get_tag(space, tag)?
-            .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
-            })?;
+        let tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
+            StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+        })?;
         let schema = self.build_vertex_schema(&tag_info)?;
 
         let vertices = self.scan_vertices(space)?;
@@ -629,5 +626,3 @@ impl VertexStorage {
         self.sync_manager.read().clone()
     }
 }
-
-

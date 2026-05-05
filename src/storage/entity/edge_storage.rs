@@ -3,13 +3,14 @@
 //! Adapter layer for edge storage using CSR (Compressed Sparse Row) backend.
 //! Responsible for edge additions, deletions, and dangling edge detection/repair.
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use crate::core::types::{EdgeTypeInfo, InsertEdgeInfo};
 use crate::core::{Edge, EdgeDirection, StorageError, Value};
 use crate::storage::edge::{EdgeDirection as CsrEdgeDirection, EdgeRecord, Timestamp};
-use crate::storage::index::{IndexDataManager, InMemoryIndexDataManager};
+use crate::storage::index::{DegreeIndex, EdgeIdIndex};
+use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
 use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::VertexId;
@@ -24,6 +25,8 @@ pub struct EdgeStorage {
     schema_manager: Arc<dyn SchemaManager + Send + Sync>,
     index_data_manager: InMemoryIndexDataManager,
     sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
+    edge_id_index: Arc<EdgeIdIndex>,
+    degree_index: Arc<DegreeIndex>,
 }
 
 impl std::fmt::Debug for EdgeStorage {
@@ -46,7 +49,37 @@ impl EdgeStorage {
             schema_manager,
             index_data_manager,
             sync_manager,
+            edge_id_index: Arc::new(EdgeIdIndex::new()),
+            degree_index: Arc::new(DegreeIndex::new()),
         })
+    }
+
+    pub fn with_csr_indexes(
+        graph: Arc<RwLock<PropertyGraph>>,
+        version_manager: Arc<VersionManager>,
+        schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+        index_data_manager: InMemoryIndexDataManager,
+        sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
+        edge_id_index: Arc<EdgeIdIndex>,
+        degree_index: Arc<DegreeIndex>,
+    ) -> Result<Self, StorageError> {
+        Ok(Self {
+            graph,
+            version_manager,
+            schema_manager,
+            index_data_manager,
+            sync_manager,
+            edge_id_index,
+            degree_index,
+        })
+    }
+
+    pub fn edge_id_index(&self) -> &EdgeIdIndex {
+        &self.edge_id_index
+    }
+
+    pub fn degree_index(&self) -> &DegreeIndex {
+        &self.degree_index
     }
 
     fn get_space_id(&self, space: &str) -> Result<u64, StorageError> {
@@ -159,7 +192,8 @@ impl EdgeStorage {
             EdgeDirection::Out => CsrEdgeDirection::Out,
             EdgeDirection::In => CsrEdgeDirection::In,
             EdgeDirection::Both => {
-                let out_edges = self.get_edges_for_direction(&graph, vid, CsrEdgeDirection::Out, ts);
+                let out_edges =
+                    self.get_edges_for_direction(&graph, vid, CsrEdgeDirection::Out, ts);
                 let in_edges = self.get_edges_for_direction(&graph, vid, CsrEdgeDirection::In, ts);
                 edges.extend(out_edges);
                 edges.extend(in_edges);
@@ -319,7 +353,10 @@ impl EdgeStorage {
             .schema_manager
             .get_tag(space, src_tag_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", src_tag_name, space))
+                StorageError::DbError(format!(
+                    "Tag '{}' not found in space '{}'",
+                    src_tag_name, space
+                ))
             })?
             .tag_id as u16;
 
@@ -327,7 +364,10 @@ impl EdgeStorage {
             .schema_manager
             .get_tag(space, dst_tag_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", dst_tag_name, space))
+                StorageError::DbError(format!(
+                    "Tag '{}' not found in space '{}'",
+                    dst_tag_name, space
+                ))
             })?
             .tag_id as u16;
 
@@ -343,7 +383,18 @@ impl EdgeStorage {
                     Value::String(s) => s.as_str(),
                     _ => &dst_vid.to_string(),
                 };
-                graph.insert_edge(label_id, src_label_id, src_id_str, dst_label_id, dst_id_str, &properties, ts)?;
+                let edge_id = graph.insert_edge(
+                    label_id,
+                    src_label_id,
+                    src_id_str,
+                    dst_label_id,
+                    dst_id_str,
+                    &properties,
+                    ts,
+                )?;
+
+                self.edge_id_index.insert(edge_id, src_vid, dst_vid, 0);
+                self.degree_index.insert_edge(src_vid, dst_vid);
             }
         }
 
@@ -409,7 +460,10 @@ impl EdgeStorage {
             .schema_manager
             .get_tag(space, src_tag_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", src_tag_name, space))
+                StorageError::DbError(format!(
+                    "Tag '{}' not found in space '{}'",
+                    src_tag_name, space
+                ))
             })?
             .tag_id as u16;
 
@@ -417,7 +471,10 @@ impl EdgeStorage {
             .schema_manager
             .get_tag(space, dst_tag_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", dst_tag_name, space))
+                StorageError::DbError(format!(
+                    "Tag '{}' not found in space '{}'",
+                    dst_tag_name, space
+                ))
             })?
             .tag_id as u16;
 
@@ -433,7 +490,16 @@ impl EdgeStorage {
                     Value::String(s) => s.as_str(),
                     _ => &dst_vid.to_string(),
                 };
-                graph.delete_edge(label_id, src_label_id, src_id_str, dst_label_id, dst_id_str, ts)?;
+                graph.delete_edge(
+                    label_id,
+                    src_label_id,
+                    src_id_str,
+                    dst_label_id,
+                    dst_id_str,
+                    ts,
+                )?;
+
+                self.degree_index.remove_edge(src_vid, dst_vid);
             }
         }
 
@@ -488,7 +554,10 @@ impl EdgeStorage {
                         .schema_manager
                         .get_tag(space, src_tag_name)?
                         .ok_or_else(|| {
-                            StorageError::DbError(format!("Tag '{}' not found in space '{}'", src_tag_name, space))
+                            StorageError::DbError(format!(
+                                "Tag '{}' not found in space '{}'",
+                                src_tag_name, space
+                            ))
                         })?
                         .tag_id as u16;
 
@@ -496,7 +565,10 @@ impl EdgeStorage {
                         .schema_manager
                         .get_tag(space, dst_tag_name)?
                         .ok_or_else(|| {
-                            StorageError::DbError(format!("Tag '{}' not found in space '{}'", dst_tag_name, space))
+                            StorageError::DbError(format!(
+                                "Tag '{}' not found in space '{}'",
+                                dst_tag_name, space
+                            ))
                         })?
                         .tag_id as u16;
 
@@ -508,7 +580,18 @@ impl EdgeStorage {
                         Value::String(s) => s.as_str(),
                         _ => &dst_vid.to_string(),
                     };
-                    graph.insert_edge(label_id, src_label_id, src_id_str, dst_label_id, dst_id_str, &properties, ts)?;
+                    let edge_id = graph.insert_edge(
+                        label_id,
+                        src_label_id,
+                        src_id_str,
+                        dst_label_id,
+                        dst_id_str,
+                        &properties,
+                        ts,
+                    )?;
+
+                    self.edge_id_index.insert(edge_id, src_vid, dst_vid, 0);
+                    self.degree_index.insert_edge(src_vid, dst_vid);
                 }
             }
         }
@@ -552,7 +635,10 @@ impl EdgeStorage {
                     .schema_manager
                     .get_tag(space, src_tag_name)?
                     .ok_or_else(|| {
-                        StorageError::DbError(format!("Tag '{}' not found in space '{}'", src_tag_name, space))
+                        StorageError::DbError(format!(
+                            "Tag '{}' not found in space '{}'",
+                            src_tag_name, space
+                        ))
                     })?
                     .tag_id as u16;
 
@@ -560,7 +646,10 @@ impl EdgeStorage {
                     .schema_manager
                     .get_tag(space, dst_tag_name)?
                     .ok_or_else(|| {
-                        StorageError::DbError(format!("Tag '{}' not found in space '{}'", dst_tag_name, space))
+                        StorageError::DbError(format!(
+                            "Tag '{}' not found in space '{}'",
+                            dst_tag_name, space
+                        ))
                     })?
                     .tag_id as u16;
 
@@ -576,7 +665,16 @@ impl EdgeStorage {
                             Value::String(s) => s.as_str(),
                             _ => &dst_vid.to_string(),
                         };
-                        graph.delete_edge(label_id, src_label_id, src_id_str, dst_label_id, dst_id_str, ts)?;
+                        graph.delete_edge(
+                            label_id,
+                            src_label_id,
+                            src_id_str,
+                            dst_label_id,
+                            dst_id_str,
+                            ts,
+                        )?;
+
+                        self.degree_index.remove_edge(src_vid, dst_vid);
                     }
                 }
 
@@ -639,7 +737,10 @@ impl EdgeStorage {
             .schema_manager
             .get_tag(space, src_tag_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", src_tag_name, space))
+                StorageError::DbError(format!(
+                    "Tag '{}' not found in space '{}'",
+                    src_tag_name, space
+                ))
             })?
             .tag_id as u16;
 
@@ -647,7 +748,10 @@ impl EdgeStorage {
             .schema_manager
             .get_tag(space, dst_tag_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", dst_tag_name, space))
+                StorageError::DbError(format!(
+                    "Tag '{}' not found in space '{}'",
+                    dst_tag_name, space
+                ))
             })?
             .tag_id as u16;
 
@@ -663,7 +767,18 @@ impl EdgeStorage {
                     Value::String(s) => s.as_str(),
                     _ => &dst_vid.to_string(),
                 };
-                graph.insert_edge(label_id, src_label_id, src_id_str, dst_label_id, dst_id_str, &properties, ts)?;
+                let edge_id = graph.insert_edge(
+                    label_id,
+                    src_label_id,
+                    src_id_str,
+                    dst_label_id,
+                    dst_id_str,
+                    &properties,
+                    ts,
+                )?;
+
+                self.edge_id_index.insert(edge_id, src_vid, dst_vid, 0);
+                self.degree_index.insert_edge(src_vid, dst_vid);
             }
         }
 
@@ -717,7 +832,10 @@ impl EdgeStorage {
                     .schema_manager
                     .get_tag(space, src_tag_name)?
                     .ok_or_else(|| {
-                        StorageError::DbError(format!("Tag '{}' not found in space '{}'", src_tag_name, space))
+                        StorageError::DbError(format!(
+                            "Tag '{}' not found in space '{}'",
+                            src_tag_name, space
+                        ))
                     })?
                     .tag_id as u16;
 
@@ -725,7 +843,10 @@ impl EdgeStorage {
                     .schema_manager
                     .get_tag(space, dst_tag_name)?
                     .ok_or_else(|| {
-                        StorageError::DbError(format!("Tag '{}' not found in space '{}'", dst_tag_name, space))
+                        StorageError::DbError(format!(
+                            "Tag '{}' not found in space '{}'",
+                            dst_tag_name, space
+                        ))
                     })?
                     .tag_id as u16;
 
@@ -741,7 +862,16 @@ impl EdgeStorage {
                             Value::String(s) => s.as_str(),
                             _ => &dst_vid.to_string(),
                         };
-                        graph.delete_edge(label_id, src_label_id, src_id_str, dst_label_id, dst_id_str, ts)?;
+                        graph.delete_edge(
+                            label_id,
+                            src_label_id,
+                            src_id_str,
+                            dst_label_id,
+                            dst_id_str,
+                            ts,
+                        )?;
+
+                        self.degree_index.remove_edge(src_vid, dst_vid);
                     }
                 }
 
@@ -788,9 +918,9 @@ impl EdgeStorage {
         let graph = self.graph.read();
         let ts = self.get_read_timestamp();
 
-        let exists = graph.vertex_tables().any(|(_, table)| {
-            table.get_by_internal_id(vid as u32, ts).is_some()
-        });
+        let exists = graph
+            .vertex_tables()
+            .any(|(_, table)| table.get_by_internal_id(vid as u32, ts).is_some());
 
         self.release_read_timestamp();
         Ok(exists)
@@ -826,7 +956,10 @@ impl EdgeStorage {
                 .schema_manager
                 .get_tag(space, src_tag_name)?
                 .ok_or_else(|| {
-                    StorageError::DbError(format!("Tag '{}' not found in space '{}'", src_tag_name, space))
+                    StorageError::DbError(format!(
+                        "Tag '{}' not found in space '{}'",
+                        src_tag_name, space
+                    ))
                 })?
                 .tag_id as u16;
 
@@ -834,7 +967,10 @@ impl EdgeStorage {
                 .schema_manager
                 .get_tag(space, dst_tag_name)?
                 .ok_or_else(|| {
-                    StorageError::DbError(format!("Tag '{}' not found in space '{}'", dst_tag_name, space))
+                    StorageError::DbError(format!(
+                        "Tag '{}' not found in space '{}'",
+                        dst_tag_name, space
+                    ))
                 })?
                 .tag_id as u16;
 
@@ -850,7 +986,14 @@ impl EdgeStorage {
                         Value::String(s) => s.as_str(),
                         _ => &dst_vid.to_string(),
                     };
-                    graph.delete_edge(label_id, src_label_id, src_id_str, dst_label_id, dst_id_str, ts)?;
+                    graph.delete_edge(
+                        label_id,
+                        src_label_id,
+                        src_id_str,
+                        dst_label_id,
+                        dst_id_str,
+                        ts,
+                    )?;
                 }
             }
 
@@ -944,5 +1087,3 @@ impl EdgeStorage {
         Ok(results)
     }
 }
-
-

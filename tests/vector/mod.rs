@@ -10,9 +10,9 @@
 //! - Multi-space isolation - space isolation for vector indexes
 //! - Performance - basic performance tests for vector operations
 
-mod common;
 mod basic;
-mod search;
+mod common;
 mod concurrent;
 mod edge_cases;
 mod embedding;
+mod search;

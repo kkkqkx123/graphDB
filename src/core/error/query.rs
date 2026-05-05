@@ -99,10 +99,7 @@ impl PlanNodeVisitError {
         }
     }
 
-    pub fn validation_error(
-        node_type: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
+    pub fn validation_error(node_type: impl Into<String>, message: impl Into<String>) -> Self {
         PlanNodeVisitError::ValidationError {
             node_type: node_type.into(),
             message: message.into(),
@@ -420,9 +417,7 @@ impl From<DBError> for QueryError {
         match e {
             DBError::Query(qe) => qe,
             DBError::Storage(se) => QueryError::StorageError(se.into()),
-            DBError::Expression(expression) => {
-                QueryError::ExpressionError(expression.into())
-            }
+            DBError::Expression(expression) => QueryError::ExpressionError(expression.into()),
             DBError::Plan(plan) => QueryError::ExecutionError(plan.to_string()),
             DBError::Manager(manager) => QueryError::ExecutionError(manager.to_string()),
             DBError::Validation(msg) => QueryError::InvalidQuery(msg),

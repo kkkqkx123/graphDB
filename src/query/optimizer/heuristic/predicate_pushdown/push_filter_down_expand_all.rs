@@ -8,7 +8,9 @@ use crate::query::optimizer::heuristic::pattern::Pattern;
 use crate::query::optimizer::heuristic::result::{RewriteResult, TransformResult};
 use crate::query::optimizer::heuristic::rule::{PushDownRule, RewriteRule};
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, SingleInputNode};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
+    PlanNode, SingleInputNode,
+};
 use crate::query::planning::plan::core::nodes::traversal::traversal_node::ExpandAllNode;
 
 /// Rules that push the filtering criteria forward to the ExpandAll operation
@@ -131,7 +133,7 @@ impl PushFilterDownExpandAllRule {
         // Check if all referenced variables are in the output columns
         // Also allow special variables like "$$", "$^", "edge", "src", "dst"
         let special_vars = ["$$", "$^", "edge", "src", "dst", "target"];
-        
+
         for var in &referenced_vars {
             // Skip special variables that are handled specially
             if special_vars.contains(&var.as_str()) {

@@ -88,7 +88,11 @@ impl std::fmt::Display for HugePageError {
             HugePageError::NotSupported => write!(f, "Huge pages not supported on this platform"),
             HugePageError::AllocationFailed(msg) => write!(f, "Allocation failed: {}", msg),
             HugePageError::InvalidSize { size, page_size } => {
-                write!(f, "Size {} is not aligned to huge page size {}", size, page_size)
+                write!(
+                    f,
+                    "Size {} is not aligned to huge page size {}",
+                    size, page_size
+                )
             }
             HugePageError::SystemError(e) => write!(f, "System error: {}", e),
         }
@@ -264,7 +268,8 @@ impl HugePageAllocator {
 
         unsafe {
             let ptr = alloc(layout);
-            NonNull::new(ptr).ok_or_else(|| HugePageError::AllocationFailed("alloc returned null".to_string()))
+            NonNull::new(ptr)
+                .ok_or_else(|| HugePageError::AllocationFailed("alloc returned null".to_string()))
         }
     }
 
@@ -389,12 +394,9 @@ impl HugePageBuffer {
             let result = self.allocator.allocate(new_capacity)?;
 
             unsafe {
-                std::ptr::copy_nonoverlapping(
-                    self.ptr.as_ptr(),
-                    result.ptr().as_ptr(),
-                    self.size,
-                );
-                self.allocator.deallocate(self.ptr, self.capacity, self.is_huge_page);
+                std::ptr::copy_nonoverlapping(self.ptr.as_ptr(), result.ptr().as_ptr(), self.size);
+                self.allocator
+                    .deallocate(self.ptr, self.capacity, self.is_huge_page);
             }
 
             self.ptr = result.ptr();

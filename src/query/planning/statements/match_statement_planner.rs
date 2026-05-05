@@ -13,7 +13,9 @@ use crate::core::types::ContextualExpression;
 use crate::query::metadata::{IndexMetadata, MetadataContext};
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
-use crate::query::planning::plan::core::nodes::access::index_scan::{IndexLimit, IndexScanNode, ScanType};
+use crate::query::planning::plan::core::nodes::access::index_scan::{
+    IndexLimit, IndexScanNode, ScanType,
+};
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::ExpandAllNode;
@@ -237,36 +239,26 @@ impl MatchStatementPlanner {
                 }
 
                 if self.has_where_clause(stmt) {
-                    plan = self.where_planner.transform_clause(
-                        qctx.clone(),
-                        stmt,
-                        plan,
-                    )?;
+                    plan = self
+                        .where_planner
+                        .transform_clause(qctx.clone(), stmt, plan)?;
                 }
 
                 if self.has_return_clause(stmt) {
                     let return_planner = ReturnClausePlanner::from_stmt(stmt);
-                    plan = return_planner.transform_clause(
-                        qctx.clone(),
-                        stmt,
-                        plan,
-                    )?;
+                    plan = return_planner.transform_clause(qctx.clone(), stmt, plan)?;
                 }
 
                 if self.has_order_by_clause(stmt) {
-                    plan = self.order_by_planner.transform_clause(
-                        qctx.clone(),
-                        stmt,
-                        plan,
-                    )?;
+                    plan = self
+                        .order_by_planner
+                        .transform_clause(qctx.clone(), stmt, plan)?;
                 }
 
                 if self.has_pagination(stmt) {
-                    plan = self.pagination_planner.transform_clause(
-                        qctx.clone(),
-                        stmt,
-                        plan,
-                    )?;
+                    plan = self
+                        .pagination_planner
+                        .transform_clause(qctx.clone(), stmt, plan)?;
                 }
 
                 if let Some(delete_clause) = &match_stmt.delete_clause {
@@ -474,12 +466,9 @@ impl MatchStatementPlanner {
 
         // Try to use index scan if available
         if self.config.enable_index_optimization {
-            if let Some(index_plan) = self.try_create_index_scan_plan(
-                node,
-                space_id,
-                space_name,
-                &var_name,
-            )? {
+            if let Some(index_plan) =
+                self.try_create_index_scan_plan(node, space_id, space_name, &var_name)?
+            {
                 return Ok(index_plan);
             }
         }
@@ -570,12 +559,7 @@ impl MatchStatementPlanner {
         let tag_name = &node.labels[0];
 
         // Find a suitable index for this tag
-        let suitable_index = self.find_suitable_index(
-            metadata_ctx,
-            tag_name,
-            node,
-            var_name,
-        )?;
+        let suitable_index = self.find_suitable_index(metadata_ctx, tag_name, node, var_name)?;
 
         match suitable_index {
             Some((index, index_limits)) => {
@@ -696,14 +680,22 @@ impl MatchStatementPlanner {
         // Extract from node properties (e.g., {name: "value"})
         if let Some(ref props) = node.properties {
             if let Some(expr_meta) = props.expression() {
-                Self::extract_conditions_from_expression(expr_meta.inner(), var_name, &mut conditions);
+                Self::extract_conditions_from_expression(
+                    expr_meta.inner(),
+                    var_name,
+                    &mut conditions,
+                );
             }
         }
 
         // Extract from predicates
         for pred in &node.predicates {
             if let Some(expr_meta) = pred.expression() {
-                Self::extract_conditions_from_expression(expr_meta.inner(), var_name, &mut conditions);
+                Self::extract_conditions_from_expression(
+                    expr_meta.inner(),
+                    var_name,
+                    &mut conditions,
+                );
             }
         }
 
@@ -716,8 +708,8 @@ impl MatchStatementPlanner {
         var_name: &str,
         conditions: &mut Vec<(String, String, String)>,
     ) {
-        use crate::core::types::operators::BinaryOperator;
         use crate::core::types::expr::Expression;
+        use crate::core::types::operators::BinaryOperator;
 
         match expr {
             Expression::Binary { left, op, right } => {
@@ -729,7 +721,7 @@ impl MatchStatementPlanner {
                 }
 
                 let op_str = op.to_string();
-                
+
                 // Check for pattern: var.property op value
                 if let Expression::Property { object, property } = left.as_ref() {
                     if let Expression::Variable(obj_name) = object.as_ref() {
@@ -742,7 +734,7 @@ impl MatchStatementPlanner {
                         }
                     }
                 }
-                
+
                 // Check for pattern: value op var.property (reversed)
                 if let Expression::Property { object, property } = right.as_ref() {
                     if let Expression::Variable(obj_name) = object.as_ref() {
@@ -1137,11 +1129,11 @@ impl MatchStatementPlanner {
         delete_clause: &crate::query::parser::ast::stmt::MatchDeleteClause,
         space_name: &str,
     ) -> Result<SubPlan, PlannerError> {
+        use crate::query::planning::plan::core::next_node_id;
         use crate::query::planning::plan::core::nodes::data_modification::delete_nodes::{
             PipeDeleteEdgesNode, PipeDeleteVerticesNode,
         };
         use crate::query::planning::plan::core::nodes::data_modification::info::VertexDeleteInfo;
-        use crate::query::planning::plan::core::next_node_id;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("The input plan has no root node".to_string())
@@ -1180,9 +1172,7 @@ impl MatchStatementPlanner {
 
     fn has_where_clause(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
         match stmt {
-            crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                match_stmt.where_clause.is_some()
-            }
+            crate::query::parser::ast::Stmt::Match(match_stmt) => match_stmt.where_clause.is_some(),
             _ => false,
         }
     }
@@ -1198,9 +1188,7 @@ impl MatchStatementPlanner {
 
     fn has_order_by_clause(&self, stmt: &crate::query::parser::ast::Stmt) -> bool {
         match stmt {
-            crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                match_stmt.order_by.is_some()
-            }
+            crate::query::parser::ast::Stmt::Match(match_stmt) => match_stmt.order_by.is_some(),
             _ => false,
         }
     }
@@ -1512,11 +1500,7 @@ impl MatchStatementPlanner {
                 .into_iter()
                 .map(|(key, value)| {
                     let prop_access = crate::core::Expression::property(var_expr.clone(), key);
-                    crate::core::Expression::binary(
-                        prop_access,
-                        BinaryOperator::Equal,
-                        value,
-                    )
+                    crate::core::Expression::binary(prop_access, BinaryOperator::Equal, value)
                 })
                 .collect();
 

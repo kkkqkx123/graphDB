@@ -87,7 +87,9 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             context.expression_context().clone(),
             coordinator,
         );
-        Ok(ExecutorEnum::VectorManage(VectorManageExecutor::Create(executor)))
+        Ok(ExecutorEnum::VectorManage(VectorManageExecutor::Create(
+            executor,
+        )))
     }
 
     /// Build DropVectorIndex executor
@@ -112,7 +114,9 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             context.expression_context().clone(),
             coordinator,
         );
-        Ok(ExecutorEnum::VectorManage(VectorManageExecutor::Drop(executor)))
+        Ok(ExecutorEnum::VectorManage(VectorManageExecutor::Drop(
+            executor,
+        )))
     }
 
     /// Build VectorLookup executor

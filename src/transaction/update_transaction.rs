@@ -8,10 +8,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use oxicode::{encode_to_vec, decode_from_slice};
+use oxicode::{decode_from_slice, encode_to_vec};
 
 use super::read_transaction::INVALID_TIMESTAMP;
-use super::version_manager::{VersionManager, VersionManagerError};
 use super::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
     DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
@@ -19,10 +18,10 @@ use super::undo_log::{
     RemoveVertexUndo, UndoLog, UndoLogError, UndoLogManager, UndoTarget, UpdateEdgePropUndo,
     UpdateVertexPropUndo,
 };
+use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{
-    ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
-    EdgeId, LabelId, Timestamp, UpdateEdgePropRedo, UpdateVertexPropRedo, VertexId, WalHeader,
-    WalOpType,
+    ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo, EdgeId,
+    LabelId, Timestamp, UpdateEdgePropRedo, UpdateVertexPropRedo, VertexId, WalHeader, WalOpType,
 };
 use super::wal::writer::WalWriter;
 
@@ -171,18 +170,32 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
         param: &CreateVertexTypeParam,
     ) -> UpdateTransactionResult<LabelId>;
 
-    fn create_edge_type(
-        &mut self,
-        param: &CreateEdgeTypeParam,
-    ) -> UpdateTransactionResult<()>;
+    fn create_edge_type(&mut self, param: &CreateEdgeTypeParam) -> UpdateTransactionResult<()>;
 
     fn delete_vertex_type(&mut self, label: LabelId) -> UpdateTransactionResult<()>;
-    fn delete_edge_type(&mut self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) -> UpdateTransactionResult<()>;
+    fn delete_edge_type(
+        &mut self,
+        src_label: LabelId,
+        dst_label: LabelId,
+        edge_label: LabelId,
+    ) -> UpdateTransactionResult<()>;
 
-    fn add_vertex_properties(&mut self, param: &AddVertexPropertiesParam) -> UpdateTransactionResult<()>;
-    fn add_edge_properties(&mut self, param: &AddEdgePropertiesParam) -> UpdateTransactionResult<()>;
-    fn delete_vertex_properties(&mut self, param: &DeleteVertexPropertiesParam) -> UpdateTransactionResult<()>;
-    fn delete_edge_properties(&mut self, param: &DeleteEdgePropertiesParam) -> UpdateTransactionResult<()>;
+    fn add_vertex_properties(
+        &mut self,
+        param: &AddVertexPropertiesParam,
+    ) -> UpdateTransactionResult<()>;
+    fn add_edge_properties(
+        &mut self,
+        param: &AddEdgePropertiesParam,
+    ) -> UpdateTransactionResult<()>;
+    fn delete_vertex_properties(
+        &mut self,
+        param: &DeleteVertexPropertiesParam,
+    ) -> UpdateTransactionResult<()>;
+    fn delete_edge_properties(
+        &mut self,
+        param: &DeleteEdgePropertiesParam,
+    ) -> UpdateTransactionResult<()>;
 
     fn update_vertex_property(
         &mut self,
@@ -205,7 +218,12 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
         ts: Timestamp,
     ) -> UpdateTransactionResult<()>;
 
-    fn delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UpdateTransactionResult<Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>>;
+    fn delete_vertex(
+        &mut self,
+        label: LabelId,
+        vid: VertexId,
+        ts: Timestamp,
+    ) -> UpdateTransactionResult<Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>>;
     fn delete_edge(
         &mut self,
         src_label: LabelId,
@@ -270,13 +288,22 @@ impl<'a> UpdateTransaction<'a> {
         param: &CreateVertexTypeParam,
     ) -> UpdateTransactionResult<LabelId> {
         if self.graph.contains_vertex_label(&param.label_name) {
-            return Err(UpdateTransactionError::LabelAlreadyExists(param.label_name.clone()));
+            return Err(UpdateTransactionError::LabelAlreadyExists(
+                param.label_name.clone(),
+            ));
         }
 
-        self.serialize_redo(WalOpType::CreateVertexType, &CreateVertexTypeRedo {
-            label_name: param.label_name.clone(),
-            schema: param.properties.iter().map(|p| (p.name.clone(), p.data_type.clone())).collect(),
-        })?;
+        self.serialize_redo(
+            WalOpType::CreateVertexType,
+            &CreateVertexTypeRedo {
+                label_name: param.label_name.clone(),
+                schema: param
+                    .properties
+                    .iter()
+                    .map(|p| (p.name.clone(), p.data_type.clone()))
+                    .collect(),
+            },
+        )?;
         self.op_num += 1;
 
         let label_name = param.label_name.clone();
@@ -294,16 +321,28 @@ impl<'a> UpdateTransaction<'a> {
 
     /// Create a new edge type
     pub fn create_edge_type(&mut self, param: &CreateEdgeTypeParam) -> UpdateTransactionResult<()> {
-        if self.graph.contains_edge_label(&param.src_label, &param.dst_label, &param.edge_label) {
-            return Err(UpdateTransactionError::LabelAlreadyExists(param.edge_label.clone()));
+        if self
+            .graph
+            .contains_edge_label(&param.src_label, &param.dst_label, &param.edge_label)
+        {
+            return Err(UpdateTransactionError::LabelAlreadyExists(
+                param.edge_label.clone(),
+            ));
         }
 
-        self.serialize_redo(WalOpType::CreateEdgeType, &CreateEdgeTypeRedo {
-            src_label: param.src_label.clone(),
-            dst_label: param.dst_label.clone(),
-            edge_label: param.edge_label.clone(),
-            schema: param.properties.iter().map(|p| (p.name.clone(), p.data_type.clone())).collect(),
-        })?;
+        self.serialize_redo(
+            WalOpType::CreateEdgeType,
+            &CreateEdgeTypeRedo {
+                src_label: param.src_label.clone(),
+                dst_label: param.dst_label.clone(),
+                edge_label: param.edge_label.clone(),
+                schema: param
+                    .properties
+                    .iter()
+                    .map(|p| (p.name.clone(), p.data_type.clone()))
+                    .collect(),
+            },
+        )?;
         self.op_num += 1;
 
         let src_label = param.src_label.clone();
@@ -322,19 +361,26 @@ impl<'a> UpdateTransaction<'a> {
             edge_type: edge_label_id,
         }));
 
-        self.deleted_edge_labels.remove(&(src_label_id, dst_label_id, edge_label_id));
+        self.deleted_edge_labels
+            .remove(&(src_label_id, dst_label_id, edge_label_id));
         self.schema_changed = true;
 
         Ok(())
     }
 
     /// Add properties to a vertex type
-    pub fn add_vertex_properties(&mut self, param: &AddVertexPropertiesParam) -> UpdateTransactionResult<()> {
+    pub fn add_vertex_properties(
+        &mut self,
+        param: &AddVertexPropertiesParam,
+    ) -> UpdateTransactionResult<()> {
         if !self.graph.contains_vertex_label(&param.label_name) {
             return Err(UpdateTransactionError::LabelNotFound(0));
         }
 
-        let label_id = self.graph.get_vertex_label_id(&param.label_name).unwrap_or(0);
+        let label_id = self
+            .graph
+            .get_vertex_label_id(&param.label_name)
+            .unwrap_or(0);
         let prop_names: Vec<String> = param.properties.iter().map(|p| p.name.clone()).collect();
 
         self.graph.add_vertex_properties(param)?;
@@ -350,13 +396,25 @@ impl<'a> UpdateTransaction<'a> {
     }
 
     /// Add properties to an edge type
-    pub fn add_edge_properties(&mut self, param: &AddEdgePropertiesParam) -> UpdateTransactionResult<()> {
-        if !self.graph.contains_edge_label(&param.src_label, &param.dst_label, &param.edge_label) {
+    pub fn add_edge_properties(
+        &mut self,
+        param: &AddEdgePropertiesParam,
+    ) -> UpdateTransactionResult<()> {
+        if !self
+            .graph
+            .contains_edge_label(&param.src_label, &param.dst_label, &param.edge_label)
+        {
             return Err(UpdateTransactionError::LabelNotFound(0));
         }
 
-        let src_label_id = self.graph.get_vertex_label_id(&param.src_label).unwrap_or(0);
-        let dst_label_id = self.graph.get_vertex_label_id(&param.dst_label).unwrap_or(0);
+        let src_label_id = self
+            .graph
+            .get_vertex_label_id(&param.src_label)
+            .unwrap_or(0);
+        let dst_label_id = self
+            .graph
+            .get_vertex_label_id(&param.dst_label)
+            .unwrap_or(0);
         let edge_label_id = self.graph.get_edge_label_id(&param.edge_label).unwrap_or(0);
         let prop_names: Vec<String> = param.properties.iter().map(|p| p.name.clone()).collect();
 
@@ -377,12 +435,18 @@ impl<'a> UpdateTransaction<'a> {
     }
 
     /// Delete properties from a vertex type
-    pub fn delete_vertex_properties(&mut self, param: &DeleteVertexPropertiesParam) -> UpdateTransactionResult<()> {
+    pub fn delete_vertex_properties(
+        &mut self,
+        param: &DeleteVertexPropertiesParam,
+    ) -> UpdateTransactionResult<()> {
         if !self.graph.contains_vertex_label(&param.label_name) {
             return Err(UpdateTransactionError::LabelNotFound(0));
         }
 
-        let label_id = self.graph.get_vertex_label_id(&param.label_name).unwrap_or(0);
+        let label_id = self
+            .graph
+            .get_vertex_label_id(&param.label_name)
+            .unwrap_or(0);
 
         self.graph.delete_vertex_properties(param)?;
 
@@ -397,13 +461,25 @@ impl<'a> UpdateTransaction<'a> {
     }
 
     /// Delete properties from an edge type
-    pub fn delete_edge_properties(&mut self, param: &DeleteEdgePropertiesParam) -> UpdateTransactionResult<()> {
-        if !self.graph.contains_edge_label(&param.src_label, &param.dst_label, &param.edge_label) {
+    pub fn delete_edge_properties(
+        &mut self,
+        param: &DeleteEdgePropertiesParam,
+    ) -> UpdateTransactionResult<()> {
+        if !self
+            .graph
+            .contains_edge_label(&param.src_label, &param.dst_label, &param.edge_label)
+        {
             return Err(UpdateTransactionError::LabelNotFound(0));
         }
 
-        let src_label_id = self.graph.get_vertex_label_id(&param.src_label).unwrap_or(0);
-        let dst_label_id = self.graph.get_vertex_label_id(&param.dst_label).unwrap_or(0);
+        let src_label_id = self
+            .graph
+            .get_vertex_label_id(&param.src_label)
+            .unwrap_or(0);
+        let dst_label_id = self
+            .graph
+            .get_vertex_label_id(&param.dst_label)
+            .unwrap_or(0);
         let edge_label_id = self.graph.get_edge_label_id(&param.edge_label).unwrap_or(0);
 
         self.graph.delete_edge_properties(param)?;
@@ -431,7 +507,8 @@ impl<'a> UpdateTransaction<'a> {
         value: &[u8],
         old_value: PropertyValue,
     ) -> UpdateTransactionResult<()> {
-        self.graph.update_vertex_property(label, vid, prop_name, value, self.timestamp)?;
+        self.graph
+            .update_vertex_property(label, vid, prop_name, value, self.timestamp)?;
 
         self.undo_logs.add(Box::new(UpdateVertexPropUndo {
             v_label: label,
@@ -456,8 +533,14 @@ impl<'a> UpdateTransaction<'a> {
         old_value: PropertyValue,
     ) -> UpdateTransactionResult<()> {
         self.graph.update_edge_property(
-            src_label, src_vid, dst_label, dst_vid, edge_label,
-            prop_name, value, self.timestamp,
+            src_label,
+            src_vid,
+            dst_label,
+            dst_vid,
+            edge_label,
+            prop_name,
+            value,
+            self.timestamp,
         )?;
 
         self.undo_logs.add(Box::new(UpdateEdgePropUndo {
@@ -482,9 +565,14 @@ impl<'a> UpdateTransaction<'a> {
         self.undo_logs.add(Box::new(RemoveVertexUndo {
             v_label: label,
             vid,
-            related_edges: related_edges.iter().map(|(sl, dl, el, edges): &(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)| {
-                (*sl, *dl, *el, edges.clone())
-            }).collect(),
+            related_edges: related_edges
+                .iter()
+                .map(
+                    |(sl, dl, el, edges): &(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)| {
+                        (*sl, *dl, *el, edges.clone())
+                    },
+                )
+                .collect(),
         }));
 
         Ok(())
@@ -499,7 +587,15 @@ impl<'a> UpdateTransaction<'a> {
         dst_vid: VertexId,
         edge_label: LabelId,
     ) -> UpdateTransactionResult<()> {
-        UpdateTarget::delete_edge(self.graph, src_label, src_vid, dst_label, dst_vid, edge_label, self.timestamp)?;
+        UpdateTarget::delete_edge(
+            self.graph,
+            src_label,
+            src_vid,
+            dst_label,
+            dst_vid,
+            edge_label,
+            self.timestamp,
+        )?;
 
         self.undo_logs.add(Box::new(RemoveEdgeUndo {
             src_label,
@@ -563,13 +659,18 @@ impl<'a> UpdateTransaction<'a> {
     /// Release the update timestamp
     fn release(&mut self) {
         if self.timestamp != INVALID_TIMESTAMP {
-            self.version_manager.release_update_timestamp(self.timestamp);
+            self.version_manager
+                .release_update_timestamp(self.timestamp);
             self.timestamp = INVALID_TIMESTAMP;
         }
     }
 
     /// Serialize a redo log entry
-    fn serialize_redo<T: serde::Serialize + oxicode::Encode>(&mut self, op_type: WalOpType, redo: &T) -> UpdateTransactionResult<()> {
+    fn serialize_redo<T: serde::Serialize + oxicode::Encode>(
+        &mut self,
+        op_type: WalOpType,
+        redo: &T,
+    ) -> UpdateTransactionResult<()> {
         let op_byte = op_type as u8;
         self.wal_buffer.push(op_byte);
 
@@ -594,16 +695,17 @@ impl<'a> UpdateTransaction<'a> {
 impl<'a> Drop for UpdateTransaction<'a> {
     fn drop(&mut self) {
         if self.timestamp != INVALID_TIMESTAMP {
-            self.version_manager.release_update_timestamp(self.timestamp);
+            self.version_manager
+                .release_update_timestamp(self.timestamp);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::super::wal::writer::DummyWalWriter;
     use super::super::undo_log::UndoLogResult;
+    use super::super::wal::writer::DummyWalWriter;
+    use super::*;
 
     struct MockUpdateTarget;
 
@@ -612,39 +714,103 @@ mod tests {
             Ok(())
         }
 
-        fn delete_edge_type(&mut self, _src_label: LabelId, _dst_label: LabelId, _edge_label: LabelId) -> UndoLogResult<()> {
+        fn delete_edge_type(
+            &mut self,
+            _src_label: LabelId,
+            _dst_label: LabelId,
+            _edge_label: LabelId,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_vertex(&mut self, _label: LabelId, _vid: VertexId, _ts: Timestamp) -> UndoLogResult<()> {
+        fn delete_vertex(
+            &mut self,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_edge(&mut self, _src_label: LabelId, _src_vid: VertexId, _dst_label: LabelId, _dst_vid: VertexId, _edge_label: LabelId, _oe_offset: i32, _ie_offset: i32, _ts: Timestamp) -> UndoLogResult<()> {
+        fn delete_edge(
+            &mut self,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _oe_offset: i32,
+            _ie_offset: i32,
+            _ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn undo_update_vertex_property(&mut self, _label: LabelId, _vid: VertexId, _col_id: ColumnId, _value: PropertyValue, _ts: Timestamp) -> UndoLogResult<()> {
+        fn undo_update_vertex_property(
+            &mut self,
+            _label: LabelId,
+            _vid: VertexId,
+            _col_id: ColumnId,
+            _value: PropertyValue,
+            _ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn undo_update_edge_property(&mut self, _src_label: LabelId, _src_vid: VertexId, _dst_label: LabelId, _dst_vid: VertexId, _edge_label: LabelId, _oe_offset: i32, _ie_offset: i32, _col_id: ColumnId, _value: PropertyValue, _ts: Timestamp) -> UndoLogResult<()> {
+        fn undo_update_edge_property(
+            &mut self,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _oe_offset: i32,
+            _ie_offset: i32,
+            _col_id: ColumnId,
+            _value: PropertyValue,
+            _ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_vertex(&mut self, _label: LabelId, _vid: VertexId, _ts: Timestamp) -> UndoLogResult<()> {
+        fn revert_delete_vertex(
+            &mut self,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_edge(&mut self, _src_label: LabelId, _src_vid: VertexId, _dst_label: LabelId, _dst_vid: VertexId, _edge_label: LabelId, _oe_offset: i32, _ie_offset: i32, _ts: Timestamp) -> UndoLogResult<()> {
+        fn revert_delete_edge(
+            &mut self,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _oe_offset: i32,
+            _ie_offset: i32,
+            _ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_vertex_properties(&mut self, _label_name: &str, _prop_names: &[String]) -> UndoLogResult<()> {
+        fn revert_delete_vertex_properties(
+            &mut self,
+            _label_name: &str,
+            _prop_names: &[String],
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_edge_properties(&mut self, _src_label: &str, _dst_label: &str, _edge_label: &str, _prop_names: &[String]) -> UndoLogResult<()> {
+        fn revert_delete_edge_properties(
+            &mut self,
+            _src_label: &str,
+            _dst_label: &str,
+            _edge_label: &str,
+            _prop_names: &[String],
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
@@ -652,17 +818,28 @@ mod tests {
             Ok(())
         }
 
-        fn revert_delete_edge_label(&mut self, _src_label: &str, _dst_label: &str, _edge_label: &str) -> UndoLogResult<()> {
+        fn revert_delete_edge_label(
+            &mut self,
+            _src_label: &str,
+            _dst_label: &str,
+            _edge_label: &str,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
     }
 
     impl UpdateTarget for MockUpdateTarget {
-        fn create_vertex_type(&mut self, _param: &CreateVertexTypeParam) -> UpdateTransactionResult<LabelId> {
+        fn create_vertex_type(
+            &mut self,
+            _param: &CreateVertexTypeParam,
+        ) -> UpdateTransactionResult<LabelId> {
             Ok(1)
         }
 
-        fn create_edge_type(&mut self, _param: &CreateEdgeTypeParam) -> UpdateTransactionResult<()> {
+        fn create_edge_type(
+            &mut self,
+            _param: &CreateEdgeTypeParam,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
@@ -670,39 +847,87 @@ mod tests {
             Ok(())
         }
 
-        fn delete_edge_type(&mut self, _src_label: LabelId, _dst_label: LabelId, _edge_label: LabelId) -> UpdateTransactionResult<()> {
+        fn delete_edge_type(
+            &mut self,
+            _src_label: LabelId,
+            _dst_label: LabelId,
+            _edge_label: LabelId,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
-        fn add_vertex_properties(&mut self, _param: &AddVertexPropertiesParam) -> UpdateTransactionResult<()> {
+        fn add_vertex_properties(
+            &mut self,
+            _param: &AddVertexPropertiesParam,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
-        fn add_edge_properties(&mut self, _param: &AddEdgePropertiesParam) -> UpdateTransactionResult<()> {
+        fn add_edge_properties(
+            &mut self,
+            _param: &AddEdgePropertiesParam,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
-        fn delete_vertex_properties(&mut self, _param: &DeleteVertexPropertiesParam) -> UpdateTransactionResult<()> {
+        fn delete_vertex_properties(
+            &mut self,
+            _param: &DeleteVertexPropertiesParam,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
-        fn delete_edge_properties(&mut self, _param: &DeleteEdgePropertiesParam) -> UpdateTransactionResult<()> {
+        fn delete_edge_properties(
+            &mut self,
+            _param: &DeleteEdgePropertiesParam,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
-        fn update_vertex_property(&mut self, _label: LabelId, _vid: VertexId, _prop_name: &str, _value: &[u8], _ts: Timestamp) -> UpdateTransactionResult<()> {
+        fn update_vertex_property(
+            &mut self,
+            _label: LabelId,
+            _vid: VertexId,
+            _prop_name: &str,
+            _value: &[u8],
+            _ts: Timestamp,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
-        fn update_edge_property(&mut self, _src_label: LabelId, _src_vid: VertexId, _dst_label: LabelId, _dst_vid: VertexId, _edge_label: LabelId, _prop_name: &str, _value: &[u8], _ts: Timestamp) -> UpdateTransactionResult<()> {
+        fn update_edge_property(
+            &mut self,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _prop_name: &str,
+            _value: &[u8],
+            _ts: Timestamp,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 
-        fn delete_vertex(&mut self, _label: LabelId, _vid: VertexId, _ts: Timestamp) -> UpdateTransactionResult<Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>> {
+        fn delete_vertex(
+            &mut self,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
+        ) -> UpdateTransactionResult<Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>>
+        {
             Ok(vec![])
         }
 
-        fn delete_edge(&mut self, _src_label: LabelId, _src_vid: VertexId, _dst_label: LabelId, _dst_vid: VertexId, _edge_label: LabelId, _ts: Timestamp) -> UpdateTransactionResult<()> {
+        fn delete_edge(
+            &mut self,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _ts: Timestamp,
+        ) -> UpdateTransactionResult<()> {
             Ok(())
         }
 

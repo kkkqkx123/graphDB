@@ -4,7 +4,7 @@
 //! - PropertyGraphVertexIterator: Iterator over all vertices in a PropertyGraph
 //! - VertexTableRangeIterator: Iterator over a range of vertices
 
-use crate::storage::vertex::{VertexRecord, VertexTable, VertexId, Timestamp};
+use crate::storage::vertex::{Timestamp, VertexId, VertexRecord, VertexTable};
 use std::collections::HashMap;
 
 pub struct PropertyGraphVertexIterator<'a> {
@@ -96,24 +96,40 @@ impl<'a> Iterator for VertexTableRangeIterator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::vertex::{VertexSchema, PropertyDef};
     use crate::core::DataType;
+    use crate::storage::vertex::{PropertyDef, VertexSchema};
 
     fn create_test_table() -> VertexTable {
         let schema = VertexSchema {
             label_id: 0,
             label_name: "person".to_string(),
-            properties: vec![
-                PropertyDef::new("name".to_string(), DataType::String),
-            ],
+            properties: vec![PropertyDef::new("name".to_string(), DataType::String)],
             primary_key_index: 0,
         };
 
         let mut table = VertexTable::new(0, "person".to_string(), schema);
 
         let ts = 100u32;
-        table.insert("1", &[("name".to_string(), crate::core::Value::String("Alice".to_string()))], ts).unwrap();
-        table.insert("2", &[("name".to_string(), crate::core::Value::String("Bob".to_string()))], ts).unwrap();
+        table
+            .insert(
+                "1",
+                &[(
+                    "name".to_string(),
+                    crate::core::Value::String("Alice".to_string()),
+                )],
+                ts,
+            )
+            .unwrap();
+        table
+            .insert(
+                "2",
+                &[(
+                    "name".to_string(),
+                    crate::core::Value::String("Bob".to_string()),
+                )],
+                ts,
+            )
+            .unwrap();
 
         table
     }

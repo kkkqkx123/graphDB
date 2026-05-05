@@ -119,8 +119,7 @@ impl ClausePlanner for ReturnClausePlanner {
         });
 
         if has_aggregate {
-            let (group_keys, agg_functions, agg_aliases) =
-                extract_aggregate_info(&yield_columns)?;
+            let (group_keys, agg_functions, agg_aliases) = extract_aggregate_info(&yield_columns)?;
 
             let project_columns: Vec<YieldColumn> = yield_columns
                 .iter()
@@ -217,8 +216,9 @@ fn extract_aggregate_function(expr: &crate::core::Expression) -> Option<Aggregat
     use crate::core::Expression;
     match expr {
         Expression::Aggregate { func, .. } => Some(func.clone()),
-        Expression::Binary { left, right, .. } => extract_aggregate_function(left)
-            .or_else(|| extract_aggregate_function(right)),
+        Expression::Binary { left, right, .. } => {
+            extract_aggregate_function(left).or_else(|| extract_aggregate_function(right))
+        }
         Expression::Unary { operand, .. } => extract_aggregate_function(operand),
         Expression::Function { args, .. } => args.iter().find_map(extract_aggregate_function),
         _ => None,

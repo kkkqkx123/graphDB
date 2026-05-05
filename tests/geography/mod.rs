@@ -12,8 +12,8 @@
 //! - spatial_functions: Tests for spatial functions (20 tests)
 //! - format_conversion: Tests for WKT and GeoJSON conversion (8 tests)
 
-mod common;
 mod basic;
+mod common;
+mod format_conversion;
 mod geometry_types;
 mod spatial_functions;
-mod format_conversion;

@@ -11,9 +11,9 @@
 //! - Constraints - DEFAULT, NOT NULL
 
 mod common;
-mod tag_basic;
-mod tag_alter;
-mod edge_basic;
-mod edge_alter;
-mod schema_evolution;
 mod constraints;
+mod edge_alter;
+mod edge_basic;
+mod schema_evolution;
+mod tag_alter;
+mod tag_basic;

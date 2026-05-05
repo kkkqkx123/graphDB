@@ -35,13 +35,13 @@ use crate::query::planning::statements::dql::go_planner::GoPlanner;
 use crate::query::planning::statements::dql::group_by_planner::GroupByPlanner;
 use crate::query::planning::statements::dql::lookup_planner::LookupPlanner;
 use crate::query::planning::statements::dql::path_planner::PathPlanner;
+use crate::query::planning::statements::dql::pipe_planner::PipePlanner;
 use crate::query::planning::statements::dql::return_planner::ReturnPlanner;
 use crate::query::planning::statements::dql::set_operation_planner::SetOperationPlanner;
 use crate::query::planning::statements::dql::subgraph_planner::SubgraphPlanner;
 use crate::query::planning::statements::dql::unwind_planner::UnwindPlanner;
 use crate::query::planning::statements::dql::with_planner::WithPlanner;
 use crate::query::planning::statements::dql::yield_planner::YieldPlanner;
-use crate::query::planning::statements::dql::pipe_planner::PipePlanner;
 use crate::query::planning::statements::match_statement_planner::MatchStatementPlanner;
 use crate::query::planning::vector_planner::VectorSearchPlanner;
 
@@ -217,7 +217,7 @@ impl PlannerEnum {
                 }
                 _ => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
             },
-            | Stmt::Drop(_)
+            Stmt::Drop(_)
             | Stmt::Show(_)
             | Stmt::Desc(_)
             | Stmt::Alter(_)

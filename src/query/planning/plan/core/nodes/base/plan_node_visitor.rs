@@ -3,8 +3,8 @@
 use super::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::data_modification::{
     DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, InsertEdgesNode,
-    InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode,
-    UpdateNode, UpdateVerticesNode,
+    InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode, UpdateNode,
+    UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
     EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
@@ -30,8 +30,8 @@ pub use crate::query::planning::plan::core::nodes::control_flow::control_flow_no
 pub use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::aggregate_node::AggregateNode;
 pub use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::{
-    ApplyNode, AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
-    RollUpApplyNode, UnionNode, UnwindNode,
+    ApplyNode, AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode,
+    RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use crate::query::planning::plan::core::nodes::graph_operations::set_operations_node::{
     IntersectNode, MinusNode,

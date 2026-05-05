@@ -55,7 +55,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SwitchSpaceExecut
                 let hint = if available_spaces.is_empty() {
                     "No spaces exist. Use 'CREATE SPACE <name>' to create one.".to_string()
                 } else {
-                    format!("Available spaces: {}. Use 'CREATE SPACE <name>' to create a new space.", available_spaces)
+                    format!(
+                        "Available spaces: {}. Use 'CREATE SPACE <name>' to create a new space.",
+                        available_spaces
+                    )
                 };
 
                 Ok(ExecutionResult::Error(format!(

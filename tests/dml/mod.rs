@@ -8,10 +8,10 @@
 //! - UPSERT - Insert or update
 //! - MERGE - Merge operation
 
-mod common;
-mod insert_vertex;
-mod insert_edge;
-mod update;
-mod delete;
-mod upsert;
 mod batch_operations;
+mod common;
+mod delete;
+mod insert_edge;
+mod insert_vertex;
+mod update;
+mod upsert;

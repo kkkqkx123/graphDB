@@ -9,6 +9,6 @@
 //! These tests focus on optimizer internal correctness, complementing
 //! the end-to-end optimizer tests in tests/dql/optimizer.rs
 
-pub mod heuristic;
-pub mod cost_based;
 pub mod cost;
+pub mod cost_based;
+pub mod heuristic;

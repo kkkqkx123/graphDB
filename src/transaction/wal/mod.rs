@@ -59,8 +59,8 @@ pub use types::{
     CompressionLevel, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
     EdgeId, FullPageWriteHeader, InsertEdgeRedo, InsertVertexRedo, LabelId, Lsn, PageId,
     RecordType, SyncPolicy, Timestamp, TransactionId, UpdateEdgePropRedo, UpdateVertexPropRedo,
-    UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError, WalFileHeader, WalHeader,
-    WalOpType, WalRecoveryMode, WalResult, VertexId, WAL_BLOCK_SIZE, WAL_FILE_HEADER_SIZE,
+    UpdateWalUnit, VertexId, WalCompression, WalConfig, WalContentUnit, WalError, WalFileHeader,
+    WalHeader, WalOpType, WalRecoveryMode, WalResult, WAL_BLOCK_SIZE, WAL_FILE_HEADER_SIZE,
     WAL_HEADER_SIZE, WAL_MAGIC, WAL_MAX_RECORD_SIZE, WAL_VERSION,
 };
 pub use writer::{DummyWalWriter, GroupCommitManager, LocalWalWriter, WalWriter, WalWriterFactory};

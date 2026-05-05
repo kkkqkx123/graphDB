@@ -111,7 +111,9 @@ fn test_upsert_execution_edge_insert() {
         .exec_ddl("CREATE TAG Person(name STRING)")
         .exec_ddl("CREATE EDGE KNOWS(since DATE)")
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
-        .exec_dml("UPSERT EDGE ON KNOWS SET since = '2024-01-01' WHERE id(src) == 1 AND id(dst) == 2")
+        .exec_dml(
+            "UPSERT EDGE ON KNOWS SET since = '2024-01-01' WHERE id(src) == 1 AND id(dst) == 2",
+        )
         .assert_success()
         .assert_edge_exists(1, 2, "KNOWS");
 }
@@ -126,7 +128,9 @@ fn test_upsert_execution_edge_update() {
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
         .assert_success()
-        .exec_dml("UPSERT EDGE ON KNOWS SET since = '2024-02-01' WHERE id(src) == 1 AND id(dst) == 2")
+        .exec_dml(
+            "UPSERT EDGE ON KNOWS SET since = '2024-02-01' WHERE id(src) == 1 AND id(dst) == 2",
+        )
         .assert_success();
 }
 

@@ -329,7 +329,8 @@ impl RightJoinNode {
             (*self.left).clone(),
             self.probe_keys.clone(),
             self.hash_keys.clone(),
-        ).expect("Failed to convert RightJoin to LeftJoin")
+        )
+        .expect("Failed to convert RightJoin to LeftJoin")
     }
 }
 

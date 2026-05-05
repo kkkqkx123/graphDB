@@ -76,7 +76,10 @@ impl TraversalParser {
         }))
     }
 
-    fn parse_match_delete_clause(&mut self, ctx: &mut ParseContext) -> Result<MatchDeleteClause, ParseError> {
+    fn parse_match_delete_clause(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<MatchDeleteClause, ParseError> {
         let start_span = ctx.current_span();
 
         let target = if ctx.match_token(TokenKind::Vertex) {

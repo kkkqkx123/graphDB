@@ -47,10 +47,8 @@ impl Compressor {
     pub fn compress(&self, data: &[u8]) -> StorageResult<Vec<u8>> {
         match self.compression {
             CompressionType::None => Ok(data.to_vec()),
-            CompressionType::Zstd { level } => {
-                zstd::encode_all(data, level)
-                    .map_err(|e| StorageError::CompressError(e.to_string()))
-            }
+            CompressionType::Zstd { level } => zstd::encode_all(data, level)
+                .map_err(|e| StorageError::CompressError(e.to_string())),
         }
     }
 
@@ -58,8 +56,7 @@ impl Compressor {
         match self.compression {
             CompressionType::None => Ok(data.to_vec()),
             CompressionType::Zstd { .. } => {
-                zstd::decode_all(data)
-                    .map_err(|e| StorageError::DecompressError(e.to_string()))
+                zstd::decode_all(data).map_err(|e| StorageError::DecompressError(e.to_string()))
             }
         }
     }
@@ -67,9 +64,7 @@ impl Compressor {
     pub fn compress_size_estimate(&self, data_len: usize) -> usize {
         match self.compression {
             CompressionType::None => data_len,
-            CompressionType::Zstd { .. } => {
-                data_len + (data_len / 10)
-            }
+            CompressionType::Zstd { .. } => data_len + (data_len / 10),
         }
     }
 }
@@ -87,7 +82,10 @@ mod tests {
     #[test]
     fn test_compression_type_conversion() {
         assert_eq!(CompressionType::from_u8(0), CompressionType::None);
-        assert_eq!(CompressionType::from_u8(2), CompressionType::Zstd { level: 3 });
+        assert_eq!(
+            CompressionType::from_u8(2),
+            CompressionType::Zstd { level: 3 }
+        );
 
         assert_eq!(CompressionType::None.to_u8(), 0);
         assert_eq!(CompressionType::Zstd { level: 3 }.to_u8(), 2);
@@ -101,7 +99,9 @@ mod tests {
         let compressed = compressor.compress(data).expect("Compress failed");
         assert_eq!(compressed, data);
 
-        let decompressed = compressor.decompress(&compressed).expect("Decompress failed");
+        let decompressed = compressor
+            .decompress(&compressed)
+            .expect("Decompress failed");
         assert_eq!(decompressed, data);
     }
 
@@ -119,7 +119,9 @@ mod tests {
         let compressed = compressor.compress(data).expect("Compress failed");
         assert!(compressed.len() < data.len(), "Zstd should compress data");
 
-        let decompressed = compressor.decompress(&compressed).expect("Decompress failed");
+        let decompressed = compressor
+            .decompress(&compressed)
+            .expect("Decompress failed");
         assert_eq!(decompressed, data);
     }
 }

@@ -7,9 +7,9 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use std::collections::HashMap;
-use graphdb::core::Value;
 
 // ==================== INSERT VERTEX Parser Tests ====================
 
@@ -173,19 +173,23 @@ fn test_insert_vertex_with_all_types() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl(r#"
+        .exec_ddl(
+            r#"
             CREATE TAG TestTypes(
                 str_field STRING,
                 int_field INT,
                 double_field DOUBLE,
                 bool_field BOOL
             )
-        "#)
+        "#,
+        )
         .assert_success()
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX TestTypes(str_field, int_field, double_field, bool_field) 
             VALUES 1:('test', 42, 2.71828, true)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_props(1, "TestTypes", {
             let mut map = HashMap::new();

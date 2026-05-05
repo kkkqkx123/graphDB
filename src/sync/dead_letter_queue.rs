@@ -345,7 +345,10 @@ mod tests {
         let entry = create_test_entry("Connection failed", 3);
         dlq.add(entry);
 
-        assert!(!dlq.is_empty(), "DLQ should not be empty after adding entry");
+        assert!(
+            !dlq.is_empty(),
+            "DLQ should not be empty after adding entry"
+        );
         assert_eq!(dlq.len(), 1, "DLQ should have 1 entry");
     }
 
@@ -412,7 +415,11 @@ mod tests {
         }
 
         let unrecovered = dlq.get_unrecovered();
-        assert_eq!(unrecovered.len(), 3, "All entries should be unrecovered initially");
+        assert_eq!(
+            unrecovered.len(),
+            3,
+            "All entries should be unrecovered initially"
+        );
 
         dlq.mark_recovered(1);
 
@@ -536,8 +543,14 @@ mod tests {
         let stats: DeadLetterQueueStats = dlq.get_stats();
 
         assert_eq!(stats.total_entries, 5, "Should have 5 total entries");
-        assert_eq!(stats.recovered_entries, 2, "Should have 2 recovered entries");
-        assert_eq!(stats.unrecovered_entries, 3, "Should have 3 unrecovered entries");
+        assert_eq!(
+            stats.recovered_entries, 2,
+            "Should have 2 recovered entries"
+        );
+        assert_eq!(
+            stats.unrecovered_entries, 3,
+            "Should have 3 unrecovered entries"
+        );
     }
 
     #[test]
@@ -622,7 +635,11 @@ mod tests {
         );
         dlq.add(delete_entry);
 
-        assert_eq!(dlq.len(), 2, "Should have 2 entries with different operation types");
+        assert_eq!(
+            dlq.len(),
+            2,
+            "Should have 2 entries with different operation types"
+        );
 
         let all_entries = dlq.get_all();
         assert!(

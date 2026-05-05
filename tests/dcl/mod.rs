@@ -12,6 +12,6 @@
 //! - DESCRIBE USER - Describe user details
 
 mod common;
-mod user_management;
 mod permission;
 mod role;
+mod user_management;

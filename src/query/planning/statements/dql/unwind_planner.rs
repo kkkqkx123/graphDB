@@ -3,13 +3,13 @@
 //! Query planning for standalone UNWIND statements.
 //! UNWIND expands a list expression into multiple rows.
 
-use crate::core::YieldColumn;
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::YieldColumn;
 use crate::query::parser::ast::stmt::Stmt;
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planning::plan::core::nodes::{ArgumentNode, ProjectNode};
 use crate::query::planning::plan::core::nodes::graph_operations::graph_operations_node::UnwindNode;
+use crate::query::planning::plan::core::nodes::{ArgumentNode, ProjectNode};
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
@@ -54,7 +54,11 @@ impl UnwindPlanner {
             } else {
                 None
             };
-            return Ok((unwind_stmt.expression.clone(), unwind_stmt.variable.clone(), return_columns));
+            return Ok((
+                unwind_stmt.expression.clone(),
+                unwind_stmt.variable.clone(),
+                return_columns,
+            ));
         }
         Err(PlannerError::PlanGenerationFailed(
             "Expected UNWIND statement".to_string(),

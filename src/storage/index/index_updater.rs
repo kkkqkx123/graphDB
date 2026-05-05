@@ -399,6 +399,114 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
 
         Ok(())
     }
+
+    // ========================================================================
+    // Native ID Methods (CSR-compatible)
+    // ========================================================================
+
+    /// Update vertex indexes with native VertexId
+    ///
+    /// This is a CSR-aware method that uses native u64 vertex IDs.
+    pub fn update_vertex_indexes_native(
+        &self,
+        vertex_id: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_vertex_indexes_native_mvcc(vertex_id, index_name, props, MAX_TIMESTAMP)
+    }
+
+    /// Update vertex indexes with native VertexId and MVCC timestamp
+    pub fn update_vertex_indexes_native_mvcc(
+        &self,
+        vertex_id: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.index_data_manager.update_vertex_indexes_native_mvcc(
+            self.space_id,
+            vertex_id,
+            index_name,
+            props,
+            write_ts,
+        )
+    }
+
+    /// Delete vertex indexes with native VertexId
+    pub fn delete_vertex_indexes_native(&self, vertex_id: u64) -> Result<(), StorageError> {
+        self.delete_vertex_indexes_native_mvcc(vertex_id, MAX_TIMESTAMP)
+    }
+
+    /// Delete vertex indexes with native VertexId and MVCC timestamp
+    pub fn delete_vertex_indexes_native_mvcc(
+        &self,
+        vertex_id: u64,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.index_data_manager.delete_vertex_indexes_native_mvcc(
+            self.space_id,
+            vertex_id,
+            write_ts,
+        )
+    }
+
+    /// Update edge indexes with native VertexId
+    pub fn update_edge_indexes_native(
+        &self,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_edge_indexes_native_mvcc(src, dst, index_name, props, MAX_TIMESTAMP)
+    }
+
+    /// Update edge indexes with native VertexId and MVCC timestamp
+    pub fn update_edge_indexes_native_mvcc(
+        &self,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.index_data_manager.update_edge_indexes_native_mvcc(
+            self.space_id,
+            src,
+            dst,
+            index_name,
+            props,
+            write_ts,
+        )
+    }
+
+    /// Delete edge indexes with native VertexId
+    pub fn delete_edge_indexes_native(
+        &self,
+        src: u64,
+        dst: u64,
+        index_names: &[String],
+    ) -> Result<(), StorageError> {
+        self.delete_edge_indexes_native_mvcc(src, dst, index_names, MAX_TIMESTAMP)
+    }
+
+    /// Delete edge indexes with native VertexId and MVCC timestamp
+    pub fn delete_edge_indexes_native_mvcc(
+        &self,
+        src: u64,
+        dst: u64,
+        index_names: &[String],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.index_data_manager.delete_edge_indexes_native_mvcc(
+            self.space_id,
+            src,
+            dst,
+            index_names,
+            write_ts,
+        )
+    }
 }
 
 /// Index update context
@@ -620,7 +728,9 @@ pub struct IndexUndoLog {
 
 impl IndexUndoLog {
     pub fn new() -> Self {
-        Self { entries: Vec::new() }
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     pub fn add(&mut self, entry: IndexUndoEntry) {
@@ -659,10 +769,19 @@ impl IndexUndoLog {
                     prop_value,
                 } => {
                     let prefix = crate::storage::index::index_key_codec::IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
-                    let end = crate::storage::index::index_key_codec::IndexKeyCodec::build_range_end(&prefix);
-                    let vertex_bytes = crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(&vertex_id)?;
-                    let prop_value_bytes = crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(&prop_value)?;
-                    
+                    let end =
+                        crate::storage::index::index_key_codec::IndexKeyCodec::build_range_end(
+                            &prefix,
+                        );
+                    let vertex_bytes =
+                        crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(
+                            &vertex_id,
+                        )?;
+                    let prop_value_bytes =
+                        crate::storage::index::index_key_codec::IndexKeyCodec::serialize_value(
+                            &prop_value,
+                        )?;
+
                     let forward_keys_to_delete: Vec<Vec<u8>> = {
                         let results = manager.lookup_tag_index(
                             space_id,
@@ -679,15 +798,18 @@ impl IndexUndoLog {
                             }),
                             &prop_value,
                         )?;
-                        results.iter().filter_map(|v| {
-                            if *v == vertex_id {
-                                Some(vertex_bytes.clone())
-                            } else {
-                                None
-                            }
-                        }).collect()
+                        results
+                            .iter()
+                            .filter_map(|v| {
+                                if *v == vertex_id {
+                                    Some(vertex_bytes.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
                     };
-                    
+
                     for _key in forward_keys_to_delete {
                         // Delete the index entry
                     }

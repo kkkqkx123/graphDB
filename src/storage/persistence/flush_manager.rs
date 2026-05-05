@@ -220,7 +220,9 @@ mod tests {
 
         let data = b"hello world";
         let compressed = manager.compress_data(data).expect("Compress failed");
-        let decompressed = manager.decompress_data(&compressed).expect("Decompress failed");
+        let decompressed = manager
+            .decompress_data(&compressed)
+            .expect("Decompress failed");
 
         assert_eq!(decompressed, data);
     }

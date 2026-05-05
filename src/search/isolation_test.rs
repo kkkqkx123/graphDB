@@ -9,14 +9,12 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::core::types::{IsolationLevel, SpaceInfo, TagInfo, EdgeTypeInfo, Index};
+    use crate::core::types::{EdgeTypeInfo, Index, IsolationLevel, SpaceInfo, TagInfo};
+    use crate::core::StorageError;
     use crate::search::metadata::IndexKey;
-    use crate::search::{
-        EngineType, FulltextConfig, FulltextIndexManager, SearchError,
-    };
+    use crate::search::{EngineType, FulltextConfig, FulltextIndexManager, SearchError};
     use crate::storage::metadata::SchemaManager;
     use crate::storage::Schema;
-    use crate::core::StorageError;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::sync::Arc;
@@ -111,8 +109,8 @@ mod tests {
     #[test]
     fn test_device_isolation_level_with_path() {
         let custom_path = PathBuf::from("/custom/storage/path");
-        let space = SpaceInfo::new("test_space".to_string())
-            .with_storage_path(Some(custom_path.clone()));
+        let space =
+            SpaceInfo::new("test_space".to_string()).with_storage_path(Some(custom_path.clone()));
 
         assert_eq!(space.isolation_level, IsolationLevel::Device);
         assert_eq!(space.storage_path, Some(custom_path));
@@ -121,8 +119,8 @@ mod tests {
     /// Test setting isolation level explicitly
     #[test]
     fn test_explicit_isolation_level() {
-        let space = SpaceInfo::new("test_space".to_string())
-            .with_isolation_level(IsolationLevel::Device);
+        let space =
+            SpaceInfo::new("test_space".to_string()).with_isolation_level(IsolationLevel::Device);
 
         assert_eq!(space.isolation_level, IsolationLevel::Device);
     }
@@ -182,7 +180,11 @@ mod tests {
 
         fn get_tag(&self, space: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
             if let Ok(Some(space_info)) = self.get_space(space) {
-                return Ok(space_info.tags.iter().find(|t| t.tag_name == tag_name).cloned());
+                return Ok(space_info
+                    .tags
+                    .iter()
+                    .find(|t| t.tag_name == tag_name)
+                    .cloned());
             }
             Ok(None)
         }
@@ -199,7 +201,11 @@ mod tests {
             Ok(true)
         }
 
-        fn create_edge_type(&self, _space: &str, _edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
+        fn create_edge_type(
+            &self,
+            _space: &str,
+            _edge: &EdgeTypeInfo,
+        ) -> Result<bool, StorageError> {
             Ok(true)
         }
 
@@ -215,11 +221,19 @@ mod tests {
             Ok(vec![])
         }
 
-        fn drop_edge_type(&self, _space: &str, _edge_type_name: &str) -> Result<bool, StorageError> {
+        fn drop_edge_type(
+            &self,
+            _space: &str,
+            _edge_type_name: &str,
+        ) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn update_edge_type(&self, _space: &str, _edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
+        fn update_edge_type(
+            &self,
+            _space: &str,
+            _edge: &EdgeTypeInfo,
+        ) -> Result<bool, StorageError> {
             Ok(true)
         }
 
@@ -272,7 +286,10 @@ mod tests {
         let result = manager.create_index(999, "Article", "content", None).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SearchError::SpaceNotFound(999)));
+        assert!(matches!(
+            result.unwrap_err(),
+            SearchError::SpaceNotFound(999)
+        ));
     }
 
     /// Test index creation succeeds when space exists
@@ -323,7 +340,9 @@ mod tests {
             .expect("Failed to create manager")
             .with_schema_manager(Arc::new(mock_schema));
 
-        let result = manager.create_index(1, "NonExistentTag", "content", None).await;
+        let result = manager
+            .create_index(1, "NonExistentTag", "content", None)
+            .await;
 
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), SearchError::TagNotFound(_)));
@@ -365,7 +384,9 @@ mod tests {
             .expect("Metadata should exist");
 
         // Storage path should be under base_path
-        assert!(metadata.storage_path.starts_with(base_path.to_string_lossy().as_ref()));
+        assert!(metadata
+            .storage_path
+            .starts_with(base_path.to_string_lossy().as_ref()));
     }
 
     /// Test directory isolation level creates subdirectory
@@ -441,7 +462,9 @@ mod tests {
             .expect("Metadata should exist");
 
         // Storage path should be under custom_path/fulltext
-        assert!(metadata.storage_path.starts_with(custom_path.to_string_lossy().as_ref()));
+        assert!(metadata
+            .storage_path
+            .starts_with(custom_path.to_string_lossy().as_ref()));
     }
 
     // ==================== Drop Space Indexes Tests ====================

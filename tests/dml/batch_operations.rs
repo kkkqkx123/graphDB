@@ -23,14 +23,16 @@ fn test_batch_insert_vertices() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name, age) VALUES 
                 1:('Alice', 30),
                 2:('Bob', 25),
                 3:('Charlie', 35),
                 4:('Diana', 28),
                 5:('Eve', 32)
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Person", 5);
 }
@@ -43,14 +45,16 @@ fn test_batch_insert_edges() {
         .exec_ddl("CREATE TAG Person(name STRING)")
         .exec_ddl("CREATE EDGE KNOWS(since DATE)")
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('A'), 2:('B'), 3:('C'), 4:('D')")
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT EDGE KNOWS(since) VALUES 
                 1 -> 2:('2024-01-01'),
                 1 -> 3:('2024-01-02'),
                 1 -> 4:('2024-01-03'),
                 2 -> 3:('2024-01-04'),
                 2 -> 4:('2024-01-05')
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_edge_count("KNOWS", 5);
 }
@@ -157,7 +161,11 @@ fn test_complete_crud_flow() {
         })
         .query("FETCH PROP ON Product 101")
         .assert_result_count(1)
-        .assert_result_contains(vec![graphdb::core::Value::Int(101), graphdb::core::Value::String("name".into()), graphdb::core::Value::String("Laptop".into())])
+        .assert_result_contains(vec![
+            graphdb::core::Value::Int(101),
+            graphdb::core::Value::String("name".into()),
+            graphdb::core::Value::String("Laptop".into()),
+        ])
         .exec_dml("UPDATE 101 SET stock = 9")
         .assert_success()
         .assert_vertex_props(101, "Product", {
@@ -203,11 +211,13 @@ fn test_large_batch_insert() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
-        .exec_dml(r#"
+        .exec_dml(
+            r#"
             INSERT VERTEX Person(name) VALUES 
                 1:('P1'), 2:('P2'), 3:('P3'), 4:('P4'), 5:('P5'),
                 6:('P6'), 7:('P7'), 8:('P8'), 9:('P9'), 10:('P10')
-        "#)
+        "#,
+        )
         .assert_success()
         .assert_vertex_count("Person", 10);
 }

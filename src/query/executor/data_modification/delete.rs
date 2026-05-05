@@ -279,20 +279,14 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                     if self.is_all_tags {
                         if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
                             for tag in &vertex.tags {
-                                if storage
-                                    .drop_tag(&self.space_name, &tag.name)
-                                    .is_ok()
-                                {
+                                if storage.drop_tag(&self.space_name, &tag.name).is_ok() {
                                     total_deleted += 1;
                                 }
                             }
                         }
                     } else {
                         for tag_name in tag_names {
-                            if storage
-                                .drop_tag(&self.space_name, tag_name)
-                                .is_ok()
-                            {
+                            if storage.drop_tag(&self.space_name, tag_name).is_ok() {
                                 total_deleted += 1;
                             }
                         }
@@ -303,10 +297,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 
         if let Some(index_name) = &self.index_name {
             let mut storage = self.get_storage().lock();
-            if storage
-                .drop_tag_index(&self.space_name, index_name)
-                .is_ok()
-            {
+            if storage.drop_tag_index(&self.space_name, index_name).is_ok() {
                 total_deleted += 1;
             }
         }
@@ -316,13 +307,17 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 }
 
 /// Pipe Delete Executor
-/// 
+///
 /// Handles DELETE statements that receive input from a pipe.
 /// Evaluates expressions against input rows to determine what to delete.
 pub struct PipeDeleteExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     vertex_id_expressions: Vec<ContextualExpression>,
-    edge_expressions: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>,
+    edge_expressions: Vec<(
+        ContextualExpression,
+        ContextualExpression,
+        Option<ContextualExpression>,
+    )>,
     edge_type: Option<String>,
     condition: Option<ContextualExpression>,
     with_edge: bool,
@@ -357,7 +352,11 @@ impl<S: StorageClient + 'static> PipeDeleteExecutor<S> {
 
     pub fn with_edge_expressions(
         mut self,
-        expressions: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>,
+        expressions: Vec<(
+            ContextualExpression,
+            ContextualExpression,
+            Option<ContextualExpression>,
+        )>,
     ) -> Self {
         self.edge_expressions = expressions;
         self
@@ -389,7 +388,9 @@ impl<S: StorageClient + 'static> PipeDeleteExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> crate::query::executor::base::InputExecutor<S> for PipeDeleteExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> crate::query::executor::base::InputExecutor<S>
+    for PipeDeleteExecutor<S>
+{
     fn set_input(&mut self, input: crate::query::executor::ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -402,14 +403,14 @@ impl<S: StorageClient + Send + Sync + 'static> crate::query::executor::base::Inp
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for PipeDeleteExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
-        
+
         if let Some(mut input_exec) = self.input_executor.take() {
             let input_result = input_exec.execute()?;
             if let crate::query::executor::base::ExecutionResult::DataSet(data) = input_result {
                 self.input_data = Some(data);
             }
         }
-        
+
         let result = self.do_execute();
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
@@ -469,28 +470,30 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         let mut total_deleted = 0;
 
         let input_data = self.input_data.as_ref().ok_or_else(|| {
-            crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "PipeDeleteExecutor requires input data".to_string(),
-                ),
-            )
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                "PipeDeleteExecutor requires input data".to_string(),
+            ))
         })?;
 
         let col_names = &input_data.col_names;
 
         if !self.vertex_id_expressions.is_empty() {
             let mut storage = self.get_storage().lock();
-            
+
             for row in &input_data.rows {
                 for vid_expr in &self.vertex_id_expressions {
                     let id = self.evaluate_expression_with_row(vid_expr, col_names, row)?;
-                    
+
                     let should_delete = self.check_condition(&storage, &id)?;
-                    
+
                     if should_delete {
                         if self.with_edge {
                             let edges = storage
-                                .get_node_edges(&self.space_name, &id, crate::core::EdgeDirection::Both)
+                                .get_node_edges(
+                                    &self.space_name,
+                                    &id,
+                                    crate::core::EdgeDirection::Both,
+                                )
                                 .map_err(|e| {
                                     crate::core::error::DBError::Storage(
                                         crate::core::error::StorageError::StorageError(format!(
@@ -510,10 +513,12 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                                     )
                                     .map_err(|e| {
                                         crate::core::error::DBError::Storage(
-                                            crate::core::error::StorageError::StorageError(format!(
-                                                "Failed to delete the associated edge: {}",
-                                                e
-                                            )),
+                                            crate::core::error::StorageError::StorageError(
+                                                format!(
+                                                    "Failed to delete the associated edge: {}",
+                                                    e
+                                                ),
+                                            ),
                                         )
                                     })?;
                                 total_deleted += 1;
@@ -530,17 +535,20 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
 
         if !self.edge_expressions.is_empty() {
             let mut storage = self.get_storage().lock();
-            let edge_type = self.edge_type.clone().unwrap_or_else(|| "UNKNOWN".to_string());
-            
+            let edge_type = self
+                .edge_type
+                .clone()
+                .unwrap_or_else(|| "UNKNOWN".to_string());
+
             for row in &input_data.rows {
                 for (src_expr, dst_expr, _rank_expr) in &self.edge_expressions {
                     let src = self.evaluate_expression_with_row(src_expr, col_names, row)?;
                     let dst = self.evaluate_expression_with_row(dst_expr, col_names, row)?;
-                    
+
                     let edges = storage
                         .scan_edges_by_type(&self.space_name, &edge_type)
                         .map_err(crate::core::error::DBError::Storage)?;
-                    
+
                     for edge in edges {
                         if *edge.src == src && *edge.dst == dst {
                             storage
@@ -564,15 +572,13 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         row: &[Value],
     ) -> DBResult<Value> {
         let expression = expr.get_expression().ok_or_else(|| {
-            crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Expression not found in ContextualExpression".to_string(),
-                ),
-            )
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                "Expression not found in ContextualExpression".to_string(),
+            ))
         })?;
 
         let mut context = DefaultExpressionContext::new();
-        
+
         for (i, col_name) in col_names.iter().enumerate() {
             if i < row.len() {
                 context.set_variable(col_name.clone(), row[i].clone());
@@ -580,20 +586,13 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         }
 
         ExpressionEvaluator::evaluate(&expression, &mut context).map_err(|e| {
-            crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(format!(
-                    "Expression evaluation failed: {}",
-                    e
-                )),
-            )
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                format!("Expression evaluation failed: {}", e),
+            ))
         })
     }
 
-    fn check_condition(
-        &self,
-        _storage: &S,
-        _id: &Value,
-    ) -> DBResult<bool> {
+    fn check_condition(&self, _storage: &S, _id: &Value) -> DBResult<bool> {
         Ok(true)
     }
 }

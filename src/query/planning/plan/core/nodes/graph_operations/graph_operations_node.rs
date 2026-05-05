@@ -1143,20 +1143,18 @@ impl ApplyNode {
     pub fn clone_plan_node(
         &self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Apply(
-            Self {
-                id: self.id,
-                left_input: self.left_input.clone(),
-                right_input: self.right_input.clone(),
-                deps: self.deps.clone(),
-                left_input_var: self.left_input_var.clone(),
-                right_input_var: self.right_input_var.clone(),
-                correlated_cols: self.correlated_cols.clone(),
-                apply_kind: self.apply_kind,
-                output_var: self.output_var.clone(),
-                col_names: self.col_names.clone(),
-            },
-        )
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Apply(Self {
+            id: self.id,
+            left_input: self.left_input.clone(),
+            right_input: self.right_input.clone(),
+            deps: self.deps.clone(),
+            left_input_var: self.left_input_var.clone(),
+            right_input_var: self.right_input_var.clone(),
+            correlated_cols: self.correlated_cols.clone(),
+            apply_kind: self.apply_kind,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+        })
     }
 }
 

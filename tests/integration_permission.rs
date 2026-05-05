@@ -18,8 +18,8 @@ use graphdb::api::server::{
     Authenticator, PasswordAuthenticator, Permission, PermissionChecker, PermissionManager,
     RoleType, Session,
 };
-use graphdb::core::types::SpaceInfo;
 use graphdb::config::AuthConfig;
+use graphdb::core::types::SpaceInfo;
 
 // ==================== PermissionManager 核心测试 ====================
 

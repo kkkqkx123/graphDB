@@ -17,8 +17,8 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 
 /// Verified update information
 #[derive(Debug, Clone)]
@@ -214,7 +214,11 @@ impl UpdateValidator {
     }
 
     /// Basic validation (does not rely on a Schema)
-    pub fn validate_update_stmt(&mut self, stmt: &UpdateStmt, space_name: Option<&str>) -> Result<(), CoreValidationError> {
+    pub fn validate_update_stmt(
+        &mut self,
+        stmt: &UpdateStmt,
+        space_name: Option<&str>,
+    ) -> Result<(), CoreValidationError> {
         self.validate_target(&stmt.target, space_name)?;
         self.validate_set_clause(&stmt.set_clause)?;
         self.validate_where_clause(stmt.where_clause.as_ref())?;
@@ -235,7 +239,11 @@ impl UpdateValidator {
         Ok(())
     }
 
-    fn validate_target(&self, target: &UpdateTarget, space_name: Option<&str>) -> Result<(), CoreValidationError> {
+    fn validate_target(
+        &self,
+        target: &UpdateTarget,
+        space_name: Option<&str>,
+    ) -> Result<(), CoreValidationError> {
         match target {
             UpdateTarget::Vertex(vid_expr) => {
                 self.validate_vertex_id(vid_expr, "vertex", space_name)?;
@@ -354,7 +362,9 @@ impl UpdateValidator {
         }
 
         // Get vid_type from schema_manager if available, otherwise default to String
-        let vid_type = if let (Some(ref schema_validator), Some(space_name)) = (&self.schema_validator, space_name) {
+        let vid_type = if let (Some(ref schema_validator), Some(space_name)) =
+            (&self.schema_validator, space_name)
+        {
             match schema_validator.get_schema_manager().get_space(space_name) {
                 Ok(Some(space_info)) => space_info.vid_type,
                 _ => crate::core::types::DataType::String,

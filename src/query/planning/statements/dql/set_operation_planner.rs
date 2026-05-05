@@ -33,10 +33,7 @@ impl SetOperationPlanner {
         Self { max_depth }
     }
 
-    fn extract_set_operation_stmt(
-        &self,
-        stmt: &Stmt,
-    ) -> Result<SetOperationStmt, PlannerError> {
+    fn extract_set_operation_stmt(&self, stmt: &Stmt) -> Result<SetOperationStmt, PlannerError> {
         match stmt {
             Stmt::SetOperation(set_op_stmt) => Ok(set_op_stmt.clone()),
             _ => Err(PlannerError::InvalidOperation(
@@ -125,10 +122,7 @@ impl SetOperationPlanner {
             }
             SetOperationType::Minus => {
                 let minus_node = MinusNode::new(left_root, right_root).map_err(|e| {
-                    PlannerError::PlanGenerationFailed(format!(
-                        "Failed to create MinusNode: {}",
-                        e
-                    ))
+                    PlannerError::PlanGenerationFailed(format!("Failed to create MinusNode: {}", e))
                 })?;
                 PlanNodeEnum::Minus(minus_node)
             }

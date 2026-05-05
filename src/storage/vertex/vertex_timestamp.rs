@@ -3,7 +3,7 @@
 //! MVCC timestamp tracking for vertices.
 //! Tracks creation and deletion timestamps for each vertex.
 
-use super::{Timestamp, INVALID_TIMESTAMP, MAX_TIMESTAMP, VertexStatus};
+use super::{Timestamp, VertexStatus, INVALID_TIMESTAMP, MAX_TIMESTAMP};
 
 #[derive(Debug, Clone)]
 pub struct VertexTimestamp {
@@ -110,11 +110,7 @@ impl VertexTimestamp {
         self.start_ts
             .iter()
             .enumerate()
-            .filter(|(i, &start)| {
-                start != INVALID_TIMESTAMP
-                    && start <= ts
-                    && self.end_ts[*i] > ts
-            })
+            .filter(|(i, &start)| start != INVALID_TIMESTAMP && start <= ts && self.end_ts[*i] > ts)
             .count()
     }
 

@@ -122,7 +122,9 @@ impl PlanNode for CreateVectorIndexNode {
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         use crate::query::planning::plan::core::nodes::management::manage_node_enums::VectorManageNode;
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorManage(VectorManageNode::Create(self))
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorManage(
+            VectorManageNode::Create(self),
+        )
     }
 }
 
@@ -177,7 +179,9 @@ impl PlanNode for DropVectorIndexNode {
         self,
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         use crate::query::planning::plan::core::nodes::management::manage_node_enums::VectorManageNode;
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorManage(VectorManageNode::Drop(self))
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::VectorManage(
+            VectorManageNode::Drop(self),
+        )
     }
 }
 

@@ -9,11 +9,11 @@ use crate::transaction::undo_log::{UndoLog, UndoLogManager, UndoTarget};
 use crate::transaction::wal::types::{LabelId, Timestamp};
 
 pub use crate::transaction::undo_log::{
-    CreateVertexTypeUndo, CreateEdgeTypeUndo, InsertVertexUndo, InsertEdgeUndo,
-    UpdateVertexPropUndo, UpdateEdgePropUndo, RemoveVertexUndo, RemoveEdgeUndo,
-    AddVertexPropUndo, AddEdgePropUndo, DeleteVertexPropUndo, DeleteEdgePropUndo,
-    DeleteVertexTypeUndo, DeleteEdgeTypeUndo, RenameVertexPropUndo, RenameEdgePropUndo,
-    PropertyValue, RelatedEdgeInfo,
+    AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
+    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
+    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
+    RemoveVertexUndo, RenameEdgePropUndo, RenameVertexPropUndo, UpdateEdgePropUndo,
+    UpdateVertexPropUndo,
 };
 
 /// Operation logging context trait
@@ -421,9 +421,8 @@ mod tests {
         let undo = RollbackHelper::create_insert_edge_undo(1, 2, 3, 100, 200, 0, 0);
         assert!(undo.description().contains("InsertEdgeUndo"));
 
-        let undo = RollbackHelper::create_update_vertex_prop_undo(
-            1, 100, 0, PropertyValue::Int(42)
-        );
+        let undo =
+            RollbackHelper::create_update_vertex_prop_undo(1, 100, 0, PropertyValue::Int(42));
         assert!(undo.description().contains("UpdateVertexPropUndo"));
     }
 }

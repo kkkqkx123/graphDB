@@ -14,9 +14,9 @@ use super::cleaner::TransactionCleaner;
 use super::context::TransactionContext;
 use super::monitor::TransactionMonitor;
 use super::types::*;
+use super::undo_log::UndoTarget;
 use super::version_manager::{VersionManager, VersionManagerConfig};
 use super::wal::writer::WalWriter;
-use super::undo_log::UndoTarget;
 
 /// Transaction Manager
 ///
@@ -185,7 +185,9 @@ impl TransactionManager {
         }
 
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
-        let timestamp = self.version_manager.acquire_update_timestamp()
+        let timestamp = self
+            .version_manager
+            .acquire_update_timestamp()
             .map_err(|e| TransactionError::Internal(e.to_string()))?;
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
@@ -269,7 +271,8 @@ impl TransactionManager {
         if context.read_only {
             self.version_manager.release_read_timestamp();
         } else {
-            self.version_manager.release_insert_timestamp(context.timestamp());
+            self.version_manager
+                .release_insert_timestamp(context.timestamp());
         }
 
         context.transition_to(TransactionState::Committed)?;
@@ -337,13 +340,17 @@ impl TransactionManager {
     }
 
     /// Internal abort implementation
-    fn abort_transaction_internal(&self, context: &TransactionContext) -> Result<(), TransactionError> {
+    fn abort_transaction_internal(
+        &self,
+        context: &TransactionContext,
+    ) -> Result<(), TransactionError> {
         context.transition_to(TransactionState::Aborting)?;
 
         if context.read_only {
             self.version_manager.release_read_timestamp();
         } else {
-            self.version_manager.release_insert_timestamp(context.timestamp());
+            self.version_manager
+                .release_insert_timestamp(context.timestamp());
         }
 
         context.transition_to(TransactionState::Aborted)?;
@@ -356,12 +363,14 @@ impl TransactionManager {
 
     /// Get active transaction list
     pub fn list_active_transactions(&self) -> Vec<TransactionInfo> {
-        self.monitor.list_active_transactions(&self.active_transactions)
+        self.monitor
+            .list_active_transactions(&self.active_transactions)
     }
 
     /// Get transaction info
     pub fn get_transaction_info(&self, txn_id: TransactionId) -> Option<TransactionInfo> {
-        self.monitor.get_transaction_info(&self.active_transactions, txn_id)
+        self.monitor
+            .get_transaction_info(&self.active_transactions, txn_id)
     }
 
     /// Get statistics
@@ -371,7 +380,8 @@ impl TransactionManager {
 
     /// Cleanup expired transactions
     pub fn cleanup_expired_transactions(&self) {
-        self.cleaner.cleanup_expired_transactions(&self.active_transactions);
+        self.cleaner
+            .cleanup_expired_transactions(&self.active_transactions);
     }
 
     /// Shutdown transaction manager
@@ -474,7 +484,9 @@ mod tests {
 
         assert!(manager.is_transaction_active(txn_id));
 
-        manager.commit_transaction(txn_id).expect("Failed to commit");
+        manager
+            .commit_transaction(txn_id)
+            .expect("Failed to commit");
 
         assert!(!manager.is_transaction_active(txn_id));
     }
@@ -489,7 +501,9 @@ mod tests {
 
         assert!(manager.is_transaction_active(txn_id));
 
-        manager.commit_transaction(txn_id).expect("Failed to commit");
+        manager
+            .commit_transaction(txn_id)
+            .expect("Failed to commit");
 
         assert!(!manager.is_transaction_active(txn_id));
     }
@@ -505,7 +519,10 @@ mod tests {
         manager.abort_transaction(txn_id).expect("Failed to abort");
 
         assert!(!manager.is_transaction_active(txn_id));
-        assert_eq!(manager.stats().aborted_transactions.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            manager.stats().aborted_transactions.load(Ordering::Relaxed),
+            1
+        );
     }
 
     #[test]
@@ -516,12 +533,18 @@ mod tests {
             .begin_insert_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
 
-        let sp_id = manager.create_savepoint(txn_id, Some("test".to_string())).expect("Failed to create savepoint");
+        let sp_id = manager
+            .create_savepoint(txn_id, Some("test".to_string()))
+            .expect("Failed to create savepoint");
 
-        let sp = manager.get_savepoint(txn_id, sp_id).expect("Failed to get savepoint");
+        let sp = manager
+            .get_savepoint(txn_id, sp_id)
+            .expect("Failed to get savepoint");
         assert_eq!(sp.name, Some("test".to_string()));
 
-        manager.commit_transaction(txn_id).expect("Failed to commit");
+        manager
+            .commit_transaction(txn_id)
+            .expect("Failed to commit");
     }
 
     #[test]

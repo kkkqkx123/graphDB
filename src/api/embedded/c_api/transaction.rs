@@ -284,10 +284,10 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
 
     // Use embedded session API instead of direct TransactionManager access
     let session = &*session_ptr;
-    
+
     // Commit transaction (synchronous, no longer async)
     let result = session.inner.commit_transaction(txn_handle);
-    
+
     match result {
         Ok(_) => {
             handle.committed = true;

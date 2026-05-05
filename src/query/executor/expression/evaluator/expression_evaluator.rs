@@ -231,7 +231,10 @@ impl ExpressionEvaluator {
             }
 
             // Edge attribute access - look up edge variable and access property
-            Expression::EdgeProperty { edge_name, property } => {
+            Expression::EdgeProperty {
+                edge_name,
+                property,
+            } => {
                 // First try to get the edge value from context using edge_name
                 let edge_value = context
                     .get_variable(edge_name)

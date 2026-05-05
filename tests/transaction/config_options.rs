@@ -161,7 +161,10 @@ fn test_isolation_level() {
     let default = IsolationLevel::default();
     assert_eq!(default, IsolationLevel::RepeatableRead);
 
-    assert_eq!(format!("{}", IsolationLevel::RepeatableRead), "REPEATABLE READ");
+    assert_eq!(
+        format!("{}", IsolationLevel::RepeatableRead),
+        "REPEATABLE READ"
+    );
 }
 
 /// Test TransactionManager with custom config
@@ -279,8 +282,7 @@ fn test_high_performance_write_options() {
 fn test_repeatable_read_options() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let options =
-        TransactionOptions::new().with_isolation_level(IsolationLevel::RepeatableRead);
+    let options = TransactionOptions::new().with_isolation_level(IsolationLevel::RepeatableRead);
 
     let txn_id = manager
         .begin_transaction(options)

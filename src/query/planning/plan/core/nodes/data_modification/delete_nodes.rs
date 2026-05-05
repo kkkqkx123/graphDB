@@ -15,7 +15,7 @@ use super::info::{EdgeDeleteInfo, IndexDeleteInfo, TagDeleteInfo, VertexDeleteIn
 
 define_plan_node! {
     /// Delete vertices node (standalone)
-    /// 
+    ///
     /// Used for: DELETE VERTEX "vid1", "vid2"
     pub struct DeleteVerticesNode {
         info: VertexDeleteInfo,
@@ -142,7 +142,7 @@ impl DeleteIndexNode {
 
 define_plan_node! {
     /// Delete edges node (standalone)
-    /// 
+    ///
     /// Used for: DELETE EDGE edge_type "src" -> "dst"
     pub struct DeleteEdgesNode {
         info: EdgeDeleteInfo,
@@ -194,7 +194,7 @@ impl DeleteEdgesNode {
 
 define_plan_node_with_deps! {
     /// Pipe delete vertices node
-    /// 
+    ///
     /// Used for: GO FROM "vid" OVER edge YIELD dst(edge) AS id | DELETE VERTEX $-.id
     pub struct PipeDeleteVerticesNode {
         info: VertexDeleteInfo,
@@ -204,7 +204,11 @@ define_plan_node_with_deps! {
 }
 
 impl PipeDeleteVerticesNode {
-    pub fn new(id: i64, info: VertexDeleteInfo, input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) -> Self {
+    pub fn new(
+        id: i64,
+        info: VertexDeleteInfo,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    ) -> Self {
         Self {
             id,
             input: Some(Box::new(input.clone())),
@@ -238,7 +242,7 @@ impl PipeDeleteVerticesNode {
 
 define_plan_node_with_deps! {
     /// Pipe delete edges node
-    /// 
+    ///
     /// Used for: GO FROM "vid" OVER edge YIELD src(edge) AS s, dst(edge) AS d | DELETE EDGE type $-.s -> $-.d
     pub struct PipeDeleteEdgesNode {
         info: EdgeDeleteInfo,
@@ -248,7 +252,11 @@ define_plan_node_with_deps! {
 }
 
 impl PipeDeleteEdgesNode {
-    pub fn new(id: i64, info: EdgeDeleteInfo, input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) -> Self {
+    pub fn new(
+        id: i64,
+        info: EdgeDeleteInfo,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    ) -> Self {
         Self {
             id,
             input: Some(Box::new(input.clone())),

@@ -47,40 +47,23 @@ impl MemoryTracker {
     /// Try to allocate memory for vertex data
     /// Returns true if allocation succeeded, false if limit exceeded
     pub fn try_allocate_vertex(&self, size: usize) -> bool {
-        self.try_allocate_internal(
-            &self.vertex_memory,
-            size,
-            self.config.max_vertex_memory(),
-        )
+        self.try_allocate_internal(&self.vertex_memory, size, self.config.max_vertex_memory())
     }
 
     /// Try to allocate memory for edge data
     /// Returns true if allocation succeeded, false if limit exceeded
     pub fn try_allocate_edge(&self, size: usize) -> bool {
-        self.try_allocate_internal(
-            &self.edge_memory,
-            size,
-            self.config.max_edge_memory(),
-        )
+        self.try_allocate_internal(&self.edge_memory, size, self.config.max_edge_memory())
     }
 
     /// Try to allocate memory for cache
     /// Returns true if allocation succeeded, false if limit exceeded
     pub fn try_allocate_cache(&self, size: usize) -> bool {
-        self.try_allocate_internal(
-            &self.cache_memory,
-            size,
-            self.config.max_cache_memory(),
-        )
+        self.try_allocate_internal(&self.cache_memory, size, self.config.max_cache_memory())
     }
 
     /// Internal allocation logic
-    fn try_allocate_internal(
-        &self,
-        counter: &AtomicUsize,
-        size: usize,
-        max: usize,
-    ) -> bool {
+    fn try_allocate_internal(&self, counter: &AtomicUsize, size: usize, max: usize) -> bool {
         loop {
             let current = counter.load(Ordering::Relaxed);
             let new_total = current.saturating_add(size);
@@ -372,11 +355,7 @@ impl std::fmt::Display for MemoryStats {
             Self::format_bytes(self.max_cache_memory),
             self.cache_utilization() * 100.0
         )?;
-        writeln!(
-            f,
-            "  Peak: {}",
-            Self::format_bytes(self.peak_memory)
-        )?;
+        writeln!(f, "  Peak: {}", Self::format_bytes(self.peak_memory))?;
         if self.is_stalling {
             write!(f, "  Status: STALLING")?;
         }

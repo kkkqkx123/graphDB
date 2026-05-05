@@ -92,7 +92,13 @@ pub struct EdgeRecord {
 }
 
 impl EdgeRecord {
-    pub fn new(src_id: u64, dst_id: u64, edge_id: u64, prop_offset: u32, timestamp: Timestamp) -> Self {
+    pub fn new(
+        src_id: u64,
+        dst_id: u64,
+        edge_id: u64,
+        prop_offset: u32,
+        timestamp: Timestamp,
+    ) -> Self {
         Self {
             src_id,
             dst_id,

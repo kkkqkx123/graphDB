@@ -66,7 +66,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         // Parameters of ExpandAllExecutor::new: id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context
         // ExpandAllNode 的 direction() 返回 &str，需要转换为 EdgeDirection
         let edge_direction = EdgeDirection::from(node.direction());
-        
+
         // Get space name from storage using space_id
         let space_name = {
             let storage_guard = storage.lock();
@@ -75,7 +75,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
                 _ => "default".to_string(), // Fallback to default if space not found
             }
         };
-        
+
         let mut executor = ExpandAllExecutor::with_context(
             node.id(),
             storage,

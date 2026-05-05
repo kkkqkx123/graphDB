@@ -16,8 +16,8 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 
 /// Verified information about the GO statement
 #[derive(Debug, Clone)]
@@ -217,7 +217,11 @@ impl GoValidator {
     }
 
     /// Validate that the edge type exists in the schema
-    fn validate_edge_type_exists(&self, edge_name: &str, space_name: Option<&str>) -> Result<(), ValidationError> {
+    fn validate_edge_type_exists(
+        &self,
+        edge_name: &str,
+        space_name: Option<&str>,
+    ) -> Result<(), ValidationError> {
         if let (Some(ref schema_manager), Some(space)) = (&self.schema_manager, space_name) {
             match schema_manager.get_edge_type(space, edge_name) {
                 Ok(Some(_)) => Ok(()),
@@ -554,8 +558,8 @@ mod tests {
     use crate::core::Value;
     use crate::query::parser::ast::stmt::{Ast, FromClause, GoStmt, OverClause, Steps};
     use crate::query::parser::ast::Span;
-    use crate::query::QueryRequestContext;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use crate::query::QueryRequestContext;
     use std::sync::Arc;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {

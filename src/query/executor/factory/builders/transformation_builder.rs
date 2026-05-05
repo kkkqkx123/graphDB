@@ -40,7 +40,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-        
+
         let unwind_expression = node
             .list_expression()
             .expression()

@@ -34,9 +34,9 @@ pub use extend::FulltextStorage;
 pub use index::*;
 pub use iterator::*;
 pub use memory::{
-    AllocationResult, DEFAULT_HUGE_PAGE_SIZE, HugePageAllocator, HugePageBuffer, HugePageConfig,
-    HugePageError, MemoryConfig, MemoryConfigBuilder, MemoryLevel, MemoryStats, MemoryTracker,
-    NullBitmap,
+    AllocationResult, HugePageAllocator, HugePageBuffer, HugePageConfig, HugePageError,
+    MemoryConfig, MemoryConfigBuilder, MemoryLevel, MemoryStats, MemoryTracker, NullBitmap,
+    DEFAULT_HUGE_PAGE_SIZE,
 };
 pub use metadata::*;
 pub use operations::*;
@@ -46,18 +46,18 @@ pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
 
 pub use container::{
-    ArenaAllocator, ArenaPool, AnonMmap, ContainerConfig, ContainerError, ContainerResult,
+    AnonMmap, ArenaAllocator, ArenaPool, ContainerConfig, ContainerError, ContainerResult,
     ContainerStats, FileHeader, FileSharedMmap, IDataContainer, MmapContainer, ThreadLocalArena,
 };
 
 pub use vertex::{
-    Column, ColumnStore, IdIndexer, LabelId, PropertyDef as VertexPropertyDef, Timestamp,
-    VertexId, VertexRecord, VertexSchema, VertexTable, VertexTimestamp,
+    Column, ColumnStore, IdIndexer, LabelId, PropertyDef as VertexPropertyDef, Timestamp, VertexId,
+    VertexRecord, VertexSchema, VertexTable, VertexTimestamp,
 };
 
 pub use edge::{
-    Csr, EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
-    ImmutableNbr, MutableCsr, Nbr, PropertyDef as EdgePropertyDef, PropertyTable,
+    Csr, EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, ImmutableNbr,
+    MutableCsr, Nbr, PropertyDef as EdgePropertyDef, PropertyTable,
 };
 
 pub use property_graph::{PropertyGraph, PropertyGraphConfig};
@@ -67,10 +67,10 @@ pub use persistence::{
 };
 
 pub use page::{
-    FlatCsr, FlatCsrEdgeIterator, FlatCsrIterator, MigrationConfig, MigrationStats, Page,
-    PageHeader, PageManager, PageManagerStats, PageType, StorageMigrator, StoragePageId,
-    DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP, PAGE_DATA_SIZE, PAGE_HEADER_SIZE,
-    PAGE_SIZE, VERTEX_RECORD_SIZE, verify_migration,
+    verify_migration, FlatCsr, FlatCsrEdgeIterator, FlatCsrIterator, MigrationConfig,
+    MigrationStats, Page, PageHeader, PageManager, PageManagerStats, PageType, StorageMigrator,
+    StoragePageId, DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP, PAGE_DATA_SIZE,
+    PAGE_HEADER_SIZE, PAGE_SIZE, VERTEX_RECORD_SIZE,
 };
 
 pub use graph_storage::GraphStorage;

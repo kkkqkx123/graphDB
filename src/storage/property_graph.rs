@@ -8,11 +8,15 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::core::value::null::NullType;
-use crate::transaction::insert_transaction::{InsertTarget, InsertTransactionError, InsertTransactionResult};
+use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::transaction::insert_transaction::{
+    InsertTarget, InsertTransactionError, InsertTransactionResult,
+};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
-use crate::transaction::wal::types::{ColumnId, EdgeId as TxnEdgeId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId};
+use crate::transaction::wal::types::{
+    ColumnId, EdgeId as TxnEdgeId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
+};
 use crate::transaction::wal::writer::WalWriter;
 
 use super::cache::{
@@ -20,11 +24,20 @@ use super::cache::{
     RecordCacheConfig, RecordCacheStats, SharedBlockCache, SharedRecordCache, TableType,
     VertexCacheKey,
 };
-use super::edge::{EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
+use super::edge::{
+    EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
+    PropertyDef as EdgePropertyDef,
+};
 use super::memory::{MemoryConfig, MemoryTracker, SharedMemoryTracker};
-use super::persistence::{CompressionType, DirtyPageTracker, FlushConfig, FlushManager, PageId, TableType as PersistenceTableType};
-use super::vertex::{LabelId, PropertyDef as VertexPropertyDef, Timestamp as StorageTimestamp, VertexId, VertexRecord, VertexSchema, VertexTable};
+use super::persistence::{
+    CompressionType, DirtyPageTracker, FlushConfig, FlushManager, PageId,
+    TableType as PersistenceTableType,
+};
 use super::vertex::vertex_table::VertexIterator;
+use super::vertex::{
+    LabelId, PropertyDef as VertexPropertyDef, Timestamp as StorageTimestamp, VertexId,
+    VertexRecord, VertexSchema, VertexTable,
+};
 
 const DATA_FORMAT_VERSION: u32 = 1;
 
@@ -114,8 +127,17 @@ impl std::fmt::Debug for PropertyGraph {
             .field("is_open", &self.is_open)
             .field("wal_writer", &self.wal_writer.as_ref().map(|_| "WalWriter"))
             .field("wal_enabled", &self.wal_enabled)
-            .field("cache", &self.cache.as_ref().map(|c: &Arc<BlockCache>| c.stats()))
-            .field("memory_tracker", &self.memory_tracker.as_ref().map(|t: &Arc<MemoryTracker>| t.stats()))
+            .field(
+                "cache",
+                &self.cache.as_ref().map(|c: &Arc<BlockCache>| c.stats()),
+            )
+            .field(
+                "memory_tracker",
+                &self
+                    .memory_tracker
+                    .as_ref()
+                    .map(|t: &Arc<MemoryTracker>| t.stats()),
+            )
             .finish()
     }
 }
@@ -140,7 +162,8 @@ impl PropertyGraph {
                 shard_count: 8,
             };
             Some(Arc::new(
-                RecordCache::with_config(record_cache_config).with_memory_tracker(memory_tracker.clone()),
+                RecordCache::with_config(record_cache_config)
+                    .with_memory_tracker(memory_tracker.clone()),
             ))
         } else {
             None
@@ -219,11 +242,15 @@ impl PropertyGraph {
     }
 
     pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
-        self.record_cache.as_ref().map(|c: &Arc<RecordCache>| c.stats())
+        self.record_cache
+            .as_ref()
+            .map(|c: &Arc<RecordCache>| c.stats())
     }
 
     pub fn memory_stats(&self) -> Option<super::memory::MemoryStats> {
-        self.memory_tracker.as_ref().map(|t: &Arc<MemoryTracker>| t.stats())
+        self.memory_tracker
+            .as_ref()
+            .map(|t: &Arc<MemoryTracker>| t.stats())
     }
 
     pub fn clear_cache(&self) {
@@ -244,11 +271,17 @@ impl PropertyGraph {
     }
 
     pub fn get_dirty_page_count(&self) -> usize {
-        self.dirty_tracker.as_ref().map(|t| t.get_dirty_page_count()).unwrap_or(0)
+        self.dirty_tracker
+            .as_ref()
+            .map(|t| t.get_dirty_page_count())
+            .unwrap_or(0)
     }
 
     pub fn should_flush(&self) -> bool {
-        self.dirty_tracker.as_ref().map(|t| t.should_flush()).unwrap_or(false)
+        self.dirty_tracker
+            .as_ref()
+            .map(|t| t.should_flush())
+            .unwrap_or(false)
     }
 
     fn mark_vertex_dirty(&self, label_id: LabelId) {
@@ -287,10 +320,9 @@ impl PropertyGraph {
 
     fn flush_pages(&self, pages: &[PageId]) -> StorageResult<()> {
         use std::fs;
-        
+
         let data_dir = self.config.work_dir.join("data");
-        fs::create_dir_all(&data_dir)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+        fs::create_dir_all(&data_dir).map_err(|e| StorageError::IOError(e.to_string()))?;
 
         for page_id in pages {
             match page_id.table_type {
@@ -298,7 +330,7 @@ impl PropertyGraph {
                     let vertex_dir = data_dir.join("vertices");
                     fs::create_dir_all(&vertex_dir)
                         .map_err(|e| StorageError::IOError(e.to_string()))?;
-                    
+
                     let table_dir = vertex_dir.join(format!("label_{}", page_id.label_id));
                     if let Some(table) = self.vertex_tables.get(&page_id.label_id) {
                         table.flush(&table_dir)?;
@@ -308,11 +340,12 @@ impl PropertyGraph {
                     let edge_dir = data_dir.join("edges");
                     fs::create_dir_all(&edge_dir)
                         .map_err(|e| StorageError::IOError(e.to_string()))?;
-                    
+
                     let src_label = (page_id.block_number >> 32) as LabelId;
                     let dst_label = page_id.block_number as LabelId;
                     let key = (src_label, dst_label, page_id.label_id);
-                    let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, page_id.label_id));
+                    let table_dir =
+                        edge_dir.join(format!("{}_{}_{}", src_label, dst_label, page_id.label_id));
                     if let Some(table) = self.edge_tables.get(&key) {
                         table.flush(&table_dir)?;
                     }
@@ -323,7 +356,8 @@ impl PropertyGraph {
 
         if let Some(ref wal_writer) = self.wal_writer {
             let mut writer = wal_writer.write();
-            writer.sync()
+            writer
+                .sync()
                 .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
         }
 
@@ -350,7 +384,8 @@ impl PropertyGraph {
 
         if let Some(ref wal_writer) = self.wal_writer {
             let mut writer = wal_writer.write();
-            writer.append(_data)
+            writer
+                .append(_data)
                 .map_err(|e| StorageError::WalError(format!("Failed to write WAL: {:?}", e)))?;
         }
         Ok(())
@@ -424,10 +459,16 @@ impl PropertyGraph {
         }
 
         if !self.vertex_tables.contains_key(&src_label) {
-            return Err(StorageError::LabelNotFound(format!("source label {}", src_label)));
+            return Err(StorageError::LabelNotFound(format!(
+                "source label {}",
+                src_label
+            )));
         }
         if !self.vertex_tables.contains_key(&dst_label) {
-            return Err(StorageError::LabelNotFound(format!("destination label {}", dst_label)));
+            return Err(StorageError::LabelNotFound(format!(
+                "destination label {}",
+                dst_label
+            )));
         }
 
         if self.edge_label_names.contains_key(name) {
@@ -460,13 +501,15 @@ impl PropertyGraph {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let label_id = self.vertex_label_names
+        let label_id = self
+            .vertex_label_names
             .remove(name)
             .ok_or_else(|| StorageError::LabelNotFound(name.to_string()))?;
 
         self.vertex_tables.remove(&label_id);
 
-        let keys_to_remove: Vec<_> = self.edge_tables
+        let keys_to_remove: Vec<_> = self
+            .edge_tables
             .keys()
             .filter(|(src, dst, _)| *src == label_id || *dst == label_id)
             .cloned()
@@ -484,11 +527,13 @@ impl PropertyGraph {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let label_id = self.edge_label_names
+        let label_id = self
+            .edge_label_names
             .remove(name)
             .ok_or_else(|| StorageError::LabelNotFound(name.to_string()))?;
 
-        let keys_to_remove: Vec<_> = self.edge_tables
+        let keys_to_remove: Vec<_> = self
+            .edge_tables
             .keys()
             .filter(|(_, _, e)| *e == label_id)
             .cloned()
@@ -512,7 +557,8 @@ impl PropertyGraph {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let table = self.vertex_tables
+        let table = self
+            .vertex_tables
             .get_mut(&label)
             .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
 
@@ -609,7 +655,8 @@ impl PropertyGraph {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let table = self.vertex_tables
+        let table = self
+            .vertex_tables
             .get_mut(&label)
             .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
 
@@ -639,11 +686,13 @@ impl PropertyGraph {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let table = self.vertex_tables
+        let table = self
+            .vertex_tables
             .get_mut(&label)
             .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
 
-        let internal_id = table.get_internal_id(external_id, ts)
+        let internal_id = table
+            .get_internal_id(external_id, ts)
             .ok_or(StorageError::VertexNotFound)?;
 
         if let Some(ref record_cache) = self.record_cache {
@@ -668,22 +717,32 @@ impl PropertyGraph {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let src_table = self.vertex_tables.get(&src_label)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("source vertex label {}", src_label)))?;
-        let dst_table = self.vertex_tables.get(&dst_label)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("destination vertex label {}", dst_label)))?;
+        let src_table = self.vertex_tables.get(&src_label).ok_or_else(|| {
+            StorageError::LabelNotFound(format!("source vertex label {}", src_label))
+        })?;
+        let dst_table = self.vertex_tables.get(&dst_label).ok_or_else(|| {
+            StorageError::LabelNotFound(format!("destination vertex label {}", dst_label))
+        })?;
 
-        let src_internal = src_table.get_internal_id(src_id, ts)
+        let src_internal = src_table
+            .get_internal_id(src_id, ts)
             .ok_or(StorageError::VertexNotFound)?;
-        let dst_internal = dst_table.get_internal_id(dst_id, ts)
+        let dst_internal = dst_table
+            .get_internal_id(dst_id, ts)
             .ok_or(StorageError::VertexNotFound)?;
 
         let key = (src_label, dst_label, edge_label);
-        let edge_table = self.edge_tables
+        let edge_table = self
+            .edge_tables
             .get_mut(&key)
             .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
 
-        let result = edge_table.insert_edge(src_internal as VertexId, dst_internal as VertexId, properties, ts);
+        let result = edge_table.insert_edge(
+            src_internal as VertexId,
+            dst_internal as VertexId,
+            properties,
+            ts,
+        );
         if result.is_ok() {
             self.mark_edge_dirty(src_label, dst_label, edge_label);
         }
@@ -715,7 +774,12 @@ impl PropertyGraph {
         let record = edge_table.get_edge(src_internal as VertexId, dst_internal as VertexId, ts)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = EdgeCacheKey::new(edge_label, src_internal as u64, dst_internal as u64, record.edge_id);
+            let cache_key = EdgeCacheKey::new(
+                edge_label,
+                src_internal as u64,
+                dst_internal as u64,
+                record.edge_id,
+            );
             let cached = CachedEdge {
                 edge_id: record.edge_id,
                 src_vid: src_internal as u64,
@@ -741,24 +805,36 @@ impl PropertyGraph {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let src_table = self.vertex_tables.get(&src_label)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("source vertex label {}", src_label)))?;
-        let dst_table = self.vertex_tables.get(&dst_label)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("destination vertex label {}", dst_label)))?;
+        let src_table = self.vertex_tables.get(&src_label).ok_or_else(|| {
+            StorageError::LabelNotFound(format!("source vertex label {}", src_label))
+        })?;
+        let dst_table = self.vertex_tables.get(&dst_label).ok_or_else(|| {
+            StorageError::LabelNotFound(format!("destination vertex label {}", dst_label))
+        })?;
 
-        let src_internal = src_table.get_internal_id(src_id, ts)
+        let src_internal = src_table
+            .get_internal_id(src_id, ts)
             .ok_or(StorageError::VertexNotFound)?;
-        let dst_internal = dst_table.get_internal_id(dst_id, ts)
+        let dst_internal = dst_table
+            .get_internal_id(dst_id, ts)
             .ok_or(StorageError::VertexNotFound)?;
 
         let key = (src_label, dst_label, edge_label);
-        let edge_table = self.edge_tables
+        let edge_table = self
+            .edge_tables
             .get_mut(&key)
             .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
 
         if let Some(ref record_cache) = self.record_cache {
-            if let Some(nbr) = edge_table.get_edge_nbr(src_internal as VertexId, dst_internal as VertexId, ts) {
-                let cache_key = EdgeCacheKey::new(edge_label, src_internal as u64, dst_internal as u64, nbr.edge_id);
+            if let Some(nbr) =
+                edge_table.get_edge_nbr(src_internal as VertexId, dst_internal as VertexId, ts)
+            {
+                let cache_key = EdgeCacheKey::new(
+                    edge_label,
+                    src_internal as u64,
+                    dst_internal as u64,
+                    nbr.edge_id,
+                );
                 record_cache.remove_edge(&cache_key);
             }
         }
@@ -859,7 +935,12 @@ impl PropertyGraph {
         self.vertex_tables.get(&label)
     }
 
-    pub fn get_edge_table(&self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) -> Option<&EdgeTable> {
+    pub fn get_edge_table(
+        &self,
+        src_label: LabelId,
+        dst_label: LabelId,
+        edge_label: LabelId,
+    ) -> Option<&EdgeTable> {
         self.edge_tables.get(&(src_label, dst_label, edge_label))
     }
 
@@ -928,7 +1009,8 @@ impl PropertyGraph {
 
         if let Some(ref wal_writer) = self.wal_writer {
             let mut writer = wal_writer.write();
-            writer.sync()
+            writer
+                .sync()
                 .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
         }
 
@@ -943,13 +1025,16 @@ impl PropertyGraph {
 
         let version_file = data_dir.join("version");
         if version_file.exists() {
-            let mut file = fs::File::open(&version_file)
-                .map_err(|e| StorageError::IOError(format!("Failed to open version file: {}", e)))?;
+            let mut file = fs::File::open(&version_file).map_err(|e| {
+                StorageError::IOError(format!("Failed to open version file: {}", e))
+            })?;
             let mut content = String::new();
-            file.read_to_string(&mut content)
-                .map_err(|e| StorageError::IOError(format!("Failed to read version file: {}", e)))?;
-            let version: u32 = content.trim().parse()
-                .map_err(|e| StorageError::DeserializeError(format!("Invalid version format: {}", e)))?;
+            file.read_to_string(&mut content).map_err(|e| {
+                StorageError::IOError(format!("Failed to read version file: {}", e))
+            })?;
+            let version: u32 = content.trim().parse().map_err(|e| {
+                StorageError::DeserializeError(format!("Invalid version format: {}", e))
+            })?;
             if version > DATA_FORMAT_VERSION {
                 return Err(StorageError::DeserializeError(format!(
                     "Data format version {} is newer than supported version {}",
@@ -1029,11 +1114,13 @@ impl PropertyGraph {
         let checkpoint_dir = Self::checkpoint_dir(&self.config.work_dir);
 
         if temp_dir.exists() {
-            fs::remove_dir_all(&temp_dir)
-                .map_err(|e| StorageError::IOError(format!("Failed to remove temp checkpoint dir: {}", e)))?;
+            fs::remove_dir_all(&temp_dir).map_err(|e| {
+                StorageError::IOError(format!("Failed to remove temp checkpoint dir: {}", e))
+            })?;
         }
-        fs::create_dir_all(&temp_dir)
-            .map_err(|e| StorageError::IOError(format!("Failed to create temp checkpoint dir: {}", e)))?;
+        fs::create_dir_all(&temp_dir).map_err(|e| {
+            StorageError::IOError(format!("Failed to create temp checkpoint dir: {}", e))
+        })?;
 
         let data_dir = temp_dir.join("data");
         fs::create_dir_all(&data_dir)?;
@@ -1056,13 +1143,15 @@ impl PropertyGraph {
 
         if let Some(ref wal_writer) = self.wal_writer {
             let mut writer = wal_writer.write();
-            writer.sync()
+            writer
+                .sync()
                 .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
         }
 
         if checkpoint_dir.exists() {
-            fs::remove_dir_all(&checkpoint_dir)
-                .map_err(|e| StorageError::IOError(format!("Failed to remove old checkpoint dir: {}", e)))?;
+            fs::remove_dir_all(&checkpoint_dir).map_err(|e| {
+                StorageError::IOError(format!("Failed to remove old checkpoint dir: {}", e))
+            })?;
         }
 
         fs::rename(&temp_dir, &checkpoint_dir)
@@ -1075,9 +1164,12 @@ impl PropertyGraph {
         use std::fs;
 
         let checkpoint_dir = Self::checkpoint_dir(&self.config.work_dir);
-        
+
         if !checkpoint_dir.exists() {
-            return Err(StorageError::NotFound(format!("Checkpoint directory not found: {:?}", checkpoint_dir)));
+            return Err(StorageError::NotFound(format!(
+                "Checkpoint directory not found: {:?}",
+                checkpoint_dir
+            )));
         }
 
         let data_dir = checkpoint_dir.join("data");
@@ -1197,16 +1289,20 @@ fn bytes_to_value(data: &[u8]) -> Option<Value> {
     match data[0] {
         0 => Some(Value::Null(NullType::Null)),
         1 => data.get(1).map(|&v| Value::Bool(v != 0)),
-        2 => data.get(1..9)
+        2 => data
+            .get(1..9)
             .map(|b| i32::from_le_bytes(b.try_into().unwrap_or([0; 4])))
             .map(Value::Int),
-        3 => data.get(1..9)
+        3 => data
+            .get(1..9)
             .map(|b| i64::from_le_bytes(b.try_into().unwrap_or([0; 8])))
             .map(Value::BigInt),
-        4 => data.get(1..9)
+        4 => data
+            .get(1..9)
             .map(|b| f32::from_le_bytes(b.try_into().unwrap_or([0; 4])))
             .map(Value::Float),
-        5 => data.get(1..9)
+        5 => data
+            .get(1..9)
             .map(|b| f64::from_le_bytes(b.try_into().unwrap_or([0; 8])))
             .map(Value::Double),
         6 => {
@@ -1265,12 +1361,11 @@ impl InsertTarget for PropertyGraph {
 
         let props: Vec<(String, Value)> = properties
             .iter()
-            .filter_map(|(k, v)| {
-                bytes_to_value(v).map(|val| (k.clone(), val))
-            })
+            .filter_map(|(k, v)| bytes_to_value(v).map(|val| (k.clone(), val)))
             .collect();
 
-        let internal_id = self.insert_vertex(label as LabelId, external_id, &props, ts)
+        let internal_id = self
+            .insert_vertex(label as LabelId, external_id, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
         Ok(internal_id as TxnVertexId)
@@ -1288,45 +1383,47 @@ impl InsertTarget for PropertyGraph {
     ) -> InsertTransactionResult<EdgeId> {
         let src_label_id = src_label as LabelId;
         let dst_label_id = dst_label as LabelId;
-        let src_table = self.vertex_tables.get(&src_label_id)
+        let src_table = self
+            .vertex_tables
+            .get(&src_label_id)
             .ok_or_else(|| InsertTransactionError::LabelNotFound(src_label))?;
-        let dst_table = self.vertex_tables.get(&dst_label_id)
+        let dst_table = self
+            .vertex_tables
+            .get(&dst_label_id)
             .ok_or_else(|| InsertTransactionError::LabelNotFound(dst_label))?;
 
-        let src_external = src_table.get_external_id(src_vid as u32)
+        let src_external = src_table
+            .get_external_id(src_vid as u32)
             .ok_or(InsertTransactionError::VertexNotFound(src_vid))?;
-        let dst_external = dst_table.get_external_id(dst_vid as u32)
+        let dst_external = dst_table
+            .get_external_id(dst_vid as u32)
             .ok_or(InsertTransactionError::VertexNotFound(dst_vid))?;
 
         let props: Vec<(String, Value)> = properties
             .iter()
-            .filter_map(|(k, v)| {
-                bytes_to_value(v).map(|val| (k.clone(), val))
-            })
+            .filter_map(|(k, v)| bytes_to_value(v).map(|val| (k.clone(), val)))
             .collect();
 
-        let edge_id = self.insert_edge(
-            edge_label as LabelId,
-            src_label as LabelId,
-            &src_external,
-            dst_label as LabelId,
-            &dst_external,
-            &props,
-            ts,
-        ).map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
+        let edge_id = self
+            .insert_edge(
+                edge_label as LabelId,
+                src_label as LabelId,
+                &src_external,
+                dst_label as LabelId,
+                &dst_external,
+                &props,
+                ts,
+            )
+            .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
         Ok(edge_id)
     }
 
-    fn get_vertex_id(
-        &self,
-        label: TxnLabelId,
-        oid: &[u8],
-        ts: Timestamp,
-    ) -> Option<TxnVertexId> {
+    fn get_vertex_id(&self, label: TxnLabelId, oid: &[u8], ts: Timestamp) -> Option<TxnVertexId> {
         let external_id = std::str::from_utf8(oid).ok()?;
         let label_id = label as LabelId;
-        self.vertex_tables.get(&label_id)?
+        self.vertex_tables
+            .get(&label_id)?
             .get_internal_id(external_id, ts)
             .map(|id| id as TxnVertexId)
     }
@@ -1338,7 +1435,8 @@ impl InsertTarget for PropertyGraph {
         ts: Timestamp,
     ) -> Option<Vec<u8>> {
         let label_id = label as LabelId;
-        self.vertex_tables.get(&label_id)?
+        self.vertex_tables
+            .get(&label_id)?
             .get_external_id(vid as u32)
             .map(|s| s.into_bytes())
     }
@@ -1347,16 +1445,33 @@ impl InsertTarget for PropertyGraph {
         let label_id = label as LabelId;
         self.vertex_tables
             .get(&label_id)
-            .map(|t| t.schema().properties.iter().map(|p| p.name.clone()).collect())
+            .map(|t| {
+                t.schema()
+                    .properties
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
-    fn get_edge_property_types(&self, _src_label: TxnLabelId, _dst_label: TxnLabelId, edge_label: TxnLabelId) -> Vec<String> {
+    fn get_edge_property_types(
+        &self,
+        _src_label: TxnLabelId,
+        _dst_label: TxnLabelId,
+        edge_label: TxnLabelId,
+    ) -> Vec<String> {
         let edge_label_id = edge_label as LabelId;
         self.edge_tables
             .values()
             .find(|t| t.label() == edge_label_id)
-            .map(|t| t.schema().properties.iter().map(|p| p.name.clone()).collect())
+            .map(|t| {
+                t.schema()
+                    .properties
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -1376,7 +1491,8 @@ impl InsertTarget for PropertyGraph {
 impl UndoTarget for PropertyGraph {
     fn delete_vertex_type(&mut self, label: TxnLabelId) -> UndoLogResult<()> {
         let label_id = label as LabelId;
-        let label_name = self.vertex_tables
+        let label_name = self
+            .vertex_tables
             .get(&label_id)
             .map(|t| t.label_name().to_string());
 
@@ -1386,7 +1502,8 @@ impl UndoTarget for PropertyGraph {
 
         self.vertex_tables.remove(&label_id);
 
-        let keys_to_remove: Vec<_> = self.edge_tables
+        let keys_to_remove: Vec<_> = self
+            .edge_tables
             .keys()
             .filter(|(src, dst, _)| *src == label_id || *dst == label_id)
             .cloned()
@@ -1399,16 +1516,31 @@ impl UndoTarget for PropertyGraph {
         Ok(())
     }
 
-    fn delete_edge_type(&mut self, src_label: TxnLabelId, dst_label: TxnLabelId, edge_label: TxnLabelId) -> UndoLogResult<()> {
-        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+    fn delete_edge_type(
+        &mut self,
+        src_label: TxnLabelId,
+        dst_label: TxnLabelId,
+        edge_label: TxnLabelId,
+    ) -> UndoLogResult<()> {
+        let key = (
+            src_label as LabelId,
+            dst_label as LabelId,
+            edge_label as LabelId,
+        );
         self.edge_tables.remove(&key);
         Ok(())
     }
 
-    fn delete_vertex(&mut self, label: TxnLabelId, vid: TxnVertexId, ts: Timestamp) -> UndoLogResult<()> {
+    fn delete_vertex(
+        &mut self,
+        label: TxnLabelId,
+        vid: TxnVertexId,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
         let label_id = label as LabelId;
         if let Some(table) = self.vertex_tables.get_mut(&label_id) {
-            table.delete_by_internal_id(vid as u32, ts)
+            table
+                .delete_by_internal_id(vid as u32, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -1425,9 +1557,14 @@ impl UndoTarget for PropertyGraph {
         _ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+        let key = (
+            src_label as LabelId,
+            dst_label as LabelId,
+            edge_label as LabelId,
+        );
         if let Some(table) = self.edge_tables.get_mut(&key) {
-            table.delete_edge(src_vid as VertexId, dst_vid as VertexId, ts)
+            table
+                .delete_edge(src_vid as VertexId, dst_vid as VertexId, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -1444,12 +1581,15 @@ impl UndoTarget for PropertyGraph {
         let label_id = label as LabelId;
         if let Some(table) = self.vertex_tables.get_mut(&label_id) {
             let schema = table.schema();
-            let prop_name = schema.properties.get(col_id as usize)
+            let prop_name = schema
+                .properties
+                .get(col_id as usize)
                 .map(|p| p.name.clone())
                 .ok_or_else(|| UndoLogError::PropertyNotFound(format!("column {}", col_id)))?;
 
             let val = property_value_to_value(value);
-            table.update_property(vid as u32, &prop_name, &val, ts)
+            table
+                .update_property(vid as u32, &prop_name, &val, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -1468,24 +1608,43 @@ impl UndoTarget for PropertyGraph {
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+        let key = (
+            src_label as LabelId,
+            dst_label as LabelId,
+            edge_label as LabelId,
+        );
         if let Some(table) = self.edge_tables.get_mut(&key) {
             let schema = table.schema();
-            let prop_name = schema.properties.get(col_id as usize)
+            let prop_name = schema
+                .properties
+                .get(col_id as usize)
                 .map(|p| p.name.clone())
                 .ok_or_else(|| UndoLogError::PropertyNotFound(format!("column {}", col_id)))?;
 
             let val = property_value_to_value(value);
-            table.update_edge_property(src_vid as VertexId, dst_vid as VertexId, &prop_name, &val, ts)
+            table
+                .update_edge_property(
+                    src_vid as VertexId,
+                    dst_vid as VertexId,
+                    &prop_name,
+                    &val,
+                    ts,
+                )
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
     }
 
-    fn revert_delete_vertex(&mut self, label: TxnLabelId, vid: TxnVertexId, ts: Timestamp) -> UndoLogResult<()> {
+    fn revert_delete_vertex(
+        &mut self,
+        label: TxnLabelId,
+        vid: TxnVertexId,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
         let label_id = label as LabelId;
         if let Some(table) = self.vertex_tables.get_mut(&label_id) {
-            table.revert_delete(vid as u32, ts)
+            table
+                .revert_delete(vid as u32, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -1502,20 +1661,30 @@ impl UndoTarget for PropertyGraph {
         _ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let key = (src_label as LabelId, dst_label as LabelId, edge_label as LabelId);
+        let key = (
+            src_label as LabelId,
+            dst_label as LabelId,
+            edge_label as LabelId,
+        );
         if let Some(table) = self.edge_tables.get_mut(&key) {
-            table.revert_delete_edge(src_vid as VertexId, dst_vid as VertexId, ts)
+            table
+                .revert_delete_edge(src_vid as VertexId, dst_vid as VertexId, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
     }
 
-    fn revert_delete_vertex_properties(&mut self, label_name: &str, prop_names: &[String]) -> UndoLogResult<()> {
+    fn revert_delete_vertex_properties(
+        &mut self,
+        label_name: &str,
+        prop_names: &[String],
+    ) -> UndoLogResult<()> {
         if let Some(label_id) = self.vertex_label_names.get(label_name).copied() {
             if let Some(table) = self.vertex_tables.get_mut(&label_id) {
                 for prop_name in prop_names {
                     let prop_def = VertexPropertyDef::new(prop_name.clone(), DataType::String);
-                    table.add_property(prop_def)
+                    table
+                        .add_property(prop_def)
                         .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
                 }
             }
@@ -1523,12 +1692,19 @@ impl UndoTarget for PropertyGraph {
         Ok(())
     }
 
-    fn revert_delete_edge_properties(&mut self, _src_label: &str, _dst_label: &str, edge_label: &str, prop_names: &[String]) -> UndoLogResult<()> {
+    fn revert_delete_edge_properties(
+        &mut self,
+        _src_label: &str,
+        _dst_label: &str,
+        edge_label: &str,
+        prop_names: &[String],
+    ) -> UndoLogResult<()> {
         if let Some(label_id) = self.edge_label_names.get(edge_label).copied() {
             for table in self.edge_tables.values_mut() {
                 if table.label() == label_id {
                     for prop_name in prop_names {
-                        table.add_property(prop_name.clone(), DataType::String, true)
+                        table
+                            .add_property(prop_name.clone(), DataType::String, true)
                             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
                     }
                 }
@@ -1550,15 +1726,27 @@ impl UndoTarget for PropertyGraph {
 
         let table = VertexTable::new(label_id, label_name.to_string(), schema);
         self.vertex_tables.insert(label_id, table);
-        self.vertex_label_names.insert(label_name.to_string(), label_id);
+        self.vertex_label_names
+            .insert(label_name.to_string(), label_id);
 
         Ok(())
     }
 
-    fn revert_delete_edge_label(&mut self, src_label: &str, dst_label: &str, edge_label: &str) -> UndoLogResult<()> {
-        let src_label_id = self.vertex_label_names.get(src_label).copied()
+    fn revert_delete_edge_label(
+        &mut self,
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+    ) -> UndoLogResult<()> {
+        let src_label_id = self
+            .vertex_label_names
+            .get(src_label)
+            .copied()
             .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
-        let dst_label_id = self.vertex_label_names.get(dst_label).copied()
+        let dst_label_id = self
+            .vertex_label_names
+            .get(dst_label)
+            .copied()
             .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
 
         let label_id = self.edge_label_counter;
@@ -1577,7 +1765,8 @@ impl UndoTarget for PropertyGraph {
         let table = EdgeTable::new(schema);
         let key = (src_label_id, dst_label_id, label_id);
         self.edge_tables.insert(key, table);
-        self.edge_label_names.insert(edge_label.to_string(), label_id);
+        self.edge_label_names
+            .insert(edge_label.to_string(), label_id);
 
         Ok(())
     }
@@ -1591,14 +1780,16 @@ mod tests {
     fn test_create_vertex_type() {
         let mut graph = PropertyGraph::new();
 
-        let label = graph.create_vertex_type(
-            "person",
-            vec![
-                VertexPropertyDef::new("name".to_string(), DataType::String),
-                VertexPropertyDef::new("age".to_string(), DataType::Int).nullable(true),
-            ],
-            "name",
-        ).unwrap();
+        let label = graph
+            .create_vertex_type(
+                "person",
+                vec![
+                    VertexPropertyDef::new("name".to_string(), DataType::String),
+                    VertexPropertyDef::new("age".to_string(), DataType::Int).nullable(true),
+                ],
+                "name",
+            )
+            .unwrap();
 
         assert_eq!(label, 0);
         assert_eq!(graph.get_vertex_label_id("person"), Some(0));
@@ -1608,18 +1799,22 @@ mod tests {
     fn test_insert_and_get_vertex() {
         let mut graph = PropertyGraph::new();
 
-        graph.create_vertex_type(
-            "person",
-            vec![VertexPropertyDef::new("name".to_string(), DataType::String)],
-            "name",
-        ).unwrap();
+        graph
+            .create_vertex_type(
+                "person",
+                vec![VertexPropertyDef::new("name".to_string(), DataType::String)],
+                "name",
+            )
+            .unwrap();
 
-        graph.insert_vertex(
-            0,
-            "v1",
-            &[("name".to_string(), Value::String("Alice".to_string()))],
-            100,
-        ).unwrap();
+        graph
+            .insert_vertex(
+                0,
+                "v1",
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+                100,
+            )
+            .unwrap();
 
         let vertex = graph.get_vertex(0, "v1", 100).unwrap();
         assert_eq!(vertex.properties.len(), 1);
@@ -1629,33 +1824,53 @@ mod tests {
     fn test_create_and_insert_edge() {
         let mut graph = PropertyGraph::new();
 
-        graph.create_vertex_type(
-            "person",
-            vec![VertexPropertyDef::new("name".to_string(), DataType::String)],
-            "name",
-        ).unwrap();
+        graph
+            .create_vertex_type(
+                "person",
+                vec![VertexPropertyDef::new("name".to_string(), DataType::String)],
+                "name",
+            )
+            .unwrap();
 
-        graph.insert_vertex(0, "v1", &[("name".to_string(), Value::String("Alice".to_string()))], 100).unwrap();
-        graph.insert_vertex(0, "v2", &[("name".to_string(), Value::String("Bob".to_string()))], 100).unwrap();
+        graph
+            .insert_vertex(
+                0,
+                "v1",
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+                100,
+            )
+            .unwrap();
+        graph
+            .insert_vertex(
+                0,
+                "v2",
+                &[("name".to_string(), Value::String("Bob".to_string()))],
+                100,
+            )
+            .unwrap();
 
-        graph.create_edge_type(
-            "knows",
-            0,
-            0,
-            vec![EdgePropertyDef::new("since".to_string(), DataType::Int)],
-            EdgeStrategy::Multiple,
-            EdgeStrategy::Multiple,
-        ).unwrap();
+        graph
+            .create_edge_type(
+                "knows",
+                0,
+                0,
+                vec![EdgePropertyDef::new("since".to_string(), DataType::Int)],
+                EdgeStrategy::Multiple,
+                EdgeStrategy::Multiple,
+            )
+            .unwrap();
 
-        let edge_id = graph.insert_edge(
-            0,
-            0,
-            "v1",
-            0,
-            "v2",
-            &[("since".to_string(), Value::Int(2020))],
-            100,
-        ).unwrap();
+        let edge_id = graph
+            .insert_edge(
+                0,
+                0,
+                "v1",
+                0,
+                "v2",
+                &[("since".to_string(), Value::Int(2020))],
+                100,
+            )
+            .unwrap();
 
         let edge = graph.get_edge(0, 0, "v1", 0, "v2", 100).unwrap();
         assert_eq!(edge.edge_id, edge_id);
@@ -1665,24 +1880,49 @@ mod tests {
     fn test_out_in_edges() {
         let mut graph = PropertyGraph::new();
 
-        graph.create_vertex_type(
-            "person",
-            vec![VertexPropertyDef::new("name".to_string(), DataType::String)],
-            "name",
-        ).unwrap();
+        graph
+            .create_vertex_type(
+                "person",
+                vec![VertexPropertyDef::new("name".to_string(), DataType::String)],
+                "name",
+            )
+            .unwrap();
 
-        graph.insert_vertex(0, "v1", &[("name".to_string(), Value::String("Alice".to_string()))], 100).unwrap();
-        graph.insert_vertex(0, "v2", &[("name".to_string(), Value::String("Bob".to_string()))], 100).unwrap();
-        graph.insert_vertex(0, "v3", &[("name".to_string(), Value::String("Charlie".to_string()))], 100).unwrap();
+        graph
+            .insert_vertex(
+                0,
+                "v1",
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+                100,
+            )
+            .unwrap();
+        graph
+            .insert_vertex(
+                0,
+                "v2",
+                &[("name".to_string(), Value::String("Bob".to_string()))],
+                100,
+            )
+            .unwrap();
+        graph
+            .insert_vertex(
+                0,
+                "v3",
+                &[("name".to_string(), Value::String("Charlie".to_string()))],
+                100,
+            )
+            .unwrap();
 
-        graph.create_edge_type(
-            "knows",
-            0,
-            0,
-            vec![],
-            EdgeStrategy::Multiple,
-            EdgeStrategy::Multiple,
-        ).unwrap();
+        graph
+            .create_edge_type(
+                "knows",
+                0,
+                0,
+                vec![],
+                EdgeStrategy::Multiple,
+                EdgeStrategy::Multiple,
+            )
+            .unwrap();
 
         graph.insert_edge(0, 0, "v1", 0, "v2", &[], 100).unwrap();
         graph.insert_edge(0, 0, "v1", 0, "v3", &[], 100).unwrap();

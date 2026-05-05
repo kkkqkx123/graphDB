@@ -340,7 +340,9 @@ impl CacheManagerConfig {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), String> {
         if !self.allocations.validate() {
-            return Err("Invalid cache allocations: ratios must sum to 1.0 and be non-negative".to_string());
+            return Err(
+                "Invalid cache allocations: ratios must sum to 1.0 and be non-negative".to_string(),
+            );
         }
 
         if self.total_budget == 0 {

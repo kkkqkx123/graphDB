@@ -498,17 +498,18 @@ impl Value {
             }
         }
 
-        fn cmp_points(a: &[crate::core::value::geography::GeographyValue], b: &[crate::core::value::geography::GeographyValue]) -> CmpOrdering {
+        fn cmp_points(
+            a: &[crate::core::value::geography::GeographyValue],
+            b: &[crate::core::value::geography::GeographyValue],
+        ) -> CmpOrdering {
             a.len().cmp(&b.len()).then_with(|| {
                 for (pa, pb) in a.iter().zip(b.iter()) {
                     match pa.latitude.partial_cmp(&pb.latitude) {
-                        Some(CmpOrdering::Equal) => {
-                            match pa.longitude.partial_cmp(&pb.longitude) {
-                                Some(CmpOrdering::Equal) => continue,
-                                Some(ord) => return ord,
-                                None => return CmpOrdering::Equal,
-                            }
-                        }
+                        Some(CmpOrdering::Equal) => match pa.longitude.partial_cmp(&pb.longitude) {
+                            Some(CmpOrdering::Equal) => continue,
+                            Some(ord) => return ord,
+                            None => return CmpOrdering::Equal,
+                        },
                         Some(ord) => return ord,
                         None => continue,
                     }
@@ -543,11 +544,8 @@ impl Value {
                     }
                     CmpOrdering::Equal
                 }),
-            (MultiPolygon(ma), MultiPolygon(mb)) => ma
-                .polygons
-                .len()
-                .cmp(&mb.polygons.len())
-                .then_with(|| {
+            (MultiPolygon(ma), MultiPolygon(mb)) => {
+                ma.polygons.len().cmp(&mb.polygons.len()).then_with(|| {
                     for (pa, pb) in ma.polygons.iter().zip(mb.polygons.iter()) {
                         let ord = cmp_points(&pa.exterior.points, &pb.exterior.points);
                         if ord != CmpOrdering::Equal {
@@ -555,7 +553,8 @@ impl Value {
                         }
                     }
                     CmpOrdering::Equal
-                }),
+                })
+            }
             _ => type_priority(a).cmp(&type_priority(b)),
         }
     }

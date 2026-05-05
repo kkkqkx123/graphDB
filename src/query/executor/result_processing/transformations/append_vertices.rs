@@ -128,7 +128,9 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                     }
                 }
             }
-            ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {}
+            ExecutionResult::Empty
+            | ExecutionResult::Success
+            | ExecutionResult::SpaceSwitched(_) => {}
             ExecutionResult::Error(msg) => {
                 return Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(msg),

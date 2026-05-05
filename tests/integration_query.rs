@@ -17,10 +17,10 @@ use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::planning::PlannerConfig;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::query::QueryRequestContext;
 use graphdb::query::validator::validator_trait::StatementType;
 use graphdb::query::validator::Validator;
 use graphdb::query::QueryContext;
+use graphdb::query::QueryRequestContext;
 use graphdb::storage::StorageClient;
 use std::sync::Arc;
 

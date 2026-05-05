@@ -469,7 +469,12 @@ impl<'a> ExprParser<'a> {
                     })
                 }
             }
-            TokenKind::User | TokenKind::Order | TokenKind::Status | TokenKind::Contains | TokenKind::Tag | TokenKind::Tags => {
+            TokenKind::User
+            | TokenKind::Order
+            | TokenKind::Status
+            | TokenKind::Contains
+            | TokenKind::Tag
+            | TokenKind::Tags => {
                 let name = token.lexeme.clone();
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
@@ -657,11 +662,10 @@ impl<'a> ExprParser<'a> {
 
         if is_aggregate {
             let distinct = false;
-            let arg = args
-                .first()
-                .map(|a| a.expr.clone())
-                .unwrap_or_else(|| Expression::Literal(crate::core::Value::Null(crate::core::NullType::Null)));
-            
+            let arg = args.first().map(|a| a.expr.clone()).unwrap_or_else(|| {
+                Expression::Literal(crate::core::Value::Null(crate::core::NullType::Null))
+            });
+
             let field_name = match &arg {
                 Expression::Variable(name) => name.clone(),
                 Expression::Property { property, .. } => property.clone(),
@@ -670,13 +674,17 @@ impl<'a> ExprParser<'a> {
             };
 
             let func = match name_upper.as_str() {
-                "COUNT" => crate::core::types::operators::AggregateFunction::Count(Some(field_name)),
+                "COUNT" => {
+                    crate::core::types::operators::AggregateFunction::Count(Some(field_name))
+                }
                 "SUM" => crate::core::types::operators::AggregateFunction::Sum(field_name),
                 "AVG" => crate::core::types::operators::AggregateFunction::Avg(field_name),
                 "MIN" => crate::core::types::operators::AggregateFunction::Min(field_name),
                 "MAX" => crate::core::types::operators::AggregateFunction::Max(field_name),
                 "COLLECT" => crate::core::types::operators::AggregateFunction::Collect(field_name),
-                "COLLECT_SET" => crate::core::types::operators::AggregateFunction::CollectSet(field_name),
+                "COLLECT_SET" => {
+                    crate::core::types::operators::AggregateFunction::CollectSet(field_name)
+                }
                 "STD" => crate::core::types::operators::AggregateFunction::Std(field_name),
                 _ => crate::core::types::operators::AggregateFunction::Count(None),
             };

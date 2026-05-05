@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use crate::transaction::manager::TransactionManager;
 use crate::transaction::types::{
-    DurabilityLevel, TransactionError, TransactionOptions, TransactionState,
-    TransactionManagerConfig,
+    DurabilityLevel, TransactionError, TransactionManagerConfig, TransactionOptions,
+    TransactionState,
 };
 
 fn create_test_manager() -> TransactionManager {
@@ -522,14 +522,22 @@ fn test_read_insert_transaction_types() {
     assert!(manager.is_transaction_active(read_txn));
     assert!(manager.is_transaction_active(insert_txn));
 
-    let read_ctx = manager.get_context(read_txn).expect("Failed to get read context");
+    let read_ctx = manager
+        .get_context(read_txn)
+        .expect("Failed to get read context");
     assert!(read_ctx.read_only);
 
-    let insert_ctx = manager.get_context(insert_txn).expect("Failed to get insert context");
+    let insert_ctx = manager
+        .get_context(insert_txn)
+        .expect("Failed to get insert context");
     assert!(!insert_ctx.read_only);
 
-    manager.commit_transaction(read_txn).expect("Failed to commit read transaction");
-    manager.commit_transaction(insert_txn).expect("Failed to commit insert transaction");
+    manager
+        .commit_transaction(read_txn)
+        .expect("Failed to commit read transaction");
+    manager
+        .commit_transaction(insert_txn)
+        .expect("Failed to commit insert transaction");
 }
 
 #[test]
@@ -546,8 +554,12 @@ fn test_version_manager_integration() {
 
     assert!(manager.pending_count() >= 0);
 
-    manager.commit_transaction(read_txn).expect("Failed to commit read transaction");
-    manager.commit_transaction(insert_txn).expect("Failed to commit insert transaction");
+    manager
+        .commit_transaction(read_txn)
+        .expect("Failed to commit read transaction");
+    manager
+        .commit_transaction(insert_txn)
+        .expect("Failed to commit insert transaction");
 }
 
 #[test]

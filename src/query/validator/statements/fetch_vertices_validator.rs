@@ -26,8 +26,8 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 
 /// Verified vertex information
 #[derive(Debug, Clone)]
@@ -101,9 +101,17 @@ impl FetchVerticesValidator {
     }
 
     /// Basic validation
-    fn validate_fetch_vertices(&self, stmt: &FetchStmt, space_name: Option<&str>) -> Result<(), ValidationError> {
+    fn validate_fetch_vertices(
+        &self,
+        stmt: &FetchStmt,
+        space_name: Option<&str>,
+    ) -> Result<(), ValidationError> {
         match &stmt.target {
-            FetchTarget::Vertices { tag_name, ids, properties } => {
+            FetchTarget::Vertices {
+                tag_name,
+                ids,
+                properties,
+            } => {
                 // Validate tag exists if specified
                 if let Some(ref tag) = tag_name {
                     self.validate_tag_exists(tag, space_name)?;
@@ -120,7 +128,11 @@ impl FetchVerticesValidator {
     }
 
     /// Validate that the tag exists in the schema
-    fn validate_tag_exists(&self, tag_name: &str, space_name: Option<&str>) -> Result<(), ValidationError> {
+    fn validate_tag_exists(
+        &self,
+        tag_name: &str,
+        space_name: Option<&str>,
+    ) -> Result<(), ValidationError> {
         if let (Some(ref schema_manager), Some(space)) = (&self.schema_manager, space_name) {
             match schema_manager.get_tag(space, tag_name) {
                 Ok(Some(_)) => Ok(()),
@@ -161,9 +173,15 @@ impl FetchVerticesValidator {
 
     /// Verify a single vertex ID
     /// Using the unified validation method of SchemaValidator
-    fn validate_vertex_id(&self, expr: &ContextualExpression, space_name: Option<&str>) -> Result<(), ValidationError> {
+    fn validate_vertex_id(
+        &self,
+        expr: &ContextualExpression,
+        space_name: Option<&str>,
+    ) -> Result<(), ValidationError> {
         // Get vid_type from schema_manager if available, otherwise default to String
-        let vid_type = if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
+        let vid_type = if let (Some(ref schema_manager), Some(space_name)) =
+            (&self.schema_manager, space_name)
+        {
             match schema_manager.get_space(space_name) {
                 Ok(Some(space_info)) => space_info.vid_type,
                 _ => crate::core::types::DataType::String,
@@ -313,7 +331,11 @@ impl StatementValidator for FetchVerticesValidator {
 
         // 5. Extract vertex information
         let (tag_name, vertex_ids, properties) = match &fetch_stmt.target {
-            FetchTarget::Vertices { tag_name, ids, properties } => (tag_name.clone(), ids, properties),
+            FetchTarget::Vertices {
+                tag_name,
+                ids,
+                properties,
+            } => (tag_name.clone(), ids, properties),
             _ => {
                 return Err(ValidationError::new(
                     "Expected FETCH VERTICES statement".to_string(),

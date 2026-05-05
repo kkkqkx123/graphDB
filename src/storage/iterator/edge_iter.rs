@@ -4,7 +4,9 @@
 //! - EdgeTableIterator: Lazy iterator over edges in an EdgeTable
 //! - PropertyGraphEdgeIterator: Iterator over all edges in a PropertyGraph
 
-use crate::storage::edge::{EdgeRecord, EdgeTable, EdgeId, VertexId, Timestamp, Nbr, EdgeSchema, PropertyDef};
+use crate::storage::edge::{
+    EdgeId, EdgeRecord, EdgeSchema, EdgeTable, Nbr, PropertyDef, Timestamp, VertexId,
+};
 
 pub struct EdgeTableIterator<'a> {
     table: &'a EdgeTable,
@@ -37,7 +39,8 @@ impl<'a> Iterator for EdgeTableIterator<'a> {
                 self.current_nbr_idx += 1;
 
                 let properties = if nbr.prop_offset > 0 {
-                    self.table.get_properties(nbr.prop_offset)
+                    self.table
+                        .get_properties(nbr.prop_offset)
                         .unwrap_or_default()
                 } else {
                     Vec::new()
@@ -95,7 +98,8 @@ impl<'a> Iterator for EdgeTableRangeIterator<'a> {
                 self.current_nbr_idx += 1;
 
                 let properties = if nbr.prop_offset > 0 {
-                    self.table.get_properties(nbr.prop_offset)
+                    self.table
+                        .get_properties(nbr.prop_offset)
                         .unwrap_or_default()
                 } else {
                     Vec::new()
@@ -133,9 +137,7 @@ mod tests {
             label_name: "knows".to_string(),
             src_label: 1,
             dst_label: 2,
-            properties: vec![
-                PropertyDef::new("weight".to_string(), DataType::Double),
-            ],
+            properties: vec![PropertyDef::new("weight".to_string(), DataType::Double)],
             oe_strategy: crate::storage::edge::EdgeStrategy::Multiple,
             ie_strategy: crate::storage::edge::EdgeStrategy::Multiple,
         }

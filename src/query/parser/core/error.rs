@@ -197,7 +197,9 @@ impl From<super::super::lexing::LexError> for ParseError {
 
 impl From<ParseError> for QueryError {
     fn from(parse_error: ParseError) -> Self {
-        use crate::core::error::query::{ParseErrorKind as QueryParseErrorKind, StructuredParseError};
+        use crate::core::error::query::{
+            ParseErrorKind as QueryParseErrorKind, StructuredParseError,
+        };
         use crate::core::types::Position;
 
         let kind = match parse_error.kind {

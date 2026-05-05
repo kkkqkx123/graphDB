@@ -148,7 +148,9 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
 
             let dataset = match result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => DataSet::new(),
+                ExecutionResult::Empty
+                | ExecutionResult::Success
+                | ExecutionResult::SpaceSwitched(_) => DataSet::new(),
                 ExecutionResult::Error(msg) => {
                     return Err(QueryError::ExecutionError(msg));
                 }
@@ -240,7 +242,9 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 
             let left_dataset = match left_result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => DataSet {
+                ExecutionResult::Empty
+                | ExecutionResult::Success
+                | ExecutionResult::SpaceSwitched(_) => DataSet {
                     col_names: self.base_executor.get_col_names().clone(),
                     rows: Vec::new(),
                 },
@@ -253,7 +257,9 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 
             let right_dataset = match right_result {
                 ExecutionResult::DataSet(dataset) => dataset.clone(),
-                ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => DataSet {
+                ExecutionResult::Empty
+                | ExecutionResult::Success
+                | ExecutionResult::SpaceSwitched(_) => DataSet {
                     col_names: vec!["_empty".to_string()],
                     rows: Vec::new(),
                 },

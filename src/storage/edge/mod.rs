@@ -8,13 +8,16 @@
 //! - `MutableCsr`: Mutable CSR supporting dynamic edge operations
 //! - `EdgeTable`: Edge table combining out/in CSRs and property storage
 //! - `PropertyTable`: Edge property storage
+//! - `CsrPersistence`: CSR persistence support
 
 pub mod csr;
+pub mod csr_persistence;
 pub mod edge_table;
 pub mod mutable_csr;
 pub mod property_table;
 
 pub use csr::Csr;
+pub use csr_persistence::CsrPersistence;
 pub use edge_table::EdgeTable;
 pub use mutable_csr::MutableCsr;
 pub use property_table::PropertyTable;
@@ -90,7 +93,12 @@ pub struct Nbr {
 }
 
 impl Nbr {
-    pub fn new(neighbor: VertexId, edge_id: EdgeId, prop_offset: u32, timestamp: Timestamp) -> Self {
+    pub fn new(
+        neighbor: VertexId,
+        edge_id: EdgeId,
+        prop_offset: u32,
+        timestamp: Timestamp,
+    ) -> Self {
         Self {
             neighbor,
             edge_id,

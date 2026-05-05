@@ -336,7 +336,11 @@ impl TestScenario {
     }
 
     /// Assert vertex or edge in result has a specific property value
-    pub fn assert_vertex_or_edge_has_property(self, prop_name: &str, expected_value: Value) -> Self {
+    pub fn assert_vertex_or_edge_has_property(
+        self,
+        prop_name: &str,
+        expected_value: Value,
+    ) -> Self {
         if let Some(ref result) = self.last_result {
             let rows: Vec<Vec<Value>> = match result {
                 ExecutionResult::DataSet(ds) => ds.rows.clone(),
@@ -344,18 +348,17 @@ impl TestScenario {
             };
 
             let found = rows.iter().any(|row| {
-                row.iter().any(|val| {
-                    match val {
-                        Value::Vertex(v) => {
-                            v.tags.iter().any(|tag| {
-                                tag.properties.get(prop_name).map_or(false, |v| v == &expected_value)
-                            })
-                        }
-                        Value::Edge(e) => {
-                            e.props.get(prop_name).map_or(false, |v| v == &expected_value)
-                        }
-                        _ => false,
-                    }
+                row.iter().any(|val| match val {
+                    Value::Vertex(v) => v.tags.iter().any(|tag| {
+                        tag.properties
+                            .get(prop_name)
+                            .map_or(false, |v| v == &expected_value)
+                    }),
+                    Value::Edge(e) => e
+                        .props
+                        .get(prop_name)
+                        .map_or(false, |v| v == &expected_value),
+                    _ => false,
                 })
             });
 

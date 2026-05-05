@@ -1,8 +1,8 @@
 //! Basic CacheManager and Integration Tests
 
 use graphdb::query::cache::{
-    CacheAllocations, CacheManager, CacheManagerConfig, CacheStatsSummary,
-    DataChangeEvent, GlobalCacheStatsSnapshot, PlanCacheStatsSnapshot, CteCacheStatsSnapshot,
+    CacheAllocations, CacheManager, CacheManagerConfig, CacheStatsSummary, CteCacheStatsSnapshot,
+    DataChangeEvent, GlobalCacheStatsSnapshot, PlanCacheStatsSnapshot,
 };
 
 // ==================== CacheManager Tests ====================

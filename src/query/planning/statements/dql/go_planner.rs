@@ -131,11 +131,7 @@ impl Planner for GoPlanner {
 
         // Set column names to match ExpandAll's output format: [src, edge, dst]
         // Also add edge type name as variable for accessing edge properties
-        let mut col_names = vec![
-            "src".to_string(),
-            "edge".to_string(),
-            "dst".to_string(),
-        ];
+        let mut col_names = vec!["src".to_string(), "edge".to_string(), "dst".to_string()];
         // Add edge type as alias for "edge" column to support friend.name syntax
         if edge_types.len() == 1 {
             col_names.push(edge_types[0].clone());

@@ -19,7 +19,11 @@ async fn test_generate_single_embedding() {
     let text = "This is a test document for embedding generation.";
     let embedding = ctx.generate_embedding(text).await;
 
-    assert_eq!(embedding.len(), 128, "Embedding should have correct dimension");
+    assert_eq!(
+        embedding.len(),
+        128,
+        "Embedding should have correct dimension"
+    );
 }
 
 /// TC-VEC-EMB-002: Generate Batch Embeddings
@@ -37,7 +41,11 @@ async fn test_generate_batch_embeddings() {
 
     assert_eq!(embeddings.len(), 3, "Should generate 3 embeddings");
     for embedding in &embeddings {
-        assert_eq!(embedding.len(), 128, "Each embedding should have correct dimension");
+        assert_eq!(
+            embedding.len(),
+            128,
+            "Each embedding should have correct dimension"
+        );
     }
 }
 
@@ -81,8 +89,16 @@ async fn test_embedding_provider_properties() {
 
     let provider = ctx.embedding_provider.clone();
 
-    assert_eq!(provider.dimension(), 256, "Provider should report correct dimension");
-    assert_eq!(provider.model_name(), "mock-embedding-model", "Provider should report model name");
+    assert_eq!(
+        provider.dimension(),
+        256,
+        "Provider should report correct dimension"
+    );
+    assert_eq!(
+        provider.model_name(),
+        "mock-embedding-model",
+        "Provider should report model name"
+    );
 }
 
 /// TC-VEC-EMB-006: Embedding and Search Integration
@@ -93,7 +109,10 @@ async fn test_embedding_and_search_integration() {
     ctx.manager
         .create_index(
             "test_collection",
-            vector_client::types::CollectionConfig::new(128, vector_client::types::DistanceMetric::Cosine),
+            vector_client::types::CollectionConfig::new(
+                128,
+                vector_client::types::DistanceMetric::Cosine,
+            ),
         )
         .await
         .expect("Failed to create index");
@@ -133,7 +152,10 @@ async fn test_embedding_and_search_integration() {
         .expect("Search should succeed");
 
     assert!(!results.is_empty(), "Should have search results");
-    assert!(results[0].id.starts_with("doc_"), "Result ID should be a document ID");
+    assert!(
+        results[0].id.starts_with("doc_"),
+        "Result ID should be a document ID"
+    );
 }
 
 /// TC-VEC-EMB-007: Empty Text Embedding
@@ -143,7 +165,11 @@ async fn test_empty_text_embedding() {
 
     let embedding = ctx.generate_embedding("").await;
 
-    assert_eq!(embedding.len(), 128, "Empty text should still produce embedding");
+    assert_eq!(
+        embedding.len(),
+        128,
+        "Empty text should still produce embedding"
+    );
 }
 
 /// TC-VEC-EMB-008: Long Text Embedding
@@ -154,7 +180,11 @@ async fn test_long_text_embedding() {
     let long_text = "This is a very long text. ".repeat(100);
     let embedding = ctx.generate_embedding(&long_text).await;
 
-    assert_eq!(embedding.len(), 128, "Long text should produce embedding with correct dimension");
+    assert_eq!(
+        embedding.len(),
+        128,
+        "Long text should produce embedding with correct dimension"
+    );
 }
 
 /// TC-VEC-EMB-009: Unicode Text Embedding
@@ -171,9 +201,17 @@ async fn test_unicode_text_embedding() {
 
     let embeddings = ctx.generate_embeddings(&unicode_texts).await;
 
-    assert_eq!(embeddings.len(), 4, "Should generate 4 embeddings for unicode texts");
+    assert_eq!(
+        embeddings.len(),
+        4,
+        "Should generate 4 embeddings for unicode texts"
+    );
     for embedding in &embeddings {
-        assert_eq!(embedding.len(), 128, "Each embedding should have correct dimension");
+        assert_eq!(
+            embedding.len(),
+            128,
+            "Each embedding should have correct dimension"
+        );
     }
 }
 

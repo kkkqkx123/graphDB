@@ -10,9 +10,7 @@
 //!
 //! Test cases: TC-FT-EDGE-001 ~ TC-FT-EDGE-015
 
-use super::common::{
-    assert_search_result_count, FulltextTestContext,
-};
+use super::common::{assert_search_result_count, FulltextTestContext};
 use graphdb::search::EngineType;
 
 /// TC-FT-EDGE-001: Search on Non-Existent Index
@@ -164,11 +162,7 @@ async fn test_special_query_characters() {
 
     for query in queries {
         let result = ctx.search(1, "Article", "content", query, 10).await;
-        assert!(
-            result.is_ok(),
-            "Should handle query: {}",
-            query
-        );
+        assert!(result.is_ok(), "Should handle query: {}", query);
     }
 }
 
@@ -355,11 +349,7 @@ async fn test_very_short_content() {
         .await
         .expect("Failed to create index");
 
-    let docs = vec![
-        ("doc_1", "a"),
-        ("doc_2", "ab"),
-        ("doc_3", "abc"),
-    ];
+    let docs = vec![("doc_1", "a"), ("doc_2", "ab"), ("doc_3", "abc")];
     ctx.insert_test_docs(1, "Article", "content", docs)
         .await
         .expect("Failed to insert documents");
@@ -374,7 +364,10 @@ async fn test_very_short_content() {
         .await
         .expect("Search should succeed");
 
-    assert!(!results.is_empty(), "Should find at least one document with 'ab'");
+    assert!(
+        !results.is_empty(),
+        "Should find at least one document with 'ab'"
+    );
 
     // Search for "abc" should find doc_3
     let results_abc = ctx
@@ -382,7 +375,10 @@ async fn test_very_short_content() {
         .await
         .expect("Search should succeed");
 
-    assert!(!results_abc.is_empty(), "Should find at least one document with 'abc'");
+    assert!(
+        !results_abc.is_empty(),
+        "Should find at least one document with 'abc'"
+    );
 }
 
 /// TC-FT-EDGE-013: Numeric Content
@@ -458,13 +454,21 @@ async fn test_mixed_engine_space_isolation() {
         .search(1, "Article", "content", "Space2Content", 10)
         .await
         .expect("Cross search should succeed");
-    assert_eq!(cross1_results.len(), 0, "Space 1 should not find space 2 data");
+    assert_eq!(
+        cross1_results.len(),
+        0,
+        "Space 1 should not find space 2 data"
+    );
 
     let cross2_results = ctx
         .search(2, "Article", "content", "Space1Content", 10)
         .await
         .expect("Cross search should succeed");
-    assert_eq!(cross2_results.len(), 0, "Space 2 should not find space 1 data");
+    assert_eq!(
+        cross2_results.len(),
+        0,
+        "Space 2 should not find space 1 data"
+    );
 }
 
 /// TC-FT-EDGE-015: Rapid Index Create/Drop
@@ -479,9 +483,15 @@ async fn test_rapid_index_create_drop() {
             .expect("Failed to create index");
 
         // Insert some data
-        ctx.insert_test_doc(1, "Article", &format!("field{}", i), "doc_1", "test content")
-            .await
-            .expect("Failed to insert");
+        ctx.insert_test_doc(
+            1,
+            "Article",
+            &format!("field{}", i),
+            "doc_1",
+            "test content",
+        )
+        .await
+        .expect("Failed to insert");
 
         ctx.commit_all().await.expect("Failed to commit");
 

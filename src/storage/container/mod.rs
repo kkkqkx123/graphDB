@@ -28,9 +28,7 @@ pub mod types;
 
 pub use arena_allocator::{ArenaAllocator, ArenaPool, ThreadLocalArena};
 pub use mmap_container::{AnonMmap, FileSharedMmap, IDataContainer, MmapContainer};
-pub use types::{
-    ContainerConfig, ContainerError, ContainerResult, ContainerStats, FileHeader,
-};
+pub use types::{ContainerConfig, ContainerError, ContainerResult, ContainerStats, FileHeader};
 
 #[cfg(test)]
 mod tests {
@@ -42,8 +40,7 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test.mmap");
 
-        let mut container =
-            MmapContainer::create(&path, 1024).expect("Failed to create container");
+        let mut container = MmapContainer::create(&path, 1024).expect("Failed to create container");
 
         container
             .write_at(0, b"hello world")

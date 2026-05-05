@@ -62,7 +62,7 @@ fn test_multiple_same_type_edges() {
             "INSERT EDGE MESSAGED(content, ts) VALUES \
             1->2:('Hello', 1000), \
             1->2:('How are you?', 1001), \
-            2->1:('Hi!', 1002)"
+            2->1:('Hi!', 1002)",
         )
         .assert_success()
         .assert_edge_exists(1, 2, "MESSAGED")
@@ -82,14 +82,14 @@ fn test_edge_complex_properties() {
             type STRING, \
             since INT, \
             active BOOL, \
-            strength FLOAT)"
+            strength FLOAT)",
         )
         .assert_success()
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
         .assert_success()
         .exec_dml(
             "INSERT EDGE RELATIONSHIP(type, since, active, strength) \
-            VALUES 1->2:('friend', 2020, true, 0.95)"
+            VALUES 1->2:('friend', 2020, true, 0.95)",
         )
         .assert_success()
         .assert_edge_exists(1, 2, "RELATIONSHIP");
@@ -128,7 +128,7 @@ fn test_edge_direction_in_queries() {
             "INSERT VERTEX Person(name) VALUES \
             1:('Alice'), \
             2:('Bob'), \
-            3:('Charlie')"
+            3:('Charlie')",
         )
         .assert_success()
         // Alice follows Bob, Bob follows Charlie
@@ -161,7 +161,7 @@ fn test_edge_deletion_cascade() {
             "INSERT VERTEX Person(name) VALUES \
             1:('Alice'), \
             2:('Bob'), \
-            3:('Charlie')"
+            3:('Charlie')",
         )
         .assert_success()
         // Create edges of different types
@@ -194,7 +194,7 @@ fn test_edge_batch_insert() {
         // Create a small network of people
         .exec_dml(
             "INSERT VERTEX Person(name) VALUES \
-            1:('A'), 2:('B'), 3:('C'), 4:('D'), 5:('E')"
+            1:('A'), 2:('B'), 3:('C'), 4:('D'), 5:('E')",
         )
         .assert_success()
         // Batch insert edges to form a complete graph
@@ -203,7 +203,7 @@ fn test_edge_batch_insert() {
             1->2:(1), 1->3:(2), 1->4:(3), 1->5:(4), \
             2->3:(5), 2->4:(6), 2->5:(7), \
             3->4:(8), 3->5:(9), \
-            4->5:(10)"
+            4->5:(10)",
         )
         .assert_success()
         // Verify edge count
@@ -246,7 +246,7 @@ fn test_edge_existence_after_vertex_ops() {
             "INSERT VERTEX Person(name) VALUES \
             1:('Alice'), \
             2:('Bob'), \
-            3:('Charlie')"
+            3:('Charlie')",
         )
         .assert_success()
         .exec_dml("INSERT EDGE KNOWS VALUES 1->2, 2->3, 3->1")
@@ -278,7 +278,7 @@ fn test_edge_query_by_vertices() {
             1:('User1'), \
             2:('Item1'), \
             3:('Item2'), \
-            4:('Item3')"
+            4:('Item3')",
         )
         .assert_success()
         // Create rating edges with different scores
@@ -286,7 +286,7 @@ fn test_edge_query_by_vertices() {
             "INSERT EDGE RATED(score) VALUES \
             1->2:(5), \
             1->3:(3), \
-            1->4:(4)"
+            1->4:(4)",
         )
         .assert_success()
         // Verify edges exist
@@ -337,7 +337,7 @@ fn test_bidirectional_edge_pattern() {
             "INSERT VERTEX Person(name) VALUES \
             1:('Alice'), \
             2:('Bob'), \
-            3:('Charlie')"
+            3:('Charlie')",
         )
         .assert_success()
         // Create bidirectional friendships
@@ -346,7 +346,7 @@ fn test_bidirectional_edge_pattern() {
             1->2:(2020), \
             2->1:(2020), \
             2->3:(2021), \
-            3->2:(2021)"
+            3->2:(2021)",
         )
         .assert_success()
         // Verify bidirectional edges
@@ -374,7 +374,7 @@ fn test_edge_in_traversal_patterns() {
             1:('Alice'), \
             2:('Bob'), \
             3:('Charlie'), \
-            4:('David')"
+            4:('David')",
         )
         .assert_success()
         // Create company
@@ -387,14 +387,14 @@ fn test_edge_in_traversal_patterns() {
             "INSERT EDGE KNOWS VALUES \
             1->2, \
             2->3, \
-            3->4"
+            3->4",
         )
         .assert_success()
         .exec_dml(
             "INSERT EDGE WORKS_AT VALUES \
             1->100, \
             2->100, \
-            3->100"
+            3->100",
         )
         .assert_success()
         // Verify all edges exist
@@ -447,7 +447,7 @@ fn test_edge_timestamp_properties() {
         // Insert edge with timestamp as INT
         .exec_dml(
             "INSERT EDGE MESSAGED(content, sent_at) \
-             VALUES 1->2:('Hello', 1704067200)"
+             VALUES 1->2:('Hello', 1704067200)",
         )
         .assert_success()
         .assert_edge_exists(1, 2, "MESSAGED");

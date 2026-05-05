@@ -65,7 +65,12 @@ pub trait CompactTarget: Send + Sync {
     /// * `compact_csr` - Whether to compact CSR structures
     /// * `reserve_ratio` - Ratio of space to reserve (0.0 - 1.0)
     /// * `ts` - Transaction timestamp
-    fn compact(&mut self, compact_csr: bool, reserve_ratio: f32, ts: Timestamp) -> CompactTransactionResult<()>;
+    fn compact(
+        &mut self,
+        compact_csr: bool,
+        reserve_ratio: f32,
+        ts: Timestamp,
+    ) -> CompactTransactionResult<()>;
 
     /// Get the current storage size
     fn storage_size(&self) -> usize;
@@ -149,11 +154,13 @@ impl<'a> CompactTransaction<'a> {
 
         log::info!("Starting compaction at timestamp {}", self.timestamp);
 
-        self.graph.compact(self.compact_csr, self.reserve_ratio, self.timestamp)?;
+        self.graph
+            .compact(self.compact_csr, self.reserve_ratio, self.timestamp)?;
 
         log::info!("Completed compaction at timestamp {}", self.timestamp);
 
-        self.version_manager.release_update_timestamp(self.timestamp);
+        self.version_manager
+            .release_update_timestamp(self.timestamp);
         self.version_manager.clear();
         self.timestamp = INVALID_TIMESTAMP;
 
@@ -176,20 +183,26 @@ impl<'a> CompactTransaction<'a> {
 impl<'a> Drop for CompactTransaction<'a> {
     fn drop(&mut self) {
         if self.timestamp != INVALID_TIMESTAMP {
-            self.version_manager.release_update_timestamp(self.timestamp);
+            self.version_manager
+                .release_update_timestamp(self.timestamp);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::wal::writer::DummyWalWriter;
+    use super::*;
 
     struct MockCompactTarget;
 
     impl CompactTarget for MockCompactTarget {
-        fn compact(&mut self, _compact_csr: bool, _reserve_ratio: f32, _ts: Timestamp) -> CompactTransactionResult<()> {
+        fn compact(
+            &mut self,
+            _compact_csr: bool,
+            _reserve_ratio: f32,
+            _ts: Timestamp,
+        ) -> CompactTransactionResult<()> {
             Ok(())
         }
 

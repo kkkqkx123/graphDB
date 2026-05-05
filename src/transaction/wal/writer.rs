@@ -2,12 +2,12 @@
 //!
 //! Provides Write-Ahead Log writing functionality
 
+use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
-use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use super::types::{
@@ -59,7 +59,7 @@ impl GroupCommitManager {
     pub fn submit(&self, data: &[u8]) -> WalResult<bool> {
         let result = Arc::new(Mutex::new(Ok(false)));
         let notified = Arc::new(Condvar::new());
-        
+
         let pending = PendingWrite {
             data: data.to_vec(),
             result: result.clone(),
@@ -67,16 +67,17 @@ impl GroupCommitManager {
         };
 
         {
-            let mut queue = self.pending_writes.lock().map_err(|_| {
-                WalError::IoError("Failed to lock pending writes".to_string())
-            })?;
+            let mut queue = self
+                .pending_writes
+                .lock()
+                .map_err(|_| WalError::IoError("Failed to lock pending writes".to_string()))?;
             queue.push_back(pending);
         }
 
-        let mut result_guard = result.lock().map_err(|_| {
-            WalError::IoError("Failed to lock result".to_string())
-        })?;
-        
+        let mut result_guard = result
+            .lock()
+            .map_err(|_| WalError::IoError("Failed to lock result".to_string()))?;
+
         loop {
             if let Ok(true) = *result_guard {
                 return Ok(true);
@@ -84,9 +85,12 @@ impl GroupCommitManager {
             if let Err(ref e) = *result_guard {
                 return Err(e.clone());
             }
-            
+
             result_guard = notified
-                .wait_timeout(result_guard, std::time::Duration::from_micros(self.commit_delay_us))
+                .wait_timeout(
+                    result_guard,
+                    std::time::Duration::from_micros(self.commit_delay_us),
+                )
                 .map_err(|_| WalError::IoError("Wait timeout error".to_string()))?
                 .0;
         }
@@ -94,7 +98,7 @@ impl GroupCommitManager {
 
     pub fn collect_batch(&self) -> Option<Vec<PendingWrite>> {
         let mut queue = self.pending_writes.lock().ok()?;
-        
+
         if queue.is_empty() {
             return None;
         }
@@ -105,7 +109,10 @@ impl GroupCommitManager {
     }
 
     pub fn has_pending(&self) -> bool {
-        self.pending_writes.lock().map(|q| !q.is_empty()).unwrap_or(false)
+        self.pending_writes
+            .lock()
+            .map(|q| !q.is_empty())
+            .unwrap_or(false)
     }
 
     pub fn notify_results(batch: Vec<PendingWrite>, success: bool) {
@@ -205,7 +212,7 @@ impl LocalWalWriter {
         } else {
             None
         };
-        
+
         Self {
             wal_uri: wal_uri.to_string(),
             thread_id,
@@ -237,21 +244,19 @@ impl LocalWalWriter {
         let wal_dir = self.get_wal_dir();
 
         if !wal_dir.exists() {
-            std::fs::create_dir_all(&wal_dir)
-                .map_err(|e| WalError::IoError(e.to_string()))?;
+            std::fs::create_dir_all(&wal_dir).map_err(|e| WalError::IoError(e.to_string()))?;
         }
 
         for version in 0..65536 {
-            let path = wal_dir.join(format!(
-                "thread_{}_{}.wal",
-                self.thread_id, version
-            ));
+            let path = wal_dir.join(format!("thread_{}_{}.wal", self.thread_id, version));
             if !path.exists() {
                 return Ok(path);
             }
         }
 
-        Err(WalError::IoError("No available WAL file version".to_string()))
+        Err(WalError::IoError(
+            "No available WAL file version".to_string(),
+        ))
     }
 
     /// Write WAL file header
@@ -259,16 +264,16 @@ impl LocalWalWriter {
         let current_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
         let header = WalFileHeader::new(self.thread_id, self.checkpoint_seq, current_lsn);
         let header_bytes = header.as_bytes();
-        
+
         let file = self.file.as_mut().ok_or(WalError::Closed)?;
         file.seek(SeekFrom::Start(0))?;
         file.write_all(header_bytes)?;
         file.sync_all()?;
-        
+
         self.file_header = Some(header);
         self.file_start_lsn = current_lsn;
         self.file_used = WAL_FILE_HEADER_SIZE;
-        
+
         Ok(())
     }
 
@@ -379,12 +384,7 @@ impl LocalWalWriter {
     }
 
     /// Write a single entry to the file
-    fn write_entry(
-        &mut self,
-        header: &WalHeader,
-        payload: &[u8],
-        new_lsn: Lsn,
-    ) -> WalResult<bool> {
+    fn write_entry(&mut self, header: &WalHeader, payload: &[u8], new_lsn: Lsn) -> WalResult<bool> {
         let header_bytes = header.as_bytes();
 
         let file = self.file.as_mut().ok_or(WalError::Closed)?;
@@ -392,8 +392,8 @@ impl LocalWalWriter {
 
         let expected_size = self.file_used + total_len;
         if expected_size > self.file_size {
-            let new_size = ((expected_size / self.config.truncate_size) + 1)
-                * self.config.truncate_size;
+            let new_size =
+                ((expected_size / self.config.truncate_size) + 1) * self.config.truncate_size;
             file.set_len(new_size as u64)?;
             self.file_size = new_size;
         }
@@ -467,7 +467,7 @@ impl LocalWalWriter {
                 let level = self.config.compression_level.level as i32;
                 let compressed = zstd::encode_all(payload, level)
                     .map_err(|e| WalError::SerializationError(e.to_string()))?;
-                
+
                 if compressed.len() < payload.len() {
                     return Ok((compressed, WalCompression::Zstd));
                 }
@@ -481,8 +481,7 @@ impl LocalWalWriter {
     pub fn decompress_payload(payload: &[u8], compression: WalCompression) -> WalResult<Vec<u8>> {
         match compression {
             WalCompression::Zstd => {
-                zstd::decode_all(payload)
-                    .map_err(|e| WalError::DeserializationError(e.to_string()))
+                zstd::decode_all(payload).map_err(|e| WalError::DeserializationError(e.to_string()))
             }
             WalCompression::None => Ok(payload.to_vec()),
         }
@@ -496,14 +495,14 @@ impl LocalWalWriter {
 
         let mut total_len = 0;
         let mut compressed_entries = Vec::with_capacity(entries.len());
-        
+
         for (op_type, timestamp, payload) in entries {
             let (final_payload, compression) = self.compress_payload(payload)?;
-            
+
             let prev_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst) + total_len as u64);
             let entry_size = WAL_HEADER_SIZE + final_payload.len();
             let new_lsn = Lsn::new(prev_lsn.as_u64() + entry_size as u64);
-            
+
             let header = if self.config.checksum_enabled {
                 WalHeader::new(*op_type, *timestamp, final_payload.len() as u32)
                     .with_lsn(new_lsn, prev_lsn)
@@ -514,7 +513,7 @@ impl LocalWalWriter {
                     .with_lsn(new_lsn, prev_lsn)
                     .with_compression(compression)
             };
-            
+
             total_len += WAL_HEADER_SIZE + final_payload.len();
             compressed_entries.push((header, final_payload));
         }
@@ -523,8 +522,8 @@ impl LocalWalWriter {
 
         let expected_size = self.file_used + total_len;
         if expected_size > self.file_size {
-            let new_size = ((expected_size / self.config.truncate_size) + 1)
-                * self.config.truncate_size;
+            let new_size =
+                ((expected_size / self.config.truncate_size) + 1) * self.config.truncate_size;
             file.set_len(new_size as u64)?;
             self.file_size = new_size;
         }
@@ -535,12 +534,12 @@ impl LocalWalWriter {
             file.write_all(header.as_bytes())?;
             file.write_all(&payload)?;
         }
-        
+
         self.file_used += total_len;
-        
+
         let new_lsn = self.current_lsn.load(Ordering::SeqCst) + total_len as u64;
         self.current_lsn.store(new_lsn, Ordering::SeqCst);
-        
+
         file.sync_data()?;
         self.last_synced_lsn.store(new_lsn, Ordering::SeqCst);
 
@@ -620,8 +619,9 @@ impl LocalWalWriter {
             hasher.finalize()
         };
 
-        let fpw_header = FullPageWriteHeader::new(page_id, page_lsn, record_lsn, page_data.len() as u32)
-            .with_checksum(page_checksum);
+        let fpw_header =
+            FullPageWriteHeader::new(page_id, page_lsn, record_lsn, page_data.len() as u32)
+                .with_checksum(page_checksum);
 
         let fpw_data = fpw_header.serialize();
         let mut payload = fpw_data;
@@ -664,7 +664,7 @@ impl LocalWalWriter {
         self.file_path = Some(path);
         self.file_size = self.config.truncate_size;
         self.version += 1;
-        
+
         self.write_file_header()?;
 
         Ok(())
@@ -692,7 +692,7 @@ impl WalWriter for LocalWalWriter {
         self.file_size = self.config.truncate_size;
         self.file_used = 0;
         self.is_open.store(true, Ordering::SeqCst);
-        
+
         self.write_file_header()?;
 
         Ok(())
@@ -723,8 +723,8 @@ impl WalWriter for LocalWalWriter {
 
         let expected_size = self.file_used + data.len();
         if expected_size > self.file_size {
-            let new_size = ((expected_size / self.config.truncate_size) + 1)
-                * self.config.truncate_size;
+            let new_size =
+                ((expected_size / self.config.truncate_size) + 1) * self.config.truncate_size;
             file.set_len(new_size as u64)?;
             self.file_size = new_size;
         }
@@ -871,7 +871,7 @@ mod tests {
 
         let mut writer = LocalWalWriter::new(&wal_path, 0);
         writer.open().expect("Failed to open WAL");
-        
+
         assert!(writer.file_header().is_some());
         let header = writer.file_header().unwrap();
         assert!(header.is_valid());
@@ -926,7 +926,9 @@ mod tests {
             (WalOpType::InsertEdge, 3, b"edge1"),
         ];
 
-        writer.append_batch(&entries).expect("Failed to append batch");
+        writer
+            .append_batch(&entries)
+            .expect("Failed to append batch");
         writer.close();
     }
 
@@ -964,21 +966,21 @@ mod tests {
         writer.open().expect("Failed to open WAL");
 
         let initial_lsn = writer.current_lsn();
-        
+
         writer
             .append_entry(WalOpType::InsertVertex, 1, b"payload1")
             .expect("Failed to append entry");
-        
+
         let lsn_after_first = writer.current_lsn();
         assert!(lsn_after_first > initial_lsn);
-        
+
         writer
             .append_entry(WalOpType::InsertVertex, 2, b"payload2")
             .expect("Failed to append entry");
-        
+
         let lsn_after_second = writer.current_lsn();
         assert!(lsn_after_second > lsn_after_first);
-        
+
         assert_eq!(writer.current_lsn(), writer.last_synced_lsn());
 
         writer.close();
@@ -1049,7 +1051,9 @@ mod tests {
         let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
         writer.open().expect("Failed to open WAL");
 
-        let large_payload: Vec<u8> = (0..(WAL_MAX_RECORD_SIZE * 2 + 1000)).map(|i| (i % 256) as u8).collect();
+        let large_payload: Vec<u8> = (0..(WAL_MAX_RECORD_SIZE * 2 + 1000))
+            .map(|i| (i % 256) as u8)
+            .collect();
 
         writer
             .append_entry(WalOpType::InsertVertex, 1, &large_payload)

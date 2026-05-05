@@ -57,12 +57,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
         }
     }
 
-    pub fn with_metadata(
-        mut self,
-        space_id: u64,
-        tag_name: String,
-        field_name: String,
-    ) -> Self {
+    pub fn with_metadata(mut self, space_id: u64, tag_name: String, field_name: String) -> Self {
         self.space_id = space_id;
         self.tag_name = tag_name;
         self.field_name = field_name;
@@ -71,7 +66,11 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
 
     fn resolve_metadata(&self) -> DBResult<(u64, String, String)> {
         if !self.tag_name.is_empty() && !self.field_name.is_empty() {
-            return Ok((self.space_id, self.tag_name.clone(), self.field_name.clone()));
+            return Ok((
+                self.space_id,
+                self.tag_name.clone(),
+                self.field_name.clone(),
+            ));
         }
 
         let index_name = self.fulltext_condition.index_name.as_ref().ok_or_else(|| {
@@ -79,7 +78,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
         })?;
 
         let indexes = self.fulltext_manager.list_indexes();
-        
+
         for index in indexes {
             if &index.index_name == index_name {
                 return Ok((index.space_id, index.tag_name, index.field_name));

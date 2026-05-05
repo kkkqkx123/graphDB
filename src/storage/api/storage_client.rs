@@ -225,7 +225,9 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
 
     /// Get schema manager (if available)
     /// Default implementation returns None for storage clients that don't have schema manager
-    fn get_schema_manager(&self) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
+    fn get_schema_manager(
+        &self,
+    ) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
         None
     }
 }

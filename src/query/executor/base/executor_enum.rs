@@ -11,8 +11,8 @@ use crate::storage::StorageClient;
 use crate::query::executor::admin::AnalyzeExecutor;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, EdgeManageExecutor, ExecutionResult, Executor, ExecutorStats,
-    FulltextManageExecutor, IndexManageExecutor, InputExecutor, SpaceManageExecutor,
-    StartExecutor, TagManageExecutor, UserManageExecutor, VectorManageExecutor,
+    FulltextManageExecutor, IndexManageExecutor, InputExecutor, SpaceManageExecutor, StartExecutor,
+    TagManageExecutor, UserManageExecutor, VectorManageExecutor,
 };
 use crate::query::executor::control_flow::{
     ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor,

@@ -32,7 +32,10 @@ impl SyncTestContext {
         ));
         let sync_manager = Arc::new(SyncManager::new(coordinator.clone()));
 
-        sync_manager.start().await.expect("Failed to start sync manager");
+        sync_manager
+            .start()
+            .await
+            .expect("Failed to start sync manager");
 
         Self {
             coordinator,
@@ -459,7 +462,13 @@ async fn test_sync_empty_properties() {
     // Insert with content
     let props_with_content = create_test_properties("Has content");
     ctx.coordinator
-        .on_vertex_change(1, "Article", &vertex_id, &props_with_content, ChangeType::Insert)
+        .on_vertex_change(
+            1,
+            "Article",
+            &vertex_id,
+            &props_with_content,
+            ChangeType::Insert,
+        )
         .await
         .expect("Failed to sync vertex insert");
 

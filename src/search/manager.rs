@@ -325,12 +325,8 @@ impl FulltextIndexManager {
 
         let storage_path = self.get_space_storage_path(space_id)?;
 
-        let engine = SearchEngineFactory::from_config(
-            engine_type,
-            &index_id,
-            &storage_path,
-            &self.config,
-        )?;
+        let engine =
+            SearchEngineFactory::from_config(engine_type, &index_id, &storage_path, &self.config)?;
 
         let metadata = IndexMetadata {
             index_id: index_id.clone(),
@@ -561,7 +557,9 @@ impl FulltextIndexManager {
                     if fulltext_path.exists() {
                         tokio::fs::remove_dir_all(&fulltext_path).await.ok();
                     }
-                } else if space_info.isolation_level == crate::core::types::space::IsolationLevel::Directory {
+                } else if space_info.isolation_level
+                    == crate::core::types::space::IsolationLevel::Directory
+                {
                     let space_path = self.base_path.join(format!("space_{}", space_id));
                     if space_path.exists() {
                         tokio::fs::remove_dir_all(&space_path).await.ok();
@@ -571,7 +569,10 @@ impl FulltextIndexManager {
         }
 
         if let Err(e) = self.save_metadata_to_file() {
-            tracing::warn!("Failed to save metadata after dropping space indexes: {}", e);
+            tracing::warn!(
+                "Failed to save metadata after dropping space indexes: {}",
+                e
+            );
         }
 
         Ok(())

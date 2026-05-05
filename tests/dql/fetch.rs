@@ -163,7 +163,10 @@ fn test_fetch_execution_edge_properties() {
         .query("FETCH PROP ON KNOWS 1 -> 2")
         .assert_success()
         .assert_result_count(1)
-        .assert_vertex_or_edge_has_property("since", graphdb::core::Value::String("2020-01-01".into()));
+        .assert_vertex_or_edge_has_property(
+            "since",
+            graphdb::core::Value::String("2020-01-01".into()),
+        );
 }
 
 #[test]

@@ -27,7 +27,8 @@ pub use data_modification::{
 };
 pub use graph_operations::{
     AggregateNode, ApplyKind, ApplyNode, AssignNode, DataCollectNode, DedupNode, IntersectNode,
-    MaterializeNode, MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
+    MaterializeNode, MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode,
+    UnwindNode,
 };
 pub use join::{
     AntiJoinNode, CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode,

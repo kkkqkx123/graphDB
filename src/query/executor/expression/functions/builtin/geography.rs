@@ -1,9 +1,7 @@
 //! Implementation of geospatial functions
 
 use crate::core::error::ExpressionError;
-use crate::core::value::geography::{
-    Geography, GeographyValue, LineStringValue, PolygonValue,
-};
+use crate::core::value::geography::{Geography, GeographyValue, LineStringValue, PolygonValue};
 use crate::core::value::NullType;
 use crate::core::Value;
 
@@ -547,8 +545,7 @@ fn execute_st_npoints(args: &[Value]) -> Result<Value, ExpressionError> {
                 Geography::Point(_) => 1,
                 Geography::LineString(ls) => ls.points.len(),
                 Geography::Polygon(p) => {
-                    p.exterior.points.len()
-                        + p.holes.iter().map(|h| h.points.len()).sum::<usize>()
+                    p.exterior.points.len() + p.holes.iter().map(|h| h.points.len()).sum::<usize>()
                 }
                 Geography::MultiPoint(mp) => mp.points.len(),
                 Geography::MultiLineString(mls) => {
@@ -664,11 +661,9 @@ fn check_contains(geo1: &Geography, geo2: &Geography) -> bool {
         (Geography::Polygon(p1), Geography::Polygon(p2)) => {
             p2.exterior.points.iter().all(|pt| p1.contains_point(pt))
         }
-        (Geography::MultiPolygon(mp), Geography::Polygon(p)) => p
-            .exterior
-            .points
-            .iter()
-            .all(|pt| mp.contains_point(pt)),
+        (Geography::MultiPolygon(mp), Geography::Polygon(p)) => {
+            p.exterior.points.iter().all(|pt| mp.contains_point(pt))
+        }
         _ => false,
     }
 }
@@ -859,9 +854,12 @@ fn get_boundary(geo: &Geography) -> Option<Geography> {
             if ls.is_closed() {
                 return None;
             }
-            Some(Geography::MultiPoint(crate::core::value::geography::MultiPointValue::new(
-                vec![start.clone(), end.clone()],
-            )))
+            Some(Geography::MultiPoint(
+                crate::core::value::geography::MultiPointValue::new(vec![
+                    start.clone(),
+                    end.clone(),
+                ]),
+            ))
         }
         Geography::Polygon(p) => Some(Geography::LineString(p.exterior.clone())),
         Geography::MultiPolygon(mp) => {
@@ -898,9 +896,7 @@ fn check_crosses(geo1: &Geography, geo2: &Geography) -> bool {
         (Geography::Polygon(poly), Geography::LineString(ls)) => {
             linestring_crosses_polygon(ls, poly)
         }
-        (Geography::LineString(ls1), Geography::LineString(ls2)) => {
-            linestrings_cross(ls1, ls2)
-        }
+        (Geography::LineString(ls1), Geography::LineString(ls2)) => linestrings_cross(ls1, ls2),
         _ => false,
     }
 }
@@ -975,9 +971,7 @@ fn check_touches(geo1: &Geography, geo2: &Geography) -> bool {
         (Geography::LineString(ls), Geography::Point(p)) => point_touches_linestring(p, ls),
         (Geography::Point(p), Geography::Polygon(poly)) => point_touches_polygon(p, poly),
         (Geography::Polygon(poly), Geography::Point(p)) => point_touches_polygon(p, poly),
-        (Geography::LineString(ls1), Geography::LineString(ls2)) => {
-            linestrings_touch(ls1, ls2)
-        }
+        (Geography::LineString(ls1), Geography::LineString(ls2)) => linestrings_touch(ls1, ls2),
         (Geography::Polygon(poly), Geography::LineString(ls)) => {
             linestring_touches_polygon(ls, poly)
         }
@@ -1143,15 +1137,13 @@ fn execute_st_asgeojson(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_st_geomfromgeojson(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
-        Value::String(json_str) => {
-            match Geography::from_geojson_string(json_str) {
-                Ok(geo) => Ok(Value::Geography(geo)),
-                Err(e) => Err(ExpressionError::type_error(format!(
-                    "Invalid GeoJSON: {}",
-                    e
-                ))),
-            }
-        }
+        Value::String(json_str) => match Geography::from_geojson_string(json_str) {
+            Ok(geo) => Ok(Value::Geography(geo)),
+            Err(e) => Err(ExpressionError::type_error(format!(
+                "Invalid GeoJSON: {}",
+                e
+            ))),
+        },
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
             "The st_geomfromgeojson function requires string argument",
@@ -1296,8 +1288,7 @@ mod tests {
             ]),
             vec![],
         );
-        let result =
-            execute_st_boundary(&[Value::Geography(Geography::Polygon(polygon))]).unwrap();
+        let result = execute_st_boundary(&[Value::Geography(Geography::Polygon(polygon))]).unwrap();
         assert!(matches!(result, Value::Geography(Geography::LineString(_))));
     }
 
@@ -1374,8 +1365,7 @@ mod tests {
     fn test_st_equals() {
         let p1 = Geography::Point(GeographyValue::new(39.9, 116.4));
         let p2 = Geography::Point(GeographyValue::new(39.9, 116.4));
-        let result =
-            execute_st_equals(&[Value::Geography(p1), Value::Geography(p2)]).unwrap();
+        let result = execute_st_equals(&[Value::Geography(p1), Value::Geography(p2)]).unwrap();
         assert_eq!(result, Value::Bool(true));
 
         let p3 = Geography::Point(GeographyValue::new(31.2, 121.5));

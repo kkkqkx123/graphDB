@@ -2,15 +2,15 @@
 //!
 //! Aggregates all states that need to be shared across storage layer components.
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use crate::search::manager::FulltextIndexManager;
 use crate::storage::metadata::{IndexMetadataManager, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
-use crate::transaction::version_manager::VersionManager;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
+use crate::transaction::version_manager::VersionManager;
 
 #[derive(Clone)]
 pub struct StorageSharedState {
@@ -98,7 +98,10 @@ impl std::fmt::Debug for StorageSharedState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StorageSharedState")
             .field("has_sync_manager", &self.sync_manager.read().is_some())
-            .field("has_fulltext_manager", &self.fulltext_manager.read().is_some())
+            .field(
+                "has_fulltext_manager",
+                &self.fulltext_manager.read().is_some(),
+            )
             .finish()
     }
 }
@@ -106,7 +109,10 @@ impl std::fmt::Debug for StorageSharedState {
 impl std::fmt::Debug for StorageInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StorageInner")
-            .field("has_transaction_context", &self.current_txn_context.lock().is_some())
+            .field(
+                "has_transaction_context",
+                &self.current_txn_context.lock().is_some(),
+            )
             .finish()
     }
 }

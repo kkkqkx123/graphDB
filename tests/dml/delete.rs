@@ -191,7 +191,9 @@ fn test_delete_multiple_vertices_and_verify() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
-        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie'), 4:('David')")
+        .exec_dml(
+            "INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie'), 4:('David')",
+        )
         .assert_success()
         .assert_vertex_count("Person", 4)
         .exec_dml("DELETE VERTEX 1, 2, 3")

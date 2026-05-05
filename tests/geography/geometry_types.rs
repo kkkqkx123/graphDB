@@ -11,9 +11,8 @@
 //! Test cases: TC-GEO-TYPE-001 ~ TC-GEO-TYPE-020
 
 use super::common::{
-    assert_distance_within, create_test_linestring, create_test_multipoint,
-    create_test_multilinestring, create_test_multipolygon, create_test_point,
-    create_test_polygon,
+    assert_distance_within, create_test_linestring, create_test_multilinestring,
+    create_test_multipoint, create_test_multipolygon, create_test_point, create_test_polygon,
 };
 use graphdb::core::value::geography::{Geography, GeographyValue};
 
@@ -98,7 +97,13 @@ fn test_linestring_closed() {
 /// TC-GEO-TYPE-006: LineString Ring Check
 #[test]
 fn test_linestring_ring() {
-    let ring = create_test_linestring(vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)]);
+    let ring = create_test_linestring(vec![
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+        (1.0, 0.0),
+        (0.0, 0.0),
+    ]);
     match ring {
         Geography::LineString(ls) => assert!(ls.is_ring()),
         _ => panic!("Expected LineString geometry"),
@@ -136,13 +141,7 @@ fn test_linestring_start_end_points() {
 #[test]
 fn test_polygon_area() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 
@@ -159,13 +158,7 @@ fn test_polygon_area() {
 #[test]
 fn test_polygon_perimeter() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 1.0),
-            (1.0, 1.0),
-            (1.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 
@@ -182,13 +175,7 @@ fn test_polygon_perimeter() {
 #[test]
 fn test_polygon_contains_point() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 2.0),
-            (2.0, 2.0),
-            (2.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)],
         vec![],
     );
 
@@ -208,13 +195,7 @@ fn test_polygon_contains_point() {
 #[test]
 fn test_polygon_with_hole() {
     let polygon = create_test_polygon(
-        vec![
-            (0.0, 0.0),
-            (0.0, 3.0),
-            (3.0, 3.0),
-            (3.0, 0.0),
-            (0.0, 0.0),
-        ],
+        vec![(0.0, 0.0), (0.0, 3.0), (3.0, 3.0), (3.0, 0.0), (0.0, 0.0)],
         vec![vec![
             (1.0, 1.0),
             (1.0, 2.0),
@@ -229,10 +210,16 @@ fn test_polygon_with_hole() {
             assert_eq!(p.holes.len(), 1);
 
             let in_hole = GeographyValue::new(1.5, 1.5);
-            assert!(!p.contains_point(&in_hole), "Point in hole should not be contained");
+            assert!(
+                !p.contains_point(&in_hole),
+                "Point in hole should not be contained"
+            );
 
             let in_polygon = GeographyValue::new(0.5, 0.5);
-            assert!(p.contains_point(&in_polygon), "Point in polygon should be contained");
+            assert!(
+                p.contains_point(&in_polygon),
+                "Point in polygon should be contained"
+            );
         }
         _ => panic!("Expected Polygon geometry"),
     }
@@ -273,8 +260,10 @@ fn test_multipoint_centroid() {
 /// TC-GEO-TYPE-014: MultiLineString Count
 #[test]
 fn test_multilinestring_count() {
-    let multilinestring =
-        create_test_multilinestring(vec![vec![(0.0, 0.0), (1.0, 1.0)], vec![(2.0, 2.0), (3.0, 3.0)]]);
+    let multilinestring = create_test_multilinestring(vec![
+        vec![(0.0, 0.0), (1.0, 1.0)],
+        vec![(2.0, 2.0), (3.0, 3.0)],
+    ]);
 
     match multilinestring {
         Geography::MultiLineString(mls) => {
@@ -287,8 +276,10 @@ fn test_multilinestring_count() {
 /// TC-GEO-TYPE-015: MultiLineString Length
 #[test]
 fn test_multilinestring_length() {
-    let multilinestring =
-        create_test_multilinestring(vec![vec![(0.0, 0.0), (0.0, 1.0)], vec![(0.0, 0.0), (0.0, 1.0)]]);
+    let multilinestring = create_test_multilinestring(vec![
+        vec![(0.0, 0.0), (0.0, 1.0)],
+        vec![(0.0, 0.0), (0.0, 1.0)],
+    ]);
 
     match multilinestring {
         Geography::MultiLineString(mls) => {
@@ -306,23 +297,11 @@ fn test_multilinestring_length() {
 fn test_multipolygon_count() {
     let multipolygon = create_test_multipolygon(vec![
         (
-            vec![
-                (0.0, 0.0),
-                (0.0, 1.0),
-                (1.0, 1.0),
-                (1.0, 0.0),
-                (0.0, 0.0),
-            ],
+            vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
             vec![],
         ),
         (
-            vec![
-                (2.0, 2.0),
-                (2.0, 3.0),
-                (3.0, 3.0),
-                (3.0, 2.0),
-                (2.0, 2.0),
-            ],
+            vec![(2.0, 2.0), (2.0, 3.0), (3.0, 3.0), (3.0, 2.0), (2.0, 2.0)],
             vec![],
         ),
     ]);
@@ -340,23 +319,11 @@ fn test_multipolygon_count() {
 fn test_multipolygon_area() {
     let multipolygon = create_test_multipolygon(vec![
         (
-            vec![
-                (0.0, 0.0),
-                (0.0, 1.0),
-                (1.0, 1.0),
-                (1.0, 0.0),
-                (0.0, 0.0),
-            ],
+            vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
             vec![],
         ),
         (
-            vec![
-                (2.0, 2.0),
-                (2.0, 3.0),
-                (3.0, 3.0),
-                (3.0, 2.0),
-                (2.0, 2.0),
-            ],
+            vec![(2.0, 2.0), (2.0, 3.0), (3.0, 3.0), (3.0, 2.0), (2.0, 2.0)],
             vec![],
         ),
     ]);
@@ -375,23 +342,11 @@ fn test_multipolygon_area() {
 fn test_multipolygon_contains_point() {
     let multipolygon = create_test_multipolygon(vec![
         (
-            vec![
-                (0.0, 0.0),
-                (0.0, 2.0),
-                (2.0, 2.0),
-                (2.0, 0.0),
-                (0.0, 0.0),
-            ],
+            vec![(0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)],
             vec![],
         ),
         (
-            vec![
-                (5.0, 5.0),
-                (5.0, 7.0),
-                (7.0, 7.0),
-                (7.0, 5.0),
-                (5.0, 5.0),
-            ],
+            vec![(5.0, 5.0), (5.0, 7.0), (7.0, 7.0), (7.0, 5.0), (5.0, 5.0)],
             vec![],
         ),
     ]);
@@ -399,13 +354,22 @@ fn test_multipolygon_contains_point() {
     match multipolygon {
         Geography::MultiPolygon(mp) => {
             let point1 = GeographyValue::new(1.0, 1.0);
-            assert!(mp.contains_point(&point1), "Point should be in first polygon");
+            assert!(
+                mp.contains_point(&point1),
+                "Point should be in first polygon"
+            );
 
             let point2 = GeographyValue::new(6.0, 6.0);
-            assert!(mp.contains_point(&point2), "Point should be in second polygon");
+            assert!(
+                mp.contains_point(&point2),
+                "Point should be in second polygon"
+            );
 
             let point3 = GeographyValue::new(10.0, 10.0);
-            assert!(!mp.contains_point(&point3), "Point should not be in any polygon");
+            assert!(
+                !mp.contains_point(&point3),
+                "Point should not be in any polygon"
+            );
         }
         _ => panic!("Expected MultiPolygon geometry"),
     }

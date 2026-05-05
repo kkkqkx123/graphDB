@@ -129,10 +129,7 @@ pub enum SchemaValidationError {
         reason: String,
     },
     /// Generic schema error
-    Generic {
-        node_id: i64,
-        message: String,
-    },
+    Generic { node_id: i64, message: String },
 }
 
 impl SchemaValidationError {

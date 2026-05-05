@@ -8,13 +8,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use oxicode::{encode_to_vec, decode_from_slice};
+use oxicode::{decode_from_slice, encode_to_vec};
 
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{
-    CreateEdgeTypeRedo, CreateVertexTypeRedo, EdgeId, InsertEdgeRedo, InsertVertexRedo,
-    LabelId, Timestamp, VertexId, WalHeader, WalOpType,
+    CreateEdgeTypeRedo, CreateVertexTypeRedo, EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId,
+    Timestamp, VertexId, WalHeader, WalOpType,
 };
 use super::wal::writer::WalWriter;
 
@@ -99,22 +99,17 @@ pub trait InsertTarget: Send + Sync {
         ts: Timestamp,
     ) -> InsertTransactionResult<EdgeId>;
 
-    fn get_vertex_id(
-        &self,
-        label: LabelId,
-        oid: &[u8],
-        ts: Timestamp,
-    ) -> Option<VertexId>;
+    fn get_vertex_id(&self, label: LabelId, oid: &[u8], ts: Timestamp) -> Option<VertexId>;
 
-    fn get_vertex_oid(
-        &self,
-        label: LabelId,
-        vid: VertexId,
-        ts: Timestamp,
-    ) -> Option<Vec<u8>>;
+    fn get_vertex_oid(&self, label: LabelId, vid: VertexId, ts: Timestamp) -> Option<Vec<u8>>;
 
     fn get_vertex_property_types(&self, label: LabelId) -> Vec<String>;
-    fn get_edge_property_types(&self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) -> Vec<String>;
+    fn get_edge_property_types(
+        &self,
+        src_label: LabelId,
+        dst_label: LabelId,
+        edge_label: LabelId,
+    ) -> Vec<String>;
     fn vertex_label_num(&self) -> usize;
     fn lid_num(&self, label: LabelId) -> usize;
 }
@@ -201,9 +196,10 @@ impl<'a> InsertTransaction<'a> {
             return Err(InsertTransactionError::VertexAlreadyExists(0));
         }
 
-        let base = self.added_vertices.entry(label).or_insert_with(|| {
-            self.graph.lid_num(label) as VertexId
-        });
+        let base = self
+            .added_vertices
+            .entry(label)
+            .or_insert_with(|| self.graph.lid_num(label) as VertexId);
         let num = self.vertex_nums.entry(label).or_insert(0u64);
         let vid = *base + *num;
         *num += 1;
@@ -236,7 +232,9 @@ impl<'a> InsertTransaction<'a> {
         edge_label: LabelId,
         properties: &[(String, Vec<u8>)],
     ) -> InsertTransactionResult<()> {
-        let expected_types = self.graph.get_edge_property_types(src_label, dst_label, edge_label);
+        let expected_types = self
+            .graph
+            .get_edge_property_types(src_label, dst_label, edge_label);
         if expected_types.len() != properties.len() {
             return Err(InsertTransactionError::PropertyCountMismatch {
                 expected: expected_types.len(),
@@ -244,9 +242,13 @@ impl<'a> InsertTransaction<'a> {
             });
         }
 
-        let src_oid = self.graph.get_vertex_oid(src_label, src_vid, self.timestamp)
+        let src_oid = self
+            .graph
+            .get_vertex_oid(src_label, src_vid, self.timestamp)
             .ok_or(InsertTransactionError::VertexNotFound(src_vid))?;
-        let dst_oid = self.graph.get_vertex_oid(dst_label, dst_vid, self.timestamp)
+        let dst_oid = self
+            .graph
+            .get_vertex_oid(dst_label, dst_vid, self.timestamp)
             .ok_or(InsertTransactionError::VertexNotFound(dst_vid))?;
 
         let redo = InsertEdgeRedo {
@@ -271,7 +273,8 @@ impl<'a> InsertTransaction<'a> {
         }
 
         if self.wal_buffer.len() == WalHeader::SIZE {
-            self.version_manager.release_insert_timestamp(self.timestamp);
+            self.version_manager
+                .release_insert_timestamp(self.timestamp);
             self.clear();
             return Ok(());
         }
@@ -284,7 +287,8 @@ impl<'a> InsertTransaction<'a> {
 
         self.ingest_wal()?;
 
-        self.version_manager.release_insert_timestamp(self.timestamp);
+        self.version_manager
+            .release_insert_timestamp(self.timestamp);
         self.clear();
 
         Ok(())
@@ -295,14 +299,19 @@ impl<'a> InsertTransaction<'a> {
     /// Simply releases the timestamp without writing WAL.
     pub fn abort(mut self) -> InsertTransactionResult<()> {
         if self.timestamp != INVALID_TIMESTAMP {
-            self.version_manager.release_insert_timestamp(self.timestamp);
+            self.version_manager
+                .release_insert_timestamp(self.timestamp);
             self.clear();
         }
         Ok(())
     }
 
     /// Serialize a redo log entry
-    fn serialize_redo<T: serde::Serialize + oxicode::Encode>(&mut self, op_type: WalOpType, redo: &T) -> InsertTransactionResult<()> {
+    fn serialize_redo<T: serde::Serialize + oxicode::Encode>(
+        &mut self,
+        op_type: WalOpType,
+        redo: &T,
+    ) -> InsertTransactionResult<()> {
         let op_byte = op_type as u8;
         self.wal_buffer.push(op_byte);
 
@@ -333,7 +342,12 @@ impl<'a> InsertTransaction<'a> {
                 .map_err(|e| InsertTransactionError::WalError(e.to_string()))?;
             offset += 1;
 
-            let len = u32::from_le_bytes([data[offset], data[offset + 1], data[offset + 2], data[offset + 3]]) as usize;
+            let len = u32::from_le_bytes([
+                data[offset],
+                data[offset + 1],
+                data[offset + 2],
+                data[offset + 3],
+            ]) as usize;
             offset += 4;
 
             let payload = &data[offset..offset + len];
@@ -344,20 +358,33 @@ impl<'a> InsertTransaction<'a> {
                     let redo: InsertVertexRedo = decode_from_slice(payload)
                         .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?
                         .0;
-                    self.graph.add_vertex(redo.label, &redo.oid, &redo.properties, self.timestamp)?;
+                    self.graph.add_vertex(
+                        redo.label,
+                        &redo.oid,
+                        &redo.properties,
+                        self.timestamp,
+                    )?;
                 }
                 WalOpType::InsertEdge => {
                     let redo: InsertEdgeRedo = decode_from_slice(payload)
                         .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?
                         .0;
-                    let src_vid = self.graph.get_vertex_id(redo.src_label, &redo.src_oid, self.timestamp)
+                    let src_vid = self
+                        .graph
+                        .get_vertex_id(redo.src_label, &redo.src_oid, self.timestamp)
                         .ok_or(InsertTransactionError::VertexNotFound(0))?;
-                    let dst_vid = self.graph.get_vertex_id(redo.dst_label, &redo.dst_oid, self.timestamp)
+                    let dst_vid = self
+                        .graph
+                        .get_vertex_id(redo.dst_label, &redo.dst_oid, self.timestamp)
                         .ok_or(InsertTransactionError::VertexNotFound(0))?;
                     self.graph.add_edge(
-                        redo.src_label, src_vid,
-                        redo.dst_label, dst_vid,
-                        redo.edge_label, &redo.properties, self.timestamp
+                        redo.src_label,
+                        src_vid,
+                        redo.dst_label,
+                        dst_vid,
+                        redo.edge_label,
+                        &redo.properties,
+                        self.timestamp,
                     )?;
                 }
                 _ => {
@@ -385,15 +412,16 @@ impl<'a> InsertTransaction<'a> {
 impl<'a> Drop for InsertTransaction<'a> {
     fn drop(&mut self) {
         if self.timestamp != INVALID_TIMESTAMP {
-            self.version_manager.release_insert_timestamp(self.timestamp);
+            self.version_manager
+                .release_insert_timestamp(self.timestamp);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::wal::writer::DummyWalWriter;
+    use super::*;
 
     struct MockInsertTarget;
 
@@ -425,7 +453,12 @@ mod tests {
             None
         }
 
-        fn get_vertex_oid(&self, _label: LabelId, _vid: VertexId, _ts: Timestamp) -> Option<Vec<u8>> {
+        fn get_vertex_oid(
+            &self,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
+        ) -> Option<Vec<u8>> {
             Some(vec![])
         }
 
@@ -433,7 +466,12 @@ mod tests {
             vec![]
         }
 
-        fn get_edge_property_types(&self, _src_label: LabelId, _dst_label: LabelId, _edge_label: LabelId) -> Vec<String> {
+        fn get_edge_property_types(
+            &self,
+            _src_label: LabelId,
+            _dst_label: LabelId,
+            _edge_label: LabelId,
+        ) -> Vec<String> {
             vec![]
         }
 

@@ -210,7 +210,9 @@ impl<S: StorageClient> TopNExecutor<S> {
             storage,
         );
 
-        let sort_direction = if sort_keys.first().map(|k| k.order) == Some(crate::query::executor::result_processing::sort::SortOrder::Asc) {
+        let sort_direction = if sort_keys.first().map(|k| k.order)
+            == Some(crate::query::executor::result_processing::sort::SortOrder::Asc)
+        {
             OrderDirection::Asc
         } else {
             OrderDirection::Desc
@@ -252,9 +254,9 @@ impl<S: StorageClient> TopNExecutor<S> {
                     let topn_result = self.execute_topn_dataset(dataset)?;
                     Ok(ExecutionResult::DataSet(topn_result))
                 }
-                ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
-                    Ok(ExecutionResult::DataSet(DataSet::new()))
-                }
+                ExecutionResult::Empty
+                | ExecutionResult::Success
+                | ExecutionResult::SpaceSwitched(_) => Ok(ExecutionResult::DataSet(DataSet::new())),
                 ExecutionResult::Error(msg) => Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(msg),
                 )),
@@ -267,9 +269,9 @@ impl<S: StorageClient> TopNExecutor<S> {
                     let topn_result = self.execute_topn_dataset(dataset)?;
                     Ok(ExecutionResult::DataSet(topn_result))
                 }
-                ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
-                    Ok(ExecutionResult::DataSet(DataSet::new()))
-                }
+                ExecutionResult::Empty
+                | ExecutionResult::Success
+                | ExecutionResult::SpaceSwitched(_) => Ok(ExecutionResult::DataSet(DataSet::new())),
                 ExecutionResult::Error(msg) => Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(msg),
                 )),

@@ -8,9 +8,9 @@
 //! Test cases: TC-VEC-001 ~ TC-VEC-015
 
 use super::common::{
-    assert_results_sorted_by_score, assert_search_result_contains, assert_search_result_count,
-    assert_scores_above_threshold, create_simple_payload,
-    create_test_points, generate_random_vector, generate_test_vectors, VectorTestContext,
+    assert_results_sorted_by_score, assert_scores_above_threshold, assert_search_result_contains,
+    assert_search_result_count, create_simple_payload, create_test_points, generate_random_vector,
+    generate_test_vectors, VectorTestContext,
 };
 use vector_client::types::DistanceMetric;
 
@@ -22,7 +22,13 @@ async fn test_create_vector_index_cosine() {
     let ctx = VectorTestContext::new();
 
     let result = ctx
-        .create_test_index(1, "Document", "embedding", Some(128), Some(DistanceMetric::Cosine))
+        .create_test_index(
+            1,
+            "Document",
+            "embedding",
+            Some(128),
+            Some(DistanceMetric::Cosine),
+        )
         .await;
 
     assert!(result.is_ok(), "Index creation should succeed");
@@ -45,10 +51,19 @@ async fn test_create_vector_index_euclidean() {
     let ctx = VectorTestContext::new();
 
     let result = ctx
-        .create_test_index(1, "Document", "embedding", Some(128), Some(DistanceMetric::Euclid))
+        .create_test_index(
+            1,
+            "Document",
+            "embedding",
+            Some(128),
+            Some(DistanceMetric::Euclid),
+        )
         .await;
 
-    assert!(result.is_ok(), "Index creation with Euclidean distance should succeed");
+    assert!(
+        result.is_ok(),
+        "Index creation with Euclidean distance should succeed"
+    );
 }
 
 /// TC-VEC-001c: Create Vector Index with Dot Product Distance
@@ -57,10 +72,19 @@ async fn test_create_vector_index_dot() {
     let ctx = VectorTestContext::new();
 
     let result = ctx
-        .create_test_index(1, "Document", "embedding", Some(128), Some(DistanceMetric::Dot))
+        .create_test_index(
+            1,
+            "Document",
+            "embedding",
+            Some(128),
+            Some(DistanceMetric::Dot),
+        )
         .await;
 
-    assert!(result.is_ok(), "Index creation with Dot distance should succeed");
+    assert!(
+        result.is_ok(),
+        "Index creation with Dot distance should succeed"
+    );
 }
 
 /// TC-VEC-002: Create Duplicate Index
@@ -69,12 +93,24 @@ async fn test_create_duplicate_index() {
     let ctx = VectorTestContext::new();
 
     let result1 = ctx
-        .create_test_index(1, "Document", "embedding", Some(128), Some(DistanceMetric::Cosine))
+        .create_test_index(
+            1,
+            "Document",
+            "embedding",
+            Some(128),
+            Some(DistanceMetric::Cosine),
+        )
         .await;
     assert!(result1.is_ok(), "First index creation should succeed");
 
     let result2 = ctx
-        .create_test_index(1, "Document", "embedding", Some(128), Some(DistanceMetric::Cosine))
+        .create_test_index(
+            1,
+            "Document",
+            "embedding",
+            Some(128),
+            Some(DistanceMetric::Cosine),
+        )
         .await;
 
     assert!(result2.is_err(), "Duplicate index creation should fail");
@@ -92,9 +128,15 @@ async fn test_create_duplicate_index() {
 async fn test_drop_index() {
     let ctx = VectorTestContext::new();
 
-    ctx.create_test_index(1, "Document", "embedding", Some(128), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(128),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let result = ctx.drop_index(1, "Document", "embedding").await;
     assert!(result.is_ok(), "Index drop should succeed");
@@ -110,9 +152,15 @@ async fn test_drop_index() {
 async fn test_get_index_metadata() {
     let ctx = VectorTestContext::new();
 
-    ctx.create_test_index(1, "Document", "embedding", Some(128), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "embedding",
+        Some(128),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
 
     let metadata = ctx.manager.get_index_metadata("space_1_Document_embedding");
     assert!(metadata.is_some(), "Metadata should exist");
@@ -128,12 +176,24 @@ async fn test_get_index_metadata() {
 async fn test_list_indexes() {
     let ctx = VectorTestContext::new();
 
-    ctx.create_test_index(1, "Document", "title_emb", Some(128), Some(DistanceMetric::Cosine))
-        .await
-        .expect("Failed to create index");
-    ctx.create_test_index(1, "Document", "content_emb", Some(256), Some(DistanceMetric::Euclid))
-        .await
-        .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "title_emb",
+        Some(128),
+        Some(DistanceMetric::Cosine),
+    )
+    .await
+    .expect("Failed to create index");
+    ctx.create_test_index(
+        1,
+        "Document",
+        "content_emb",
+        Some(256),
+        Some(DistanceMetric::Euclid),
+    )
+    .await
+    .expect("Failed to create index");
     ctx.create_test_index(1, "Image", "feature", Some(512), Some(DistanceMetric::Dot))
         .await
         .expect("Failed to create index");
@@ -160,7 +220,10 @@ async fn test_insert_single_vector() {
 
     assert!(result.is_ok(), "Insert should succeed");
 
-    let count = ctx.count(1, "Document", "embedding").await.expect("Failed to count");
+    let count = ctx
+        .count(1, "Document", "embedding")
+        .await
+        .expect("Failed to count");
     assert_eq!(count, 1, "Should have 1 vector");
 }
 
@@ -190,7 +253,10 @@ async fn test_insert_vector_with_payload() {
 
     assert!(point.payload.is_some(), "Payload should be present");
     let payload = point.payload.unwrap();
-    assert_eq!(payload.get("title").unwrap().as_str().unwrap(), "Test Document");
+    assert_eq!(
+        payload.get("title").unwrap().as_str().unwrap(),
+        "Test Document"
+    );
 }
 
 /// TC-VEC-008: Batch Insert Vectors
@@ -204,16 +270,17 @@ async fn test_batch_insert_vectors() {
 
     let vectors = generate_test_vectors(10, 128, 42);
     let ids: Vec<String> = (0..10).map(|i| format!("doc_{}", i)).collect();
-    let points = create_test_points(
-        ids.iter().map(|s| s.as_str()).collect(),
-        vectors,
-        None,
-    );
+    let points = create_test_points(ids.iter().map(|s| s.as_str()).collect(), vectors, None);
 
-    let result = ctx.insert_test_vectors(1, "Document", "embedding", points).await;
+    let result = ctx
+        .insert_test_vectors(1, "Document", "embedding", points)
+        .await;
     assert!(result.is_ok(), "Batch insert should succeed");
 
-    let count = ctx.count(1, "Document", "embedding").await.expect("Failed to count");
+    let count = ctx
+        .count(1, "Document", "embedding")
+        .await
+        .expect("Failed to count");
     assert_eq!(count, 10, "Should have 10 vectors");
 }
 
@@ -233,7 +300,14 @@ async fn test_update_vector() {
 
     let new_vector = generate_test_vectors(1, 128, 2).into_iter().next().unwrap();
     let result = ctx
-        .insert_test_vector(1, "Document", "embedding", "doc_1", new_vector.clone(), None)
+        .insert_test_vector(
+            1,
+            "Document",
+            "embedding",
+            "doc_1",
+            new_vector.clone(),
+            None,
+        )
         .await;
 
     assert!(result.is_ok(), "Update should succeed");
@@ -280,11 +354,7 @@ async fn test_batch_delete_vectors() {
 
     let vectors = generate_test_vectors(10, 128, 42);
     let ids: Vec<String> = (0..10).map(|i| format!("doc_{}", i)).collect();
-    let points = create_test_points(
-        ids.iter().map(|s| s.as_str()).collect(),
-        vectors,
-        None,
-    );
+    let points = create_test_points(ids.iter().map(|s| s.as_str()).collect(), vectors, None);
 
     ctx.insert_test_vectors(1, "Document", "embedding", points)
         .await
@@ -292,11 +362,17 @@ async fn test_batch_delete_vectors() {
 
     let collection_name = "space_1_Document_embedding";
     let ids_to_delete: Vec<&str> = ids[0..5].iter().map(|s| s.as_str()).collect();
-    let result = ctx.manager.delete_batch(collection_name, ids_to_delete).await;
+    let result = ctx
+        .manager
+        .delete_batch(collection_name, ids_to_delete)
+        .await;
 
     assert!(result.is_ok(), "Batch delete should succeed");
 
-    let count = ctx.count(1, "Document", "embedding").await.expect("Failed to count");
+    let count = ctx
+        .count(1, "Document", "embedding")
+        .await
+        .expect("Failed to count");
     assert_eq!(count, 5, "Should have 5 vectors remaining");
 }
 
@@ -347,11 +423,7 @@ async fn test_search_with_limit() {
 
     let vectors = generate_test_vectors(100, 128, 42);
     let ids: Vec<String> = (0..100).map(|i| format!("doc_{}", i)).collect();
-    let points = create_test_points(
-        ids.iter().map(|s| s.as_str()).collect(),
-        vectors,
-        None,
-    );
+    let points = create_test_points(ids.iter().map(|s| s.as_str()).collect(), vectors, None);
 
     ctx.insert_test_vectors(1, "Document", "embedding", points)
         .await
@@ -427,11 +499,7 @@ async fn test_search_with_very_high_threshold() {
 
     let vectors = generate_test_vectors(10, 128, 42);
     let ids: Vec<String> = (0..10).map(|i| format!("doc_{}", i)).collect();
-    let points = create_test_points(
-        ids.iter().map(|s| s.as_str()).collect(),
-        vectors,
-        None,
-    );
+    let points = create_test_points(ids.iter().map(|s| s.as_str()).collect(), vectors, None);
 
     ctx.insert_test_vectors(1, "Document", "embedding", points)
         .await

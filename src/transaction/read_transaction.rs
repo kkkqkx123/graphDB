@@ -6,9 +6,9 @@
 
 use std::sync::Arc;
 
+use super::undo_log::UndoTarget;
 use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{LabelId, Timestamp, VertexId};
-use super::undo_log::UndoTarget;
 
 /// Invalid timestamp constant
 pub const INVALID_TIMESTAMP: Timestamp = 0;
@@ -148,7 +148,12 @@ mod tests {
     struct MockReadTarget;
 
     impl ReadTarget for MockReadTarget {
-        fn get_vertex(&self, _label: LabelId, _vid: VertexId, _ts: Timestamp) -> Option<VertexRecord> {
+        fn get_vertex(
+            &self,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
+        ) -> Option<VertexRecord> {
             None
         }
 

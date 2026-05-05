@@ -100,21 +100,23 @@ impl PredicateInfo {
 
     pub fn to_index_limit(&self) -> Option<IndexLimit> {
         match &self.op {
-            PredicateOp::Equal => {
-                self.value.as_ref().map(|v| IndexLimit::equal(&self.column, Self::value_to_string(v)))
-            }
-            PredicateOp::Range => {
-                Some(IndexLimit::range(
-                    &self.column,
-                    self.lower.as_ref().map(Self::value_to_string),
-                    self.upper.as_ref().map(Self::value_to_string),
-                    self.include_lower,
-                    self.include_upper,
-                ))
-            }
+            PredicateOp::Equal => self
+                .value
+                .as_ref()
+                .map(|v| IndexLimit::equal(&self.column, Self::value_to_string(v))),
+            PredicateOp::Range => Some(IndexLimit::range(
+                &self.column,
+                self.lower.as_ref().map(Self::value_to_string),
+                self.upper.as_ref().map(Self::value_to_string),
+                self.include_lower,
+                self.include_upper,
+            )),
             PredicateOp::In => {
                 if self.values.len() == 1 {
-                    Some(IndexLimit::equal(&self.column, Self::value_to_string(&self.values[0])))
+                    Some(IndexLimit::equal(
+                        &self.column,
+                        Self::value_to_string(&self.values[0]),
+                    ))
                 } else {
                     None
                 }
@@ -272,17 +274,15 @@ impl CompositeIndexAnalyzer {
             }
         }
 
-        candidates
-            .into_iter()
-            .min_by(|a, b| {
-                let columns_cmp = a.matched_columns.cmp(&b.matched_columns).reverse();
-                if columns_cmp != std::cmp::Ordering::Equal {
-                    return columns_cmp;
-                }
-                a.selectivity
-                    .partial_cmp(&b.selectivity)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        candidates.into_iter().min_by(|a, b| {
+            let columns_cmp = a.matched_columns.cmp(&b.matched_columns).reverse();
+            if columns_cmp != std::cmp::Ordering::Equal {
+                return columns_cmp;
+            }
+            a.selectivity
+                .partial_cmp(&b.selectivity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     fn evaluate_composite_index(
@@ -320,14 +320,10 @@ impl CompositeIndexAnalyzer {
                             scan_limits.push(limit);
                         }
                         used_predicates.push(remaining_predicates.remove(idx));
-                        match_type = MatchType::PrefixRange {
-                            prefix_columns: i,
-                        };
+                        match_type = MatchType::PrefixRange { prefix_columns: i };
                         break;
                     } else {
-                        match_type = MatchType::Partial {
-                            matched_columns,
-                        };
+                        match_type = MatchType::Partial { matched_columns };
                         break;
                     }
                 }
@@ -413,12 +409,11 @@ impl CompositeIndexAnalyzer {
 
     fn estimate_predicate_selectivity(&self, pred: &PredicateInfo) -> f64 {
         match &pred.op {
-            PredicateOp::Equal => {
-                self.column_stats
-                    .get(&pred.column)
-                    .map(|s| s.selectivity())
-                    .unwrap_or(0.1)
-            }
+            PredicateOp::Equal => self
+                .column_stats
+                .get(&pred.column)
+                .map(|s| s.selectivity())
+                .unwrap_or(0.1),
             PredicateOp::Range => {
                 if pred.lower.is_some() && pred.upper.is_some() {
                     0.1
@@ -452,32 +447,30 @@ fn extract_predicates_recursive(expr: &Expression, predicates: &mut Vec<Predicat
     use crate::core::types::operators::BinaryOperator;
 
     match expr {
-        Expression::Binary { left, op, right } => {
-            match op {
-                BinaryOperator::Equal => {
-                    if let Some(pred) = extract_equality_predicate(left, right) {
-                        predicates.push(pred);
-                    } else if let Some(pred) = extract_equality_predicate(right, left) {
-                        predicates.push(pred);
-                    }
+        Expression::Binary { left, op, right } => match op {
+            BinaryOperator::Equal => {
+                if let Some(pred) = extract_equality_predicate(left, right) {
+                    predicates.push(pred);
+                } else if let Some(pred) = extract_equality_predicate(right, left) {
+                    predicates.push(pred);
                 }
-                BinaryOperator::And => {
-                    extract_predicates_recursive(left, predicates);
-                    extract_predicates_recursive(right, predicates);
-                }
-                BinaryOperator::LessThan
-                | BinaryOperator::LessThanOrEqual
-                | BinaryOperator::GreaterThan
-                | BinaryOperator::GreaterThanOrEqual => {
-                    if let Some(pred) = extract_range_predicate(left, op, right) {
-                        predicates.push(pred);
-                    } else if let Some(pred) = extract_range_predicate(right, op, left) {
-                        predicates.push(pred);
-                    }
-                }
-                _ => {}
             }
-        }
+            BinaryOperator::And => {
+                extract_predicates_recursive(left, predicates);
+                extract_predicates_recursive(right, predicates);
+            }
+            BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual => {
+                if let Some(pred) = extract_range_predicate(left, op, right) {
+                    predicates.push(pred);
+                } else if let Some(pred) = extract_range_predicate(right, op, left) {
+                    predicates.push(pred);
+                }
+            }
+            _ => {}
+        },
         Expression::Unary { .. } => {}
         Expression::Function { name, args } => {
             if name.eq_ignore_ascii_case("in") && args.len() >= 2 {
@@ -520,7 +513,11 @@ fn extract_range_predicate(
     };
 
     Some(PredicateInfo::range(
-        column, lower, upper, include_lower, include_upper,
+        column,
+        lower,
+        upper,
+        include_lower,
+        include_upper,
     ))
 }
 
@@ -617,7 +614,9 @@ mod tests {
             PredicateInfo::equal("age".to_string(), Value::Int(30)),
         ];
 
-        let selection = analyzer.evaluate_composite_index(&predicates, &index).unwrap();
+        let selection = analyzer
+            .evaluate_composite_index(&predicates, &index)
+            .unwrap();
         assert_eq!(selection.matched_columns, 2);
         assert_eq!(selection.match_type, MatchType::Full);
     }
@@ -631,9 +630,14 @@ mod tests {
             PredicateInfo::range("age".to_string(), Some(Value::Int(20)), None, true, false),
         ];
 
-        let selection = analyzer.evaluate_composite_index(&predicates, &index).unwrap();
+        let selection = analyzer
+            .evaluate_composite_index(&predicates, &index)
+            .unwrap();
         assert_eq!(selection.matched_columns, 2);
-        assert!(matches!(selection.match_type, MatchType::PrefixRange { .. }));
+        assert!(matches!(
+            selection.match_type,
+            MatchType::PrefixRange { .. }
+        ));
     }
 
     #[test]
@@ -645,7 +649,9 @@ mod tests {
             PredicateInfo::equal("city".to_string(), Value::String("NYC".to_string())),
         ];
 
-        let selection = analyzer.evaluate_composite_index(&predicates, &index).unwrap();
+        let selection = analyzer
+            .evaluate_composite_index(&predicates, &index)
+            .unwrap();
         assert_eq!(selection.matched_columns, 1);
         assert!(matches!(selection.match_type, MatchType::PrefixGap { .. }));
     }

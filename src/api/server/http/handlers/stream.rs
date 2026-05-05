@@ -149,7 +149,9 @@ fn execution_result_to_stream_data(
                 .collect();
             (rows, columns)
         }
-        ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => (vec![], vec![]),
+        ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
+            (vec![], vec![])
+        }
         ExecutionResult::Error(msg) => (vec![json!({"error": msg})], vec!["error".to_string()]),
     }
 }

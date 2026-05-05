@@ -87,10 +87,7 @@ impl MmapContainer {
             return Err(ContainerError::FileNotFound(path.display().to_string()));
         }
 
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&path)?;
+        let file = OpenOptions::new().read(true).write(true).open(&path)?;
 
         let metadata = file.metadata()?;
         let file_size = metadata.len() as usize;
@@ -101,8 +98,9 @@ impl MmapContainer {
         };
 
         let (size, capacity) = if file_size >= FileHeader::SIZE {
-            let header = FileHeader::from_bytes(&mmap[..FileHeader::SIZE])
-                .ok_or_else(|| ContainerError::InvalidOperation("Invalid file header".to_string()))?;
+            let header = FileHeader::from_bytes(&mmap[..FileHeader::SIZE]).ok_or_else(|| {
+                ContainerError::InvalidOperation("Invalid file header".to_string())
+            })?;
             (header.data_size as usize, file_size)
         } else {
             (0, file_size)
@@ -295,8 +293,8 @@ impl IDataContainer for MmapContainer {
             return Ok(());
         }
 
-        let growth_capacity = ((self.capacity as f64 * self.config.growth_factor) as usize)
-            .max(new_capacity);
+        let growth_capacity =
+            ((self.capacity as f64 * self.config.growth_factor) as usize).max(new_capacity);
 
         if self.config.max_capacity > 0 && growth_capacity > self.config.max_capacity {
             return Err(ContainerError::InvalidSize(

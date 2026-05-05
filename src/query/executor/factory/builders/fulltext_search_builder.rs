@@ -69,7 +69,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Create(executor)))
+        Ok(ExecutorEnum::FulltextManage(
+            FulltextManageExecutor::Create(executor),
+        ))
     }
 
     /// Build DropFulltextIndex executor
@@ -94,7 +96,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Drop(executor)))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Drop(
+            executor,
+        )))
     }
 
     /// Build AlterFulltextIndex executor
@@ -116,7 +120,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Alter(executor)))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Alter(
+            executor,
+        )))
     }
 
     /// Build ShowFulltextIndex executor
@@ -136,7 +142,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Show(executor)))
+        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Show(
+            executor,
+        )))
     }
 
     /// Build DescribeFulltextIndex executor
@@ -160,7 +168,9 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             context.expression_context().clone(),
             fulltext_manager,
         );
-        Ok(ExecutorEnum::FulltextManage(FulltextManageExecutor::Describe(executor)))
+        Ok(ExecutorEnum::FulltextManage(
+            FulltextManageExecutor::Describe(executor),
+        ))
     }
 
     /// Build FulltextSearch executor

@@ -393,7 +393,9 @@ mod complex_statements {
             .exec_ddl("CREATE TAG person(age INT)")
             .exec_dml("INSERT VERTEX person(age) VALUES 1:(20), 2:(30), 3:(40)")
             .assert_success()
-            .query("MATCH (n:person) RETURN count(n), sum(n.age), avg(n.age), max(n.age), min(n.age)")
+            .query(
+                "MATCH (n:person) RETURN count(n), sum(n.age), avg(n.age), max(n.age), min(n.age)",
+            )
             .assert_success();
     }
 

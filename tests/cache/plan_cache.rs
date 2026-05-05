@@ -1,6 +1,6 @@
 //! Plan Cache Tests
 
-use graphdb::query::cache::{PlanCacheKey, QueryPlanCache, PlanCacheConfig};
+use graphdb::query::cache::{PlanCacheConfig, PlanCacheKey, QueryPlanCache};
 
 #[test]
 fn test_plan_cache_key_creation() {

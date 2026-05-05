@@ -11,10 +11,10 @@
 //! - concurrent: Concurrency and thread safety
 
 pub mod basic;
+pub mod concurrent;
 pub mod config;
-pub mod stats;
-pub mod plan_cache;
 pub mod cte_cache;
 pub mod invalidation;
+pub mod plan_cache;
+pub mod stats;
 pub mod warmup;
-pub mod concurrent;

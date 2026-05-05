@@ -16,9 +16,7 @@ use super::common;
 
 use common::test_scenario::TestScenario;
 use graphdb::core::Value;
-use graphdb::transaction::{
-    TransactionManager, TransactionManagerConfig, TransactionOptions,
-};
+use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -263,18 +261,12 @@ fn test_storage_large_batch_insert() {
             let id = batch * 5 + i + 1;
             values.push(format!("{}:({}, 'Item{}')", id, id, id));
         }
-        let query = format!(
-            "INSERT VERTEX Item(id, name) VALUES {}",
-            values.join(", ")
-        );
+        let query = format!("INSERT VERTEX Item(id, name) VALUES {}", values.join(", "));
 
-        scenario = scenario
-            .exec_dml(&query)
-            .assert_success();
+        scenario = scenario.exec_dml(&query).assert_success();
     }
 
-    scenario
-        .assert_vertex_count("Item", 15);
+    scenario.assert_vertex_count("Item", 15);
 }
 
 /// Test transaction with complex graph pattern persistence
@@ -395,18 +387,10 @@ fn test_storage_update_and_query() {
         .assert_success()
         .exec_dml("UPDATE 1 SET value = 10")
         .assert_success()
-        .assert_vertex_props(
-            1,
-            "Counter",
-            HashMap::from([("value", Value::Int(10))]),
-        )
+        .assert_vertex_props(1, "Counter", HashMap::from([("value", Value::Int(10))]))
         .exec_dml("UPDATE 1 SET value = 20")
         .assert_success()
-        .assert_vertex_props(
-            1,
-            "Counter",
-            HashMap::from([("value", Value::Int(20))]),
-        );
+        .assert_vertex_props(1, "Counter", HashMap::from([("value", Value::Int(20))]));
 }
 
 /// Test transaction with concurrent read operations

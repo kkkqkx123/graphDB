@@ -99,7 +99,7 @@ impl QueryContextBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{DataType, MetadataVersion, IsolationLevel};
+    use crate::core::types::{DataType, IsolationLevel, MetadataVersion};
     use std::collections::HashMap;
 
     #[test]

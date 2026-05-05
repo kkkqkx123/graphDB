@@ -39,11 +39,7 @@ pub enum MultiLabelStrategy {
 }
 
 impl MultiLabelStrategy {
-    pub fn estimate_cost(
-        &self,
-        cost_model: &CostModelConfig,
-        total_vertices: usize,
-    ) -> f64 {
+    pub fn estimate_cost(&self, cost_model: &CostModelConfig, total_vertices: usize) -> f64 {
         match self {
             Self::CompositeIndex {
                 index,
@@ -62,7 +58,8 @@ impl MultiLabelStrategy {
             } => {
                 let base_cost = cost_model.random_page_cost
                     * (total_vertices as f64 * index.selectivity as f64)
-                    + cost_model.cpu_index_tuple_cost * total_vertices as f64
+                    + cost_model.cpu_index_tuple_cost
+                        * total_vertices as f64
                         * index.selectivity as f64;
                 let filter_cost = cost_model.cpu_tuple_cost
                     * filter_labels.len() as f64
@@ -76,7 +73,8 @@ impl MultiLabelStrategy {
                     .map(|idx| {
                         cost_model.random_page_cost
                             * (total_vertices as f64 * idx.selectivity as f64)
-                            + cost_model.cpu_index_tuple_cost * total_vertices as f64
+                            + cost_model.cpu_index_tuple_cost
+                                * total_vertices as f64
                                 * idx.selectivity as f64
                     })
                     .sum();
@@ -373,8 +371,7 @@ impl IndexRegistry {
     }
 
     pub fn register_property(&mut self, label: String, property: String, index: IndexInfo) {
-        self.property_indexes
-            .insert((label, property), index);
+        self.property_indexes.insert((label, property), index);
     }
 
     pub fn get_index_for_label(&self, label: &str) -> Option<IndexInfo> {
@@ -437,11 +434,7 @@ mod tests {
         .with_selectivity(selectivity)
     }
 
-    fn create_composite_index(
-        name: &str,
-        targets: Vec<String>,
-        selectivity: f32,
-    ) -> IndexInfo {
+    fn create_composite_index(name: &str, targets: Vec<String>, selectivity: f32) -> IndexInfo {
         IndexInfo::new(
             name.to_string(),
             "tag".to_string(),
@@ -458,9 +451,7 @@ mod tests {
         let indexes = vec![create_test_index("person_idx", "Person", 0.1)];
         let labels = vec!["Person".to_string()];
 
-        let strategy = selector
-            .select_strategy(&labels, &indexes, &[])
-            .unwrap();
+        let strategy = selector.select_strategy(&labels, &indexes, &[]).unwrap();
 
         assert!(matches!(
             strategy,
@@ -478,9 +469,7 @@ mod tests {
         )];
         let labels = vec!["Person".to_string(), "Employee".to_string()];
 
-        let strategy = selector
-            .select_strategy(&labels, &indexes, &[])
-            .unwrap();
+        let strategy = selector.select_strategy(&labels, &indexes, &[]).unwrap();
 
         assert!(matches!(
             strategy,
@@ -493,9 +482,7 @@ mod tests {
         let selector = MultiLabelIndexSelector::new();
         let labels = vec!["UnknownLabel".to_string()];
 
-        let strategy = selector
-            .select_strategy(&labels, &[], &[])
-            .unwrap();
+        let strategy = selector.select_strategy(&labels, &[], &[]).unwrap();
 
         assert!(matches!(
             strategy,

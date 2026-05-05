@@ -33,7 +33,10 @@ impl TransactionTestContext {
         ));
         let sync_manager = Arc::new(SyncManager::new(coordinator.clone()));
 
-        sync_manager.start().await.expect("Failed to start sync manager");
+        sync_manager
+            .start()
+            .await
+            .expect("Failed to start sync manager");
 
         Self {
             coordinator,
@@ -311,7 +314,10 @@ async fn test_concurrent_transactions() {
         .await
         .expect("Rollback txn2 should succeed");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
 
     let results = ctx
         .fulltext_ctx
@@ -319,7 +325,11 @@ async fn test_concurrent_transactions() {
         .await
         .expect("Search should succeed");
 
-    assert_eq!(results.len(), 3, "Should find 3 documents from committed txn1");
+    assert_eq!(
+        results.len(),
+        3,
+        "Should find 3 documents from committed txn1"
+    );
 }
 
 /// TC-FT-TXN-007: Transaction with Update Operations
@@ -351,7 +361,10 @@ async fn test_transaction_update_operations() {
         .await
         .expect("Commit should succeed");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
 
     let txn_id = generate_txn_id(7);
 
@@ -384,7 +397,10 @@ async fn test_transaction_update_operations() {
         .await
         .expect("Commit should succeed");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
 
     let old_results = ctx
         .fulltext_ctx
@@ -432,7 +448,10 @@ async fn test_transaction_mixed_change_types() {
         .await
         .expect("Commit should succeed");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
 
     let txn_id = generate_txn_id(8);
 
@@ -477,7 +496,10 @@ async fn test_transaction_mixed_change_types() {
         .await
         .expect("Commit should succeed");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
 
     let all_results = ctx
         .fulltext_ctx
@@ -522,7 +544,10 @@ async fn test_transaction_with_inversearch() {
         .await
         .expect("Commit should succeed");
 
-    ctx.coordinator.commit_all().await.expect("Failed to commit");
+    ctx.coordinator
+        .commit_all()
+        .await
+        .expect("Failed to commit");
 
     let results = ctx
         .fulltext_ctx
@@ -546,7 +571,10 @@ async fn test_empty_transaction_commit() {
     let txn_id = generate_txn_id(10);
 
     let prepare_result = ctx.coordinator.prepare_transaction(txn_id).await;
-    assert!(prepare_result.is_ok(), "Prepare empty transaction should succeed");
+    assert!(
+        prepare_result.is_ok(),
+        "Prepare empty transaction should succeed"
+    );
 
     let commit_result = ctx.coordinator.commit_transaction(txn_id).await;
     assert!(

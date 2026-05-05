@@ -577,7 +577,15 @@ impl Value {
                 let minute = u32::from_le_bytes(data[5..9].try_into().ok()?);
                 let sec = u32::from_le_bytes(data[9..13].try_into().ok()?);
                 let microsec = u32::from_le_bytes(data[13..17].try_into().ok()?);
-                Some((Value::Time(TimeValue { hour, minute, sec, microsec }), 17))
+                Some((
+                    Value::Time(TimeValue {
+                        hour,
+                        minute,
+                        sec,
+                        microsec,
+                    }),
+                    17,
+                ))
             }
             12 => {
                 if data.len() < 29 {
@@ -590,7 +598,18 @@ impl Value {
                 let minute = u32::from_le_bytes(data[17..21].try_into().ok()?);
                 let sec = u32::from_le_bytes(data[21..25].try_into().ok()?);
                 let microsec = u32::from_le_bytes(data[25..29].try_into().ok()?);
-                Some((Value::DateTime(DateTimeValue { year, month, day, hour, minute, sec, microsec }), 29))
+                Some((
+                    Value::DateTime(DateTimeValue {
+                        year,
+                        month,
+                        day,
+                        hour,
+                        minute,
+                        sec,
+                        microsec,
+                    }),
+                    29,
+                ))
             }
             _ => None,
         }

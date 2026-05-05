@@ -100,8 +100,14 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
             QueryData::new(
                 vec!["space_name".to_string(), "space_id".to_string()],
                 vec![std::collections::HashMap::from([
-                    ("space_name".to_string(), serde_json::Value::String(summary.name.clone())),
-                    ("space_id".to_string(), serde_json::Value::Number(summary.id.into())),
+                    (
+                        "space_name".to_string(),
+                        serde_json::Value::String(summary.name.clone()),
+                    ),
+                    (
+                        "space_id".to_string(),
+                        serde_json::Value::Number(summary.id.into()),
+                    ),
                 ])],
             ),
             QueryMetadata {
@@ -111,11 +117,9 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
                 space_id: Some(summary.id),
             },
         ),
-        ExecutionResult::Error(msg) => QueryResponse::error(
-            "EXECUTION_ERROR".to_string(),
-            msg,
-            None,
-        ),
+        ExecutionResult::Error(msg) => {
+            QueryResponse::error("EXECUTION_ERROR".to_string(), msg, None)
+        }
     }
 }
 

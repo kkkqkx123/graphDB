@@ -3,8 +3,8 @@
 //! Re-exports common test utilities from the parent directory.
 
 use graphdb::core::value::geography::{
-    Geography, GeographyValue, LineStringValue, PolygonValue, MultiPointValue,
-    MultiLineStringValue, MultiPolygonValue,
+    Geography, GeographyValue, LineStringValue, MultiLineStringValue, MultiPointValue,
+    MultiPolygonValue, PolygonValue,
 };
 use std::collections::HashMap;
 
@@ -90,7 +90,9 @@ pub fn create_test_multilinestring(linestrings: Vec<Vec<(f64, f64)>>) -> Geograp
 }
 
 /// Create test multipolygon from multiple polygons
-pub fn create_test_multipolygon(polygons: Vec<(Vec<(f64, f64)>, Vec<Vec<(f64, f64)>>)>) -> Geography {
+pub fn create_test_multipolygon(
+    polygons: Vec<(Vec<(f64, f64)>, Vec<Vec<(f64, f64)>>)>,
+) -> Geography {
     let geo_polygons: Vec<PolygonValue> = polygons
         .into_iter()
         .map(|(exterior, holes)| {
@@ -154,22 +156,10 @@ pub fn assert_distance_within(actual: f64, expected: f64, tolerance: f64) {
 pub fn get_standard_test_geometries() -> HashMap<String, Geography> {
     let mut geometries = HashMap::new();
 
-    geometries.insert(
-        "beijing".to_string(),
-        create_test_point(116.4074, 39.9042),
-    );
-    geometries.insert(
-        "shanghai".to_string(),
-        create_test_point(121.4737, 31.2304),
-    );
-    geometries.insert(
-        "newyork".to_string(),
-        create_test_point(-74.0060, 40.7128),
-    );
-    geometries.insert(
-        "origin".to_string(),
-        create_test_point(0.0, 0.0),
-    );
+    geometries.insert("beijing".to_string(), create_test_point(116.4074, 39.9042));
+    geometries.insert("shanghai".to_string(), create_test_point(121.4737, 31.2304));
+    geometries.insert("newyork".to_string(), create_test_point(-74.0060, 40.7128));
+    geometries.insert("origin".to_string(), create_test_point(0.0, 0.0));
 
     geometries.insert(
         "simple_line".to_string(),
@@ -179,13 +169,7 @@ pub fn get_standard_test_geometries() -> HashMap<String, Geography> {
     geometries.insert(
         "unit_square".to_string(),
         create_test_polygon(
-            vec![
-                (0.0, 0.0),
-                (0.0, 1.0),
-                (1.0, 1.0),
-                (1.0, 0.0),
-                (0.0, 0.0),
-            ],
+            vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
             vec![],
         ),
     );
@@ -193,13 +177,7 @@ pub fn get_standard_test_geometries() -> HashMap<String, Geography> {
     geometries.insert(
         "square_with_hole".to_string(),
         create_test_polygon(
-            vec![
-                (0.0, 0.0),
-                (0.0, 3.0),
-                (3.0, 3.0),
-                (3.0, 0.0),
-                (0.0, 0.0),
-            ],
+            vec![(0.0, 0.0), (0.0, 3.0), (3.0, 3.0), (3.0, 0.0), (0.0, 0.0)],
             vec![vec![
                 (1.0, 1.0),
                 (1.0, 2.0),
@@ -227,23 +205,11 @@ pub fn get_standard_test_geometries() -> HashMap<String, Geography> {
         "multi_polygons".to_string(),
         create_test_multipolygon(vec![
             (
-                vec![
-                    (0.0, 0.0),
-                    (0.0, 1.0),
-                    (1.0, 1.0),
-                    (1.0, 0.0),
-                    (0.0, 0.0),
-                ],
+                vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
                 vec![],
             ),
             (
-                vec![
-                    (2.0, 2.0),
-                    (2.0, 3.0),
-                    (3.0, 3.0),
-                    (3.0, 2.0),
-                    (2.0, 2.0),
-                ],
+                vec![(2.0, 2.0), (2.0, 3.0), (3.0, 3.0), (3.0, 2.0), (2.0, 2.0)],
                 vec![],
             ),
         ]),
@@ -281,9 +247,14 @@ pub fn get_edge_case_geometries() -> HashMap<String, Geography> {
 
 /// Create a circular polygon (approximation)
 #[allow(dead_code)]
-pub fn create_circular_polygon(center_lon: f64, center_lat: f64, radius_deg: f64, num_points: usize) -> Geography {
+pub fn create_circular_polygon(
+    center_lon: f64,
+    center_lat: f64,
+    radius_deg: f64,
+    num_points: usize,
+) -> Geography {
     let mut points = Vec::with_capacity(num_points + 1);
-    
+
     for i in 0..num_points {
         let angle = 2.0 * std::f64::consts::PI * i as f64 / num_points as f64;
         let lon = center_lon + radius_deg * angle.cos();

@@ -4,10 +4,9 @@ pub mod rollback;
 pub use rollback::{OperationLogContext, OperationLogRollback, RollbackExecutor};
 
 pub use rollback::{
-    UndoLogContext, UndoLogRollback, CombinedRollback, RollbackHelper,
-    CreateVertexTypeUndo, CreateEdgeTypeUndo, InsertVertexUndo, InsertEdgeUndo,
-    UpdateVertexPropUndo, UpdateEdgePropUndo, RemoveVertexUndo, RemoveEdgeUndo,
-    AddVertexPropUndo, AddEdgePropUndo, DeleteVertexPropUndo, DeleteEdgePropUndo,
-    DeleteVertexTypeUndo, DeleteEdgeTypeUndo, RenameVertexPropUndo, RenameEdgePropUndo,
-    PropertyValue, RelatedEdgeInfo,
+    AddEdgePropUndo, AddVertexPropUndo, CombinedRollback, CreateEdgeTypeUndo, CreateVertexTypeUndo,
+    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
+    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
+    RemoveVertexUndo, RenameEdgePropUndo, RenameVertexPropUndo, RollbackHelper, UndoLogContext,
+    UndoLogRollback, UpdateEdgePropUndo, UpdateVertexPropUndo,
 };

@@ -249,7 +249,9 @@ impl BlockCache {
     /// Create a new block cache with specified configuration
     pub fn with_config(config: CacheConfig) -> Self {
         let shard_count = config.shard_count;
-        let shards = (0..shard_count).map(|_| Mutex::new(CacheShard::new())).collect();
+        let shards = (0..shard_count)
+            .map(|_| Mutex::new(CacheShard::new()))
+            .collect();
 
         Self {
             shards,
@@ -368,7 +370,11 @@ impl BlockCache {
         CacheStats {
             hits,
             misses,
-            hit_rate: if total > 0 { hits as f64 / total as f64 } else { 0.0 },
+            hit_rate: if total > 0 {
+                hits as f64 / total as f64
+            } else {
+                0.0
+            },
             evictions: self.evictions.load(Ordering::Relaxed),
             memory_usage: self.memory_usage.load(Ordering::Relaxed),
             max_memory: self.config.max_memory,
@@ -378,10 +384,7 @@ impl BlockCache {
 
     /// Get total entry count
     fn entry_count(&self) -> usize {
-        self.shards
-            .iter()
-            .map(|s| s.lock().entries.len())
-            .sum()
+        self.shards.iter().map(|s| s.lock().entries.len()).sum()
     }
 
     /// Get memory utilization (0.0 - 1.0)
@@ -483,7 +486,9 @@ impl std::fmt::Display for CacheStats {
         writeln!(
             f,
             "  Hits: {}, Misses: {}, Hit Rate: {:.1}%",
-            self.hits, self.misses, self.hit_rate * 100.0
+            self.hits,
+            self.misses,
+            self.hit_rate * 100.0
         )?;
         writeln!(f, "  Evictions: {}", self.evictions)?;
         write!(f, "  Entries: {}", self.entry_count)

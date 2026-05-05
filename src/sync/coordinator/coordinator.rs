@@ -15,7 +15,7 @@ use crate::sync::external_index::{
     FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient, VectorClientConfig,
 };
 use crate::sync::metrics::SyncMetrics;
-use crate::sync::retry::{with_retry, default_local_retry_config, default_remote_retry_config};
+use crate::sync::retry::{default_local_retry_config, default_remote_retry_config, with_retry};
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
 type VectorProcessor = GenericBatchProcessor<VectorClient>;
@@ -109,7 +109,10 @@ impl SyncCoordinator {
             engine,
         ));
 
-        let processor = Arc::new(GenericBatchProcessor::new(fulltext_client, self.config.clone()));
+        let processor = Arc::new(GenericBatchProcessor::new(
+            fulltext_client,
+            self.config.clone(),
+        ));
 
         self.fulltext_processors
             .insert(key.clone(), processor.clone());
@@ -142,7 +145,10 @@ impl SyncCoordinator {
             .with_dead_letter_queue(self.dead_letter_queue.clone()),
         );
 
-        let processor = Arc::new(GenericBatchProcessor::new(vector_client, self.config.clone()));
+        let processor = Arc::new(GenericBatchProcessor::new(
+            vector_client,
+            self.config.clone(),
+        ));
 
         self.vector_processors
             .insert(key.clone(), processor.clone());

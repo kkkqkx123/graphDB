@@ -8,9 +8,9 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use std::collections::HashMap;
-use graphdb::core::Value;
 
 // ==================== CREATE TAG Parser Tests ====================
 
@@ -382,7 +382,9 @@ fn test_create_tag_geography_with_data() {
         .exec_ddl("CREATE TAG City(name: STRING, center: GEOGRAPHY)")
         .assert_success()
         .assert_tag_exists("City")
-        .exec_dml("INSERT VERTEX City(name, center) VALUES 1:(\"Beijing\", ST_Point(116.4074, 39.9042))")
+        .exec_dml(
+            "INSERT VERTEX City(name, center) VALUES 1:(\"Beijing\", ST_Point(116.4074, 39.9042))",
+        )
         .assert_success()
         .assert_vertex_exists(1, "City");
 }
@@ -426,7 +428,8 @@ fn test_create_tag_parser_vector_identifier() {
 /// TC-VEC-TYPE-003: Parse CREATE TAG with multiple VECTOR fields
 #[test]
 fn test_create_tag_parser_multiple_vector_fields() {
-    let query = "CREATE TAG MultiVector(id: STRING, title_emb: VECTOR(128), content_emb: VECTOR(256))";
+    let query =
+        "CREATE TAG MultiVector(id: STRING, title_emb: VECTOR(128), content_emb: VECTOR(256))";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();

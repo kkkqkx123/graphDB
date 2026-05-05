@@ -158,9 +158,11 @@ impl ReturnValidator {
                 if let (Some(ref schema_validator), Some(ref space_name)) =
                     (&self.schema_validator, &self.space_name)
                 {
-                    if let Err(e) =
-                        schema_validator.validate_expression_properties(expr, space_name, &self.available_vars)
-                    {
+                    if let Err(e) = schema_validator.validate_expression_properties(
+                        expr,
+                        space_name,
+                        &self.available_vars,
+                    ) {
                         return Err(ValidationError::new(
                             e.message,
                             ValidationErrorType::SemanticError,

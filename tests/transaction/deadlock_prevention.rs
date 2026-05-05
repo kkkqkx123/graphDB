@@ -3,9 +3,7 @@
 //! These tests specifically verify the fix for the deadlock issue caused by
 //! calling block_on inside spawn_blocking contexts when handling transactions.
 
-use graphdb::transaction::{
-    TransactionManager, TransactionManagerConfig, TransactionOptions,
-};
+use graphdb::transaction::{TransactionManager, TransactionManagerConfig, TransactionOptions};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
@@ -189,8 +187,12 @@ fn test_savepoint_creation_no_deadlock() {
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    let sp1 = manager.create_savepoint(txn_id, Some("sp1".to_string())).expect("Failed to create savepoint 1");
-    let sp2 = manager.create_savepoint(txn_id, Some("sp2".to_string())).expect("Failed to create savepoint 2");
+    let sp1 = manager
+        .create_savepoint(txn_id, Some("sp1".to_string()))
+        .expect("Failed to create savepoint 1");
+    let sp2 = manager
+        .create_savepoint(txn_id, Some("sp2".to_string()))
+        .expect("Failed to create savepoint 2");
 
     assert_ne!(sp1, sp2);
 
@@ -248,11 +250,19 @@ fn test_multiple_savepoints_with_release() {
         .begin_transaction(TransactionOptions::default())
         .expect("Failed to begin transaction");
 
-    let sp1 = manager.create_savepoint(txn_id, Some("sp1".to_string())).expect("Failed to create savepoint 1");
-    let sp2 = manager.create_savepoint(txn_id, Some("sp2".to_string())).expect("Failed to create savepoint 2");
+    let sp1 = manager
+        .create_savepoint(txn_id, Some("sp1".to_string()))
+        .expect("Failed to create savepoint 1");
+    let sp2 = manager
+        .create_savepoint(txn_id, Some("sp2".to_string()))
+        .expect("Failed to create savepoint 2");
 
-    manager.release_savepoint(txn_id, sp1).expect("Failed to release savepoint 1");
-    manager.release_savepoint(txn_id, sp2).expect("Failed to release savepoint 2");
+    manager
+        .release_savepoint(txn_id, sp1)
+        .expect("Failed to release savepoint 1");
+    manager
+        .release_savepoint(txn_id, sp2)
+        .expect("Failed to release savepoint 2");
 
     manager
         .commit_transaction(txn_id)

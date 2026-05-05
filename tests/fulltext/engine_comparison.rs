@@ -9,10 +9,7 @@
 //!
 //! Test cases: TC-FT-COMP-001 ~ TC-FT-COMP-008
 
-use super::common::{
-    assert_search_result_contains, compare_search_results,
-    FulltextTestContext,
-};
+use super::common::{assert_search_result_contains, compare_search_results, FulltextTestContext};
 use graphdb::search::EngineType;
 
 /// TC-FT-COMP-001: Compare Basic Search Results Between Engines
@@ -174,10 +171,8 @@ async fn test_compare_multi_term_search() {
     assert!(!inv_results.is_empty(), "Inversearch should find results");
 
     // Both should find doc_1 and doc_3 (contain rust and/or tutorial)
-    assert_search_result_contains(&bm25_results, "doc_1")
-        .expect("BM25 should find doc_1");
-    assert_search_result_contains(&inv_results, "doc_1")
-        .expect("Inversearch should find doc_1");
+    assert_search_result_contains(&bm25_results, "doc_1").expect("BM25 should find doc_1");
+    assert_search_result_contains(&inv_results, "doc_1").expect("Inversearch should find doc_1");
 }
 
 /// TC-FT-COMP-004: Compare Empty Results Handling
@@ -254,10 +249,16 @@ async fn test_compare_document_update() {
 
     // Update - delete and re-insert
     if let Some(engine) = ctx.manager.get_engine(1, "Article", "content_bm25") {
-        engine.delete("doc_1").await.expect("Failed to delete from BM25");
+        engine
+            .delete("doc_1")
+            .await
+            .expect("Failed to delete from BM25");
     }
     if let Some(engine) = ctx.manager.get_engine(1, "Article", "content_inv") {
-        engine.delete("doc_1").await.expect("Failed to delete from Inversearch");
+        engine
+            .delete("doc_1")
+            .await
+            .expect("Failed to delete from Inversearch");
     }
 
     ctx.insert_test_doc(1, "Article", "content_bm25", "doc_1", "updated content")
@@ -341,9 +342,15 @@ async fn test_mixed_engines_same_space() {
     ctx.insert_test_doc(1, "Article", "content", "doc_1", "Learn Rust from scratch")
         .await
         .expect("Failed to insert content");
-    ctx.insert_test_doc(1, "Article", "summary", "doc_1", "A comprehensive Rust tutorial")
-        .await
-        .expect("Failed to insert summary");
+    ctx.insert_test_doc(
+        1,
+        "Article",
+        "summary",
+        "doc_1",
+        "A comprehensive Rust tutorial",
+    )
+    .await
+    .expect("Failed to insert summary");
 
     ctx.commit_all().await.expect("Failed to commit");
 
@@ -409,11 +416,7 @@ async fn test_compare_search_limit() {
         .expect("Inversearch search should succeed");
 
     // Both should respect the limit
-    assert_eq!(
-        bm25_results.len(),
-        10,
-        "BM25 should respect limit of 10"
-    );
+    assert_eq!(bm25_results.len(), 10, "BM25 should respect limit of 10");
     assert_eq!(
         inv_results.len(),
         10,

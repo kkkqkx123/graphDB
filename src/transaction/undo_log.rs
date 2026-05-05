@@ -59,17 +59,81 @@ pub trait UndoLog: Send + Sync {
 /// Target for undo operations (will be PropertyGraph in phase 2)
 pub trait UndoTarget: Send + Sync {
     fn delete_vertex_type(&mut self, label: LabelId) -> UndoLogResult<()>;
-    fn delete_edge_type(&mut self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) -> UndoLogResult<()>;
+    fn delete_edge_type(
+        &mut self,
+        src_label: LabelId,
+        dst_label: LabelId,
+        edge_label: LabelId,
+    ) -> UndoLogResult<()>;
     fn delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UndoLogResult<()>;
-    fn delete_edge(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, ts: Timestamp) -> UndoLogResult<()>;
-    fn undo_update_vertex_property(&mut self, label: LabelId, vid: VertexId, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()>;
-    fn undo_update_edge_property(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()>;
-    fn revert_delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UndoLogResult<()>;
-    fn revert_delete_edge(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, ts: Timestamp) -> UndoLogResult<()>;
-    fn revert_delete_vertex_properties(&mut self, label_name: &str, prop_names: &[String]) -> UndoLogResult<()>;
-    fn revert_delete_edge_properties(&mut self, src_label: &str, dst_label: &str, edge_label: &str, prop_names: &[String]) -> UndoLogResult<()>;
+    fn delete_edge(
+        &mut self,
+        src_label: LabelId,
+        src_vid: VertexId,
+        dst_label: LabelId,
+        dst_vid: VertexId,
+        edge_label: LabelId,
+        oe_offset: i32,
+        ie_offset: i32,
+        ts: Timestamp,
+    ) -> UndoLogResult<()>;
+    fn undo_update_vertex_property(
+        &mut self,
+        label: LabelId,
+        vid: VertexId,
+        col_id: ColumnId,
+        value: PropertyValue,
+        ts: Timestamp,
+    ) -> UndoLogResult<()>;
+    fn undo_update_edge_property(
+        &mut self,
+        src_label: LabelId,
+        src_vid: VertexId,
+        dst_label: LabelId,
+        dst_vid: VertexId,
+        edge_label: LabelId,
+        oe_offset: i32,
+        ie_offset: i32,
+        col_id: ColumnId,
+        value: PropertyValue,
+        ts: Timestamp,
+    ) -> UndoLogResult<()>;
+    fn revert_delete_vertex(
+        &mut self,
+        label: LabelId,
+        vid: VertexId,
+        ts: Timestamp,
+    ) -> UndoLogResult<()>;
+    fn revert_delete_edge(
+        &mut self,
+        src_label: LabelId,
+        src_vid: VertexId,
+        dst_label: LabelId,
+        dst_vid: VertexId,
+        edge_label: LabelId,
+        oe_offset: i32,
+        ie_offset: i32,
+        ts: Timestamp,
+    ) -> UndoLogResult<()>;
+    fn revert_delete_vertex_properties(
+        &mut self,
+        label_name: &str,
+        prop_names: &[String],
+    ) -> UndoLogResult<()>;
+    fn revert_delete_edge_properties(
+        &mut self,
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+        prop_names: &[String],
+    ) -> UndoLogResult<()>;
     fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()>;
-    fn revert_delete_edge_label(&mut self, src_label: &str, dst_label: &str, edge_label: &str) -> UndoLogResult<()>;
+    fn revert_delete_edge_label(
+        &mut self,
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+    ) -> UndoLogResult<()>;
 }
 
 /// Undo log for create vertex type operation
@@ -171,7 +235,13 @@ pub struct UpdateVertexPropUndo {
 
 impl UndoLog for UpdateVertexPropUndo {
     fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
-        graph.undo_update_vertex_property(self.v_label, self.vid, self.col_id, self.old_value.clone(), ts)
+        graph.undo_update_vertex_property(
+            self.v_label,
+            self.vid,
+            self.col_id,
+            self.old_value.clone(),
+            ts,
+        )
     }
 
     fn description(&self) -> String {
@@ -369,7 +439,13 @@ impl UndoLog for RenameVertexPropUndo {
             .iter()
             .map(|(old, new)| (new.clone(), old.clone()))
             .collect();
-        graph.revert_delete_vertex_properties(&self.label_name, &new_names_to_old_names.iter().map(|(_, old)| old.clone()).collect::<Vec<_>>())
+        graph.revert_delete_vertex_properties(
+            &self.label_name,
+            &new_names_to_old_names
+                .iter()
+                .map(|(_, old)| old.clone())
+                .collect::<Vec<_>>(),
+        )
     }
 
     fn description(&self) -> String {
@@ -403,7 +479,10 @@ impl UndoLog for RenameEdgePropUndo {
             &self.src_label_name,
             &self.dst_label_name,
             &self.edge_label_name,
-            &new_names_to_old_names.iter().map(|(_, old)| old.clone()).collect::<Vec<_>>(),
+            &new_names_to_old_names
+                .iter()
+                .map(|(_, old)| old.clone())
+                .collect::<Vec<_>>(),
         )
     }
 
@@ -518,7 +597,10 @@ impl UndoLogManager {
     }
 
     pub fn add_insert_vertex(&mut self, label: LabelId, vid: VertexId) {
-        self.add(Box::new(InsertVertexUndo { v_label: label, vid }));
+        self.add(Box::new(InsertVertexUndo {
+            v_label: label,
+            vid,
+        }));
     }
 
     pub fn add_insert_edge(
@@ -623,39 +705,103 @@ mod tests {
             Ok(())
         }
 
-        fn delete_edge_type(&mut self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) -> UndoLogResult<()> {
+        fn delete_edge_type(
+            &mut self,
+            src_label: LabelId,
+            dst_label: LabelId,
+            edge_label: LabelId,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UndoLogResult<()> {
+        fn delete_vertex(
+            &mut self,
+            label: LabelId,
+            vid: VertexId,
+            ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_edge(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, ts: Timestamp) -> UndoLogResult<()> {
+        fn delete_edge(
+            &mut self,
+            src_label: LabelId,
+            src_vid: VertexId,
+            dst_label: LabelId,
+            dst_vid: VertexId,
+            edge_label: LabelId,
+            oe_offset: i32,
+            ie_offset: i32,
+            ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn undo_update_vertex_property(&mut self, label: LabelId, vid: VertexId, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()> {
+        fn undo_update_vertex_property(
+            &mut self,
+            label: LabelId,
+            vid: VertexId,
+            col_id: ColumnId,
+            value: PropertyValue,
+            ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn undo_update_edge_property(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, col_id: ColumnId, value: PropertyValue, ts: Timestamp) -> UndoLogResult<()> {
+        fn undo_update_edge_property(
+            &mut self,
+            src_label: LabelId,
+            src_vid: VertexId,
+            dst_label: LabelId,
+            dst_vid: VertexId,
+            edge_label: LabelId,
+            oe_offset: i32,
+            ie_offset: i32,
+            col_id: ColumnId,
+            value: PropertyValue,
+            ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UndoLogResult<()> {
+        fn revert_delete_vertex(
+            &mut self,
+            label: LabelId,
+            vid: VertexId,
+            ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_edge(&mut self, src_label: LabelId, src_vid: VertexId, dst_label: LabelId, dst_vid: VertexId, edge_label: LabelId, oe_offset: i32, ie_offset: i32, ts: Timestamp) -> UndoLogResult<()> {
+        fn revert_delete_edge(
+            &mut self,
+            src_label: LabelId,
+            src_vid: VertexId,
+            dst_label: LabelId,
+            dst_vid: VertexId,
+            edge_label: LabelId,
+            oe_offset: i32,
+            ie_offset: i32,
+            ts: Timestamp,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_vertex_properties(&mut self, label_name: &str, prop_names: &[String]) -> UndoLogResult<()> {
+        fn revert_delete_vertex_properties(
+            &mut self,
+            label_name: &str,
+            prop_names: &[String],
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_edge_properties(&mut self, src_label: &str, dst_label: &str, edge_label: &str, prop_names: &[String]) -> UndoLogResult<()> {
+        fn revert_delete_edge_properties(
+            &mut self,
+            src_label: &str,
+            dst_label: &str,
+            edge_label: &str,
+            prop_names: &[String],
+        ) -> UndoLogResult<()> {
             Ok(())
         }
 
@@ -663,7 +809,12 @@ mod tests {
             Ok(())
         }
 
-        fn revert_delete_edge_label(&mut self, src_label: &str, dst_label: &str, edge_label: &str) -> UndoLogResult<()> {
+        fn revert_delete_edge_label(
+            &mut self,
+            src_label: &str,
+            dst_label: &str,
+            edge_label: &str,
+        ) -> UndoLogResult<()> {
             Ok(())
         }
     }

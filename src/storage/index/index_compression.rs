@@ -170,11 +170,15 @@ impl DictionaryCompressor {
                         "Invalid dictionary compressed data".to_string(),
                     ));
                 }
-                let id = u32::from_le_bytes([compressed[1], compressed[2], compressed[3], compressed[4]]);
-                self.reverse_dict
-                    .get(id as usize)
-                    .cloned()
-                    .ok_or_else(|| StorageError::InvalidInput("Dictionary ID not found".to_string()))
+                let id = u32::from_le_bytes([
+                    compressed[1],
+                    compressed[2],
+                    compressed[3],
+                    compressed[4],
+                ]);
+                self.reverse_dict.get(id as usize).cloned().ok_or_else(|| {
+                    StorageError::InvalidInput("Dictionary ID not found".to_string())
+                })
             }
             0x00 => {
                 if compressed.len() < 3 {
@@ -337,8 +341,10 @@ impl IndexCompressor {
             }
             CompressionType::Dictionary => {
                 let values: Vec<Vec<u8>> = keys.to_vec();
-                self.dictionary_compressor =
-                    Some(DictionaryCompressor::train(&values, self.config.dictionary_threshold));
+                self.dictionary_compressor = Some(DictionaryCompressor::train(
+                    &values,
+                    self.config.dictionary_threshold,
+                ));
             }
             _ => {}
         }
@@ -417,7 +423,9 @@ mod tests {
         let compressed = compressor.compress(b"prefix_key4");
         assert!(compressed.len() < b"prefix_key4".len());
 
-        let decompressed = compressor.decompress(&compressed).expect("Decompression failed");
+        let decompressed = compressor
+            .decompress(&compressed)
+            .expect("Decompression failed");
         assert_eq!(decompressed, b"prefix_key4".to_vec());
     }
 
@@ -437,7 +445,9 @@ mod tests {
         let compressed = compressor.compress(b"value1");
         assert!(compressed.len() < b"value1".len());
 
-        let decompressed = compressor.decompress(&compressed).expect("Decompression failed");
+        let decompressed = compressor
+            .decompress(&compressed)
+            .expect("Decompression failed");
         assert_eq!(decompressed, b"value1".to_vec());
     }
 
@@ -446,9 +456,15 @@ mod tests {
         let compressor = DeltaCompressor::with_base(b"key_prefix_001".to_vec());
 
         let compressed = compressor.compress(b"key_prefix_002");
-        println!("Original len: {}, Compressed len: {}", b"key_prefix_002".len(), compressed.len());
+        println!(
+            "Original len: {}, Compressed len: {}",
+            b"key_prefix_002".len(),
+            compressed.len()
+        );
 
-        let decompressed = compressor.decompress(&compressed).expect("Decompression failed");
+        let decompressed = compressor
+            .decompress(&compressed)
+            .expect("Decompression failed");
         assert_eq!(decompressed, b"key_prefix_002".to_vec());
     }
 

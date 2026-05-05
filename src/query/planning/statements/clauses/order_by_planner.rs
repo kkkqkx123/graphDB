@@ -50,7 +50,8 @@ fn extract_expression(expr: &ContextualExpression) -> crate::core::Expression {
         expr_meta.inner().clone()
     } else {
         // Fallback: create a variable expression from the string representation
-        let expr_string = expr.expression()
+        let expr_string = expr
+            .expression()
             .map(|e| e.inner().to_expression_string())
             .unwrap_or_default();
         crate::core::Expression::Variable(expr_string)

@@ -59,9 +59,8 @@ impl VertexIndexManager {
         let mut reverse_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
-            let index_key = IndexKeyCodec::build_vertex_index_key(
-                space_id, index_name, prop_value, vertex_id,
-            )?;
+            let index_key =
+                IndexKeyCodec::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)?;
 
             let reverse_key =
                 IndexKeyCodec::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
@@ -118,21 +117,19 @@ impl VertexIndexManager {
                     {
                         let forward_key_start =
                             IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
-                        let forward_key_end =
-                            IndexKeyCodec::build_range_end(&forward_key_start);
+                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
 
                         let vertex_bytes = IndexKeyCodec::serialize_value(vertex_id)?;
                         let forward_index = self.forward_index.read();
-                        for (fwd_key_bytes, fwd_entry) in forward_index
-                            .range(forward_key_start.0.clone()..forward_key_end.0)
+                        for (fwd_key_bytes, fwd_entry) in
+                            forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
                         {
                             if fwd_entry.is_visible_at(write_ts) {
                                 if let Ok(vid) =
                                     IndexKeyCodec::parse_vertex_id_from_key(fwd_key_bytes)
                                 {
                                     if vid == *vertex_id {
-                                        let vid_start =
-                                            fwd_key_bytes.len() - vertex_bytes.len();
+                                        let vid_start = fwd_key_bytes.len() - vertex_bytes.len();
                                         if fwd_key_bytes[vid_start..] == vertex_bytes {
                                             forward_keys_to_delete.push(fwd_key_bytes.clone());
                                         }
@@ -352,10 +349,12 @@ impl VertexIndexManager {
 
                     let prop_value_start = prop_len_start + 4;
                     if prop_value_start + prop_value_len <= key_bytes.len() {
-                        let stored_prop_value = &key_bytes[prop_value_start..prop_value_start + prop_value_len];
-                        
-                        if stored_prop_value >= start_bytes.as_slice() 
-                            && stored_prop_value < end_bytes.as_slice() {
+                        let stored_prop_value =
+                            &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+
+                        if stored_prop_value >= start_bytes.as_slice()
+                            && stored_prop_value < end_bytes.as_slice()
+                        {
                             results.push(vertex_id);
                         }
                     }
@@ -436,8 +435,10 @@ impl VertexIndexManager {
 
                     let prop_value_start = prop_len_start + 4;
                     if prop_value_start + prop_value_len <= key_bytes.len() {
-                        let stored_prop_value = &key_bytes[prop_value_start..prop_value_start + prop_value_len];
-                        if let Ok(prop_value) = IndexKeyCodec::deserialize_value(stored_prop_value) {
+                        let stored_prop_value =
+                            &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+                        if let Ok(prop_value) = IndexKeyCodec::deserialize_value(stored_prop_value)
+                        {
                             results.push((prop_value, vertex_id));
                         }
                     }
@@ -635,7 +636,9 @@ impl VertexIndexManager {
             let keys_to_remove: Vec<IndexKey> = forward_index
                 .iter()
                 .filter(|(_, entry)| {
-                    entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                    entry
+                        .deleted_ts
+                        .map_or(false, |deleted_ts| deleted_ts < safe_ts)
                 })
                 .map(|(key, _)| key.clone())
                 .collect();
@@ -651,7 +654,9 @@ impl VertexIndexManager {
             let keys_to_remove: Vec<IndexKey> = reverse_index
                 .iter()
                 .filter(|(_, entry)| {
-                    entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                    entry
+                        .deleted_ts
+                        .map_or(false, |deleted_ts| deleted_ts < safe_ts)
                 })
                 .map(|(key, _)| key.clone())
                 .collect();
@@ -675,16 +680,19 @@ impl VertexIndexManager {
         {
             let mut forward_index = self.forward_index.write();
             let mut keys_to_remove = Vec::with_capacity(batch_size.min(1000));
-            
+
             for (key, entry) in forward_index.iter() {
                 if keys_to_remove.len() >= batch_size {
                     break;
                 }
-                if entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts) {
+                if entry
+                    .deleted_ts
+                    .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                {
                     keys_to_remove.push(key.clone());
                 }
             }
-            
+
             total_removed += keys_to_remove.len();
             for key in &keys_to_remove {
                 forward_index.remove(key);
@@ -699,16 +707,19 @@ impl VertexIndexManager {
             let mut reverse_index = self.reverse_index.write();
             let remaining = batch_size - total_removed;
             let mut keys_to_remove = Vec::with_capacity(remaining.min(1000));
-            
+
             for (key, entry) in reverse_index.iter() {
                 if keys_to_remove.len() >= remaining {
                     break;
                 }
-                if entry.deleted_ts.map_or(false, |deleted_ts| deleted_ts < safe_ts) {
+                if entry
+                    .deleted_ts
+                    .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                {
                     keys_to_remove.push(key.clone());
                 }
             }
-            
+
             total_removed += keys_to_remove.len();
             for key in &keys_to_remove {
                 reverse_index.remove(key);
@@ -719,16 +730,20 @@ impl VertexIndexManager {
     }
 
     pub fn tombstone_count(&self) -> usize {
-        let forward_count = self.forward_index.read()
+        let forward_count = self
+            .forward_index
+            .read()
             .iter()
             .filter(|(_, entry)| entry.deleted_ts.is_some())
             .count();
-        
-        let reverse_count = self.reverse_index.read()
+
+        let reverse_count = self
+            .reverse_index
+            .read()
             .iter()
             .filter(|(_, entry)| entry.deleted_ts.is_some())
             .count();
-        
+
         forward_count + reverse_count
     }
 
@@ -747,7 +762,13 @@ impl VertexIndexManager {
         index_name: &str,
         field_values: &[Value],
     ) -> Result<(), StorageError> {
-        self.update_composite_vertex_indexes_mvcc(space_id, vertex_id, index_name, field_values, MAX_TIMESTAMP)
+        self.update_composite_vertex_indexes_mvcc(
+            space_id,
+            vertex_id,
+            index_name,
+            field_values,
+            MAX_TIMESTAMP,
+        )
     }
 
     /// Update composite vertex indexes with MVCC timestamp
@@ -865,6 +886,272 @@ impl VertexIndexManager {
 
                     if matches {
                         results.push(vertex_id);
+                    }
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    // ========================================================================
+    // Native ID Type Support (CSR-compatible)
+    // ========================================================================
+
+    /// Update vertex indexes with native VertexId
+    pub fn update_vertex_indexes_native(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_vertex_indexes_native_mvcc(
+            space_id,
+            vertex_id,
+            index_name,
+            props,
+            MAX_TIMESTAMP,
+        )
+    }
+
+    /// Update vertex indexes with native VertexId and MVCC timestamp
+    pub fn update_vertex_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        let mut forward_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+
+        for (_prop_name, prop_value) in props {
+            let index_key = IndexKeyCodec::build_vertex_index_key_native(
+                space_id, index_name, prop_value, vertex_id,
+            )?;
+
+            let reverse_key =
+                IndexKeyCodec::build_vertex_reverse_key_native(space_id, vertex_id, index_name);
+
+            let entry = IndexEntry::new(write_ts);
+            forward_entries.push((index_key.0, entry.clone()));
+            reverse_entries.push((reverse_key.0, entry));
+        }
+
+        {
+            let mut forward_index = self.forward_index.write();
+            for (key, entry) in forward_entries {
+                forward_index.insert(key, entry);
+            }
+        }
+        {
+            let mut reverse_index = self.reverse_index.write();
+            for (key, entry) in reverse_entries {
+                reverse_index.insert(key, entry);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Delete vertex indexes with native VertexId
+    pub fn delete_vertex_indexes_native(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+    ) -> Result<(), StorageError> {
+        self.delete_vertex_indexes_native_mvcc(space_id, vertex_id, MAX_TIMESTAMP)
+    }
+
+    /// Delete vertex indexes with native VertexId and MVCC timestamp
+    pub fn delete_vertex_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        let reverse_prefix = IndexKeyCodec::build_vertex_reverse_prefix_native(space_id, vertex_id);
+        let reverse_end = IndexKeyCodec::build_range_end(&reverse_prefix);
+
+        let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
+        let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
+
+        {
+            let reverse_index = self.reverse_index.read();
+            for (key_bytes, entry) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+                if entry.is_visible_at(write_ts) {
+                    reverse_keys_to_delete.push(key_bytes.clone());
+
+                    if let Ok((_vertex_id, index_name)) =
+                        IndexKeyCodec::parse_vertex_reverse_key_native(key_bytes)
+                    {
+                        let forward_key_start =
+                            IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
+                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+
+                        let forward_index = self.forward_index.read();
+                        for (fwd_key_bytes, fwd_entry) in
+                            forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
+                        {
+                            if fwd_entry.is_visible_at(write_ts) {
+                                if let Ok(vid) =
+                                    IndexKeyCodec::parse_vertex_id_from_key_native(fwd_key_bytes)
+                                {
+                                    if vid == vertex_id {
+                                        forward_keys_to_delete.push(fwd_key_bytes.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        {
+            let mut reverse_index = self.reverse_index.write();
+            for key in &reverse_keys_to_delete {
+                if let Some(entry) = reverse_index.get_mut(key) {
+                    entry.mark_deleted(write_ts);
+                }
+            }
+        }
+
+        {
+            let mut forward_index = self.forward_index.write();
+            for key in &forward_keys_to_delete {
+                if let Some(entry) = forward_index.get_mut(key) {
+                    entry.mark_deleted(write_ts);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Lookup tag index with native VertexId return type
+    pub fn lookup_tag_index_native(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+    ) -> Result<Vec<u64>, StorageError> {
+        self.lookup_tag_index_native_mvcc(space_id, index, value, MAX_TIMESTAMP)
+    }
+
+    /// Lookup tag index with native VertexId return type and MVCC timestamp
+    pub fn lookup_tag_index_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<u64>, StorageError> {
+        let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, &index.name);
+        let end = IndexKeyCodec::build_range_end(&prefix);
+
+        let mut results = Vec::new();
+        let value_bytes = IndexKeyCodec::serialize_value(value)?;
+
+        let forward_index = self.forward_index.read();
+        for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
+            if !entry.is_visible_at(read_ts) {
+                continue;
+            }
+
+            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key_native(key_bytes) {
+                if key_bytes.len() > prefix.0.len() + 4 {
+                    let prop_len_start = prefix.0.len();
+                    let prop_value_len = u32::from_le_bytes(
+                        key_bytes[prop_len_start..prop_len_start + 4]
+                            .try_into()
+                            .unwrap_or([0; 4]),
+                    ) as usize;
+
+                    if prop_value_len == value_bytes.len() {
+                        let prop_value_start = prop_len_start + 4;
+                        let stored_prop_value =
+                            &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+
+                        if stored_prop_value == value_bytes.as_slice() {
+                            results.push(vertex_id);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Lookup tag index range with native VertexId return type
+    pub fn lookup_tag_index_range_native(
+        &self,
+        space_id: u64,
+        index: &Index,
+        start_value: &Value,
+        end_value: &Value,
+    ) -> Result<Vec<u64>, StorageError> {
+        self.lookup_tag_index_range_native_mvcc(
+            space_id,
+            index,
+            start_value,
+            end_value,
+            MAX_TIMESTAMP,
+        )
+    }
+
+    /// Lookup tag index range with native VertexId return type and MVCC timestamp
+    pub fn lookup_tag_index_range_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        start_value: &Value,
+        end_value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<u64>, StorageError> {
+        let start_bytes = IndexKeyCodec::serialize_value(start_value)?;
+        let end_bytes = IndexKeyCodec::serialize_value(end_value)?;
+
+        let range_start =
+            IndexKeyCodec::build_vertex_index_key_native(space_id, &index.name, start_value, 0)?;
+        let range_end = IndexKeyCodec::build_vertex_index_key_native(
+            space_id,
+            &index.name,
+            end_value,
+            u64::MAX,
+        )?;
+
+        let mut results = Vec::new();
+        let forward_index = self.forward_index.read();
+
+        for (key_bytes, entry) in forward_index.range(range_start.0.clone()..range_end.0.clone()) {
+            if !entry.is_visible_at(read_ts) {
+                continue;
+            }
+
+            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key_native(key_bytes) {
+                let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, &index.name);
+                if key_bytes.len() > prefix.0.len() + 4 {
+                    let prop_len_start = prefix.0.len();
+                    let prop_value_len = u32::from_le_bytes(
+                        key_bytes[prop_len_start..prop_len_start + 4]
+                            .try_into()
+                            .unwrap_or([0; 4]),
+                    ) as usize;
+
+                    let prop_value_start = prop_len_start + 4;
+                    if prop_value_start + prop_value_len <= key_bytes.len() {
+                        let stored_prop_value =
+                            &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+
+                        if stored_prop_value >= start_bytes.as_slice()
+                            && stored_prop_value < end_bytes.as_slice()
+                        {
+                            results.push(vertex_id);
+                        }
                     }
                 }
             }

@@ -60,7 +60,8 @@ fn test_create_tag_with_default_null() {
 
 #[test]
 fn test_create_tag_with_default_int() {
-    let query = "CREATE TAG Product(name: STRING, quantity: INT DEFAULT 0, price: DOUBLE DEFAULT 0.0)";
+    let query =
+        "CREATE TAG Product(name: STRING, quantity: INT DEFAULT 0, price: DOUBLE DEFAULT 0.0)";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
@@ -73,7 +74,8 @@ fn test_create_tag_with_default_int() {
 
 #[test]
 fn test_create_tag_with_default_bool() {
-    let query = "CREATE TAG User(name: STRING, active: BOOL DEFAULT true, verified: BOOL DEFAULT false)";
+    let query =
+        "CREATE TAG User(name: STRING, active: BOOL DEFAULT true, verified: BOOL DEFAULT false)";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();

@@ -41,7 +41,8 @@ impl FunctionRegistry {
     /// Check whether the function exists.
     pub fn contains(&self, name: &str) -> bool {
         let upper_name = name.to_uppercase();
-        self.builtin_functions.contains_key(&upper_name) || self.custom_functions.contains_key(&upper_name)
+        self.builtin_functions.contains_key(&upper_name)
+            || self.custom_functions.contains_key(&upper_name)
     }
 
     /// Obtain all function names
@@ -200,12 +201,24 @@ impl FunctionRegistry {
         // Register aggregate functions
         use crate::core::types::operators::AggregateFunction;
         self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Count(None)));
-        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Sum(String::new())));
-        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Avg(String::new())));
-        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Min(String::new())));
-        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Max(String::new())));
-        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Collect(String::new())));
-        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Distinct(String::new())));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Sum(
+            String::new(),
+        )));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Avg(
+            String::new(),
+        )));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Min(
+            String::new(),
+        )));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Max(
+            String::new(),
+        )));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Collect(
+            String::new(),
+        )));
+        self.register_builtin(BuiltinFunction::Aggregate(AggregateFunction::Distinct(
+            String::new(),
+        )));
 
         // Registering functions related to graphics
         use super::GraphFunction;

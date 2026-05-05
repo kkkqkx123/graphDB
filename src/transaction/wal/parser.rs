@@ -91,10 +91,11 @@ impl ParallelWalParser {
     pub fn parse_parallel(&self, wal_dir: &Path) -> WalResult<RecoveryResult> {
         if !wal_dir.exists() {
             if self.recovery_mode == WalRecoveryMode::ErrorIfMissing {
-                return Err(WalError::FileNotFound(wal_dir.to_string_lossy().to_string()));
+                return Err(WalError::FileNotFound(
+                    wal_dir.to_string_lossy().to_string(),
+                ));
             }
-            std::fs::create_dir_all(wal_dir)
-                .map_err(|e| WalError::IoError(e.to_string()))?;
+            std::fs::create_dir_all(wal_dir).map_err(|e| WalError::IoError(e.to_string()))?;
             return Ok(RecoveryResult::default());
         }
 
@@ -120,16 +121,15 @@ impl ParallelWalParser {
         if wal_files.len() <= self.num_threads {
             for path in wal_files {
                 let result = self.parse_single_file(&path, recovery_mode, verify_checksum)?;
-                results.lock().map(|mut r| r.push(result)).map_err(|e| {
-                    WalError::IoError(format!("Failed to acquire lock: {}", e))
-                })?;
+                results
+                    .lock()
+                    .map(|mut r| r.push(result))
+                    .map_err(|e| WalError::IoError(format!("Failed to acquire lock: {}", e)))?;
             }
         } else {
             let chunk_size = (wal_files.len() + self.num_threads - 1) / self.num_threads;
-            let chunks: Vec<Vec<PathBuf>> = wal_files
-                .chunks(chunk_size)
-                .map(|c| c.to_vec())
-                .collect();
+            let chunks: Vec<Vec<PathBuf>> =
+                wal_files.chunks(chunk_size).map(|c| c.to_vec()).collect();
 
             let handles: Vec<_> = chunks
                 .into_iter()
@@ -166,9 +166,10 @@ impl ParallelWalParser {
             }
         }
 
-        let results = results.lock().map(|r| r.clone()).map_err(|e| {
-            WalError::IoError(format!("Failed to acquire lock: {}", e))
-        })?;
+        let results = results
+            .lock()
+            .map(|r| r.clone())
+            .map_err(|e| WalError::IoError(format!("Failed to acquire lock: {}", e)))?;
 
         Ok(self.merge_results(results))
     }
@@ -193,15 +194,13 @@ impl ParallelWalParser {
 
         let mut result = RecoveryResult::default();
 
-        let metadata = std::fs::metadata(path)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        let metadata = std::fs::metadata(path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         if metadata.len() == 0 {
             return Ok(result);
         }
 
-        let mut file = File::open(path)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        let mut file = File::open(path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         let file_size = metadata.len() as usize;
         let mut buffer = Vec::with_capacity(file_size);
@@ -279,18 +278,16 @@ impl ParallelWalParser {
             let final_payload = if header.is_compressed() {
                 match Self::decompress_payload_static(&payload, header.compression()) {
                     Ok(decompressed) => decompressed,
-                    Err(e) => {
-                        match recovery_mode {
-                            WalRecoveryMode::AbortOnCorruption => {
-                                return Err(e);
-                            }
-                            _ => {
-                                result.corrupted_count += 1;
-                                offset = payload_end;
-                                continue;
-                            }
+                    Err(e) => match recovery_mode {
+                        WalRecoveryMode::AbortOnCorruption => {
+                            return Err(e);
                         }
-                    }
+                        _ => {
+                            result.corrupted_count += 1;
+                            offset = payload_end;
+                            continue;
+                        }
+                    },
                 }
             } else {
                 payload
@@ -314,10 +311,9 @@ impl ParallelWalParser {
                 });
 
                 if header.is_update {
-                    result.update_wal_list.push(UpdateWalUnit::new(
-                        header.timestamp,
-                        content.data,
-                    ));
+                    result
+                        .update_wal_list
+                        .push(UpdateWalUnit::new(header.timestamp, content.data));
                 } else {
                     let ts = header.timestamp as usize;
                     if ts >= result.insert_wal_list.len() {
@@ -358,10 +354,9 @@ impl ParallelWalParser {
                     });
 
                     if first_header.is_update {
-                        result.update_wal_list.push(UpdateWalUnit::new(
-                            first_header.timestamp,
-                            content.data,
-                        ));
+                        result
+                            .update_wal_list
+                            .push(UpdateWalUnit::new(first_header.timestamp, content.data));
                     } else {
                         let ts = first_header.timestamp as usize;
                         if ts >= result.insert_wal_list.len() {
@@ -410,8 +405,7 @@ impl ParallelWalParser {
     ) -> WalResult<Vec<u8>> {
         match compression {
             WalCompression::Zstd => {
-                zstd::decode_all(payload)
-                    .map_err(|e| WalError::DeserializationError(e.to_string()))
+                zstd::decode_all(payload).map_err(|e| WalError::DeserializationError(e.to_string()))
             }
             WalCompression::None => Ok(payload.to_vec()),
         }
@@ -640,10 +634,11 @@ impl LocalWalParser {
     fn parse_wal_files(&mut self, wal_dir: &Path) -> WalResult<()> {
         if !wal_dir.exists() {
             if self.recovery_mode == WalRecoveryMode::ErrorIfMissing {
-                return Err(WalError::FileNotFound(wal_dir.to_string_lossy().to_string()));
+                return Err(WalError::FileNotFound(
+                    wal_dir.to_string_lossy().to_string(),
+                ));
             }
-            std::fs::create_dir_all(wal_dir)
-                .map_err(|e| WalError::IoError(e.to_string()))?;
+            std::fs::create_dir_all(wal_dir).map_err(|e| WalError::IoError(e.to_string()))?;
             return Ok(());
         }
 
@@ -687,15 +682,13 @@ impl LocalWalParser {
     fn parse_wal_file(&mut self, path: &Path) -> WalResult<()> {
         use std::io::Read;
 
-        let metadata = std::fs::metadata(path)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        let metadata = std::fs::metadata(path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         if metadata.len() == 0 {
             return Ok(());
         }
 
-        let mut file = File::open(path)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        let mut file = File::open(path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         let file_size = metadata.len() as usize;
         let mut buffer = Vec::with_capacity(file_size);
@@ -774,18 +767,16 @@ impl LocalWalParser {
             let final_payload = if header.is_compressed() {
                 match Self::decompress_payload(&payload, header.compression()) {
                     Ok(decompressed) => decompressed,
-                    Err(e) => {
-                        match self.recovery_mode {
-                            WalRecoveryMode::AbortOnCorruption => {
-                                return Err(e);
-                            }
-                            _ => {
-                                self.corrupted_count += 1;
-                                offset = payload_end;
-                                continue;
-                            }
+                    Err(e) => match self.recovery_mode {
+                        WalRecoveryMode::AbortOnCorruption => {
+                            return Err(e);
                         }
-                    }
+                        _ => {
+                            self.corrupted_count += 1;
+                            offset = payload_end;
+                            continue;
+                        }
+                    },
                 }
             } else {
                 payload
@@ -809,10 +800,8 @@ impl LocalWalParser {
                 });
 
                 if header.is_update {
-                    self.update_wal_list.push(UpdateWalUnit::new(
-                        header.timestamp,
-                        content.data,
-                    ));
+                    self.update_wal_list
+                        .push(UpdateWalUnit::new(header.timestamp, content.data));
                 } else {
                     let ts = header.timestamp as usize;
                     if ts >= self.insert_wal_list.len() {
@@ -830,10 +819,7 @@ impl LocalWalParser {
                 let is_complete = self.fragment_buffer.add_fragment(header, final_payload);
 
                 if is_complete {
-                    let assembled = self
-                        .fragment_buffer
-                        .assemble()
-                        .unwrap_or_default();
+                    let assembled = self.fragment_buffer.assemble().unwrap_or_default();
                     let first_header = self
                         .fragment_buffer
                         .get_first_header()
@@ -856,10 +842,8 @@ impl LocalWalParser {
                     });
 
                     if first_header.is_update {
-                        self.update_wal_list.push(UpdateWalUnit::new(
-                            first_header.timestamp,
-                            content.data,
-                        ));
+                        self.update_wal_list
+                            .push(UpdateWalUnit::new(first_header.timestamp, content.data));
                     } else {
                         let ts = first_header.timestamp as usize;
                         if ts >= self.insert_wal_list.len() {
@@ -887,7 +871,11 @@ impl LocalWalParser {
         use crc32fast::Hasher;
         let mut hasher = Hasher::new();
         hasher.update(&header.length.to_le_bytes());
-        hasher.update(&[header.op_type, header.is_update as u8, header.record_type as u8]);
+        hasher.update(&[
+            header.op_type,
+            header.is_update as u8,
+            header.record_type as u8,
+        ]);
         hasher.update(&header.flags.to_le_bytes());
         hasher.update(&header.timestamp.to_le_bytes());
         hasher.update(&header.lsn.to_le_bytes());
@@ -900,8 +888,7 @@ impl LocalWalParser {
     fn decompress_payload(payload: &[u8], compression: WalCompression) -> WalResult<Vec<u8>> {
         match compression {
             WalCompression::Zstd => {
-                zstd::decode_all(payload)
-                    .map_err(|e| WalError::DeserializationError(e.to_string()))
+                zstd::decode_all(payload).map_err(|e| WalError::DeserializationError(e.to_string()))
             }
             WalCompression::None => Ok(payload.to_vec()),
         }
@@ -1052,8 +1039,8 @@ impl WalParserFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transaction::wal::writer::{LocalWalWriter, WalWriter};
     use crate::transaction::wal::types::WalConfig;
+    use crate::transaction::wal::writer::{LocalWalWriter, WalWriter};
     use tempfile::TempDir;
 
     #[test]
@@ -1159,7 +1146,7 @@ mod tests {
 
         let mut parser = LocalWalParser::new().with_verify_checksum(true);
         parser.open(&wal_path).expect("Failed to parse WAL");
-        
+
         assert_eq!(parser.corrupted_count(), 0);
         let insert_wal = parser.get_insert_wal(1);
         assert!(insert_wal.is_some());
@@ -1183,11 +1170,8 @@ mod tests {
 
         {
             let config = WalConfig::new().with_checksum(true);
-            let mut writer1 = LocalWalWriter::with_config(
-                &wal_dir.to_string_lossy(),
-                0,
-                config.clone(),
-            );
+            let mut writer1 =
+                LocalWalWriter::with_config(&wal_dir.to_string_lossy(), 0, config.clone());
             writer1.open().expect("Failed to open WAL1");
             writer1
                 .append_entry(WalOpType::InsertVertex, 1, b"payload1")
@@ -1195,11 +1179,7 @@ mod tests {
             writer1.sync().expect("Failed to sync");
             writer1.close();
 
-            let mut writer2 = LocalWalWriter::with_config(
-                &wal_dir.to_string_lossy(),
-                1,
-                config,
-            );
+            let mut writer2 = LocalWalWriter::with_config(&wal_dir.to_string_lossy(), 1, config);
             writer2.open().expect("Failed to open WAL2");
             writer2
                 .append_entry(WalOpType::InsertVertex, 2, b"payload2")

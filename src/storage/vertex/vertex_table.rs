@@ -6,7 +6,10 @@
 use std::path::Path;
 use std::sync::RwLock;
 
-use super::{ColumnStore, IdIndexer, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema, VertexTimestamp, INVALID_TIMESTAMP};
+use super::{
+    ColumnStore, IdIndexer, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema,
+    VertexTimestamp, INVALID_TIMESTAMP,
+};
 use crate::core::{DataType, StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone)]
@@ -72,7 +75,11 @@ impl VertexTable {
         }
     }
 
-    pub fn open<P: AsRef<Path>>(&mut self, _path: P, _memory_level: MemoryLevel) -> StorageResult<()> {
+    pub fn open<P: AsRef<Path>>(
+        &mut self,
+        _path: P,
+        _memory_level: MemoryLevel,
+    ) -> StorageResult<()> {
         self.is_open = true;
         Ok(())
     }
@@ -98,7 +105,9 @@ impl VertexTable {
         }
 
         if self.id_indexer.contains(&external_id.to_string()) {
-            let internal_id = self.id_indexer.get_index(&external_id.to_string())
+            let internal_id = self
+                .id_indexer
+                .get_index(&external_id.to_string())
                 .ok_or(StorageError::VertexNotFound)?;
 
             if self.timestamps.is_valid(internal_id, ts) {
@@ -186,7 +195,8 @@ impl VertexTable {
             return Err(StorageError::VertexNotFound);
         }
 
-        self.columns.set_property(internal_id as usize, col_name, Some(value))
+        self.columns
+            .set_property(internal_id as usize, col_name, Some(value))
     }
 
     pub fn delete(&mut self, external_id: &str, ts: Timestamp) -> StorageResult<()> {
@@ -194,7 +204,8 @@ impl VertexTable {
             return Err(StorageError::StorageNotOpen);
         }
 
-        let internal_id = self.id_indexer
+        let internal_id = self
+            .id_indexer
             .get_index(&external_id.to_string())
             .ok_or(StorageError::VertexNotFound)?;
 
@@ -270,7 +281,8 @@ impl VertexTable {
         }
 
         self.schema.properties.push(prop.clone());
-        self.columns.add_column(prop.name, prop.data_type, prop.nullable);
+        self.columns
+            .add_column(prop.name, prop.data_type, prop.nullable);
 
         Ok(())
     }
@@ -374,7 +386,8 @@ impl VertexTable {
 
             if let Some(bitmap) = col.null_bitmap() {
                 file.write_all(&[1u8])?;
-                let bitmap_bytes: Vec<u8> = bitmap.iter().map(|&b| if b { 1u8 } else { 0u8 }).collect();
+                let bitmap_bytes: Vec<u8> =
+                    bitmap.iter().map(|&b| if b { 1u8 } else { 0u8 }).collect();
                 file.write_all(&(bitmap.len() as u32).to_le_bytes())?;
                 file.write_all(&bitmap_bytes)?;
             } else {
@@ -606,14 +619,16 @@ mod tests {
         let schema = create_test_schema();
         let mut table = VertexTable::new(0, "person".to_string(), schema);
 
-        let internal_id = table.insert(
-            "v1",
-            &[
-                ("name".to_string(), Value::String("Alice".to_string())),
-                ("age".to_string(), Value::Int(30)),
-            ],
-            100,
-        ).unwrap();
+        let internal_id = table
+            .insert(
+                "v1",
+                &[
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(30)),
+                ],
+                100,
+            )
+            .unwrap();
 
         assert_eq!(internal_id, 0);
 
@@ -626,11 +641,13 @@ mod tests {
         let schema = create_test_schema();
         let mut table = VertexTable::new(0, "person".to_string(), schema);
 
-        table.insert(
-            "v1",
-            &[("name".to_string(), Value::String("Alice".to_string()))],
-            100,
-        ).unwrap();
+        table
+            .insert(
+                "v1",
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+                100,
+            )
+            .unwrap();
 
         table.delete("v1", 200).unwrap();
 
@@ -643,9 +660,27 @@ mod tests {
         let schema = create_test_schema();
         let mut table = VertexTable::new(0, "person".to_string(), schema);
 
-        table.insert("v1", &[("name".to_string(), Value::String("Alice".to_string()))], 100).unwrap();
-        table.insert("v2", &[("name".to_string(), Value::String("Bob".to_string()))], 100).unwrap();
-        table.insert("v3", &[("name".to_string(), Value::String("Charlie".to_string()))], 100).unwrap();
+        table
+            .insert(
+                "v1",
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+                100,
+            )
+            .unwrap();
+        table
+            .insert(
+                "v2",
+                &[("name".to_string(), Value::String("Bob".to_string()))],
+                100,
+            )
+            .unwrap();
+        table
+            .insert(
+                "v3",
+                &[("name".to_string(), Value::String("Charlie".to_string()))],
+                100,
+            )
+            .unwrap();
 
         let count = table.scan(100).count();
         assert_eq!(count, 3);

@@ -85,7 +85,10 @@ async fn list_vertices_by_tag<S: StorageClient + Clone + Send + Sync + 'static>(
         .sort_by
         .as_ref()
         .map(|s| {
-            let order = params.sort_order.clone().unwrap_or_else(|| "ASC".to_string());
+            let order = params
+                .sort_order
+                .clone()
+                .unwrap_or_else(|| "ASC".to_string());
             format!(" ORDER BY {} {}", s, order)
         })
         .unwrap_or_default();
@@ -167,7 +170,10 @@ async fn list_edges_by_type<S: StorageClient + Clone + Send + Sync + 'static>(
         .sort_by
         .as_ref()
         .map(|s| {
-            let order = params.sort_order.clone().unwrap_or_else(|| "ASC".to_string());
+            let order = params
+                .sort_order
+                .clone()
+                .unwrap_or_else(|| "ASC".to_string());
             format!(" ORDER BY {} {}", s, order)
         })
         .unwrap_or_default();

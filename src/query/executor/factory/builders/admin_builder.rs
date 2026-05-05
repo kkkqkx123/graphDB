@@ -21,8 +21,8 @@ use crate::query::executor::admin::{
     ShowTagIndexesExecutor, ShowTagsExecutor, SwitchSpaceExecutor,
 };
 use crate::query::executor::base::{
-    EdgeManageExecutor, ExecutionContext, ExecutorEnum, IndexManageExecutor,
-    SpaceManageExecutor, TagManageExecutor, UserManageExecutor,
+    EdgeManageExecutor, ExecutionContext, ExecutorEnum, IndexManageExecutor, SpaceManageExecutor,
+    TagManageExecutor, UserManageExecutor,
 };
 use crate::query::executor::utils::PassThroughExecutor;
 use crate::query::planning::plan::core::nodes::{
@@ -31,9 +31,9 @@ use crate::query::planning::plan::core::nodes::{
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
     DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
     GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowCreateEdgeNode,
-    ShowCreateIndexNode, ShowCreateSpaceNode, ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode,
-    ShowIndexesNode, ShowRolesNode, ShowSpacesNode, ShowStatsNode, ShowTagIndexesNode, ShowTagsNode,
-    ShowUsersNode, SwitchSpaceNode,
+    ShowCreateIndexNode, ShowCreateSpaceNode, ShowCreateTagNode, ShowEdgeIndexesNode,
+    ShowEdgesNode, ShowIndexesNode, ShowRolesNode, ShowSpacesNode, ShowStatsNode,
+    ShowTagIndexesNode, ShowTagsNode, ShowUsersNode, SwitchSpaceNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -69,7 +69,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             space_info,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Create(executor)))
+        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Create(
+            executor,
+        )))
     }
 
     /// Building the DropSpace executor
@@ -84,7 +86,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.space_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Drop(executor)))
+        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Drop(
+            executor,
+        )))
     }
 
     /// Building the DescSpace executor
@@ -99,7 +103,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.space_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Desc(executor)))
+        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Desc(
+            executor,
+        )))
     }
 
     /// Building the ShowSpaces executor
@@ -110,7 +116,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
             ShowSpacesExecutor::new(_node.id(), storage, context.expression_context().clone());
-        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Show(executor)))
+        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Show(
+            executor,
+        )))
     }
 
     // Tag Management Executor
@@ -240,7 +248,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.tag_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::TagManage(TagManageExecutor::ShowCreate(executor)))
+        Ok(ExecutorEnum::TagManage(TagManageExecutor::ShowCreate(
+            executor,
+        )))
     }
 
     //  Ellison Type Management Executor ============
@@ -274,7 +284,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
                 context.expression_context().clone(),
             )
         };
-        Ok(ExecutorEnum::EdgeManage(EdgeManageExecutor::Create(executor)))
+        Ok(ExecutorEnum::EdgeManage(EdgeManageExecutor::Create(
+            executor,
+        )))
     }
 
     /// Building the AlterEdge executor
@@ -302,7 +314,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             alter_info,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::EdgeManage(EdgeManageExecutor::Alter(executor)))
+        Ok(ExecutorEnum::EdgeManage(EdgeManageExecutor::Alter(
+            executor,
+        )))
     }
 
     /// Building the DescEdge executor
@@ -395,7 +409,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             index,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::CreateTagIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::CreateTagIndex(executor),
+        ))
     }
 
     /// Building the DropTagIndex executor
@@ -411,7 +427,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.index_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::DropTagIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::DropTagIndex(executor),
+        ))
     }
 
     /// Constructing the DescTagIndex executor
@@ -427,7 +445,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.index_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::DescTagIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::DescTagIndex(executor),
+        ))
     }
 
     /// Constructing the ShowTagIndexes executor
@@ -442,7 +462,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.space_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::ShowTagIndexes(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::ShowTagIndexes(executor),
+        ))
     }
 
     /// Constructing the RebuildTagIndex executor
@@ -458,7 +480,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.index_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::RebuildTagIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::RebuildTagIndex(executor),
+        ))
     }
 
     // ========== Side Index Management Executor ----------
@@ -494,7 +518,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             index,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::CreateEdgeIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::CreateEdgeIndex(executor),
+        ))
     }
 
     /// Constructing the DropEdgeIndex executor
@@ -510,7 +536,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.index_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::DropEdgeIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::DropEdgeIndex(executor),
+        ))
     }
 
     /// Constructing the DescEdgeIndex executor
@@ -526,7 +554,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.index_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::DescEdgeIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::DescEdgeIndex(executor),
+        ))
     }
 
     /// Constructing the ShowEdgeIndexes executor
@@ -541,7 +571,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.space_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::ShowEdgeIndexes(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::ShowEdgeIndexes(executor),
+        ))
     }
 
     /// Constructing the RebuildEdgeIndex executor
@@ -557,7 +589,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.index_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::IndexManage(IndexManageExecutor::RebuildEdgeIndex(executor)))
+        Ok(ExecutorEnum::IndexManage(
+            IndexManageExecutor::RebuildEdgeIndex(executor),
+        ))
     }
 
     // >User Management Executor==========
@@ -581,7 +615,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             user_info,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::UserManage(UserManageExecutor::Create(executor)))
+        Ok(ExecutorEnum::UserManage(UserManageExecutor::Create(
+            executor,
+        )))
     }
 
     /// Constructing the AlterUser executor
@@ -600,7 +636,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             alter_info,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::UserManage(UserManageExecutor::Alter(executor)))
+        Ok(ExecutorEnum::UserManage(UserManageExecutor::Alter(
+            executor,
+        )))
     }
 
     /// Building the DropUser executor
@@ -636,7 +674,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             password_info.new_password.clone(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::UserManage(UserManageExecutor::ChangePassword(executor)))
+        Ok(ExecutorEnum::UserManage(
+            UserManageExecutor::ChangePassword(executor),
+        ))
     }
 
     /// Building the GrantRole executor
@@ -660,7 +700,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             role,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::UserManage(UserManageExecutor::GrantRole(executor)))
+        Ok(ExecutorEnum::UserManage(UserManageExecutor::GrantRole(
+            executor,
+        )))
     }
 
     /// Building the RevokeRole executor
@@ -676,7 +718,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.space_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::UserManage(UserManageExecutor::RevokeRole(executor)))
+        Ok(ExecutorEnum::UserManage(UserManageExecutor::RevokeRole(
+            executor,
+        )))
     }
 
     /// Building the SwitchSpace executor
@@ -691,7 +735,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.space_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Switch(executor)))
+        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Switch(
+            executor,
+        )))
     }
 
     /// Building the AlterSpace executor
@@ -716,7 +762,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             options,
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Alter(executor)))
+        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Alter(
+            executor,
+        )))
     }
 
     /// Building the ClearSpace executor
@@ -731,7 +779,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             node.space_name().to_string(),
             context.expression_context().clone(),
         );
-        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Clear(executor)))
+        Ok(ExecutorEnum::SpaceManage(SpaceManageExecutor::Clear(
+            executor,
+        )))
     }
 
     /// Building the ShowStats executor
@@ -762,11 +812,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = PassThroughExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
     }
 
@@ -775,11 +822,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = PassThroughExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
     }
 
@@ -788,11 +832,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = PassThroughExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
     }
 
@@ -801,11 +842,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = PassThroughExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
     }
 
@@ -814,11 +852,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = PassThroughExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
     }
 
@@ -827,11 +862,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = PassThroughExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
     }
 }

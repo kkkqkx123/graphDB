@@ -11,8 +11,8 @@ use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
 use super::types::*;
-use super::wal::types::Timestamp;
 use super::undo_log::{UndoLogManager, UndoTarget};
+use super::wal::types::Timestamp;
 
 /// Transaction Context
 ///
@@ -110,11 +110,7 @@ impl SavepointManager {
 
 impl TransactionContext {
     /// Create a new transaction context
-    pub fn new(
-        id: TransactionId,
-        start_timestamp: Timestamp,
-        config: TransactionConfig,
-    ) -> Self {
+    pub fn new(id: TransactionId, start_timestamp: Timestamp, config: TransactionConfig) -> Self {
         let now = Instant::now();
         Self {
             id,

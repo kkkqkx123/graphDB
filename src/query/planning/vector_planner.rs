@@ -576,10 +576,9 @@ impl VectorSearchPlanner {
         let mut resolved_field_name = String::new();
 
         // Look for a vector index that matches the field
-        if let Some(index_metadata) = metadata_context.find_vector_index_by_field(
-            space_id,
-            &match_stmt.vector_condition.field,
-        ) {
+        if let Some(index_metadata) = metadata_context
+            .find_vector_index_by_field(space_id, &match_stmt.vector_condition.field)
+        {
             resolved_space_id = index_metadata.space_id;
             resolved_tag_name = index_metadata.tag_name.clone();
             resolved_field_name = index_metadata.field_name.clone();

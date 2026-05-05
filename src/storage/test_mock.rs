@@ -18,9 +18,9 @@ use crate::storage::metadata::Schema;
 #[cfg(test)]
 use crate::storage::property_graph::{PropertyGraph, PropertyGraphConfig};
 #[cfg(test)]
-use std::sync::Arc;
-#[cfg(test)]
 use parking_lot::RwLock;
+#[cfg(test)]
+use std::sync::Arc;
 
 /// Test mock storage engine
 #[cfg(test)]

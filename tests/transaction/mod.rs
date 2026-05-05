@@ -26,20 +26,20 @@
 //! - Storage integration - transaction integration with storage layer
 //! - Edge advanced - advanced edge operations and patterns
 
-mod common;
+mod advanced;
 mod basic;
-mod vertex;
-mod edge;
+mod common;
 mod complex;
 mod concurrent;
-mod timeout;
-mod advanced;
-mod http_api;
-mod deadlock_prevention;
-mod rollback_operations;
-mod two_phase_commit;
-mod error_scenarios;
 mod config_options;
-mod storage_integration;
+mod deadlock_prevention;
+mod edge;
 mod edge_advanced;
+mod error_scenarios;
+mod http_api;
+mod rollback_operations;
+mod storage_integration;
+mod timeout;
+mod two_phase_commit;
+mod vertex;
 mod write_lock_timeout;

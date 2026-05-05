@@ -404,7 +404,7 @@ impl FulltextSearchPlanner {
         let mut space_id = 0u64;
         let mut tag_name = String::new();
         let mut field_name = String::new();
-        
+
         if let Some(ref index_name) = match_stmt.fulltext_condition.index_name {
             let index_metadata = metadata_context
                 .get_index_metadata(index_name)

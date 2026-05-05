@@ -24,7 +24,10 @@ impl NullBitmap {
 
     /// Create a new empty null bitmap
     pub fn new() -> Self {
-        Self { data: Vec::new(), len: 0 }
+        Self {
+            data: Vec::new(),
+            len: 0,
+        }
     }
 
     /// Create a new null bitmap with specified capacity

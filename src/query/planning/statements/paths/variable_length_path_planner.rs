@@ -159,7 +159,10 @@ impl VariableLengthPathPlanner {
         Self { config }
     }
 
-    pub fn plan(&self, spec: &VariableLengthPathSpec) -> Result<VariableLengthPathPlan, PlannerError> {
+    pub fn plan(
+        &self,
+        spec: &VariableLengthPathSpec,
+    ) -> Result<VariableLengthPathPlan, PlannerError> {
         let min_hops = spec.min_hops();
         let max_hops = spec.max_hops(self.config.max_unbounded_depth);
 
@@ -189,12 +192,7 @@ impl VariableLengthPathPlanner {
         })
     }
 
-    fn select_strategy(
-        &self,
-        min_hops: usize,
-        max_hops: usize,
-        is_bounded: bool,
-    ) -> VLPStrategy {
+    fn select_strategy(&self, min_hops: usize, max_hops: usize, is_bounded: bool) -> VLPStrategy {
         if min_hops == max_hops {
             return VLPStrategy::Exact;
         }

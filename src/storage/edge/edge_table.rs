@@ -5,7 +5,10 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsr, PropertyTable, Timestamp, VertexId};
+use super::{
+    EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsr, PropertyTable, Timestamp,
+    VertexId,
+};
 use crate::core::{DataType, StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone)]
@@ -44,8 +47,10 @@ impl EdgeTable {
     }
 
     pub fn with_config(schema: EdgeSchema, config: EdgeTableConfig) -> Self {
-        let out_csr = MutableCsr::with_capacity(config.initial_vertex_capacity);
-        let in_csr = MutableCsr::with_capacity(config.initial_vertex_capacity);
+        let out_csr =
+            MutableCsr::with_capacity(config.initial_vertex_capacity, config.initial_edge_capacity);
+        let in_csr =
+            MutableCsr::with_capacity(config.initial_vertex_capacity, config.initial_edge_capacity);
 
         let mut properties = PropertyTable::with_capacity(config.initial_edge_capacity);
         for prop in &schema.properties {
@@ -93,7 +98,9 @@ impl EdgeTable {
         }
 
         if self.schema.oe_strategy == EdgeStrategy::None {
-            return Err(StorageError::InvalidOperation("Edge strategy is None".to_string()));
+            return Err(StorageError::InvalidOperation(
+                "Edge strategy is None".to_string(),
+            ));
         }
 
         let edge_id = self.edge_id_counter.fetch_add(1, Ordering::Relaxed);
@@ -107,13 +114,19 @@ impl EdgeTable {
         if self.schema.oe_strategy == EdgeStrategy::Single {
             if self.out_csr.has_edge(src, dst, ts) {
                 self.properties.delete(prop_offset);
-                return Err(StorageError::EdgeAlreadyExists(format!("{} -> {}", src, dst)));
+                return Err(StorageError::EdgeAlreadyExists(format!(
+                    "{} -> {}",
+                    src, dst
+                )));
             }
         }
 
         if !self.out_csr.insert_edge(src, dst, edge_id, prop_offset, ts) {
             self.properties.delete(prop_offset);
-            return Err(StorageError::EdgeAlreadyExists(format!("{} -> {}", src, dst)));
+            return Err(StorageError::EdgeAlreadyExists(format!(
+                "{} -> {}",
+                src, dst
+            )));
         }
 
         if self.schema.ie_strategy != EdgeStrategy::None {
@@ -160,15 +173,17 @@ impl EdgeTable {
 
         let mut found = false;
         for src in 0..self.out_csr.vertex_capacity() {
-            let edges: Vec<_> = self.out_csr.edges_of(src as VertexId, ts)
+            let edges: Vec<_> = self
+                .out_csr
+                .edges_of(src as VertexId, ts)
                 .into_iter()
                 .filter(|nbr| nbr.edge_id == edge_id)
-                .cloned()
                 .collect();
 
             for nbr in edges {
                 self.out_csr.delete_edge(src as VertexId, edge_id, ts);
-                self.in_csr.delete_edge_by_dst(nbr.neighbor, src as VertexId, ts);
+                self.in_csr
+                    .delete_edge_by_dst(nbr.neighbor, src as VertexId, ts);
 
                 if nbr.prop_offset > 0 {
                     self.properties.delete(nbr.prop_offset);
@@ -188,8 +203,14 @@ impl EdgeTable {
         let nbr = self.out_csr.get_edge(src, dst, ts)?;
 
         let properties = if nbr.prop_offset > 0 {
-            self.properties.get(nbr.prop_offset)
-                .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+            self.properties
+                .get(nbr.prop_offset)
+                .map(|props| {
+                    props
+                        .into_iter()
+                        .filter_map(|(k, v)| v.map(|v| (k, v)))
+                        .collect()
+                })
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -207,7 +228,7 @@ impl EdgeTable {
         if !self.is_open {
             return None;
         }
-        self.out_csr.get_edge(src, dst, ts).copied()
+        self.out_csr.get_edge(src, dst, ts)
     }
 
     pub fn get_edge_by_id(&self, edge_id: EdgeId, ts: Timestamp) -> Option<EdgeRecord> {
@@ -216,13 +237,21 @@ impl EdgeTable {
         }
 
         for src in 0..self.out_csr.vertex_capacity() {
-            if let Some(nbr) = self.out_csr.edges_of(src as VertexId, ts)
+            if let Some(nbr) = self
+                .out_csr
+                .edges_of(src as VertexId, ts)
                 .iter()
                 .find(|nbr| nbr.edge_id == edge_id)
             {
                 let properties = if nbr.prop_offset > 0 {
-                    self.properties.get(nbr.prop_offset)
-                        .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+                    self.properties
+                        .get(nbr.prop_offset)
+                        .map(|props| {
+                            props
+                                .into_iter()
+                                .filter_map(|(k, v)| v.map(|v| (k, v)))
+                                .collect()
+                        })
                         .unwrap_or_default()
                 } else {
                     Vec::new()
@@ -269,8 +298,14 @@ impl EdgeTable {
             .into_iter()
             .map(|nbr| {
                 let properties = if nbr.prop_offset > 0 {
-                    self.properties.get(nbr.prop_offset)
-                        .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+                    self.properties
+                        .get(nbr.prop_offset)
+                        .map(|props| {
+                            props
+                                .into_iter()
+                                .filter_map(|(k, v)| v.map(|v| (k, v)))
+                                .collect()
+                        })
                         .unwrap_or_default()
                 } else {
                     Vec::new()
@@ -296,8 +331,14 @@ impl EdgeTable {
             .into_iter()
             .map(|nbr| {
                 let properties = if nbr.prop_offset > 0 {
-                    self.properties.get(nbr.prop_offset)
-                        .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+                    self.properties
+                        .get(nbr.prop_offset)
+                        .map(|props| {
+                            props
+                                .into_iter()
+                                .filter_map(|(k, v)| v.map(|v| (k, v)))
+                                .collect()
+                        })
                         .unwrap_or_default()
                 } else {
                     Vec::new()
@@ -347,8 +388,14 @@ impl EdgeTable {
         for src in 0..self.out_csr.vertex_capacity() {
             for nbr in self.out_csr.edges_of(src as VertexId, ts) {
                 let properties = if nbr.prop_offset > 0 {
-                    self.properties.get(nbr.prop_offset)
-                        .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+                    self.properties
+                        .get(nbr.prop_offset)
+                        .map(|props| {
+                            props
+                                .into_iter()
+                                .filter_map(|(k, v)| v.map(|v| (k, v)))
+                                .collect()
+                        })
                         .unwrap_or_default()
                 } else {
                     Vec::new()
@@ -365,7 +412,12 @@ impl EdgeTable {
         edges
     }
 
-    pub fn add_property(&mut self, name: String, data_type: DataType, nullable: bool) -> StorageResult<()> {
+    pub fn add_property(
+        &mut self,
+        name: String,
+        data_type: DataType,
+        nullable: bool,
+    ) -> StorageResult<()> {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
@@ -391,7 +443,8 @@ impl EdgeTable {
         }
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
-            self.properties.set_property(nbr.prop_offset, prop_name, Some(value.clone()))?;
+            self.properties
+                .set_property(nbr.prop_offset, prop_name, Some(value.clone()))?;
             return Ok(true);
         }
 
@@ -455,12 +508,16 @@ impl EdgeTable {
         if !self.is_open {
             return Vec::new();
         }
-        self.out_csr.edges_of(src, ts).into_iter().cloned().collect()
+        self.out_csr.edges_of(src, ts)
     }
 
     pub fn get_properties(&self, prop_offset: u32) -> Option<Vec<(String, Value)>> {
-        self.properties.get(prop_offset)
-            .map(|props| props.into_iter().filter_map(|(k, v)| v.map(|v| (k, v))).collect())
+        self.properties.get(prop_offset).map(|props| {
+            props
+                .into_iter()
+                .filter_map(|(k, v)| v.map(|v| (k, v)))
+                .collect()
+        })
     }
 
     pub fn compact(&mut self) {
@@ -566,7 +623,8 @@ impl EdgeTable {
 
         let mut edge_id_bytes = [0u8; 8];
         meta_file.read_exact(&mut edge_id_bytes)?;
-        self.edge_id_counter.store(u64::from_le_bytes(edge_id_bytes), Ordering::Relaxed);
+        self.edge_id_counter
+            .store(u64::from_le_bytes(edge_id_bytes), Ordering::Relaxed);
 
         let out_csr_path = path.join("out_csr.bin");
         Self::load_csr_static(&mut self.out_csr, &out_csr_path)?;
@@ -628,9 +686,10 @@ mod tests {
             label_name: "knows".to_string(),
             src_label: 0,
             dst_label: 0,
-            properties: vec![
-                super::super::PropertyDef::new("weight".to_string(), DataType::Double),
-            ],
+            properties: vec![super::super::PropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
         }
@@ -641,12 +700,9 @@ mod tests {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema);
 
-        let edge_id = table.insert_edge(
-            0,
-            1,
-            &[("weight".to_string(), Value::Double(1.5))],
-            100,
-        ).unwrap();
+        let edge_id = table
+            .insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.5))], 100)
+            .unwrap();
 
         assert!(table.has_edge(0, 1, 100));
 
@@ -661,7 +717,9 @@ mod tests {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema);
 
-        table.insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.5))], 100).unwrap();
+        table
+            .insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.5))], 100)
+            .unwrap();
 
         assert!(table.delete_edge(0, 1, 200).unwrap());
         assert!(!table.has_edge(0, 1, 300));
@@ -693,9 +751,13 @@ mod tests {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema);
 
-        table.insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.0))], 100).unwrap();
+        table
+            .insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.0))], 100)
+            .unwrap();
 
-        table.update_properties(0, 1, &[("weight".to_string(), Value::Double(2.0))], 100).unwrap();
+        table
+            .update_properties(0, 1, &[("weight".to_string(), Value::Double(2.0))], 100)
+            .unwrap();
 
         let edge = table.get_edge(0, 1, 100).unwrap();
         assert_eq!(edge.properties.len(), 1);

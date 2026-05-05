@@ -38,7 +38,10 @@ pub async fn login<S: StorageClient + Clone + Send + Sync + 'static>(
         .map_err(|e| HttpError::InternalError(format!("Failed to create session: {}", e)))?;
 
     let session_id = session.id();
-    info!("Created session {} for user {}", session_id, request.username);
+    info!(
+        "Created session {} for user {}",
+        session_id, request.username
+    );
 
     Ok(JsonResponse(LoginResponse {
         session_id,

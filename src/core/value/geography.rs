@@ -23,7 +23,10 @@ impl std::hash::Hash for GeographyValue {
 
 impl GeographyValue {
     pub fn new(latitude: f64, longitude: f64) -> Self {
-        GeographyValue { latitude, longitude }
+        GeographyValue {
+            latitude,
+            longitude,
+        }
     }
 
     /// Calculate the Haversine distance between two points (unit: kilometers)
@@ -105,10 +108,7 @@ impl LineStringValue {
 
     /// Calculate total length in kilometers
     pub fn length(&self) -> f64 {
-        self.points
-            .windows(2)
-            .map(|w| w[0].distance(&w[1]))
-            .sum()
+        self.points.windows(2).map(|w| w[0].distance(&w[1])).sum()
     }
 
     /// Get the number of points
@@ -137,10 +137,9 @@ impl LineStringValue {
         if self.points.is_empty() {
             return None;
         }
-        let (sum_lat, sum_lon) = self
-            .points
-            .iter()
-            .fold((0.0, 0.0), |(lat, lon), p| (lat + p.latitude, lon + p.longitude));
+        let (sum_lat, sum_lon) = self.points.iter().fold((0.0, 0.0), |(lat, lon), p| {
+            (lat + p.latitude, lon + p.longitude)
+        });
         Some(GeographyValue::new(
             sum_lat / self.points.len() as f64,
             sum_lon / self.points.len() as f64,
@@ -323,10 +322,9 @@ impl MultiPointValue {
         if self.points.is_empty() {
             return None;
         }
-        let (sum_lat, sum_lon) = self
-            .points
-            .iter()
-            .fold((0.0, 0.0), |(lat, lon), p| (lat + p.latitude, lon + p.longitude));
+        let (sum_lat, sum_lon) = self.points.iter().fold((0.0, 0.0), |(lat, lon), p| {
+            (lat + p.latitude, lon + p.longitude)
+        });
         Some(GeographyValue::new(
             sum_lat / self.points.len() as f64,
             sum_lon / self.points.len() as f64,
@@ -656,13 +654,14 @@ impl Geography {
             .map_err(|_| "Invalid regular expression".to_string())?;
 
         if let Some(caps) = re.captures(wkt) {
-            let content = caps.get(1).ok_or("Missing multilinestring content")?.as_str();
+            let content = caps
+                .get(1)
+                .ok_or("Missing multilinestring content")?
+                .as_str();
             let rings = Self::parse_rings(content)?;
 
-            let linestrings: Vec<LineStringValue> = rings
-                .into_iter()
-                .filter(|r| r.points.len() >= 2)
-                .collect();
+            let linestrings: Vec<LineStringValue> =
+                rings.into_iter().filter(|r| r.points.len() >= 2).collect();
 
             return Ok(Geography::MultiLineString(MultiLineStringValue::new(
                 linestrings,
@@ -822,26 +821,23 @@ impl Geography {
                 if all_points.is_empty() {
                     return None;
                 }
-                let (sum_lat, sum_lon) = all_points
-                    .iter()
-                    .fold((0.0, 0.0), |(lat, lon), p| (lat + p.latitude, lon + p.longitude));
+                let (sum_lat, sum_lon) = all_points.iter().fold((0.0, 0.0), |(lat, lon), p| {
+                    (lat + p.latitude, lon + p.longitude)
+                });
                 Some(GeographyValue::new(
                     sum_lat / all_points.len() as f64,
                     sum_lon / all_points.len() as f64,
                 ))
             }
             Geography::MultiPolygon(mp) => {
-                let centroids: Vec<GeographyValue> = mp
-                    .polygons
-                    .iter()
-                    .filter_map(|p| p.centroid())
-                    .collect();
+                let centroids: Vec<GeographyValue> =
+                    mp.polygons.iter().filter_map(|p| p.centroid()).collect();
                 if centroids.is_empty() {
                     return None;
                 }
-                let (sum_lat, sum_lon) = centroids
-                    .iter()
-                    .fold((0.0, 0.0), |(lat, lon), p| (lat + p.latitude, lon + p.longitude));
+                let (sum_lat, sum_lon) = centroids.iter().fold((0.0, 0.0), |(lat, lon), p| {
+                    (lat + p.latitude, lon + p.longitude)
+                });
                 Some(GeographyValue::new(
                     sum_lat / centroids.len() as f64,
                     sum_lon / centroids.len() as f64,
@@ -1013,7 +1009,11 @@ impl Geography {
                 coordinates: vec![p.longitude, p.latitude],
             },
             Geography::LineString(ls) => GeoJsonGeometry::LineString {
-                coordinates: ls.points.iter().map(|p| vec![p.longitude, p.latitude]).collect(),
+                coordinates: ls
+                    .points
+                    .iter()
+                    .map(|p| vec![p.longitude, p.latitude])
+                    .collect(),
             },
             Geography::Polygon(poly) => GeoJsonGeometry::Polygon {
                 coordinates: {
@@ -1037,13 +1037,22 @@ impl Geography {
                 },
             },
             Geography::MultiPoint(mp) => GeoJsonGeometry::MultiPoint {
-                coordinates: mp.points.iter().map(|p| vec![p.longitude, p.latitude]).collect(),
+                coordinates: mp
+                    .points
+                    .iter()
+                    .map(|p| vec![p.longitude, p.latitude])
+                    .collect(),
             },
             Geography::MultiLineString(mls) => GeoJsonGeometry::MultiLineString {
                 coordinates: mls
                     .linestrings
                     .iter()
-                    .map(|ls| ls.points.iter().map(|p| vec![p.longitude, p.latitude]).collect())
+                    .map(|ls| {
+                        ls.points
+                            .iter()
+                            .map(|p| vec![p.longitude, p.latitude])
+                            .collect()
+                    })
                     .collect(),
             },
             Geography::MultiPolygon(mp) => GeoJsonGeometry::MultiPolygon {
@@ -1124,10 +1133,8 @@ impl Geography {
                 Ok(Geography::MultiPoint(MultiPointValue::new(points?)))
             }
             GeoJsonGeometry::MultiLineString { coordinates } => {
-                let linestrings: Result<Vec<_>, _> = coordinates
-                    .iter()
-                    .map(|ring| parse_ring(ring))
-                    .collect();
+                let linestrings: Result<Vec<_>, _> =
+                    coordinates.iter().map(|ring| parse_ring(ring)).collect();
                 Ok(Geography::MultiLineString(MultiLineStringValue::new(
                     linestrings?,
                 )))
@@ -1137,8 +1144,9 @@ impl Geography {
                     .iter()
                     .map(|poly_coords| {
                         if poly_coords.is_empty() {
-                            return Err("MultiPolygon polygon must have at least one ring"
-                                .to_string());
+                            return Err(
+                                "MultiPolygon polygon must have at least one ring".to_string()
+                            );
                         }
                         let exterior = parse_ring(&poly_coords[0])?;
                         let holes: Result<Vec<_>, _> = poly_coords[1..]

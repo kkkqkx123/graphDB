@@ -12,8 +12,8 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::InMemorySchemaManager;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -101,7 +101,9 @@ impl InsertEdgesValidator {
         space_name: Option<&str>,
     ) -> Result<(), ValidationError> {
         // Get vid_type from schema_manager if available, otherwise default to String
-        let vid_type = if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
+        let vid_type = if let (Some(ref schema_manager), Some(space_name)) =
+            (&self.schema_manager, space_name)
+        {
             match schema_manager.get_space(space_name) {
                 Ok(Some(space_info)) => space_info.vid_type,
                 _ => crate::core::types::DataType::String,
@@ -457,8 +459,8 @@ mod tests {
     use crate::core::types::expr::Expression;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
-    use crate::query::QueryRequestContext;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use crate::query::QueryRequestContext;
     use std::sync::Arc;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {

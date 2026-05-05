@@ -101,7 +101,11 @@ impl PageHeader {
 
         let mut offset = 0;
 
-        let page_id = u64::from_le_bytes(bytes[offset..offset + 8].try_into().map_err(|_| "Invalid page_id")?);
+        let page_id = u64::from_le_bytes(
+            bytes[offset..offset + 8]
+                .try_into()
+                .map_err(|_| "Invalid page_id")?,
+        );
         offset += 8;
 
         let page_type = PageType::try_from(bytes[offset])?;
@@ -110,16 +114,32 @@ impl PageHeader {
         let flags = bytes[offset];
         offset += 1;
 
-        let checksum = u32::from_le_bytes(bytes[offset..offset + 4].try_into().map_err(|_| "Invalid checksum")?);
+        let checksum = u32::from_le_bytes(
+            bytes[offset..offset + 4]
+                .try_into()
+                .map_err(|_| "Invalid checksum")?,
+        );
         offset += 4;
 
-        let record_count = u16::from_le_bytes(bytes[offset..offset + 2].try_into().map_err(|_| "Invalid record_count")?);
+        let record_count = u16::from_le_bytes(
+            bytes[offset..offset + 2]
+                .try_into()
+                .map_err(|_| "Invalid record_count")?,
+        );
         offset += 2;
 
-        let free_space_offset = u16::from_le_bytes(bytes[offset..offset + 2].try_into().map_err(|_| "Invalid free_space_offset")?);
+        let free_space_offset = u16::from_le_bytes(
+            bytes[offset..offset + 2]
+                .try_into()
+                .map_err(|_| "Invalid free_space_offset")?,
+        );
         offset += 2;
 
-        let free_space = u16::from_le_bytes(bytes[offset..offset + 2].try_into().map_err(|_| "Invalid free_space")?);
+        let free_space = u16::from_le_bytes(
+            bytes[offset..offset + 2]
+                .try_into()
+                .map_err(|_| "Invalid free_space")?,
+        );
         offset += 2;
 
         let mut reserved = [0u8; 8];
@@ -215,7 +235,10 @@ mod tests {
         let offset = header.allocate_space(record_size);
         assert!(offset.is_some());
         assert_eq!(header.record_count, 1);
-        assert_eq!(header.free_space, PAGE_DATA_SIZE as u16 - record_size as u16);
+        assert_eq!(
+            header.free_space,
+            PAGE_DATA_SIZE as u16 - record_size as u16
+        );
     }
 
     #[test]

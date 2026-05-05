@@ -45,7 +45,9 @@ impl IndexEntry {
 
     pub fn is_visible_at(&self, read_ts: Timestamp) -> bool {
         self.created_ts <= read_ts
-            && self.deleted_ts.map_or(true, |deleted_ts| deleted_ts > read_ts)
+            && self
+                .deleted_ts
+                .map_or(true, |deleted_ts| deleted_ts > read_ts)
     }
 
     pub fn is_deleted(&self) -> bool {
@@ -189,6 +191,124 @@ pub trait IndexDataManager {
         vertex_id: &Value,
         tag: &Tag,
     ) -> Result<(), StorageError>;
+
+    // ========================================================================
+    // Native ID Type Support (CSR-compatible)
+    // ========================================================================
+
+    fn update_vertex_indexes_native(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_vertex_indexes_native_mvcc(
+            space_id,
+            vertex_id,
+            index_name,
+            props,
+            MAX_TIMESTAMP,
+        )
+    }
+
+    fn update_vertex_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError>;
+
+    fn delete_vertex_indexes_native(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+    ) -> Result<(), StorageError> {
+        self.delete_vertex_indexes_native_mvcc(space_id, vertex_id, MAX_TIMESTAMP)
+    }
+
+    fn delete_vertex_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError>;
+
+    fn lookup_tag_index_native(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+    ) -> Result<Vec<u64>, StorageError> {
+        self.lookup_tag_index_native_mvcc(space_id, index, value, MAX_TIMESTAMP)
+    }
+
+    fn lookup_tag_index_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<u64>, StorageError>;
+
+    fn update_edge_indexes_native(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+    ) -> Result<(), StorageError> {
+        self.update_edge_indexes_native_mvcc(space_id, src, dst, index_name, props, MAX_TIMESTAMP)
+    }
+
+    fn update_edge_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError>;
+
+    fn delete_edge_indexes_native(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_names: &[String],
+    ) -> Result<(), StorageError> {
+        self.delete_edge_indexes_native_mvcc(space_id, src, dst, index_names, MAX_TIMESTAMP)
+    }
+
+    fn delete_edge_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_names: &[String],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError>;
+
+    fn lookup_edge_index_native(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+    ) -> Result<Vec<(u64, u64)>, StorageError> {
+        self.lookup_edge_index_native_mvcc(space_id, index, value, MAX_TIMESTAMP)
+    }
+
+    fn lookup_edge_index_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<(u64, u64)>, StorageError>;
 }
 
 #[derive(Clone)]
@@ -253,10 +373,13 @@ impl InMemoryIndexDataManager {
         safe_ts: Timestamp,
         batch_size: usize,
     ) -> Result<GcStats, StorageError> {
-        let vertex_removed = self.vertex_manager.gc_tombstones_incremental(safe_ts, batch_size)?;
+        let vertex_removed = self
+            .vertex_manager
+            .gc_tombstones_incremental(safe_ts, batch_size)?;
         let remaining = batch_size.saturating_sub(vertex_removed);
         let edge_removed = if remaining > 0 {
-            self.edge_manager.gc_tombstones_incremental(safe_ts, remaining)?
+            self.edge_manager
+                .gc_tombstones_incremental(safe_ts, remaining)?
         } else {
             0
         };
@@ -460,6 +583,75 @@ impl IndexDataManager for InMemoryIndexDataManager {
         }
         Ok(())
     }
+
+    fn update_vertex_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.vertex_manager
+            .update_vertex_indexes_native_mvcc(space_id, vertex_id, index_name, props, write_ts)
+    }
+
+    fn delete_vertex_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: u64,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.vertex_manager
+            .delete_vertex_indexes_native_mvcc(space_id, vertex_id, write_ts)
+    }
+
+    fn lookup_tag_index_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<u64>, StorageError> {
+        self.vertex_manager
+            .lookup_tag_index_native_mvcc(space_id, index, value, read_ts)
+    }
+
+    fn update_edge_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_name: &str,
+        props: &[(String, Value)],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.edge_manager
+            .update_edge_indexes_native_mvcc(space_id, src, dst, index_name, props, write_ts)
+    }
+
+    fn delete_edge_indexes_native_mvcc(
+        &self,
+        space_id: u64,
+        src: u64,
+        dst: u64,
+        index_names: &[String],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.edge_manager
+            .delete_edge_indexes_native_mvcc(space_id, src, dst, index_names, write_ts)
+    }
+
+    fn lookup_edge_index_native_mvcc(
+        &self,
+        space_id: u64,
+        index: &Index,
+        value: &Value,
+        read_ts: Timestamp,
+    ) -> Result<Vec<(u64, u64)>, StorageError> {
+        self.edge_manager
+            .lookup_edge_index_native_mvcc(space_id, index, value, read_ts)
+    }
 }
 
 #[cfg(test)]
@@ -489,8 +681,10 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_value() {
         let value = Value::String("test".to_string());
-        let bytes = InMemoryIndexDataManager::serialize_value(&value).expect("serialize should succeed");
-        let decoded = InMemoryIndexDataManager::deserialize_value(&bytes).expect("deserialize should succeed");
+        let bytes =
+            InMemoryIndexDataManager::serialize_value(&value).expect("serialize should succeed");
+        let decoded = InMemoryIndexDataManager::deserialize_value(&bytes)
+            .expect("deserialize should succeed");
         assert_eq!(value, decoded);
     }
 

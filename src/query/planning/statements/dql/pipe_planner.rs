@@ -4,12 +4,9 @@
 //! Supports pipe DELETE syntax: GO ... | DELETE VERTEX $-.id
 
 use crate::query::parser::ast::stmt::{PipeStmt, Stmt};
+use crate::query::planning::plan::core::nodes::{PipeDeleteEdgesNode, PipeDeleteVerticesNode};
 use crate::query::planning::plan::core::{
-    node_id_generator::next_node_id,
-    nodes::base::plan_node_traits::SingleInputNode,
-};
-use crate::query::planning::plan::core::nodes::{
-    PipeDeleteEdgesNode, PipeDeleteVerticesNode,
+    node_id_generator::next_node_id, nodes::base::plan_node_traits::SingleInputNode,
 };
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::{Planner, PlannerEnum, PlannerError, ValidatedStatement};
@@ -66,7 +63,7 @@ impl Planner for PipePlanner {
 
         let mut right_planner = PlannerEnum::from_stmt(&Arc::new((*pipe_stmt.right).clone()))
             .ok_or_else(|| PlannerError::NoSuitablePlanner("right statement".to_string()))?;
-        
+
         let right_plan = right_planner.transform(&right_validated, qctx)?;
 
         let left_root = left_plan.root.ok_or_else(|| {
@@ -129,13 +126,13 @@ fn replace_argument_node(plan: PlanNodeEnum, replacement: PlanNodeEnum) -> PlanN
             let input = unwind.input().clone();
             let new_input = replace_argument_node(input, replacement.clone());
             unwind.set_input(new_input);
-            
+
             let mut new_col_names = replacement.col_names().to_vec();
             if let Some(alias) = unwind.col_names().last() {
                 new_col_names.push(alias.clone());
             }
             unwind.set_col_names(new_col_names);
-            
+
             PlanNodeEnum::Unwind(unwind)
         }
         PlanNodeEnum::DeleteVertices(delete_vertices) => {
