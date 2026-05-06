@@ -12,8 +12,7 @@ use oxicode::{decode_from_slice, encode_to_vec};
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{
-    CreateEdgeTypeRedo, CreateVertexTypeRedo, EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId,
-    Timestamp, VertexId, WalHeader, WalOpType,
+    EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, Timestamp, VertexId, WalHeader, WalOpType,
 };
 use super::wal::writer::WalWriter;
 

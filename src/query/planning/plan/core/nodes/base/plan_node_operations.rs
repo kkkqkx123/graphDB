@@ -148,7 +148,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::DeleteIndex(_) => "DeleteIndex",
             PlanNodeEnum::Minus(_) => "Minus",
             PlanNodeEnum::Intersect(_) => "Intersect",
-            PlanNodeEnum::FullOuterJoin(_) => "FullOuterJoin",
             PlanNodeEnum::EdgeIndexScan(_) => "EdgeIndexScan",
             PlanNodeEnum::PipeDeleteVertices(_) => "PipeDeleteVertices",
             PlanNodeEnum::PipeDeleteEdges(_) => "PipeDeleteEdges",

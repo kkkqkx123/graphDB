@@ -221,6 +221,93 @@ impl VertexTable {
         Ok(())
     }
 
+    pub fn batch_insert(
+        &mut self,
+        vertices: &[(String, Vec<(String, Value)>)],
+        ts: Timestamp,
+    ) -> StorageResult<Vec<u32>> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        let count = vertices.len();
+        self.ensure_capacity(self.total_count() + count);
+
+        let mut internal_ids = Vec::with_capacity(count);
+
+        for (external_id, properties) in vertices {
+            let internal_id = self.insert(external_id, properties, ts)?;
+            internal_ids.push(internal_id);
+        }
+
+        Ok(internal_ids)
+    }
+
+    pub fn batch_delete(
+        &mut self,
+        external_ids: &[String],
+        ts: Timestamp,
+    ) -> StorageResult<usize> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        let mut deleted_count = 0;
+
+        for external_id in external_ids {
+            if let Some(internal_id) = self.id_indexer.get_index(external_id) {
+                self.timestamps.remove(internal_id, ts);
+                deleted_count += 1;
+            }
+        }
+
+        Ok(deleted_count)
+    }
+
+    pub fn batch_get(
+        &self,
+        external_ids: &[String],
+        ts: Timestamp,
+    ) -> Vec<Option<VertexRecord>> {
+        if !self.is_open {
+            return vec![None; external_ids.len()];
+        }
+
+        external_ids
+            .iter()
+            .map(|id| self.get(id, ts))
+            .collect()
+    }
+
+    pub fn batch_update(
+        &mut self,
+        updates: &[(String, Vec<(String, Value)>)],
+        ts: Timestamp,
+    ) -> StorageResult<usize> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        let mut updated_count = 0;
+
+        for (external_id, properties) in updates {
+            if let Some(internal_id) = self.id_indexer.get_index(external_id) {
+                if self.timestamps.is_valid(internal_id, ts) {
+                    for (col_name, value) in properties {
+                        let _ = self.columns.set_property(
+                            internal_id as usize,
+                            col_name,
+                            Some(value),
+                        );
+                    }
+                    updated_count += 1;
+                }
+            }
+        }
+
+        Ok(updated_count)
+    }
+
     pub fn revert_delete(&mut self, internal_id: u32, ts: Timestamp) -> StorageResult<()> {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
@@ -263,7 +350,7 @@ impl VertexTable {
     }
 
     pub fn total_count(&self) -> usize {
-        self.id_indexer.size()
+        self.id_indexer.len()
     }
 
     pub fn scan(&self, ts: Timestamp) -> VertexIterator {
@@ -307,7 +394,85 @@ impl VertexTable {
     }
 
     pub fn compact(&mut self) {
-        self.timestamps.compact();
+        let id_mapping = self.id_indexer.compact().unwrap_or_default();
+
+        if id_mapping.is_empty() {
+            self.timestamps.compact();
+            return;
+        }
+
+        self.remap_columns(&id_mapping);
+        self.remap_timestamps(&id_mapping);
+    }
+
+    fn remap_columns(&mut self, id_mapping: &std::collections::HashMap<u32, u32>) {
+        if id_mapping.is_empty() {
+            return;
+        }
+
+        let max_old_id = id_mapping.keys().max().copied().unwrap_or(0) as usize;
+        if max_old_id >= self.columns.row_count() {
+            return;
+        }
+
+        let mut new_columns = ColumnStore::with_capacity(self.id_indexer.len());
+        for prop in &self.schema.properties {
+            new_columns.add_column(prop.name.clone(), prop.data_type.clone(), prop.nullable);
+        }
+
+        for (old_id, new_id) in id_mapping {
+            let old_idx = *old_id as usize;
+            let new_idx = *new_id as usize;
+
+            let values = self.columns.get(old_idx);
+            let pairs: Vec<(String, Value)> = values
+                .into_iter()
+                .filter_map(|(name, opt_val)| opt_val.map(|v| (name, v)))
+                .collect();
+
+            if !pairs.is_empty() {
+                let _ = new_columns.set(new_idx, &pairs);
+            }
+        }
+
+        self.columns = new_columns;
+    }
+
+    fn remap_timestamps(&mut self, id_mapping: &std::collections::HashMap<u32, u32>) {
+        if id_mapping.is_empty() {
+            return;
+        }
+
+        let max_new_id = id_mapping.values().max().copied().unwrap_or(0) as usize;
+        let mut new_timestamps = VertexTimestamp::with_capacity(max_new_id + 1);
+
+        for (old_id, new_id) in id_mapping {
+            if let Some(start_ts) = self.timestamps.get_start_ts(*old_id) {
+                new_timestamps.insert(*new_id, start_ts);
+                if let Some(end_ts) = self.timestamps.get_end_ts(*old_id) {
+                    if end_ts < super::MAX_TIMESTAMP {
+                        new_timestamps.remove(*new_id, end_ts);
+                    }
+                }
+            }
+        }
+
+        self.timestamps = new_timestamps;
+    }
+
+    pub fn fragmentation_ratio(&self) -> f64 {
+        let total_slots = self.id_indexer.total_slots();
+        let active_count = self.id_indexer.len();
+
+        if total_slots == 0 {
+            return 0.0;
+        }
+
+        (total_slots - active_count) as f64 / total_slots as f64
+    }
+
+    pub fn deleted_count(&self) -> usize {
+        self.timestamps.size() - self.timestamps.valid_count(super::MAX_TIMESTAMP - 1)
     }
 
     pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
@@ -352,7 +517,7 @@ impl VertexTable {
 
         let mut file = File::create(path)?;
 
-        let keys = self.id_indexer.keys();
+        let keys: Vec<&String> = self.id_indexer.keys().collect();
         let count = keys.len() as u32;
         file.write_all(&count.to_le_bytes())?;
 
@@ -385,10 +550,11 @@ impl VertexTable {
 
             if let Some(bitmap) = col.null_bitmap() {
                 file.write_all(&[1u8])?;
-                let bitmap_bytes: Vec<u8> =
-                    bitmap.iter().map(|&b| if b { 1u8 } else { 0u8 }).collect();
-                file.write_all(&(bitmap.len() as u32).to_le_bytes())?;
-                file.write_all(&bitmap_bytes)?;
+                let bitmap_bytes = bitmap.as_raw_slice();
+                let bitmap_bit_len = bitmap.len() as u32;
+                file.write_all(&bitmap_bit_len.to_le_bytes())?;
+                file.write_all(&(bitmap_bytes.len() as u32).to_le_bytes())?;
+                file.write_all(bitmap_bytes)?;
             } else {
                 file.write_all(&[0u8])?;
             }
@@ -521,20 +687,24 @@ impl VertexTable {
             file.read_exact(&mut has_bitmap_bytes)?;
             let has_bitmap = has_bitmap_bytes[0] == 1;
 
-            let null_bitmap = if has_bitmap {
-                let mut bitmap_len_bytes = [0u8; 4];
-                file.read_exact(&mut bitmap_len_bytes)?;
-                let bitmap_len = u32::from_le_bytes(bitmap_len_bytes) as usize;
+            let (null_bitmap_raw, bitmap_bit_len) = if has_bitmap {
+                let mut bitmap_bit_len_bytes = [0u8; 4];
+                file.read_exact(&mut bitmap_bit_len_bytes)?;
+                let bitmap_bit_len = u32::from_le_bytes(bitmap_bit_len_bytes) as usize;
 
-                let mut bitmap_bytes = vec![0u8; bitmap_len];
+                let mut bitmap_bytes_len_bytes = [0u8; 4];
+                file.read_exact(&mut bitmap_bytes_len_bytes)?;
+                let bitmap_bytes_len = u32::from_le_bytes(bitmap_bytes_len_bytes) as usize;
+
+                let mut bitmap_bytes = vec![0u8; bitmap_bytes_len];
                 file.read_exact(&mut bitmap_bytes)?;
 
-                Some(bitmap_bytes.into_iter().map(|b| b == 1).collect())
+                (Some(bitmap_bytes), bitmap_bit_len)
             } else {
-                None
+                (None, 0)
             };
 
-            self.columns.load_column(&name, data, null_bitmap)?;
+            self.columns.load_column_from_raw(&name, data, null_bitmap_raw, bitmap_bit_len)?;
         }
 
         Ok(())

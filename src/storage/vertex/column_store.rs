@@ -3,6 +3,7 @@
 //! Columnar storage for vertex properties.
 //! Each column stores values of a single property type.
 
+use bitvec::prelude::*;
 use crate::core::value::DateValue;
 use crate::core::{DataType, StorageError, StorageResult, Value};
 
@@ -14,7 +15,7 @@ pub struct Column {
     pub nullable: bool,
     data: Vec<u8>,
     offsets: Vec<usize>,
-    null_bitmap: Option<Vec<bool>>,
+    null_bitmap: Option<BitVec<u8, Lsb0>>,
     row_count: usize,
 }
 
@@ -27,7 +28,7 @@ impl Column {
             nullable,
             data: Vec::new(),
             offsets: Vec::new(),
-            null_bitmap: if nullable { Some(Vec::new()) } else { None },
+            null_bitmap: if nullable { Some(BitVec::new()) } else { None },
             row_count: 0,
         }
     }
@@ -48,7 +49,7 @@ impl Column {
             data: Vec::with_capacity(capacity * element_size),
             offsets: Vec::with_capacity(capacity),
             null_bitmap: if nullable {
-                Some(Vec::with_capacity(capacity))
+                Some(BitVec::with_capacity(capacity))
             } else {
                 None
             },
@@ -88,10 +89,8 @@ impl Column {
                     self.offsets[row_idx] = start;
 
                     if let Some(ref mut bitmap) = self.null_bitmap {
-                        while bitmap.len() <= row_idx {
-                            bitmap.push(false);
-                        }
-                        bitmap[row_idx] = false;
+                        Self::ensure_bitmap_len(bitmap, row_idx + 1);
+                        bitmap.set(row_idx, false);
                     }
                 }
                 None => {
@@ -101,10 +100,8 @@ impl Column {
                     self.offsets[row_idx] = usize::MAX;
 
                     if let Some(ref mut bitmap) = self.null_bitmap {
-                        while bitmap.len() <= row_idx {
-                            bitmap.push(false);
-                        }
-                        bitmap[row_idx] = true;
+                        Self::ensure_bitmap_len(bitmap, row_idx + 1);
+                        bitmap.set(row_idx, true);
                     }
                 }
             }
@@ -120,10 +117,8 @@ impl Column {
                 Some(v) => {
                     self.write_fixed_value(offset, v)?;
                     if let Some(ref mut bitmap) = self.null_bitmap {
-                        while bitmap.len() <= row_idx {
-                            bitmap.push(false);
-                        }
-                        bitmap[row_idx] = false;
+                        Self::ensure_bitmap_len(bitmap, row_idx + 1);
+                        bitmap.set(row_idx, false);
                     }
                 }
                 None => {
@@ -131,10 +126,8 @@ impl Column {
                         return Err(StorageError::NullValueNotAllowed(self.name.clone()));
                     }
                     if let Some(ref mut bitmap) = self.null_bitmap {
-                        while bitmap.len() <= row_idx {
-                            bitmap.push(false);
-                        }
-                        bitmap[row_idx] = true;
+                        Self::ensure_bitmap_len(bitmap, row_idx + 1);
+                        bitmap.set(row_idx, true);
                     }
                 }
             }
@@ -147,11 +140,15 @@ impl Column {
         Ok(())
     }
 
+    fn ensure_bitmap_len(bitmap: &mut BitVec<u8, Lsb0>, min_len: usize) {
+        if bitmap.len() < min_len {
+            bitmap.resize(min_len, false);
+        }
+    }
+
     pub fn get(&self, row_idx: usize) -> Option<Value> {
-        if let Some(ref bitmap) = self.null_bitmap {
-            if row_idx < bitmap.len() && bitmap[row_idx] {
-                return None;
-            }
+        if self.is_null(row_idx) {
+            return None;
         }
 
         if self.is_variable_length() {
@@ -298,6 +295,20 @@ impl Column {
             .unwrap_or(false)
     }
 
+    pub fn null_count(&self) -> usize {
+        self.null_bitmap
+            .as_ref()
+            .map(|b| b.count_ones())
+            .unwrap_or(0)
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        let data_size = self.data.len();
+        let offsets_size = self.offsets.len() * std::mem::size_of::<usize>();
+        let bitmap_size = self.null_bitmap.as_ref().map(|b| b.as_raw_slice().len()).unwrap_or(0);
+        data_size + offsets_size + bitmap_size
+    }
+
     pub fn len(&self) -> usize {
         self.row_count
     }
@@ -331,13 +342,28 @@ impl Column {
         &self.data
     }
 
-    pub fn null_bitmap(&self) -> Option<&Vec<bool>> {
+    pub fn null_bitmap(&self) -> Option<&BitVec<u8, Lsb0>> {
         self.null_bitmap.as_ref()
     }
 
-    pub fn load_data(&mut self, data: Vec<u8>, null_bitmap: Option<Vec<bool>>) {
+    pub fn null_bitmap_raw(&self) -> Option<&[u8]> {
+        self.null_bitmap.as_ref().map(|b| b.as_raw_slice())
+    }
+
+    pub fn load_data(&mut self, data: Vec<u8>, null_bitmap: Option<BitVec<u8, Lsb0>>) {
         self.data = data;
         self.null_bitmap = null_bitmap;
+        let element_size = Self::element_size(&self.data_type);
+        self.row_count = self.data.len() / element_size.max(1);
+    }
+
+    pub fn load_data_from_raw(&mut self, data: Vec<u8>, null_bitmap_raw: Option<Vec<u8>>, bitmap_bit_len: usize) {
+        self.data = data;
+        self.null_bitmap = null_bitmap_raw.map(|raw| {
+            let mut bv = BitVec::from_vec(raw);
+            bv.resize(bitmap_bit_len, false);
+            bv
+        });
         let element_size = Self::element_size(&self.data_type);
         self.row_count = self.data.len() / element_size.max(1);
     }
@@ -456,10 +482,25 @@ impl ColumnStore {
         &mut self,
         name: &str,
         data: Vec<u8>,
-        null_bitmap: Option<Vec<bool>>,
+        null_bitmap: Option<BitVec<u8, Lsb0>>,
     ) -> StorageResult<()> {
         if let Some(col) = self.get_column_mut(name) {
             col.load_data(data, null_bitmap);
+            Ok(())
+        } else {
+            Err(StorageError::ColumnNotFound(name.to_string()))
+        }
+    }
+
+    pub fn load_column_from_raw(
+        &mut self,
+        name: &str,
+        data: Vec<u8>,
+        null_bitmap_raw: Option<Vec<u8>>,
+        bitmap_bit_len: usize,
+    ) -> StorageResult<()> {
+        if let Some(col) = self.get_column_mut(name) {
+            col.load_data_from_raw(data, null_bitmap_raw, bitmap_bit_len);
             Ok(())
         } else {
             Err(StorageError::ColumnNotFound(name.to_string()))

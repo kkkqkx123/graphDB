@@ -4,7 +4,7 @@
 
 use crate::core::{StorageError, Value};
 
-use super::key_types::{deserialize_value, serialize_value};
+use super::key_types::deserialize_value;
 
 pub struct KeyParser;
 
@@ -578,6 +578,7 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::storage::index::secondary::key_codec::key_builder::KeyBuilder;
+    use super::super::key_types::serialize_value;
 
     #[test]
     fn test_parse_vertex_id_from_key() {

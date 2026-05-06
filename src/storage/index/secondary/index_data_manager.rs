@@ -15,10 +15,6 @@ use super::key_codec::{deserialize_value, serialize_value};
 use super::vertex_index_manager::VertexIndexManager;
 use std::path::Path;
 
-pub use super::key_codec::{
-    KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
-};
-
 pub type Timestamp = u32;
 
 pub const INVALID_TIMESTAMP: Timestamp = u32::MAX;

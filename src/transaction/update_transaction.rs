@@ -12,15 +12,14 @@ use oxicode::encode_to_vec;
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
-    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
-    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
+    DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
     RemoveVertexUndo, UndoLogError, UndoLogManager, UndoTarget, UpdateEdgePropUndo,
     UpdateVertexPropUndo,
 };
 use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{
-    ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo, EdgeId,
-    LabelId, Timestamp, UpdateEdgePropRedo, UpdateVertexPropRedo, VertexId, WalHeader, WalOpType,
+    ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, LabelId, Timestamp, VertexId, WalHeader,
+    WalOpType,
 };
 use super::wal::writer::WalWriter;
 

@@ -8,18 +8,19 @@
 //! - `IdIndexer`: External ID to internal ID mapping
 //! - `ColumnStore`: Columnar property storage
 //! - `VertexTimestamp`: MVCC timestamp tracking for vertices
+//! - `encoding`: Compression encodings (Dictionary, RLE)
 
 pub mod column_store;
+pub mod encoding;
 pub mod id_indexer;
 pub mod vertex_table;
 pub mod vertex_timestamp;
 
 pub use column_store::{Column, ColumnStore};
+pub use encoding::{EncodingStats, EncodingType, select_encoding};
 pub use id_indexer::IdIndexer;
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
-
-use std::sync::atomic::{AtomicU32, Ordering};
 
 pub type LabelId = u16;
 pub type VertexId = u64;

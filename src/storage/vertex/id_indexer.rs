@@ -2,47 +2,153 @@
 //!
 //! Maps external IDs (strings or integers) to internal vertex IDs.
 //! Provides O(1) lookup in both directions.
+//!
+//! Features:
+//! - Dynamic expansion: automatically grows when capacity is reached
+//! - Free list reuse: reuses deleted IDs to reduce fragmentation
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::storage::{StorageError, StorageResult};
 
+const DEFAULT_INITIAL_CAPACITY: usize = 1024;
+const DEFAULT_GROWTH_FACTOR: f64 = 1.5;
+const MAX_CAPACITY: usize = u32::MAX as usize;
+
+#[derive(Debug, Clone)]
+pub struct IdIndexerConfig {
+    pub initial_capacity: usize,
+    pub growth_factor: f64,
+    pub max_capacity: usize,
+    pub enable_free_list: bool,
+}
+
+impl Default for IdIndexerConfig {
+    fn default() -> Self {
+        Self {
+            initial_capacity: DEFAULT_INITIAL_CAPACITY,
+            growth_factor: DEFAULT_GROWTH_FACTOR,
+            max_capacity: MAX_CAPACITY,
+            enable_free_list: true,
+        }
+    }
+}
+
+impl IdIndexerConfig {
+    pub fn with_initial_capacity(mut self, capacity: usize) -> Self {
+        self.initial_capacity = capacity;
+        self
+    }
+
+    pub fn with_growth_factor(mut self, factor: f64) -> Self {
+        self.growth_factor = factor;
+        self
+    }
+
+    pub fn with_max_capacity(mut self, max: usize) -> Self {
+        self.max_capacity = max;
+        self
+    }
+
+    pub fn with_free_list(mut self, enable: bool) -> Self {
+        self.enable_free_list = enable;
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct IdIndexer<K>
 where
-    K: Eq + Hash + Clone,
+    K: Eq + Hash + Clone + Debug,
 {
-    keys: Vec<K>,
+    keys: Vec<Option<K>>,
     key_to_index: HashMap<K, u32>,
-    capacity: usize,
+    free_list: VecDeque<u32>,
+    config: IdIndexerConfig,
 }
 
 impl<K> IdIndexer<K>
 where
-    K: Eq + Hash + Clone,
+    K: Eq + Hash + Clone + Debug,
 {
     pub fn new() -> Self {
-        Self::with_capacity(1024)
+        Self::with_config(IdIndexerConfig::default())
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
+        Self::with_config(
+            IdIndexerConfig::default().with_initial_capacity(capacity),
+        )
+    }
+
+    pub fn with_config(config: IdIndexerConfig) -> Self {
+        let capacity = config.initial_capacity.min(config.max_capacity);
         Self {
             keys: Vec::with_capacity(capacity),
             key_to_index: HashMap::with_capacity(capacity),
-            capacity,
+            free_list: if config.enable_free_list {
+                VecDeque::new()
+            } else {
+                VecDeque::new()
+            },
+            config,
         }
     }
 
     pub fn insert(&mut self, key: K) -> StorageResult<u32> {
-        if self.keys.len() >= self.capacity {
+        if self.key_to_index.contains_key(&key) {
+            return Err(StorageError::VertexAlreadyExists(
+                format!("{:?}", key).trim_matches('"').to_string(),
+            ));
+        }
+
+        if self.len() >= self.config.max_capacity {
             return Err(StorageError::CapacityExceeded);
         }
 
+        if let Some(reused_id) = self.free_list.pop_front() {
+            self.keys[reused_id as usize] = Some(key.clone());
+            self.key_to_index.insert(key, reused_id);
+            return Ok(reused_id);
+        }
+
+        if self.keys.len() >= self.keys.capacity() {
+            self.grow()?;
+        }
+
         let index = self.keys.len() as u32;
-        self.keys.push(key.clone());
+        self.keys.push(Some(key.clone()));
         self.key_to_index.insert(key, index);
         Ok(index)
+    }
+
+    fn grow(&mut self) -> StorageResult<()> {
+        let current_capacity = self.keys.capacity();
+        if current_capacity >= self.config.max_capacity {
+            return Err(StorageError::CapacityExceeded);
+        }
+
+        let new_capacity = ((current_capacity as f64 * self.config.growth_factor) as usize)
+            .min(self.config.max_capacity)
+            .max(current_capacity + 1);
+
+        self.keys.reserve(new_capacity - current_capacity);
+        self.key_to_index.reserve(new_capacity - self.key_to_index.len());
+
+        Ok(())
+    }
+
+    pub fn remove(&mut self, key: &K) -> Option<u32> {
+        if let Some(index) = self.key_to_index.remove(key) {
+            self.keys[index as usize] = None;
+            if self.config.enable_free_list {
+                self.free_list.push_back(index);
+            }
+            return Some(index);
+        }
+        None
     }
 
     pub fn get_index(&self, key: &K) -> Option<u32> {
@@ -50,50 +156,104 @@ where
     }
 
     pub fn get_key(&self, index: u32) -> Option<&K> {
-        self.keys.get(index as usize)
+        self.keys.get(index as usize)?.as_ref()
     }
 
     pub fn contains(&self, key: &K) -> bool {
         self.key_to_index.contains_key(key)
     }
 
-    pub fn size(&self) -> usize {
-        self.keys.len()
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
-    pub fn reserve(&mut self, new_capacity: usize) {
-        if new_capacity > self.capacity {
-            self.capacity = new_capacity;
-            self.keys.reserve(new_capacity);
-            self.key_to_index.reserve(new_capacity);
-        }
+    pub fn len(&self) -> usize {
+        self.key_to_index.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.keys.is_empty()
+        self.key_to_index.is_empty()
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.keys.capacity()
+    }
+
+    pub fn free_count(&self) -> usize {
+        self.free_list.len()
+    }
+
+    pub fn total_slots(&self) -> usize {
+        self.keys.len()
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        let new_capacity = self.keys.len() + additional;
+        if new_capacity > self.keys.capacity() {
+            self.keys.reserve(new_capacity - self.keys.capacity());
+            self.key_to_index.reserve(additional);
+        }
+    }
+
+    pub fn shrink_to_fit(&mut self) {
+        if self.free_list.is_empty() {
+            self.keys.shrink_to_fit();
+            self.key_to_index.shrink_to_fit();
+        }
+    }
+
+    pub fn compact(&mut self) -> StorageResult<HashMap<u32, u32>> {
+        if self.free_list.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut id_mapping = HashMap::new();
+        let mut new_keys: Vec<Option<K>> = Vec::with_capacity(self.len());
+        let mut new_key_to_index = HashMap::with_capacity(self.len());
+
+        for (old_idx, key_opt) in self.keys.iter().enumerate() {
+            if let Some(key) = key_opt {
+                let new_idx = new_keys.len() as u32;
+                new_keys.push(Some(key.clone()));
+                new_key_to_index.insert(key.clone(), new_idx);
+                if old_idx as u32 != new_idx {
+                    id_mapping.insert(old_idx as u32, new_idx);
+                }
+            }
+        }
+
+        self.keys = new_keys;
+        self.key_to_index = new_key_to_index;
+        self.free_list.clear();
+
+        Ok(id_mapping)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&K, u32)> {
-        self.keys.iter().enumerate().map(|(i, k)| (k, i as u32))
+        self.keys
+            .iter()
+            .enumerate()
+            .filter_map(|(i, k)| k.as_ref().map(|k| (k, i as u32)))
     }
 
-    pub fn keys(&self) -> &[K] {
-        &self.keys
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.keys.iter().filter_map(|k| k.as_ref())
     }
 
     pub fn clear(&mut self) {
         self.keys.clear();
         self.key_to_index.clear();
+        self.free_list.clear();
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        let keys_size = self.keys.capacity() * std::mem::size_of::<Option<K>>();
+        let map_size = self.key_to_index.capacity()
+            * (std::mem::size_of::<K>() + std::mem::size_of::<u32>());
+        let free_list_size = self.free_list.capacity() * std::mem::size_of::<u32>();
+        keys_size + map_size + free_list_size
     }
 }
 
 impl<K> Default for IdIndexer<K>
 where
-    K: Eq + Hash + Clone,
+    K: Eq + Hash + Clone + Debug,
 {
     fn default() -> Self {
         Self::new()
@@ -126,14 +286,81 @@ mod tests {
     }
 
     #[test]
-    fn test_capacity() {
-        let mut indexer: StringIdIndexer = IdIndexer::with_capacity(2);
+    fn test_dynamic_expansion() {
+        let mut indexer: StringIdIndexer = IdIndexer::with_config(
+            IdIndexerConfig::default()
+                .with_initial_capacity(2)
+                .with_growth_factor(2.0),
+        );
 
         assert!(indexer.insert("v1".to_string()).is_ok());
         assert!(indexer.insert("v2".to_string()).is_ok());
-        assert!(indexer.insert("v3".to_string()).is_err());
-
-        indexer.reserve(10);
         assert!(indexer.insert("v3".to_string()).is_ok());
+        assert!(indexer.insert("v4".to_string()).is_ok());
+        assert!(indexer.insert("v5".to_string()).is_ok());
+
+        assert_eq!(indexer.len(), 5);
+    }
+
+    #[test]
+    fn test_free_list_reuse() {
+        let mut indexer: StringIdIndexer = IdIndexer::with_config(
+            IdIndexerConfig::default().with_free_list(true),
+        );
+
+        let idx1 = indexer.insert("v1".to_string()).unwrap();
+        let idx2 = indexer.insert("v2".to_string()).unwrap();
+        let idx3 = indexer.insert("v3".to_string()).unwrap();
+
+        assert_eq!(indexer.remove(&"v2".to_string()), Some(idx2));
+        assert_eq!(indexer.free_count(), 1);
+
+        let idx4 = indexer.insert("v4".to_string()).unwrap();
+        assert_eq!(idx4, idx2);
+        assert_eq!(indexer.free_count(), 0);
+    }
+
+    #[test]
+    fn test_compact() {
+        let mut indexer: StringIdIndexer = IdIndexer::new();
+
+        indexer.insert("v1".to_string()).unwrap();
+        indexer.insert("v2".to_string()).unwrap();
+        indexer.insert("v3".to_string()).unwrap();
+        indexer.insert("v4".to_string()).unwrap();
+
+        indexer.remove(&"v2".to_string());
+        indexer.remove(&"v4".to_string());
+
+        assert_eq!(indexer.free_count(), 2);
+        assert_eq!(indexer.total_slots(), 4);
+        assert_eq!(indexer.len(), 2);
+
+        let mapping = indexer.compact().unwrap();
+        assert_eq!(indexer.free_count(), 0);
+        assert_eq!(indexer.total_slots(), 2);
+        assert_eq!(indexer.len(), 2);
+    }
+
+    #[test]
+    fn test_duplicate_insert() {
+        let mut indexer: StringIdIndexer = IdIndexer::new();
+
+        assert!(indexer.insert("v1".to_string()).is_ok());
+        assert!(indexer.insert("v1".to_string()).is_err());
+    }
+
+    #[test]
+    fn test_max_capacity() {
+        let mut indexer: StringIdIndexer = IdIndexer::with_config(
+            IdIndexerConfig::default()
+                .with_initial_capacity(2)
+                .with_max_capacity(3),
+        );
+
+        assert!(indexer.insert("v1".to_string()).is_ok());
+        assert!(indexer.insert("v2".to_string()).is_ok());
+        assert!(indexer.insert("v3".to_string()).is_ok());
+        assert!(indexer.insert("v4".to_string()).is_err());
     }
 }

@@ -102,7 +102,6 @@ impl GraphDatabase<GraphStorage> {
         };
 
         let storage = Arc::new(Mutex::new(storage));
-        let db = storage.lock().get_db().clone();
 
         let fulltext_config = FulltextConfig::default();
         let vector_config = VectorClientConfig::default();
