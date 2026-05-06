@@ -161,14 +161,3 @@ let cache: Cache<u32, String> = Cache::builder()
     .max_capacity(32 * 1024 * 1024)  // 32 MiB
     .build();
 ```
-
----
-
-## 2. References
-
-- [RocksDB Block Cache](https://github.com/facebook/rocksdb/wiki/Block-Cache)
-- [RocksDB Memory Usage](https://github.com/facebook/rocksdb/wiki/Memory-usage-in-RocksDB)
-- [PostgreSQL Buffer Cache](https://www.postgresql.org/docs/current/pgbuffercache.html)
-- [Redis Eviction Policies](https://redis.io/docs/reference/eviction/)
-- [Moka Cache Documentation](https://docs.rs/moka/latest/moka/)
-- [SQLite Memory Allocation](https://www.sqlite.org/malloc.html)

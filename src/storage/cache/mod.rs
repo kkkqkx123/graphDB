@@ -2,9 +2,19 @@
 //!
 //! Provides caching mechanisms for the storage engine.
 
+mod types;
+mod stats;
+mod config;
+mod batch;
+mod predictor;
 mod record_cache;
 
-pub use record_cache::{
-    CachedEdge, CachedVertex, EdgeCacheKey, EdgeQueryKey, IdIndexCacheKey, RecordCache,
-    RecordCacheConfig, RecordCacheStats, SharedRecordCache, VertexCacheKey,
-};
+#[cfg(test)]
+mod record_cache_test;
+
+pub use types::*;
+pub use stats::{CacheTypeStats, CacheTypeStatsSnapshot, RecordCacheStats};
+pub use config::*;
+pub use batch::*;
+pub use predictor::*;
+pub use record_cache::{RecordCache, SharedRecordCache};

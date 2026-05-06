@@ -131,12 +131,12 @@ impl StorageMetricsCollector {
     pub fn snapshot_with_cache_stats(&self, cache_stats: &RecordCacheStats) -> StorageMetricsSnapshot {
         let mut snapshot = self.snapshot();
         snapshot.cache_hit_rate = cache_stats.hit_rate;
-        snapshot.cache_hits = cache_stats.hits;
-        snapshot.cache_misses = cache_stats.misses;
-        snapshot.vertex_count = cache_stats.vertex_count;
-        snapshot.edge_count = cache_stats.edge_count;
-        snapshot.edge_query_count = cache_stats.edge_query_count;
-        snapshot.id_index_count = cache_stats.id_index_count;
+        snapshot.cache_hits = cache_stats.total_hits;
+        snapshot.cache_misses = cache_stats.total_misses;
+        snapshot.vertex_count = cache_stats.vertex.count;
+        snapshot.edge_count = cache_stats.edge.count;
+        snapshot.edge_query_count = cache_stats.edge_query.count;
+        snapshot.id_index_count = cache_stats.id_index.count;
         snapshot.cache_memory_usage = cache_stats.memory_usage;
         snapshot.cache_max_memory = cache_stats.max_memory;
         snapshot
@@ -144,8 +144,8 @@ impl StorageMetricsCollector {
 
     /// Sync statistics from RecordCacheStats.
     pub fn sync_from_record_cache(&self, cache_stats: &RecordCacheStats) {
-        self.cache_stats.record_hits(cache_stats.hits);
-        self.cache_stats.record_misses(cache_stats.misses);
+        self.cache_stats.record_hits(cache_stats.total_hits);
+        self.cache_stats.record_misses(cache_stats.total_misses);
     }
 
     /// Reset all indicators
