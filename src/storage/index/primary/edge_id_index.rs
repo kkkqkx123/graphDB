@@ -13,7 +13,7 @@
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::index_types::{EdgeId, PrimaryIndex, PropOffset, VertexId};
+use crate::storage::index::index_types::{EdgeId, PrimaryIndex, PropOffset, VertexId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EdgeLocation {

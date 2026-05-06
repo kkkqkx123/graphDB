@@ -9,7 +9,7 @@
 use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, StorageError, Value};
-use crate::storage::index::{IndexDataManager, Timestamp, MAX_TIMESTAMP};
+use super::index_data_manager::{IndexDataManager, Timestamp, MAX_TIMESTAMP};
 use crate::storage::metadata::IndexMetadataManager;
 
 /// index updater
@@ -768,17 +768,17 @@ impl IndexUndoLog {
                     prop_name: _,
                     prop_value,
                 } => {
-                    let prefix = crate::storage::index::key_codec::KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
+                    let prefix = super::key_codec::KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
                     let end =
-                        crate::storage::index::key_codec::KeyBuilder::build_range_end(
+                        super::key_codec::KeyBuilder::build_range_end(
                             &prefix,
                         );
                     let vertex_bytes =
-                        crate::storage::index::key_codec::serialize_value(
+                        super::key_codec::serialize_value(
                             &vertex_id,
                         )?;
                     let prop_value_bytes =
-                        crate::storage::index::key_codec::serialize_value(
+                        super::key_codec::serialize_value(
                             &prop_value,
                         )?;
 

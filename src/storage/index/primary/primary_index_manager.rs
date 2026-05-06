@@ -18,7 +18,7 @@
 
 use super::degree_index::{DegreeInfo, DegreeIndex};
 use super::edge_id_index::{EdgeLocation, EdgeIdIndex};
-use super::index_types::{CompositeIndexStats, EdgeId, IndexStats, PrimaryIndex, PropOffset, VertexId};
+use crate::storage::index::index_types::{CompositeIndexStats, EdgeId, IndexCategory, IndexStats, PrimaryIndex, PropOffset, VertexId};
 
 #[derive(Debug)]
 pub struct PrimaryIndexManager {
@@ -173,14 +173,14 @@ impl PrimaryIndexManager {
         CompositeIndexStats {
             primary_indexes: vec![
                 IndexStats::new(
-                    super::index_types::IndexCategory::Primary,
+                    IndexCategory::Primary,
                     self.edge_id_index.index_name().to_string(),
                     self.edge_id_index.entry_count(),
                     self.edge_id_index.memory_usage(),
                     0,
                 ),
                 IndexStats::new(
-                    super::index_types::IndexCategory::Primary,
+                    IndexCategory::Primary,
                     self.degree_index.index_name().to_string(),
                     self.degree_index.entry_count(),
                     self.degree_index.memory_usage(),

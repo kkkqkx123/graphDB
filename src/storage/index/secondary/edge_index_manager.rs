@@ -8,17 +8,16 @@
 
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::key_codec::{
+use super::index_data_manager::{IndexEntry, Timestamp, MAX_TIMESTAMP};
+use super::key_codec::{
     deserialize_value, serialize_value, ByteKey, CompressionConfig, IndexCompressor, KeyBuilder,
     KeyParser,
 };
-use crate::storage::index::{IndexEntry, Timestamp, MAX_TIMESTAMP};
+use crate::storage::index::index_types::IndexEstimate;
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
-
-use super::index_types::IndexEstimate;
 
 type IndexKey = Vec<u8>;
 

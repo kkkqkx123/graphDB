@@ -51,7 +51,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use crate::storage::index::{GcStats, InMemoryIndexDataManager, Timestamp};
+use super::index_data_manager::{GcStats, InMemoryIndexDataManager, Timestamp};
 use crate::transaction::VersionManager;
 
 /// GC manager configuration

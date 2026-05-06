@@ -32,35 +32,23 @@
 //! ## Module Structure
 //!
 //! - `index_types`: Index classification traits and types
-//! - `primary_index_manager`: Unified management for primary indexes
-//! - `vertex_index_manager`: BTreeMap-based vertex index management
-//! - `edge_index_manager`: BTreeMap-based edge index management
-//! - `index_data_manager`: `IndexDataManager` trait and `InMemoryIndexDataManager` implementation
-//! - `index_updater`: Automatic index maintenance during DML operations
-//! - `key_codec`: Index key encoding/decoding and compression utilities
-//! - `index_gc_manager`: Background GC for tombstone cleanup
-//! - `edge_id_index`: CSR-aware edge ID index for fast edge lookup
-//! - `degree_index`: CSR-aware degree index for fast degree queries
+//! - `primary`: Primary indexes (CSR-aware)
+//!   - `primary_index_manager`: Unified management for primary indexes
+//!   - `edge_id_index`: CSR-aware edge ID index for fast edge lookup
+//!   - `degree_index`: CSR-aware degree index for fast degree queries
+//! - `secondary`: Secondary indexes (Property-based)
+//!   - `vertex_index_manager`: BTreeMap-based vertex index management
+//!   - `edge_index_manager`: BTreeMap-based edge index management
+//!   - `index_data_manager`: `IndexDataManager` trait and `InMemoryIndexDataManager` implementation
+//!   - `index_updater`: Automatic index maintenance during DML operations
+//!   - `key_codec`: Index key encoding/decoding and compression utilities
+//!   - `index_gc_manager`: Background GC for tombstone cleanup
 
-pub mod degree_index;
-pub mod edge_id_index;
-pub mod edge_index_manager;
-pub mod index_data_manager;
-pub mod index_gc_manager;
 pub mod index_types;
-pub mod index_updater;
-pub mod key_codec;
-pub mod primary_index_manager;
-pub mod vertex_index_manager;
+pub mod primary;
+pub mod secondary;
 
 pub use crate::core::types::{Index, IndexStatus, IndexType};
-pub use degree_index::*;
-pub use edge_id_index::*;
-pub use edge_index_manager::*;
-pub use index_data_manager::*;
-pub use index_gc_manager::*;
 pub use index_types::*;
-pub use index_updater::*;
-pub use key_codec::*;
-pub use primary_index_manager::*;
-pub use vertex_index_manager::*;
+pub use primary::*;
+pub use secondary::*;

@@ -10,12 +10,12 @@ use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::edge_index_manager::EdgeIndexManager;
-use crate::storage::index::key_codec::{deserialize_value, serialize_value};
-use crate::storage::index::vertex_index_manager::VertexIndexManager;
+use super::edge_index_manager::EdgeIndexManager;
+use super::key_codec::{deserialize_value, serialize_value};
+use super::vertex_index_manager::VertexIndexManager;
 use std::path::Path;
 
-pub use crate::storage::index::key_codec::{
+pub use super::key_codec::{
     KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
