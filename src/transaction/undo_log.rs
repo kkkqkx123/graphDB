@@ -134,6 +134,20 @@ pub trait UndoTarget: Send + Sync {
         dst_label: &str,
         edge_label: &str,
     ) -> UndoLogResult<()>;
+    fn revert_rename_vertex_properties(
+        &mut self,
+        label_name: &str,
+        current_names: &[String],
+        original_names: &[String],
+    ) -> UndoLogResult<()>;
+    fn revert_rename_edge_properties(
+        &mut self,
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+        current_names: &[String],
+        original_names: &[String],
+    ) -> UndoLogResult<()>;
 }
 
 /// Undo log for create vertex type operation
@@ -434,18 +448,17 @@ pub struct RenameVertexPropUndo {
 
 impl UndoLog for RenameVertexPropUndo {
     fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
-        let new_names_to_old_names: Vec<_> = self
+        let current_names: Vec<_> = self
             .old_names_to_new_names
             .iter()
-            .map(|(old, new)| (new.clone(), old.clone()))
+            .map(|(_, new)| new.clone())
             .collect();
-        graph.revert_delete_vertex_properties(
-            &self.label_name,
-            &new_names_to_old_names
-                .iter()
-                .map(|(_, old)| old.clone())
-                .collect::<Vec<_>>(),
-        )
+        let original_names: Vec<_> = self
+            .old_names_to_new_names
+            .iter()
+            .map(|(old, _)| old.clone())
+            .collect();
+        graph.revert_rename_vertex_properties(&self.label_name, &current_names, &original_names)
     }
 
     fn description(&self) -> String {
@@ -470,19 +483,22 @@ pub struct RenameEdgePropUndo {
 
 impl UndoLog for RenameEdgePropUndo {
     fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
-        let new_names_to_old_names: Vec<_> = self
+        let current_names: Vec<_> = self
             .old_names_to_new_names
             .iter()
-            .map(|(old, new)| (new.clone(), old.clone()))
+            .map(|(_, new)| new.clone())
             .collect();
-        graph.revert_delete_edge_properties(
+        let original_names: Vec<_> = self
+            .old_names_to_new_names
+            .iter()
+            .map(|(old, _)| old.clone())
+            .collect();
+        graph.revert_rename_edge_properties(
             &self.src_label_name,
             &self.dst_label_name,
             &self.edge_label_name,
-            &new_names_to_old_names
-                .iter()
-                .map(|(_, old)| old.clone())
-                .collect::<Vec<_>>(),
+            &current_names,
+            &original_names,
         )
     }
 
@@ -766,54 +782,74 @@ mod tests {
 
         fn revert_delete_vertex(
             &mut self,
-            label: LabelId,
-            vid: VertexId,
-            ts: Timestamp,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn revert_delete_edge(
             &mut self,
-            src_label: LabelId,
-            src_vid: VertexId,
-            dst_label: LabelId,
-            dst_vid: VertexId,
-            edge_label: LabelId,
-            oe_offset: i32,
-            ie_offset: i32,
-            ts: Timestamp,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _oe_offset: i32,
+            _ie_offset: i32,
+            _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn revert_delete_vertex_properties(
             &mut self,
-            label_name: &str,
-            prop_names: &[String],
+            _label_name: &str,
+            _prop_names: &[String],
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn revert_delete_edge_properties(
             &mut self,
-            src_label: &str,
-            dst_label: &str,
-            edge_label: &str,
-            prop_names: &[String],
+            _src_label: &str,
+            _dst_label: &str,
+            _edge_label: &str,
+            _prop_names: &[String],
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()> {
+        fn revert_delete_vertex_label(&mut self, _label_name: &str) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn revert_delete_edge_label(
             &mut self,
-            src_label: &str,
-            dst_label: &str,
-            edge_label: &str,
+            _src_label: &str,
+            _dst_label: &str,
+            _edge_label: &str,
+        ) -> UndoLogResult<()> {
+            Ok(())
+        }
+
+        fn revert_rename_vertex_properties(
+            &mut self,
+            _label_name: &str,
+            _current_names: &[String],
+            _original_names: &[String],
+        ) -> UndoLogResult<()> {
+            Ok(())
+        }
+
+        fn revert_rename_edge_properties(
+            &mut self,
+            _src_label: &str,
+            _dst_label: &str,
+            _edge_label: &str,
+            _current_names: &[String],
+            _original_names: &[String],
         ) -> UndoLogResult<()> {
             Ok(())
         }
@@ -845,6 +881,254 @@ mod tests {
         let undo = InsertVertexUndo {
             v_label: 1,
             vid: 100,
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_insert_edge_undo() {
+        let undo = InsertEdgeUndo {
+            src_label: 1,
+            dst_label: 2,
+            edge_label: 3,
+            src_vid: 100,
+            dst_vid: 200,
+            oe_offset: 0,
+            ie_offset: 0,
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_update_vertex_prop_undo() {
+        let undo = UpdateVertexPropUndo {
+            v_label: 1,
+            vid: 100,
+            col_id: 0,
+            old_value: PropertyValue::Int(42),
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_update_edge_prop_undo() {
+        let undo = UpdateEdgePropUndo {
+            src_label: 1,
+            src_vid: 100,
+            dst_label: 2,
+            dst_vid: 200,
+            edge_label: 3,
+            oe_offset: 0,
+            ie_offset: 0,
+            col_id: 0,
+            old_value: PropertyValue::String("test".to_string()),
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_rename_vertex_prop_undo() {
+        let undo = RenameVertexPropUndo {
+            label: 1,
+            label_name: "person".to_string(),
+            old_names_to_new_names: vec![
+                ("name".to_string(), "full_name".to_string()),
+                ("age".to_string(), "years_old".to_string()),
+            ],
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+        assert!(undo.description().contains("person"));
+        assert!(undo.description().contains("renames"));
+    }
+
+    #[test]
+    fn test_rename_edge_prop_undo() {
+        let undo = RenameEdgePropUndo {
+            src_label: 1,
+            dst_label: 2,
+            edge_label: 3,
+            src_label_name: "person".to_string(),
+            dst_label_name: "person".to_string(),
+            edge_label_name: "knows".to_string(),
+            old_names_to_new_names: vec![("since".to_string(), "since_date".to_string())],
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_remove_vertex_undo() {
+        let undo = RemoveVertexUndo {
+            v_label: 1,
+            vid: 100,
+            related_edges: vec![(
+                1,
+                2,
+                3,
+                vec![RelatedEdgeInfo {
+                    src_vid: 100,
+                    dst_vid: 200,
+                    oe_offset: 0,
+                    ie_offset: 0,
+                }],
+            )],
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+        assert!(undo.description().contains("edges=1"));
+    }
+
+    #[test]
+    fn test_remove_edge_undo() {
+        let undo = RemoveEdgeUndo {
+            src_label: 1,
+            src_vid: 100,
+            dst_label: 2,
+            dst_vid: 200,
+            edge_label: 3,
+            oe_offset: 0,
+            ie_offset: 0,
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_delete_vertex_prop_undo() {
+        let undo = DeleteVertexPropUndo {
+            label: 1,
+            label_name: "person".to_string(),
+            prop_names: vec!["name".to_string(), "age".to_string()],
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_delete_edge_prop_undo() {
+        let undo = DeleteEdgePropUndo {
+            src_label: 1,
+            dst_label: 2,
+            edge_label: 3,
+            src_label_name: "person".to_string(),
+            dst_label_name: "person".to_string(),
+            edge_label_name: "knows".to_string(),
+            prop_names: vec!["since".to_string()],
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_delete_vertex_type_undo() {
+        let undo = DeleteVertexTypeUndo {
+            v_label: "person".to_string(),
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_delete_edge_type_undo() {
+        let undo = DeleteEdgeTypeUndo {
+            src_label: "person".to_string(),
+            dst_label: "person".to_string(),
+            edge_label: "knows".to_string(),
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_undo_order_is_lifo() {
+        let mut manager = UndoLogManager::new();
+
+        manager.add_insert_vertex(1, 100);
+        manager.add_insert_vertex(1, 200);
+        manager.add_insert_vertex(1, 300);
+
+        assert_eq!(manager.len(), 3);
+
+        let mut target = MockUndoTarget;
+        manager.execute_undo(&mut target, 1).expect("Undo failed");
+
+        assert!(manager.is_empty());
+    }
+
+    #[test]
+    fn test_property_value_is_null() {
+        assert!(PropertyValue::Null.is_null());
+        assert!(!PropertyValue::Int(0).is_null());
+        assert!(!PropertyValue::String("".to_string()).is_null());
+    }
+
+    #[test]
+    fn test_undo_log_manager_clear() {
+        let mut manager = UndoLogManager::new();
+
+        manager.add_insert_vertex(1, 100);
+        manager.add_insert_edge(1, 2, 3, 100, 200, 0, 0);
+
+        assert_eq!(manager.len(), 2);
+
+        manager.clear();
+
+        assert!(manager.is_empty());
+        assert_eq!(manager.len(), 0);
+    }
+
+    #[test]
+    fn test_create_edge_type_undo() {
+        let undo = CreateEdgeTypeUndo {
+            src_type: 1,
+            dst_type: 2,
+            edge_type: 3,
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+        assert!(undo.description().contains("CreateEdgeTypeUndo"));
+    }
+
+    #[test]
+    fn test_add_vertex_prop_undo() {
+        let undo = AddVertexPropUndo {
+            label: 1,
+            label_name: "person".to_string(),
+            prop_names: vec!["new_prop".to_string()],
+        };
+
+        let mut target = MockUndoTarget;
+        undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_add_edge_prop_undo() {
+        let undo = AddEdgePropUndo {
+            src_label: 1,
+            dst_label: 2,
+            edge_label: 3,
+            src_label_name: "person".to_string(),
+            dst_label_name: "person".to_string(),
+            edge_label_name: "knows".to_string(),
+            prop_names: vec!["new_prop".to_string()],
         };
 
         let mut target = MockUndoTarget;

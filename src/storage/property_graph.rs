@@ -1791,6 +1791,67 @@ impl UndoTarget for PropertyGraph {
 
         Ok(())
     }
+
+    fn revert_rename_vertex_properties(
+        &mut self,
+        label_name: &str,
+        _current_names: &[String],
+        _original_names: &[String],
+    ) -> UndoLogResult<()> {
+        let label_id = self
+            .vertex_label_names
+            .get(label_name)
+            .copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+
+        if let Some(table) = self.vertex_tables.get_mut(&label_id) {
+            let mut new_schema = table.schema().clone();
+            for (current, original) in _current_names.iter().zip(_original_names.iter()) {
+                if let Some(prop) = new_schema.properties.iter_mut().find(|p| p.name == *current) {
+                    prop.name = original.clone();
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn revert_rename_edge_properties(
+        &mut self,
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+        _current_names: &[String],
+        _original_names: &[String],
+    ) -> UndoLogResult<()> {
+        let src_label_id = self
+            .vertex_label_names
+            .get(src_label)
+            .copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+        let dst_label_id = self
+            .vertex_label_names
+            .get(dst_label)
+            .copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+        let edge_label_id = self
+            .edge_label_names
+            .get(edge_label)
+            .copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+
+        let key = (src_label_id, dst_label_id, edge_label_id);
+        if let Some(table) = self.edge_tables.get_mut(&key) {
+            let mut new_schema = table.schema().clone();
+            for (current, original) in _current_names.iter().zip(_original_names.iter()) {
+                if let Some(prop) = new_schema.properties.iter_mut().find(|p| p.name == *current) {
+                    prop.name = original.clone();
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

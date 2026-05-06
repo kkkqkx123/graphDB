@@ -824,6 +824,26 @@ mod tests {
         ) -> UndoLogResult<()> {
             Ok(())
         }
+
+        fn revert_rename_vertex_properties(
+            &mut self,
+            _label_name: &str,
+            _current_names: &[String],
+            _original_names: &[String],
+        ) -> UndoLogResult<()> {
+            Ok(())
+        }
+
+        fn revert_rename_edge_properties(
+            &mut self,
+            _src_label: &str,
+            _dst_label: &str,
+            _edge_label: &str,
+            _current_names: &[String],
+            _original_names: &[String],
+        ) -> UndoLogResult<()> {
+            Ok(())
+        }
     }
 
     impl UpdateTarget for MockUpdateTarget {
