@@ -25,7 +25,7 @@ pub use api::{
     StorageClient, StorageStats, UpdateInfo, UpdateOp, UpdateTarget,
 };
 
-pub use cache::{BlockCache, BlockId, CacheConfig, CacheStats, TableType};
+pub use cache::{RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache};
 
 pub use entity::{EdgeStorage, SyncStorage, UserStorage, VertexStorage};
 

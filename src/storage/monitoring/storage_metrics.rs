@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::core::stats::CacheStats;
+use crate::storage::cache::RecordCacheStats;
 
 /// Storage metric snapshot
 #[derive(Debug, Clone, Default)]
@@ -16,6 +17,22 @@ pub struct StorageMetricsSnapshot {
     pub items_returned: u64,
     /// Cache hit rate (calculated)
     pub cache_hit_rate: f64,
+    /// Cache hits
+    pub cache_hits: u64,
+    /// Cache misses
+    pub cache_misses: u64,
+    /// Vertex cache count
+    pub vertex_count: u64,
+    /// Edge cache count
+    pub edge_count: u64,
+    /// Edge query cache count
+    pub edge_query_count: u64,
+    /// ID index cache count
+    pub id_index_count: u64,
+    /// Cache memory usage
+    pub cache_memory_usage: usize,
+    /// Cache max memory
+    pub cache_max_memory: usize,
     /// Count of each type of operation
     pub operation_counts: HashMap<String, u64>,
 }
@@ -98,8 +115,37 @@ impl StorageMetricsCollector {
             items_scanned: self.items_scanned.load(Ordering::Relaxed),
             items_returned: self.items_returned.load(Ordering::Relaxed),
             cache_hit_rate: self.cache_stats.hit_rate(),
+            cache_hits: self.cache_stats.hits(),
+            cache_misses: self.cache_stats.misses(),
+            vertex_count: 0,
+            edge_count: 0,
+            edge_query_count: 0,
+            id_index_count: 0,
+            cache_memory_usage: 0,
+            cache_max_memory: 0,
             operation_counts,
         }
+    }
+
+    /// Obtain a snapshot with RecordCache statistics.
+    pub fn snapshot_with_cache_stats(&self, cache_stats: &RecordCacheStats) -> StorageMetricsSnapshot {
+        let mut snapshot = self.snapshot();
+        snapshot.cache_hit_rate = cache_stats.hit_rate;
+        snapshot.cache_hits = cache_stats.hits;
+        snapshot.cache_misses = cache_stats.misses;
+        snapshot.vertex_count = cache_stats.vertex_count;
+        snapshot.edge_count = cache_stats.edge_count;
+        snapshot.edge_query_count = cache_stats.edge_query_count;
+        snapshot.id_index_count = cache_stats.id_index_count;
+        snapshot.cache_memory_usage = cache_stats.memory_usage;
+        snapshot.cache_max_memory = cache_stats.max_memory;
+        snapshot
+    }
+
+    /// Sync statistics from RecordCacheStats.
+    pub fn sync_from_record_cache(&self, cache_stats: &RecordCacheStats) {
+        self.cache_stats.record_hits(cache_stats.hits);
+        self.cache_stats.record_misses(cache_stats.misses);
     }
 
     /// Reset all indicators

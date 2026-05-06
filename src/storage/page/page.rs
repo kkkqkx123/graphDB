@@ -111,6 +111,18 @@ impl Page {
     pub fn verify_checksum(&self) -> bool {
         self.header.verify_checksum(&self.data)
     }
+
+    pub fn is_dirty(&self) -> bool {
+        self.header.is_dirty()
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.header.mark_dirty();
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.header.clear_dirty();
+    }
 }
 
 impl Clone for Page {

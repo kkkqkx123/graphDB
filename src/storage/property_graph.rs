@@ -20,9 +20,8 @@ use crate::transaction::wal::types::{
 use crate::transaction::wal::writer::WalWriter;
 
 use super::cache::{
-    BlockCache, BlockId, CacheConfig, CachedEdge, CachedVertex, EdgeCacheKey, RecordCache,
-    RecordCacheConfig, RecordCacheStats, SharedBlockCache, SharedRecordCache, TableType,
-    VertexCacheKey,
+    CachedEdge, CachedVertex, EdgeCacheKey, EdgeQueryKey, RecordCache, RecordCacheConfig,
+    RecordCacheStats, SharedRecordCache, VertexCacheKey,
 };
 use super::edge::{
     EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
@@ -107,7 +106,6 @@ pub struct PropertyGraph {
     is_open: bool,
     wal_writer: Option<Arc<RwLock<Box<dyn WalWriter>>>>,
     wal_enabled: bool,
-    cache: Option<SharedBlockCache>,
     record_cache: Option<SharedRecordCache>,
     memory_tracker: Option<SharedMemoryTracker>,
     dirty_tracker: Option<Arc<DirtyPageTracker>>,
@@ -128,10 +126,6 @@ impl std::fmt::Debug for PropertyGraph {
             .field("wal_writer", &self.wal_writer.as_ref().map(|_| "WalWriter"))
             .field("wal_enabled", &self.wal_enabled)
             .field(
-                "cache",
-                &self.cache.as_ref().map(|c: &Arc<BlockCache>| c.stats()),
-            )
-            .field(
                 "memory_tracker",
                 &self
                     .memory_tracker
@@ -148,18 +142,12 @@ impl PropertyGraph {
     }
 
     pub fn with_config(config: PropertyGraphConfig) -> Self {
-        let cache = if config.enable_cache {
-            Some(Arc::new(BlockCache::with_memory(config.cache_memory)))
-        } else {
-            None
-        };
-
         let memory_tracker = Arc::new(MemoryTracker::new(config.memory_config.clone()));
 
         let record_cache = if config.enable_cache {
             let record_cache_config = RecordCacheConfig {
-                max_memory: config.cache_memory / 2,
-                shard_count: 8,
+                max_memory: config.cache_memory,
+                ..Default::default()
             };
             Some(Arc::new(
                 RecordCache::with_config(record_cache_config)
@@ -202,7 +190,6 @@ impl PropertyGraph {
             is_open: true,
             wal_writer: None,
             wal_enabled: false,
-            cache,
             record_cache,
             memory_tracker: Some(memory_tracker),
             dirty_tracker,
@@ -225,20 +212,12 @@ impl PropertyGraph {
         self.wal_enabled
     }
 
-    pub fn cache(&self) -> Option<&SharedBlockCache> {
-        self.cache.as_ref()
-    }
-
     pub fn record_cache(&self) -> Option<&SharedRecordCache> {
         self.record_cache.as_ref()
     }
 
     pub fn memory_tracker(&self) -> Option<&SharedMemoryTracker> {
         self.memory_tracker.as_ref()
-    }
-
-    pub fn cache_stats(&self) -> Option<super::cache::CacheStats> {
-        self.cache.as_ref().map(|c: &Arc<BlockCache>| c.stats())
     }
 
     pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
@@ -254,9 +233,6 @@ impl PropertyGraph {
     }
 
     pub fn clear_cache(&self) {
-        if let Some(ref cache) = self.cache {
-            cache.clear();
-        }
         if let Some(ref record_cache) = self.record_cache {
             record_cache.clear();
         }
@@ -579,11 +555,28 @@ impl PropertyGraph {
             return None;
         }
 
-        let table = self.vertex_tables.get(&label)?;
-        let internal_id = table.get_internal_id(external_id, ts)?;
+        let internal_id = if let Some(ref record_cache) = self.record_cache {
+            record_cache.get_id_index(label, external_id)
+        } else {
+            None
+        };
+
+        let internal_id = match internal_id {
+            Some(id) => id,
+            None => {
+                let table = self.vertex_tables.get(&label)?;
+                let id = table.get_internal_id(external_id, ts)?;
+
+                if let Some(ref record_cache) = self.record_cache {
+                    record_cache.insert_id_index(label, external_id, id);
+                }
+
+                id
+            }
+        };
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id);
+            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
             if let Some(cached) = record_cache.get_vertex(&cache_key) {
                 return Some(VertexRecord {
                     internal_id: cached.internal_id,
@@ -593,10 +586,11 @@ impl PropertyGraph {
             }
         }
 
+        let table = self.vertex_tables.get(&label)?;
         let record = table.get_by_internal_id(internal_id, ts)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id);
+            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
             let cached = CachedVertex {
                 internal_id: record.internal_id,
                 external_id: external_id.to_string(),
@@ -619,7 +613,7 @@ impl PropertyGraph {
         }
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id);
+            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
             if let Some(cached) = record_cache.get_vertex(&cache_key) {
                 return Some(VertexRecord {
                     internal_id: cached.internal_id,
@@ -633,7 +627,7 @@ impl PropertyGraph {
         let record = table.get_by_internal_id(internal_id, ts)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id);
+            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
             let cached = CachedVertex {
                 internal_id: record.internal_id,
                 external_id: String::new(),
@@ -662,8 +656,9 @@ impl PropertyGraph {
 
         if let Some(internal_id) = table.get_internal_id(external_id, ts) {
             if let Some(ref record_cache) = self.record_cache {
-                let cache_key = VertexCacheKey::new(label, internal_id);
+                let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
                 record_cache.remove_vertex(&cache_key);
+                record_cache.remove_id_index(label, external_id);
             }
         }
 
@@ -696,7 +691,7 @@ impl PropertyGraph {
             .ok_or(StorageError::VertexNotFound)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id);
+            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
             record_cache.remove_vertex(&cache_key);
         }
 
@@ -768,17 +763,34 @@ impl PropertyGraph {
         let src_internal = src_table.get_internal_id(src_id, ts)?;
         let dst_internal = dst_table.get_internal_id(dst_id, ts)?;
 
+        if let Some(ref record_cache) = self.record_cache {
+            let query_key = EdgeQueryKey::new(
+                edge_label,
+                src_internal as u64,
+                dst_internal as u64,
+                ts as u64,
+            );
+            if let Some(cached) = record_cache.get_edge_by_query(&query_key) {
+                return Some(EdgeRecord {
+                    edge_id: cached.edge_id,
+                    src_vid: cached.src_vid,
+                    dst_vid: cached.dst_vid,
+                    properties: cached.properties,
+                });
+            }
+        }
+
         let key = (src_label, dst_label, edge_label);
         let edge_table = self.edge_tables.get(&key)?;
 
         let record = edge_table.get_edge(src_internal as VertexId, dst_internal as VertexId, ts)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = EdgeCacheKey::new(
+            let query_key = EdgeQueryKey::new(
                 edge_label,
                 src_internal as u64,
                 dst_internal as u64,
-                record.edge_id,
+                ts as u64,
             );
             let cached = CachedEdge {
                 edge_id: record.edge_id,
@@ -786,7 +798,7 @@ impl PropertyGraph {
                 dst_vid: dst_internal as u64,
                 properties: record.properties.clone(),
             };
-            record_cache.insert_edge(cache_key, cached);
+            record_cache.insert_edge_query(query_key, cached);
         }
 
         Some(record)
@@ -826,6 +838,14 @@ impl PropertyGraph {
             .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
 
         if let Some(ref record_cache) = self.record_cache {
+            let query_key = EdgeQueryKey::new(
+                edge_label,
+                src_internal as u64,
+                dst_internal as u64,
+                ts as u64,
+            );
+            record_cache.remove_edge_query(&query_key);
+
             if let Some(nbr) =
                 edge_table.get_edge_nbr(src_internal as VertexId, dst_internal as VertexId, ts)
             {
@@ -834,6 +854,7 @@ impl PropertyGraph {
                     src_internal as u64,
                     dst_internal as u64,
                     nbr.edge_id,
+                    ts as u64,
                 );
                 record_cache.remove_edge(&cache_key);
             }

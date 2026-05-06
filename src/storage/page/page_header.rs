@@ -8,6 +8,8 @@ pub const PAGE_SIZE: usize = 4096;
 pub const PAGE_HEADER_SIZE: usize = size_of::<PageHeader>();
 pub const PAGE_DATA_SIZE: usize = PAGE_SIZE - PAGE_HEADER_SIZE;
 
+pub const PAGE_FLAG_DIRTY: u8 = 0x01;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PageType {
@@ -172,6 +174,18 @@ impl PageHeader {
 
     pub fn verify_checksum(&self, data: &[u8]) -> bool {
         self.checksum == Self::compute_checksum(data)
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        (self.flags & PAGE_FLAG_DIRTY) != 0
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.flags |= PAGE_FLAG_DIRTY;
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.flags &= !PAGE_FLAG_DIRTY;
     }
 
     pub fn can_fit_record(&self, record_size: usize) -> bool {
