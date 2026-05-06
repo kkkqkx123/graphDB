@@ -5,7 +5,7 @@
 
 use crate::core::StorageError;
 use crate::transaction::types::OperationLog;
-use crate::transaction::undo_log::{UndoLog, UndoLogManager, UndoTarget};
+use crate::transaction::undo_log::{UndoLog, UndoTarget};
 use crate::transaction::wal::types::{LabelId, Timestamp};
 
 pub use crate::transaction::undo_log::{
@@ -367,6 +367,7 @@ impl RollbackHelper {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transaction::UndoLogManager;
 
     struct MockUndoContext {
         logs: std::cell::RefCell<UndoLogManager>,

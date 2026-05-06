@@ -93,8 +93,5 @@ pub use crate::storage::redis::RedisStorage;
 #[cfg(feature = "store-wal")]
 pub use crate::storage::wal::{IndexChange, WALManager, WALStorage};
 
-#[cfg(feature = "store-wal")]
-pub use crate::config::WALConfig as StorageWalConfig;
-
 #[cfg(feature = "store-cold-warm-cache")]
 pub use crate::storage::cold_warm_cache::{ColdWarmCacheConfig, ColdWarmCacheManager};

@@ -1,5 +1,3 @@
-use std::io;
-
 use crate::core::{StorageError, StorageResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

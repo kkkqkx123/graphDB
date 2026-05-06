@@ -4,13 +4,12 @@
 //! Combines ID indexing, column storage, and timestamp tracking.
 
 use std::path::Path;
-use std::sync::RwLock;
 
 use super::{
     ColumnStore, IdIndexer, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema,
-    VertexTimestamp, INVALID_TIMESTAMP,
+    VertexTimestamp,
 };
-use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::core::{StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone)]
 pub struct VertexTableConfig {
@@ -601,6 +600,8 @@ impl<'a> Iterator for VertexIterator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::DataType;
+    use crate::storage::vertex::{PropertyDef, VertexSchema};
 
     fn create_test_schema() -> VertexSchema {
         VertexSchema {

@@ -19,7 +19,7 @@
 //! - `VertexIndexManager`: Index on vertex properties
 //! - `EdgeIndexManager`: Index on edge properties
 
-use crate::core::{StorageError, StorageResult, Value};
+use crate::core::StorageResult;
 use crate::storage::edge::Timestamp;
 
 pub type VertexId = u64;

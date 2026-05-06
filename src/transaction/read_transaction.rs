@@ -4,9 +4,6 @@
 //! A read transaction sees a consistent snapshot of the database at the time
 //! the transaction was started.
 
-use std::sync::Arc;
-
-use super::undo_log::UndoTarget;
 use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{LabelId, Timestamp, VertexId};
 

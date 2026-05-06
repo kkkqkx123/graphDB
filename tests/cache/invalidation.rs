@@ -33,8 +33,8 @@ fn test_dependency_tracker() {
 
     let deps = tracker.get_dependencies("query1");
     assert_eq!(deps.len(), 2);
-    assert!(deps.contains(&"users".to_string()));
-    assert!(deps.contains(&"posts".to_string()));
+    assert!(deps.contains("users"));
+    assert!(deps.contains("posts"));
 }
 
 #[test]
@@ -46,8 +46,8 @@ fn test_dependency_tracker_get_dependent_keys() {
 
     let keys = tracker.get_dependent_keys("users");
     assert_eq!(keys.len(), 2);
-    assert!(keys.contains(&"query1".to_string()));
-    assert!(keys.contains(&"query2".to_string()));
+    assert!(keys.contains("query1"));
+    assert!(keys.contains("query2"));
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn test_table_based_invalidation() {
     let event = DataChangeEvent::update("users");
     let keys = invalidation.get_keys_to_invalidate(&event);
 
-    assert!(keys.contains(&"query1".to_string()));
+    assert!(keys.contains("query1"));
 }
 
 #[test]

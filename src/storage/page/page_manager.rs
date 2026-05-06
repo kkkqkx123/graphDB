@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use moka::sync::Cache;
 use parking_lot::RwLock;
 
-use super::{Page, PageHeader, PageType, PAGE_SIZE};
-use crate::core::{StorageError, StorageResult};
+use super::{Page, PageType, PAGE_SIZE};
+use crate::core::StorageResult;
 
 const MAX_PAGES_IN_MEMORY: u64 = 1024;
 

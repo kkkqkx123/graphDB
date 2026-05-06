@@ -1,15 +1,14 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::RwLock;
 
 use super::compression::{CompressionType, Compressor};
 use super::dirty_tracker::{DirtyPageTracker, PageId};
-use crate::core::{StorageError, StorageResult};
+use crate::core::StorageResult;
 
 #[derive(Debug, Clone)]
 pub struct FlushConfig {

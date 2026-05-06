@@ -21,7 +21,7 @@ use super::invalidation::{
     CacheInvalidator, DataChangeEvent, InvalidationManager, InvalidationStats,
 };
 use super::plan_cache::QueryPlanCache;
-use super::stats::{CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, PlanCacheStatsSnapshot};
+use super::stats::GlobalCacheStatsSnapshot;
 
 /// Unified Cache Manager
 ///
@@ -317,6 +317,7 @@ pub type GlobalCacheStats = GlobalCacheStatsSnapshot;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::cache::stats::{CteCacheStatsSnapshot, PlanCacheStatsSnapshot};
 
     #[test]
     fn test_cache_manager_creation() {

@@ -32,6 +32,9 @@ pub use not::exclusion;
 pub use or::union_op;
 pub use xor::xor_op;
 
+// Re-export TypeSearchOptions alias for use by resolver submodules
+pub use crate::r#type::SearchOptions as TypeSearchOptions;
+
 #[cfg(test)]
 mod tests {
     use super::*;

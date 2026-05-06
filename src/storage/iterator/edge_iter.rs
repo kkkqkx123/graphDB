@@ -5,7 +5,7 @@
 //! - PropertyGraphEdgeIterator: Iterator over all edges in a PropertyGraph
 
 use crate::storage::edge::{
-    EdgeId, EdgeRecord, EdgeSchema, EdgeTable, Nbr, PropertyDef, Timestamp, VertexId,
+    EdgeRecord, EdgeTable, Nbr, Timestamp, VertexId,
 };
 
 pub struct EdgeTableIterator<'a> {
@@ -130,6 +130,7 @@ impl<'a> Iterator for EdgeTableRangeIterator<'a> {
 mod tests {
     use super::*;
     use crate::core::DataType;
+    use crate::storage::edge::{EdgeSchema, PropertyDef};
 
     fn create_test_schema() -> EdgeSchema {
         EdgeSchema {

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use super::types::{
     Lsn, RecordType, Timestamp, UpdateWalUnit, WalCompression, WalContentUnit, WalError,
-    WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
+    WalFileHeader, WalHeader, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
     WAL_HEADER_SIZE,
 };
 
@@ -1039,7 +1039,7 @@ impl WalParserFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transaction::wal::types::WalConfig;
+    use crate::transaction::wal::types::{WalConfig, WalOpType};
     use crate::transaction::wal::writer::{LocalWalWriter, WalWriter};
     use tempfile::TempDir;
 

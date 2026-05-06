@@ -30,6 +30,9 @@ pub use left_join::{HashLeftJoinExecutor, LeftJoinConfig, LeftJoinExecutor};
 // Import the `JoinType` from the `core` module.
 pub use crate::core::types::JoinType;
 
+// Re-export the ExpressionContextStruct alias for use by all join modules
+pub use crate::query::validator::context::ExpressionAnalysisContext as ExpressionContextStruct;
+
 /// Configuration of the Join operation
 #[derive(Debug, Clone)]
 pub struct JoinConfig {

@@ -133,10 +133,6 @@ impl PrefixCompressor {
     pub fn prefix(&self) -> &[u8] {
         &self.common_prefix
     }
-
-    pub fn prefix_len(&self) -> usize {
-        self.common_prefix.len()
-    }
 }
 
 impl Default for PrefixCompressor {
@@ -348,14 +344,6 @@ impl DeltaCompressor {
                 "Invalid compression flag".to_string(),
             )),
         }
-    }
-
-    pub fn set_base(&mut self, base: Vec<u8>) {
-        self.base = base;
-    }
-
-    pub fn base(&self) -> &[u8] {
-        &self.base
     }
 }
 

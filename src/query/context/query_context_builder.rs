@@ -2,7 +2,7 @@
 //!
 //! Provide a streaming API for building QueryContext, which simplifies the process of creating complex objects.
 
-use crate::core::types::{CharsetInfo, EngineType, SpaceInfo, SpaceStatus, SpaceSummary};
+use crate::core::types::{CharsetInfo, SpaceInfo, SpaceSummary};
 use crate::utils::IdGenerator;
 use std::sync::Arc;
 
@@ -99,7 +99,7 @@ impl QueryContextBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{DataType, IsolationLevel, MetadataVersion};
+    use crate::core::types::{DataType, EngineType, IsolationLevel, MetadataVersion, SpaceStatus};
     use std::collections::HashMap;
 
     #[test]

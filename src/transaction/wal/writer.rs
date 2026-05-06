@@ -8,11 +8,11 @@ use std::io::{Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use super::types::{
     Lsn, RecordType, SyncPolicy, WalCompression, WalConfig, WalError, WalFileHeader, WalHeader,
-    WalOpType, WalResult, WAL_BLOCK_SIZE, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE,
+    WalOpType, WalResult, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE,
     WAL_MAX_RECORD_SIZE,
 };
 

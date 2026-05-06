@@ -6,7 +6,6 @@
 //! to update transactions.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use oxicode::{decode_from_slice, encode_to_vec};
 

@@ -67,10 +67,9 @@ pub use persistence::{
 };
 
 pub use page::{
-    verify_migration, FlatCsr, FlatCsrEdgeIterator, FlatCsrIterator, MigrationConfig,
-    MigrationStats, Page, PageHeader, PageManager, PageManagerStats, PageType, StorageMigrator,
-    StoragePageId, DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP, PAGE_DATA_SIZE,
-    PAGE_HEADER_SIZE, PAGE_SIZE, VERTEX_RECORD_SIZE,
+    FlatCsr, FlatCsrEdgeIterator, FlatCsrIterator, Page, PageHeader, PageManager, PageManagerStats,
+    PageType, StoragePageId, DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP,
+    PAGE_DATA_SIZE, PAGE_HEADER_SIZE, PAGE_SIZE, VERTEX_RECORD_SIZE,
 };
 
 pub use graph_storage::GraphStorage;

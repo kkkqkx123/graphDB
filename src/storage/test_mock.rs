@@ -16,7 +16,7 @@ use crate::storage::api::StorageClient;
 #[cfg(test)]
 use crate::storage::metadata::Schema;
 #[cfg(test)]
-use crate::storage::property_graph::{PropertyGraph, PropertyGraphConfig};
+use crate::storage::property_graph::PropertyGraph;
 #[cfg(test)]
 use parking_lot::RwLock;
 #[cfg(test)]

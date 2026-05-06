@@ -15,7 +15,7 @@ use crate::transaction::insert_transaction::{
 };
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 use crate::transaction::wal::types::{
-    ColumnId, EdgeId as TxnEdgeId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
+    ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
 use crate::transaction::wal::writer::WalWriter;
 
@@ -24,7 +24,7 @@ use super::cache::{
     RecordCacheStats, SharedRecordCache, VertexCacheKey,
 };
 use super::edge::{
-    EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
+    EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
     PropertyDef as EdgePropertyDef,
 };
 use super::memory::{MemoryConfig, MemoryTracker, SharedMemoryTracker};
@@ -34,7 +34,7 @@ use super::persistence::{
 };
 use super::vertex::vertex_table::VertexIterator;
 use super::vertex::{
-    LabelId, PropertyDef as VertexPropertyDef, Timestamp as StorageTimestamp, VertexId,
+    LabelId, PropertyDef as VertexPropertyDef, VertexId,
     VertexRecord, VertexSchema, VertexTable,
 };
 

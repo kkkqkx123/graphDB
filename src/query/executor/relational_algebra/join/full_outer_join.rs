@@ -9,11 +9,10 @@ use crate::query::executor::base::{ExecutionResult, Executor, JoinConfigWithDesc
 use crate::query::executor::relational_algebra::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
+    ExpressionContextStruct,
 };
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// Full Outer Join Configuration
 #[derive(Debug, Clone)]

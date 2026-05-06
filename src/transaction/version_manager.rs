@@ -9,7 +9,6 @@
 //! spin-wait loops. This reduces CPU usage during contention and provides
 //! proper timeout support.
 
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicI32, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -618,6 +617,7 @@ impl Drop for UpdateTimestampGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::sync::Arc;
     use std::thread;
 

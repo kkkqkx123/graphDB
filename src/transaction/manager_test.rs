@@ -2,7 +2,6 @@
 //!
 //! Test transaction manager functionality, including transaction lifecycle management, concurrency control, timeout handling, etc.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::transaction::manager::TransactionManager;

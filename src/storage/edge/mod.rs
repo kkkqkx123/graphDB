@@ -22,8 +22,6 @@ pub use edge_table::EdgeTable;
 pub use mutable_csr::MutableCsr;
 pub use property_table::PropertyTable;
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-
 pub type EdgeId = u64;
 pub type LabelId = u16;
 pub type VertexId = u64;

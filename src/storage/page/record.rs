@@ -3,8 +3,6 @@
 //! Provides fixed-size record types for page-based storage.
 //! These records are designed for efficient memory layout and cache locality.
 
-use std::mem::size_of;
-
 pub const VERTEX_RECORD_SIZE: usize = 16;
 pub const EDGE_RECORD_SIZE: usize = 34;
 

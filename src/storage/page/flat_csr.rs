@@ -5,7 +5,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{EdgeRecord, DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP};
+use super::{EdgeRecord, EDGE_RECORD_SIZE};
 
 pub type Timestamp = u32;
 

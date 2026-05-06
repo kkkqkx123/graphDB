@@ -31,7 +31,6 @@ pub use embedded::GraphDatabase;
 use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::storage::api::StorageClient;
 use crate::storage::entity::SyncStorage;
 use crate::storage::GraphStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};

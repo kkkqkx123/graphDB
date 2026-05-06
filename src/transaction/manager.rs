@@ -6,7 +6,6 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
 use dashmap::DashMap;
 
@@ -16,7 +15,6 @@ use super::monitor::TransactionMonitor;
 use super::types::*;
 use super::undo_log::UndoTarget;
 use super::version_manager::{VersionManager, VersionManagerConfig};
-use super::wal::writer::WalWriter;
 
 /// Transaction Manager
 ///

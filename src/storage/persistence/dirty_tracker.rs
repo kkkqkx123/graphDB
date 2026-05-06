@@ -3,8 +3,6 @@ use std::time::{Duration, Instant};
 
 use parking_lot::RwLock;
 
-use crate::core::StorageResult;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PageId {
     pub table_type: TableType,

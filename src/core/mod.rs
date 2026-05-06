@@ -19,7 +19,6 @@ pub use error::{
 };
 
 // External error code
-pub use error::codes::ErrorCategory as CodeErrorCategory;
 pub use error::{ErrorCode, PublicError, ToPublicError};
 
 // Core data types

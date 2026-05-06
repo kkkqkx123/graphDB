@@ -1,4 +1,5 @@
-use crate::r#type::{IntermediateSearchResults, SearchResults, SearchOptions as TypeSearchOptions};
+use crate::r#type::{IntermediateSearchResults, SearchResults};
+use crate::resolver::TypeSearchOptions;
 
 #[derive(Debug, Clone)]
 pub enum ResolverError {

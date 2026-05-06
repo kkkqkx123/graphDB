@@ -11,7 +11,7 @@ use crate::core::{Edge, EdgeDirection, StorageError, Value};
 use crate::storage::edge::{EdgeDirection as CsrEdgeDirection, EdgeRecord, Timestamp};
 use crate::storage::index::{DegreeIndex, EdgeIdIndex};
 use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
-use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
+use crate::storage::metadata::{Schema, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::VertexId;
 use crate::transaction::version_manager::VersionManager;
@@ -145,11 +145,11 @@ impl EdgeStorage {
 
     pub fn get_edge(
         &self,
-        space: &str,
+        _space: &str,
         src: &Value,
         dst: &Value,
         edge_type: &str,
-        rank: i64,
+        _rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
         let src_vid = self.value_to_vertex_id(src)?;
         let dst_vid = self.value_to_vertex_id(dst)?;
@@ -177,7 +177,7 @@ impl EdgeStorage {
 
     pub fn get_node_edges(
         &self,
-        space: &str,
+        _space: &str,
         node_id: &Value,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
@@ -281,7 +281,7 @@ impl EdgeStorage {
 
     pub fn scan_edges_by_type(
         &self,
-        space: &str,
+        _space: &str,
         edge_type: &str,
     ) -> Result<Vec<Edge>, StorageError> {
         let graph = self.graph.read();
@@ -301,7 +301,7 @@ impl EdgeStorage {
         Ok(edges)
     }
 
-    pub fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
+    pub fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
         let graph = self.graph.read();
         let ts = self.get_read_timestamp();
 
@@ -319,8 +319,6 @@ impl EdgeStorage {
     }
 
     pub fn insert_edge(&self, space: &str, space_id: u64, edge: Edge) -> Result<(), StorageError> {
-        let _txn_id = self.get_current_txn_id();
-
         let src_vid = self.value_to_vertex_id(&edge.src)?;
         let dst_vid = self.value_to_vertex_id(&edge.dst)?;
 
@@ -332,7 +330,7 @@ impl EdgeStorage {
 
         let ts = self.get_write_timestamp();
 
-        let edge_type_info = self
+        let _edge_type_info = self
             .schema_manager
             .get_edge_type(space, &edge.edge_type)?
             .ok_or_else(|| {
@@ -342,39 +340,20 @@ impl EdgeStorage {
                 ))
             })?;
 
-        let src_tag_name = edge_type_info
-            .properties
-            .first()
-            .map(|p| p.name.as_str())
-            .unwrap_or("default");
-        let dst_tag_name = src_tag_name;
-
-        let src_label_id = self
-            .schema_manager
-            .get_tag(space, src_tag_name)?
-            .ok_or_else(|| {
-                StorageError::DbError(format!(
-                    "Tag '{}' not found in space '{}'",
-                    src_tag_name, space
-                ))
-            })?
-            .tag_id as u16;
-
-        let dst_label_id = self
-            .schema_manager
-            .get_tag(space, dst_tag_name)?
-            .ok_or_else(|| {
-                StorageError::DbError(format!(
-                    "Tag '{}' not found in space '{}'",
-                    dst_tag_name, space
-                ))
-            })?
-            .tag_id as u16;
-
         {
             let mut graph = self.graph.write();
 
             if let Some(label_id) = graph.get_edge_label_id(&edge.edge_type) {
+                let (src_label_id, dst_label_id) = graph
+                    .get_edge_table_by_label(label_id)
+                    .map(|table| (table.src_label(), table.dst_label()))
+                    .ok_or_else(|| {
+                        StorageError::DbError(format!(
+                            "Edge table not found for edge type '{}'",
+                            edge.edge_type
+                        ))
+                    })?;
+
                 let src_id_str = match &*edge.src {
                     Value::String(s) => s.as_str(),
                     _ => &src_vid.to_string(),
@@ -439,7 +418,7 @@ impl EdgeStorage {
         let dst_vid = self.value_to_vertex_id(dst)?;
         let ts = self.get_write_timestamp();
 
-        let edge_type_info = self
+        let _edge_type_info = self
             .schema_manager
             .get_edge_type(space, edge_type)?
             .ok_or_else(|| {
@@ -449,39 +428,20 @@ impl EdgeStorage {
                 ))
             })?;
 
-        let src_tag_name = edge_type_info
-            .properties
-            .first()
-            .map(|p| p.name.as_str())
-            .unwrap_or("default");
-        let dst_tag_name = src_tag_name;
-
-        let src_label_id = self
-            .schema_manager
-            .get_tag(space, src_tag_name)?
-            .ok_or_else(|| {
-                StorageError::DbError(format!(
-                    "Tag '{}' not found in space '{}'",
-                    src_tag_name, space
-                ))
-            })?
-            .tag_id as u16;
-
-        let dst_label_id = self
-            .schema_manager
-            .get_tag(space, dst_tag_name)?
-            .ok_or_else(|| {
-                StorageError::DbError(format!(
-                    "Tag '{}' not found in space '{}'",
-                    dst_tag_name, space
-                ))
-            })?
-            .tag_id as u16;
-
         {
             let mut graph = self.graph.write();
 
             if let Some(label_id) = graph.get_edge_label_id(edge_type) {
+                let (src_label_id, dst_label_id) = graph
+                    .get_edge_table_by_label(label_id)
+                    .map(|table| (table.src_label(), table.dst_label()))
+                    .ok_or_else(|| {
+                        StorageError::DbError(format!(
+                            "Edge table not found for edge type '{}'",
+                            edge_type
+                        ))
+                    })?;
+
                 let src_id_str = match src {
                     Value::String(s) => s.as_str(),
                     _ => &src_vid.to_string(),
@@ -533,7 +493,7 @@ impl EdgeStorage {
                     .collect();
 
                 if let Some(label_id) = graph.get_edge_label_id(&edge.edge_type) {
-                    let edge_type_info = self
+                    let _edge_type_info = self
                         .schema_manager
                         .get_edge_type(space, &edge.edge_type)?
                         .ok_or_else(|| {
@@ -543,34 +503,15 @@ impl EdgeStorage {
                             ))
                         })?;
 
-                    let src_tag_name = edge_type_info
-                        .properties
-                        .first()
-                        .map(|p| p.name.as_str())
-                        .unwrap_or("default");
-                    let dst_tag_name = src_tag_name;
-
-                    let src_label_id = self
-                        .schema_manager
-                        .get_tag(space, src_tag_name)?
+                    let (src_label_id, dst_label_id) = graph
+                        .get_edge_table_by_label(label_id)
+                        .map(|table| (table.src_label(), table.dst_label()))
                         .ok_or_else(|| {
                             StorageError::DbError(format!(
-                                "Tag '{}' not found in space '{}'",
-                                src_tag_name, space
+                                "Edge table not found for edge type '{}'",
+                                edge.edge_type
                             ))
-                        })?
-                        .tag_id as u16;
-
-                    let dst_label_id = self
-                        .schema_manager
-                        .get_tag(space, dst_tag_name)?
-                        .ok_or_else(|| {
-                            StorageError::DbError(format!(
-                                "Tag '{}' not found in space '{}'",
-                                dst_tag_name, space
-                            ))
-                        })?
-                        .tag_id as u16;
+                        })?;
 
                     let src_id_str = match &*edge.src {
                         Value::String(s) => s.as_str(),
@@ -606,88 +547,92 @@ impl EdgeStorage {
         space_id: u64,
         vertex_id: &Value,
     ) -> Result<(), StorageError> {
-        let edges = self.scan_all_edges(space)?;
+        let vid = self.value_to_vertex_id(vertex_id)?;
         let ts = self.get_write_timestamp();
 
-        for edge in edges {
-            if *edge.src == *vertex_id || *edge.dst == *vertex_id {
-                let src_vid = self.value_to_vertex_id(&edge.src)?;
-                let dst_vid = self.value_to_vertex_id(&edge.dst)?;
+        let edge_types: Vec<_> = {
+            let graph = self.graph.read();
+            graph
+                .edge_tables()
+                .map(|(key, table)| (*key, table.label(), table.label_name().to_string()))
+                .collect()
+        };
 
-                let edge_type_info = self
-                    .schema_manager
-                    .get_edge_type(space, &edge.edge_type)?
-                    .ok_or_else(|| {
-                        StorageError::DbError(format!(
-                            "Edge type '{}' not found in space '{}'",
-                            edge.edge_type, space
-                        ))
-                    })?;
+        for ((src_label, dst_label, edge_label), label_id, edge_type_name) in edge_types {
+            let edges_to_delete = {
+                let graph = self.graph.read();
+                if let Some(table) = graph.get_edge_table(src_label, dst_label, edge_label) {
+                    let read_ts = self.get_read_timestamp();
+                    table
+                        .scan(read_ts)
+                        .into_iter()
+                        .filter(|record| record.src_vid == vid || record.dst_vid == vid)
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                }
+            };
 
-                let src_tag_name = edge_type_info
-                    .properties
-                    .first()
-                    .map(|p| p.name.as_str())
-                    .unwrap_or("default");
-                let dst_tag_name = src_tag_name;
+            for record in edges_to_delete {
+                let src_id_str;
+                let dst_id_str;
+                let src_value;
+                let dst_value;
 
-                let src_label_id = self
-                    .schema_manager
-                    .get_tag(space, src_tag_name)?
-                    .ok_or_else(|| {
-                        StorageError::DbError(format!(
-                            "Tag '{}' not found in space '{}'",
-                            src_tag_name, space
-                        ))
-                    })?
-                    .tag_id as u16;
+                {
+                    let graph = self.graph.read();
+                    if let Some(src_table) = graph.get_vertex_table(src_label) {
+                        if let Some(ext_id) = src_table.get_external_id(record.src_vid as u32) {
+                            src_id_str = ext_id;
+                            src_value = Value::String(src_id_str.clone());
+                        } else {
+                            src_id_str = record.src_vid.to_string();
+                            src_value = Value::BigInt(record.src_vid as i64);
+                        }
+                    } else {
+                        src_id_str = record.src_vid.to_string();
+                        src_value = Value::BigInt(record.src_vid as i64);
+                    }
 
-                let dst_label_id = self
-                    .schema_manager
-                    .get_tag(space, dst_tag_name)?
-                    .ok_or_else(|| {
-                        StorageError::DbError(format!(
-                            "Tag '{}' not found in space '{}'",
-                            dst_tag_name, space
-                        ))
-                    })?
-                    .tag_id as u16;
+                    if let Some(dst_table) = graph.get_vertex_table(dst_label) {
+                        if let Some(ext_id) = dst_table.get_external_id(record.dst_vid as u32) {
+                            dst_id_str = ext_id;
+                            dst_value = Value::String(dst_id_str.clone());
+                        } else {
+                            dst_id_str = record.dst_vid.to_string();
+                            dst_value = Value::BigInt(record.dst_vid as i64);
+                        }
+                    } else {
+                        dst_id_str = record.dst_vid.to_string();
+                        dst_value = Value::BigInt(record.dst_vid as i64);
+                    }
+                }
 
                 {
                     let mut graph = self.graph.write();
+                    graph.delete_edge(
+                        label_id,
+                        src_label,
+                        &src_id_str,
+                        dst_label,
+                        &dst_id_str,
+                        ts,
+                    )?;
 
-                    if let Some(label_id) = graph.get_edge_label_id(&edge.edge_type) {
-                        let src_id_str = match &*edge.src {
-                            Value::String(s) => s.as_str(),
-                            _ => &src_vid.to_string(),
-                        };
-                        let dst_id_str = match &*edge.dst {
-                            Value::String(s) => s.as_str(),
-                            _ => &dst_vid.to_string(),
-                        };
-                        graph.delete_edge(
-                            label_id,
-                            src_label_id,
-                            src_id_str,
-                            dst_label_id,
-                            dst_id_str,
-                            ts,
-                        )?;
-
-                        self.degree_index.remove_edge(src_vid, dst_vid);
-                    }
+                    self.degree_index.remove_edge(record.src_vid, record.dst_vid);
                 }
 
                 let indexes = self.schema_manager.list_edge_indexes(space)?;
                 let index_names: Vec<String> = indexes
                     .into_iter()
-                    .filter(|idx| idx.schema_name == edge.edge_type)
+                    .filter(|idx| idx.schema_name == edge_type_name)
                     .map(|idx| idx.name)
                     .collect();
+
                 self.index_data_manager.delete_edge_indexes_mvcc(
                     space_id,
-                    &edge.src,
-                    &edge.dst,
+                    &src_value,
+                    &dst_value,
                     &index_names,
                     ts,
                 )?;
@@ -709,7 +654,7 @@ impl EdgeStorage {
         let dst_vertex_id = info.dst_vertex_id.clone();
         let props = info.props.clone();
 
-        let edge_type_info = self
+        let _edge_type_info = self
             .schema_manager
             .get_edge_type(space, &edge_name)?
             .ok_or_else(|| {
@@ -726,39 +671,20 @@ impl EdgeStorage {
 
         let ts = self.get_write_timestamp();
 
-        let src_tag_name = edge_type_info
-            .properties
-            .first()
-            .map(|p| p.name.as_str())
-            .unwrap_or("default");
-        let dst_tag_name = src_tag_name;
-
-        let src_label_id = self
-            .schema_manager
-            .get_tag(space, src_tag_name)?
-            .ok_or_else(|| {
-                StorageError::DbError(format!(
-                    "Tag '{}' not found in space '{}'",
-                    src_tag_name, space
-                ))
-            })?
-            .tag_id as u16;
-
-        let dst_label_id = self
-            .schema_manager
-            .get_tag(space, dst_tag_name)?
-            .ok_or_else(|| {
-                StorageError::DbError(format!(
-                    "Tag '{}' not found in space '{}'",
-                    dst_tag_name, space
-                ))
-            })?
-            .tag_id as u16;
-
         {
             let mut graph = self.graph.write();
 
             if let Some(label_id) = graph.get_edge_label_id(&edge_name) {
+                let (src_label_id, dst_label_id) = graph
+                    .get_edge_table_by_label(label_id)
+                    .map(|table| (table.src_label(), table.dst_label()))
+                    .ok_or_else(|| {
+                        StorageError::DbError(format!(
+                            "Edge table not found for edge type '{}'",
+                            edge_name
+                        ))
+                    })?;
+
                 let src_id_str = match &src_vertex_id {
                     Value::String(s) => s.as_str(),
                     _ => &src_vid.to_string(),
@@ -800,18 +726,18 @@ impl EdgeStorage {
         space_id: u64,
         src: &Value,
         dst: &Value,
-        rank: i64,
+        _rank: i64,
     ) -> Result<bool, StorageError> {
         let edges = self.scan_all_edges(space)?;
         let mut deleted = false;
         let ts = self.get_write_timestamp();
 
         for edge in edges {
-            if *edge.src == *src && *edge.dst == *dst && edge.ranking == rank {
+            if *edge.src == *src && *edge.dst == *dst {
                 let src_vid = self.value_to_vertex_id(&edge.src)?;
                 let dst_vid = self.value_to_vertex_id(&edge.dst)?;
 
-                let edge_type_info = self
+                let _edge_type_info = self
                     .schema_manager
                     .get_edge_type(space, &edge.edge_type)?
                     .ok_or_else(|| {
@@ -821,39 +747,20 @@ impl EdgeStorage {
                         ))
                     })?;
 
-                let src_tag_name = edge_type_info
-                    .properties
-                    .first()
-                    .map(|p| p.name.as_str())
-                    .unwrap_or("default");
-                let dst_tag_name = src_tag_name;
-
-                let src_label_id = self
-                    .schema_manager
-                    .get_tag(space, src_tag_name)?
-                    .ok_or_else(|| {
-                        StorageError::DbError(format!(
-                            "Tag '{}' not found in space '{}'",
-                            src_tag_name, space
-                        ))
-                    })?
-                    .tag_id as u16;
-
-                let dst_label_id = self
-                    .schema_manager
-                    .get_tag(space, dst_tag_name)?
-                    .ok_or_else(|| {
-                        StorageError::DbError(format!(
-                            "Tag '{}' not found in space '{}'",
-                            dst_tag_name, space
-                        ))
-                    })?
-                    .tag_id as u16;
-
                 {
                     let mut graph = self.graph.write();
 
                     if let Some(label_id) = graph.get_edge_label_id(&edge.edge_type) {
+                        let (src_label_id, dst_label_id) = graph
+                            .get_edge_table_by_label(label_id)
+                            .map(|table| (table.src_label(), table.dst_label()))
+                            .ok_or_else(|| {
+                                StorageError::DbError(format!(
+                                    "Edge table not found for edge type '{}'",
+                                    edge.edge_type
+                                ))
+                            })?;
+
                         let src_id_str = match &*edge.src {
                             Value::String(s) => s.as_str(),
                             _ => &src_vid.to_string(),
@@ -912,7 +819,7 @@ impl EdgeStorage {
         Ok(dangling_edges)
     }
 
-    fn vertex_exists(&self, space: &str, id: &Value) -> Result<bool, StorageError> {
+    fn vertex_exists(&self, _space: &str, id: &Value) -> Result<bool, StorageError> {
         let vid = self.value_to_vertex_id(id)?;
 
         let graph = self.graph.read();
@@ -935,7 +842,7 @@ impl EdgeStorage {
             let src_vid = self.value_to_vertex_id(&edge.src)?;
             let dst_vid = self.value_to_vertex_id(&edge.dst)?;
 
-            let edge_type_info = self
+            let _edge_type_info = self
                 .schema_manager
                 .get_edge_type(space, &edge.edge_type)?
                 .ok_or_else(|| {
@@ -945,39 +852,20 @@ impl EdgeStorage {
                     ))
                 })?;
 
-            let src_tag_name = edge_type_info
-                .properties
-                .first()
-                .map(|p| p.name.as_str())
-                .unwrap_or("default");
-            let dst_tag_name = src_tag_name;
-
-            let src_label_id = self
-                .schema_manager
-                .get_tag(space, src_tag_name)?
-                .ok_or_else(|| {
-                    StorageError::DbError(format!(
-                        "Tag '{}' not found in space '{}'",
-                        src_tag_name, space
-                    ))
-                })?
-                .tag_id as u16;
-
-            let dst_label_id = self
-                .schema_manager
-                .get_tag(space, dst_tag_name)?
-                .ok_or_else(|| {
-                    StorageError::DbError(format!(
-                        "Tag '{}' not found in space '{}'",
-                        dst_tag_name, space
-                    ))
-                })?
-                .tag_id as u16;
-
             {
                 let mut graph = self.graph.write();
 
                 if let Some(label_id) = graph.get_edge_label_id(&edge.edge_type) {
+                    let (src_label_id, dst_label_id) = graph
+                        .get_edge_table_by_label(label_id)
+                        .map(|table| (table.src_label(), table.dst_label()))
+                        .ok_or_else(|| {
+                            StorageError::DbError(format!(
+                                "Edge table not found for edge type '{}'",
+                                edge.edge_type
+                            ))
+                        })?;
+
                     let src_id_str = match &*edge.src {
                         Value::String(s) => s.as_str(),
                         _ => &src_vid.to_string(),

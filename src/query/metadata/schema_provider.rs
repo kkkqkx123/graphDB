@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::{EdgeTypeInfo, EngineType, SpaceInfo, SpaceStatus, TagInfo};
+use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
 use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
@@ -308,7 +308,7 @@ impl MetadataProvider for SchemaMetadataProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::DataType;
+    use crate::core::types::{DataType, EngineType, SpaceStatus};
     use crate::core::StorageError;
 
     // Mock SchemaManager for testing

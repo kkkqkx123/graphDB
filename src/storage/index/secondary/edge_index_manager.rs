@@ -10,7 +10,7 @@ use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
 use super::index_data_manager::{IndexEntry, Timestamp, MAX_TIMESTAMP};
 use super::key_codec::{
-    deserialize_value, serialize_value, ByteKey, CompressionConfig, IndexCompressor, KeyBuilder,
+    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, KeyBuilder,
     KeyParser,
 };
 use crate::storage::index::index_types::IndexEstimate;
@@ -565,8 +565,7 @@ impl EdgeIndexManager {
     }
 
     pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
-        use std::fs::{self, File};
-        use std::io::Write;
+        use std::fs;
 
         let path = path.as_ref();
         fs::create_dir_all(path)?;
@@ -628,9 +627,6 @@ impl EdgeIndexManager {
     }
 
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
-        use std::fs::File;
-        use std::io::Read;
-
         let path = path.as_ref();
 
         self.load_forward_index(&path.join("forward_index.bin"))?;

@@ -8,6 +8,9 @@ use graphdb::core::value::geography::{
 };
 use std::collections::HashMap;
 
+type Coordinate = (f64, f64);
+type PolygonSpec = (Vec<Coordinate>, Vec<Vec<Coordinate>>);
+
 /// Geography Test Context
 #[allow(dead_code)]
 pub struct GeographyTestContext {
@@ -90,9 +93,7 @@ pub fn create_test_multilinestring(linestrings: Vec<Vec<(f64, f64)>>) -> Geograp
 }
 
 /// Create test multipolygon from multiple polygons
-pub fn create_test_multipolygon(
-    polygons: Vec<(Vec<(f64, f64)>, Vec<Vec<(f64, f64)>>)>,
-) -> Geography {
+pub fn create_test_multipolygon(polygons: Vec<PolygonSpec>) -> Geography {
     let geo_polygons: Vec<PolygonValue> = polygons
         .into_iter()
         .map(|(exterior, holes)| {

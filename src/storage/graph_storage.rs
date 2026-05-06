@@ -16,7 +16,7 @@ use crate::core::{
 };
 use crate::storage::api::{StorageClient, StorageStats};
 use crate::storage::metadata::{
-    InMemoryIndexMetadataManager, InMemorySchemaManager, IndexMetadataManager, Schema,
+    InMemoryIndexMetadataManager, InMemorySchemaManager, Schema,
     SchemaManager,
 };
 use crate::storage::property_graph::{PropertyGraph, PropertyGraphConfig};

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
-use crate::storage::metadata::{IndexMetadataManager, Schema, SchemaManager};
+use crate::storage::metadata::{Schema, SchemaManager};
 use crate::storage::property_graph::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::transaction::version_manager::VersionManager;

@@ -10,11 +10,10 @@ use crate::core::Value;
 use crate::query::executor::base::JoinConfig;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::relational_algebra::join::base_join::BaseJoinExecutor;
-use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::executor::relational_algebra::join::ExpressionContextStruct;
 use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// Cartesian product actuator
 pub struct CrossJoinExecutor<S: StorageClient> {
@@ -331,8 +330,8 @@ pub mod tests {
     use super::*;
     use crate::core::Value;
     use crate::query::DataSet;
+    use crate::query::executor::relational_algebra::join::ExpressionContextStruct;
     use crate::storage::test_mock::MockStorage;
-    use ExpressionAnalysisContext;
 
     #[test]
     fn test_cross_join_two_tables() {
@@ -340,7 +339,7 @@ pub mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let expr_context = Arc::new(ExpressionContextStruct::new());
 
         // Create an executor.
         let mut executor = CrossJoinExecutor::new(
@@ -425,7 +424,7 @@ pub mod tests {
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let expr_context = Arc::new(ExpressionContextStruct::new());
 
         // Create an executor.
         let mut executor = CrossJoinExecutor::new(
@@ -477,7 +476,7 @@ pub mod tests {
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let expr_context = Arc::new(ExpressionContextStruct::new());
 
         // Create an executor.
         let mut executor = CrossJoinExecutor::new(

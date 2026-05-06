@@ -6,7 +6,6 @@
 mod common;
 
 use std::sync::Arc;
-use tempfile::TempDir;
 
 use graphdb::core::types::span::Span;
 use graphdb::query::metadata::{IndexMetadata, IndexType, MetadataContext};
@@ -20,18 +19,6 @@ use graphdb::query::planning::plan::core::nodes::search::vector::data_access::{
     OutputField, VectorMatchNode, VectorSearchNode, VectorSearchParams,
 };
 use graphdb::query::planning::vector_planner::VectorSearchPlanner;
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
-
-fn create_fulltext_manager() -> Arc<FulltextIndexManager> {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let config = FulltextConfig {
-        enabled: true,
-        index_path: temp_dir.path().to_path_buf(),
-        default_engine: EngineType::Bm25,
-        ..Default::default()
-    };
-    Arc::new(FulltextIndexManager::new(config).expect("Failed to create manager"))
-}
 
 fn create_test_metadata_context() -> MetadataContext {
     let mut context = MetadataContext::new();

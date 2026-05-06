@@ -6,16 +6,15 @@
 //! Update transactions require exclusive access and block all other transactions.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 
-use oxicode::{decode_from_slice, encode_to_vec};
+use oxicode::encode_to_vec;
 
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
     DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
     InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
-    RemoveVertexUndo, UndoLog, UndoLogError, UndoLogManager, UndoTarget, UpdateEdgePropUndo,
+    RemoveVertexUndo, UndoLogError, UndoLogManager, UndoTarget, UpdateEdgePropUndo,
     UpdateVertexPropUndo,
 };
 use super::version_manager::{VersionManager, VersionManagerError};

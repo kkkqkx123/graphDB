@@ -11,11 +11,10 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, JoinConfig, Jo
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::relational_algebra::join::hash_table::JoinKey;
 use crate::query::executor::relational_algebra::join::join_key_evaluator::JoinKeyEvaluator;
-use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::executor::relational_algebra::join::ExpressionContextStruct;
 use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// Probe result type alias
 type ProbeResult = Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError>;
