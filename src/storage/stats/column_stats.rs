@@ -139,6 +139,25 @@ impl ColumnStatistics {
             return 0.0;
         }
 
+        if let Some(ref histogram) = self.histogram {
+            for (mv, count) in &histogram.most_common_values {
+                if mv == value {
+                    return *count as f64 / self.total_count as f64;
+                }
+            }
+
+            for bucket in &histogram.buckets {
+                if bucket.contains_value(value) {
+                    if bucket.distinct_count > 0 {
+                        return bucket.count as f64
+                            / bucket.distinct_count as f64
+                            / self.total_count as f64;
+                    }
+                    return bucket.count as f64 / self.total_count as f64;
+                }
+            }
+        }
+
         if self.distinct_count > 0 {
             1.0 / self.distinct_count as f64
         } else {

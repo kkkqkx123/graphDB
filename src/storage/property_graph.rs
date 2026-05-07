@@ -893,7 +893,7 @@ impl PropertyGraph {
         Some(edge_table.in_edges(dst_internal as VertexId, ts))
     }
 
-    pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<VertexIterator> {
+    pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<VertexIterator<'_>> {
         if !self.is_open {
             return None;
         }

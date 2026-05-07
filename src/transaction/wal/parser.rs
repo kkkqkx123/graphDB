@@ -895,7 +895,7 @@ impl LocalWalParser {
     }
 
     /// Get all WAL entries as an iterator
-    pub fn iter_entries(&self) -> WalEntryIter {
+    pub fn iter_entries(&self) -> WalEntryIter<'_> {
         WalEntryIter {
             parser: self,
             insert_index: 0,

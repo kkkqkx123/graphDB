@@ -476,13 +476,13 @@ impl EdgeStorage {
         Ok(())
     }
 
-    pub fn batch_insert_edges(&self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
+    pub fn batch_insert_edges(&self, space: &str, space_id: u64, edges: Vec<Edge>) -> Result<(), StorageError> {
         let ts = self.get_write_timestamp();
 
         {
             let mut graph = self.graph.write();
 
-            for edge in edges {
+            for edge in &edges {
                 let src_vid = self.value_to_vertex_id(&edge.src)?;
                 let dst_vid = self.value_to_vertex_id(&edge.dst)?;
 
@@ -538,6 +538,33 @@ impl EdgeStorage {
         }
 
         self.release_write_timestamp(ts);
+
+        for edge in &edges {
+            let indexes = self.schema_manager.list_edge_indexes(space)?;
+
+            for index in indexes {
+                if index.schema_name == edge.edge_type {
+                    let mut index_props = Vec::new();
+                    for field in &index.fields {
+                        if let Some(value) = edge.props.get(&field.name) {
+                            index_props.push((field.name.clone(), value.clone()));
+                        }
+                    }
+
+                    if !index_props.is_empty() {
+                        self.index_data_manager.update_edge_indexes_mvcc(
+                            space_id,
+                            &edge.src,
+                            &edge.dst,
+                            &index.name,
+                            &index_props,
+                            ts,
+                        )?;
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 

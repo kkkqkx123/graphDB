@@ -297,33 +297,60 @@ impl VertexStorage {
         Ok(*vid)
     }
 
-    pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+    pub fn update_vertex(&self, space: &str, space_id: u64, vertex: Vertex) -> Result<(), StorageError> {
         let vid = vertex.vid.clone();
 
-        let _old_vertex = self.get_vertex(space, &vid)?;
+        let old_vertex = self.get_vertex(space, &vid)?;
+
+        let external_id = self.value_to_string_id(&vid)?;
+        let tag = vertex
+            .tags
+            .first()
+            .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
+
+        let label_id = self.get_label_id(space, &tag.name)?;
+        let properties: Vec<(String, Value)> = tag
+            .properties
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        let ts = self.get_write_timestamp();
 
         {
-            let external_id = self.value_to_string_id(&vid)?;
-            let tag = vertex
-                .tags
-                .first()
-                .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
-
-            let label_id = self.get_label_id(space, &tag.name)?;
-            let properties: Vec<(String, Value)> = tag
-                .properties
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-
-            let ts = self.get_write_timestamp();
-
             let mut graph = self.graph.write();
             for (prop_name, prop_value) in &properties {
                 graph.update_vertex_property(label_id, &external_id, prop_name, prop_value, ts)?;
             }
 
             self.release_write_timestamp(ts);
+        }
+
+        if let Some(old) = old_vertex {
+            let changed_props = self.detect_changed_properties(&old, &vertex);
+            if !changed_props.is_empty() {
+                let indexes = self.schema_manager.list_tag_indexes(space)?;
+                for index in indexes {
+                    if index.schema_name == tag.name {
+                        let mut index_props = Vec::new();
+                        for (prop_name, prop_value) in &changed_props {
+                            if index.fields.iter().any(|f| &f.name == prop_name) {
+                                index_props.push((prop_name.clone(), prop_value.clone()));
+                            }
+                        }
+
+                        if !index_props.is_empty() {
+                            self.index_data_manager.update_vertex_indexes_mvcc(
+                                space_id,
+                                &vid,
+                                &index.name,
+                                &index_props,
+                                ts,
+                            )?;
+                        }
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -358,7 +385,7 @@ impl VertexStorage {
     pub fn batch_insert_vertices(
         &self,
         space: &str,
-        _space_id: u64,
+        space_id: u64,
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
         let mut ids = Vec::with_capacity(vertices.len());
@@ -367,8 +394,8 @@ impl VertexStorage {
             ids.push(vertex.vid.clone());
         }
 
+        let ts = self.get_write_timestamp();
         {
-            let ts = self.get_write_timestamp();
             let mut graph = self.graph.write();
 
             for vertex in &vertices {
@@ -389,6 +416,34 @@ impl VertexStorage {
             }
 
             self.release_write_timestamp(ts);
+        }
+
+        for vertex in &vertices {
+            let vid = &vertex.vid;
+            for tag in &vertex.tags {
+                let indexes = self.schema_manager.list_tag_indexes(space)?;
+
+                for index in indexes {
+                    if index.schema_name == tag.name {
+                        let mut index_props = Vec::new();
+                        for field in &index.fields {
+                            if let Some(value) = tag.properties.get(&field.name) {
+                                index_props.push((field.name.clone(), value.clone()));
+                            }
+                        }
+
+                        if !index_props.is_empty() {
+                            self.index_data_manager.update_vertex_indexes_mvcc(
+                                space_id,
+                                vid,
+                                &index.name,
+                                &index_props,
+                                ts,
+                            )?;
+                        }
+                    }
+                }
+            }
         }
 
         Ok(ids.into_iter().map(|v| *v).collect())

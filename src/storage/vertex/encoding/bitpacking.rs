@@ -264,7 +264,7 @@ impl BitPackedColumn {
         }
     }
 
-    pub fn iter(&self) -> BitPackedIterator {
+    pub fn iter(&self) -> BitPackedIterator<'_> {
         BitPackedIterator {
             column: self,
             current: 0,

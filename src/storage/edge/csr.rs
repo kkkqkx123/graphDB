@@ -196,12 +196,12 @@ impl Csr {
     }
 
     /// Create iterator over all edges
-    pub fn iter(&self) -> CsrIterator {
+    pub fn iter(&self) -> CsrIterator<'_> {
         CsrIterator::new(self)
     }
 
     /// Create iterator over edges of a specific vertex
-    pub fn iter_edges(&self, vid: VertexId) -> CsrEdgeIterator {
+    pub fn iter_edges(&self, vid: VertexId) -> CsrEdgeIterator<'_> {
         CsrEdgeIterator::new(self, vid)
     }
 

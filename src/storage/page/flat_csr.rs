@@ -166,7 +166,7 @@ impl FlatCsr {
         None
     }
 
-    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> FlatCsrEdgeIterator {
+    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> FlatCsrEdgeIterator<'_> {
         let src_idx = src as usize;
         let (start, end) = if src_idx < self.vertex_capacity {
             let offset = self.offsets[src_idx];
@@ -354,7 +354,7 @@ impl FlatCsr {
         self.edge_count.store(edge_count, Ordering::Relaxed);
     }
 
-    pub fn iter(&self, ts: Timestamp) -> FlatCsrIterator {
+    pub fn iter(&self, ts: Timestamp) -> FlatCsrIterator<'_> {
         FlatCsrIterator::new(self, ts)
     }
 }

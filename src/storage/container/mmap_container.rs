@@ -92,7 +92,9 @@ impl MmapContainer {
         let metadata = file.metadata()?;
         let file_size = metadata.len() as usize;
 
-        let mmap = memmap2::MmapMut::map_mut(&file)
+        let mmap = unsafe {
+            memmap2::MmapMut::map_mut(&file)
+        }
             .map_err(|e| ContainerError::MappingFailed(e.to_string()))?;
 
         let (size, capacity) = if file_size >= FileHeader::SIZE {
@@ -303,7 +305,9 @@ impl IDataContainer for MmapContainer {
         if let Some(ref file) = self.file {
             file.set_len(growth_capacity as u64)?;
 
-            let mmap = memmap2::MmapMut::map_mut(file)
+            let mmap = unsafe {
+                memmap2::MmapMut::map_mut(file)
+            }
                 .map_err(|e| ContainerError::MappingFailed(e.to_string()))?;
 
             self.mmap_data = Some(mmap);

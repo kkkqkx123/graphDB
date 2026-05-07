@@ -164,12 +164,13 @@ impl VertexIndexManager {
 
         {
             let reverse_index = self.reverse_index.read();
-            for (key_bytes, entry) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+            for (compressed_key, entry) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
                 if entry.is_visible_at(write_ts) {
-                    reverse_keys_to_delete.push(key_bytes.clone());
+                    let key_bytes = self.decompress_key(compressed_key)?;
+                    reverse_keys_to_delete.push(compressed_key.clone());
 
                     if let Ok((_vertex_id_bytes, index_name)) =
-                        KeyParser::parse_vertex_reverse_key_v2(key_bytes)
+                        KeyParser::parse_vertex_reverse_key_v2(&key_bytes)
                     {
                         let forward_key_start =
                             KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
@@ -177,17 +178,18 @@ impl VertexIndexManager {
 
                         let vertex_bytes = serialize_value(vertex_id)?;
                         let forward_index = self.forward_index.read();
-                        for (fwd_key_bytes, fwd_entry) in
+                        for (fwd_compressed_key, fwd_entry) in
                             forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
                         {
                             if fwd_entry.is_visible_at(write_ts) {
+                                let fwd_key_bytes = self.decompress_key(fwd_compressed_key)?;
                                 if let Ok(vid) =
-                                    KeyParser::parse_vertex_id_from_key(fwd_key_bytes)
+                                    KeyParser::parse_vertex_id_from_key(&fwd_key_bytes)
                                 {
                                     if vid == *vertex_id {
                                         let vid_start = fwd_key_bytes.len() - vertex_bytes.len();
                                         if fwd_key_bytes[vid_start..] == vertex_bytes {
-                                            forward_keys_to_delete.push(fwd_key_bytes.clone());
+                                            forward_keys_to_delete.push(fwd_compressed_key.clone());
                                         }
                                     }
                                 }
@@ -232,12 +234,13 @@ impl VertexIndexManager {
 
         {
             let reverse_index = self.reverse_index.read();
-            for (key_bytes, _) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+            for (compressed_key, _) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+                let key_bytes = self.decompress_key(compressed_key)?;
                 if let Ok((_vertex_id_bytes, index_name)) =
-                    KeyParser::parse_vertex_reverse_key_v2(key_bytes)
+                    KeyParser::parse_vertex_reverse_key_v2(&key_bytes)
                 {
                     if index_name.starts_with(tag_name) {
-                        keys_to_delete.push(key_bytes.clone());
+                        keys_to_delete.push(compressed_key.clone());
                     }
                 }
             }
@@ -311,12 +314,13 @@ impl VertexIndexManager {
         let value_bytes = serialize_value(value)?;
 
         let forward_index = self.forward_index.read();
-        for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
+        for (compressed_key, entry) in forward_index.range(prefix.0.clone()..end.0) {
             if !entry.is_visible_at(read_ts) {
                 continue;
             }
 
-            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
+            let key_bytes = self.decompress_key(compressed_key)?;
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(&key_bytes) {
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(
@@ -389,12 +393,13 @@ impl VertexIndexManager {
         }
         results.reserve(estimated_capacity.min(10000));
 
-        for (key_bytes, entry) in forward_index.range(range_bounds) {
+        for (compressed_key, entry) in forward_index.range(range_bounds) {
             if !entry.is_visible_at(read_ts) {
                 continue;
             }
 
-            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
+            let key_bytes = self.decompress_key(compressed_key)?;
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(&key_bytes) {
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(
@@ -472,7 +477,7 @@ impl VertexIndexManager {
         let mut results = Vec::with_capacity(limit.min(1000));
         let forward_index = self.forward_index.read();
 
-        for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
+        for (compressed_key, entry) in forward_index.range(prefix.0.clone()..end.0) {
             if results.len() >= limit {
                 break;
             }
@@ -480,7 +485,8 @@ impl VertexIndexManager {
                 continue;
             }
 
-            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
+            let key_bytes = self.decompress_key(compressed_key)?;
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(&key_bytes) {
                 if key_bytes.len() > prefix.0.len() + 4 {
                     let prop_len_start = prefix.0.len();
                     let prop_value_len = u32::from_le_bytes(

@@ -337,6 +337,7 @@ impl LocalWalWriter {
         let mut offset = 0;
         let mut chunk_index = 0;
         let mut first_lsn = Lsn::ZERO;
+        let mut chunks_written = 0;
 
         while offset < payload.len() {
             let chunk_end = (offset + WAL_MAX_RECORD_SIZE).min(payload.len());
@@ -374,10 +375,21 @@ impl LocalWalWriter {
                     .with_compression(compression)
             };
 
-            self.write_entry(&header, chunk_data, new_lsn)?;
+            if let Err(e) = self.write_entry(&header, chunk_data, new_lsn) {
+                log::error!(
+                    "Failed to write chunk {}/{} of fragmented WAL entry (first_lsn: {}, written: {}): {}",
+                    chunk_index + 1,
+                    total_chunks,
+                    first_lsn.as_u64(),
+                    chunks_written,
+                    e
+                );
+                return Err(e);
+            }
 
             offset = chunk_end;
             chunk_index += 1;
+            chunks_written += 1;
         }
 
         Ok(true)

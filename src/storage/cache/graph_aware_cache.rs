@@ -262,6 +262,7 @@ impl GraphAwareCache {
             .eviction_listener(move |_key, _value, _cause| {
                 neighbor_eviction_stats.record_eviction();
             })
+            .support_invalidation_closures()
             .build();
 
         let property_cache = Cache::builder()
@@ -270,6 +271,7 @@ impl GraphAwareCache {
             .eviction_listener(move |_key, _value, _cause| {
                 property_eviction_stats.record_eviction();
             })
+            .support_invalidation_closures()
             .build();
 
         Self {
@@ -407,8 +409,15 @@ impl GraphAwareCache {
     }
 
     pub fn invalidate_by_label(&self, label_id: u16) {
-        self.neighbor_cache.invalidate_entries_if(move |k, _| k.label_id == label_id);
-        self.property_cache.invalidate_entries_if(move |k, _| k.label_id == label_id);
+        if let Err(e) = self.neighbor_cache.invalidate_entries_if(move |k, _| k.label_id == label_id) {
+            log::warn!("Failed to invalidate neighbor cache entries by label: {}", e);
+        }
+        if let Err(e) = self.property_cache.invalidate_entries_if(move |k, _| k.label_id == label_id) {
+            log::warn!("Failed to invalidate property cache entries by label: {}", e);
+        }
+
+        self.neighbor_cache.run_pending_tasks();
+        self.property_cache.run_pending_tasks();
 
         let mut access_tracker = self.access_tracker.write();
         access_tracker.retain(|(label, _), _| *label != label_id);
@@ -418,10 +427,17 @@ impl GraphAwareCache {
     }
 
     pub fn invalidate_vertex(&self, label_id: u16, internal_id: u32) {
-        self.neighbor_cache
-            .invalidate_entries_if(move |k, _| k.label_id == label_id && k.internal_id == internal_id);
-        self.property_cache
-            .invalidate_entries_if(move |k, _| k.label_id == label_id && k.internal_id == internal_id);
+        if let Err(e) = self.neighbor_cache
+            .invalidate_entries_if(move |k, _| k.label_id == label_id && k.internal_id == internal_id) {
+            log::warn!("Failed to invalidate neighbor cache entry: {}", e);
+        }
+        if let Err(e) = self.property_cache
+            .invalidate_entries_if(move |k, _| k.label_id == label_id && k.internal_id == internal_id) {
+            log::warn!("Failed to invalidate property cache entry: {}", e);
+        }
+
+        self.neighbor_cache.run_pending_tasks();
+        self.property_cache.run_pending_tasks();
 
         let key = (label_id, internal_id);
         let mut access_tracker = self.access_tracker.write();
@@ -434,6 +450,8 @@ impl GraphAwareCache {
     pub fn clear(&self) {
         self.neighbor_cache.invalidate_all();
         self.property_cache.invalidate_all();
+        self.neighbor_cache.run_pending_tasks();
+        self.property_cache.run_pending_tasks();
         self.access_tracker.write().clear();
         self.degree_info.write().clear();
     }

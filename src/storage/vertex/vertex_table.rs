@@ -353,7 +353,7 @@ impl VertexTable {
         self.id_indexer.len()
     }
 
-    pub fn scan(&self, ts: Timestamp) -> VertexIterator {
+    pub fn scan(&self, ts: Timestamp) -> VertexIterator<'_> {
         VertexIterator::new(self, ts)
     }
 

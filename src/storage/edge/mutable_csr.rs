@@ -598,12 +598,12 @@ impl MutableCsr {
     }
 
     /// Create iterator over all edges
-    pub fn iter(&self, ts: Timestamp) -> MutableCsrIterator {
+    pub fn iter(&self, ts: Timestamp) -> MutableCsrIterator<'_> {
         MutableCsrIterator::new(self, ts)
     }
 
     /// Create iterator over edges of a specific vertex
-    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> MutableCsrEdgeIterator {
+    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> MutableCsrEdgeIterator<'_> {
         MutableCsrEdgeIterator::new(self, src, ts)
     }
 

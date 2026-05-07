@@ -400,7 +400,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         space_name: &str,
         edge_type: &EdgeTypeInfo,
     ) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
@@ -657,7 +657,7 @@ impl InMemorySchemaManager {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
@@ -690,7 +690,7 @@ impl InMemorySchemaManager {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
