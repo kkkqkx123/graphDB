@@ -92,10 +92,8 @@ impl MmapContainer {
         let metadata = file.metadata()?;
         let file_size = metadata.len() as usize;
 
-        let mmap = unsafe {
-            memmap2::MmapMut::map_mut(&file)
-                .map_err(|e| ContainerError::MappingFailed(e.to_string()))?
-        };
+        let mmap = memmap2::MmapMut::map_mut(&file)
+            .map_err(|e| ContainerError::MappingFailed(e.to_string()))?;
 
         let (size, capacity) = if file_size >= FileHeader::SIZE {
             let header = FileHeader::from_bytes(&mmap[..FileHeader::SIZE]).ok_or_else(|| {
@@ -305,20 +303,16 @@ impl IDataContainer for MmapContainer {
         if let Some(ref file) = self.file {
             file.set_len(growth_capacity as u64)?;
 
-            let mmap = unsafe {
-                memmap2::MmapMut::map_mut(file)
-                    .map_err(|e| ContainerError::MappingFailed(e.to_string()))?
-            };
+            let mmap = memmap2::MmapMut::map_mut(file)
+                .map_err(|e| ContainerError::MappingFailed(e.to_string()))?;
 
             self.mmap_data = Some(mmap);
             self.capacity = growth_capacity;
         } else {
-            let mmap = unsafe {
-                memmap2::MmapOptions::new()
-                    .len(growth_capacity)
-                    .map_anon()
-                    .map_err(|e| ContainerError::MappingFailed(e.to_string()))?
-            };
+            let mmap = memmap2::MmapOptions::new()
+                .len(growth_capacity)
+                .map_anon()
+                .map_err(|e| ContainerError::MappingFailed(e.to_string()))?;
 
             if let Some(ref old_mmap) = self.mmap_data {
                 let copy_len = old_mmap.len().min(growth_capacity);

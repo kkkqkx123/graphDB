@@ -254,7 +254,7 @@ impl super::SchemaManager for InMemorySchemaManager {
     }
 
     fn drop_tag(&self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
@@ -273,7 +273,7 @@ impl super::SchemaManager for InMemorySchemaManager {
     }
 
     fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
@@ -298,7 +298,7 @@ impl super::SchemaManager for InMemorySchemaManager {
     }
 
     fn update_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
@@ -348,7 +348,7 @@ impl super::SchemaManager for InMemorySchemaManager {
     }
 
     fn drop_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 
@@ -371,7 +371,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         space_name: &str,
         edge_type_name: &str,
     ) -> Result<Option<EdgeTypeInfo>, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+        self.get_space(space_name)?.ok_or_else(|| {
             StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
         })?;
 

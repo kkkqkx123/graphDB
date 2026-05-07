@@ -11,15 +11,12 @@
 //! - Configurable warmup limits
 //! - Warmup statistics tracking
 
-use std::sync::Arc;
 use std::time::Instant;
 
 use crate::storage::cache::{
     GraphAwareCache, NeighborCacheKey, CachedNeighbor, NeighborEntry,
     RecordCache, VertexCacheKey, CachedVertex,
 };
-use crate::storage::vertex::VertexTable;
-use crate::storage::edge::EdgeTable;
 use crate::storage::cache::{CacheWarmupConfig, WarmupStats};
 
 pub trait WarmupDataProvider: Send + Sync {

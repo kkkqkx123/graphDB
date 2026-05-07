@@ -356,11 +356,8 @@ impl SyncManager {
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = Result<T, SyncError>>,
     {
-        #[cfg(feature = "tokio")]
-        {
-            if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                return tokio::task::block_in_place(|| handle.block_on(f()));
-            }
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            return tokio::task::block_in_place(|| handle.block_on(f()));
         }
 
         futures::executor::block_on(f())

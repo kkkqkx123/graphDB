@@ -6,7 +6,7 @@
 pub use crate::core::stats::utils::CacheStats;
 
 use parking_lot::RwLock;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 /// Memory usage tracking
