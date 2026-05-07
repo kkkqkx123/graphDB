@@ -70,7 +70,7 @@ pub struct OverflowPage {
 
 impl OverflowPage {
     pub fn new(page_id: u64, record_id: u64, sequence: u32) -> Self {
-        let mut page = Page::new(page_id, PageType::Property);
+        let page = Page::new(page_id, PageType::Property);
         let header = OverflowHeader::new(record_id, sequence, 0, 0);
 
         Self { page, header }
@@ -336,7 +336,7 @@ impl OverflowManager {
         let mut chain_lengths = Vec::new();
         let mut visited = std::collections::HashSet::new();
 
-        for (&page_id, page) in &self.pages {
+        for (&page_id, _page) in &self.pages {
             if visited.contains(&page_id) {
                 continue;
             }
@@ -505,7 +505,7 @@ mod tests {
         let read_data = manager.read(first_page_id).expect("Read failed");
         assert_eq!(read_data, large_data);
 
-        let expected_pages = (large_data.len() + OVERFLOW_DATA_SIZE - 1) / OVERFLOW_DATA_SIZE;
+        let expected_pages = large_data.len().div_ceil(OVERFLOW_DATA_SIZE);
         assert_eq!(manager.page_count(), expected_pages);
     }
 

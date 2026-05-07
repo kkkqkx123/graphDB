@@ -17,7 +17,7 @@ impl Default for RecordCacheConfig {
     fn default() -> Self {
         Self {
             max_memory: 128 * 1024 * 1024,
-            memory_ratio: (40, 30, 20, 10),
+            memory_ratio: (40, 0, 40, 20),
             ttl: Some(Duration::from_secs(3600)),
             tti: Some(Duration::from_secs(300)),
             high_priority_ratio: 0.0,

@@ -2,7 +2,7 @@
 //!
 //! Types for batch cache operations.
 
-use super::types::{EdgeCacheKey, EdgeQueryKey, VertexCacheKey};
+use super::types::{EdgeQueryKey, VertexCacheKey};
 
 pub struct BatchInsertResult {
     pub inserted: usize,
@@ -17,7 +17,6 @@ pub struct BatchGetResult<T> {
 
 pub enum CacheKeyRef<'a> {
     Vertex(VertexCacheKey),
-    Edge(EdgeCacheKey),
     EdgeQuery(EdgeQueryKey),
     IdIndex(u16, &'a str),
 }

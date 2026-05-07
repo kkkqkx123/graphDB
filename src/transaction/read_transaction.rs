@@ -175,7 +175,7 @@ mod tests {
         let txn = ReadTransaction::new(&target, &vm).expect("Failed to create read transaction");
         assert!(txn.timestamp() >= 1);
 
-        let ts = txn.timestamp();
+        let _ts = txn.timestamp();
         drop(txn);
 
         assert_eq!(vm.pending_count(), 0);

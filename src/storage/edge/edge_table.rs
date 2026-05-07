@@ -81,7 +81,7 @@ impl EdgeTable {
         self.is_open = false;
     }
 
-    pub fn ensure_capacity(&mut self, vertex_capacity: usize, edge_capacity: usize) {
+    pub fn ensure_capacity(&mut self, vertex_capacity: usize, _edge_capacity: usize) {
         self.out_csr.resize(vertex_capacity);
         self.in_csr.resize(vertex_capacity);
     }

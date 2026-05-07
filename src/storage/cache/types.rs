@@ -39,15 +39,13 @@ pub type EvictionCallback = Arc<dyn Fn(&str, EvictionCause) + Send + Sync>;
 pub struct VertexCacheKey {
     pub label_id: u16,
     pub internal_id: u32,
-    pub timestamp: u64,
 }
 
 impl VertexCacheKey {
-    pub fn new(label_id: u16, internal_id: u32, timestamp: u64) -> Self {
+    pub fn new(label_id: u16, internal_id: u32) -> Self {
         Self {
             label_id,
             internal_id,
-            timestamp,
         }
     }
 }
@@ -84,16 +82,14 @@ pub struct EdgeQueryKey {
     pub edge_label_id: u16,
     pub src_vid: u64,
     pub dst_vid: u64,
-    pub timestamp: u64,
 }
 
 impl EdgeQueryKey {
-    pub fn new(edge_label_id: u16, src_vid: u64, dst_vid: u64, timestamp: u64) -> Self {
+    pub fn new(edge_label_id: u16, src_vid: u64, dst_vid: u64) -> Self {
         Self {
             edge_label_id,
             src_vid,
             dst_vid,
-            timestamp,
         }
     }
 }

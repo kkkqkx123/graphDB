@@ -18,7 +18,7 @@ use super::undo_log::{
 };
 use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{
-    ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, LabelId, Timestamp, VertexId, WalHeader,
+    CreateEdgeTypeRedo, CreateVertexTypeRedo, LabelId, Timestamp, VertexId, WalHeader,
     WalOpType,
 };
 use super::wal::writer::WalWriter;
@@ -304,7 +304,7 @@ impl<'a> UpdateTransaction<'a> {
         )?;
         self.op_num += 1;
 
-        let label_name = param.label_name.clone();
+        let _label_name = param.label_name.clone();
         let label_id = self.graph.create_vertex_type(param)?;
 
         self.undo_logs.add(Box::new(CreateVertexTypeUndo {
@@ -683,7 +683,7 @@ impl<'a> UpdateTransaction<'a> {
     }
 
     /// Write the WAL header
-    fn write_wal_header(&mut self, is_update: bool) {
+    fn write_wal_header(&mut self, _is_update: bool) {
         let header = WalHeader::new(WalOpType::CreateVertexType, self.timestamp, 0);
         let header_bytes = header.as_bytes();
         self.wal_buffer[..WalHeader::SIZE].copy_from_slice(header_bytes);
@@ -701,6 +701,7 @@ impl<'a> Drop for UpdateTransaction<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::transaction::ColumnId;
     use super::super::undo_log::UndoLogResult;
     use super::super::wal::writer::DummyWalWriter;
     use super::*;

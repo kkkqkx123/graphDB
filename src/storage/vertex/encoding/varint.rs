@@ -50,7 +50,7 @@ impl Varint {
         }
 
         let mut v = value;
-        let start_len = buffer.len();
+        let _start_len = buffer.len();
 
         while v >= 0x80 {
             buffer.push((v as u8) | 0x80);

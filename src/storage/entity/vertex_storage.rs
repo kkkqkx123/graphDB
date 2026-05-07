@@ -60,7 +60,7 @@ impl VertexStorage {
         0
     }
 
-    fn get_label_id(&self, space: &str, tag: &str) -> Result<LabelId, StorageError> {
+    fn get_label_id(&self, _space: &str, tag: &str) -> Result<LabelId, StorageError> {
         let graph = self.graph.read();
         graph
             .get_vertex_label_id(tag)
@@ -164,7 +164,7 @@ impl VertexStorage {
         Ok(result)
     }
 
-    pub fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
+    pub fn scan_vertices(&self, _space: &str) -> Result<Vec<Vertex>, StorageError> {
         let graph = self.graph.read();
         let ts = self.get_read_timestamp();
 
@@ -182,7 +182,7 @@ impl VertexStorage {
 
     pub fn scan_vertices_by_tag(
         &self,
-        space: &str,
+        _space: &str,
         tag: &str,
     ) -> Result<Vec<Vertex>, StorageError> {
         let graph = self.graph.read();
@@ -396,7 +396,7 @@ impl VertexStorage {
 
     pub fn delete_tags(
         &self,
-        space: &str,
+        _space: &str,
         space_id: u64,
         vertex_id: &Value,
         tag_names: &[String],

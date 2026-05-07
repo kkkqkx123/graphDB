@@ -430,7 +430,7 @@ mod tests {
         let offset1 = table
             .insert(&[("weight".to_string(), Value::Double(1.0))])
             .unwrap();
-        let offset2 = table
+        let _offset2 = table
             .insert(&[("weight".to_string(), Value::Double(2.0))])
             .unwrap();
 

@@ -47,7 +47,7 @@ impl VertexTimestamp {
         }
     }
 
-    pub fn revert_remove(&mut self, index: u32, ts: Timestamp) {
+    pub fn revert_remove(&mut self, index: u32, _ts: Timestamp) {
         let idx = index as usize;
         if idx < self.end_ts.len() && self.deleted[idx] {
             self.end_ts[idx] = MAX_TIMESTAMP;

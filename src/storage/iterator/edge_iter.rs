@@ -18,7 +18,7 @@ pub struct EdgeTableIterator<'a> {
 
 impl<'a> EdgeTableIterator<'a> {
     pub fn new(table: &'a EdgeTable, ts: Timestamp) -> Self {
-        let vertex_capacity = table.vertex_capacity();
+        let _vertex_capacity = table.vertex_capacity();
         Self {
             table,
             ts,

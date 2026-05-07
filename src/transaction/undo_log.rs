@@ -717,65 +717,65 @@ mod tests {
     struct MockUndoTarget;
 
     impl UndoTarget for MockUndoTarget {
-        fn delete_vertex_type(&mut self, label: LabelId) -> UndoLogResult<()> {
+        fn delete_vertex_type(&mut self, _label: LabelId) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn delete_edge_type(
             &mut self,
-            src_label: LabelId,
-            dst_label: LabelId,
-            edge_label: LabelId,
+            _src_label: LabelId,
+            _dst_label: LabelId,
+            _edge_label: LabelId,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn delete_vertex(
             &mut self,
-            label: LabelId,
-            vid: VertexId,
-            ts: Timestamp,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn delete_edge(
             &mut self,
-            src_label: LabelId,
-            src_vid: VertexId,
-            dst_label: LabelId,
-            dst_vid: VertexId,
-            edge_label: LabelId,
-            oe_offset: i32,
-            ie_offset: i32,
-            ts: Timestamp,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _oe_offset: i32,
+            _ie_offset: i32,
+            _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn undo_update_vertex_property(
             &mut self,
-            label: LabelId,
-            vid: VertexId,
-            col_id: ColumnId,
-            value: PropertyValue,
-            ts: Timestamp,
+            _label: LabelId,
+            _vid: VertexId,
+            _col_id: ColumnId,
+            _value: PropertyValue,
+            _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn undo_update_edge_property(
             &mut self,
-            src_label: LabelId,
-            src_vid: VertexId,
-            dst_label: LabelId,
-            dst_vid: VertexId,
-            edge_label: LabelId,
-            oe_offset: i32,
-            ie_offset: i32,
-            col_id: ColumnId,
-            value: PropertyValue,
-            ts: Timestamp,
+            _src_label: LabelId,
+            _src_vid: VertexId,
+            _dst_label: LabelId,
+            _dst_vid: VertexId,
+            _edge_label: LabelId,
+            _oe_offset: i32,
+            _ie_offset: i32,
+            _col_id: ColumnId,
+            _value: PropertyValue,
+            _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }

@@ -43,7 +43,7 @@ impl MultiLabelStrategy {
         match self {
             Self::CompositeIndex {
                 index,
-                covered_labels,
+                covered_labels: _,
             } => {
                 let selectivity = index.selectivity as f64;
                 cost_model.random_page_cost * (total_vertices as f64 * selectivity)
@@ -224,7 +224,7 @@ impl MultiLabelIndexSelector {
         &self,
         labels: &[String],
         indexes: &[IndexInfo],
-        predicates: &[Expression],
+        _predicates: &[Expression],
     ) -> Vec<MultiLabelStrategy> {
         let mut strategies = Vec::new();
 

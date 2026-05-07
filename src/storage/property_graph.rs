@@ -20,7 +20,7 @@ use crate::transaction::wal::types::{
 use crate::transaction::wal::writer::WalWriter;
 
 use super::cache::{
-    CachedEdge, CachedVertex, EdgeCacheKey, EdgeQueryKey, RecordCache, RecordCacheConfig,
+    CachedEdge, CachedVertex, EdgeQueryKey, RecordCache, RecordCacheConfig,
     RecordCacheStats, SharedRecordCache, VertexCacheKey,
 };
 use super::edge::{
@@ -331,7 +331,7 @@ impl PropertyGraph {
         }
 
         if let Some(ref wal_writer) = self.wal_writer {
-            let mut writer = wal_writer.write();
+            let writer = wal_writer.write();
             writer
                 .sync()
                 .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
@@ -576,7 +576,7 @@ impl PropertyGraph {
         };
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
+            let cache_key = VertexCacheKey::new(label, internal_id);
             if let Some(cached) = record_cache.get_vertex(&cache_key) {
                 return Some(VertexRecord {
                     internal_id: cached.internal_id,
@@ -590,7 +590,7 @@ impl PropertyGraph {
         let record = table.get_by_internal_id(internal_id, ts)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
+            let cache_key = VertexCacheKey::new(label, internal_id);
             let cached = CachedVertex {
                 internal_id: record.internal_id,
                 external_id: external_id.to_string(),
@@ -613,7 +613,7 @@ impl PropertyGraph {
         }
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
+            let cache_key = VertexCacheKey::new(label, internal_id);
             if let Some(cached) = record_cache.get_vertex(&cache_key) {
                 return Some(VertexRecord {
                     internal_id: cached.internal_id,
@@ -627,7 +627,7 @@ impl PropertyGraph {
         let record = table.get_by_internal_id(internal_id, ts)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
+            let cache_key = VertexCacheKey::new(label, internal_id);
             let cached = CachedVertex {
                 internal_id: record.internal_id,
                 external_id: String::new(),
@@ -656,7 +656,7 @@ impl PropertyGraph {
 
         if let Some(internal_id) = table.get_internal_id(external_id, ts) {
             if let Some(ref record_cache) = self.record_cache {
-                let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
+                let cache_key = VertexCacheKey::new(label, internal_id);
                 record_cache.remove_vertex(&cache_key);
                 record_cache.remove_id_index(label, external_id);
             }
@@ -691,7 +691,7 @@ impl PropertyGraph {
             .ok_or(StorageError::VertexNotFound)?;
 
         if let Some(ref record_cache) = self.record_cache {
-            let cache_key = VertexCacheKey::new(label, internal_id, ts as u64);
+            let cache_key = VertexCacheKey::new(label, internal_id);
             record_cache.remove_vertex(&cache_key);
         }
 
@@ -768,7 +768,6 @@ impl PropertyGraph {
                 edge_label,
                 src_internal as u64,
                 dst_internal as u64,
-                ts as u64,
             );
             if let Some(cached) = record_cache.get_edge_by_query(&query_key) {
                 return Some(EdgeRecord {
@@ -790,7 +789,6 @@ impl PropertyGraph {
                 edge_label,
                 src_internal as u64,
                 dst_internal as u64,
-                ts as u64,
             );
             let cached = CachedEdge {
                 edge_id: record.edge_id,
@@ -842,22 +840,8 @@ impl PropertyGraph {
                 edge_label,
                 src_internal as u64,
                 dst_internal as u64,
-                ts as u64,
             );
             record_cache.remove_edge_query(&query_key);
-
-            if let Some(nbr) =
-                edge_table.get_edge_nbr(src_internal as VertexId, dst_internal as VertexId, ts)
-            {
-                let cache_key = EdgeCacheKey::new(
-                    edge_label,
-                    src_internal as u64,
-                    dst_internal as u64,
-                    nbr.edge_id,
-                    ts as u64,
-                );
-                record_cache.remove_edge(&cache_key);
-            }
         }
 
         let result = edge_table.delete_edge(src_internal as VertexId, dst_internal as VertexId, ts);
@@ -1029,7 +1013,7 @@ impl PropertyGraph {
         }
 
         if let Some(ref wal_writer) = self.wal_writer {
-            let mut writer = wal_writer.write();
+            let writer = wal_writer.write();
             writer
                 .sync()
                 .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
@@ -1163,7 +1147,7 @@ impl PropertyGraph {
         }
 
         if let Some(ref wal_writer) = self.wal_writer {
-            let mut writer = wal_writer.write();
+            let writer = wal_writer.write();
             writer
                 .sync()
                 .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
@@ -1453,7 +1437,7 @@ impl InsertTarget for PropertyGraph {
         &self,
         label: TxnLabelId,
         vid: TxnVertexId,
-        ts: Timestamp,
+        _ts: Timestamp,
     ) -> Option<Vec<u8>> {
         let label_id = label as LabelId;
         self.vertex_tables

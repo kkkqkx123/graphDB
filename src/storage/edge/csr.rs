@@ -112,10 +112,10 @@ impl Csr {
         let total_edges = self.edges.len() + src_list.len();
         let mut new_edges = vec![ImmutableNbr::new(0, 0, 0); total_edges];
 
-        for i in 0..self.vertex_capacity {
+        for (i, offset) in new_offsets.iter().enumerate().take(self.vertex_capacity) {
             let old_start = self.offsets[i] as usize;
             let old_end = self.offsets[i + 1] as usize;
-            let new_start = new_offsets[i] as usize;
+            let new_start = *offset as usize;
             if old_start < old_end && old_end <= self.edges.len() {
                 new_edges[new_start..new_start + (old_end - old_start)]
                     .copy_from_slice(&self.edges[old_start..old_end]);

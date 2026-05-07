@@ -86,7 +86,6 @@ impl CacheTypeStatsSnapshot {
 #[derive(Debug, Clone, Copy)]
 pub struct RecordCacheStats {
     pub vertex: CacheTypeStatsSnapshot,
-    pub edge: CacheTypeStatsSnapshot,
     pub edge_query: CacheTypeStatsSnapshot,
     pub id_index: CacheTypeStatsSnapshot,
     pub total_hits: u64,
@@ -115,8 +114,7 @@ impl RecordCacheStats {
     }
 
     pub fn total_count(&self) -> u64 {
-        self.vertex.count + self.edge.count 
-            + self.edge_query.count + self.id_index.count
+        self.vertex.count + self.edge_query.count + self.id_index.count
     }
 }
 
@@ -138,12 +136,6 @@ impl std::fmt::Display for RecordCacheStats {
             "  Vertices: {} (hits: {}, misses: {}, evictions: {}, hit_rate: {:.1}%)",
             self.vertex.count, self.vertex.hits, self.vertex.misses, 
             self.vertex.evictions, self.vertex.hit_rate * 100.0
-        )?;
-        writeln!(
-            f,
-            "  Edges: {} (hits: {}, misses: {}, evictions: {}, hit_rate: {:.1}%)",
-            self.edge.count, self.edge.hits, self.edge.misses, 
-            self.edge.evictions, self.edge.hit_rate * 100.0
         )?;
         writeln!(
             f,

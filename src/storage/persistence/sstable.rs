@@ -673,7 +673,7 @@ mod tests {
         let config = SsTableConfig::default();
         let mut builder = SsTableBuilder::new(config);
 
-        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let temp_path = temp_file.path().to_path_buf();
 
         builder.add(b"key1", b"value1").expect("Add failed");
@@ -700,7 +700,7 @@ mod tests {
         let config = SsTableConfig::default();
         let mut builder = SsTableBuilder::new(config);
 
-        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let temp_path = temp_file.path().to_path_buf();
 
         for i in 0..100 {
@@ -740,13 +740,13 @@ mod tests {
         };
         let mut builder = SsTableBuilder::new(config);
 
-        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let temp_path = temp_file.path().to_path_buf();
 
         let large_value = vec![b'x'; 1000];
         builder.add(b"key1", &large_value).expect("Add failed");
 
-        let metadata = builder.finish(&temp_path).expect("Finish failed");
+        let _metadata = builder.finish(&temp_path).expect("Finish failed");
 
         let mut reader = SsTableReader::open(&temp_path).expect("Open failed");
         let value = reader.get(b"key1").expect("Get failed");
@@ -759,7 +759,7 @@ mod tests {
         let config = SsTableConfig::default();
         let mut builder = SsTableBuilder::new(config);
 
-        let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let temp_path = temp_file.path().to_path_buf();
 
         for i in 0..50 {

@@ -308,9 +308,9 @@ mod tests {
             IdIndexerConfig::default().with_free_list(true),
         );
 
-        let idx1 = indexer.insert("v1".to_string()).unwrap();
+        let _idx1 = indexer.insert("v1".to_string()).unwrap();
         let idx2 = indexer.insert("v2".to_string()).unwrap();
-        let idx3 = indexer.insert("v3".to_string()).unwrap();
+        let _idx3 = indexer.insert("v3".to_string()).unwrap();
 
         assert_eq!(indexer.remove(&"v2".to_string()), Some(idx2));
         assert_eq!(indexer.free_count(), 1);
@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(indexer.total_slots(), 4);
         assert_eq!(indexer.len(), 2);
 
-        let mapping = indexer.compact().unwrap();
+        let _mapping = indexer.compact().unwrap();
         assert_eq!(indexer.free_count(), 0);
         assert_eq!(indexer.total_slots(), 2);
         assert_eq!(indexer.len(), 2);

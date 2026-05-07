@@ -1,532 +1,625 @@
-# 存储架构改进分析报告
+# 存储引擎改进方案分析
 
-## 一、分析概述
+## 一、设计冲突分析
 
-本文档基于 `database_storage_research.md` 调研报告，对照现有代码实现，分析改进空间并制定实施计划。
+根据对 `database_storage_research.md` 文档和现有实现的分析，以下设计参考与当前项目目标存在冲突：
+
+### 1.1 项目核心目标回顾
+
+- **单机架构**：消除分布式复杂性
+- **轻量级**：最小化外部依赖
+- **高性能**：图遍历和点查优化
+- **简单部署**：单一可执行文件
+
+### 1.2 设计冲突矩阵
+
+| 参考设计 | 来源 | 冲突程度 | 冲突原因 |
+|----------|------|----------|----------|
+| LSM-Tree 架构 | RocksDB | 🔴 高 | 图数据库查询模式不同于 KV 存储，LSM-Tree 增加复杂度 |
+| MemTable + SSTable | RocksDB | 🔴 高 | 当前已有 MVCC/WAL，图写入涉及节点边关联性 |
+| 分层存储 (Level 0-N) | RocksDB | 🔴 高 | 单机场景数据量有限，分层增加复杂度 |
+| 向量化执行引擎 | DuckDB | 🟡 中 | 图查询是点查/遍历，非批量分析；但批量操作可受益 |
+| 固定大小记录 | Neo4j | 🟡 中 | 属性数量可变，固定大小浪费空间；但 ID 映射可优化 |
+| B+Tree 行存储 | SQLite | 🔴 高 | 图数据库属性访问模式不同，列式存储更合适 |
+| 溢出页链表 | SQLite | 🟡 中 | 增加实现复杂度，可简化 |
+| Compaction 后台线程 | RocksDB | 🟡 中 | 需要 LSM-Tree 架构支持，当前架构不需要 |
+
+### 1.3 详细冲突分析
+
+#### 1.3.1 LSM-Tree 架构 (不采用)
+
+**RocksDB 设计**:
+```
+MemTable → Immutable MemTable → L0 SSTable → L1 → L2 → ... → Ln
+         写入路径                    Compaction 路径
+```
+
+**冲突原因**:
+
+1. **查询模式不同**:
+   - RocksDB: 范围扫描、点查、前缀扫描
+   - GraphDB: 点查 (O(1))、邻居遍历 (O(degree))、路径查询
+
+2. **写入模式不同**:
+   - RocksDB: 独立 KV 写入
+   - GraphDB: 节点+边+属性关联写入，需要事务一致性
+
+3. **复杂度问题**:
+   - LSM-Tree 需要: MemTable、SSTable、Compaction、Level Manager
+   - 当前架构: 列式存储 + CSR，已足够
+
+**结论**: 保持当前列式存储 + CSR 架构，不引入 LSM-Tree。
 
 ---
 
-## 二、已实现功能对照表
+#### 1.3.2 向量化执行引擎 (部分采用)
 
-| 调研报告推荐 | 现有实现 | 状态 | 代码位置 |
-|-------------|---------|------|----------|
-| **DuckDB Validity Mask** | `BitVec<u8, Lsb0>` | ✅ 已实现 | `src/storage/vertex/column_store.rs` |
-| **Dictionary Encoding** | `DictionaryColumn` | ✅ 已实现 | `src/storage/vertex/encoding/dictionary.rs` |
-| **RLE Encoding** | `RleEncoder` | ✅ 已实现 | `src/storage/vertex/encoding/rle.rs` |
-| **Zstd Compression** | `CompressionType::Zstd` | ✅ 已实现 | `src/storage/persistence/compression.rs` |
-| **Block Cache** | `PageManager` (Moka) | ✅ 已实现 | `src/storage/page/page_manager.rs` |
-| **Record Cache** | `RecordCache` (TinyLFU) | ✅ 已实现 | `src/storage/cache/record_cache.rs` |
-| **动态扩容** | `IdIndexerConfig` | ✅ 已实现 | `src/storage/vertex/id_indexer.rs` |
-| **空闲列表复用** | `free_list: VecDeque<u32>` | ✅ 已实现 | `src/storage/vertex/id_indexer.rs` |
+**DuckDB 设计**:
+```
+DataChunk (2048 rows)
+├── Vector 1 (col 1)
+├── Vector 2 (col 2)
+└── Vector 3 (col 3)
 
----
+向量化执行: 批量处理 2048 行，CPU 缓存友好
+```
 
-## 三、待改进功能清单
+**冲突分析**:
 
-### 3.1 高优先级 ✅ 已完成
+| 场景 | 向量化收益 | 图数据库适用性 |
+|------|-----------|----------------|
+| 点查 (Get by ID) | 低 | 单行操作，向量化无收益 |
+| 邻居遍历 | 低 | 度数通常 < 1000，批量收益有限 |
+| 批量导入 | 高 | ✅ 可优化 |
+| 批量导出 | 高 | ✅ 可优化 |
+| 全表扫描 | 高 | ✅ 可优化 |
 
-| 功能 | 调研来源 | 现状 | 预期收益 |
-|------|---------|------|---------|
-| **BitPacking 编码** | DuckDB | ✅ 已实现 | 小范围整数节省 50-75% 空间 |
-| **Bloom Filter** | RocksDB | ✅ 已实现 | 快速判断键存在性，减少磁盘 IO |
-| **Varint 编码** | SQLite | ✅ 已实现 | 紧凑存储小整数，减少 30-50% 空间 |
-
-### 3.2 中优先级 ✅ 已完成
-
-| 功能 | 调研来源 | 现状 | 预期收益 |
-|------|---------|------|---------|
-| **FSST 字符串压缩** | DuckDB | ✅ 已实现 | 高效压缩长字符串、高基数场景 |
-| **ALP 浮点数压缩** | DuckDB | ✅ 已实现 | 浮点数压缩比 70-80% |
-| **延迟解压** | DuckDB | ✅ 已实现 | 压缩状态下执行查询，减少解压开销 |
-| **分层压缩策略** | RocksDB | ✅ 已实现 | 热数据快速访问，冷数据高压缩比 |
-
-### 3.3 低优先级
-
-| 功能 | 调研来源 | 现状 | 预期收益 |
-|------|---------|------|---------|
-| **向量化执行** | DuckDB | 未实现 | 批量处理 2048 行，CPU 缓存友好 |
-| **SSTable 结构** | RocksDB | 未实现 | 有序键值对文件，适合持久化 |
-| **溢出页处理** | SQLite | 未实现 | 处理大记录，不浪费页面空间 |
+**结论**: 不实现完整向量化执行引擎，但优化批量操作接口。
 
 ---
 
-## 四、详细改进方案
+#### 1.3.3 MemTable 写入缓冲 (不采用)
 
-### 4.1 BitPacking 编码
+**RocksDB 设计**:
+```
+写入 → MemTable (内存跳表) → 达到阈值 → Immutable → Flush to SSTable
+```
 
-#### 问题分析
+**冲突原因**:
 
-当前整数存储使用固定大小 (4/8 bytes)，小范围整数浪费空间。
+1. **当前已有机制**:
+   - MVCC 时间戳管理
+   - WAL 持久化
+   - 写入事务支持
 
-**现有实现** (`column_store.rs`):
+2. **图写入特点**:
+   - 节点和边需要原子写入
+   - 属性更新涉及多列
+   - MemTable 的 KV 模型不适用
+
+**结论**: 不引入 MemTable，优化现有写入路径。
+
+---
+
+#### 1.3.4 分层存储 (不采用)
+
+**RocksDB 设计**:
+```
+L0: 最近写入，可能有重叠
+L1-Ln: 有序无重叠，每层大小倍增
+Compaction: 后台合并，减少读放大
+```
+
+**冲突原因**:
+
+1. **单机数据量**: 通常 < 100GB，单层足够
+2. **复杂度**: 需要后台线程、合并策略、空间管理
+3. **查询模式**: 图遍历需要随机访问，分层增加 IO
+
+**结论**: 保持单层存储，简化架构。
+
+---
+
+#### 1.3.5 Block Cache (需要，但设计不同)
+
+**RocksDB 设计**:
+```
+Block Cache (LRU)
+├── Data Block 缓存
+├── Index Block 缓存
+└── Filter Block 缓存
+```
+
+**适配方案**:
+
+图数据库的访问模式不同，需要设计 **Graph-aware Cache**:
+
+```
+Graph Cache
+├── Vertex Cache (热点节点)
+├── Edge Cache (热点边)
+├── Neighbor Cache (邻居列表)
+└── Property Cache (属性值)
+```
+
+**结论**: 需要缓存机制，但设计要适配图遍历模式。
+
+---
+
+## 二、可借鉴的设计
+
+### 2.1 完全兼容的设计
+
+| 设计 | 来源 | 现有实现 | 改进建议 |
+|------|------|----------|----------|
+| Validity Bitmap | DuckDB/Arrow | ✅ 已实现 [null_bitmap.rs](../src/storage/memory/null_bitmap.rs) | 保持 |
+| Varint 编码 | SQLite | ✅ 已实现 [varint.rs](../src/storage/vertex/encoding/varint.rs) | 扩展到持久化格式 |
+| 字典压缩 | DuckDB | ✅ 已实现 [dictionary.rs](../src/storage/vertex/encoding/dictionary.rs) | 保持 |
+| RLE 压缩 | DuckDB | ✅ 已实现 [rle.rs](../src/storage/vertex/encoding/rle.rs) | 保持 |
+| BitPacking | DuckDB | ✅ 已实现 [bitpacking.rs](../src/storage/vertex/encoding/bitpacking.rs) | 保持 |
+| Bloom Filter | RocksDB | ✅ 已实现 [bloom_filter.rs](../src/utils/bloom_filter.rs) | 保持 |
+| SSTable 持久化 | RocksDB | ✅ 已实现 [sstable.rs](../src/storage/persistence/sstable.rs) | 优化格式 |
+| CSR 边存储 | Neo4j | ✅ 已实现 [csr.rs](../src/storage/edge/csr.rs) | 保持 |
+| 延迟解压 | DuckDB | ✅ 已实现 [lazy.rs](../src/storage/vertex/encoding/lazy.rs) | 保持 |
+| 分层压缩策略 | DuckDB | ✅ 已实现 [selector.rs](../src/storage/vertex/encoding/selector.rs) | 保持 |
+
+### 2.2 需要适配的设计
+
+| 设计 | 来源 | 适配方案 |
+|------|------|----------|
+| Block Cache | RocksDB | 改为 Graph-aware Cache，缓存热点节点和邻居 |
+| Page 格式 | SQLite | 简化，去掉溢出页链表，大对象单独存储 |
+| 统计信息 | 各数据库 | 收集列统计信息用于查询优化 |
+| 检查点 | RocksDB | 实现增量检查点，减少恢复时间 |
+
+---
+
+## 三、分阶段改进方案
+
+### Phase 1: 基础优化 (已完成 ✅)
+
+**目标**: 完善基础存储组件
+
+**已完成项目**:
+- [x] Null Bitmap 优化 (8x 内存节省)
+- [x] 多种压缩编码 (Dictionary, RLE, BitPacking, FSST, ALP)
+- [x] Varint 编码
+- [x] Bloom Filter
+- [x] SSTable 持久化
+- [x] CSR 边存储
+- [x] 延迟解压支持
+- [x] 分层压缩策略
+- [x] 内存追踪器
+
+---
+
+### Phase 2: 缓存机制 (优先级: 高)
+
+**目标**: 实现图感知缓存，减少重复数据访问
+
+#### 2.1 Graph Cache 设计
+
 ```rust
-(DataType::Int, Value::Int(i)) => {
-    self.data[offset..offset + 4].copy_from_slice(&i.to_le_bytes());
-    // 固定 4 bytes，即使值很小
+// src/storage/cache/graph_cache.rs
+
+pub struct GraphCache {
+    vertex_cache: VertexCache,
+    neighbor_cache: NeighborCache,
+    property_cache: PropertyCache,
+    config: CacheConfig,
+}
+
+pub struct VertexCache {
+    entries: LruCache<VertexId, Arc<VertexEntry>>,
+    memory_usage: AtomicUsize,
+    max_memory: usize,
+}
+
+pub struct NeighborCache {
+    entries: LruCache<VertexId, Arc<Vec<Nbr>>>,
+    memory_usage: AtomicUsize,
+    max_memory: usize,
+}
+
+pub struct CacheConfig {
+    pub max_total_memory: usize,
+    pub vertex_cache_ratio: f32,   // 0.3
+    pub neighbor_cache_ratio: f32, // 0.5
+    pub property_cache_ratio: f32, // 0.2
 }
 ```
 
-#### 调研参考 (DuckDB)
-
-```c
-// BitPacking: 将值压缩到最小所需位数
-// 例如: 值范围 0-100 只需 7 bits 存储
-// 压缩流程:
-// 1. 分析数据范围，确定 bit_width
-// 2. 计算偏移量 (min_value)
-// 3. 按位打包存储
-```
-
-#### 实现方案
+#### 2.2 缓存策略
 
 ```rust
-pub struct BitPackedColumn {
-    data: Vec<u8>,
-    bit_width: u8,      // 每个值的位数 (1-64)
-    min_value: i64,     // 偏移量，用于减少 bit_width
-    row_count: usize,
-    null_bitmap: Option<BitVec<u8, Lsb0>>,
+pub enum CacheStrategy {
+    Lru,           // 最近最少使用
+    Lfu,           // 最不经常使用
+    Arc,           // 自适应替换缓存
+    GraphAware,    // 图感知：优先缓存高度节点
 }
 
-impl BitPackedColumn {
-    pub fn analyze(values: &[i64]) -> Self {
-        let min_val = *values.iter().min().unwrap_or(&0);
-        let max_val = *values.iter().max().unwrap_or(&0);
-        let range = (max_val - min_val) as u64;
-        let bit_width = Self::calculate_bit_width(range);
-        // ...
+impl GraphCache {
+    pub fn get_vertex(&self, vid: VertexId) -> Option<Arc<VertexEntry>> {
+        self.vertex_cache.get(&vid)
     }
-
-    fn calculate_bit_width(range: u64) -> u8 {
-        if range == 0 { return 1; }
-        (64 - range.leading_zeros()) as u8
+    
+    pub fn get_neighbors(&self, vid: VertexId) -> Option<Arc<Vec<Nbr>>> {
+        self.neighbor_cache.get(&vid)
     }
-
-    pub fn get(&self, row_idx: usize) -> Option<i64> {
-        let bit_offset = row_idx * self.bit_width as usize;
-        let byte_offset = bit_offset / 8;
-        let bit_offset_in_byte = bit_offset % 8;
-        // Extract bits and add min_value
-    }
-}
-```
-
-#### 预期效果
-
-| 数据范围 | 原始大小 | BitPacking | 节省 |
-|---------|---------|------------|------|
-| 0-100 | 4 bytes/值 | 7 bits/值 | 78% |
-| 0-1000 | 4 bytes/值 | 10 bits/值 | 69% |
-| -1000~1000 | 4 bytes/值 | 11 bits/值 | 66% |
-
----
-
-### 4.2 Bloom Filter
-
-#### 问题分析
-
-查询不存在的键时需要完整扫描或索引查找，造成不必要的 IO 开销。
-
-#### 调研参考 (RocksDB)
-
-```
-SSTable 结构:
-[data block 1]
-[data block 2]
-...
-[meta block: filter block]    <- Bloom Filter
-[meta block: index block]
-[Footer]
-```
-
-#### 实现方案
-
-```rust
-pub struct BloomFilter {
-    bitmap: BitVec<u8, Lsb0>,
-    hash_count: usize,    // 哈希函数数量
-    bit_count: usize,     // 总位数
-}
-
-impl BloomFilter {
-    pub fn new(expected_items: usize, false_positive_rate: f64) -> Self {
-        // 计算最优参数
-        let ln2 = std::f64::consts::LN_2;
-        let bit_count = (-1.0 * expected_items as f64 * false_positive_rate.ln() / (ln2 * ln2)) as usize;
-        let hash_count = (bit_count as f64 / expected_items as f64 * ln2).ceil() as usize;
-
-        Self {
-            bitmap: BitVec::repeat(false, bit_count),
-            hash_count: hash_count.max(1),
-            bit_count,
+    
+    pub fn prefetch_neighbors(&self, vid: VertexId, storage: &EdgeTable) {
+        if !self.neighbor_cache.contains(&vid) {
+            if let Some(neighbors) = storage.get_neighbors(vid) {
+                self.neighbor_cache.insert(vid, Arc::new(neighbors));
+            }
         }
     }
+}
+```
 
-    pub fn insert(&mut self, key: &[u8]) {
-        let hashes = self.hash_key(key);
-        for h in hashes {
-            self.bitmap.set(h % self.bit_count, true);
+#### 2.3 实现任务
+
+- [ ] VertexCache 实现
+- [ ] NeighborCache 实现
+- [ ] PropertyCache 实现
+- [ ] CacheConfig 配置
+- [ ] 集成到 VertexTable 和 EdgeTable
+- [ ] 缓存命中率统计
+
+---
+
+### Phase 3: 持久化优化 (优先级: 中)
+
+**目标**: 优化持久化格式和增量写入
+
+#### 3.1 优化 SSTable 格式
+
+当前问题:
+- 字符串长度使用 8 字节固定前缀
+- 没有 Varint 编码
+
+改进方案:
+
+```rust
+// 改进前
+fn write_string(data: &mut Vec<u8>, s: &str) {
+    let len = s.len() as u64;
+    data.extend_from_slice(&len.to_le_bytes()); // 8 bytes
+    data.extend_from_slice(s.as_bytes());
+}
+
+// 改进后
+fn write_string(data: &mut Vec<u8>, s: &str) {
+    write_varint(data, s.len() as u64); // 1-9 bytes, 通常 1-2 bytes
+    data.extend_from_slice(s.as_bytes());
+}
+```
+
+#### 3.2 增量持久化
+
+```rust
+// src/storage/persistence/incremental_flush.rs
+
+pub struct IncrementalFlush {
+    dirty_tracker: DirtyPageTracker,
+    flush_threshold: usize,
+    last_flush: Instant,
+}
+
+impl IncrementalFlush {
+    pub fn should_flush(&self) -> bool {
+        self.dirty_tracker.dirty_count() >= self.flush_threshold
+            || self.last_flush.elapsed() > Duration::from_secs(60)
+    }
+    
+    pub fn flush_dirty(&mut self, storage: &mut PropertyGraph) -> Result<()> {
+        let dirty_pages = self.dirty_tracker.drain_dirty();
+        
+        for page_id in dirty_pages {
+            let data = storage.serialize_page(&page_id)?;
+            let compressed = self.compressor.compress(&data)?;
+            self.write_page(&page_id, &compressed)?;
         }
-    }
-
-    pub fn might_contain(&self, key: &[u8]) -> bool {
-        let hashes = self.hash_key(key);
-        hashes.iter().all(|&h| self.bitmap[h % self.bit_count])
-    }
-
-    fn hash_key(&self, key: &[u8]) -> Vec<usize> {
-        // 使用双重哈希技术生成多个哈希值
-        let h1 = Self::murmur_hash(key, 0);
-        let h2 = Self::murmur_hash(key, h1 as u32);
-        (0..self.hash_count)
-            .map(|i| (h1.wrapping_add(i as u64 * h2)) as usize)
-            .collect()
-    }
-
-    fn murmur_hash(data: &[u8], seed: u32) -> u64 {
-        // MurmurHash3 实现
+        
+        self.last_flush = Instant::now();
+        Ok(())
     }
 }
 ```
 
-#### 应用场景
+#### 3.3 实现任务
 
-1. **IdIndexer**: 快速判断外部 ID 是否存在
-2. **索引查询**: 前置过滤，减少不必要的查找
-3. **持久化**: 存储到文件头部，加载时快速判断
+- [ ] SSTable 格式优化 (Varint 长度编码)
+- [ ] DirtyPageTracker 实现
+- [ ] IncrementalFlush 实现
+- [ ] 检查点机制
 
 ---
 
-### 4.3 Varint 编码
+### Phase 4: 批量操作优化 (优先级: 中)
 
-#### 问题分析
+**目标**: 优化批量导入、导出、扫描操作
 
-字符串长度使用固定 8 bytes 存储，短字符串浪费空间。
-
-**现有实现** (`column_store.rs`):
-```rust
-let len = bytes.len() as u64;
-self.data.extend_from_slice(&len.to_le_bytes());  // 固定 8 bytes
-self.data.extend_from_slice(bytes);
-```
-
-#### 调研参考 (SQLite)
-
-```
-Varint 编码规则:
-- 值 0-127: 1 byte (最高位 0)
-- 值 128-16383: 2 bytes (最高位 1, 后续最高位 0)
-- 最大支持 9 bytes
-
-示例:
-- 0x00 -> 0x00 (1 byte)
-- 0x7F -> 0x7F (1 byte)
-- 0x80 -> 0x81 0x00 (2 bytes)
-- 0x3FFF -> 0xFF 0x7F (2 bytes)
-```
-
-#### 实现方案
+#### 4.1 批量读取接口
 
 ```rust
-pub struct Varint;
+// src/storage/vertex/batch_reader.rs
 
-impl Varint {
-    pub fn encode(value: u64) -> Vec<u8> {
-        if value < 0x80 {
-            return vec![value as u8];
-        }
+pub const BATCH_SIZE: usize = 1024;
 
-        let mut result = Vec::new();
-        let mut v = value;
+pub struct VertexBatchReader<'a> {
+    table: &'a VertexTable,
+    current_idx: usize,
+    batch: Vec<VertexRecord>,
+}
 
-        while v >= 0x80 {
-            result.push((v as u8) | 0x80);
-            v >>= 7;
-        }
-        result.push(v as u8);
-
-        result
-    }
-
-    pub fn decode(data: &[u8]) -> (u64, usize) {
-        let mut result = 0u64;
-        let mut shift = 0;
-        let mut bytes_read = 0;
-
-        for &byte in data {
-            bytes_read += 1;
-            result |= ((byte & 0x7F) as u64) << shift;
-
-            if byte & 0x80 == 0 {
+impl<'a> Iterator for VertexBatchReader<'a> {
+    type Item = Vec<VertexRecord>;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut batch = Vec::with_capacity(BATCH_SIZE);
+        
+        for _ in 0..BATCH_SIZE {
+            if let Some(record) = self.table.get_by_internal_id(self.current_idx) {
+                batch.push(record);
+                self.current_idx += 1;
+            } else {
                 break;
             }
-            shift += 7;
         }
-
-        (result, bytes_read)
-    }
-
-    pub fn encoded_len(value: u64) -> usize {
-        if value == 0 { return 1; }
-        let bits = 64 - value.leading_zeros();
-        ((bits + 6) / 7) as usize
+        
+        if batch.is_empty() { None } else { Some(batch) }
     }
 }
 ```
 
-#### 预期效果
-
-| 值范围 | 固定长度 | Varint | 节省 |
-|--------|---------|--------|------|
-| 0-127 | 8 bytes | 1 byte | 87.5% |
-| 128-16383 | 8 bytes | 2 bytes | 75% |
-| 16384-2097151 | 8 bytes | 3 bytes | 62.5% |
-
----
-
-### 4.4 FSST 字符串压缩
-
-#### 问题分析
-
-字典编码对高基数字符串效果差，需要补充方案。
-
-#### 调研参考 (DuckDB)
-
-```
-FSST (Fast Static Symbol Table):
-- 构建符号表，将常见子串映射为短编码
-- 适合长字符串、高基数场景
-- 压缩比中等 (30-50%)，解压速度极快 (10GB/s+)
-```
-
-#### 实现方案
+#### 4.2 批量写入优化
 
 ```rust
-pub struct FsstEncoder {
-    symbol_table: Vec<(Vec<u8>, u8)>,  // (symbol, code)
-    code_table: Vec<Vec<u8>>,          // code -> symbol
+// src/storage/vertex/batch_writer.rs
+
+pub struct VertexBatchWriter<'a> {
+    table: &'a mut VertexTable,
+    buffer: Vec<(String, Vec<(String, Value)>)>,
+    buffer_size: usize,
 }
 
-impl FsstEncoder {
-    pub fn train(strings: &[&str]) -> Self {
-        // 1. 统计所有 1-8 字节的子串频率
-        // 2. 选择高频子串构建符号表
-        // 3. 使用贪心算法优化编码
+impl<'a> VertexBatchWriter<'a> {
+    pub fn insert(&mut self, external_id: String, properties: Vec<(String, Value)>) {
+        self.buffer.push((external_id, properties));
+        
+        if self.buffer.len() >= self.buffer_size {
+            self.flush();
+        }
     }
-
-    pub fn compress(&self, s: &str) -> Vec<u8> {
-        // 使用符号表编码
-    }
-
-    pub fn decompress(&self, compressed: &[u8]) -> String {
-        // 查表解码
+    
+    pub fn flush(&mut self) {
+        if self.buffer.is_empty() { return; }
+        
+        // 批量预分配内存
+        self.table.ensure_capacity(self.table.total_count() + self.buffer.len());
+        
+        // 批量写入
+        for (id, props) in self.buffer.drain(..) {
+            self.table.insert(&id, &props, self.ts);
+        }
     }
 }
 ```
+
+#### 4.3 实现任务
+
+- [ ] VertexBatchReader 实现
+- [ ] VertexBatchWriter 实现
+- [ ] EdgeBatchReader 实现
+- [ ] EdgeBatchWriter 实现
+- [ ] 性能基准测试
 
 ---
 
-### 4.5 ALP 浮点数压缩
+### Phase 5: 统计信息收集 (优先级: 低)
 
-#### 问题分析
+**目标**: 收集数据分布统计，支持查询优化
 
-浮点数存储无压缩，占用空间大。
-
-#### 调研参考 (DuckDB ALP)
-
-```
-ALP (Adaptive Lossless floating-Point compression):
-- 识别浮点数的整数模式
-- 乘以 10^k 转换为整数
-- 使用 BitPacking 存储
-- 压缩比可达 70-80%
-```
-
-#### 实现方案
+#### 5.1 列统计信息
 
 ```rust
-pub struct AlpEncoder {
-    factor: i32,        // 10^k
-    exponent: i8,       // k
-    bit_packed: BitPackedColumn,
+// src/storage/stats/column_stats.rs
+
+pub struct ColumnStatistics {
+    pub null_count: usize,
+    pub distinct_count: usize,
+    pub min_value: Option<Value>,
+    pub max_value: Option<Value>,
+    pub avg_length: f64,
+    pub histogram: Option<Histogram>,
 }
 
-impl AlpEncoder {
-    pub fn analyze(values: &[f64]) -> Self {
-        // 找到最优的 k 值，使得转换后的整数范围最小
-    }
+pub struct Histogram {
+    pub buckets: Vec<HistogramBucket>,
+    pub most_common_values: Vec<(Value, usize)>,
+}
 
-    pub fn compress(&self, value: f64) -> i64 {
-        (value * 10f64.powi(self.exponent as i32)) as i64
-    }
-
-    pub fn decompress(&self, value: i64) -> f64 {
-        value as f64 / 10f64.powi(self.exponent as i32)
-    }
+pub struct HistogramBucket {
+    pub lower: Value,
+    pub upper: Value,
+    pub count: usize,
+    pub distinct_count: usize,
 }
 ```
 
----
-
-### 4.6 延迟解压
-
-#### 问题分析
-
-当前读取时必须完全解压，增加 CPU 开销。
-
-#### 调研参考 (DuckDB)
-
-```c
-// Dictionary Vector 可在压缩状态下执行查询
-// 例如: WHERE col = 'apple' 可直接比较索引
-```
-
-#### 实现方案
+#### 5.2 统计收集器
 
 ```rust
-pub trait EncodedColumn {
-    fn get(&self, row_idx: usize) -> Option<Value>;
+// src/storage/stats/stats_collector.rs
 
-    // 新增: 压缩状态下的操作
-    fn equals(&self, row_idx: usize, value: &Value) -> bool;
-    fn compare(&self, row_idx: usize, value: &Value) -> std::cmp::Ordering;
-    fn find_value(&self, value: &Value) -> Vec<usize>;
+pub struct StatsCollector {
+    column_stats: HashMap<String, ColumnStatistics>,
+    sample_rate: f64,
 }
 
-impl EncodedColumn for DictionaryColumn {
-    fn equals(&self, row_idx: usize, value: &Value) -> bool {
-        // 直接比较字典索引，无需解压
-        if let Value::String(s) = value {
-            if let Some(idx) = self.reverse_lookup.get(s) {
-                return self.indices[row_idx] == *idx;
-            }
-        }
-        false
+impl StatsCollector {
+    pub fn collect(&mut self, column: &Column) {
+        let stats = ColumnStatistics {
+            null_count: column.null_count(),
+            distinct_count: self.estimate_distinct(column),
+            min_value: self.find_min(column),
+            max_value: self.find_max(column),
+            avg_length: self.calculate_avg_length(column),
+            histogram: self.build_histogram(column),
+        };
+        
+        self.column_stats.insert(column.name.clone(), stats);
     }
 }
 ```
 
+#### 5.3 实现任务
+
+- [ ] ColumnStatistics 实现
+- [ ] Histogram 实现
+- [ ] StatsCollector 实现
+- [ ] 集成到查询优化器
+
 ---
 
-### 4.7 分层压缩策略
+### Phase 6: 高级特性 (优先级: 低)
 
-#### 问题分析
+**目标**: 添加可选的高级特性
 
-当前压缩策略较为单一，未考虑数据特征和访问模式。
-
-#### 调研参考 (RocksDB)
-
-```cpp
-options.compression_per_level = {
-    kNoCompression,   // Level 0: 写入频繁，不压缩
-    kSnappy,          // Level 1-2: 快速压缩
-    kLZ4,             // Level 3-4: 中等压缩
-    kZSTD             // Level 5+: 高压缩比
-};
-```
-
-#### 实现方案
+#### 6.1 内存映射 I/O (可选)
 
 ```rust
-pub struct CompressionSelector {
-    hot_threshold: usize,     // 热数据判定阈值
-    cold_threshold: usize,    // 冷数据判定阈值
+// src/storage/io/mmap.rs
+
+pub struct MmapFile {
+    file: File,
+    mmap: MmapMut,
 }
 
-impl CompressionSelector {
-    pub fn select(&self, stats: &ColumnStats) -> EncodingType {
-        // 热数据: 优先访问速度
-        if stats.access_count > self.hot_threshold {
-            return EncodingType::None;
-        }
-
-        // 冷数据: 优先压缩比
-        if stats.access_count < self.cold_threshold {
-            return self.select_best_compression(&stats);
-        }
-
-        // 温数据: 平衡速度和压缩比
-        EncodingType::Rle
-    }
-
-    fn select_best_compression(&self, stats: &ColumnStats) -> EncodingType {
-        match stats.data_type {
-            DataType::String if stats.cardinality_ratio < 0.5 => EncodingType::Dictionary,
-            DataType::Int | DataType::BigInt if stats.run_ratio < 0.3 => EncodingType::Rle,
-            DataType::Int | DataType::BigInt if stats.value_range < 1000 => EncodingType::BitPacking,
-            _ => EncodingType::None,
-        }
+impl MmapFile {
+    pub fn open(path: &Path) -> io::Result<Self> {
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(path)?;
+        
+        let mmap = unsafe { MmapMut::map_mut(&file)? };
+        
+        Ok(Self { file, mmap })
     }
 }
 ```
 
+#### 6.2 大对象存储 (可选)
+
+```rust
+// src/storage/large_object.rs
+
+pub struct LargeObjectStore {
+    objects: HashMap<u64, Vec<u8>>,
+    threshold: usize,  // 超过此大小的属性单独存储
+}
+
+impl LargeObjectStore {
+    pub fn store(&mut self, data: Vec<u8>) -> u64 {
+        let id = self.next_id();
+        self.objects.insert(id, data);
+        id
+    }
+    
+    pub fn load(&self, id: u64) -> Option<&[u8]> {
+        self.objects.get(&id).map(|v| v.as_slice())
+    }
+}
+```
+
+#### 6.3 实现任务
+
+- [ ] MmapFile 实现 (可选)
+- [ ] LargeObjectStore 实现 (可选)
+- [ ] 性能基准测试
+
 ---
 
-## 五、实施计划
+## 四、实施路线图
 
-### 阶段一：基础编码优化 (高优先级) ✅ 已完成
-
-| 任务 | 预计工作量 | 文件 | 状态 |
-|------|-----------|------|------|
-| BitPacking 编码实现 | 2 天 | `encoding/bitpacking.rs` | ✅ 已完成 |
-| Bloom Filter 实现 | 1 天 | `utils/bloom_filter.rs` | ✅ 已完成 |
-| Varint 编码实现 | 1 天 | `encoding/varint.rs` | ✅ 已完成 |
-| 单元测试 | 1 天 | 各模块 test | ✅ 已完成 |
-
-### 阶段二：高级压缩优化 (中优先级) ✅ 已完成
-
-| 任务 | 预计工作量 | 文件 | 状态 |
-|------|-----------|------|------|
-| FSST 字符串压缩 | 3 天 | `encoding/fsst.rs` | ✅ 已完成 |
-| ALP 浮点数压缩 | 2 天 | `encoding/alp.rs` | ✅ 已完成 |
-| 延迟解压支持 | 2 天 | `encoding/lazy.rs` | ✅ 已完成 |
-| 分层压缩策略 | 1 天 | `encoding/selector.rs` | ✅ 已完成 |
-
-### 阶段三：性能优化 (低优先级)
-
-| 任务 | 预计工作量 | 文件 |
-|------|-----------|------|
-| 向量化执行引擎 | 5 天 | `execution/vector.rs` |
-| SSTable 持久化 | 3 天 | `persistence/sstable.rs` |
-| 溢出页处理 | 2 天 | `page/overflow.rs` |
+```
+Timeline:
+├── Phase 1: 基础优化 ✅ (已完成)
+│
+├── Phase 2: 缓存机制 (2-3 周)
+│   ├── VertexCache
+│   ├── NeighborCache
+│   └── 集成测试
+│
+├── Phase 3: 持久化优化 (1-2 周)
+│   ├── SSTable 格式优化
+│   ├── 增量持久化
+│   └── 检查点
+│
+├── Phase 4: 批量操作优化 (1-2 周)
+│   ├── BatchReader
+│   ├── BatchWriter
+│   └── 性能测试
+│
+├── Phase 5: 统计信息收集 (1 周)
+│   ├── ColumnStatistics
+│   └── StatsCollector
+│
+└── Phase 6: 高级特性 (可选)
+    ├── MmapFile
+    └── LargeObjectStore
+```
 
 ---
 
-## 六、风险评估
+## 五、风险评估
 
 | 风险 | 影响 | 缓解措施 |
-|------|------|---------|
-| BitPacking 边界处理 | 数据损坏 | 充分的单元测试，边界用例覆盖 |
-| Bloom Filter 误判 | 查询遗漏 | 设置合理的误判率，文档说明 |
-| Varint 兼容性 | 数据迁移 | 版本号标识，迁移脚本 |
-| FSST 训练开销 | 写入延迟 | 后台异步训练，缓存符号表 |
-| ALP 精度问题 | 数据精度丢失 | 仅用于特定场景，保留原始数据 |
+|------|------|----------|
+| 缓存一致性 | 高 | MVCC 时间戳验证 |
+| 内存溢出 | 高 | 内存追踪器 + 硬限制 |
+| 持久化数据损坏 | 严重 | Checksum + WAL |
+| 性能回归 | 中 | 基准测试 + 特性开关 |
+| 迁移兼容性 | 中 | 版本号 + 迁移工具 |
+
+---
+
+## 六、成功指标
+
+| 指标 | 当前 | 目标 |
+|------|------|------|
+| 缓存命中率 | N/A | > 80% |
+| 批量导入速度 | 基准 | +50% |
+| 内存使用效率 | 基准 | +30% |
+| 持久化时间 | 基准 | -50% |
+| 恢复时间 | 基准 | < 5s (1GB) |
 
 ---
 
 ## 七、总结
 
-### 完成度统计
+### 不采用的设计
 
-| 类别 | 已实现 | 待实现 | 完成度 |
-|------|--------|--------|--------|
-| **NULL 位图** | ✅ BitVec | - | 100% |
-| **编码压缩** | Dictionary, RLE, BitPacking, FSST, ALP | - | 100% |
-| **整数存储** | Varint, BitPacking | - | 100% |
-| **查询优化** | Bloom Filter, 延迟解压 | - | 100% |
-| **缓存系统** | RecordCache, PageManager | - | 100% |
-| **ID 管理** | 动态扩容, 空闲列表 | - | 100% |
+1. **LSM-Tree 架构**: 图数据库查询模式不同，当前架构更合适
+2. **MemTable + SSTable**: 当前已有 MVCC/WAL，不需要额外写入缓冲
+3. **分层存储**: 单机场景复杂度过高
+4. **向量化执行引擎**: 图查询是点查/遍历，非批量分析
+5. **B+Tree 行存储**: 列式存储更适合图数据库
 
-### 核心差距
+### 需要实现的设计
 
-1. **BitPacking** - 小整数压缩缺失，影响存储效率
-2. **Bloom Filter** - 快速过滤缺失，影响查询性能
-3. **Varint** - 变长编码缺失，影响字符串存储效率
-4. **FSST/ALP** - 高级压缩缺失，影响特定场景性能
+1. **Graph-aware Cache**: 适配图遍历模式的缓存
+2. **增量持久化**: 减少写入开销
+3. **批量操作优化**: 提升导入导出性能
+4. **统计信息收集**: 支持查询优化
 
-### 预期收益
+### 保持现有设计
 
-完成全部优化后：
-- 存储空间减少 40-60%
-- 查询性能提升 20-30%
-- 内存占用减少 30-50%
+1. **列式存储 + CSR**: 已是最优选择
+2. **MVCC 时间戳**: 已实现
+3. **压缩编码**: 已实现多种算法
+4. **延迟解压**: 已实现

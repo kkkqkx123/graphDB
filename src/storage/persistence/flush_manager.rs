@@ -86,7 +86,7 @@ impl FlushManager {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = running.clone();
 
-        let handle = thread::spawn(move || {
+        let _handle = thread::spawn(move || {
             while running_clone.load(Ordering::Relaxed) {
                 thread::sleep(interval);
 

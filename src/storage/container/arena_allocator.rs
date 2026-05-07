@@ -351,11 +351,8 @@ mod tests {
     fn test_arena_basic() {
         let arena = ArenaAllocator::new().expect("Failed to create arena");
 
-        let ptr1 = arena.allocate(100, 8).expect("Failed to allocate");
-        assert!(!ptr1.as_ptr().is_null());
-
-        let ptr2 = arena.allocate(200, 8).expect("Failed to allocate");
-        assert!(!ptr2.as_ptr().is_null());
+        let _ptr1 = arena.allocate(100, 8).expect("Failed to allocate");
+        let _ptr2 = arena.allocate(200, 8).expect("Failed to allocate");
 
         assert!(arena.total_used() >= 300);
     }
@@ -380,11 +377,11 @@ mod tests {
 
         unsafe {
             let slice = std::slice::from_raw_parts_mut(ptr.as_ptr(), 10);
-            for i in 0..10 {
-                slice[i] = i as u64;
+            for (i, val) in slice.iter_mut().enumerate().take(10) {
+                *val = i as u64;
             }
-            for i in 0..10 {
-                assert_eq!(slice[i], i as u64);
+            for (i, val) in slice.iter().enumerate().take(10) {
+                assert_eq!(*val, i as u64);
             }
         }
     }

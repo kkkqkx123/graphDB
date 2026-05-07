@@ -5,7 +5,7 @@
 //!
 //! # Features
 //!
-//! - Fine-grained statistics per cache type (vertex, edge, edge_query, id_index)
+//! - Fine-grained statistics per cache type (vertex, edge_query, id_index)
 //! - Eviction listener support for custom cleanup logic
 //! - High priority pool configuration for index cache protection
 //! - TTL/TTI expiration support
@@ -15,16 +15,15 @@
 //!
 //! # Architecture
 //!
-//! This cache manages four distinct cache types as a unified facade:
+//! This cache manages three distinct cache types as a unified facade:
 //!
-//! - **Vertex Cache**: Stores vertex records keyed by (label_id, internal_id, timestamp)
-//! - **Edge Cache**: Stores edge records keyed by (edge_label_id, src_vid, dst_vid, edge_id, timestamp)
-//! - **Edge Query Cache**: Stores edge query results keyed by (edge_label_id, src_vid, dst_vid, timestamp)
+//! - **Vertex Cache**: Stores vertex records keyed by (label_id, internal_id)
+//! - **Edge Query Cache**: Stores edge query results keyed by (edge_label_id, src_vid, dst_vid)
 //! - **ID Index Cache**: Stores external_id to internal_id mappings keyed by (label_id, external_id)
 //!
 //! ## Design Rationale
 //!
-//! The four cache types are managed together because:
+//! The three cache types are managed together because:
 //! - They share a unified memory budget and configuration
 //! - They require coordinated invalidation during updates
 //! - They share eviction callback infrastructure
@@ -33,7 +32,7 @@
 //! ## Memory Allocation
 //!
 //! Memory is distributed across caches based on `memory_ratio` configuration:
-//! - Default ratio: (40% vertex, 30% edge, 20% edge_query, 10% id_index)
+//! - Default ratio: (40% vertex, 40% edge_query, 20% id_index)
 //! - High priority pool can add extra memory to id_index cache
 
 use std::sync::Arc;
@@ -50,12 +49,10 @@ use super::batch::*;
 
 pub struct RecordCache {
     vertex_cache: Cache<VertexCacheKey, CachedVertex>,
-    edge_cache: Cache<EdgeCacheKey, CachedEdge>,
     edge_query_cache: Cache<EdgeQueryKey, CachedEdge>,
     id_index_cache: Cache<IdIndexCacheKey, u32>,
     config: RecordCacheConfig,
     vertex_stats: Arc<CacheTypeStats>,
-    edge_stats: Arc<CacheTypeStats>,
     edge_query_stats: Arc<CacheTypeStats>,
     id_index_stats: Arc<CacheTypeStats>,
     eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
@@ -66,7 +63,6 @@ pub struct RecordCache {
 
 struct CacheMemoryAllocation {
     vertex_memory: u64,
-    edge_memory: u64,
     edge_query_memory: u64,
     id_index_memory: u64,
 }
@@ -76,11 +72,9 @@ impl std::fmt::Debug for RecordCache {
         f.debug_struct("RecordCache")
             .field("config", &self.config)
             .field("vertex_count", &self.vertex_cache.entry_count())
-            .field("edge_count", &self.edge_cache.entry_count())
             .field("edge_query_count", &self.edge_query_cache.entry_count())
             .field("id_index_count", &self.id_index_cache.entry_count())
             .field("vertex_stats", &self.vertex_stats)
-            .field("edge_stats", &self.edge_stats)
             .field("edge_query_stats", &self.edge_query_stats)
             .field("id_index_stats", &self.id_index_stats)
             .finish()
@@ -96,7 +90,6 @@ impl RecordCache {
         let memory_allocation = Self::calculate_memory_allocation(&config);
 
         let vertex_stats = Arc::new(CacheTypeStats::new());
-        let edge_stats = Arc::new(CacheTypeStats::new());
         let edge_query_stats = Arc::new(CacheTypeStats::new());
         let id_index_stats = Arc::new(CacheTypeStats::new());
 
@@ -105,14 +98,6 @@ impl RecordCache {
         let vertex_cache = Self::build_vertex_cache(
             memory_allocation.vertex_memory,
             vertex_stats.clone(),
-            eviction_callback.clone(),
-            config.ttl,
-            config.tti,
-        );
-
-        let edge_cache = Self::build_edge_cache(
-            memory_allocation.edge_memory,
-            edge_stats.clone(),
             eviction_callback.clone(),
             config.ttl,
             config.tti,
@@ -138,12 +123,10 @@ impl RecordCache {
 
         Self {
             vertex_cache,
-            edge_cache,
             edge_query_cache,
             id_index_cache,
             config,
             vertex_stats,
-            edge_stats,
             edge_query_stats,
             id_index_stats,
             eviction_callback,
@@ -159,7 +142,6 @@ impl RecordCache {
             config.memory_ratio.0 + config.memory_ratio.1 + config.memory_ratio.2 + config.memory_ratio.3;
 
         let base_vertex_memory = max_memory * config.memory_ratio.0 as u64 / total_ratio as u64;
-        let base_edge_memory = max_memory * config.memory_ratio.1 as u64 / total_ratio as u64;
         let base_edge_query_memory = max_memory * config.memory_ratio.2 as u64 / total_ratio as u64;
         let base_id_index_memory = max_memory * config.memory_ratio.3 as u64 / total_ratio as u64;
 
@@ -171,7 +153,6 @@ impl RecordCache {
 
         CacheMemoryAllocation {
             vertex_memory: base_vertex_memory,
-            edge_memory: base_edge_memory,
             edge_query_memory: base_edge_query_memory,
             id_index_memory: base_id_index_memory + high_priority_extra,
         }
@@ -192,34 +173,6 @@ impl RecordCache {
                 let cause = EvictionCause::from(cause);
                 if let Some(ref callback) = *eviction_callback.read() {
                     callback("vertex", cause);
-                }
-            });
-
-        if let Some(duration) = ttl {
-            builder = builder.time_to_live(duration);
-        }
-        if let Some(duration) = tti {
-            builder = builder.time_to_idle(duration);
-        }
-
-        builder.build()
-    }
-
-    fn build_edge_cache(
-        max_capacity: u64,
-        stats: Arc<CacheTypeStats>,
-        eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
-        ttl: Option<std::time::Duration>,
-        tti: Option<std::time::Duration>,
-    ) -> Cache<EdgeCacheKey, CachedEdge> {
-        let mut builder = Cache::builder()
-            .max_capacity(max_capacity)
-            .weigher(|_key: &EdgeCacheKey, value: &CachedEdge| value.estimated_size())
-            .eviction_listener(move |_key, _value, cause| {
-                stats.record_eviction();
-                let cause = EvictionCause::from(cause);
-                if let Some(ref callback) = *eviction_callback.read() {
-                    callback("edge", cause);
                 }
             });
 
@@ -385,38 +338,6 @@ impl RecordCache {
         }
     }
 
-    pub fn get_edge(&self, key: &EdgeCacheKey) -> Option<CachedEdge> {
-        match self.edge_cache.get(key) {
-            Some(edge) => {
-                self.edge_stats.record_hit();
-                Some(edge)
-            }
-            None => {
-                self.edge_stats.record_miss();
-                None
-            }
-        }
-    }
-
-    pub fn insert_edge(&self, key: EdgeCacheKey, edge: CachedEdge) {
-        let size = edge.estimated_size() as usize;
-        self.edge_cache.insert(key, edge);
-
-        if let Some(ref tracker) = self.memory_tracker {
-            tracker.try_allocate_cache(size);
-        }
-    }
-
-    pub fn remove_edge(&self, key: &EdgeCacheKey) {
-        if let Some(edge) = self.edge_cache.remove(key) {
-            self.notify_eviction("edge", EvictionCause::Explicit);
-            let size = edge.estimated_size() as usize;
-            if let Some(ref tracker) = self.memory_tracker {
-                tracker.release_cache(size);
-            }
-        }
-    }
-
     pub fn get_edge_by_query(&self, key: &EdgeQueryKey) -> Option<CachedEdge> {
         match self.edge_query_cache.get(key) {
             Some(edge) => {
@@ -456,17 +377,14 @@ impl RecordCache {
     }
 
     pub fn invalidate_edges_by_label(&self, edge_label_id: u16) {
-        let _ = self.edge_cache.invalidate_entries_if(move |k, _| k.edge_label_id == edge_label_id);
         let _ = self.edge_query_cache.invalidate_entries_if(move |k, _| k.edge_label_id == edge_label_id);
     }
 
     pub fn invalidate_edges_by_src(&self, src_vid: u64) {
-        let _ = self.edge_cache.invalidate_entries_if(move |k, _| k.src_vid == src_vid);
         let _ = self.edge_query_cache.invalidate_entries_if(move |k, _| k.src_vid == src_vid);
     }
 
     pub fn invalidate_edges_by_dst(&self, dst_vid: u64) {
-        let _ = self.edge_cache.invalidate_entries_if(move |k, _| k.dst_vid == dst_vid);
         let _ = self.edge_query_cache.invalidate_entries_if(move |k, _| k.dst_vid == dst_vid);
     }
 
@@ -476,7 +394,6 @@ impl RecordCache {
 
     pub fn clear(&self) {
         self.vertex_cache.invalidate_all();
-        self.edge_cache.invalidate_all();
         self.edge_query_cache.invalidate_all();
         self.id_index_cache.invalidate_all();
     }
@@ -485,7 +402,6 @@ impl RecordCache {
 
     pub fn memory_usage(&self) -> usize {
         (self.vertex_cache.weighted_size()
-            + self.edge_cache.weighted_size()
             + self.edge_query_cache.weighted_size()
             + self.id_index_cache.weighted_size()) as usize
     }
@@ -500,11 +416,6 @@ impl RecordCache {
             self.vertex_cache.entry_count(),
             self.vertex_cache.weighted_size(),
         );
-        let edge_snapshot = CacheTypeStatsSnapshot::from_stats(
-            &self.edge_stats,
-            self.edge_cache.entry_count(),
-            self.edge_cache.weighted_size(),
-        );
         let edge_query_snapshot = CacheTypeStatsSnapshot::from_stats(
             &self.edge_query_stats,
             self.edge_query_cache.entry_count(),
@@ -516,16 +427,12 @@ impl RecordCache {
             self.id_index_cache.weighted_size(),
         );
 
-        let total_hits = vertex_snapshot.hits + edge_snapshot.hits 
-            + edge_query_snapshot.hits + id_index_snapshot.hits;
-        let total_misses = vertex_snapshot.misses + edge_snapshot.misses 
-            + edge_query_snapshot.misses + id_index_snapshot.misses;
-        let total_evictions = vertex_snapshot.evictions + edge_snapshot.evictions 
-            + edge_query_snapshot.evictions + id_index_snapshot.evictions;
+        let total_hits = vertex_snapshot.hits + edge_query_snapshot.hits + id_index_snapshot.hits;
+        let total_misses = vertex_snapshot.misses + edge_query_snapshot.misses + id_index_snapshot.misses;
+        let total_evictions = vertex_snapshot.evictions + edge_query_snapshot.evictions + id_index_snapshot.evictions;
 
         RecordCacheStats {
             vertex: vertex_snapshot,
-            edge: edge_snapshot,
             edge_query: edge_query_snapshot,
             id_index: id_index_snapshot,
             total_hits,
@@ -550,10 +457,6 @@ impl RecordCache {
 
     pub fn vertex_stats(&self) -> &CacheTypeStats {
         &self.vertex_stats
-    }
-
-    pub fn edge_stats(&self) -> &CacheTypeStats {
-        &self.edge_stats
     }
 
     pub fn edge_query_stats(&self) -> &CacheTypeStats {
@@ -608,20 +511,20 @@ impl RecordCache {
         }
     }
 
-    pub fn get_edges_batch(&self, keys: &[EdgeCacheKey]) -> BatchGetResult<CachedEdge> {
+    pub fn get_edge_queries_batch(&self, keys: &[EdgeQueryKey]) -> BatchGetResult<CachedEdge> {
         let mut results = Vec::with_capacity(keys.len());
         let mut hits = 0usize;
         let mut misses = 0usize;
 
         for key in keys {
-            match self.edge_cache.get(key) {
+            match self.edge_query_cache.get(key) {
                 Some(edge) => {
-                    self.edge_stats.record_hit();
+                    self.edge_query_stats.record_hit();
                     hits += 1;
                     results.push(Some(edge));
                 }
                 None => {
-                    self.edge_stats.record_miss();
+                    self.edge_query_stats.record_miss();
                     misses += 1;
                     results.push(None);
                 }
@@ -631,13 +534,13 @@ impl RecordCache {
         BatchGetResult { results, hits, misses }
     }
 
-    pub fn insert_edges_batch(&self, entries: Vec<(EdgeCacheKey, CachedEdge)>) -> BatchInsertResult {
+    pub fn insert_edge_queries_batch(&self, entries: Vec<(EdgeQueryKey, CachedEdge)>) -> BatchInsertResult {
         let mut total_size = 0usize;
 
         for (key, edge) in entries {
             let size = edge.estimated_size() as usize;
             total_size += size;
-            self.edge_cache.insert(key, edge);
+            self.edge_query_cache.insert(key, edge);
         }
 
         if let Some(ref tracker) = self.memory_tracker {
@@ -645,50 +548,7 @@ impl RecordCache {
         }
 
         BatchInsertResult {
-            inserted: self.edge_cache.entry_count() as usize,
-            total_size,
-        }
-    }
-
-    pub fn get_id_indexes_batch(&self, keys: &[(u16, &str)]) -> BatchGetResult<u32> {
-        let mut results = Vec::with_capacity(keys.len());
-        let mut hits = 0usize;
-        let mut misses = 0usize;
-
-        for (label_id, external_id) in keys {
-            let key = IdIndexCacheKey::new(*label_id, external_id.to_string());
-            match self.id_index_cache.get(&key) {
-                Some(internal_id) => {
-                    self.id_index_stats.record_hit();
-                    hits += 1;
-                    results.push(Some(internal_id));
-                }
-                None => {
-                    self.id_index_stats.record_miss();
-                    misses += 1;
-                    results.push(None);
-                }
-            }
-        }
-
-        BatchGetResult { results, hits, misses }
-    }
-
-    pub fn insert_id_indexes_batch(&self, entries: Vec<(u16, String, u32)>) -> BatchInsertResult {
-        let mut total_size = 0usize;
-
-        for (label_id, external_id, internal_id) in entries {
-            let key = IdIndexCacheKey::new(label_id, external_id);
-            self.id_index_cache.insert(key, internal_id);
-            total_size += std::mem::size_of::<u32>();
-        }
-
-        if let Some(ref tracker) = self.memory_tracker {
-            tracker.try_allocate_cache(total_size);
-        }
-
-        BatchInsertResult {
-            inserted: self.id_index_cache.entry_count() as usize,
+            inserted: self.edge_query_cache.entry_count() as usize,
             total_size,
         }
     }
@@ -700,26 +560,17 @@ impl RecordCache {
             match key {
                 CacheKeyRef::Vertex(k) => {
                     if self.vertex_cache.remove(k).is_some() {
-                        self.notify_eviction("vertex", EvictionCause::Explicit);
-                        invalidated += 1;
-                    }
-                }
-                CacheKeyRef::Edge(k) => {
-                    if self.edge_cache.remove(k).is_some() {
-                        self.notify_eviction("edge", EvictionCause::Explicit);
                         invalidated += 1;
                     }
                 }
                 CacheKeyRef::EdgeQuery(k) => {
                     if self.edge_query_cache.remove(k).is_some() {
-                        self.notify_eviction("edge_query", EvictionCause::Explicit);
                         invalidated += 1;
                     }
                 }
                 CacheKeyRef::IdIndex(label_id, external_id) => {
-                    let key = IdIndexCacheKey::new(*label_id, external_id.to_string());
-                    if self.id_index_cache.remove(&key).is_some() {
-                        self.notify_eviction("id_index", EvictionCause::Explicit);
+                    let cache_key = IdIndexCacheKey::new(*label_id, external_id.to_string());
+                    if self.id_index_cache.remove(&cache_key).is_some() {
                         invalidated += 1;
                     }
                 }
@@ -729,15 +580,31 @@ impl RecordCache {
         invalidated
     }
 
-    // ==================== Memory Pressure Response ====================
+    // ==================== Memory Pressure ====================
 
-    pub fn check_memory_pressure(&self) -> MemoryPressureLevel {
+    pub fn handle_memory_pressure(&mut self, level: MemoryPressureLevel) {
         if !self.memory_pressure_config.enabled {
-            return MemoryPressureLevel::Normal;
+            return;
         }
 
-        let utilization = self.utilization();
+        match level {
+            MemoryPressureLevel::Normal => {}
+            MemoryPressureLevel::Warning => {
+                self.reduce_memory(self.memory_pressure_config.reduction_factor);
+            }
+            MemoryPressureLevel::Critical => {
+                self.clear();
+            }
+        }
+    }
 
+    fn reduce_memory(&mut self, factor: f32) {
+        let new_max = (self.original_max_memory as f32 * factor) as usize;
+        self.config.max_memory = new_max;
+    }
+
+    pub fn memory_pressure_level(&self) -> MemoryPressureLevel {
+        let utilization = self.utilization();
         if utilization >= self.memory_pressure_config.high_watermark {
             MemoryPressureLevel::Critical
         } else if utilization >= self.memory_pressure_config.low_watermark {
@@ -745,39 +612,6 @@ impl RecordCache {
         } else {
             MemoryPressureLevel::Normal
         }
-    }
-
-    pub fn reduce_capacity(&mut self, factor: f32) {
-        if factor <= 0.0 || factor >= 1.0 {
-            return;
-        }
-
-        let new_capacity = (self.config.max_memory as f64 * factor as f64) as usize;
-        self.config.max_memory = new_capacity;
-
-        self.vertex_cache.invalidate_all();
-        self.edge_cache.invalidate_all();
-        self.edge_query_cache.invalidate_all();
-        self.id_index_cache.invalidate_all();
-    }
-
-    pub fn restore_capacity(&mut self) {
-        self.config.max_memory = self.original_max_memory;
-    }
-
-    pub fn get_memory_pressure_config(&self) -> &MemoryPressureConfig {
-        &self.memory_pressure_config
-    }
-
-    pub fn original_max_memory(&self) -> usize {
-        self.original_max_memory
-    }
-
-    pub fn run_pending_tasks(&self) {
-        self.vertex_cache.run_pending_tasks();
-        self.edge_cache.run_pending_tasks();
-        self.edge_query_cache.run_pending_tasks();
-        self.id_index_cache.run_pending_tasks();
     }
 }
 

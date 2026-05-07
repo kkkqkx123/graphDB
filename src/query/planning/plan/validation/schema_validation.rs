@@ -326,16 +326,16 @@ impl SchemaValidator {
         node: &PlanNodeEnum,
         children: &[&PlanNodeEnum],
         schemas: &HashMap<i64, NodeSchema>,
-        errors: &mut Vec<SchemaValidationError>,
+        _errors: &mut Vec<SchemaValidationError>,
     ) -> NodeSchema {
-        let node_id = node.id();
+        let _node_id = node.id();
         let mut schema = NodeSchema::new();
 
         match node {
             PlanNodeEnum::Start(_) => {
                 schema = NodeSchema::new();
             }
-            PlanNodeEnum::Project(project_node) => {
+            PlanNodeEnum::Project(_project_node) => {
                 if let Some(input_schema) = children.first().and_then(|c| schemas.get(&c.id())) {
                     schema = input_schema.clone();
                 }

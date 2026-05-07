@@ -179,7 +179,7 @@ impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
     pub fn execute_rollback(
         &self,
         target: &mut dyn UndoTarget,
-        ts: Timestamp,
+        _ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.ctx.execute_undo_logs(target)
     }
@@ -213,7 +213,7 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
     pub fn execute_undo_rollback(
         &self,
         target: &mut dyn UndoTarget,
-        ts: Timestamp,
+        _ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.ctx.execute_undo_logs(target)
     }

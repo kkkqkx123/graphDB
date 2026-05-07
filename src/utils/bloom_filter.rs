@@ -261,7 +261,7 @@ pub struct ScalableBloomFilter {
 
 impl ScalableBloomFilter {
     pub fn new(initial_capacity: usize, false_positive_rate: f64) -> Self {
-        let mut filter = BloomFilter::new(initial_capacity, false_positive_rate);
+        let filter = BloomFilter::new(initial_capacity, false_positive_rate);
 
         Self {
             filters: vec![filter],
@@ -429,7 +429,7 @@ mod tests {
     #[test]
     fn test_bloom_filter_memory_usage() {
         let filter = BloomFilter::new(1000, 0.01);
-        let expected = (filter.bit_count() + 7) / 8;
+        let expected = filter.bit_count().div_ceil(8);
 
         assert_eq!(filter.memory_usage(), expected);
     }

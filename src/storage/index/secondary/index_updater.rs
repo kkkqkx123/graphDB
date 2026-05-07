@@ -769,7 +769,7 @@ impl IndexUndoLog {
                     prop_value,
                 } => {
                     let prefix = super::key_codec::KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
-                    let end =
+                    let _end =
                         super::key_codec::KeyBuilder::build_range_end(
                             &prefix,
                         );
@@ -777,7 +777,7 @@ impl IndexUndoLog {
                         super::key_codec::serialize_value(
                             &vertex_id,
                         )?;
-                    let prop_value_bytes =
+                    let _prop_value_bytes =
                         super::key_codec::serialize_value(
                             &prop_value,
                         )?;

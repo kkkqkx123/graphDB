@@ -158,7 +158,7 @@ impl VertexTable {
             return None;
         }
 
-        let external_id = self.id_indexer.get_key(internal_id)?;
+        let _external_id = self.id_indexer.get_key(internal_id)?;
         let props = self.columns.get(internal_id as usize);
         let properties: Vec<(String, Value)> = props
             .into_iter()
