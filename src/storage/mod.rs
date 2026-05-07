@@ -1,4 +1,5 @@
 pub mod api;
+pub mod batch_operations;
 pub mod cache;
 pub mod container;
 pub mod edge;
@@ -7,14 +8,15 @@ pub mod extend;
 pub mod graph_storage;
 pub mod index;
 pub mod iterator;
+pub mod large_object;
 pub mod memory;
 pub mod metadata;
-pub mod monitoring;
 pub mod operations;
 pub mod page;
 pub mod persistence;
 pub mod property_graph;
 pub mod shared_state;
+pub mod stats;
 pub mod vertex;
 
 #[cfg(test)]
@@ -73,6 +75,17 @@ pub use page::{
 };
 
 pub use graph_storage::GraphStorage;
+
+pub use batch_operations::{
+    batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
+    VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE,
+};
+
+pub use stats::{
+    ColumnStatistics, Histogram, HistogramBucket, StatsCollector,
+};
+
+pub use large_object::{LargeObjectStore, LobId, LobStats, DEFAULT_LOB_THRESHOLD};
 
 #[cfg(test)]
 pub use test_mock::*;

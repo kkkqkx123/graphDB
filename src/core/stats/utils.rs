@@ -14,6 +14,10 @@ pub fn calculate_cache_hit_rate(hits: u64, misses: u64) -> f64 {
 pub struct CacheStats {
     hits: AtomicU64,
     misses: AtomicU64,
+    evictions: AtomicU64,
+    expirations: AtomicU64,
+    insertions: AtomicU64,
+    rejections: AtomicU64,
 }
 
 impl CacheStats {
@@ -27,6 +31,22 @@ impl CacheStats {
 
     pub fn record_miss(&self) {
         self.misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_eviction(&self) {
+        self.evictions.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_expiration(&self) {
+        self.expirations.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_insertion(&self) {
+        self.insertions.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_rejection(&self) {
+        self.rejections.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_hits(&self, count: u64) {
@@ -45,6 +65,26 @@ impl CacheStats {
         self.misses.load(Ordering::Relaxed)
     }
 
+    pub fn evictions(&self) -> u64 {
+        self.evictions.load(Ordering::Relaxed)
+    }
+
+    pub fn expirations(&self) -> u64 {
+        self.expirations.load(Ordering::Relaxed)
+    }
+
+    pub fn insertions(&self) -> u64 {
+        self.insertions.load(Ordering::Relaxed)
+    }
+
+    pub fn rejections(&self) -> u64 {
+        self.rejections.load(Ordering::Relaxed)
+    }
+
+    pub fn total_requests(&self) -> u64 {
+        self.hits() + self.misses()
+    }
+
     pub fn total(&self) -> u64 {
         self.hits() + self.misses()
     }
@@ -56,6 +96,23 @@ impl CacheStats {
     pub fn reset(&self) {
         self.hits.store(0, Ordering::Relaxed);
         self.misses.store(0, Ordering::Relaxed);
+        self.evictions.store(0, Ordering::Relaxed);
+        self.expirations.store(0, Ordering::Relaxed);
+        self.insertions.store(0, Ordering::Relaxed);
+        self.rejections.store(0, Ordering::Relaxed);
+    }
+}
+
+impl Clone for CacheStats {
+    fn clone(&self) -> Self {
+        Self {
+            hits: AtomicU64::new(self.hits()),
+            misses: AtomicU64::new(self.misses()),
+            evictions: AtomicU64::new(self.evictions()),
+            expirations: AtomicU64::new(self.expirations()),
+            insertions: AtomicU64::new(self.insertions()),
+            rejections: AtomicU64::new(self.rejections()),
+        }
     }
 }
 

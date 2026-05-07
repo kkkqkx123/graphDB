@@ -3,109 +3,11 @@
 //! Provides centralized statistics collection and reporting for all cache types.
 //! Uses the `metrics` crate for production metrics export.
 
+pub use crate::core::stats::utils::CacheStats;
+
 use parking_lot::RwLock;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-
-/// Cache operation counters using atomics for thread-safe updates
-#[derive(Debug, Default)]
-pub struct CacheCounters {
-    hits: AtomicU64,
-    misses: AtomicU64,
-    evictions: AtomicU64,
-    expirations: AtomicU64,
-    insertions: AtomicU64,
-    rejections: AtomicU64,
-}
-
-impl CacheCounters {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn record_hit(&self) {
-        self.hits.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_miss(&self) {
-        self.misses.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_eviction(&self) {
-        self.evictions.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_expiration(&self) {
-        self.expirations.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_insertion(&self) {
-        self.insertions.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_rejection(&self) {
-        self.rejections.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn hits(&self) -> u64 {
-        self.hits.load(Ordering::Relaxed)
-    }
-
-    pub fn misses(&self) -> u64 {
-        self.misses.load(Ordering::Relaxed)
-    }
-
-    pub fn evictions(&self) -> u64 {
-        self.evictions.load(Ordering::Relaxed)
-    }
-
-    pub fn expirations(&self) -> u64 {
-        self.expirations.load(Ordering::Relaxed)
-    }
-
-    pub fn insertions(&self) -> u64 {
-        self.insertions.load(Ordering::Relaxed)
-    }
-
-    pub fn rejections(&self) -> u64 {
-        self.rejections.load(Ordering::Relaxed)
-    }
-
-    pub fn total_requests(&self) -> u64 {
-        self.hits() + self.misses()
-    }
-
-    pub fn hit_rate(&self) -> f64 {
-        let total = self.total_requests();
-        if total == 0 {
-            0.0
-        } else {
-            self.hits() as f64 / total as f64
-        }
-    }
-
-    pub fn reset(&self) {
-        self.hits.store(0, Ordering::Relaxed);
-        self.misses.store(0, Ordering::Relaxed);
-        self.evictions.store(0, Ordering::Relaxed);
-        self.expirations.store(0, Ordering::Relaxed);
-        self.insertions.store(0, Ordering::Relaxed);
-        self.rejections.store(0, Ordering::Relaxed);
-    }
-}
-
-impl Clone for CacheCounters {
-    fn clone(&self) -> Self {
-        Self {
-            hits: AtomicU64::new(self.hits()),
-            misses: AtomicU64::new(self.misses()),
-            evictions: AtomicU64::new(self.evictions()),
-            expirations: AtomicU64::new(self.expirations()),
-            insertions: AtomicU64::new(self.insertions()),
-            rejections: AtomicU64::new(self.rejections()),
-        }
-    }
-}
 
 /// Memory usage tracking
 #[derive(Debug, Default)]
@@ -173,7 +75,7 @@ impl Clone for MemoryStats {
 /// Plan cache specific statistics
 #[derive(Debug)]
 pub struct PlanCacheStats {
-    pub counters: CacheCounters,
+    pub counters: CacheStats,
     pub memory: MemoryStats,
     pub avg_query_size: Arc<RwLock<usize>>,
     pub total_query_size: AtomicUsize,
@@ -193,7 +95,7 @@ impl Clone for PlanCacheStats {
 impl PlanCacheStats {
     pub fn new(memory_budget: usize) -> Self {
         Self {
-            counters: CacheCounters::new(),
+            counters: CacheStats::new(),
             memory: MemoryStats::new(memory_budget),
             avg_query_size: Arc::new(RwLock::new(0)),
             total_query_size: AtomicUsize::new(0),
@@ -269,14 +171,14 @@ pub struct PlanCacheStatsSnapshot {
 /// CTE cache specific statistics
 #[derive(Debug, Clone)]
 pub struct CteCacheStats {
-    pub counters: CacheCounters,
+    pub counters: CacheStats,
     pub memory: MemoryStats,
 }
 
 impl CteCacheStats {
     pub fn new(max_size: usize) -> Self {
         Self {
-            counters: CacheCounters::new(),
+            counters: CacheStats::new(),
             memory: MemoryStats::new(max_size),
         }
     }
@@ -434,28 +336,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cache_counters() {
-        let counters = CacheCounters::new();
+    fn test_cache_stats() {
+        let stats = CacheStats::new();
 
-        counters.record_hit();
-        counters.record_hit();
-        counters.record_miss();
+        stats.record_hit();
+        stats.record_hit();
+        stats.record_miss();
 
-        assert_eq!(counters.hits(), 2);
-        assert_eq!(counters.misses(), 1);
-        assert_eq!(counters.total_requests(), 3);
-        assert!((counters.hit_rate() - 0.6666666666666666).abs() < 0.01);
+        assert_eq!(stats.hits(), 2);
+        assert_eq!(stats.misses(), 1);
+        assert_eq!(stats.total_requests(), 3);
+        assert!((stats.hit_rate() - 0.6666666666666666).abs() < 0.01);
     }
 
     #[test]
-    fn test_cache_counters_reset() {
-        let counters = CacheCounters::new();
-        counters.record_hit();
-        counters.record_miss();
-        counters.reset();
+    fn test_cache_stats_reset() {
+        let stats = CacheStats::new();
+        stats.record_hit();
+        stats.record_miss();
+        stats.reset();
 
-        assert_eq!(counters.hits(), 0);
-        assert_eq!(counters.misses(), 0);
+        assert_eq!(stats.hits(), 0);
+        assert_eq!(stats.misses(), 0);
     }
 
     #[test]

@@ -1,19 +1,19 @@
 //! Cache Concurrency Tests
 
-use graphdb::query::cache::{CacheCounters, CacheManager, MemoryStats};
+use graphdb::query::cache::{CacheStats, CacheManager, MemoryStats};
 use std::sync::Arc;
 use std::thread;
 
 #[test]
-fn test_cache_counters_concurrent_hits() {
-    let counters = Arc::new(CacheCounters::new());
+fn test_cache_stats_concurrent_hits() {
+    let stats = Arc::new(CacheStats::new());
     let mut handles = vec![];
 
     for _ in 0..10 {
-        let counters_clone = Arc::clone(&counters);
+        let stats_clone = Arc::clone(&stats);
         handles.push(thread::spawn(move || {
             for _ in 0..100 {
-                counters_clone.record_hit();
+                stats_clone.record_hit();
             }
         }));
     }
@@ -22,7 +22,7 @@ fn test_cache_counters_concurrent_hits() {
         handle.join().unwrap();
     }
 
-    assert_eq!(counters.hits(), 1000);
+    assert_eq!(stats.hits(), 1000);
 }
 
 #[test]

@@ -79,6 +79,8 @@ pub enum StorageError {
     CompressError(String),
     #[error("Decompression error: {0}")]
     DecompressError(String),
+    #[error("Data corruption: {0}")]
+    DataCorruption(String),
 }
 
 impl StorageError {

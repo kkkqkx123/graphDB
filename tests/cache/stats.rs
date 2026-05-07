@@ -1,63 +1,63 @@
 //! Cache Statistics Tests
 
 use graphdb::query::cache::{
-    CacheCounters, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, MemoryStats,
+    CacheStats, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, MemoryStats,
     PlanCacheStats, PlanCacheStatsSnapshot,
 };
 use std::sync::Arc;
 
 #[test]
-fn test_cache_counters() {
-    let counters = CacheCounters::new();
+fn test_cache_stats() {
+    let stats = CacheStats::new();
 
-    counters.record_hit();
-    counters.record_hit();
-    counters.record_miss();
+    stats.record_hit();
+    stats.record_hit();
+    stats.record_miss();
 
-    assert_eq!(counters.hits(), 2);
-    assert_eq!(counters.misses(), 1);
-    assert_eq!(counters.total_requests(), 3);
+    assert_eq!(stats.hits(), 2);
+    assert_eq!(stats.misses(), 1);
+    assert_eq!(stats.total_requests(), 3);
 }
 
 #[test]
-fn test_cache_counters_hit_rate() {
-    let counters = CacheCounters::new();
+fn test_cache_stats_hit_rate() {
+    let stats = CacheStats::new();
 
     for _ in 0..8 {
-        counters.record_hit();
+        stats.record_hit();
     }
     for _ in 0..2 {
-        counters.record_miss();
+        stats.record_miss();
     }
 
-    let hit_rate = counters.hit_rate();
+    let hit_rate = stats.hit_rate();
     assert!((hit_rate - 0.8).abs() < 0.01);
 }
 
 #[test]
-fn test_cache_counters_eviction() {
-    let counters = CacheCounters::new();
+fn test_cache_stats_eviction() {
+    let stats = CacheStats::new();
 
-    counters.record_eviction();
-    counters.record_eviction();
-    counters.record_eviction();
+    stats.record_eviction();
+    stats.record_eviction();
+    stats.record_eviction();
 
-    assert_eq!(counters.evictions(), 3);
+    assert_eq!(stats.evictions(), 3);
 }
 
 #[test]
-fn test_cache_counters_reset() {
-    let counters = CacheCounters::new();
+fn test_cache_stats_reset() {
+    let stats = CacheStats::new();
 
-    counters.record_hit();
-    counters.record_miss();
-    counters.record_eviction();
+    stats.record_hit();
+    stats.record_miss();
+    stats.record_eviction();
 
-    counters.reset();
+    stats.reset();
 
-    assert_eq!(counters.hits(), 0);
-    assert_eq!(counters.misses(), 0);
-    assert_eq!(counters.evictions(), 0);
+    assert_eq!(stats.hits(), 0);
+    assert_eq!(stats.misses(), 0);
+    assert_eq!(stats.evictions(), 0);
 }
 
 #[test]

@@ -40,7 +40,7 @@ pub use config::{
 
 // Re-export stats types
 pub use stats::{
-    CacheCounters, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, MemoryStats,
+    CacheStats, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, MemoryStats,
     MetricsRecorder, PlanCacheStats, PlanCacheStatsSnapshot,
 };
 

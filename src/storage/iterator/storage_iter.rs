@@ -46,43 +46,35 @@ impl From<IterError> for StorageError {
 }
 
 /// Iterator statistics using metrics crate
+///
+/// All metrics are recorded via the `metrics` crate.
+/// No internal counters are maintained to avoid double recording.
 #[derive(Debug, Clone, Default)]
-pub struct IterStats {
-    pub items_scanned: u64,
-    pub items_returned: u64,
-    pub seek_operations: u64,
-    pub cache_hits: u64,
-    pub cache_misses: u64,
-}
+pub struct IterStats;
 
 impl IterStats {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 
-    pub fn record_scan(&mut self) {
+    pub fn record_scan(&self) {
         metrics::counter!("graphdb_storage_iter_items_scanned_total").increment(1);
-        self.items_scanned += 1;
     }
 
-    pub fn record_return(&mut self) {
+    pub fn record_return(&self) {
         metrics::counter!("graphdb_storage_iter_items_returned_total").increment(1);
-        self.items_returned += 1;
     }
 
-    pub fn record_seek(&mut self) {
+    pub fn record_seek(&self) {
         metrics::counter!("graphdb_storage_iter_seek_operations_total").increment(1);
-        self.seek_operations += 1;
     }
 
-    pub fn record_cache_hit(&mut self) {
+    pub fn record_cache_hit(&self) {
         metrics::counter!("graphdb_storage_iter_cache_hits_total").increment(1);
-        self.cache_hits += 1;
     }
 
-    pub fn record_cache_miss(&mut self) {
+    pub fn record_cache_miss(&self) {
         metrics::counter!("graphdb_storage_iter_cache_misses_total").increment(1);
-        self.cache_misses += 1;
     }
 }
 
@@ -159,16 +151,15 @@ mod tests {
 
     #[test]
     fn test_iter_stats() {
-        let mut stats = IterStats::new();
-        assert_eq!(stats.items_scanned, 0);
-        assert_eq!(stats.items_returned, 0);
-
+        let stats = IterStats::new();
+        // IterStats is now a unit struct that records directly to metrics crate
+        // Verify no panic when recording
         stats.record_scan();
         stats.record_scan();
-        assert_eq!(stats.items_scanned, 2);
-
         stats.record_return();
-        assert_eq!(stats.items_returned, 1);
+        stats.record_seek();
+        stats.record_cache_hit();
+        stats.record_cache_miss();
     }
 
     #[test]

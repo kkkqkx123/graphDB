@@ -11,6 +11,7 @@
 
 use crate::core::{StorageError, StorageResult};
 use crate::storage::persistence::{CompressionType, Compressor};
+use crate::storage::vertex::encoding::varint::Varint;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -199,11 +200,11 @@ impl SsTableBuilder {
         let mut data = Vec::new();
 
         for entry in &self.index_entries {
-            let key_len = entry.key.len() as u32;
-            data.write_u32_le(key_len)?;
+            let key_len = entry.key.len() as u64;
+            Varint::encode_into(key_len, &mut data);
             data.write_all(&entry.key)?;
-            data.write_u64_le(entry.offset as u64)?;
-            data.write_u64_le(entry.size as u64)?;
+            Varint::encode_into(entry.offset as u64, &mut data);
+            Varint::encode_into(entry.size as u64, &mut data);
         }
 
         Ok(data)
@@ -247,7 +248,9 @@ impl DataBlock {
     fn estimate_size(&self) -> usize {
         self.entries
             .iter()
-            .map(|(k, v)| k.len() + v.len() + 8)
+            .map(|(k, v)| {
+                k.len() + v.len() + Varint::encoded_len(k.len() as u64) + Varint::encoded_len(v.len() as u64)
+            })
             .sum()
     }
 
@@ -255,12 +258,12 @@ impl DataBlock {
         let mut data = Vec::new();
 
         for (key, value) in &self.entries {
-            let key_len = key.len() as u32;
-            let value_len = value.len() as u32;
+            let key_len = key.len() as u64;
+            let value_len = value.len() as u64;
 
-            data.write_u32_le(key_len).expect("Write failed");
+            Varint::encode_into(key_len, &mut data);
             data.write_all(key).expect("Write failed");
-            data.write_u32_le(value_len).expect("Write failed");
+            Varint::encode_into(value_len, &mut data);
             data.write_all(value).expect("Write failed");
         }
 
@@ -447,33 +450,37 @@ impl SsTableReader {
         let mut entries = Vec::new();
         let mut offset = 0;
 
-        while offset + 20 <= data.len() {
-            let key_len = u32::from_le_bytes([data[offset], data[offset + 1], data[offset + 2], data[offset + 3]]) as usize;
-            offset += 4;
+        while offset < data.len() {
+            let (key_len, len) = Varint::decode_at(data, offset);
+            if len == 0 {
+                break;
+            }
+            offset += len;
 
-            if offset + key_len + 16 > data.len() {
+            let key_len = key_len as usize;
+            if offset + key_len > data.len() {
                 break;
             }
 
             let key = data[offset..offset + key_len].to_vec();
             offset += key_len;
 
-            let block_offset = u64::from_le_bytes([
-                data[offset], data[offset + 1], data[offset + 2], data[offset + 3],
-                data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7],
-            ]) as usize;
-            offset += 8;
+            let (block_offset, len) = Varint::decode_at(data, offset);
+            if len == 0 {
+                break;
+            }
+            offset += len;
 
-            let block_size = u64::from_le_bytes([
-                data[offset], data[offset + 1], data[offset + 2], data[offset + 3],
-                data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7],
-            ]) as usize;
-            offset += 8;
+            let (block_size, len) = Varint::decode_at(data, offset);
+            if len == 0 {
+                break;
+            }
+            offset += len;
 
             entries.push(IndexEntry {
                 key,
-                offset: block_offset,
-                size: block_size,
+                offset: block_offset as usize,
+                size: block_size as usize,
             });
         }
 
@@ -483,24 +490,28 @@ impl SsTableReader {
     fn search_in_block(&self, block_data: &[u8], key: &[u8]) -> StorageResult<Option<Vec<u8>>> {
         let mut offset = 0;
 
-        while offset + 4 <= block_data.len() {
-            let key_len = u32::from_le_bytes([
-                block_data[offset], block_data[offset + 1], block_data[offset + 2], block_data[offset + 3],
-            ]) as usize;
-            offset += 4;
+        while offset < block_data.len() {
+            let (key_len, len) = Varint::decode_at(block_data, offset);
+            if len == 0 {
+                break;
+            }
+            offset += len;
 
-            if offset + key_len + 4 > block_data.len() {
+            let key_len = key_len as usize;
+            if offset + key_len > block_data.len() {
                 break;
             }
 
             let entry_key = &block_data[offset..offset + key_len];
             offset += key_len;
 
-            let value_len = u32::from_le_bytes([
-                block_data[offset], block_data[offset + 1], block_data[offset + 2], block_data[offset + 3],
-            ]) as usize;
-            offset += 4;
+            let (value_len, len) = Varint::decode_at(block_data, offset);
+            if len == 0 {
+                break;
+            }
+            offset += len;
 
+            let value_len = value_len as usize;
             if offset + value_len > block_data.len() {
                 break;
             }
@@ -525,24 +536,28 @@ impl SsTableReader {
         let mut results = Vec::new();
         let mut offset = 0;
 
-        while offset + 4 <= block_data.len() {
-            let key_len = u32::from_le_bytes([
-                block_data[offset], block_data[offset + 1], block_data[offset + 2], block_data[offset + 3],
-            ]) as usize;
-            offset += 4;
+        while offset < block_data.len() {
+            let (key_len, len) = Varint::decode_at(block_data, offset);
+            if len == 0 {
+                break;
+            }
+            offset += len;
 
-            if offset + key_len + 4 > block_data.len() {
+            let key_len = key_len as usize;
+            if offset + key_len > block_data.len() {
                 break;
             }
 
             let key = block_data[offset..offset + key_len].to_vec();
             offset += key_len;
 
-            let value_len = u32::from_le_bytes([
-                block_data[offset], block_data[offset + 1], block_data[offset + 2], block_data[offset + 3],
-            ]) as usize;
-            offset += 4;
+            let (value_len, len) = Varint::decode_at(block_data, offset);
+            if len == 0 {
+                break;
+            }
+            offset += len;
 
+            let value_len = value_len as usize;
             if offset + value_len > block_data.len() {
                 break;
             }
