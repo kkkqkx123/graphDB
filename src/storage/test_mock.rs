@@ -350,7 +350,7 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn update_data(&mut self, _space: &str, _info: &UpdateInfo) -> Result<bool, StorageError> {
+    fn update_data(&mut self, _space: &str, _space_id: u64, _info: &UpdateInfo) -> Result<bool, StorageError> {
         Ok(true)
     }
 

@@ -930,6 +930,88 @@ impl EdgeStorage {
         Ok(count)
     }
 
+    pub fn update_edge_property(
+        &self,
+        space: &str,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+        rank: i64,
+        prop_name: &str,
+        value: &Value,
+    ) -> Result<(), StorageError> {
+        // Note: rank parameter is reserved for future multi-edge support.
+        // Current implementation uses (src, dst, edge_type) as unique identifier.
+        let _ = rank;
+
+        let src_vid = self.value_to_vertex_id(src)?;
+        let dst_vid = self.value_to_vertex_id(dst)?;
+        let ts = self.get_write_timestamp();
+
+        let _edge_type_info = self
+            .schema_manager
+            .get_edge_type(space, edge_type)?
+            .ok_or_else(|| {
+                StorageError::DbError(format!(
+                    "Edge type '{}' not found in space '{}'",
+                    edge_type, space
+                ))
+            })?;
+
+        {
+            let mut graph = self.graph.write();
+
+            if let Some(label_id) = graph.get_edge_label_id(edge_type) {
+                let (src_label_id, dst_label_id) = graph
+                    .get_edge_table_by_label(label_id)
+                    .map(|table| (table.src_label(), table.dst_label()))
+                    .ok_or_else(|| {
+                        StorageError::DbError(format!(
+                            "Edge table not found for edge type '{}'",
+                            edge_type
+                        ))
+                    })?;
+
+                let src_id_str = match src {
+                    Value::String(s) => s.as_str(),
+                    _ => &src_vid.to_string(),
+                };
+                let dst_id_str = match dst {
+                    Value::String(s) => s.as_str(),
+                    _ => &dst_vid.to_string(),
+                };
+                graph.update_edge_property(
+                    label_id,
+                    src_label_id,
+                    src_id_str,
+                    dst_label_id,
+                    dst_id_str,
+                    prop_name,
+                    value,
+                    ts,
+                )?;
+            }
+        }
+
+        let indexes = self.schema_manager.list_edge_indexes(space)?;
+        for index in indexes {
+            if index.schema_name == edge_type && index.fields.iter().any(|f| &f.name == prop_name) {
+                self.index_data_manager.update_edge_indexes_mvcc(
+                    space_id,
+                    src,
+                    dst,
+                    &index.name,
+                    &[(prop_name.to_string(), value.clone())],
+                    ts,
+                )?;
+            }
+        }
+
+        self.release_write_timestamp(ts);
+        Ok(())
+    }
+
     pub fn build_edge_schema(&self, edge_type_info: &EdgeTypeInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(edge_type_info.edge_type_name.clone(), 1);
         for prop in &edge_type_info.properties {

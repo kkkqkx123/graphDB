@@ -154,7 +154,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         dst: &str,
         rank: i64,
     ) -> Result<bool, StorageError>;
-    fn update_data(&mut self, space: &str, info: &UpdateInfo) -> Result<bool, StorageError>;
+    fn update_data(&mut self, space: &str, space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError>;
 
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError>;
 

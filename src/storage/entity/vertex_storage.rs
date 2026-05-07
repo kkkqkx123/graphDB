@@ -530,9 +530,10 @@ impl VertexStorage {
         Ok(true)
     }
 
-    pub fn update_data(&self, space: &str, info: &UpdateInfo) -> Result<bool, StorageError> {
+    pub fn update_data(&self, space: &str, space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError> {
         self.update_vertex_property(
             space,
+            space_id,
             &info.update_target.id,
             &info.update_target.label,
             &info.update_target.prop,
@@ -545,6 +546,7 @@ impl VertexStorage {
     fn update_vertex_property(
         &self,
         space: &str,
+        space_id: u64,
         vertex_id: &Value,
         tag: &str,
         prop: &str,
@@ -552,6 +554,13 @@ impl VertexStorage {
         value: &Value,
     ) -> Result<(), StorageError> {
         if let Some(mut vertex) = self.get_vertex(space, vertex_id)? {
+            let old_value = vertex
+                .tags
+                .iter()
+                .find(|t| t.name == tag)
+                .and_then(|t| t.properties.get(prop))
+                .cloned();
+
             for tag_data in &mut vertex.tags {
                 if tag_data.name == tag {
                     match op {
@@ -589,25 +598,42 @@ impl VertexStorage {
                 .find(|t| t.name == tag)
                 .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found", tag)))?;
 
-            let properties: Vec<(String, Value)> = tag_data
-                .properties
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+            let new_value = tag_data.properties.get(prop).cloned();
 
             let label_id = self.get_label_id(space, tag)?;
             let ts = self.get_write_timestamp();
 
             {
                 let mut graph = self.graph.write();
-                for (prop_name, prop_value) in &properties {
+                if let Some(ref prop_value) = new_value {
                     graph.update_vertex_property(
                         label_id,
                         &external_id,
-                        prop_name,
+                        prop,
                         prop_value,
                         ts,
                     )?;
+                }
+            }
+
+            let indexes = self.schema_manager.list_tag_indexes(space)?;
+            for index in indexes {
+                if index.schema_name == tag && index.fields.iter().any(|f| &f.name == prop) {
+                    if let Some(ref prop_value) = new_value {
+                        self.index_data_manager.update_vertex_indexes_mvcc(
+                            space_id,
+                            vertex_id,
+                            &index.name,
+                            &[(prop.to_string(), prop_value.clone())],
+                            ts,
+                        )?;
+                    } else if old_value.is_some() {
+                        self.index_data_manager.delete_vertex_indexes_mvcc(
+                            space_id,
+                            vertex_id,
+                            ts,
+                        )?;
+                    }
                 }
             }
 

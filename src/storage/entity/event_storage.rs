@@ -686,9 +686,10 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
     fn update_data(
         &mut self,
         space: &str,
+        space_id: u64,
         info: &crate::core::types::UpdateInfo,
     ) -> Result<bool, StorageError> {
-        self.inner.update_data(space, info)
+        self.inner.update_data(space, space_id, info)
     }
 
     fn change_password(

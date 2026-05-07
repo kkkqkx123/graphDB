@@ -851,6 +851,54 @@ impl PropertyGraph {
         result
     }
 
+    pub fn update_edge_property(
+        &mut self,
+        edge_label: LabelId,
+        src_label: LabelId,
+        src_id: &str,
+        dst_label: LabelId,
+        dst_id: &str,
+        prop_name: &str,
+        value: &Value,
+        ts: Timestamp,
+    ) -> StorageResult<bool> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        let src_table = self.vertex_tables.get(&src_label).ok_or_else(|| {
+            StorageError::LabelNotFound(format!("source vertex label {}", src_label))
+        })?;
+        let dst_table = self.vertex_tables.get(&dst_label).ok_or_else(|| {
+            StorageError::LabelNotFound(format!("destination vertex label {}", dst_label))
+        })?;
+
+        let src_internal = src_table
+            .get_internal_id(src_id, ts)
+            .ok_or(StorageError::VertexNotFound)?;
+        let dst_internal = dst_table
+            .get_internal_id(dst_id, ts)
+            .ok_or(StorageError::VertexNotFound)?;
+
+        let key = (src_label, dst_label, edge_label);
+        let edge_table = self
+            .edge_tables
+            .get_mut(&key)
+            .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
+
+        let result = edge_table.update_edge_property(
+            src_internal as VertexId,
+            dst_internal as VertexId,
+            prop_name,
+            value,
+            ts,
+        );
+        if result.as_ref().is_ok_and(|r| *r) {
+            self.mark_edge_dirty(src_label, dst_label, edge_label);
+        }
+        result
+    }
+
     pub fn out_edges(
         &self,
         edge_label: LabelId,
