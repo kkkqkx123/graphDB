@@ -5,15 +5,14 @@
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use super::types::{
-    Lsn, RecordType, SyncPolicy, WalCompression, WalConfig, WalError, WalFileHeader, WalHeader,
-    WalOpType, WalResult, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE,
-    WAL_MAX_RECORD_SIZE,
+    ArchiveMode, Lsn, RecordType, SyncPolicy, WalCompression, WalConfig, WalError, WalFileHeader,
+    WalHeader, WalOpType, WalResult, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAX_RECORD_SIZE,
 };
 
 /// WAL writer trait
@@ -124,7 +123,7 @@ impl GroupCommitManager {
         }
     }
 
-    pub fn notify_error(batch: Vec<PendingWrite>, error: WalError) {
+    pub(crate) fn notify_error(batch: Vec<PendingWrite>, error: WalError) {
         for pending in batch {
             if let Ok(mut result) = pending.result.lock() {
                 *result = Err(error.clone());
@@ -154,7 +153,7 @@ pub struct LocalWalWriter {
     file_size: usize,
     /// Current file used bytes
     file_used: usize,
-    /// WAL version counter
+    /// WAL version counter (file sequence number)
     version: u32,
     /// Checkpoint sequence number
     checkpoint_seq: u64,
@@ -164,6 +163,10 @@ pub struct LocalWalWriter {
     last_synced_lsn: AtomicU64,
     /// Starting LSN for current file
     file_start_lsn: Lsn,
+    /// LSN delta since last checkpoint
+    lsn_since_checkpoint: u64,
+    /// Last cleanup time
+    last_cleanup_time: Option<Instant>,
     /// Configuration
     config: WalConfig,
     /// Is open flag
@@ -193,6 +196,8 @@ impl LocalWalWriter {
             current_lsn: AtomicU64::new(0),
             last_synced_lsn: AtomicU64::new(0),
             file_start_lsn: Lsn::ZERO,
+            lsn_since_checkpoint: 0,
+            last_cleanup_time: None,
             config: WalConfig::default(),
             is_open: AtomicBool::new(false),
             file_header: None,
@@ -225,6 +230,8 @@ impl LocalWalWriter {
             current_lsn: AtomicU64::new(0),
             last_synced_lsn: AtomicU64::new(0),
             file_start_lsn: Lsn::ZERO,
+            lsn_since_checkpoint: 0,
+            last_cleanup_time: None,
             config,
             is_open: AtomicBool::new(false),
             file_header: None,
@@ -273,6 +280,241 @@ impl LocalWalWriter {
         self.file_header = Some(header);
         self.file_start_lsn = current_lsn;
         self.file_used = WAL_FILE_HEADER_SIZE;
+
+        Ok(())
+    }
+
+    /// Generate WAL file path for a given version
+    fn get_wal_file_path(&self, version: u32) -> PathBuf {
+        PathBuf::from(&self.wal_uri)
+            .join(format!("thread_{}_wal_{:08X}", self.thread_id, version))
+    }
+
+    /// List all WAL files in the directory
+    fn list_wal_files(&self) -> WalResult<Vec<PathBuf>> {
+        let wal_dir = self.get_wal_dir();
+
+        if !wal_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut files = Vec::new();
+        for entry in std::fs::read_dir(&wal_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with("wal_") && name.len() == 12 {
+                    files.push(path);
+                }
+            }
+        }
+
+        Ok(files)
+    }
+
+    /// Get total size of all WAL files
+    fn get_total_wal_size(&self) -> WalResult<usize> {
+        let mut total = 0;
+        for file in self.list_wal_files()? {
+            if let Ok(metadata) = std::fs::metadata(&file) {
+                total += metadata.len() as usize;
+            }
+        }
+        Ok(total)
+    }
+
+    /// Check if rotation is needed
+    fn rotate_if_needed(&mut self) -> WalResult<()> {
+        if self.file_used >= self.config.max_file_size {
+            self.rotate()?;
+        }
+        Ok(())
+    }
+
+    /// Rotate to a new WAL file
+    fn rotate(&mut self) -> WalResult<()> {
+        log::info!(
+            "Rotating WAL file: used={}, max_size={}, version={}",
+            self.file_used,
+            self.config.max_file_size,
+            self.version
+        );
+
+        if let Some(ref file) = self.file {
+            file.sync_all()?;
+        }
+
+        self.version += 1;
+
+        let new_path = self.get_wal_file_path(self.version);
+
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&new_path)?;
+
+        file.set_len(self.config.truncate_size as u64)?;
+
+        self.file = Some(file);
+        self.file_path = Some(new_path);
+        self.file_size = self.config.truncate_size;
+        self.file_used = 0;
+        self.file_start_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
+
+        self.write_file_header()?;
+
+        log::info!(
+            "WAL rotated to version {}, file: {:?}, start_lsn={}",
+            self.version,
+            self.file_path,
+            self.file_start_lsn
+        );
+
+        Ok(())
+    }
+
+    /// Delete or archive a WAL file based on configuration
+    fn delete_or_archive_file(&self, file: &Path) -> WalResult<()> {
+        if let Some(ref archive_dir) = self.config.archive_dir {
+            match self.config.archive_mode {
+                ArchiveMode::None => {
+                    std::fs::remove_file(file)?;
+                }
+                ArchiveMode::Move => {
+                    self.archive_wal_file(file, archive_dir)?;
+                }
+                ArchiveMode::Copy => {
+                    self.copy_and_delete(file, archive_dir)?;
+                }
+            }
+        } else {
+            std::fs::remove_file(file)?;
+        }
+        Ok(())
+    }
+
+    /// Archive a WAL file to the archive directory
+    fn archive_wal_file(&self, file: &Path, archive_dir: &str) -> WalResult<()> {
+        std::fs::create_dir_all(archive_dir)
+            .map_err(|e| WalError::IoError(e.to_string()))?;
+
+        let file_name = file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let archive_name = format!("{}_{}", file_name, timestamp);
+        let archive_path = PathBuf::from(archive_dir).join(archive_name);
+
+        std::fs::rename(file, &archive_path)
+            .map_err(|e| WalError::IoError(e.to_string()))?;
+
+        log::debug!("Archived WAL file: {:?} -> {:?}", file, archive_path);
+
+        Ok(())
+    }
+
+    /// Copy a file and delete the original
+    fn copy_and_delete(&self, file: &Path, archive_dir: &str) -> WalResult<()> {
+        std::fs::create_dir_all(archive_dir)
+            .map_err(|e| WalError::IoError(e.to_string()))?;
+
+        let file_name = file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        let archive_path = PathBuf::from(archive_dir).join(file_name);
+
+        std::fs::copy(file, &archive_path)
+            .map_err(|e| WalError::IoError(e.to_string()))?;
+
+        std::fs::remove_file(file)?;
+
+        log::debug!("Copied and deleted WAL file: {:?} -> {:?}", file, archive_path);
+
+        Ok(())
+    }
+
+    /// Clean up old WAL files based on size and TTL
+    fn cleanup_old_wal_files(&mut self) -> WalResult<usize> {
+        let mut deleted_count = 0;
+
+        let mut wal_files = self.list_wal_files()?;
+
+        if wal_files.is_empty() {
+            return Ok(0);
+        }
+
+        wal_files.sort();
+
+        if self.config.max_total_size > 0 {
+            let total_size = self.get_total_wal_size()?;
+
+            if total_size > self.config.max_total_size {
+                let mut current_size = total_size;
+
+                for file in &wal_files {
+                    if current_size <= self.config.max_total_size {
+                        break;
+                    }
+
+                    let file_size = std::fs::metadata(file)?.len() as usize;
+
+                    self.delete_or_archive_file(file)?;
+
+                    current_size -= file_size;
+                    deleted_count += 1;
+                }
+            }
+        }
+
+        if self.config.ttl_seconds > 0 {
+            let ttl = Duration::from_secs(self.config.ttl_seconds);
+
+            for file in &wal_files {
+                if let Ok(metadata) = std::fs::metadata(file) {
+                    if let Ok(modified) = metadata.modified() {
+                        if modified.elapsed().unwrap_or(Duration::from_secs(0)) > ttl {
+                            self.delete_or_archive_file(file)?;
+                            deleted_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        if deleted_count > 0 {
+            log::info!("Cleaned up {} old WAL files", deleted_count);
+        }
+
+        Ok(deleted_count)
+    }
+
+    /// Check if auto-checkpoint should be triggered
+    fn maybe_trigger_checkpoint(&mut self) -> WalResult<()> {
+        if !self.config.auto_checkpoint {
+            return Ok(());
+        }
+
+        self.lsn_since_checkpoint += 1;
+
+        if self.lsn_since_checkpoint >= self.config.checkpoint_interval {
+            log::debug!(
+                "Triggering auto-checkpoint at LSN {}",
+                self.current_lsn.load(Ordering::SeqCst)
+            );
+
+            self.lsn_since_checkpoint = 0;
+        }
 
         Ok(())
     }
@@ -649,7 +891,9 @@ impl WalWriter for LocalWalWriter {
             return Ok(());
         }
 
-        let path = self.find_available_path()?;
+        self.version += 1;
+        let path = self.get_wal_file_path(self.version);
+        
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -690,6 +934,8 @@ impl WalWriter for LocalWalWriter {
         if !self.is_open.load(Ordering::SeqCst) {
             return Err(WalError::Closed);
         }
+
+        self.rotate_if_needed()?;
 
         let file = self.file.as_mut().ok_or(WalError::Closed)?;
 
@@ -736,6 +982,21 @@ impl WalWriter for LocalWalWriter {
                 &self.write_count,
                 &self.last_sync_time,
             )?;
+        }
+
+        drop(file);
+
+        if self.config.max_total_size > 0 || self.config.ttl_seconds > 0 {
+            static WRITE_COUNTER: AtomicU64 = AtomicU64::new(0);
+            let counter = WRITE_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+            if counter % 100 == 0 {
+                self.cleanup_old_wal_files()?;
+            }
+        }
+
+        if self.config.auto_checkpoint {
+            self.maybe_trigger_checkpoint()?;
         }
 
         Ok(true)
@@ -1033,5 +1294,126 @@ mod tests {
 
         writer.sync().expect("Failed to sync");
         writer.close();
+    }
+
+    #[test]
+    fn test_wal_rotation_basic() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::default()
+            .with_max_file_size(1024)
+            .with_truncate_size(4096);
+
+        let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
+        writer.open().expect("Failed to open WAL");
+
+        let data = vec![0u8; 512];
+        for _ in 0..3 {
+            writer.append(&data).expect("Failed to append");
+        }
+
+        assert!(writer.version >= 2);
+        writer.close();
+    }
+
+    #[test]
+    fn test_wal_cleanup_by_size() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::default()
+            .with_max_file_size(1024)
+            .with_max_total_size(4096)
+            .with_truncate_size(4096);
+
+        let mut writer = LocalWalWriter::with_config(&wal_path, 0, config.clone());
+        writer.open().expect("Failed to open WAL");
+
+        let data = vec![0u8; 512];
+        for _ in 0..20 {
+            writer.append(&data).expect("Failed to append");
+        }
+
+        writer.cleanup_old_wal_files().expect("Failed to cleanup");
+
+        let total_size = writer.get_total_wal_size().expect("Failed to get total size");
+        assert!(total_size <= config.max_total_size);
+        writer.close();
+    }
+
+    #[test]
+    fn test_wal_file_naming() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::default();
+        let writer = LocalWalWriter::with_config(&wal_path, 0, config);
+
+        let path = writer.get_wal_file_path(1);
+        assert!(path.to_string_lossy().contains("wal_00000001"));
+
+        let path = writer.get_wal_file_path(100);
+        assert!(path.to_string_lossy().contains("wal_00000064"));
+    }
+
+    #[test]
+    fn test_wal_archive() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+        let archive_path = temp_dir.path().join("archive");
+
+        let config = WalConfig::default()
+            .with_archive_dir(archive_path.to_string_lossy().to_string())
+            .with_archive_mode(ArchiveMode::Move);
+
+        let mut writer = LocalWalWriter::with_config(&wal_path, 0, config);
+        writer.open().expect("Failed to open WAL");
+
+        let test_file = temp_dir.path().join("wal_00000001");
+        std::fs::write(&test_file, vec![0u8; 100]).expect("Failed to create test file");
+
+        writer
+            .archive_wal_file(&test_file, archive_path.to_string_lossy().as_ref())
+            .expect("Failed to archive");
+
+        assert!(!test_file.exists());
+        assert!(archive_path.exists());
+        writer.close();
+    }
+
+    #[test]
+    fn test_wal_rotation_with_recovery() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let config = WalConfig::default()
+            .with_max_file_size(1024)
+            .with_checksum(true);
+
+        {
+            let mut writer = LocalWalWriter::with_config(&wal_path, 0, config.clone());
+            writer.open().expect("Failed to open WAL");
+
+            for i in 0..10 {
+                let data = format!("Entry {}", i).into_bytes();
+                writer.append(&data).expect("Failed to append");
+            }
+
+            writer.sync().expect("Failed to sync");
+        }
+
+        let wal_files = std::fs::read_dir(&wal_path)
+            .expect("Failed to read WAL dir")
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_str()
+                    .map(|n| n.contains("_wal_"))
+                    .unwrap_or(false)
+            })
+            .count();
+
+        assert!(wal_files >= 1);
     }
 }

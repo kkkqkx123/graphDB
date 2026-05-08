@@ -205,7 +205,7 @@ impl VersionManager {
         let thread_num = config.thread_num;
         Self {
             write_ts: AtomicU32::new(1),
-            read_ts: AtomicU32::new(0),
+            read_ts: AtomicU32::new(1),
             pending_reqs: AtomicI32::new(0),
             pending_update_reqs: AtomicI32::new(0),
             thread_num: AtomicI32::new(thread_num),
@@ -626,7 +626,7 @@ mod tests {
         let vm = VersionManager::new();
 
         let ts1 = vm.acquire_read_timestamp();
-        assert_eq!(ts1, 0);
+        assert_eq!(ts1, 1);
         vm.release_read_timestamp();
 
         let ts2 = vm.acquire_insert_timestamp();
@@ -640,7 +640,7 @@ mod tests {
 
         {
             let guard = ReadTimestampGuard::new(vm.clone());
-            assert_eq!(guard.timestamp(), 0);
+            assert_eq!(guard.timestamp(), 1);
         }
 
         assert_eq!(vm.pending_count(), 0);
@@ -687,7 +687,7 @@ mod tests {
         }
 
         let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
-        assert!(results.iter().all(|&ts| ts == 0));
+        assert!(results.iter().all(|&ts| ts == 1));
     }
 
     #[test]

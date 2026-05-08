@@ -103,7 +103,13 @@ impl ParallelWalParser {
             .map_err(|e| WalError::IoError(e.to_string()))?
             .filter_map(|entry| entry.ok())
             .map(|entry| entry.path())
-            .filter(|path| path.extension().map_or(false, |ext| ext == "wal"))
+            .filter(|path| {
+                path.extension().map_or(false, |ext| ext == "wal")
+                    || path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map_or(false, |n| n.starts_with("thread_") && n.contains("_wal_"))
+            })
             .collect();
 
         wal_files.sort();
@@ -646,7 +652,13 @@ impl LocalWalParser {
             .map_err(|e| WalError::IoError(e.to_string()))?
             .filter_map(|entry| entry.ok())
             .map(|entry| entry.path())
-            .filter(|path| path.extension().map_or(false, |ext| ext == "wal"))
+            .filter(|path| {
+                path.extension().map_or(false, |ext| ext == "wal")
+                    || path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map_or(false, |n| n.starts_with("thread_") && n.contains("_wal_"))
+            })
             .collect();
 
         wal_files.sort();

@@ -55,7 +55,7 @@ pub use parser::{
     WalParser, WalParserFactory,
 };
 pub use types::{
-    align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ColumnId,
+    align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ArchiveMode, ColumnId,
     CompressionLevel, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
     EdgeId, FullPageWriteHeader, InsertEdgeRedo, InsertVertexRedo, LabelId, Lsn, PageId,
     RecordType, SyncPolicy, Timestamp, TransactionId, UpdateEdgePropRedo, UpdateVertexPropRedo,

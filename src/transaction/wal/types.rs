@@ -516,6 +516,15 @@ pub enum WalCompression {
     Zstd,
 }
 
+/// Archive mode for WAL files
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ArchiveMode {
+    #[default]
+    None,
+    Move,
+    Copy,
+}
+
 impl WalCompression {
     pub fn flag_byte(&self) -> u8 {
         match self {
@@ -796,6 +805,18 @@ pub struct WalConfig {
     pub truncate_size: usize,
     /// Maximum WAL file size before rotation
     pub max_file_size: usize,
+    /// Maximum total WAL size across all files (0 = no limit)
+    pub max_total_size: usize,
+    /// WAL file time-to-live in seconds (0 = no expiration)
+    pub ttl_seconds: u64,
+    /// Checkpoint interval in LSN increments
+    pub checkpoint_interval: u64,
+    /// Enable automatic checkpointing
+    pub auto_checkpoint: bool,
+    /// Archive directory path
+    pub archive_dir: Option<String>,
+    /// Archive mode
+    pub archive_mode: ArchiveMode,
     /// Sync policy for WAL writes
     pub sync_policy: SyncPolicy,
     /// Enable group commit for better throughput
@@ -826,10 +847,16 @@ impl Default for WalConfig {
     fn default() -> Self {
         Self {
             truncate_size: 4 * 1024 * 1024,  // 4MB
-            max_file_size: 64 * 1024 * 1024, // 64MB
+            max_file_size: 16 * 1024 * 1024, // 16MB
+            max_total_size: 256 * 1024 * 1024, // 256MB
+            ttl_seconds: 0,                     // No expiration
+            checkpoint_interval: 10000,
+            auto_checkpoint: true,
+            archive_dir: None,
+            archive_mode: ArchiveMode::None,
             sync_policy: SyncPolicy::default(),
             group_commit_enabled: true,
-            group_commit_delay_us: 100, // 100 microseconds
+            group_commit_delay_us: 100,
             group_commit_batch_size: 1024,
             recovery_mode: WalRecoveryMode::default(),
             compression: WalCompression::default(),
@@ -838,7 +865,7 @@ impl Default for WalConfig {
             max_parallel_recovery_threads: 4,
             full_page_writes: false,
             circular_buffer: false,
-            circular_buffer_size: 64 * 1024 * 1024, // 64MB default
+            circular_buffer_size: 64 * 1024 * 1024,
         }
     }
 }
@@ -921,6 +948,36 @@ impl WalConfig {
 
     pub fn with_circular_buffer_size(mut self, size: usize) -> Self {
         self.circular_buffer_size = size;
+        self
+    }
+
+    pub fn with_max_total_size(mut self, size: usize) -> Self {
+        self.max_total_size = size;
+        self
+    }
+
+    pub fn with_ttl_seconds(mut self, seconds: u64) -> Self {
+        self.ttl_seconds = seconds;
+        self
+    }
+
+    pub fn with_checkpoint_interval(mut self, interval: u64) -> Self {
+        self.checkpoint_interval = interval;
+        self
+    }
+
+    pub fn with_auto_checkpoint(mut self, enabled: bool) -> Self {
+        self.auto_checkpoint = enabled;
+        self
+    }
+
+    pub fn with_archive_dir(mut self, dir: String) -> Self {
+        self.archive_dir = Some(dir);
+        self
+    }
+
+    pub fn with_archive_mode(mut self, mode: ArchiveMode) -> Self {
+        self.archive_mode = mode;
         self
     }
 }
