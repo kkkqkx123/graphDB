@@ -9,9 +9,9 @@ use crate::transaction::wal::types::{
     LabelId as TxnLabelId, VertexId as TxnVertexId,
 };
 
-use super::value_codec::{bytes_to_value, property_value_to_value};
-use super::schema_ops::SchemaOps;
-use super::edge_ops::EdgeOps;
+use super::codec::{bytes_to_value, property_value_to_value};
+use super::schema::SchemaOps;
+use super::edge::EdgeOps;
 
 pub struct TransactionOps;
 

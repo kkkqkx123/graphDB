@@ -1,23 +1,23 @@
-pub mod batch_ops;
-pub mod cache_manager;
+pub mod batch;
+pub mod cache;
 pub mod config;
-pub mod edge_ops;
-pub mod flush_manager;
+pub mod edge;
+pub mod flush;
 pub mod graph_storage;
 pub mod large_object;
-pub mod persistence_ops;
+pub mod persistence;
 pub mod property_graph;
-pub mod query_ops;
-pub mod schema_ops;
+pub mod query;
+pub mod schema;
 pub mod transaction;
-pub mod value_codec;
+pub mod codec;
 
-pub use batch_ops::{
+pub use batch::{
     batch_import_edges, batch_import_vertices, BatchImportStats, DEFAULT_BATCH_SIZE,
     EdgeBatchReader, EdgeBatchWriter, VertexBatchReader, VertexBatchWriter,
 };
-pub use cache_manager::CacheManager;
+pub use cache::CacheManager;
 pub use config::PropertyGraphConfig;
-pub use flush_manager::FlushManagerWrapper;
+pub use flush::FlushManagerWrapper;
 pub use large_object::{LargeObjectStore, LobId, LobStats, DEFAULT_LOB_THRESHOLD};
 pub use property_graph::PropertyGraph;

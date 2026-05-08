@@ -4,7 +4,7 @@ use crate::storage::vertex::LabelId;
 use crate::storage::vertex::VertexTable;
 use std::collections::HashMap;
 
-use super::flush_manager::FlushManagerWrapper;
+use super::flush::FlushManagerWrapper;
 
 const DATA_FORMAT_VERSION: u32 = 1;
 

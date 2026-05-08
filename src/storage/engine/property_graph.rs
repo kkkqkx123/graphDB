@@ -36,13 +36,13 @@ use crate::transaction::wal::types::{
 };
 use crate::transaction::wal::writer::WalWriter;
 
-use super::cache_manager::CacheManager;
+use super::cache::CacheManager;
 use super::config::PropertyGraphConfig;
-use super::edge_ops::EdgeOps;
-use super::flush_manager::FlushManagerWrapper;
-use super::persistence_ops::PersistenceOps;
-use super::query_ops::QueryOps;
-use super::schema_ops::SchemaOps;
+use super::edge::EdgeOps;
+use super::flush::FlushManagerWrapper;
+use super::persistence::PersistenceOps;
+use super::query::QueryOps;
+use super::schema::SchemaOps;
 use super::transaction::TransactionOps;
 
 const DATA_FORMAT_VERSION: u32 = 1;
