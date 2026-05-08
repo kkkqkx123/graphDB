@@ -12,7 +12,7 @@ use crate::storage::edge::{EdgeDirection as CsrEdgeDirection, EdgeRecord, Timest
 use crate::storage::index::{DegreeIndex, EdgeIdIndex};
 use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
 use crate::storage::metadata::{Schema, SchemaManager};
-use crate::storage::property_graph::PropertyGraph;
+use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::VertexId;
 use crate::transaction::version_manager::VersionManager;
 
@@ -854,6 +854,7 @@ impl EdgeStorage {
 
         let exists = graph
             .vertex_tables()
+            .iter()
             .any(|(_, table)| table.get_by_internal_id(vid as u32, ts).is_some());
 
         self.release_read_timestamp();
@@ -1015,7 +1016,7 @@ impl EdgeStorage {
     pub fn build_edge_schema(&self, edge_type_info: &EdgeTypeInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(edge_type_info.edge_type_name.clone(), 1);
         for prop in &edge_type_info.properties {
-            let field_def = crate::storage::api::types::FieldDef {
+            let field_def = crate::storage::interface::FieldDef {
                 name: prop.name.clone(),
                 field_type: prop.data_type.clone(),
                 nullable: prop.nullable,

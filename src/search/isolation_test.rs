@@ -145,6 +145,10 @@ mod tests {
     }
 
     impl SchemaManager for MockSchemaManager {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
         fn create_space(&self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
             Ok(true)
         }
@@ -257,7 +261,7 @@ mod tests {
             Ok(())
         }
 
-        fn load_schema(&mut self, _path: &std::path::Path) -> Result<(), StorageError> {
+        fn load_schema(&self, _path: &std::path::Path) -> Result<(), StorageError> {
             Ok(())
         }
     }

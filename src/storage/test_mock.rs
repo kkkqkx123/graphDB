@@ -12,11 +12,11 @@ use crate::core::types::{
 #[cfg(test)]
 use crate::core::{Edge, EdgeDirection, NullType, RoleType, Value, Vertex};
 #[cfg(test)]
-use crate::storage::api::StorageClient;
+use crate::storage::interface::StorageClient;
 #[cfg(test)]
 use crate::storage::metadata::Schema;
 #[cfg(test)]
-use crate::storage::property_graph::PropertyGraph;
+use crate::storage::engine::PropertyGraph;
 #[cfg(test)]
 use parking_lot::RwLock;
 #[cfg(test)]
@@ -426,8 +426,8 @@ impl StorageClient for MockStorage {
         Ok(())
     }
 
-    fn get_storage_stats(&self) -> crate::storage::api::StorageStats {
-        crate::storage::api::StorageStats {
+    fn get_storage_stats(&self) -> crate::storage::interface::StorageStats {
+        crate::storage::interface::StorageStats {
             total_vertices: 0,
             total_edges: 0,
             total_spaces: 0,

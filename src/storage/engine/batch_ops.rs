@@ -2,13 +2,6 @@
 //!
 //! Provides efficient batch read/write interfaces for bulk data operations.
 //! Optimizes memory allocation and reduces function call overhead.
-//!
-//! # Features
-//!
-//! - Batch reading with configurable batch sizes
-//! - Buffered batch writing with automatic flush
-//! - Iterator-based batch processing
-//! - Memory-efficient bulk operations
 
 use crate::core::Value;
 use crate::storage::edge::{EdgeRecord, EdgeTable, Timestamp, VertexId};

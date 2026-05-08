@@ -4,9 +4,6 @@ use crate::core::types::PropertyDef;
 use crate::core::DataType;
 use crate::core::Value;
 
-// Re-export the core layer's DataType as a FieldType
-pub type FieldType = DataType;
-
 // Re-export core layer types to avoid duplicate definitions
 pub use crate::core::types::{
     InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,

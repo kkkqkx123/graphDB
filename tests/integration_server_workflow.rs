@@ -15,7 +15,7 @@ use graphdb::config::Config;
 use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::api::StorageClient;
+use graphdb::storage::interface::StorageClient;
 use graphdb::storage::entity::event_storage::SyncStorage;
 use graphdb::storage::GraphStorage;
 use std::sync::Arc;

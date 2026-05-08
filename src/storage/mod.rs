@@ -1,31 +1,28 @@
-pub mod api;
-pub mod batch_operations;
 pub mod cache;
 pub mod container;
 pub mod edge;
+pub mod engine;
 pub mod entity;
 pub mod extend;
-pub mod graph_storage;
 pub mod index;
+pub mod interface;
 pub mod iterator;
-pub mod large_object;
 pub mod memory;
 pub mod metadata;
 pub mod operations;
 pub mod page;
 pub mod persistence;
-pub mod property_graph;
-pub mod shared_state;
 pub mod stats;
 pub mod vertex;
 
 #[cfg(test)]
 pub mod test_mock;
 
-pub use api::{
-    ColumnDef, EncodingFormat, FieldDef, FieldType, GeoShape, InsertEdgeInfo, InsertVertexInfo,
+pub use interface::{
+    ColumnDef, EncodingFormat, FieldDef, GeoShape, InsertEdgeInfo, InsertVertexInfo,
     StorageClient, StorageStats, UpdateInfo, UpdateOp, UpdateTarget,
 };
+pub use engine::graph_storage::GraphStorage;
 
 pub use cache::{RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache};
 
@@ -42,7 +39,6 @@ pub use memory::{
 };
 pub use metadata::*;
 pub use operations::*;
-pub use shared_state::{StorageInner, StorageSharedState};
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
@@ -62,30 +58,15 @@ pub use edge::{
     MutableCsr, Nbr, PropertyDef as EdgePropertyDef, PropertyTable,
 };
 
-pub use property_graph::{PropertyGraph, PropertyGraphConfig};
-
-pub use persistence::{
-    CompressionType, Compressor, DirtyPageTracker, FlushConfig, FlushManager, FlushTask, PageId,
-};
-
-pub use page::{
-    FlatCsr, FlatCsrEdgeIterator, FlatCsrIterator, Page, PageHeader, PageManager, PageManagerStats,
-    PageType, StoragePageId, DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP,
-    PAGE_DATA_SIZE, PAGE_HEADER_SIZE, PAGE_SIZE, VERTEX_RECORD_SIZE,
-};
-
-pub use graph_storage::GraphStorage;
-
-pub use batch_operations::{
+pub use engine::{
     batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
-    VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE,
+    VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE, LargeObjectStore, LobId,
+    LobStats, PropertyGraph, PropertyGraphConfig, DEFAULT_LOB_THRESHOLD,
 };
 
 pub use stats::{
     ColumnStatistics, Histogram, HistogramBucket, StatsCollector,
 };
-
-pub use large_object::{LargeObjectStore, LobId, LobStats, DEFAULT_LOB_THRESHOLD};
 
 #[cfg(test)]
 pub use test_mock::*;

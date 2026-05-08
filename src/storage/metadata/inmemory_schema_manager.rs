@@ -2,6 +2,7 @@ use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use crate::storage::{FieldDef, Schema};
 use parking_lot::RwLock;
+use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -89,6 +90,22 @@ pub struct InMemorySchemaManager {
     edge_type_id_counter: Arc<RwLock<HashMap<u64, AtomicU32>>>,
 }
 
+impl Clone for InMemorySchemaManager {
+    fn clone(&self) -> Self {
+        Self {
+            spaces: self.spaces.clone(),
+            space_name_index: self.space_name_index.clone(),
+            tags: self.tags.clone(),
+            edge_types: self.edge_types.clone(),
+            tag_indexes: self.tag_indexes.clone(),
+            edge_indexes: self.edge_indexes.clone(),
+            space_id_counter: self.space_id_counter.clone(),
+            tag_id_counter: self.tag_id_counter.clone(),
+            edge_type_id_counter: self.edge_type_id_counter.clone(),
+        }
+    }
+}
+
 impl std::fmt::Debug for InMemorySchemaManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InMemorySchemaManager")
@@ -148,6 +165,10 @@ impl Default for InMemorySchemaManager {
 }
 
 impl super::SchemaManager for InMemorySchemaManager {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError> {
         let mut name_index = self.space_name_index.write();
         if name_index.contains_key(&space.space_name) {
@@ -555,7 +576,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         Ok(())
     }
 
-    fn load_schema(&mut self, path: &std::path::Path) -> Result<(), StorageError> {
+    fn load_schema(&self, path: &std::path::Path) -> Result<(), StorageError> {
         use std::fs::File;
         use std::io::Read;
 

@@ -93,11 +93,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Use core layer QueryApi instead of directly using QueryPipelineManager
         // Support vector search with metadata provider if enabled
-        // Get schema_manager from storage by downcasting to GraphStorage
+        // Get schema_manager from storage
         let schema_manager: Option<Arc<InMemorySchemaManager>> = storage
-            .as_any()
-            .downcast_ref::<GraphStorage>()
-            .map(|graph_storage| graph_storage.get_schema_manager());
+            .get_schema_manager()
+            .and_then(|sm| {
+                sm.as_any()
+                    .downcast_ref::<InMemorySchemaManager>()
+                    .map(|ism| Arc::new(ism.clone()))
+            });
 
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(

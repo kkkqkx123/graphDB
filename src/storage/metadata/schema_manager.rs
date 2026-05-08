@@ -1,9 +1,12 @@
 use crate::core::types::{EdgeTypeInfo, Index, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use crate::storage::metadata::Schema;
+use std::any::Any;
 use std::path::Path;
 
 pub trait SchemaManager: Send + Sync + std::fmt::Debug {
+    fn as_any(&self) -> &dyn Any;
+
     fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&self, space_name: &str) -> Result<bool, StorageError>;
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError>;
@@ -34,5 +37,5 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
 
     fn save_schema(&self, path: &Path) -> Result<(), StorageError>;
-    fn load_schema(&mut self, path: &Path) -> Result<(), StorageError>;
+    fn load_schema(&self, path: &Path) -> Result<(), StorageError>;
 }

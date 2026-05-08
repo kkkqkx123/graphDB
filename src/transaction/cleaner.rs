@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::storage::shared_state::StorageInner;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::{
@@ -18,19 +17,17 @@ use crate::transaction::types::{
 /// Responsible for cleaning up expired transactions and releasing their resources.
 pub struct TransactionCleaner {
     sync_manager: Option<Arc<SyncManager>>,
-    storage_inner: Option<Arc<StorageInner>>,
     stats: Arc<TransactionStats>,
 }
 
 impl TransactionCleaner {
     pub fn new(
         sync_manager: Option<Arc<SyncManager>>,
-        storage_inner: Option<Arc<StorageInner>>,
+        _shared_state: Option<Arc<crate::storage::GraphStorage>>,
         stats: Arc<TransactionStats>,
     ) -> Self {
         Self {
             sync_manager,
-            storage_inner,
             stats,
         }
     }
@@ -67,13 +64,8 @@ impl TransactionCleaner {
                 }
             };
 
-            if let Some(ref storage_inner) = self.storage_inner {
-                if let Some(current_ctx) = storage_inner.get_transaction_context() {
-                    if current_ctx.id == txn_id {
-                        storage_inner.set_transaction_context(None);
-                    }
-                }
-            }
+            // Storage context cleanup is no longer needed in the new design
+            // Transaction context is managed at the transaction layer
 
             let _ = self.abort_transaction_internal_without_storage_cleanup(context);
             self.stats.increment_timeout();
@@ -148,13 +140,8 @@ impl TransactionCleaner {
         self.stats.decrement_active();
         self.stats.increment_aborted();
 
-        if let Some(ref storage_inner) = self.storage_inner {
-            if let Some(current_ctx) = storage_inner.get_transaction_context() {
-                if current_ctx.id == txn_id {
-                    storage_inner.set_transaction_context(None);
-                }
-            }
-        }
+        // Storage context cleanup is no longer needed in the new design
+        // Transaction context is managed at the transaction layer
 
         active_transactions.remove(&txn_id);
 

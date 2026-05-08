@@ -10,7 +10,7 @@ use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
 use crate::storage::metadata::{Schema, SchemaManager};
-use crate::storage::property_graph::PropertyGraph;
+use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::transaction::version_manager::VersionManager;
 
@@ -645,7 +645,7 @@ impl VertexStorage {
     pub fn build_vertex_schema(&self, tag_info: &TagInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(tag_info.tag_name.clone(), 1);
         for prop in &tag_info.properties {
-            let field_def = crate::storage::api::types::FieldDef {
+            let field_def = crate::storage::interface::FieldDef {
                 name: prop.name.clone(),
                 field_type: prop.data_type.clone(),
                 nullable: prop.nullable,
