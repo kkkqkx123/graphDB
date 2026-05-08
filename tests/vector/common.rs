@@ -50,27 +50,6 @@ impl MockVectorEngine {
             default_dimension,
         }
     }
-
-    pub fn with_collections(
-        collections: HashMap<String, (CollectionConfig, Vec<VectorPoint>)>,
-    ) -> Self {
-        let engine = Self::new(1536);
-        {
-            let mut cols = engine.collections.write().unwrap();
-            for (name, (config, points)) in collections {
-                let points_map: HashMap<String, VectorPoint> =
-                    points.into_iter().map(|p| (p.id.clone(), p)).collect();
-                cols.insert(
-                    name,
-                    MockCollection {
-                        config,
-                        points: points_map,
-                    },
-                );
-            }
-        }
-        engine
-    }
 }
 
 #[async_trait]
@@ -741,6 +720,7 @@ impl MockVectorManager {
 pub struct VectorTestContext {
     pub manager: Arc<MockVectorManager>,
     pub embedding_provider: Arc<MockEmbeddingProvider>,
+    #[allow(dead_code)]
     pub temp_dir: TempDir,
     pub default_dimension: usize,
 }
@@ -949,7 +929,7 @@ pub fn create_test_points(
     payloads: Option<Vec<Payload>>,
 ) -> Vec<VectorPoint> {
     ids.into_iter()
-        .zip(vectors.into_iter())
+        .zip(vectors)
         .enumerate()
         .map(|(i, (id, vector))| {
             let mut point = VectorPoint::new(id.to_string(), vector);
@@ -980,6 +960,7 @@ pub fn assert_search_result_contains(
 }
 
 /// Assert search result does not contain point
+#[allow(dead_code)]
 pub fn assert_search_result_not_contains(
     results: &[SearchResult],
     unexpected_id: &str,

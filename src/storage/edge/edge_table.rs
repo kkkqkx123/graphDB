@@ -179,7 +179,6 @@ impl EdgeTable {
         }
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
-            let edge_id = nbr.edge_id;
             let prop_offset = nbr.prop_offset;
 
             self.out_csr.delete_edge_by_offset(src, oe_offset, ts);

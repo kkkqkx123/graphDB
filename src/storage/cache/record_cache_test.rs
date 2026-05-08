@@ -264,7 +264,7 @@ fn test_eviction_callback() {
 
     cache.clear();
 
-    let stats = cache.stats();
+    let _stats = cache.stats();
     assert!(
         eviction_count.load(Ordering::Relaxed) > 0,
         "Eviction callback should have been called"

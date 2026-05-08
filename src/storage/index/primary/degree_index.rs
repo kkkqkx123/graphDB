@@ -97,7 +97,7 @@ impl DegreeIndex {
         let mut entry = self
             .degrees
             .entry(vertex_id)
-            .or_insert_with(DegreeInfo::default);
+            .or_default();
         entry.out_degree += 1;
         self.total_out_edges.fetch_add(1, Ordering::Relaxed);
         entry.out_degree
@@ -107,7 +107,7 @@ impl DegreeIndex {
         let mut entry = self
             .degrees
             .entry(vertex_id)
-            .or_insert_with(DegreeInfo::default);
+            .or_default();
         entry.in_degree += 1;
         self.total_in_edges.fetch_add(1, Ordering::Relaxed);
         entry.in_degree

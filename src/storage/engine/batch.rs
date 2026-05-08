@@ -354,17 +354,17 @@ mod tests {
                     &format!("v{}", i),
                     &[
                         ("name".to_string(), Value::String(format!("Person{}", i))),
-                        ("age".to_string(), Value::Int(i as i32)),
+                        ("age".to_string(), Value::Int(i)),
                     ],
                     100,
                 )
                 .unwrap();
         }
 
-        let mut reader = VertexBatchReader::new(&table, 100, 20);
+        let reader = VertexBatchReader::new(&table, 100, 20);
         let mut total_read = 0;
 
-        while let Some(batch) = reader.next() {
+        for batch in reader {
             total_read += batch.len();
             assert!(batch.len() <= 20);
         }
@@ -385,7 +385,7 @@ mod tests {
                     format!("v{}", i),
                     vec![
                         ("name".to_string(), Value::String(format!("Person{}", i))),
-                        ("age".to_string(), Value::Int(i as i32)),
+                        ("age".to_string(), Value::Int(i)),
                     ],
                 );
             }
@@ -411,10 +411,10 @@ mod tests {
             assert!(result.is_ok(), "Failed to insert edge {}->{}: {:?}", src, dst, result);
         }
 
-        let mut reader = EdgeBatchReader::new(&table, 100, 20);
+        let reader = EdgeBatchReader::new(&table, 100, 20);
         let mut total_read = 0;
 
-        while let Some(batch) = reader.next() {
+        for batch in reader {
             total_read += batch.len();
             assert!(batch.len() <= 20);
         }
@@ -455,7 +455,7 @@ mod tests {
                     format!("v{}", i),
                     vec![
                         ("name".to_string(), Value::String(format!("Person{}", i))),
-                        ("age".to_string(), Value::Int(i as i32)),
+                        ("age".to_string(), Value::Int(i)),
                     ],
                 )
             })

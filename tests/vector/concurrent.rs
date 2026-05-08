@@ -208,9 +208,9 @@ async fn test_concurrent_reads_and_writes() {
 
     let mut tasks = JoinSet::new();
 
-    for i in 0..2 {
+    for id in ids.iter().take(2) {
         let ctx_clone = ctx.clone();
-        let id = ids[i].clone();
+        let id = id.clone();
         tasks.spawn(async move {
             let result = ctx_clone.get_vector(1, "Document", "embedding", &id).await;
             assert!(result.is_ok(), "Get should succeed");
@@ -229,9 +229,9 @@ async fn test_concurrent_reads_and_writes() {
         });
     }
 
-    for i in 0..2 {
+    for vector in vectors.iter().take(2) {
         let ctx_clone = ctx.clone();
-        let query = vectors[i].clone();
+        let query = vector.clone();
         tasks.spawn(async move {
             let result = ctx_clone
                 .search(1, "Document", "embedding", query, 10)

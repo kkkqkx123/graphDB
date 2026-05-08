@@ -26,7 +26,7 @@ use crate::storage::metadata::{
 use crate::storage::engine::PropertyGraph;
 use crate::storage::entity::UserStorage;
 use crate::storage::index::secondary::{IndexDataManager, InMemoryIndexDataManager};
-use crate::storage::vertex::VertexRecord;
+use crate::storage::vertex::{LabelId, VertexRecord};
 use crate::storage::edge::EdgeRecord;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::version_manager::VersionManager;
@@ -220,17 +220,19 @@ impl StorageClient for GraphStorage {
         Ok(vertices)
     }
 
-    fn scan_vertices_by_tag(&self, _space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
+    fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
+        let tag_info = self.get_tag(space, tag)?
+            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
+
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let mut vertices = Vec::new();
 
-        if let Some(label_id) = graph.get_vertex_label_id(tag) {
-            if let Some(iterator) = graph.scan_vertices(label_id, ts) {
-                for record in iterator {
-                    let vertex = Self::vertex_record_to_vertex(&record, tag);
-                    vertices.push(vertex);
-                }
+        let label_id = tag_info.tag_id as LabelId;
+        if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+            for record in iterator {
+                let vertex = Self::vertex_record_to_vertex(&record, tag);
+                vertices.push(vertex);
             }
         }
 
@@ -244,17 +246,19 @@ impl StorageClient for GraphStorage {
         prop: &str,
         value: &Value,
     ) -> Result<Vec<Vertex>, StorageError> {
+        let tag_info = self.get_tag(space, tag)?
+            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
+
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let mut vertices = Vec::new();
 
-        if let Some(label_id) = graph.get_vertex_label_id(tag) {
-            if let Some(iterator) = graph.scan_vertices(label_id, ts) {
-                for record in iterator {
-                    if record.properties.iter().any(|(k, v)| k == prop && v == value) {
-                        let vertex = Self::vertex_record_to_vertex(&record, tag);
-                        vertices.push(vertex);
-                    }
+        let label_id = tag_info.tag_id as LabelId;
+        if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+            for record in iterator {
+                if record.properties.iter().any(|(k, v)| k == prop && v == value) {
+                    let vertex = Self::vertex_record_to_vertex(&record, tag);
+                    vertices.push(vertex);
                 }
             }
         }
@@ -270,8 +274,8 @@ impl StorageClient for GraphStorage {
         edge_type: &str,
         _rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
-        let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+        let edge_info = self.get_edge_type(space, edge_type)?
+            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -279,20 +283,19 @@ impl StorageClient for GraphStorage {
         let src_str = Self::value_to_string(src);
         let dst_str = Self::value_to_string(dst);
 
-        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
-            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
-                if *label_id == edge_label_id {
-                    if let Some(record) = graph.get_edge(
-                        edge_label_id,
-                        *src_label_id,
-                        &src_str,
-                        *dst_label_id,
-                        &dst_str,
-                        ts,
-                    ) {
-                        let edge = Self::edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
-                        return Ok(Some(edge));
-                    }
+        let edge_label_id = edge_info.edge_type_id as LabelId;
+        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+                if let Some(record) = graph.get_edge(
+                    edge_label_id,
+                    src_label_id,
+                    &src_str,
+                    dst_label_id,
+                    &dst_str,
+                    ts,
+                ) {
+                    let edge = Self::edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
+                    return Ok(Some(edge));
                 }
             }
         }
@@ -306,89 +309,96 @@ impl StorageClient for GraphStorage {
         node_id: &Value,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
-        let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+        let edge_types = self.list_edge_types(space)?;
+        if edge_types.is_empty() {
+            return Ok(Vec::new());
+        }
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let node_str = Self::value_to_string(node_id);
         let mut edges = Vec::new();
 
-        for ((src_label_id, dst_label_id, edge_label_id), table) in graph.edge_tables() {
-            let edge_type_name = table.label_name().to_string();
+        for edge_info in &edge_types {
+            let edge_label_id = edge_info.edge_type_id as LabelId;
+            let edge_type_name = &edge_info.edge_type_name;
             
-            match direction {
-                EdgeDirection::Out => {
-                    if let Some(out_edges) = graph.out_edges(
-                        *edge_label_id,
-                        *src_label_id,
-                        *dst_label_id,
-                        &node_str,
-                        ts,
-                    ) {
-                        for record in out_edges {
-                            let edge = Self::edge_record_to_edge(
-                                &record,
-                                &edge_type_name,
+            if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
+                if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+                    match direction {
+                        EdgeDirection::Out => {
+                            if let Some(out_edges) = graph.out_edges(
+                                edge_label_id,
+                                src_label_id,
+                                dst_label_id,
                                 &node_str,
-                                &format!("{}", record.dst_vid),
-                            );
-                            edges.push(edge);
+                                ts,
+                            ) {
+                                for record in out_edges {
+                                    let edge = Self::edge_record_to_edge(
+                                        &record,
+                                        edge_type_name,
+                                        &node_str,
+                                        &format!("{}", record.dst_vid),
+                                    );
+                                    edges.push(edge);
+                                }
+                            }
                         }
-                    }
-                }
-                EdgeDirection::In => {
-                    if let Some(in_edges) = graph.in_edges(
-                        *edge_label_id,
-                        *src_label_id,
-                        *dst_label_id,
-                        &node_str,
-                        ts,
-                    ) {
-                        for record in in_edges {
-                            let edge = Self::edge_record_to_edge(
-                                &record,
-                                &edge_type_name,
-                                &format!("{}", record.src_vid),
+                        EdgeDirection::In => {
+                            if let Some(in_edges) = graph.in_edges(
+                                edge_label_id,
+                                src_label_id,
+                                dst_label_id,
                                 &node_str,
-                            );
-                            edges.push(edge);
+                                ts,
+                            ) {
+                                for record in in_edges {
+                                    let edge = Self::edge_record_to_edge(
+                                        &record,
+                                        edge_type_name,
+                                        &format!("{}", record.src_vid),
+                                        &node_str,
+                                    );
+                                    edges.push(edge);
+                                }
+                            }
                         }
-                    }
-                }
-                EdgeDirection::Both => {
-                    if let Some(out_edges) = graph.out_edges(
-                        *edge_label_id,
-                        *src_label_id,
-                        *dst_label_id,
-                        &node_str,
-                        ts,
-                    ) {
-                        for record in out_edges {
-                            let edge = Self::edge_record_to_edge(
-                                &record,
-                                &edge_type_name,
+                        EdgeDirection::Both => {
+                            if let Some(out_edges) = graph.out_edges(
+                                edge_label_id,
+                                src_label_id,
+                                dst_label_id,
                                 &node_str,
-                                &format!("{}", record.dst_vid),
-                            );
-                            edges.push(edge);
-                        }
-                    }
-                    if let Some(in_edges) = graph.in_edges(
-                        *edge_label_id,
-                        *src_label_id,
-                        *dst_label_id,
-                        &node_str,
-                        ts,
-                    ) {
-                        for record in in_edges {
-                            let edge = Self::edge_record_to_edge(
-                                &record,
-                                &edge_type_name,
-                                &format!("{}", record.src_vid),
+                                ts,
+                            ) {
+                                for record in out_edges {
+                                    let edge = Self::edge_record_to_edge(
+                                        &record,
+                                        edge_type_name,
+                                        &node_str,
+                                        &format!("{}", record.dst_vid),
+                                    );
+                                    edges.push(edge);
+                                }
+                            }
+                            if let Some(in_edges) = graph.in_edges(
+                                edge_label_id,
+                                src_label_id,
+                                dst_label_id,
                                 &node_str,
-                            );
-                            edges.push(edge);
+                                ts,
+                            ) {
+                                for record in in_edges {
+                                    let edge = Self::edge_record_to_edge(
+                                        &record,
+                                        edge_type_name,
+                                        &format!("{}", record.src_vid),
+                                        &node_str,
+                                    );
+                                    edges.push(edge);
+                                }
+                            }
                         }
                     }
                 }
@@ -420,21 +430,22 @@ impl StorageClient for GraphStorage {
         space: &str,
         edge_type: &str,
     ) -> Result<Vec<Edge>, StorageError> {
-        let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+        let edge_info = self.get_edge_type(space, edge_type)?
+            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let mut edges = Vec::new();
 
-        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
-            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
-                if *label_id == edge_label_id {
+        let edge_label_id = edge_info.edge_type_id as LabelId;
+        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+                if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
                     for src_vid in 0..table.vertex_capacity() {
                         if let Some(out_edges) = graph.out_edges(
                             edge_label_id,
-                            *src_label_id,
-                            *dst_label_id,
+                            src_label_id,
+                            dst_label_id,
                             &format!("{}", src_vid),
                             ts,
                         ) {
@@ -449,7 +460,6 @@ impl StorageClient for GraphStorage {
                             }
                         }
                     }
-                    break;
                 }
             }
         }
@@ -709,9 +719,7 @@ impl StorageClient for GraphStorage {
         {
             let mut graph = self.graph.write();
             for tag in tags {
-                if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
-                    let _ = graph.drop_vertex_type(&tag.tag_name);
-                }
+                let _ = graph.drop_vertex_type(&tag.tag_name);
             }
             for et in edge_types {
                 let _ = graph.drop_edge_type(&et.edge_type_name);
@@ -730,9 +738,6 @@ impl StorageClient for GraphStorage {
     }
 
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
-
         let mut graph = self.graph.write();
         let properties: Vec<crate::storage::vertex::PropertyDef> = tag.properties.iter()
             .map(|p| crate::storage::vertex::PropertyDef {
@@ -787,6 +792,10 @@ impl StorageClient for GraphStorage {
     ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
             .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        if edge_type.edge_type_id as u64 != 0 && space_info.space_id != edge_type.edge_type_id as u64 {
+            return Err(StorageError::DbError("Edge type ID mismatch".to_string()));
+        }
 
         let mut graph = self.graph.write();
 
@@ -1166,15 +1175,23 @@ impl StorageClient for GraphStorage {
         Ok(deleted)
     }
 
-    fn update_data(&mut self, space: &str, _space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError> {
+    fn update_data(&mut self, space: &str, space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
             .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        if space_info.space_id != space_id {
+            return Err(StorageError::DbError("Space ID mismatch".to_string()));
+        }
 
         let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
 
         let UpdateTarget { space_name, label, id, prop } = &info.update_target;
         
+        if space_name != space {
+            return Err(StorageError::DbError("Space name mismatch in update target".to_string()));
+        }
+
         if let Some(label_id) = graph.get_vertex_label_id(label) {
             let id_str = Self::value_to_string(id);
             let value = match &info.update_op {
@@ -1264,22 +1281,18 @@ impl StorageClient for GraphStorage {
         tag: &str,
         id: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
-        let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
-
         let tag_info = self.get_tag(space, tag)?
-            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found", tag)))?;
+            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let id_str = Self::value_to_string(id);
 
-        if let Some(label_id) = graph.get_vertex_label_id(tag) {
-            if let Some(record) = graph.get_vertex(label_id, &id_str, ts) {
-                let schema = self.schema_manager.get_tag_schema(space, tag)?;
-                let data = Self::serialize_properties(&record.properties);
-                return Ok(Some((schema, data)));
-            }
+        let label_id = tag_info.tag_id as LabelId;
+        if let Some(record) = graph.get_vertex(label_id, &id_str, ts) {
+            let schema = self.schema_manager.get_tag_schema(space, tag)?;
+            let data = Self::serialize_properties(&record.properties);
+            return Ok(Some((schema, data)));
         }
 
         Ok(None)
@@ -1292,32 +1305,28 @@ impl StorageClient for GraphStorage {
         src: &Value,
         dst: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
-        let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
-
         let edge_info = self.get_edge_type(space, edge_type)?
-            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found", edge_type)))?;
+            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let src_str = Self::value_to_string(src);
         let dst_str = Self::value_to_string(dst);
 
-        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
-            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
-                if *label_id == edge_label_id {
-                    if let Some(record) = graph.get_edge(
-                        edge_label_id,
-                        *src_label_id,
-                        &src_str,
-                        *dst_label_id,
-                        &dst_str,
-                        ts,
-                    ) {
-                        let schema = self.schema_manager.get_edge_type_schema(space, edge_type)?;
-                        let data = Self::serialize_properties(&record.properties);
-                        return Ok(Some((schema, data)));
-                    }
+        let edge_label_id = edge_info.edge_type_id as LabelId;
+        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+                if let Some(record) = graph.get_edge(
+                    edge_label_id,
+                    src_label_id,
+                    &src_str,
+                    dst_label_id,
+                    &dst_str,
+                    ts,
+                ) {
+                    let schema = self.schema_manager.get_edge_type_schema(space, edge_type)?;
+                    let data = Self::serialize_properties(&record.properties);
+                    return Ok(Some((schema, data)));
                 }
             }
         }
@@ -1330,20 +1339,19 @@ impl StorageClient for GraphStorage {
         space: &str,
         tag: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+        let tag_info = self.get_tag(space, tag)?
+            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let mut results = Vec::new();
 
-        if let Some(label_id) = graph.get_vertex_label_id(tag) {
-            if let Some(iterator) = graph.scan_vertices(label_id, ts) {
-                let schema = self.schema_manager.get_tag_schema(space, tag)?;
-                for record in iterator {
-                    let data = Self::serialize_properties(&record.properties);
-                    results.push((schema.clone(), data));
-                }
+        let label_id = tag_info.tag_id as LabelId;
+        if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+            let schema = self.schema_manager.get_tag_schema(space, tag)?;
+            for record in iterator {
+                let data = Self::serialize_properties(&record.properties);
+                results.push((schema.clone(), data));
             }
         }
 
@@ -1355,23 +1363,24 @@ impl StorageClient for GraphStorage {
         space: &str,
         edge_type: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+        let edge_info = self.get_edge_type(space, edge_type)?
+            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let mut results = Vec::new();
 
-        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
-            let schema = self.schema_manager.get_edge_type_schema(space, edge_type)?;
-            
-            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
-                if *label_id == edge_label_id {
+        let edge_label_id = edge_info.edge_type_id as LabelId;
+        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+                if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
+                    let schema = self.schema_manager.get_edge_type_schema(space, edge_type)?;
+                    
                     for src_vid in 0..table.vertex_capacity() {
                         if let Some(out_edges) = graph.out_edges(
                             edge_label_id,
-                            *src_label_id,
-                            *dst_label_id,
+                            src_label_id,
+                            dst_label_id,
                             &format!("{}", src_vid),
                             ts,
                         ) {
@@ -1381,7 +1390,6 @@ impl StorageClient for GraphStorage {
                             }
                         }
                     }
-                    break;
                 }
             }
         }

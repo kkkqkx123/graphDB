@@ -252,7 +252,7 @@ async fn test_search_with_range_filter() {
             if let Some(score) = payload.get("score") {
                 let score_val = score.as_f64().unwrap();
                 assert!(
-                    score_val >= 20.0 && score_val < 50.0,
+                    (20.0..50.0).contains(&score_val),
                     "Score should be in range [20, 50)"
                 );
             }

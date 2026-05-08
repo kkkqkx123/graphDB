@@ -126,10 +126,7 @@ fn test_sync_storage_inner_access() {
     let sync_storage = SyncStorage::new(storage);
 
     // Access inner storage
-    let inner = sync_storage.inner();
-
-    // Verify we can access graph from inner storage
-    let _graph = inner.state().graph.clone();
+    let _inner = sync_storage.inner();
     // If we get here without panic, the access works
 }
 

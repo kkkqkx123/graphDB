@@ -122,7 +122,7 @@ fn test_delete_vertex() {
 #[test]
 fn test_drop_vertex_type() {
     let mut graph = PropertyGraph::new();
-    let label_id = graph
+    let _label_id = graph
         .create_vertex_type(
             "person",
             vec![PropertyDef::new("name".to_string(), DataType::String)],
