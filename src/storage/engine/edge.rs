@@ -7,6 +7,8 @@ use crate::storage::edge::{
 };
 use crate::storage::vertex::{LabelId, Timestamp};
 
+use super::schema::SchemaOps;
+
 pub struct EdgeOps {
     pub edge_tables: HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
     pub edge_label_names: HashMap<String, LabelId>,
@@ -310,5 +312,50 @@ impl EdgeOps {
                 }
             })
             .sum()
+    }
+
+    pub fn revert_delete_edge_properties(
+        &mut self,
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+        schema_ops: &SchemaOps,
+        prop_names: &[String],
+    ) -> StorageResult<()> {
+        let src_label_id = schema_ops
+            .vertex_label_names
+            .get(src_label)
+            .copied()
+            .ok_or_else(|| StorageError::LabelNotFound(src_label.to_string()))?;
+        let dst_label_id = schema_ops
+            .vertex_label_names
+            .get(dst_label)
+            .copied()
+            .ok_or_else(|| StorageError::LabelNotFound(dst_label.to_string()))?;
+        let edge_label_id = self
+            .edge_label_names
+            .get(edge_label)
+            .copied()
+            .ok_or_else(|| StorageError::LabelNotFound(edge_label.to_string()))?;
+
+        let key = (src_label_id, dst_label_id, edge_label_id);
+        let table = self
+            .edge_tables
+            .get_mut(&key)
+            .ok_or_else(|| StorageError::LabelNotFound(edge_label.to_string()))?;
+
+        for prop_name in prop_names {
+            if table.schema().properties.iter().any(|p| p.name == *prop_name) {
+                continue;
+            }
+
+            table.add_property(
+                prop_name.clone(),
+                crate::core::DataType::String,
+                false,
+            )?;
+        }
+
+        Ok(())
     }
 }

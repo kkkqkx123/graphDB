@@ -154,4 +154,35 @@ impl SchemaOps {
 
         table.update_property(internal_id, property_name, value, ts)
     }
+
+    pub fn revert_delete_vertex_properties(
+        &mut self,
+        label_name: &str,
+        prop_names: &[String],
+    ) -> StorageResult<()> {
+        let label_id = self
+            .vertex_label_names
+            .get(label_name)
+            .copied()
+            .ok_or_else(|| StorageError::LabelNotFound(label_name.to_string()))?;
+
+        let table = self
+            .vertex_tables
+            .get_mut(&label_id)
+            .ok_or_else(|| StorageError::LabelNotFound(label_name.to_string()))?;
+
+        for prop_name in prop_names {
+            if table.schema().properties.iter().any(|p| p.name == *prop_name) {
+                continue;
+            }
+
+            let prop_def = VertexPropertyDef::new(
+                prop_name.clone(),
+                crate::core::DataType::String,
+            );
+            table.add_property(prop_def)?;
+        }
+
+        Ok(())
+    }
 }

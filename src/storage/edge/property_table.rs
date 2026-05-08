@@ -183,6 +183,26 @@ impl PropertyTable {
         Ok(())
     }
 
+    pub fn set_property_by_id(
+        &mut self,
+        offset: u32,
+        prop_id: i32,
+        value: Option<Value>,
+    ) -> StorageResult<()> {
+        let col_idx = prop_id as usize;
+        let offset_idx = offset as usize;
+        if offset_idx == 0 || offset_idx > self.rows.len() {
+            return Err(StorageError::InvalidOffset(offset));
+        }
+
+        if col_idx >= self.schema.len() {
+            return Err(StorageError::ColumnNotFound(format!("prop_id={}", prop_id)));
+        }
+
+        self.rows[offset_idx - 1].set(col_idx, value);
+        Ok(())
+    }
+
     pub fn delete(&mut self, offset: u32) -> bool {
         let offset_idx = offset as usize;
         if offset_idx == 0 || offset_idx > self.rows.len() {

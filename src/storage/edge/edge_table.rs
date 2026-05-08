@@ -166,6 +166,59 @@ impl EdgeTable {
         Ok(false)
     }
 
+    pub fn delete_edge_by_offset(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        oe_offset: i32,
+        ie_offset: i32,
+        ts: Timestamp,
+    ) -> StorageResult<bool> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
+            let edge_id = nbr.edge_id;
+            let prop_offset = nbr.prop_offset;
+
+            self.out_csr.delete_edge_by_offset(src, oe_offset, ts);
+
+            if self.schema.ie_strategy != EdgeStrategy::None {
+                self.in_csr.delete_edge_by_offset(dst, ie_offset, ts);
+            }
+
+            if prop_offset > 0 {
+                self.properties.delete(prop_offset);
+            }
+
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    pub fn revert_delete_edge_by_offset(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        oe_offset: i32,
+        ie_offset: i32,
+        ts: Timestamp,
+    ) -> StorageResult<bool> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset, ts);
+
+        if reverted && self.schema.ie_strategy != EdgeStrategy::None {
+            self.in_csr.revert_delete_by_offset(dst, ie_offset, ts);
+        }
+
+        Ok(reverted)
+    }
+
     pub fn delete_edge_by_id(&mut self, edge_id: EdgeId, ts: Timestamp) -> StorageResult<bool> {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
@@ -445,6 +498,36 @@ impl EdgeTable {
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
             self.properties
                 .set_property(nbr.prop_offset, prop_name, Some(value.clone()))?;
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    pub fn update_edge_property_by_offset(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        _oe_offset: i32,
+        _ie_offset: i32,
+        col_id: i32,
+        value: &Value,
+        ts: Timestamp,
+    ) -> StorageResult<bool> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
+            self.properties
+                .set_property_by_id(nbr.prop_offset, col_id, Some(value.clone()))?;
+
+            if self.schema.ie_strategy != EdgeStrategy::None {
+                if let Some(_ie_nbr) = self.in_csr.get_edge(dst, src, ts) {
+                    self.properties
+                        .set_property_by_id(_ie_nbr.prop_offset, col_id, Some(value.clone()))?;
+                }
+            }
             return Ok(true);
         }
 

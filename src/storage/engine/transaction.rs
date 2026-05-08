@@ -214,6 +214,8 @@ impl TransactionOps {
         dst_label: TxnLabelId,
         dst_vid: TxnVertexId,
         edge_label: TxnLabelId,
+        oe_offset: i32,
+        ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         let key = (
@@ -223,7 +225,31 @@ impl TransactionOps {
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
-                .delete_edge(src_vid as u64, dst_vid as u64, ts)
+                .delete_edge_by_offset(src_vid as u64, dst_vid as u64, oe_offset, ie_offset, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    pub fn revert_delete_edge(
+        edge_ops: &mut EdgeOps,
+        src_label: TxnLabelId,
+        src_vid: TxnVertexId,
+        dst_label: TxnLabelId,
+        dst_vid: TxnVertexId,
+        edge_label: TxnLabelId,
+        oe_offset: i32,
+        ie_offset: i32,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let key = (
+            src_label as LabelId,
+            dst_label as LabelId,
+            edge_label as LabelId,
+        );
+        if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
+            table
+                .revert_delete_edge_by_offset(src_vid as u64, dst_vid as u64, oe_offset, ie_offset, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -283,7 +309,7 @@ impl TransactionOps {
         schema_ops: &mut SchemaOps,
         label: TxnLabelId,
         vid: TxnVertexId,
-        property_name: &str,
+        col_id: i32,
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
@@ -295,7 +321,7 @@ impl TransactionOps {
 
         let value = property_value_to_value(old_value);
         table
-            .update_property(vid as u32, property_name, &value, ts)
+            .update_property_by_id(vid as u32, col_id, &value, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }
@@ -307,7 +333,9 @@ impl TransactionOps {
         dst_label: TxnLabelId,
         dst_vid: TxnVertexId,
         edge_label: TxnLabelId,
-        property_name: &str,
+        oe_offset: i32,
+        ie_offset: i32,
+        col_id: i32,
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
@@ -323,10 +351,12 @@ impl TransactionOps {
 
         let value = property_value_to_value(old_value);
         table
-            .update_edge_property(
+            .update_edge_property_by_offset(
                 src_vid as u64,
                 dst_vid as u64,
-                property_name,
+                oe_offset,
+                ie_offset,
+                col_id,
                 &value,
                 ts,
             )
@@ -414,5 +444,28 @@ impl TransactionOps {
         }
 
         Ok(())
+    }
+
+    pub fn revert_delete_vertex_properties(
+        schema_ops: &mut SchemaOps,
+        label_name: &str,
+        prop_names: &[String],
+    ) -> UndoLogResult<()> {
+        schema_ops
+            .revert_delete_vertex_properties(label_name, prop_names)
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))
+    }
+
+    pub fn revert_delete_edge_properties(
+        edge_ops: &mut EdgeOps,
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+        schema_ops: &SchemaOps,
+        prop_names: &[String],
+    ) -> UndoLogResult<()> {
+        edge_ops
+            .revert_delete_edge_properties(src_label, dst_label, edge_label, schema_ops, prop_names)
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))
     }
 }

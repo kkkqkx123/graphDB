@@ -30,7 +30,7 @@ use crate::storage::vertex::{
 use crate::transaction::insert_transaction::{
     InsertTarget, InsertTransactionResult,
 };
-use crate::transaction::undo_log::{PropertyValue, UndoLogResult, UndoTarget};
+use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 use crate::transaction::wal::types::{
     ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
@@ -714,9 +714,9 @@ impl InsertTarget for PropertyGraph {
         &self,
         label: TxnLabelId,
         vid: TxnVertexId,
-        _ts: Timestamp,
+        ts: Timestamp,
     ) -> Option<Vec<u8>> {
-        TransactionOps::get_vertex_oid(&self.schema_ops, label, vid, _ts)
+        TransactionOps::get_vertex_oid(&self.schema_ops, label, vid, ts)
     }
 
     fn get_vertex_property_types(&self, label: TxnLabelId) -> Vec<String> {
@@ -725,11 +725,11 @@ impl InsertTarget for PropertyGraph {
 
     fn get_edge_property_types(
         &self,
-        _src_label: TxnLabelId,
-        _dst_label: TxnLabelId,
+        src_label: TxnLabelId,
+        dst_label: TxnLabelId,
         edge_label: TxnLabelId,
     ) -> Vec<String> {
-        TransactionOps::get_edge_property_types(&self.edge_ops, _src_label, _dst_label, edge_label)
+        TransactionOps::get_edge_property_types(&self.edge_ops, src_label, dst_label, edge_label)
     }
 
     fn vertex_label_num(&self) -> usize {
@@ -771,8 +771,8 @@ impl UndoTarget for PropertyGraph {
         dst_label: TxnLabelId,
         dst_vid: TxnVertexId,
         edge_label: TxnLabelId,
-        _oe_offset: i32,
-        _ie_offset: i32,
+        oe_offset: i32,
+        ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         TransactionOps::delete_edge(
@@ -782,6 +782,8 @@ impl UndoTarget for PropertyGraph {
             dst_label,
             dst_vid,
             edge_label,
+            oe_offset,
+            ie_offset,
             ts,
         )
     }
@@ -790,7 +792,7 @@ impl UndoTarget for PropertyGraph {
         &mut self,
         label: TxnLabelId,
         vid: TxnVertexId,
-        _col_id: ColumnId,
+        col_id: ColumnId,
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
@@ -798,7 +800,7 @@ impl UndoTarget for PropertyGraph {
             &mut self.schema_ops,
             label,
             vid,
-            "property",
+            col_id,
             old_value,
             ts,
         )
@@ -811,9 +813,9 @@ impl UndoTarget for PropertyGraph {
         dst_label: TxnLabelId,
         dst_vid: TxnVertexId,
         edge_label: TxnLabelId,
-        _oe_offset: i32,
-        _ie_offset: i32,
-        _col_id: ColumnId,
+        oe_offset: i32,
+        ie_offset: i32,
+        col_id: ColumnId,
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
@@ -824,7 +826,9 @@ impl UndoTarget for PropertyGraph {
             dst_label,
             dst_vid,
             edge_label,
-            "property",
+            oe_offset,
+            ie_offset,
+            col_id,
             old_value,
             ts,
         )
@@ -846,37 +850,50 @@ impl UndoTarget for PropertyGraph {
         dst_label: TxnLabelId,
         dst_vid: TxnVertexId,
         edge_label: TxnLabelId,
-        _oe_offset: i32,
-        _ie_offset: i32,
+        oe_offset: i32,
+        ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        TransactionOps::delete_edge(
+        TransactionOps::revert_delete_edge(
             &mut self.edge_ops,
             src_label,
             src_vid,
             dst_label,
             dst_vid,
             edge_label,
+            oe_offset,
+            ie_offset,
             ts,
         )
     }
 
     fn revert_delete_vertex_properties(
         &mut self,
-        _label_name: &str,
-        _prop_names: &[String],
+        label_name: &str,
+        prop_names: &[String],
     ) -> UndoLogResult<()> {
-        Ok(())
+        TransactionOps::revert_delete_vertex_properties(
+            &mut self.schema_ops,
+            label_name,
+            prop_names,
+        )
     }
 
     fn revert_delete_edge_properties(
         &mut self,
-        _src_label: &str,
-        _dst_label: &str,
-        _edge_label: &str,
-        _prop_names: &[String],
+        src_label: &str,
+        dst_label: &str,
+        edge_label: &str,
+        prop_names: &[String],
     ) -> UndoLogResult<()> {
-        Ok(())
+        TransactionOps::revert_delete_edge_properties(
+            &mut self.edge_ops,
+            src_label,
+            dst_label,
+            edge_label,
+            &self.schema_ops,
+            prop_names,
+        )
     }
 
     fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()> {
@@ -890,16 +907,36 @@ impl UndoTarget for PropertyGraph {
 
     fn revert_delete_edge_label(
         &mut self,
-        _src_label: &str,
-        _dst_label: &str,
+        src_label: &str,
+        dst_label: &str,
         edge_label: &str,
     ) -> UndoLogResult<()> {
-        let label = self.edge_ops.edge_label_counter;
-        TransactionOps::create_edge_type_undo(
-            &mut self.edge_ops,
-            edge_label,
-            label,
-        )
+        let src_label_id = self
+            .schema_ops
+            .vertex_label_names
+            .get(src_label)
+            .copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+        let dst_label_id = self
+            .schema_ops
+            .vertex_label_names
+            .get(dst_label)
+            .copied()
+            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+
+        self.edge_ops
+            .create_edge_type(
+                edge_label,
+                src_label_id,
+                dst_label_id,
+                Vec::new(),
+                EdgeStrategy::None,
+                EdgeStrategy::None,
+                self.schema_ops.vertex_tables(),
+            )
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+
+        Ok(())
     }
 
     fn revert_rename_vertex_properties(

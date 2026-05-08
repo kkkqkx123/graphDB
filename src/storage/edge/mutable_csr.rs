@@ -374,6 +374,31 @@ impl MutableCsr {
         deleted
     }
 
+    /// Delete an edge by offset position in the CSR
+    pub fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
+        let src_idx = src as usize;
+        if src_idx >= self.vertex_capacity {
+            return false;
+        }
+
+        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
+
+        let base_offset = self.adj_offsets[src_idx];
+        let idx = base_offset + offset as usize;
+
+        if idx >= self.nbr_list.len() {
+            return false;
+        }
+
+        let nbr = &mut self.nbr_list[idx];
+        if nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
+            nbr.timestamp = INVALID_TIMESTAMP;
+            self.edge_count.fetch_sub(1, Ordering::Relaxed);
+            return true;
+        }
+        false
+    }
+
     /// Revert a deleted edge
     pub fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
         let src_idx = src as usize;
@@ -393,6 +418,31 @@ impl MutableCsr {
                 self.edge_count.fetch_add(1, Ordering::Relaxed);
                 return true;
             }
+        }
+        false
+    }
+
+    /// Revert a deleted edge by offset position
+    pub fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
+        let src_idx = src as usize;
+        if src_idx >= self.vertex_capacity {
+            return false;
+        }
+
+        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
+
+        let base_offset = self.adj_offsets[src_idx];
+        let idx = base_offset + offset as usize;
+
+        if idx >= self.nbr_list.len() {
+            return false;
+        }
+
+        let nbr = &mut self.nbr_list[idx];
+        if nbr.timestamp == INVALID_TIMESTAMP {
+            nbr.timestamp = ts;
+            self.edge_count.fetch_add(1, Ordering::Relaxed);
+            return true;
         }
         false
     }

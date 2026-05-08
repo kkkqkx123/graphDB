@@ -198,6 +198,28 @@ impl VertexTable {
             .set_property(internal_id as usize, col_name, Some(value))
     }
 
+    pub fn update_property_by_id(
+        &mut self,
+        internal_id: u32,
+        col_id: i32,
+        value: &Value,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        if !self.is_open {
+            return Err(StorageError::StorageNotOpen);
+        }
+
+        if !self.timestamps.is_valid(internal_id, ts) {
+            return Err(StorageError::VertexNotFound);
+        }
+
+        let col = self
+            .columns
+            .get_column_by_id_mut(col_id)
+            .ok_or_else(|| StorageError::ColumnNotFound(format!("col_id={}", col_id)))?;
+        col.set(internal_id as usize, Some(value))
+    }
+
     pub fn delete(&mut self, external_id: &str, ts: Timestamp) -> StorageResult<()> {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
