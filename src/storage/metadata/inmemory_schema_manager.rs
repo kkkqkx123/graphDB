@@ -218,6 +218,38 @@ impl super::SchemaManager for InMemorySchemaManager {
         }
     }
 
+    fn clear_space(&self, space_name: &str) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+        })?;
+
+        let space_id = space_info.space_id;
+
+        let mut tags = self.tags.write();
+        tags.retain(|(sid, _), _| *sid != space_id);
+
+        let mut edge_types = self.edge_types.write();
+        edge_types.retain(|(sid, _), _| *sid != space_id);
+
+        let mut tag_indexes = self.tag_indexes.write();
+        tag_indexes.retain(|(sid, _), _| *sid != space_id);
+
+        let mut edge_indexes = self.edge_indexes.write();
+        edge_indexes.retain(|(sid, _), _| *sid != space_id);
+
+        Ok(true)
+    }
+
+    fn alter_space_comment(&self, space_id: u64, comment: String) -> Result<bool, StorageError> {
+        let mut spaces = self.spaces.write();
+        if let Some(data) = spaces.get_mut(&space_id) {
+            data.info.comment = Some(comment);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
         let name_index = self.space_name_index.read();
         if let Some(space_id) = name_index.get(space_name) {

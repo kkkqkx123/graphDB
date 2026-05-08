@@ -27,6 +27,8 @@ impl EdgeTypeSchema {
         Self {
             edge_type_id: 0,
             edge_type_name: executor_info.edge_name.clone(),
+            src_tag_name: executor_info.src_tag_name.clone(),
+            dst_tag_name: executor_info.dst_tag_name.clone(),
             properties,
             comment: executor_info.comment.clone(),
             ttl_duration: None,
@@ -40,15 +42,19 @@ impl EdgeTypeSchema {
 pub struct ExecutorEdgeInfo {
     pub space_name: String,
     pub edge_name: String,
+    pub src_tag_name: String,
+    pub dst_tag_name: String,
     pub properties: Vec<PropertyDef>,
     pub comment: Option<String>,
 }
 
 impl ExecutorEdgeInfo {
-    pub fn new(space_name: String, edge_name: String) -> Self {
+    pub fn new(space_name: String, edge_name: String, src_tag_name: String, dst_tag_name: String) -> Self {
         Self {
             space_name,
             edge_name,
+            src_tag_name,
+            dst_tag_name,
             properties: Vec::new(),
             comment: None,
         }

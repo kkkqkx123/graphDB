@@ -193,6 +193,8 @@ impl ShowCreateEdgeNode {
 pub struct EdgeManageInfo {
     pub space_name: String,
     pub edge_name: String,
+    pub src_tag_name: Option<String>,
+    pub dst_tag_name: Option<String>,
     pub properties: Vec<PropertyDef>,
     pub if_not_exists: bool,
 }
@@ -202,6 +204,8 @@ impl EdgeManageInfo {
         Self {
             space_name,
             edge_name,
+            src_tag_name: None,
+            dst_tag_name: None,
             properties: Vec::new(),
             if_not_exists: false,
         }
@@ -214,6 +218,12 @@ impl EdgeManageInfo {
 
     pub fn with_if_not_exists(mut self, if_not_exists: bool) -> Self {
         self.if_not_exists = if_not_exists;
+        self
+    }
+
+    pub fn with_src_dst_tags(mut self, src_tag_name: String, dst_tag_name: String) -> Self {
+        self.src_tag_name = Some(src_tag_name);
+        self.dst_tag_name = Some(dst_tag_name);
         self
     }
 }

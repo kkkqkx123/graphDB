@@ -1,7 +1,10 @@
 //! Storage Interface Implementation
 //!
 //! Implements the StorageClient trait for PropertyGraph storage.
+//! This module acts as an adapter layer between the high-level StorageClient API
+//! and the low-level PropertyGraph storage engine.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -9,10 +12,11 @@ use parking_lot::{Mutex, RwLock};
 
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
-    TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
+    TagInfo, UpdateInfo, UpdateOp, UpdateTarget, UserAlterInfo, UserInfo,
 };
+use crate::core::vertex_edge_path::Tag;
 use crate::core::{
-    Edge, EdgeDirection, NullType, RoleType, StorageError, StorageResult, Value, Vertex,
+    Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex,
 };
 use crate::storage::interface::{StorageClient, StorageStats};
 use crate::storage::metadata::{
@@ -21,7 +25,9 @@ use crate::storage::metadata::{
 };
 use crate::storage::engine::PropertyGraph;
 use crate::storage::entity::UserStorage;
-use crate::storage::index::secondary::InMemoryIndexDataManager;
+use crate::storage::index::secondary::{IndexDataManager, InMemoryIndexDataManager};
+use crate::storage::vertex::VertexRecord;
+use crate::storage::edge::EdgeRecord;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::version_manager::VersionManager;
 
@@ -30,7 +36,7 @@ pub struct GraphStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     schema_manager: Arc<InMemorySchemaManager>,
     index_metadata_manager: Arc<InMemoryIndexMetadataManager>,
-    index_data_manager: Arc<InMemoryIndexDataManager>,
+    index_data_manager: Arc<RwLock<InMemoryIndexDataManager>>,
     version_manager: Arc<VersionManager>,
     user_storage: Arc<UserStorage>,
     current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
@@ -42,6 +48,7 @@ impl std::fmt::Debug for GraphStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GraphStorage")
             .field("work_dir", &self.work_dir)
+            .field("db_path", &self.db_path)
             .finish()
     }
 }
@@ -51,7 +58,7 @@ impl GraphStorage {
         let graph = Arc::new(RwLock::new(PropertyGraph::new()));
         let schema_manager = Arc::new(InMemorySchemaManager::new());
         let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
-        let index_data_manager = Arc::new(InMemoryIndexDataManager::new());
+        let index_data_manager = Arc::new(RwLock::new(InMemoryIndexDataManager::new()));
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
 
@@ -72,7 +79,7 @@ impl GraphStorage {
         let graph = Arc::new(RwLock::new(PropertyGraph::new()));
         let schema_manager = Arc::new(InMemorySchemaManager::new());
         let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
-        let index_data_manager = Arc::new(InMemoryIndexDataManager::new());
+        let index_data_manager = Arc::new(RwLock::new(InMemoryIndexDataManager::new()));
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
 
@@ -104,6 +111,57 @@ impl GraphStorage {
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
         *self.current_txn_context.lock() = context;
     }
+
+    fn get_read_timestamp(&self) -> u32 {
+        if let Some(txn_ctx) = self.get_transaction_context() {
+            txn_ctx.timestamp()
+        } else {
+            self.version_manager.read_timestamp()
+        }
+    }
+
+    fn get_write_timestamp(&self) -> u32 {
+        if let Some(txn_ctx) = self.get_transaction_context() {
+            txn_ctx.timestamp()
+        } else {
+            self.version_manager.write_timestamp()
+        }
+    }
+
+    fn value_to_string(id: &Value) -> String {
+        match id {
+            Value::String(s) => s.clone(),
+            _ => id.to_string().unwrap_or_default(),
+        }
+    }
+
+    fn vertex_record_to_vertex(record: &VertexRecord, tag_name: &str) -> Vertex {
+        let vid_value = Value::String(record.vid.to_string());
+        let properties: HashMap<String, Value> = record.properties.iter().cloned().collect();
+        
+        Vertex {
+            vid: Box::new(vid_value),
+            id: record.internal_id as i64,
+            tags: vec![Tag {
+                name: tag_name.to_string(),
+                properties: properties.clone(),
+            }],
+            properties,
+        }
+    }
+
+    fn edge_record_to_edge(record: &EdgeRecord, edge_type: &str, src_id: &str, dst_id: &str) -> Edge {
+        let props: HashMap<String, Value> = record.properties.iter().cloned().collect();
+        
+        Edge {
+            src: Box::new(Value::String(src_id.to_string())),
+            dst: Box::new(Value::String(dst_id.to_string())),
+            edge_type: edge_type.to_string(),
+            ranking: 0,
+            id: record.edge_id as i64,
+            props,
+        }
+    }
 }
 
 impl Default for GraphStorage {
@@ -126,23 +184,14 @@ impl StorageClient for GraphStorage {
             return Ok(None);
         }
 
-        let ts = self.version_manager.read_timestamp();
+        let ts = self.get_read_timestamp();
         let graph = self.graph.read();
+        let id_str = Self::value_to_string(id);
 
         for tag in &tags {
             if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
-                let id_str = match id {
-                    Value::String(s) => s.clone(),
-                    _ => id.to_string().unwrap_or_else(|e| format!("{:?}", e)),
-                };
-                
-                if let Some(_record) = graph.get_vertex(label_id, &id_str, ts) {
-                    let vertex = Vertex {
-                        vid: Box::new(id.clone()),
-                        id: 0,
-                        tags: Vec::new(),
-                        properties: std::collections::HashMap::new(),
-                    };
+                if let Some(record) = graph.get_vertex(label_id, &id_str, ts) {
+                    let vertex = Self::vertex_record_to_vertex(&record, &tag.tag_name);
                     return Ok(Some(vertex));
                 }
             }
@@ -153,7 +202,7 @@ impl StorageClient for GraphStorage {
 
     fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
         let tags = self.list_tags(space)?;
-        let ts = self.version_manager.read_timestamp();
+        let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let mut vertices = Vec::new();
 
@@ -161,13 +210,7 @@ impl StorageClient for GraphStorage {
             if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
                 if let Some(iterator) = graph.scan_vertices(label_id, ts) {
                     for record in iterator {
-                        let vid_value = Value::String(record.vid.to_string());
-                        let vertex = Vertex {
-                            vid: Box::new(vid_value),
-                            id: 0,
-                            tags: Vec::new(),
-                            properties: std::collections::HashMap::new(),
-                        };
+                        let vertex = Self::vertex_record_to_vertex(&record, &tag.tag_name);
                         vertices.push(vertex);
                     }
                 }
@@ -178,20 +221,14 @@ impl StorageClient for GraphStorage {
     }
 
     fn scan_vertices_by_tag(&self, _space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
-        let ts = self.version_manager.read_timestamp();
+        let ts = self.get_read_timestamp();
         let graph = self.graph.read();
         let mut vertices = Vec::new();
 
         if let Some(label_id) = graph.get_vertex_label_id(tag) {
             if let Some(iterator) = graph.scan_vertices(label_id, ts) {
                 for record in iterator {
-                    let vid_value = Value::String(record.vid.to_string());
-                    let vertex = Vertex {
-                        vid: Box::new(vid_value),
-                        id: 0,
-                        tags: Vec::new(),
-                        properties: std::collections::HashMap::new(),
-                    };
+                    let vertex = Self::vertex_record_to_vertex(&record, tag);
                     vertices.push(vertex);
                 }
             }
@@ -207,97 +244,418 @@ impl StorageClient for GraphStorage {
         prop: &str,
         value: &Value,
     ) -> Result<Vec<Vertex>, StorageError> {
-        let vertices = self.scan_vertices_by_tag(space, tag)?;
-        let filtered = vertices.into_iter()
-            .filter(|v| {
-                v.properties.get(prop) == Some(value) ||
-                v.tags.iter().any(|t| t.properties.get(prop) == Some(value))
-            })
-            .collect();
-        Ok(filtered)
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let mut vertices = Vec::new();
+
+        if let Some(label_id) = graph.get_vertex_label_id(tag) {
+            if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+                for record in iterator {
+                    if record.properties.iter().any(|(k, v)| k == prop && v == value) {
+                        let vertex = Self::vertex_record_to_vertex(&record, tag);
+                        vertices.push(vertex);
+                    }
+                }
+            }
+        }
+
+        Ok(vertices)
     }
 
     fn get_edge(
         &self,
-        _space: &str,
-        _src: &Value,
-        _dst: &Value,
-        _edge_type: &str,
+        space: &str,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
         _rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        
+        let src_str = Self::value_to_string(src);
+        let dst_str = Self::value_to_string(dst);
+
+        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
+            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
+                if *label_id == edge_label_id {
+                    if let Some(record) = graph.get_edge(
+                        edge_label_id,
+                        *src_label_id,
+                        &src_str,
+                        *dst_label_id,
+                        &dst_str,
+                        ts,
+                    ) {
+                        let edge = Self::edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
+                        return Ok(Some(edge));
+                    }
+                }
+            }
+        }
+
         Ok(None)
     }
 
     fn get_node_edges(
         &self,
-        _space: &str,
-        _node_id: &Value,
-        _direction: EdgeDirection,
+        space: &str,
+        node_id: &Value,
+        direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
-        Ok(Vec::new())
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let node_str = Self::value_to_string(node_id);
+        let mut edges = Vec::new();
+
+        for ((src_label_id, dst_label_id, edge_label_id), table) in graph.edge_tables() {
+            let edge_type_name = table.label_name().to_string();
+            
+            match direction {
+                EdgeDirection::Out => {
+                    if let Some(out_edges) = graph.out_edges(
+                        *edge_label_id,
+                        *src_label_id,
+                        *dst_label_id,
+                        &node_str,
+                        ts,
+                    ) {
+                        for record in out_edges {
+                            let edge = Self::edge_record_to_edge(
+                                &record,
+                                &edge_type_name,
+                                &node_str,
+                                &format!("{}", record.dst_vid),
+                            );
+                            edges.push(edge);
+                        }
+                    }
+                }
+                EdgeDirection::In => {
+                    if let Some(in_edges) = graph.in_edges(
+                        *edge_label_id,
+                        *src_label_id,
+                        *dst_label_id,
+                        &node_str,
+                        ts,
+                    ) {
+                        for record in in_edges {
+                            let edge = Self::edge_record_to_edge(
+                                &record,
+                                &edge_type_name,
+                                &format!("{}", record.src_vid),
+                                &node_str,
+                            );
+                            edges.push(edge);
+                        }
+                    }
+                }
+                EdgeDirection::Both => {
+                    if let Some(out_edges) = graph.out_edges(
+                        *edge_label_id,
+                        *src_label_id,
+                        *dst_label_id,
+                        &node_str,
+                        ts,
+                    ) {
+                        for record in out_edges {
+                            let edge = Self::edge_record_to_edge(
+                                &record,
+                                &edge_type_name,
+                                &node_str,
+                                &format!("{}", record.dst_vid),
+                            );
+                            edges.push(edge);
+                        }
+                    }
+                    if let Some(in_edges) = graph.in_edges(
+                        *edge_label_id,
+                        *src_label_id,
+                        *dst_label_id,
+                        &node_str,
+                        ts,
+                    ) {
+                        for record in in_edges {
+                            let edge = Self::edge_record_to_edge(
+                                &record,
+                                &edge_type_name,
+                                &format!("{}", record.src_vid),
+                                &node_str,
+                            );
+                            edges.push(edge);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(edges)
     }
 
     fn get_node_edges_filtered<F>(
         &self,
-        _space: &str,
-        _node_id: &Value,
-        _direction: EdgeDirection,
-        _filter: Option<F>,
+        space: &str,
+        node_id: &Value,
+        direction: EdgeDirection,
+        filter: Option<F>,
     ) -> Result<Vec<Edge>, StorageError>
     where
         F: Fn(&Edge) -> bool,
     {
-        Ok(Vec::new())
+        let edges = self.get_node_edges(space, node_id, direction)?;
+        match filter {
+            Some(f) => Ok(edges.into_iter().filter(f).collect()),
+            None => Ok(edges),
+        }
     }
 
     fn scan_edges_by_type(
         &self,
-        _space: &str,
-        _edge_type: &str,
+        space: &str,
+        edge_type: &str,
     ) -> Result<Vec<Edge>, StorageError> {
-        Ok(Vec::new())
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let mut edges = Vec::new();
+
+        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
+            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
+                if *label_id == edge_label_id {
+                    for src_vid in 0..table.vertex_capacity() {
+                        if let Some(out_edges) = graph.out_edges(
+                            edge_label_id,
+                            *src_label_id,
+                            *dst_label_id,
+                            &format!("{}", src_vid),
+                            ts,
+                        ) {
+                            for record in out_edges {
+                                let edge = Self::edge_record_to_edge(
+                                    &record,
+                                    edge_type,
+                                    &format!("{}", record.src_vid),
+                                    &format!("{}", record.dst_vid),
+                                );
+                                edges.push(edge);
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        Ok(edges)
     }
 
-    fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
-        Ok(Vec::new())
+    fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let mut edges = Vec::new();
+        let edge_types = self.list_edge_types(space)?;
+        
+        for et in edge_types {
+            let type_edges = self.scan_edges_by_type(space, &et.edge_type_name)?;
+            edges.extend(type_edges);
+        }
+
+        Ok(edges)
     }
 
-    fn insert_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<Value, StorageError> {
-        Ok(Value::Null(NullType::NaN))
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+
+        for tag in &vertex.tags {
+            if let Some(label_id) = graph.get_vertex_label_id(&tag.name) {
+                let id_str = Self::value_to_string(&vertex.vid);
+                let props: Vec<(String, Value)> = tag.properties.iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                
+                graph.insert_vertex(label_id, &id_str, &props, ts)?;
+
+                self.update_vertex_indexes(space_info.space_id, &vertex.vid, &tag.name, &props, ts)?;
+            }
+        }
+
+        Ok(*vertex.vid.clone())
     }
 
-    fn update_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<(), StorageError> {
+    fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+        let id_str = Self::value_to_string(&vertex.vid);
+
+        for tag in &vertex.tags {
+            if let Some(label_id) = graph.get_vertex_label_id(&tag.name) {
+                for (prop_name, value) in &tag.properties {
+                    graph.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
+                }
+
+                let props: Vec<(String, Value)> = tag.properties.iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                self.update_vertex_indexes(space_info.space_id, &vertex.vid, &tag.name, &props, ts)?;
+            }
+        }
+
         Ok(())
     }
 
-    fn delete_vertex(&mut self, _space: &str, _id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let tags = self.list_tags(space)?;
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+        let id_str = Self::value_to_string(id);
+
+        for tag in &tags {
+            if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
+                let _ = graph.delete_vertex(label_id, &id_str, ts);
+                
+                self.delete_vertex_indexes(space_info.space_id, id, &tag.tag_name)?;
+            }
+        }
+
         Ok(())
+    }
+
+    fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+        let edges = self.get_node_edges(space, id, EdgeDirection::Both)?;
+        
+        for edge in edges {
+            let _ = self.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking);
+        }
+
+        self.delete_vertex(space, id)
     }
 
     fn batch_insert_vertices(
         &mut self,
-        _space: &str,
-        _vertices: Vec<Vertex>,
+        space: &str,
+        vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
-        Ok(Vec::new())
+        let mut ids = Vec::with_capacity(vertices.len());
+        for vertex in vertices {
+            let id = self.insert_vertex(space, vertex)?;
+            ids.push(id);
+        }
+        Ok(ids)
     }
 
-    fn insert_edge(&mut self, _space: &str, _edge: Edge) -> Result<(), StorageError> {
+    fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+
+        if let Some(edge_label_id) = graph.get_edge_label_id(&edge.edge_type) {
+            let edge_types = self.list_edge_types(space)?;
+            for et in edge_types {
+                if et.edge_type_name == edge.edge_type {
+                    if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
+                        if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
+                            let src_str = Self::value_to_string(&edge.src);
+                            let dst_str = Self::value_to_string(&edge.dst);
+                            let props: Vec<(String, Value)> = edge.props.iter()
+                                .map(|(k, v)| (k.clone(), v.clone()))
+                                .collect();
+
+                            graph.insert_edge(
+                                edge_label_id,
+                                src_label_id,
+                                &src_str,
+                                dst_label_id,
+                                &dst_str,
+                                &props,
+                                ts,
+                            )?;
+
+                            self.update_edge_indexes(
+                                space_info.space_id,
+                                &edge.src,
+                                &edge.dst,
+                                &edge.edge_type,
+                                &props,
+                                ts,
+                            )?;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
         Ok(())
     }
 
     fn delete_edge(
         &mut self,
-        _space: &str,
-        _src: &Value,
-        _dst: &Value,
-        _edge_type: &str,
+        space: &str,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
         _rank: i64,
     ) -> Result<(), StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+
+        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
+            let edge_types = self.list_edge_types(space)?;
+            for et in edge_types {
+                if et.edge_type_name == edge_type {
+                    if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
+                        if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
+                            let src_str = Self::value_to_string(src);
+                            let dst_str = Self::value_to_string(dst);
+
+                            graph.delete_edge(
+                                edge_label_id,
+                                src_label_id,
+                                &src_str,
+                                dst_label_id,
+                                &dst_str,
+                                ts,
+                            )?;
+
+                            self.delete_edge_indexes(space_info.space_id, src, dst, edge_type)?;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
         Ok(())
     }
 
-    fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
+    fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
+        for edge in edges {
+            self.insert_edge(space, edge)?;
+        }
         Ok(())
     }
 
@@ -306,6 +664,17 @@ impl StorageClient for GraphStorage {
     }
 
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError> {
+        let tags = self.list_tags(space)?;
+        let edge_types = self.list_edge_types(space)?;
+        
+        let mut graph = self.graph.write();
+        for tag in tags {
+            let _ = graph.drop_vertex_type(&tag.tag_name);
+        }
+        for et in edge_types {
+            let _ = graph.drop_edge_type(&et.edge_type_name);
+        }
+
         self.schema_manager.drop_space(space)
     }
 
@@ -333,23 +702,62 @@ impl StorageClient for GraphStorage {
             .is_some()
     }
 
-    fn clear_space(&mut self, _space: &str) -> Result<bool, StorageError> {
-        Ok(true)
+    fn clear_space(&mut self, space: &str) -> Result<bool, StorageError> {
+        let tags = self.list_tags(space)?;
+        let edge_types = self.list_edge_types(space)?;
+        
+        {
+            let mut graph = self.graph.write();
+            for tag in tags {
+                if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
+                    let _ = graph.drop_vertex_type(&tag.tag_name);
+                }
+            }
+            for et in edge_types {
+                let _ = graph.drop_edge_type(&et.edge_type_name);
+            }
+        }
+
+        self.schema_manager.clear_space(space)
     }
 
     fn alter_space_comment(
         &mut self,
-        _space_id: u64,
-        _comment: String,
+        space_id: u64,
+        comment: String,
     ) -> Result<bool, StorageError> {
-        Ok(true)
+        self.schema_manager.alter_space_comment(space_id, comment)
     }
 
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let mut graph = self.graph.write();
+        let properties: Vec<crate::storage::vertex::PropertyDef> = tag.properties.iter()
+            .map(|p| crate::storage::vertex::PropertyDef {
+                name: p.name.clone(),
+                data_type: p.data_type.clone(),
+                nullable: p.nullable,
+                default_value: p.default.clone(),
+            })
+            .collect();
+
+        let primary_key = tag.properties.first()
+            .map(|p| p.name.as_str())
+            .unwrap_or("id");
+
+        graph.create_vertex_type(&tag.tag_name, properties, primary_key)?;
+
         self.schema_manager.create_tag(space, tag)
     }
 
     fn drop_tag(&mut self, space: &str, tag_name: &str) -> Result<bool, StorageError> {
+        {
+            let mut graph = self.graph.write();
+            let _ = graph.drop_vertex_type(tag_name);
+        }
+
         self.schema_manager.drop_tag(space, tag_name)
     }
 
@@ -377,10 +785,44 @@ impl StorageClient for GraphStorage {
         space: &str,
         edge_type: &EdgeTypeInfo,
     ) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let mut graph = self.graph.write();
+
+        let src_label_id = graph.get_vertex_label_id(&edge_type.src_tag_name)
+            .ok_or_else(|| StorageError::NotFound(format!("Source tag {} not found", edge_type.src_tag_name)))?;
+        let dst_label_id = graph.get_vertex_label_id(&edge_type.dst_tag_name)
+            .ok_or_else(|| StorageError::NotFound(format!("Destination tag {} not found", edge_type.dst_tag_name)))?;
+
+        let properties: Vec<crate::storage::edge::PropertyDef> = edge_type.properties.iter()
+            .map(|p| crate::storage::edge::PropertyDef {
+                name: p.name.clone(),
+                data_type: p.data_type.clone(),
+                nullable: p.nullable,
+                default_value: p.default.clone(),
+            })
+            .collect();
+
+        use crate::storage::edge::EdgeStrategy;
+        graph.create_edge_type(
+            &edge_type.edge_type_name,
+            src_label_id,
+            dst_label_id,
+            properties,
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
+        )?;
+
         self.schema_manager.create_edge_type(space, edge_type)
     }
 
     fn drop_edge_type(&mut self, space: &str, edge_type_name: &str) -> Result<bool, StorageError> {
+        {
+            let mut graph = self.graph.write();
+            let _ = graph.drop_edge_type(edge_type_name);
+        }
+
         self.schema_manager.drop_edge_type(space, edge_type_name)
     }
 
@@ -494,43 +936,25 @@ impl StorageClient for GraphStorage {
         self.user_storage.revoke_role(username, space_id)
     }
 
-    fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
-        let tags = self.list_tags(space)?;
-        let ts = self.version_manager.read_timestamp();
-        let mut graph = self.graph.write();
-
-        let id_str = match id {
-            Value::String(s) => s.clone(),
-            _ => id.to_string().unwrap_or_default(),
-        };
-
-        for tag in &tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
-                let _ = graph.delete_vertex(label_id, &id_str, ts);
-            }
-        }
-
-        Ok(())
-    }
-
     fn delete_tags(
         &mut self,
-        _space: &str,
+        space: &str,
         vertex_id: &Value,
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
-        let ts = self.version_manager.read_timestamp();
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
         let mut deleted_count = 0;
 
-        let id_str = match vertex_id {
-            Value::String(s) => s.clone(),
-            _ => vertex_id.to_string().unwrap_or_default(),
-        };
+        let id_str = Self::value_to_string(vertex_id);
 
         for tag_name in tag_names {
             if let Some(label_id) = graph.get_vertex_label_id(tag_name) {
                 if graph.delete_vertex(label_id, &id_str, ts).is_ok() {
+                    self.delete_vertex_indexes(space_info.space_id, vertex_id, tag_name)?;
                     deleted_count += 1;
                 }
             }
@@ -539,11 +963,54 @@ impl StorageClient for GraphStorage {
         Ok(deleted_count)
     }
 
-    fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+    fn rebuild_tag_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
+        let space_id = self.schema_manager.get_space_id(space)?;
+        let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
+            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+
+        let vertices = self.scan_vertices_by_tag(space, &index.schema_name)?;
+        
+        let ts = self.get_write_timestamp();
+        let index_data_manager = self.index_data_manager.read();
+        for vertex in vertices {
+            let props: Vec<(String, Value)> = vertex.properties.iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            index_data_manager.update_vertex_indexes_mvcc(
+                space_id,
+                &vertex.vid,
+                &index.name,
+                &props,
+                ts,
+            )?;
+        }
+
         Ok(true)
     }
 
-    fn rebuild_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+    fn rebuild_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
+        let space_id = self.schema_manager.get_space_id(space)?;
+        let index = self.index_metadata_manager.get_edge_index(space_id, index_name)?
+            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+
+        let edges = self.scan_edges_by_type(space, &index.schema_name)?;
+        
+        let ts = self.get_write_timestamp();
+        let index_data_manager = self.index_data_manager.read();
+        for edge in edges {
+            let props: Vec<(String, Value)> = edge.props.iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            index_data_manager.update_edge_indexes_mvcc(
+                space_id,
+                &edge.src,
+                &edge.dst,
+                &index.name,
+                &props,
+                ts,
+            )?;
+        }
+
         Ok(true)
     }
 
@@ -552,35 +1019,33 @@ impl StorageClient for GraphStorage {
         space: &str,
         info: &InsertVertexInfo,
     ) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
         let _tag = self.get_tag(space, &info.tag_name)?
             .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found", info.tag_name)))?;
 
-        let space_id = self
-            .schema_manager
-            .get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?
-            .space_id;
-        if info.space_id != space_id {
+        if info.space_id != space_info.space_id {
             return Err(StorageError::DbError("Space ID mismatch".to_string()));
         }
 
-        let ts = self.version_manager.read_timestamp();
+        let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
 
         if let Some(label_id) = graph.get_vertex_label_id(&info.tag_name) {
-            let id_str = match &info.vertex_id {
-                Value::String(s) => s.clone(),
-                _ => info.vertex_id.to_string().unwrap_or_default(),
-            };
+            let id_str = Self::value_to_string(&info.vertex_id);
 
             let result = graph.insert_vertex(label_id, &id_str, &info.props, ts);
             match result {
-                Ok(_) => Ok(true),
+                Ok(_) => {
+                    self.update_vertex_indexes(space_info.space_id, &info.vertex_id, &info.tag_name, &info.props, ts)?;
+                    Ok(true)
+                }
                 Err(StorageError::VertexAlreadyExists(_)) => Ok(false),
                 Err(e) => Err(e),
             }
         } else {
-            Err(StorageError::NotFound(format!("Tag {} not found", info.tag_name)))
+            Err(StorageError::NotFound(format!("Tag {} not found in graph", info.tag_name)))
         }
     }
 
@@ -589,127 +1054,339 @@ impl StorageClient for GraphStorage {
         space: &str,
         info: &InsertEdgeInfo,
     ) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
         let _edge_type = self.get_edge_type(space, &info.edge_name)?
             .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found", info.edge_name)))?;
 
-        let space_id = self
-            .schema_manager
-            .get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?
-            .space_id;
-        if info.space_id != space_id {
+        if info.space_id != space_info.space_id {
             return Err(StorageError::DbError("Space ID mismatch".to_string()));
         }
 
-        let ts = self.version_manager.read_timestamp();
+        let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
 
         if let Some(edge_label_id) = graph.get_edge_label_id(&info.edge_name) {
-            let src_id = match &info.src_vertex_id {
-                Value::String(s) => s.clone(),
-                _ => info.src_vertex_id.to_string().unwrap_or_default(),
-            };
-            let dst_id = match &info.dst_vertex_id {
-                Value::String(s) => s.clone(),
-                _ => info.dst_vertex_id.to_string().unwrap_or_default(),
-            };
+            let src_id = Self::value_to_string(&info.src_vertex_id);
+            let dst_id = Self::value_to_string(&info.dst_vertex_id);
 
-            let src_label_id = graph.get_vertex_label_id("vertex")
-                .ok_or_else(|| StorageError::NotFound("Default vertex label not found".to_string()))?;
-            let dst_label_id = src_label_id;
-
-            let result = graph.insert_edge(
-                edge_label_id,
-                src_label_id,
-                &src_id,
-                dst_label_id,
-                &dst_id,
-                &info.props,
-                ts,
-            );
-            match result {
-                Ok(_) => Ok(true),
-                Err(StorageError::EdgeAlreadyExists(_)) => Ok(false),
-                Err(e) => Err(e),
+            let edge_types = self.list_edge_types(space)?;
+            for et in edge_types {
+                if et.edge_type_name == info.edge_name {
+                    if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
+                        if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
+                            let result = graph.insert_edge(
+                                edge_label_id,
+                                src_label_id,
+                                &src_id,
+                                dst_label_id,
+                                &dst_id,
+                                &info.props,
+                                ts,
+                            );
+                            match result {
+                                Ok(_) => {
+                                    self.update_edge_indexes(
+                                        space_info.space_id,
+                                        &info.src_vertex_id,
+                                        &info.dst_vertex_id,
+                                        &info.edge_name,
+                                        &info.props,
+                                        ts,
+                                    )?;
+                                    return Ok(true);
+                                }
+                                Err(StorageError::EdgeAlreadyExists(_)) => return Ok(false),
+                                Err(e) => return Err(e),
+                            }
+                        }
+                    }
+                }
             }
-        } else {
-            Err(StorageError::NotFound(format!("Edge type {} not found", info.edge_name)))
         }
+
+        Err(StorageError::NotFound(format!("Edge type {} not found in graph", info.edge_name)))
     }
 
-    fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, StorageError> {
-        Ok(true)
+    fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let tags = self.list_tags(space)?;
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+        let mut deleted = false;
+
+        for tag in tags {
+            if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
+                if graph.delete_vertex(label_id, vertex_id, ts).is_ok() {
+                    self.delete_vertex_indexes(space_info.space_id, &Value::String(vertex_id.to_string()), &tag.tag_name)?;
+                    deleted = true;
+                }
+            }
+        }
+
+        Ok(deleted)
     }
 
     fn delete_edge_data(
         &mut self,
-        _space: &str,
-        _src: &str,
-        _dst: &str,
+        space: &str,
+        src: &str,
+        dst: &str,
         _rank: i64,
     ) -> Result<bool, StorageError> {
-        Ok(true)
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let edge_types = self.list_edge_types(space)?;
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+        let mut deleted = false;
+
+        for et in edge_types {
+            if let Some(edge_label_id) = graph.get_edge_label_id(&et.edge_type_name) {
+                if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
+                    if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
+                        if graph.delete_edge(edge_label_id, src_label_id, src, dst_label_id, dst, ts).is_ok() {
+                            self.delete_edge_indexes(
+                                space_info.space_id,
+                                &Value::String(src.to_string()),
+                                &Value::String(dst.to_string()),
+                                &et.edge_type_name,
+                            )?;
+                            deleted = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(deleted)
     }
 
-    fn update_data(&mut self, _space: &str, _space_id: u64, _info: &UpdateInfo) -> Result<bool, StorageError> {
-        Ok(true)
+    fn update_data(&mut self, space: &str, _space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_write_timestamp();
+        let mut graph = self.graph.write();
+
+        let UpdateTarget { space_name, label, id, prop } = &info.update_target;
+        
+        if let Some(label_id) = graph.get_vertex_label_id(label) {
+            let id_str = Self::value_to_string(id);
+            let value = match &info.update_op {
+                UpdateOp::Set => info.value.clone(),
+                UpdateOp::Add => {
+                    if let Some(current) = graph.get_vertex(label_id, &id_str, ts) {
+                        let current_val = current.properties.iter()
+                            .find(|(k, _)| k == prop)
+                            .map(|(_, v)| v);
+                        if let (Some(crate::core::Value::Int(cv)), crate::core::Value::Int(add_val)) = 
+                            (current_val, &info.value) {
+                            crate::core::Value::Int(cv + add_val)
+                        } else {
+                            info.value.clone()
+                        }
+                    } else {
+                        info.value.clone()
+                    }
+                }
+                UpdateOp::Subtract => {
+                    if let Some(current) = graph.get_vertex(label_id, &id_str, ts) {
+                        let current_val = current.properties.iter()
+                            .find(|(k, _)| k == prop)
+                            .map(|(_, v)| v);
+                        if let (Some(crate::core::Value::Int(cv)), crate::core::Value::Int(sub_val)) = 
+                            (current_val, &info.value) {
+                            crate::core::Value::Int(cv - sub_val)
+                        } else {
+                            info.value.clone()
+                        }
+                    } else {
+                        info.value.clone()
+                    }
+                }
+                _ => info.value.clone(),
+            };
+
+            graph.update_vertex_property(label_id, &id_str, prop, &value, ts)?;
+            
+            let props = vec![(prop.clone(), value)];
+            self.update_vertex_indexes(space_info.space_id, id, label, &props, ts)?;
+            Ok(true)
+        } else {
+            Err(StorageError::NotFound(format!("Label {} not found", label)))
+        }
     }
 
-    fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
-        self.user_storage.change_password(_info)
+    fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
+        self.user_storage.change_password(info)
     }
 
     fn lookup_index(
         &self,
-        _space: &str,
-        _index: &str,
-        _value: &Value,
+        space: &str,
+        index_name: &str,
+        value: &Value,
     ) -> Result<Vec<Value>, StorageError> {
-        Ok(Vec::new())
+        let space_id = self.schema_manager.get_space_id(space)?;
+        
+        let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
+            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+        
+        let index_data_manager = self.index_data_manager.read();
+        let results = index_data_manager.lookup_tag_index(space_id, &index, value)?;
+        Ok(results)
     }
 
     fn lookup_index_with_score(
         &self,
-        _space: &str,
-        _index: &str,
-        _value: &Value,
+        space: &str,
+        index_name: &str,
+        value: &Value,
     ) -> Result<Vec<(Value, f32)>, StorageError> {
-        Ok(Vec::new())
+        let space_id = self.schema_manager.get_space_id(space)?;
+        
+        let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
+            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+        
+        let index_data_manager = self.index_data_manager.read();
+        let results = index_data_manager.lookup_tag_index(space_id, &index, value)?;
+        Ok(results.into_iter().map(|v| (v, 1.0)).collect())
     }
 
     fn get_vertex_with_schema(
         &self,
-        _space: &str,
-        _tag: &str,
-        _id: &Value,
+        space: &str,
+        tag: &str,
+        id: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let tag_info = self.get_tag(space, tag)?
+            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found", tag)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let id_str = Self::value_to_string(id);
+
+        if let Some(label_id) = graph.get_vertex_label_id(tag) {
+            if let Some(record) = graph.get_vertex(label_id, &id_str, ts) {
+                let schema = self.schema_manager.get_tag_schema(space, tag)?;
+                let data = Self::serialize_properties(&record.properties);
+                return Ok(Some((schema, data)));
+            }
+        }
+
         Ok(None)
     }
 
     fn get_edge_with_schema(
         &self,
-        _space: &str,
-        _edge_type: &str,
-        _src: &Value,
-        _dst: &Value,
+        space: &str,
+        edge_type: &str,
+        src: &Value,
+        dst: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let edge_info = self.get_edge_type(space, edge_type)?
+            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found", edge_type)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let src_str = Self::value_to_string(src);
+        let dst_str = Self::value_to_string(dst);
+
+        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
+            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
+                if *label_id == edge_label_id {
+                    if let Some(record) = graph.get_edge(
+                        edge_label_id,
+                        *src_label_id,
+                        &src_str,
+                        *dst_label_id,
+                        &dst_str,
+                        ts,
+                    ) {
+                        let schema = self.schema_manager.get_edge_type_schema(space, edge_type)?;
+                        let data = Self::serialize_properties(&record.properties);
+                        return Ok(Some((schema, data)));
+                    }
+                }
+            }
+        }
+
         Ok(None)
     }
 
     fn scan_vertices_with_schema(
         &self,
-        _space: &str,
-        _tag: &str,
+        space: &str,
+        tag: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        Ok(Vec::new())
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let mut results = Vec::new();
+
+        if let Some(label_id) = graph.get_vertex_label_id(tag) {
+            if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+                let schema = self.schema_manager.get_tag_schema(space, tag)?;
+                for record in iterator {
+                    let data = Self::serialize_properties(&record.properties);
+                    results.push((schema.clone(), data));
+                }
+            }
+        }
+
+        Ok(results)
     }
 
     fn scan_edges_with_schema(
         &self,
-        _space: &str,
-        _edge_type: &str,
+        space: &str,
+        edge_type: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        Ok(Vec::new())
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let mut results = Vec::new();
+
+        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
+            let schema = self.schema_manager.get_edge_type_schema(space, edge_type)?;
+            
+            for ((src_label_id, dst_label_id, label_id), table) in graph.edge_tables() {
+                if *label_id == edge_label_id {
+                    for src_vid in 0..table.vertex_capacity() {
+                        if let Some(out_edges) = graph.out_edges(
+                            edge_label_id,
+                            *src_label_id,
+                            *dst_label_id,
+                            &format!("{}", src_vid),
+                            ts,
+                        ) {
+                            for record in out_edges {
+                                let data = Self::serialize_properties(&record.properties);
+                                results.push((schema.clone(), data));
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        Ok(results)
     }
 
     fn load_from_disk(&mut self) -> Result<(), StorageError> {
@@ -717,42 +1394,267 @@ impl StorageClient for GraphStorage {
             let schema_path = path.join("schema");
             self.schema_manager.load_schema(&schema_path)?;
             
-            let graph = self.graph.read();
-            graph.flush()?;
+            {
+                let mut graph = self.graph.write();
+                graph.load()?;
+            }
+            
+            let index_path = path.join("indexes");
+            let mut index_data_manager = self.index_data_manager.write();
+            index_data_manager.load(&index_path)?;
         }
         Ok(())
     }
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
         if let Some(ref path) = self.work_dir {
+            std::fs::create_dir_all(path)
+                .map_err(|e| StorageError::IOError(e.to_string()))?;
+            
             let schema_path = path.join("schema");
+            std::fs::create_dir_all(&schema_path)
+                .map_err(|e| StorageError::IOError(e.to_string()))?;
             self.schema_manager.save_schema(&schema_path)?;
             
-            let graph = self.graph.read();
-            graph.flush()?;
+            {
+                let graph = self.graph.read();
+                graph.flush()?;
+            }
+            
+            let index_path = path.join("indexes");
+            std::fs::create_dir_all(&index_path)
+                .map_err(|e| StorageError::IOError(e.to_string()))?;
+            let index_data_manager = self.index_data_manager.read();
+            index_data_manager.flush(&index_path)?;
         }
         Ok(())
     }
 
     fn get_storage_stats(&self) -> StorageStats {
+        let graph = self.graph.read();
+        
+        let total_vertices: usize = graph.vertex_label_names().iter()
+            .filter_map(|name| graph.get_vertex_label_id(name))
+            .map(|label_id| graph.vertex_count(label_id, 0))
+            .sum();
+
+        let total_edges: u64 = graph.edge_label_names().iter()
+            .filter_map(|name| graph.get_edge_label_id(name))
+            .map(|label_id| graph.edge_count(label_id))
+            .sum();
+
+        let spaces = self.schema_manager.list_spaces().unwrap_or_default();
+        let tags = spaces.iter()
+            .filter_map(|s| self.schema_manager.list_tags(&s.space_name).ok())
+            .flatten()
+            .count();
+
+        let edge_types = spaces.iter()
+            .filter_map(|s| self.schema_manager.list_edge_types(&s.space_name).ok())
+            .flatten()
+            .count();
+
         StorageStats {
-            total_vertices: 0,
-            total_edges: 0,
-            total_spaces: 0,
-            total_tags: 0,
-            total_edge_types: 0,
+            total_vertices,
+            total_edges: total_edges as usize,
+            total_spaces: spaces.len(),
+            total_tags: tags,
+            total_edge_types: edge_types,
         }
     }
 
-    fn find_dangling_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
-        Ok(Vec::new())
+    fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
+        let _space_info = self.get_space(space)?
+            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+
+        let ts = self.get_read_timestamp();
+        let graph = self.graph.read();
+        let mut dangling_edges = Vec::new();
+
+        for ((src_label_id, dst_label_id, edge_label_id), table) in graph.edge_tables() {
+            let edge_type_name = table.label_name().to_string();
+            for src_vid in 0..table.vertex_capacity() {
+                if let Some(out_edges) = graph.out_edges(
+                    *edge_label_id,
+                    *src_label_id,
+                    *dst_label_id,
+                    &format!("{}", src_vid),
+                    ts,
+                ) {
+                    for record in out_edges {
+                        let src_exists = graph.get_vertex_by_internal_id(
+                            *src_label_id,
+                            record.src_vid as u32,
+                            ts,
+                        ).is_some();
+                        let dst_exists = graph.get_vertex_by_internal_id(
+                            *dst_label_id,
+                            record.dst_vid as u32,
+                            ts,
+                        ).is_some();
+
+                        if !src_exists || !dst_exists {
+                            let edge = Self::edge_record_to_edge(
+                                &record,
+                                &edge_type_name,
+                                &format!("{}", record.src_vid),
+                                &format!("{}", record.dst_vid),
+                            );
+                            dangling_edges.push(edge);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(dangling_edges)
     }
 
-    fn repair_dangling_edges(&mut self, _space: &str) -> Result<usize, StorageError> {
-        Ok(0)
+    fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError> {
+        let dangling_edges = self.find_dangling_edges(space)?;
+        let mut repaired_count = 0;
+
+        for edge in &dangling_edges {
+            if self.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking).is_ok() {
+                repaired_count += 1;
+            }
+        }
+
+        Ok(repaired_count)
     }
 
-   fn get_db_path(&self) -> &str {
+    fn get_db_path(&self) -> &str {
         &self.db_path
+    }
+}
+
+impl GraphStorage {
+    fn update_vertex_indexes(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        tag_name: &str,
+        props: &[(String, Value)],
+        ts: u32,
+    ) -> Result<(), StorageError> {
+        let indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
+        let index_data_manager = self.index_data_manager.read();
+        for index in indexes {
+            if index.schema_name == tag_name {
+                index_data_manager.update_vertex_indexes_mvcc(
+                    space_id,
+                    vertex_id,
+                    &index.name,
+                    props,
+                    ts,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn update_edge_indexes(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+        props: &[(String, Value)],
+        ts: u32,
+    ) -> Result<(), StorageError> {
+        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        let index_data_manager = self.index_data_manager.read();
+        for index in indexes {
+            if index.schema_name == edge_type {
+                index_data_manager.update_edge_indexes_mvcc(
+                    space_id,
+                    src,
+                    dst,
+                    &index.name,
+                    props,
+                    ts,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn delete_vertex_indexes(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        tag_name: &str,
+    ) -> Result<(), StorageError> {
+        let indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
+        let ts = self.get_write_timestamp();
+        let index_data_manager = self.index_data_manager.read();
+        for index in indexes {
+            if index.schema_name == tag_name {
+                index_data_manager.delete_vertex_indexes_mvcc(
+                    space_id,
+                    vertex_id,
+                    ts,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn delete_edge_indexes(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<(), StorageError> {
+        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        let index_names: Vec<String> = indexes.iter()
+            .filter(|index| index.schema_name == edge_type)
+            .map(|index| index.name.clone())
+            .collect();
+        
+        if !index_names.is_empty() {
+            let ts = self.get_write_timestamp();
+            let index_data_manager = self.index_data_manager.read();
+            index_data_manager.delete_edge_indexes_mvcc(
+                space_id,
+                src,
+                dst,
+                &index_names,
+                ts,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn serialize_properties(props: &[(String, Value)]) -> Vec<u8> {
+        let mut data = Vec::new();
+        for (key, value) in props {
+            data.extend_from_slice(key.as_bytes());
+            data.push(0);
+            match value {
+                Value::String(s) => {
+                    data.push(1);
+                    data.extend_from_slice(s.as_bytes());
+                }
+                Value::Int(i) => {
+                    data.push(2);
+                    data.extend_from_slice(&i.to_le_bytes());
+                }
+                Value::Float(f) => {
+                    data.push(3);
+                    data.extend_from_slice(&f.to_le_bytes());
+                }
+                Value::Bool(b) => {
+                    data.push(4);
+                    data.push(if *b { 1 } else { 0 });
+                }
+                _ => {
+                    data.push(0);
+                }
+            }
+            data.push(0);
+        }
+        data
     }
 }

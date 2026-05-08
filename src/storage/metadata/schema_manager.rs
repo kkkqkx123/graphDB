@@ -9,6 +9,8 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
 
     fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&self, space_name: &str) -> Result<bool, StorageError>;
+    fn clear_space(&self, space_name: &str) -> Result<bool, StorageError>;
+    fn alter_space_comment(&self, space_id: u64, comment: String) -> Result<bool, StorageError>;
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError>;
     fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>;
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;

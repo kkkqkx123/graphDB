@@ -574,9 +574,10 @@ impl SchemaValidator {
         &self,
         space_name: &str,
         edge_type_name: &str,
+        src_tag_name: &str,
+        dst_tag_name: &str,
         properties: &[(String, Value)],
     ) -> Result<EdgeTypeInfo, CoreValidationError> {
-        // Check whether the Edge Type already exists.
         if let Some(existing) = self
             .schema_manager
             .as_ref()
@@ -591,18 +592,18 @@ impl SchemaValidator {
             return Ok(existing);
         }
 
-        // Infer the attribute type based on the attribute value.
         let mut prop_defs = Vec::new();
         for (prop_name, value) in properties {
             let data_type = Self::infer_data_type(value);
-            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true); // The automatically generated attributes can be left empty by default.
+            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true);
             prop_defs.push(prop_def);
         }
 
-        // Create EdgeTypeInfo
         let edge_info = EdgeTypeInfo {
-            edge_type_id: 0, // Allocated by the storage layer
+            edge_type_id: 0,
             edge_type_name: edge_type_name.to_string(),
+            src_tag_name: src_tag_name.to_string(),
+            dst_tag_name: dst_tag_name.to_string(),
             properties: prop_defs,
             comment: Some("Auto-created for Cypher CREATE".to_string()),
             ttl_duration: None,
@@ -667,11 +668,11 @@ impl SchemaValidator {
     pub fn auto_create_missing_edge_types(
         &self,
         space_name: &str,
-        edge_types: &[(String, Vec<(String, Value)>)],
+        edge_types: &[(String, String, String, Vec<(String, Value)>)],
     ) -> Result<Vec<EdgeTypeInfo>, CoreValidationError> {
         let mut created = Vec::new();
-        for (edge_type_name, properties) in edge_types {
-            let edge_info = self.auto_create_edge_type(space_name, edge_type_name, properties)?;
+        for (edge_type_name, src_tag_name, dst_tag_name, properties) in edge_types {
+            let edge_info = self.auto_create_edge_type(space_name, edge_type_name, src_tag_name, dst_tag_name, properties)?;
             created.push(edge_info);
         }
         Ok(created)

@@ -262,9 +262,13 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::edge::create_edge::ExecutorEdgeInfo;
+        let src_tag = node.info().src_tag_name.clone().unwrap_or_default();
+        let dst_tag = node.info().dst_tag_name.clone().unwrap_or_default();
         let edge_info = ExecutorEdgeInfo {
             space_name: node.info().space_name.clone(),
             edge_name: node.info().edge_name.clone(),
+            src_tag_name: src_tag,
+            dst_tag_name: dst_tag,
             properties: node.info().properties.clone(),
             comment: None,
         };

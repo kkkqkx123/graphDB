@@ -329,6 +329,14 @@ mod tests {
             Ok(true)
         }
 
+        fn clear_space(&self, _space_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_space_comment(&self, _space_id: u64, _comment: String) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
         fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
             if space_name == "test_space" {
                 Ok(Some(SpaceInfo {

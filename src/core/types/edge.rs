@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 pub struct EdgeTypeInfo {
     pub edge_type_id: i32,
     pub edge_type_name: String,
+    pub src_tag_name: String,
+    pub dst_tag_name: String,
     pub properties: Vec<PropertyDef>,
     pub comment: Option<String>,
     pub ttl_duration: Option<i64>,
@@ -75,11 +77,23 @@ impl EdgeTypeInfo {
         Self {
             edge_type_id: 0,
             edge_type_name,
+            src_tag_name: String::new(),
+            dst_tag_name: String::new(),
             properties: Vec::new(),
             comment: None,
             ttl_duration: None,
             ttl_col: None,
         }
+    }
+
+    pub fn with_src_tag(mut self, src_tag_name: String) -> Self {
+        self.src_tag_name = src_tag_name;
+        self
+    }
+
+    pub fn with_dst_tag(mut self, dst_tag_name: String) -> Self {
+        self.dst_tag_name = dst_tag_name;
+        self
     }
 
     pub fn with_properties(mut self, properties: Vec<PropertyDef>) -> Self {
