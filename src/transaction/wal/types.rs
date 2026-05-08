@@ -758,6 +758,52 @@ pub struct DeleteEdgeRedo {
     pub edge_label: LabelId,
 }
 
+/// WAL statistics for monitoring and debugging
+#[derive(Debug, Clone, Default)]
+pub struct WalStats {
+    /// Total number of file rotations
+    pub total_rotations: u64,
+    /// Total number of files deleted
+    pub total_files_deleted: u64,
+    /// Total number of files archived
+    pub total_files_archived: u64,
+    /// Last rotation timestamp
+    pub last_rotation_time: Option<u64>,
+    /// Total bytes written
+    pub total_bytes_written: u64,
+    /// Total entries written
+    pub total_entries_written: u64,
+}
+
+impl WalStats {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record_rotation(&mut self) {
+        self.total_rotations += 1;
+        self.last_rotation_time = Some(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or(std::time::Duration::from_secs(0))
+                .as_secs(),
+        );
+    }
+
+    pub fn record_file_deleted(&mut self) {
+        self.total_files_deleted += 1;
+    }
+
+    pub fn record_file_archived(&mut self) {
+        self.total_files_archived += 1;
+    }
+
+    pub fn record_write(&mut self, bytes: u64) {
+        self.total_bytes_written += bytes;
+        self.total_entries_written += 1;
+    }
+}
+
 /// Sync policy for WAL writes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SyncPolicy {
@@ -846,26 +892,39 @@ pub struct WalConfig {
 impl Default for WalConfig {
     fn default() -> Self {
         Self {
-            truncate_size: 4 * 1024 * 1024,  // 4MB
-            max_file_size: 16 * 1024 * 1024, // 16MB
-            max_total_size: 256 * 1024 * 1024, // 256MB
-            ttl_seconds: 0,                     // No expiration
+            // File management - conservative configuration
+            truncate_size: 4 * 1024 * 1024,        // 4MB - gradual allocation
+            max_file_size: 16 * 1024 * 1024,       // 16MB
+            max_total_size: 256 * 1024 * 1024,     // 256MB
+            
+            // Checkpoint - reasonable defaults
+            ttl_seconds: 0,                         // No expiration
             checkpoint_interval: 10000,
             auto_checkpoint: true,
+            
+            // Archive - keep simple
             archive_dir: None,
             archive_mode: ArchiveMode::None,
+            
+            // Sync policy
             sync_policy: SyncPolicy::default(),
+            
+            // Group commit - optimized for balanced performance
             group_commit_enabled: true,
-            group_commit_delay_us: 100,
-            group_commit_batch_size: 1024,
+            group_commit_delay_us: 500,             // 500μs - balanced throughput/latency
+            group_commit_batch_size: 256,           // 256 entries - reduced latency jitter
+            
+            // Recovery and compression
             recovery_mode: WalRecoveryMode::default(),
             compression: WalCompression::default(),
             compression_level: CompressionLevel::default(),
             checksum_enabled: true,
             max_parallel_recovery_threads: 4,
+            
+            // Advanced features - disabled by default
             full_page_writes: false,
             circular_buffer: false,
-            circular_buffer_size: 64 * 1024 * 1024,
+            circular_buffer_size: 16 * 1024 * 1024, // 16MB - reduced memory footprint
         }
     }
 }

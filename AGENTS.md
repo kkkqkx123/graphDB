@@ -1,5 +1,8 @@
 # GraphDB Project Context
 
+**No-backward-compatible**
+At present, the project is in the development stage and there is no need to specifically consider backward compatibility. It is important to maintain a concise architecture as much as possible.
+
 ## Language
 
 Always use English in code, comments, logging, error info or other string literal. Use Chinese in docs (except code block)

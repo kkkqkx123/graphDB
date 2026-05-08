@@ -167,6 +167,10 @@ pub struct LocalWalWriter {
     lsn_since_checkpoint: u64,
     /// Last cleanup time
     last_cleanup_time: Option<Instant>,
+    /// Write count since last cleanup (for cleanup frequency control)
+    writes_since_cleanup: u64,
+    /// WAL statistics
+    stats: super::types::WalStats,
     /// Configuration
     config: WalConfig,
     /// Is open flag
@@ -198,6 +202,8 @@ impl LocalWalWriter {
             file_start_lsn: Lsn::ZERO,
             lsn_since_checkpoint: 0,
             last_cleanup_time: None,
+            writes_since_cleanup: 0,
+            stats: super::types::WalStats::new(),
             config: WalConfig::default(),
             is_open: AtomicBool::new(false),
             file_header: None,
@@ -232,6 +238,8 @@ impl LocalWalWriter {
             file_start_lsn: Lsn::ZERO,
             lsn_since_checkpoint: 0,
             last_cleanup_time: None,
+            writes_since_cleanup: 0,
+            stats: super::types::WalStats::new(),
             config,
             is_open: AtomicBool::new(false),
             file_header: None,
@@ -366,6 +374,9 @@ impl LocalWalWriter {
 
         self.write_file_header()?;
 
+        // Record rotation statistics
+        self.stats.record_rotation();
+
         log::info!(
             "WAL rotated to version {}, file: {:?}, start_lsn={}",
             self.version,
@@ -377,21 +388,25 @@ impl LocalWalWriter {
     }
 
     /// Delete or archive a WAL file based on configuration
-    fn delete_or_archive_file(&self, file: &Path) -> WalResult<()> {
+    fn delete_or_archive_file(&mut self, file: &Path) -> WalResult<()> {
         if let Some(ref archive_dir) = self.config.archive_dir {
             match self.config.archive_mode {
                 ArchiveMode::None => {
                     std::fs::remove_file(file)?;
+                    self.stats.record_file_deleted();
                 }
                 ArchiveMode::Move => {
                     self.archive_wal_file(file, archive_dir)?;
+                    self.stats.record_file_archived();
                 }
                 ArchiveMode::Copy => {
                     self.copy_and_delete(file, archive_dir)?;
+                    self.stats.record_file_archived();
                 }
             }
         } else {
             std::fs::remove_file(file)?;
+            self.stats.record_file_deleted();
         }
         Ok(())
     }
@@ -446,11 +461,17 @@ impl LocalWalWriter {
 
     /// Clean up old WAL files based on size and TTL
     fn cleanup_old_wal_files(&mut self) -> WalResult<usize> {
+        // Frequency control: only cleanup every 100 writes
+        if self.writes_since_cleanup < 100 {
+            return Ok(0);
+        }
+
         let mut deleted_count = 0;
 
         let mut wal_files = self.list_wal_files()?;
 
         if wal_files.is_empty() {
+            self.writes_since_cleanup = 0;
             return Ok(0);
         }
 
@@ -495,6 +516,9 @@ impl LocalWalWriter {
         if deleted_count > 0 {
             log::info!("Cleaned up {} old WAL files", deleted_count);
         }
+
+        // Reset counter after cleanup
+        self.writes_since_cleanup = 0;
 
         Ok(deleted_count)
     }
@@ -883,6 +907,16 @@ impl LocalWalWriter {
 
         self.append_entry(WalOpType::FullPageWrite, timestamp, &payload)
     }
+
+    /// Get WAL statistics
+    pub fn get_stats(&self) -> &super::types::WalStats {
+        &self.stats
+    }
+
+    /// Reset WAL statistics
+    pub fn reset_stats(&mut self) {
+        self.stats = super::types::WalStats::new();
+    }
 }
 
 impl WalWriter for LocalWalWriter {
@@ -986,13 +1020,12 @@ impl WalWriter for LocalWalWriter {
 
         drop(file);
 
-        if self.config.max_total_size > 0 || self.config.ttl_seconds > 0 {
-            static WRITE_COUNTER: AtomicU64 = AtomicU64::new(0);
-            let counter = WRITE_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // Increment writes since cleanup counter
+        self.writes_since_cleanup += 1;
 
-            if counter % 100 == 0 {
-                self.cleanup_old_wal_files()?;
-            }
+        // Trigger cleanup based on frequency control
+        if self.config.max_total_size > 0 || self.config.ttl_seconds > 0 {
+            self.cleanup_old_wal_files()?;
         }
 
         if self.config.auto_checkpoint {
