@@ -6,6 +6,8 @@ pub mod flush;
 pub mod graph_storage;
 pub mod persistence;
 pub mod property_graph;
+#[cfg(test)]
+pub mod property_graph_tests;
 pub mod query;
 pub mod schema;
 pub mod transaction;
