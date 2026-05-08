@@ -99,7 +99,7 @@ impl Varint {
         }
 
         let bits = 64 - value.leading_zeros();
-        ((bits + 6) / 7) as usize
+        bits.div_ceil(7) as usize
     }
 
     pub fn max_encoded_len() -> usize {

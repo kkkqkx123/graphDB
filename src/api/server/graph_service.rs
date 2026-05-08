@@ -336,7 +336,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         // Use core layer QueryApi to execute query
         let query_request = crate::api::core::QueryRequest {
-            space_id: session.space().map(|s| s.id as u64),
+            space_id: session.space().map(|s| s.id),
             space_name: session.space().map(|s| s.name),
             auto_commit: session.is_auto_commit(),
             transaction_id: session.current_transaction(),

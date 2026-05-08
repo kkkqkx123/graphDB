@@ -599,7 +599,7 @@ impl LocalWalWriter {
         payload: &[u8],
         compression: WalCompression,
     ) -> WalResult<bool> {
-        let total_chunks = (payload.len() + WAL_MAX_RECORD_SIZE - 1) / WAL_MAX_RECORD_SIZE;
+        let total_chunks = payload.len().div_ceil(WAL_MAX_RECORD_SIZE);
         let mut offset = 0;
         let mut chunk_index = 0;
         let mut first_lsn = Lsn::ZERO;

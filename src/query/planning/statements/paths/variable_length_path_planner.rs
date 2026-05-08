@@ -105,7 +105,7 @@ impl VariableLengthPathSpec {
     }
 
     pub fn is_zero_inclusive(&self) -> bool {
-        self.range.min.map_or(false, |m| m == 0)
+        self.range.min == Some(0)
     }
 }
 

@@ -12,6 +12,12 @@ pub struct SchemaOps {
     pub vertex_label_counter: LabelId,
 }
 
+impl Default for SchemaOps {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SchemaOps {
     pub fn new() -> Self {
         Self {

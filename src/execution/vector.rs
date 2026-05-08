@@ -223,7 +223,7 @@ impl VectorColumn {
     }
 
     pub fn is_null(&self, idx: usize) -> bool {
-        self.null_mask.get(idx).map_or(true, |b| *b)
+        self.null_mask.get(idx).is_none_or(|b| *b)
     }
 
     pub fn null_count(&self) -> usize {
@@ -247,7 +247,7 @@ impl VectorColumn {
         let values = self.values[start..end].to_vec();
         let mut null_mask = BitVec::new();
         for i in start..end {
-            null_mask.push(self.null_mask.get(i).map_or(true, |b| *b));
+            null_mask.push(self.null_mask.get(i).is_none_or(|b| *b));
         }
 
         Self {

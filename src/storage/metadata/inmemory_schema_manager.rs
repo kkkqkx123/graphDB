@@ -273,13 +273,10 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn update_space(&self, space: &SpaceInfo) -> Result<bool, StorageError> {
         let mut spaces = self.spaces.write();
-        if spaces.contains_key(&space.space_id) {
-            spaces.insert(
-                space.space_id,
-                SpaceData {
+        if let std::collections::hash_map::Entry::Occupied(mut e) = spaces.entry(space.space_id) {
+            e.insert(SpaceData {
                     info: space.clone(),
-                },
-            );
+                });
             Ok(true)
         } else {
             Ok(false)

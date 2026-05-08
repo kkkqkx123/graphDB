@@ -312,7 +312,7 @@ impl MutableCsr {
         let insert_pos = self.adj_offsets[src_idx] + old_capacity;
         self.nbr_list.splice(
             insert_pos..insert_pos,
-            std::iter::repeat(Nbr::new(0, 0, 0, INVALID_TIMESTAMP)).take(additional),
+            std::iter::repeat_n(Nbr::new(0, 0, 0, INVALID_TIMESTAMP), additional),
         );
 
         for i in (src_idx + 1)..self.vertex_capacity {
@@ -337,13 +337,12 @@ impl MutableCsr {
 
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
-            if nbr.edge_id == edge_id && nbr.timestamp != INVALID_TIMESTAMP {
-                if nbr.timestamp <= ts {
+            if nbr.edge_id == edge_id && nbr.timestamp != INVALID_TIMESTAMP
+                && nbr.timestamp <= ts {
                     nbr.timestamp = INVALID_TIMESTAMP;
                     self.edge_count.fetch_sub(1, Ordering::Relaxed);
                     return true;
                 }
-            }
         }
         false
     }
@@ -363,13 +362,12 @@ impl MutableCsr {
 
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
-            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP {
-                if nbr.timestamp <= ts {
+            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP
+                && nbr.timestamp <= ts {
                     nbr.timestamp = INVALID_TIMESTAMP;
                     self.edge_count.fetch_sub(1, Ordering::Relaxed);
                     deleted = true;
                 }
-            }
         }
         deleted
     }

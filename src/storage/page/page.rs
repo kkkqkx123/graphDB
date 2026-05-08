@@ -21,7 +21,7 @@ impl Page {
 
     pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> StorageResult<Self> {
         let header = PageHeader::from_bytes(&bytes)
-            .map_err(|e| crate::core::StorageError::DeserializeError(e))?;
+            .map_err(crate::core::StorageError::DeserializeError)?;
 
         let mut data = [0u8; PAGE_DATA_SIZE];
         data.copy_from_slice(&bytes[PAGE_SIZE - PAGE_DATA_SIZE..]);

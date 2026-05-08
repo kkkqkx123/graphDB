@@ -336,7 +336,7 @@ impl OverflowManager {
         let mut chain_lengths = Vec::new();
         let mut visited = std::collections::HashSet::new();
 
-        for (&page_id, _page) in &self.pages {
+        for &page_id in self.pages.keys() {
             if visited.contains(&page_id) {
                 continue;
             }

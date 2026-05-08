@@ -104,11 +104,11 @@ impl ParallelWalParser {
             .filter_map(|entry| entry.ok())
             .map(|entry| entry.path())
             .filter(|path| {
-                path.extension().map_or(false, |ext| ext == "wal")
+                path.extension().is_some_and(|ext| ext == "wal")
                     || path
                         .file_name()
                         .and_then(|n| n.to_str())
-                        .map_or(false, |n| n.starts_with("thread_") && n.contains("_wal_"))
+                        .is_some_and(|n| n.starts_with("thread_") && n.contains("_wal_"))
             })
             .collect();
 
@@ -133,7 +133,7 @@ impl ParallelWalParser {
                     .map_err(|e| WalError::IoError(format!("Failed to acquire lock: {}", e)))?;
             }
         } else {
-            let chunk_size = (wal_files.len() + self.num_threads - 1) / self.num_threads;
+            let chunk_size = wal_files.len().div_ceil(self.num_threads);
             let chunks: Vec<Vec<PathBuf>> =
                 wal_files.chunks(chunk_size).map(|c| c.to_vec()).collect();
 
@@ -167,8 +167,7 @@ impl ParallelWalParser {
             for handle in handles {
                 handle
                     .join()
-                    .map_err(|_| WalError::IoError("Thread panicked".to_string()))?
-                    .map_err(|e| e)?;
+                    .map_err(|_| WalError::IoError("Thread panicked".to_string()))??;
             }
         }
 
@@ -537,7 +536,7 @@ impl FragmentBuffer {
         match record_type {
             RecordType::Full => {
                 self.reset();
-                return true;
+                true
             }
             RecordType::First => {
                 self.reset();
@@ -653,11 +652,11 @@ impl LocalWalParser {
             .filter_map(|entry| entry.ok())
             .map(|entry| entry.path())
             .filter(|path| {
-                path.extension().map_or(false, |ext| ext == "wal")
+                path.extension().is_some_and(|ext| ext == "wal")
                     || path
                         .file_name()
                         .and_then(|n| n.to_str())
-                        .map_or(false, |n| n.starts_with("thread_") && n.contains("_wal_"))
+                        .is_some_and(|n| n.starts_with("thread_") && n.contains("_wal_"))
             })
             .collect();
 
@@ -758,8 +757,8 @@ impl LocalWalParser {
 
             let payload = buffer[payload_start..payload_end].to_vec();
 
-            if self.verify_checksum && header.checksum != 0 {
-                if !header.verify_checksum(&payload) {
+            if self.verify_checksum && header.checksum != 0
+                && !header.verify_checksum(&payload) {
                     match self.recovery_mode {
                         WalRecoveryMode::AbortOnCorruption => {
                             return Err(WalError::ChecksumMismatch {
@@ -774,7 +773,6 @@ impl LocalWalParser {
                         }
                     }
                 }
-            }
 
             let final_payload = if header.is_compressed() {
                 match Self::decompress_payload(&payload, header.compression()) {

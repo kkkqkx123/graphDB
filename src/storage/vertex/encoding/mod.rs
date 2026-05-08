@@ -34,7 +34,9 @@ pub use selector::{
 pub use varint::{SignedVarint, Varint, VarintReader, VarintWriter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum EncodingType {
+    #[default]
     None,
     Dictionary,
     Rle,
@@ -43,11 +45,6 @@ pub enum EncodingType {
     Alp,
 }
 
-impl Default for EncodingType {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct EncodingStats {

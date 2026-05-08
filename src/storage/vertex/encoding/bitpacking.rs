@@ -232,11 +232,11 @@ impl BitPackedColumn {
     }
 
     pub fn memory_usage(&self) -> usize {
-        let data_size = (self.data.len() + 7) / 8;
+        let data_size = self.data.len().div_ceil(8);
         let null_size = self
             .null_bitmap
             .as_ref()
-            .map(|b| (b.len() + 7) / 8)
+            .map(|b| b.len().div_ceil(8))
             .unwrap_or(0);
         data_size + null_size + std::mem::size_of::<Self>()
     }

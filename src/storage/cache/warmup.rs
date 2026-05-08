@@ -268,7 +268,7 @@ mod tests {
         fn add_neighbor(&mut self, label_id: u16, internal_id: u32, edge_label_id: u16, dst_id: u64, edge_id: u64) {
             self.neighbors
                 .entry((label_id, internal_id))
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((edge_label_id, dst_id, edge_id));
 
             if let Some(degree) = self.degrees.get_mut(&(label_id, internal_id)) {

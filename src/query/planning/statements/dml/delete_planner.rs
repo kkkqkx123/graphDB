@@ -113,8 +113,7 @@ impl DeletePlanner {
 
         let input_node = input_plan
             .as_ref()
-            .and_then(|p| p.root.clone())
-            .map(|n| n.clone());
+            .and_then(|p| p.root.clone());
 
         let final_node = match &delete_stmt.target {
             DeleteTarget::Vertices(vertex_ids) => {

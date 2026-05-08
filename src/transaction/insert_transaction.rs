@@ -122,8 +122,7 @@ impl<'a> InsertTransaction<'a> {
         wal_writer: &'a mut dyn WalWriter,
     ) -> InsertTransactionResult<Self> {
         let timestamp = version_manager.acquire_insert_timestamp();
-        let mut wal_buffer = Vec::new();
-        wal_buffer.resize(WalHeader::SIZE, 0);
+        let wal_buffer = vec![0; WalHeader::SIZE];
 
         Ok(Self {
             graph,

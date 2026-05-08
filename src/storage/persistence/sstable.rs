@@ -566,8 +566,8 @@ impl SsTableReader {
             offset += value_len;
 
             let include = true
-                && start_key.map_or(true, |start| key.as_slice() >= start)
-                && end_key.map_or(true, |end| key.as_slice() <= end);
+                && start_key.is_none_or(|start| key.as_slice() >= start)
+                && end_key.is_none_or(|end| key.as_slice() <= end);
 
             if include {
                 results.push((key, value));
@@ -605,7 +605,7 @@ impl BloomFilter {
         let bit_count = bit_count.max(64);
 
         let hash_count = Self::calculate_hash_count(bits_per_key);
-        let byte_count = (bit_count + 7) / 8;
+        let byte_count = bit_count.div_ceil(8);
 
         Self {
             bits: vec![0u8; byte_count],
@@ -641,7 +641,7 @@ impl BloomFilter {
             let byte_pos = bit_pos / 8;
             let bit_offset = bit_pos % 8;
 
-            if self.bits.get(byte_pos).map_or(true, |&b| (b & (1 << bit_offset)) == 0) {
+            if self.bits.get(byte_pos).is_none_or(|&b| (b & (1 << bit_offset)) == 0) {
                 return false;
             }
         }

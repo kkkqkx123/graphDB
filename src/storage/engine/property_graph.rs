@@ -71,6 +71,12 @@ impl std::fmt::Debug for PropertyGraph {
     }
 }
 
+impl Default for PropertyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PropertyGraph {
     pub fn new() -> Self {
         Self::with_config(PropertyGraphConfig::default())
@@ -89,7 +95,7 @@ impl PropertyGraph {
             config.enable_incremental_flush,
             config.flush_threshold,
             config.flush_interval_secs,
-            config.compression.clone(),
+            config.compression,
             config.work_dir.clone(),
         );
 
@@ -916,13 +922,13 @@ impl UndoTarget for PropertyGraph {
             .vertex_label_names
             .get(src_label)
             .copied()
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
         let dst_label_id = self
             .schema_ops
             .vertex_label_names
             .get(dst_label)
             .copied()
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
 
         self.edge_ops
             .create_edge_type(

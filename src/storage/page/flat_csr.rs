@@ -243,7 +243,7 @@ impl FlatCsr {
                 if i < self.edges.len() {
                     let edge = &self.edges[i];
                     if !edge.is_deleted() {
-                        new_edges.push(edge.clone());
+                        new_edges.push(*edge);
                         new_degrees[src] += 1;
                         current_offset += 1;
                     }

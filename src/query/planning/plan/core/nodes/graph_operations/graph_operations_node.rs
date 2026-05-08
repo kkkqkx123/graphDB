@@ -1244,14 +1244,14 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::BinaryIn
         &mut self,
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.left_input = Box::new(input);
+        *self.left_input = input;
     }
 
     fn set_right_input(
         &mut self,
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.right_input = Box::new(input);
+        *self.right_input = input;
     }
 }
 

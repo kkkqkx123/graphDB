@@ -15,16 +15,13 @@ use super::bitpacking::BitPackedColumn;
 use crate::core::{DataType, StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum AlpFloatType {
     Float32,
+    #[default]
     Float64,
 }
 
-impl Default for AlpFloatType {
-    fn default() -> Self {
-        Self::Float64
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct AlpEncoder {

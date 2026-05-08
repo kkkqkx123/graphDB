@@ -254,7 +254,7 @@ impl PropertyTable {
             let name_bytes = prop.name.as_bytes();
             result.extend_from_slice(&(name_bytes.len() as u32).to_le_bytes());
             result.extend_from_slice(name_bytes);
-            result.extend_from_slice(&(prop.prop_id as i32).to_le_bytes());
+            result.extend_from_slice(&prop.prop_id.to_le_bytes());
             result.push(prop.data_type.as_u8());
             result.push(if prop.nullable { 1 } else { 0 });
         }

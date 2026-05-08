@@ -49,7 +49,7 @@ struct BitSet {
 
 impl BitSet {
     fn new(size: usize) -> Self {
-        let word_count = (size + 63) / 64;
+        let word_count = size.div_ceil(64);
         Self {
             data: RwLock::new(vec![0u64; word_count]),
         }
@@ -490,11 +490,7 @@ impl VersionManager {
     /// in the process of acquiring timestamps.
     pub fn get_safe_gc_timestamp_with_margin(&self, margin: Timestamp) -> Timestamp {
         let read_ts = self.read_ts.load(Ordering::SeqCst);
-        if read_ts > margin {
-            read_ts - margin
-        } else {
-            0
-        }
+        read_ts.saturating_sub(margin)
     }
 }
 

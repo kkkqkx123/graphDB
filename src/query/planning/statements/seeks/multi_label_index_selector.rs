@@ -276,7 +276,7 @@ impl MultiLabelIndexSelector {
                 let selectivity = self.get_label_selectivity(label);
                 let score = selectivity * index.coverage_score(labels) as f64;
 
-                if best.as_ref().map_or(true, |(_, _, s)| score < *s) {
+                if best.as_ref().is_none_or(|(_, _, s)| score < *s) {
                     best = Some((index.clone(), label.clone(), score));
                 }
             }

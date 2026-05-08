@@ -508,10 +508,12 @@ impl MemoryEstimatable for LoopNode {
 
 /// Transaction isolation level
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum IsolationLevel {
     /// Read uncommitted - lowest isolation level
     ReadUncommitted,
     /// Read committed - default for most databases
+    #[default]
     ReadCommitted,
     /// Repeatable read - ensures consistent reads within transaction
     RepeatableRead,
@@ -519,11 +521,6 @@ pub enum IsolationLevel {
     Serializable,
 }
 
-impl Default for IsolationLevel {
-    fn default() -> Self {
-        Self::ReadCommitted
-    }
-}
 
 /// Begin Transaction Node
 /// Starts a new transaction with specified isolation level

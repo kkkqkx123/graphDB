@@ -251,8 +251,7 @@ impl<'a> UpdateTransaction<'a> {
         wal_writer: &'a mut dyn WalWriter,
     ) -> UpdateTransactionResult<Self> {
         let timestamp = version_manager.acquire_update_timestamp()?;
-        let mut wal_buffer = Vec::new();
-        wal_buffer.resize(WalHeader::SIZE, 0);
+        let wal_buffer = vec![0; WalHeader::SIZE];
 
         Ok(Self {
             graph,

@@ -696,7 +696,7 @@ impl VertexIndexManager {
                 .filter(|(_, entry)| {
                     entry
                         .deleted_ts
-                        .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                        .is_some_and(|deleted_ts| deleted_ts < safe_ts)
                 })
                 .map(|(key, _)| key.clone())
                 .collect();
@@ -714,7 +714,7 @@ impl VertexIndexManager {
                 .filter(|(_, entry)| {
                     entry
                         .deleted_ts
-                        .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                        .is_some_and(|deleted_ts| deleted_ts < safe_ts)
                 })
                 .map(|(key, _)| key.clone())
                 .collect();
@@ -745,7 +745,7 @@ impl VertexIndexManager {
                 }
                 if entry
                     .deleted_ts
-                    .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                    .is_some_and(|deleted_ts| deleted_ts < safe_ts)
                 {
                     keys_to_remove.push(key.clone());
                 }
@@ -772,7 +772,7 @@ impl VertexIndexManager {
                 }
                 if entry
                     .deleted_ts
-                    .map_or(false, |deleted_ts| deleted_ts < safe_ts)
+                    .is_some_and(|deleted_ts| deleted_ts < safe_ts)
                 {
                     keys_to_remove.push(key.clone());
                 }

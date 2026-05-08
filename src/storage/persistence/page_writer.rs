@@ -367,7 +367,7 @@ impl PageWriter for FilePageWriter {
         self.page_index.write().insert(*page_id, entry);
         self.write_count.fetch_add(1, Ordering::Relaxed);
 
-        if self.write_count.load(Ordering::Relaxed) % 100 == 0 {
+        if self.write_count.load(Ordering::Relaxed).is_multiple_of(100) {
             self.save_index()?;
         }
 

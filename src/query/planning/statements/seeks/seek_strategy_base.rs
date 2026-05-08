@@ -261,7 +261,7 @@ impl SeekStrategySelector {
 
         candidates
             .into_iter()
-            .filter_map(|c| c)
+            .flatten()
             .min_by(|a, b| {
                 a.cost
                     .partial_cmp(&b.cost)

@@ -185,7 +185,7 @@ impl CycleDetector {
         if processed_count < all_nodes.len() {
             let cycle_nodes: Vec<i64> = all_nodes
                 .keys()
-                .filter(|id| in_degree.get(id).map_or(false, |&d| d > 0))
+                .filter(|id| in_degree.get(id).is_some_and(|&d| d > 0))
                 .copied()
                 .collect();
             CycleDetectionResult::cycle_detected(cycle_nodes)

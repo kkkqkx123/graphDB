@@ -15,6 +15,12 @@ pub struct EdgeOps {
     pub edge_label_counter: LabelId,
 }
 
+impl Default for EdgeOps {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EdgeOps {
     pub fn new() -> Self {
         Self {

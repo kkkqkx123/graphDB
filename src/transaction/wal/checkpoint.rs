@@ -205,7 +205,7 @@ impl CheckpointManager {
 
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "wal") {
+            if path.extension().is_some_and(|ext| ext == "wal") {
                 if let Ok(true) = self.is_wal_file_before_checkpoint(&path) {
                     wal_files.push(path);
                 }
@@ -223,13 +223,10 @@ impl CheckpointManager {
         let mut file = File::open(path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         let mut buffer = [0u8; WAL_FILE_HEADER_SIZE];
-        match file.read_exact(&mut buffer) {
-            Ok(()) => {
-                if let Some(header) = WalFileHeader::from_bytes(&buffer) {
-                    return Ok(header.checkpoint_seq < self.current_seq);
-                }
+        if let Ok(()) = file.read_exact(&mut buffer) {
+            if let Some(header) = WalFileHeader::from_bytes(&buffer) {
+                return Ok(header.checkpoint_seq < self.current_seq);
             }
-            Err(_) => {}
         }
 
         Ok(false)

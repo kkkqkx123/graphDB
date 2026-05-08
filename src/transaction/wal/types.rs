@@ -40,17 +40,17 @@ pub fn block_padding_needed(current_offset: usize) -> usize {
 
 /// Check if offset is aligned to block boundary
 pub fn is_block_aligned(offset: usize) -> bool {
-    offset % WAL_BLOCK_SIZE == 0
+    offset.is_multiple_of(WAL_BLOCK_SIZE)
 }
 
 /// Align offset up to next block boundary
 pub fn align_to_block(offset: usize) -> usize {
-    (offset + WAL_BLOCK_SIZE - 1) / WAL_BLOCK_SIZE * WAL_BLOCK_SIZE
+    offset.div_ceil(WAL_BLOCK_SIZE) * WAL_BLOCK_SIZE
 }
 
 /// Calculate the number of blocks needed for a given size
 pub fn blocks_needed(size: usize) -> usize {
-    (size + WAL_BLOCK_SIZE - 1) / WAL_BLOCK_SIZE
+    size.div_ceil(WAL_BLOCK_SIZE)
 }
 
 /// Timestamp type for MVCC

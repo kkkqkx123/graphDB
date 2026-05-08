@@ -159,11 +159,7 @@ impl EdgeStorage {
 
         let result = if let Some(label_id) = graph.get_edge_label_id(edge_type) {
             if let Some(table) = graph.get_edge_table_by_label(label_id) {
-                if let Some(record) = table.get_edge(src_vid, dst_vid, ts) {
-                    Some(self.edge_record_to_edge(&record, edge_type))
-                } else {
-                    None
-                }
+                table.get_edge(src_vid, dst_vid, ts).map(|record| self.edge_record_to_edge(&record, edge_type))
             } else {
                 None
             }
@@ -997,7 +993,7 @@ impl EdgeStorage {
 
         let indexes = self.schema_manager.list_edge_indexes(space)?;
         for index in indexes {
-            if index.schema_name == edge_type && index.fields.iter().any(|f| &f.name == prop_name) {
+            if index.schema_name == edge_type && index.fields.iter().any(|f| f.name == prop_name) {
                 self.index_data_manager.update_edge_indexes_mvcc(
                     space_id,
                     src,

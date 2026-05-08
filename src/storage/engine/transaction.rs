@@ -53,10 +53,10 @@ impl TransactionOps {
         let dst_label_id = dst_label as LabelId;
         let src_table = schema_ops
             .get_vertex_table(src_label_id)
-            .ok_or_else(|| InsertTransactionError::LabelNotFound(src_label))?;
+            .ok_or(InsertTransactionError::LabelNotFound(src_label))?;
         let dst_table = schema_ops
             .get_vertex_table(dst_label_id)
-            .ok_or_else(|| InsertTransactionError::LabelNotFound(dst_label))?;
+            .ok_or(InsertTransactionError::LabelNotFound(dst_label))?;
 
         let src_external = src_table
             .get_external_id(src_vid as u32)
@@ -225,7 +225,7 @@ impl TransactionOps {
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
-                .delete_edge_by_offset(src_vid as u64, dst_vid as u64, oe_offset, ie_offset, ts)
+                .delete_edge_by_offset(src_vid, dst_vid, oe_offset, ie_offset, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -249,7 +249,7 @@ impl TransactionOps {
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
-                .revert_delete_edge_by_offset(src_vid as u64, dst_vid as u64, oe_offset, ie_offset, ts)
+                .revert_delete_edge_by_offset(src_vid, dst_vid, oe_offset, ie_offset, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -297,10 +297,10 @@ impl TransactionOps {
         let table = edge_ops
             .edge_tables
             .get_mut(&key)
-            .ok_or_else(|| UndoLogError::LabelNotFound(edge_label as LabelId))?;
+            .ok_or(UndoLogError::LabelNotFound(edge_label as LabelId))?;
 
         table
-            .insert_edge(src_vid as u64, dst_vid as u64, &props, ts)
+            .insert_edge(src_vid, dst_vid, &props, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }
@@ -317,7 +317,7 @@ impl TransactionOps {
         let table = schema_ops
             .vertex_tables
             .get_mut(&label_id)
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let value = property_value_to_value(old_value);
         table
@@ -347,13 +347,13 @@ impl TransactionOps {
         let table = edge_ops
             .edge_tables
             .get_mut(&key)
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let value = property_value_to_value(old_value);
         table
             .update_edge_property_by_offset(
-                src_vid as u64,
-                dst_vid as u64,
+                src_vid,
+                dst_vid,
                 oe_offset,
                 ie_offset,
                 col_id,
@@ -394,7 +394,7 @@ impl TransactionOps {
             .vertex_label_names
             .get(label)
             .copied()
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
 
         if let Some(table) = schema_ops.vertex_tables.get_mut(&label_id) {
             let mut new_schema = table.schema().clone();
@@ -421,17 +421,17 @@ impl TransactionOps {
             .vertex_label_names
             .get(src_label)
             .copied()
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
         let dst_label_id = schema_ops
             .vertex_label_names
             .get(dst_label)
             .copied()
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
         let edge_label_id = edge_ops
             .edge_label_names
             .get(edge_label)
             .copied()
-            .ok_or_else(|| UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let key = (src_label_id, dst_label_id, edge_label_id);
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {

@@ -104,6 +104,12 @@ impl Clone for AccessFrequency {
     }
 }
 
+impl Default for AccessFrequency {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AccessFrequency {
     pub fn new() -> Self {
         Self {

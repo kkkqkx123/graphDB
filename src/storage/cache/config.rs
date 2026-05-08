@@ -71,6 +71,7 @@ impl Default for CacheWarmupConfig {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[derive(Default)]
 pub struct WarmupStats {
     pub vertices_loaded: usize,
     pub edges_loaded: usize,
@@ -79,14 +80,3 @@ pub struct WarmupStats {
     pub duration_ms: u64,
 }
 
-impl Default for WarmupStats {
-    fn default() -> Self {
-        Self {
-            vertices_loaded: 0,
-            edges_loaded: 0,
-            id_indexes_loaded: 0,
-            total_bytes: 0,
-            duration_ms: 0,
-        }
-    }
-}

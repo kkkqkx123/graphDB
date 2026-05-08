@@ -58,14 +58,14 @@ impl HitRatePredictor {
         let mut entries: HashMap<u64, (usize, Instant)> = HashMap::new();
 
         for access in &self.access_history {
-            if entries.contains_key(&access.key_hash) {
-                hits += 1;
-            } else {
+            if let std::collections::hash_map::Entry::Vacant(e) = entries.entry(access.key_hash) {
                 misses += 1;
                 if simulated_cache_size + access.size <= target_capacity {
-                    entries.insert(access.key_hash, (access.size, access.timestamp));
+                    e.insert((access.size, access.timestamp));
                     simulated_cache_size += access.size;
                 }
+            } else {
+                hits += 1;
             }
         }
 

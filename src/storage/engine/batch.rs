@@ -274,7 +274,7 @@ pub fn batch_import_vertices(
     }
 
     writer.flush();
-    stats.batches_flushed = (vertices.len() + batch_size - 1) / batch_size;
+    stats.batches_flushed = vertices.len().div_ceil(batch_size);
 
     stats.duration_ms = start.elapsed().as_millis() as u64;
     stats
@@ -303,7 +303,7 @@ pub fn batch_import_edges(
     }
 
     writer.flush();
-    stats.batches_flushed = (edges.len() + batch_size - 1) / batch_size;
+    stats.batches_flushed = edges.len().div_ceil(batch_size);
 
     stats.duration_ms = start.elapsed().as_millis() as u64;
     stats

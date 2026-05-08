@@ -388,7 +388,7 @@ impl CompositeIndexAnalyzer {
 
                     if best
                         .as_ref()
-                        .map_or(true, |b| selection.selectivity < b.selectivity)
+                        .is_none_or(|b| selection.selectivity < b.selectivity)
                     {
                         best = Some(selection);
                     }
@@ -526,7 +526,7 @@ fn extract_column_name(expr: &Expression) -> Option<String> {
         Expression::Property { property, .. } => Some(property.clone()),
         Expression::Variable(name) => {
             if name.contains('.') {
-                name.split('.').last().map(|s| s.to_string())
+                name.split('.').next_back().map(|s| s.to_string())
             } else {
                 Some(name.clone())
             }
@@ -547,7 +547,7 @@ fn extract_list_values(expr: &Expression) -> Option<Vec<Value>> {
         Expression::List(items) => {
             let values: Vec<Value> = items
                 .iter()
-                .filter_map(|e| extract_literal_value(e))
+                .filter_map(extract_literal_value)
                 .collect();
             if values.len() == items.len() {
                 Some(values)

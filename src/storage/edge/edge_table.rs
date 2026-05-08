@@ -111,15 +111,14 @@ impl EdgeTable {
             0
         };
 
-        if self.schema.oe_strategy == EdgeStrategy::Single {
-            if self.out_csr.has_edge(src, dst, ts) {
+        if self.schema.oe_strategy == EdgeStrategy::Single
+            && self.out_csr.has_edge(src, dst, ts) {
                 self.properties.delete(prop_offset);
                 return Err(StorageError::EdgeAlreadyExists(format!(
                     "{} -> {}",
                     src, dst
                 )));
             }
-        }
 
         if !self.out_csr.insert_edge(src, dst, edge_id, prop_offset, ts) {
             self.properties.delete(prop_offset);

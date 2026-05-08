@@ -43,7 +43,7 @@ impl IndexEntry {
         self.created_ts <= read_ts
             && self
                 .deleted_ts
-                .map_or(true, |deleted_ts| deleted_ts > read_ts)
+                .is_none_or(|deleted_ts| deleted_ts > read_ts)
     }
 
     pub fn is_deleted(&self) -> bool {

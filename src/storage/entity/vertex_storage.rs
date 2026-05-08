@@ -148,11 +148,7 @@ impl VertexStorage {
 
         let result = if let Some(label) = label_id {
             if let Some(table) = graph.get_vertex_table(label) {
-                if let Some(record) = table.get(&external_id, ts) {
-                    Some(self.vertex_record_to_vertex(&record, "default"))
-                } else {
-                    None
-                }
+                table.get(&external_id, ts).map(|record| self.vertex_record_to_vertex(&record, "default"))
             } else {
                 None
             }
@@ -169,9 +165,9 @@ impl VertexStorage {
         let ts = self.get_read_timestamp();
 
         let mut vertices = Vec::new();
-        for (_, table) in graph.vertex_tables() {
+        for table in graph.vertex_tables().values() {
             for record in table.scan(ts) {
-                let vertex = self.vertex_record_to_vertex(&record, &table.label_name());
+                let vertex = self.vertex_record_to_vertex(&record, table.label_name());
                 vertices.push(vertex);
             }
         }
@@ -618,7 +614,7 @@ impl VertexStorage {
 
             let indexes = self.schema_manager.list_tag_indexes(space)?;
             for index in indexes {
-                if index.schema_name == tag && index.fields.iter().any(|f| &f.name == prop) {
+                if index.schema_name == tag && index.fields.iter().any(|f| f.name == prop) {
                     if let Some(ref prop_value) = new_value {
                         self.index_data_manager.update_vertex_indexes_mvcc(
                             space_id,

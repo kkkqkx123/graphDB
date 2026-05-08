@@ -27,7 +27,7 @@ impl BloomFilter {
         let bit_count = if expected_items == 0 {
             1024
         } else {
-            let m = (-1.0 * expected_items as f64 * false_positive_rate.ln() / (ln2 * ln2)).ceil();
+            let m = (-(expected_items as f64) * false_positive_rate.ln() / (ln2 * ln2)).ceil();
             m.max(64.0) as usize
         };
 
@@ -174,7 +174,7 @@ impl BloomFilter {
     }
 
     pub fn memory_usage(&self) -> usize {
-        (self.bit_count + 7) / 8
+        self.bit_count.div_ceil(8)
     }
 
     pub fn estimated_false_positive_rate(&self) -> f64 {
@@ -227,7 +227,7 @@ impl BloomFilter {
         let item_count = u64::from_le_bytes(data[16..24].try_into().ok()?) as usize;
 
         let raw_data = &data[24..];
-        let expected_bytes = (bit_count + 7) / 8;
+        let expected_bytes = bit_count.div_ceil(8);
 
         if raw_data.len() < expected_bytes {
             return None;

@@ -7,6 +7,7 @@ use oxicode::{decode_from_slice, encode_to_vec};
 
 /// Byte key wrapper for index keys
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub struct ByteKey(pub Vec<u8>);
 
 impl AsRef<[u8]> for ByteKey {
@@ -27,11 +28,6 @@ impl From<ByteKey> for Vec<u8> {
     }
 }
 
-impl Default for ByteKey {
-    fn default() -> Self {
-        ByteKey(Vec::new())
-    }
-}
 
 pub type IndexKey = Vec<u8>;
 

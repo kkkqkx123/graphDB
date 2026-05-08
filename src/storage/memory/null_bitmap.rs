@@ -59,7 +59,7 @@ impl NullBitmap {
 
     /// Calculate number of words needed for given length
     fn word_count(len: usize) -> usize {
-        (len + Self::BITS_PER_WORD - 1) / Self::BITS_PER_WORD
+        len.div_ceil(Self::BITS_PER_WORD)
     }
 
     /// Get the word index and bit position for an element
