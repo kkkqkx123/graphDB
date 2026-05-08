@@ -4,12 +4,12 @@ use crate::storage::vertex::{LabelId, Timestamp};
 use crate::transaction::insert_transaction::{
     InsertTransactionError, InsertTransactionResult,
 };
+use crate::transaction::codec::{bytes_to_value, property_value_to_value};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult};
 use crate::transaction::wal::types::{
     LabelId as TxnLabelId, VertexId as TxnVertexId,
 };
 
-use super::codec::{bytes_to_value, property_value_to_value};
 use super::schema::SchemaOps;
 use super::edge::EdgeOps;
 

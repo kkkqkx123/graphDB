@@ -32,7 +32,7 @@ pub trait WalWriter: Send + Sync {
 }
 
 /// Pending write for group commit
-struct PendingWrite {
+pub(crate) struct PendingWrite {
     data: Vec<u8>,
     result: Arc<Mutex<WalResult<bool>>>,
     notified: Arc<Condvar>,
@@ -640,46 +640,6 @@ impl LocalWalWriter {
         payload.extend_from_slice(page_data);
 
         self.append_entry(WalOpType::FullPageWrite, timestamp, &payload)
-    }
-
-    /// Rotate to a new file if needed
-    fn rotate_if_needed(&mut self) -> WalResult<()> {
-        if self.file_used >= self.config.max_file_size {
-            self.rotate()?;
-        }
-        Ok(())
-    }
-
-    /// Rotate to a new file
-    fn rotate(&mut self) -> WalResult<()> {
-        if let Some(ref file) = self.file {
-            file.sync_all()?;
-        }
-
-        self.file = None;
-        self.file_path = None;
-        self.file_size = 0;
-        self.file_used = 0;
-        self.file_header = None;
-
-        let path = self.find_available_path()?;
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&path)?;
-
-        file.set_len(self.config.truncate_size as u64)?;
-
-        self.file = Some(file);
-        self.file_path = Some(path);
-        self.file_size = self.config.truncate_size;
-        self.version += 1;
-
-        self.write_file_header()?;
-
-        Ok(())
     }
 }
 

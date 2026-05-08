@@ -32,6 +32,7 @@
 //! ```
 
 pub mod cleaner;
+pub mod codec;
 pub mod compact_transaction;
 pub mod context;
 pub mod index_buffer;

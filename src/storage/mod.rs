@@ -7,6 +7,7 @@ pub mod extend;
 pub mod index;
 pub mod interface;
 pub mod iterator;
+pub mod lob;
 pub mod memory;
 pub mod metadata;
 pub mod operations;
@@ -60,9 +61,10 @@ pub use edge::{
 
 pub use engine::{
     batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
-    VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE, LargeObjectStore, LobId,
-    LobStats, PropertyGraph, PropertyGraphConfig, DEFAULT_LOB_THRESHOLD,
+    VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE, PropertyGraph, PropertyGraphConfig,
 };
+
+pub use lob::{LargeObjectStore, LobId, LobStats, DEFAULT_LOB_THRESHOLD};
 
 pub use stats::{
     ColumnStatistics, Histogram, HistogramBucket, StatsCollector,
