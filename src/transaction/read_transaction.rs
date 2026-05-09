@@ -42,8 +42,8 @@ pub type ReadTransactionResult<T> = Result<T, ReadTransactionError>;
 /// let vertex = txn.get_vertex(label, vid)?;
 /// txn.commit(); // or just drop
 /// ```
-pub struct ReadTransaction<'a> {
-    graph: &'a dyn ReadTarget,
+pub struct ReadTransaction<'a, T: ReadTarget + ?Sized> {
+    graph: &'a T,
     version_manager: &'a VersionManager,
     timestamp: Timestamp,
 }
@@ -64,15 +64,12 @@ pub struct VertexRecord {
     pub properties: Vec<(String, Vec<u8>)>,
 }
 
-impl<'a> ReadTransaction<'a> {
+impl<'a, T: ReadTarget + ?Sized> ReadTransaction<'a, T> {
     /// Create a new read transaction
     ///
     /// Acquires a read timestamp from the version manager to establish
     /// a consistent snapshot view.
-    pub fn new(
-        graph: &'a dyn ReadTarget,
-        version_manager: &'a VersionManager,
-    ) -> ReadTransactionResult<Self> {
+    pub fn new(graph: &'a T, version_manager: &'a VersionManager) -> ReadTransactionResult<Self> {
         let timestamp = version_manager.acquire_read_timestamp();
         Ok(Self {
             graph,
@@ -132,7 +129,7 @@ impl<'a> ReadTransaction<'a> {
     }
 }
 
-impl<'a> Drop for ReadTransaction<'a> {
+impl<'a, T: ReadTarget + ?Sized> Drop for ReadTransaction<'a, T> {
     fn drop(&mut self) {
         self.release();
     }

@@ -66,8 +66,8 @@ pub type InsertTransactionResult<T> = Result<T, InsertTransactionError>;
 /// txn.add_vertex(label, id, properties)?;
 /// txn.commit()?;
 /// ```
-pub struct InsertTransaction<'a> {
-    graph: &'a mut dyn InsertTarget,
+pub struct InsertTransaction<'a, T: InsertTarget + ?Sized> {
+    graph: &'a mut T,
     version_manager: &'a VersionManager,
     wal_writer: &'a mut dyn WalWriter,
     timestamp: Timestamp,
@@ -112,12 +112,12 @@ pub trait InsertTarget: Send + Sync {
     fn lid_num(&self, label: LabelId) -> usize;
 }
 
-impl<'a> InsertTransaction<'a> {
+impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
     /// Create a new insert transaction
     ///
     /// Acquires an insert timestamp from the version manager.
     pub fn new(
-        graph: &'a mut dyn InsertTarget,
+        graph: &'a mut T,
         version_manager: &'a VersionManager,
         wal_writer: &'a mut dyn WalWriter,
     ) -> InsertTransactionResult<Self> {
@@ -304,10 +304,10 @@ impl<'a> InsertTransaction<'a> {
     }
 
     /// Serialize a redo log entry
-    fn serialize_redo<T: serde::Serialize + oxicode::Encode>(
+    fn serialize_redo<U: serde::Serialize + oxicode::Encode>(
         &mut self,
         op_type: WalOpType,
-        redo: &T,
+        redo: &U,
     ) -> InsertTransactionResult<()> {
         let op_byte = op_type as u8;
         self.wal_buffer.push(op_byte);
@@ -406,7 +406,7 @@ impl<'a> InsertTransaction<'a> {
     }
 }
 
-impl<'a> Drop for InsertTransaction<'a> {
+impl<'a, T: InsertTarget + ?Sized> Drop for InsertTransaction<'a, T> {
     fn drop(&mut self) {
         if self.timestamp != INVALID_TIMESTAMP {
             self.version_manager

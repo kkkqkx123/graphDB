@@ -282,10 +282,10 @@ impl TransactionManager {
     }
 
     /// Commit transaction with undo target (for rollback support)
-    pub fn commit_transaction_with_undo(
+    pub fn commit_transaction_with_undo<T: UndoTarget + ?Sized>(
         &self,
         txn_id: TransactionId,
-        _target: &mut dyn UndoTarget,
+        _target: &mut T,
     ) -> Result<(), TransactionError> {
         self.commit_transaction(txn_id)
     }
@@ -312,10 +312,10 @@ impl TransactionManager {
     }
 
     /// Abort transaction with undo target (for rollback support)
-    pub fn abort_transaction_with_undo(
+    pub fn abort_transaction_with_undo<T: UndoTarget + ?Sized>(
         &self,
         txn_id: TransactionId,
-        target: &mut dyn UndoTarget,
+        target: &mut T,
     ) -> Result<(), TransactionError> {
         let context = {
             let entry = self
@@ -430,11 +430,11 @@ impl TransactionManager {
     }
 
     /// Rollback to savepoint
-    pub fn rollback_to_savepoint(
+    pub fn rollback_to_savepoint<T: UndoTarget + ?Sized>(
         &self,
         txn_id: TransactionId,
         id: SavepointId,
-        target: &mut dyn UndoTarget,
+        target: &mut T,
     ) -> Result<(), TransactionError> {
         let context = self.get_context(txn_id)?;
         context.rollback_to_savepoint(id, target)

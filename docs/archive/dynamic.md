@@ -61,7 +61,7 @@
 - **分析**: 存储引擎需要支持多种实现（如 ReDB、内存存储等），运行时多态是必要的
 - **状态**: ✅ 保留
 
-#### 2.3 边过滤函数
+#### 2.6 边过滤函数
 
 - **文件**: `src/storage/storage_client.rs:41`, `src/storage/redb_storage.rs:284`, `src/storage/operations/reader.rs:39`, `src/storage/operations/redb_operations.rs:207`
 - **代码**: `filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync + 'static>>`
@@ -151,6 +151,7 @@
 | 位置                                               | 使用方式       | 保留原因                         |
 | -------------------------------------------------- | -------------- | -------------------------------- |
 | `Arc<dyn StorageClient>`                           | 存储引擎抽象   | 需要运行时多态，支持多种存储实现 |
+| `&'a mut dyn WalWriter`                            | WAL写入器      | 需要跨线程共享，运行时确定类型   |
 | `Box<dyn Fn(&Edge) -> bool>`                       | 边过滤函数     | 闭包类型编译时无法确定           |
 | `Arc<dyn Fn(&Row) -> bool>`                        | 组合迭代器过滤 | 闭包类型编译时无法确定           |
 | `Arc<dyn Fn(Row) -> Row>`                          | 组合迭代器映射 | 闭包类型编译时无法确定           |
@@ -162,6 +163,16 @@
 | `Arc<dyn Fn() -> T>`                               | 对象池工厂     | 工厂函数类型多样                 |
 | `Box<dyn FnOnce() + Send>`                         | 线程任务       | 闭包类型编译时无法确定           |
 | `Arc<dyn SearchEngine>`                            | 搜索引擎抽象   | I/O 密集型操作，扩展性优先       |
+
+### 已优化的 dyn 使用
+
+| 位置                        | 优化方式 | 性能提升          |
+| --------------------------- | -------- | ----------------- |
+| `Vec<Box<dyn UndoLog>>`     | 枚举     | 消除堆分配+虚调用 |
+| `&'a dyn ReadTarget`        | 泛型     | 消除虚函数调用    |
+| `&'a mut dyn InsertTarget`  | 泛型     | 消除虚函数调用    |
+| `&'a mut dyn UpdateTarget`  | 泛型     | 消除虚函数调用    |
+| `&'a mut dyn CompactTarget` | 泛型     | 消除虚函数调用    |
 
 ## 建议
 

@@ -415,10 +415,10 @@ impl TransactionContext {
     }
 
     /// Rollback to savepoint
-    pub fn rollback_to_savepoint(
+    pub fn rollback_to_savepoint<T: UndoTarget + ?Sized>(
         &self,
         id: SavepointId,
-        target: &mut dyn UndoTarget,
+        target: &mut T,
     ) -> Result<(), TransactionError> {
         let state = self.state.load();
         if !state.can_execute() {

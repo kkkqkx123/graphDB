@@ -146,8 +146,8 @@ pub struct RenamePropertiesParam {
 /// txn.create_vertex_type(param)?;
 /// txn.commit()?;
 /// ```
-pub struct UpdateTransaction<'a> {
-    graph: &'a mut dyn UpdateTarget,
+pub struct UpdateTransaction<'a, T: UpdateTarget + ?Sized> {
+    graph: &'a mut T,
     version_manager: &'a VersionManager,
     wal_writer: &'a mut dyn WalWriter,
     timestamp: Timestamp,
@@ -238,13 +238,13 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
     fn contains_edge_label(&self, src: &str, dst: &str, edge: &str) -> bool;
 }
 
-impl<'a> UpdateTransaction<'a> {
+impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
     /// Create a new update transaction
     ///
     /// Acquires an update timestamp from the version manager.
     /// This will block until all other transactions complete.
     pub fn new(
-        graph: &'a mut dyn UpdateTarget,
+        graph: &'a mut T,
         version_manager: &'a VersionManager,
         wal_writer: &'a mut dyn WalWriter,
     ) -> UpdateTransactionResult<Self> {
@@ -659,10 +659,10 @@ impl<'a> UpdateTransaction<'a> {
     }
 
     /// Serialize a redo log entry
-    fn serialize_redo<T: serde::Serialize + oxicode::Encode>(
+    fn serialize_redo<U: serde::Serialize + oxicode::Encode>(
         &mut self,
         op_type: WalOpType,
-        redo: &T,
+        redo: &U,
     ) -> UpdateTransactionResult<()> {
         let op_byte = op_type as u8;
         self.wal_buffer.push(op_byte);
@@ -685,7 +685,7 @@ impl<'a> UpdateTransaction<'a> {
     }
 }
 
-impl<'a> Drop for UpdateTransaction<'a> {
+impl<'a, T: UpdateTarget + ?Sized> Drop for UpdateTransaction<'a, T> {
     fn drop(&mut self) {
         if self.timestamp != INVALID_TIMESTAMP {
             self.version_manager

@@ -45,8 +45,8 @@ pub type CompactTransactionResult<T> = Result<T, CompactTransactionError>;
 /// let mut txn = CompactTransaction::new(&mut graph, &version_manager, &mut wal_writer, true, 0.8)?;
 /// txn.commit()?;
 /// ```
-pub struct CompactTransaction<'a> {
-    graph: &'a mut dyn CompactTarget,
+pub struct CompactTransaction<'a, T: CompactTarget + ?Sized> {
+    graph: &'a mut T,
     version_manager: &'a VersionManager,
     wal_writer: &'a mut dyn WalWriter,
     compact_csr: bool,
@@ -77,7 +77,7 @@ pub trait CompactTarget: Send + Sync {
     fn used_storage_size(&self) -> usize;
 }
 
-impl<'a> CompactTransaction<'a> {
+impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
     /// Create a new compact transaction
     ///
     /// # Arguments
@@ -87,7 +87,7 @@ impl<'a> CompactTransaction<'a> {
     /// * `compact_csr` - Whether to compact CSR structures
     /// * `reserve_ratio` - Ratio of space to reserve (0.0 - 1.0)
     pub fn new(
-        graph: &'a mut dyn CompactTarget,
+        graph: &'a mut T,
         version_manager: &'a VersionManager,
         wal_writer: &'a mut dyn WalWriter,
         compact_csr: bool,
@@ -177,7 +177,7 @@ impl<'a> CompactTransaction<'a> {
     }
 }
 
-impl<'a> Drop for CompactTransaction<'a> {
+impl<'a, T: CompactTarget + ?Sized> Drop for CompactTransaction<'a, T> {
     fn drop(&mut self) {
         if self.timestamp != INVALID_TIMESTAMP {
             self.version_manager
