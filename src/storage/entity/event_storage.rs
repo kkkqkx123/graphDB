@@ -4,6 +4,7 @@
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::interface::StorageClient;
+use crate::storage::metadata::InMemorySchemaManager;
 use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -118,9 +119,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self
     }
 
-    fn get_schema_manager(
-        &self,
-    ) -> Option<Arc<dyn crate::storage::metadata::SchemaManager + Send + Sync>> {
+    fn get_schema_manager(&self) -> Option<Arc<InMemorySchemaManager>> {
         self.inner.get_schema_manager()
     }
 

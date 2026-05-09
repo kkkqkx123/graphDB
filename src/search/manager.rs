@@ -8,7 +8,7 @@ use crate::search::error::SearchError;
 use crate::search::factory::SearchEngineFactory;
 use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
 use crate::search::result::{IndexStats, SearchResult};
-use crate::storage::metadata::SchemaManager;
+use crate::storage::metadata::{InMemorySchemaManager, SchemaManager};
 
 const METADATA_FILE_NAME: &str = "fulltext_metadata.json";
 
@@ -19,7 +19,7 @@ pub struct FulltextIndexManager {
     base_path: PathBuf,
     default_engine: EngineType,
     config: FulltextConfig,
-    schema_manager: Option<Arc<dyn SchemaManager>>,
+    schema_manager: Option<Arc<InMemorySchemaManager>>,
 }
 
 impl FulltextIndexManager {
@@ -223,12 +223,12 @@ impl FulltextIndexManager {
         Ok(())
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
 
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<dyn SchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
         self.schema_manager = Some(schema_manager);
     }
 

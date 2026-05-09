@@ -11,7 +11,7 @@ use crate::core::{Edge, EdgeDirection, StorageError, Value};
 use crate::storage::edge::{EdgeDirection as CsrEdgeDirection, EdgeRecord, Timestamp};
 use crate::storage::index::{DegreeIndex, EdgeIdIndex};
 use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
-use crate::storage::metadata::{Schema, SchemaManager};
+use crate::storage::metadata::{InMemorySchemaManager, Schema, SchemaManager};
 use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::VertexId;
 use crate::transaction::version_manager::VersionManager;
@@ -20,7 +20,7 @@ use crate::transaction::version_manager::VersionManager;
 pub struct EdgeStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     version_manager: Arc<VersionManager>,
-    schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+    schema_manager: Arc<InMemorySchemaManager>,
     index_data_manager: InMemoryIndexDataManager,
     edge_id_index: Arc<EdgeIdIndex>,
     degree_index: Arc<DegreeIndex>,
@@ -36,7 +36,7 @@ impl EdgeStorage {
     pub fn new(
         graph: Arc<RwLock<PropertyGraph>>,
         version_manager: Arc<VersionManager>,
-        schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+        schema_manager: Arc<InMemorySchemaManager>,
         index_data_manager: InMemoryIndexDataManager,
     ) -> Result<Self, StorageError> {
         Ok(Self {
@@ -52,7 +52,7 @@ impl EdgeStorage {
     pub fn with_csr_indexes(
         graph: Arc<RwLock<PropertyGraph>>,
         version_manager: Arc<VersionManager>,
-        schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+        schema_manager: Arc<InMemorySchemaManager>,
         index_data_manager: InMemoryIndexDataManager,
         edge_id_index: Arc<EdgeIdIndex>,
         degree_index: Arc<DegreeIndex>,

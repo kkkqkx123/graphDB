@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
-use crate::storage::metadata::{Schema, SchemaManager};
+use crate::storage::metadata::{InMemorySchemaManager, Schema, SchemaManager};
 use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::transaction::version_manager::VersionManager;
@@ -18,7 +18,7 @@ use crate::transaction::version_manager::VersionManager;
 pub struct VertexStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     version_manager: Arc<VersionManager>,
-    schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+    schema_manager: Arc<InMemorySchemaManager>,
     index_data_manager: InMemoryIndexDataManager,
 }
 
@@ -32,7 +32,7 @@ impl VertexStorage {
     pub fn new(
         graph: Arc<RwLock<PropertyGraph>>,
         version_manager: Arc<VersionManager>,
-        schema_manager: Arc<dyn SchemaManager + Send + Sync>,
+        schema_manager: Arc<InMemorySchemaManager>,
         index_data_manager: InMemoryIndexDataManager,
     ) -> Result<Self, StorageError> {
         Ok(Self {

@@ -910,10 +910,8 @@ impl StorageClient for GraphStorage {
         self.index_metadata_manager.list_edge_indexes(space_id)
     }
 
-    fn get_schema_manager(
-        &self,
-    ) -> Option<Arc<dyn SchemaManager + Send + Sync>> {
-        Some(self.schema_manager.clone() as Arc<dyn SchemaManager + Send + Sync>)
+    fn get_schema_manager(&self) -> Option<Arc<InMemorySchemaManager>> {
+        Some(self.schema_manager.clone())
     }
 
     fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {

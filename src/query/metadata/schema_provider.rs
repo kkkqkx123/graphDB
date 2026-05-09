@@ -9,18 +9,18 @@ use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::{InMemorySchemaManager, SchemaManager};
 
 /// Schema metadata provider
 ///
 /// Provides metadata for tags, edge types, and native indexes from the schema manager.
 pub struct SchemaMetadataProvider {
-    schema_manager: Arc<dyn SchemaManager>,
+    schema_manager: Arc<InMemorySchemaManager>,
 }
 
 impl SchemaMetadataProvider {
     /// Create a new schema metadata provider
-    pub fn new(schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn new(schema_manager: Arc<InMemorySchemaManager>) -> Self {
         Self { schema_manager }
     }
 
@@ -308,202 +308,52 @@ impl MetadataProvider for SchemaMetadataProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::any::Any;
-    use crate::core::types::{DataType, EngineType, SpaceStatus};
-    use crate::core::StorageError;
+    use crate::core::types::{DataType, EngineType, PropertyDef, SpaceStatus};
+    use crate::storage::metadata::SchemaManager;
 
-    // Mock SchemaManager for testing
-    #[derive(Debug)]
-    struct MockSchemaManager;
-
-    impl SchemaManager for MockSchemaManager {
-        fn as_any(&self) -> &dyn Any {
-            self
-        }
-
-        fn create_space(&self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn drop_space(&self, _space_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn clear_space(&self, _space_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn alter_space_comment(&self, _space_id: u64, _comment: String) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
-            if space_name == "test_space" {
-                Ok(Some(SpaceInfo {
-                    space_id: 1,
-                    space_name: "test_space".to_string(),
-                    vid_type: DataType::String,
-                    tags: vec![],
-                    edge_types: vec![],
-                    version: Default::default(),
-                    comment: None,
-                    storage_path: None,
-                    isolation_level: crate::core::types::IsolationLevel::default(),
-                    partition_num: 100,
-                    replica_factor: 1,
-                    engine_type: EngineType::default(),
-                    status: SpaceStatus::Online,
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-
-        fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
-            if space_id == 1 {
-                Ok(Some(SpaceInfo {
-                    space_id: 1,
-                    space_name: "test_space".to_string(),
-                    vid_type: DataType::String,
-                    tags: vec![],
-                    edge_types: vec![],
-                    version: Default::default(),
-                    comment: None,
-                    storage_path: None,
-                    isolation_level: crate::core::types::IsolationLevel::default(),
-                    partition_num: 100,
-                    replica_factor: 1,
-                    engine_type: EngineType::default(),
-                    status: SpaceStatus::Online,
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-
-        fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn update_space(&self, _space: &SpaceInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn create_tag(&self, _space: &str, _tag: &TagInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_tag(&self, _space: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
-            if tag_name == "person" {
-                Ok(Some(TagInfo {
-                    tag_id: 1,
-                    tag_name: "person".to_string(),
-                    properties: vec![crate::core::types::PropertyDef {
-                        name: "name".to_string(),
-                        data_type: DataType::String,
-                        nullable: false,
-                        default: None,
-                        comment: None,
-                    }],
-                    comment: None,
-                    ttl_duration: None,
-                    ttl_col: None,
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-
-        fn list_tags(&self, _space: &str) -> Result<Vec<TagInfo>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn drop_tag(&self, _space: &str, _tag_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn update_tag(&self, _space: &str, _tag: &TagInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn create_edge_type(
-            &self,
-            _space: &str,
-            _edge: &EdgeTypeInfo,
-        ) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_edge_type(
-            &self,
-            _space: &str,
-            _edge_type_name: &str,
-        ) -> Result<Option<EdgeTypeInfo>, StorageError> {
-            Ok(None)
-        }
-
-        fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn drop_edge_type(
-            &self,
-            _space: &str,
-            _edge_type_name: &str,
-        ) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn update_edge_type(
-            &self,
-            _space: &str,
-            _edge: &EdgeTypeInfo,
-        ) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_tag_schema(
-            &self,
-            _space: &str,
-            _tag: &str,
-        ) -> Result<crate::storage::Schema, StorageError> {
-            Ok(crate::storage::Schema::default())
-        }
-
-        fn get_edge_type_schema(
-            &self,
-            _space: &str,
-            _edge: &str,
-        ) -> Result<crate::storage::Schema, StorageError> {
-            Ok(crate::storage::Schema::default())
-        }
-
-        fn list_tag_indexes(
-            &self,
-            _space: &str,
-        ) -> Result<Vec<crate::core::types::Index>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn list_edge_indexes(
-            &self,
-            _space: &str,
-        ) -> Result<Vec<crate::core::types::Index>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn save_schema(&self, _path: &std::path::Path) -> Result<(), StorageError> {
-            Ok(())
-        }
-
-        fn load_schema(&self, _path: &std::path::Path) -> Result<(), StorageError> {
-            Ok(())
-        }
+    fn create_test_schema_manager() -> Arc<InMemorySchemaManager> {
+        let manager = InMemorySchemaManager::new();
+        
+        let mut space = SpaceInfo {
+            space_id: 0,
+            space_name: "test_space".to_string(),
+            vid_type: DataType::String,
+            tags: vec![],
+            edge_types: vec![],
+            version: Default::default(),
+            comment: None,
+            storage_path: None,
+            isolation_level: crate::core::types::IsolationLevel::default(),
+            partition_num: 100,
+            replica_factor: 1,
+            engine_type: EngineType::default(),
+            status: SpaceStatus::Online,
+        };
+        
+        let _ = manager.create_space(&mut space);
+        
+        let tag = TagInfo {
+            tag_id: 1,
+            tag_name: "person".to_string(),
+            properties: vec![PropertyDef {
+                name: "name".to_string(),
+                data_type: DataType::String,
+                nullable: false,
+                default: None,
+                comment: None,
+            }],
+            comment: None,
+            ttl_duration: None,
+            ttl_col: None,
+        };
+        let _ = manager.create_tag("test_space", &tag);
+        
+        Arc::new(manager)
     }
 
     #[test]
     fn test_get_tag_metadata() {
-        let schema_manager = Arc::new(MockSchemaManager);
+        let schema_manager = create_test_schema_manager();
         let provider = SchemaMetadataProvider::new(schema_manager);
 
         let result = provider.get_tag_metadata(1, "person");
@@ -518,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_get_tag_not_found() {
-        let schema_manager = Arc::new(MockSchemaManager);
+        let schema_manager = create_test_schema_manager();
         let provider = SchemaMetadataProvider::new(schema_manager);
 
         let result = provider.get_tag_metadata(1, "nonexistent");
@@ -527,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_get_space_not_found() {
-        let schema_manager = Arc::new(MockSchemaManager);
+        let schema_manager = create_test_schema_manager();
         let provider = SchemaMetadataProvider::new(schema_manager);
 
         let result = provider.get_tag_metadata(999, "person");

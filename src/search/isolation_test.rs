@@ -9,13 +9,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::core::types::{EdgeTypeInfo, Index, IsolationLevel, SpaceInfo, TagInfo};
-    use crate::core::StorageError;
+    use crate::core::types::{IsolationLevel, SpaceInfo, TagInfo};
     use crate::search::metadata::IndexKey;
     use crate::search::{EngineType, FulltextConfig, FulltextIndexManager, SearchError};
-    use crate::storage::metadata::SchemaManager;
-    use crate::storage::Schema;
-    use std::collections::HashMap;
+    use crate::storage::metadata::{InMemorySchemaManager, SchemaManager};
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -125,153 +122,17 @@ mod tests {
         assert_eq!(space.isolation_level, IsolationLevel::Device);
     }
 
-    // ==================== Mock SchemaManager ====================
+    // ==================== Helper Functions ====================
 
-    #[derive(Debug)]
-    struct MockSchemaManager {
-        spaces: HashMap<u64, SpaceInfo>,
+    fn create_test_schema_manager_with_space(space: SpaceInfo) -> Arc<InMemorySchemaManager> {
+        let manager = InMemorySchemaManager::new();
+        let mut space = space;
+        let _ = manager.create_space(&mut space);
+        Arc::new(manager)
     }
 
-    impl MockSchemaManager {
-        fn new() -> Self {
-            Self {
-                spaces: HashMap::new(),
-            }
-        }
-
-        fn add_space(&mut self, space: SpaceInfo) {
-            self.spaces.insert(space.space_id, space);
-        }
-    }
-
-    impl SchemaManager for MockSchemaManager {
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-
-        fn create_space(&self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn drop_space(&self, _space_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn clear_space(&self, _space_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn alter_space_comment(&self, _space_id: u64, _comment: String) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
-            for space in self.spaces.values() {
-                if space.space_name == space_name {
-                    return Ok(Some(space.clone()));
-                }
-            }
-            Ok(None)
-        }
-
-        fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
-            Ok(self.spaces.get(&space_id).cloned())
-        }
-
-        fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
-            Ok(self.spaces.values().cloned().collect())
-        }
-
-        fn update_space(&self, _space: &SpaceInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn create_tag(&self, _space: &str, _tag: &TagInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_tag(&self, space: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
-            if let Ok(Some(space_info)) = self.get_space(space) {
-                return Ok(space_info
-                    .tags
-                    .iter()
-                    .find(|t| t.tag_name == tag_name)
-                    .cloned());
-            }
-            Ok(None)
-        }
-
-        fn list_tags(&self, _space: &str) -> Result<Vec<TagInfo>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn drop_tag(&self, _space: &str, _tag_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn update_tag(&self, _space: &str, _tag: &TagInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn create_edge_type(
-            &self,
-            _space: &str,
-            _edge: &EdgeTypeInfo,
-        ) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_edge_type(
-            &self,
-            _space: &str,
-            _edge_type_name: &str,
-        ) -> Result<Option<EdgeTypeInfo>, StorageError> {
-            Ok(None)
-        }
-
-        fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn drop_edge_type(
-            &self,
-            _space: &str,
-            _edge_type_name: &str,
-        ) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn update_edge_type(
-            &self,
-            _space: &str,
-            _edge: &EdgeTypeInfo,
-        ) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_tag_schema(&self, _space: &str, _tag: &str) -> Result<Schema, StorageError> {
-            Ok(Schema::new("test".to_string(), 1))
-        }
-
-        fn get_edge_type_schema(&self, _space: &str, _edge: &str) -> Result<Schema, StorageError> {
-            Ok(Schema::new("test".to_string(), 1))
-        }
-
-        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
-            Ok(vec![])
-        }
-
-        fn save_schema(&self, _path: &std::path::Path) -> Result<(), StorageError> {
-            Ok(())
-        }
-
-        fn load_schema(&self, _path: &std::path::Path) -> Result<(), StorageError> {
-            Ok(())
-        }
+    fn create_test_schema_manager_empty() -> Arc<InMemorySchemaManager> {
+        Arc::new(InMemorySchemaManager::new())
     }
 
     // ==================== Space Existence Validation Tests ====================
@@ -287,13 +148,13 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
-        // Add a space with ID 1, but we'll try to create index for space 999
-        mock_schema.add_space(SpaceInfo::new("existing_space".to_string()));
+        let mut space = SpaceInfo::new("existing_space".to_string());
+        space.space_id = 1;
+        let schema_manager = create_test_schema_manager_with_space(space);
 
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
         let result = manager.create_index(999, "Article", "content", None).await;
 
@@ -315,16 +176,14 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
-        // Add a tag to the space
         space.tags.push(TagInfo::new("Article".to_string()));
-        mock_schema.add_space(space);
+        let schema_manager = create_test_schema_manager_with_space(space);
 
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
         let result = manager.create_index(1, "Article", "content", None).await;
 
@@ -342,15 +201,13 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
-        // Space exists but has no tags
-        mock_schema.add_space(space);
+        let schema_manager = create_test_schema_manager_with_space(space);
 
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
         let result = manager
             .create_index(1, "NonExistentTag", "content", None)
@@ -375,16 +232,15 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
         space.isolation_level = IsolationLevel::Shared;
         space.tags.push(TagInfo::new("Article".to_string()));
-        mock_schema.add_space(space);
+        let schema_manager = create_test_schema_manager_with_space(space);
 
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
         let _index_id = manager
             .create_index(1, "Article", "content", None)
@@ -395,7 +251,6 @@ mod tests {
             .get_metadata(1, "Article", "content")
             .expect("Metadata should exist");
 
-        // Storage path should be under base_path
         assert!(metadata
             .storage_path
             .starts_with(base_path.to_string_lossy().as_ref()));
@@ -414,16 +269,15 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
         space.isolation_level = IsolationLevel::Directory;
         space.tags.push(TagInfo::new("Article".to_string()));
-        mock_schema.add_space(space);
+        let schema_manager = create_test_schema_manager_with_space(space);
 
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
         let _index_id = manager
             .create_index(1, "Article", "content", None)
@@ -434,7 +288,6 @@ mod tests {
             .get_metadata(1, "Article", "content")
             .expect("Metadata should exist");
 
-        // Storage path should contain space_1 subdirectory
         assert!(metadata.storage_path.contains("space_1"));
     }
 
@@ -452,17 +305,16 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
         space.isolation_level = IsolationLevel::Device;
         space.storage_path = Some(custom_path.clone());
         space.tags.push(TagInfo::new("Article".to_string()));
-        mock_schema.add_space(space);
+        let schema_manager = create_test_schema_manager_with_space(space);
 
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
         let _index_id = manager
             .create_index(1, "Article", "content", None)
@@ -473,7 +325,6 @@ mod tests {
             .get_metadata(1, "Article", "content")
             .expect("Metadata should exist");
 
-        // Storage path should be under custom_path/fulltext
         assert!(metadata
             .storage_path
             .starts_with(custom_path.to_string_lossy().as_ref()));
@@ -492,18 +343,16 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
         space.tags.push(TagInfo::new("Article".to_string()));
         space.tags.push(TagInfo::new("Product".to_string()));
-        mock_schema.add_space(space);
+        let schema_manager = create_test_schema_manager_with_space(space);
 
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
-        // Create multiple indexes
         manager
             .create_index(1, "Article", "title", None)
             .await
@@ -517,16 +366,13 @@ mod tests {
             .await
             .expect("Failed to create index 3");
 
-        // Verify indexes exist
         assert_eq!(manager.get_space_indexes(1).len(), 3);
 
-        // Drop all indexes for space 1
         manager
             .drop_space_indexes(1)
             .await
             .expect("Failed to drop space indexes");
 
-        // Verify all indexes are removed
         assert_eq!(manager.get_space_indexes(1).len(), 0);
         assert!(!manager.has_index(1, "Article", "title"));
         assert!(!manager.has_index(1, "Article", "content"));
@@ -544,25 +390,23 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
-
-        // Space 1
+        let manager = InMemorySchemaManager::new();
+        
         let mut space1 = SpaceInfo::new("space1".to_string());
         space1.space_id = 1;
         space1.tags.push(TagInfo::new("Article".to_string()));
-        mock_schema.add_space(space1);
+        let _ = manager.create_space(&mut space1);
 
-        // Space 2
         let mut space2 = SpaceInfo::new("space2".to_string());
         space2.space_id = 2;
         space2.tags.push(TagInfo::new("Product".to_string()));
-        mock_schema.add_space(space2);
+        let _ = manager.create_space(&mut space2);
 
+        let schema_manager = Arc::new(manager);
         let manager = FulltextIndexManager::new(config)
             .expect("Failed to create manager")
-            .with_schema_manager(Arc::new(mock_schema));
+            .with_schema_manager(schema_manager);
 
-        // Create indexes for both spaces
         manager
             .create_index(1, "Article", "content", None)
             .await
@@ -572,16 +416,13 @@ mod tests {
             .await
             .expect("Failed to create space 2 index");
 
-        // Drop indexes for space 1 only
         manager
             .drop_space_indexes(1)
             .await
             .expect("Failed to drop space 1 indexes");
 
-        // Verify space 1 indexes are removed
         assert!(!manager.has_index(1, "Article", "content"));
 
-        // Verify space 2 indexes still exist
         assert!(manager.has_index(2, "Product", "description"));
     }
 
@@ -607,10 +448,8 @@ mod tests {
             ..Default::default()
         };
 
-        // Create manager without schema manager
         let manager = FulltextIndexManager::new(config).expect("Failed to create manager");
 
-        // Should succeed without validation
         let result = manager.create_index(1, "Article", "content", None).await;
         assert!(result.is_ok());
     }
@@ -626,21 +465,20 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_schema = MockSchemaManager::new();
+        let schema_mgr = InMemorySchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
         for i in 0..5 {
             space.tags.push(TagInfo::new(format!("Tag{}", i)));
         }
-        mock_schema.add_space(space);
+        let _ = schema_mgr.create_space(&mut space);
 
         let manager = Arc::new(
             FulltextIndexManager::new(config)
                 .expect("Failed to create manager")
-                .with_schema_manager(Arc::new(mock_schema)),
+                .with_schema_manager(Arc::new(schema_mgr)),
         );
 
-        // Create multiple indexes concurrently
         let mut handles = vec![];
         for i in 0..5 {
             let mgr = manager.clone();
@@ -651,13 +489,11 @@ mod tests {
             handles.push(handle);
         }
 
-        // All should succeed
         for handle in handles {
             let result = handle.await.expect("Task failed");
             assert!(result.is_ok());
         }
 
-        // Verify all indexes exist
         assert_eq!(manager.get_space_indexes(1).len(), 5);
     }
 }
