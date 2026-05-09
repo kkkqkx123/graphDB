@@ -438,7 +438,6 @@ impl PageWriter for FilePageWriter {
 pub struct CheckpointManager {
     work_dir: PathBuf,
     dirty_tracker: Arc<DirtyPageTracker>,
-    page_writer: Arc<FilePageWriter>,
     last_checkpoint: RwLock<CheckpointInfo>,
     checkpoint_count: AtomicU64,
 }
@@ -451,17 +450,12 @@ pub struct CheckpointInfo {
 }
 
 impl CheckpointManager {
-    pub fn new(
-        work_dir: PathBuf,
-        dirty_tracker: Arc<DirtyPageTracker>,
-        page_writer: Arc<FilePageWriter>,
-    ) -> Self {
+    pub fn new(work_dir: PathBuf, dirty_tracker: Arc<DirtyPageTracker>) -> Self {
         let last_checkpoint = Self::load_last_checkpoint(&work_dir);
 
         Self {
             work_dir,
             dirty_tracker,
-            page_writer,
             last_checkpoint: RwLock::new(last_checkpoint),
             checkpoint_count: AtomicU64::new(0),
         }
@@ -658,7 +652,7 @@ mod tests {
                 .expect("Failed to create writer"),
         );
 
-        let manager = CheckpointManager::new(work_dir, dirty_tracker.clone(), writer);
+        let manager = CheckpointManager::new(work_dir, dirty_tracker.clone());
 
         let page_id = PageId {
             table_type: TableType::Vertex,

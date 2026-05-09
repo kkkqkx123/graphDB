@@ -346,7 +346,6 @@ pub struct SsTableMetadata {
 pub struct SsTableReader {
     file: File,
     file_path: PathBuf,
-    footer: Footer,
     index: Vec<IndexEntry>,
     filter: Option<BloomFilter>,
     compressor: Compressor,
@@ -381,7 +380,6 @@ impl SsTableReader {
         Ok(Self {
             file,
             file_path,
-            footer,
             index,
             filter,
             compressor: Compressor::new(CompressionType::Zstd { level: 3 }),

@@ -46,6 +46,10 @@ impl ReturnClausePlanner {
         let distinct = extract_distinct_flag(stmt);
         Self::with_distinct(distinct)
     }
+
+    pub fn set_distinct(&mut self, distinct: bool) {
+        self.distinct = distinct;
+    }
 }
 
 fn extract_distinct_flag(stmt: &Stmt) -> bool {

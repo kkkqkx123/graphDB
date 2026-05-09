@@ -5,7 +5,7 @@
 //! update properties, and delete vertices/edges.
 //! Update transactions require exclusive access and block all other transactions.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use oxicode::encode_to_vec;
 
@@ -156,8 +156,6 @@ pub struct UpdateTransaction<'a> {
     op_num: usize,
     deleted_vertex_labels: HashSet<LabelId>,
     deleted_edge_labels: HashSet<(LabelId, LabelId, LabelId)>,
-    deleted_vertex_properties: Vec<HashSet<String>>,
-    deleted_edge_properties: HashMap<u32, HashSet<String>>,
     schema_changed: bool,
 }
 
@@ -263,8 +261,6 @@ impl<'a> UpdateTransaction<'a> {
             op_num: 0,
             deleted_vertex_labels: HashSet::new(),
             deleted_edge_labels: HashSet::new(),
-            deleted_vertex_properties: Vec::new(),
-            deleted_edge_properties: HashMap::new(),
             schema_changed: false,
         })
     }

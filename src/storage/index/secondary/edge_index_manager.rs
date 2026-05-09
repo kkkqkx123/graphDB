@@ -10,7 +10,7 @@ use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
 use super::index_data_manager::{IndexEntry, Timestamp, MAX_TIMESTAMP};
 use super::key_codec::{
-    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, KeyBuilder,
+    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, IndexKey, KeyBuilder,
     KeyParser,
 };
 use crate::storage::index::index_types::IndexEstimate;
@@ -18,8 +18,6 @@ use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
-
-type IndexKey = Vec<u8>;
 
 #[derive(Clone)]
 pub struct EdgeIndexManager {

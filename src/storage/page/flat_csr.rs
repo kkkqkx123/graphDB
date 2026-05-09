@@ -178,7 +178,6 @@ impl FlatCsr {
 
         FlatCsrEdgeIterator {
             edges: &self.edges,
-            start,
             end,
             current: start,
             ts,
@@ -367,7 +366,6 @@ impl Default for FlatCsr {
 
 pub struct FlatCsrEdgeIterator<'a> {
     edges: &'a [EdgeRecord],
-    start: usize,
     end: usize,
     current: usize,
     ts: Timestamp,

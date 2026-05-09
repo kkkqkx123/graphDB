@@ -9,8 +9,11 @@
 //! - Histogram-based data distribution analysis
 //! - Most common values tracking
 //! - Average length calculation for string types
+//! - Configurable sampling rate for large datasets
 
 use std::collections::HashMap;
+
+use rand::Rng;
 
 use crate::core::{DataType, Value};
 
@@ -234,7 +237,14 @@ impl StatsCollector {
 
         let mut histogram = Histogram::new(self.histogram_buckets);
 
+        let mut rng = rand::thread_rng();
+        let sample_threshold = (self.sample_rate * 100.0) as u32;
+
         for value in values {
+            if sample_threshold < 100 && rng.gen_range(1..=100) > sample_threshold {
+                continue;
+            }
+
             stats.total_count += 1;
 
             match value {

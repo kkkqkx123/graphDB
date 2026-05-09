@@ -37,7 +37,6 @@ pub struct EdgeTable {
     in_csr: MutableCsr,
     properties: PropertyTable,
     edge_id_counter: AtomicU64,
-    config: EdgeTableConfig,
     is_open: bool,
 }
 
@@ -67,7 +66,6 @@ impl EdgeTable {
             in_csr,
             properties,
             edge_id_counter: AtomicU64::new(0),
-            config,
             is_open: true,
         }
     }

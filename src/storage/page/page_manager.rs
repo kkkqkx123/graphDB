@@ -58,11 +58,9 @@ impl Default for PageManagerConfig {
 #[derive(Debug)]
 pub struct PageManager {
     pages: Cache<StoragePageId, Page>,
-    page_directory: RwLock<HashMap<u64, StoragePageId>>,
     base_path: PathBuf,
     next_page_id: AtomicU64,
     stats: RwLock<PageManagerStats>,
-    config: PageManagerConfig,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -98,11 +96,9 @@ impl PageManager {
 
         Self {
             pages,
-            page_directory: RwLock::new(HashMap::new()),
             base_path: config.base_path.clone(),
             next_page_id: AtomicU64::new(1),
             stats: RwLock::new(PageManagerStats::default()),
-            config,
         }
     }
 

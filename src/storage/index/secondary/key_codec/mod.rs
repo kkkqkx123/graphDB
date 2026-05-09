@@ -36,8 +36,8 @@ pub use compression::{CompressionConfig, DeltaCompressor, DictionaryCompressor, 
 pub use key_builder::KeyBuilder;
 pub use key_parser::KeyParser;
 pub use key_types::{
-    deserialize_value, serialize_value, ByteKey, KEY_TYPE_EDGE_FORWARD,
-    KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
+    deserialize_value, serialize_value, ByteKey, IndexKey,
+    KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
 #[cfg(test)]

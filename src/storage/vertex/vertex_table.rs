@@ -41,7 +41,6 @@ pub struct VertexTable {
     id_indexer: IdIndexer<String>,
     columns: ColumnStore,
     timestamps: VertexTimestamp,
-    config: VertexTableConfig,
     is_open: bool,
 }
 
@@ -69,7 +68,6 @@ impl VertexTable {
             id_indexer: IdIndexer::with_capacity(config.initial_capacity),
             columns,
             timestamps: VertexTimestamp::with_capacity(config.initial_capacity),
-            config,
             is_open: true,
         }
     }

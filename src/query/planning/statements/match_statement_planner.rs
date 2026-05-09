@@ -193,7 +193,7 @@ impl StatementPlanner for MatchStatementPlanner {
 
 impl MatchStatementPlanner {
     fn plan_match_pattern(
-        &self,
+        &mut self,
         validated: &ValidatedStatement,
         space_id: u64,
         space_name: &str,
@@ -245,8 +245,11 @@ impl MatchStatementPlanner {
                 }
 
                 if self.has_return_clause(stmt) {
-                    let return_planner = ReturnClausePlanner::from_stmt(stmt);
-                    plan = return_planner.transform_clause(qctx.clone(), stmt, plan)?;
+                    let distinct = extract_distinct_flag_from_stmt(stmt);
+                    self.return_planner.set_distinct(distinct);
+                    plan = self
+                        .return_planner
+                        .transform_clause(qctx.clone(), stmt, plan)?;
                 }
 
                 if self.has_order_by_clause(stmt) {
@@ -1515,4 +1518,13 @@ impl MatchStatementPlanner {
             None
         }
     }
+}
+
+fn extract_distinct_flag_from_stmt(stmt: &crate::query::parser::ast::Stmt) -> bool {
+    if let crate::query::parser::ast::Stmt::Match(match_stmt) = stmt {
+        if let Some(return_clause) = &match_stmt.return_clause {
+            return return_clause.distinct;
+        }
+    }
+    false
 }

@@ -45,7 +45,7 @@ pub struct FlushManager {
     dirty_tracker: Arc<DirtyPageTracker>,
     compressor: Compressor,
     config: FlushConfig,
-    running: AtomicBool,
+    running: Arc<AtomicBool>,
     background_thread: RwLock<Option<JoinHandle<()>>>,
     page_writer: Option<Arc<dyn PageWriter>>,
 }
@@ -61,7 +61,7 @@ impl FlushManager {
             dirty_tracker,
             compressor: Compressor::new(config.compression),
             config,
-            running: AtomicBool::new(false),
+            running: Arc::new(AtomicBool::new(false)),
             background_thread: RwLock::new(None),
             page_writer: None,
         }
@@ -83,11 +83,10 @@ impl FlushManager {
 
         let dirty_tracker = self.dirty_tracker.clone();
         let interval = self.config.flush_interval;
-        let running = Arc::new(AtomicBool::new(true));
-        let running_clone = running.clone();
+        let running = self.running.clone();
 
-        let _handle = thread::spawn(move || {
-            while running_clone.load(Ordering::Relaxed) {
+        let handle = thread::spawn(move || {
+            while running.load(Ordering::Relaxed) {
                 thread::sleep(interval);
 
                 if dirty_tracker.should_flush() {
@@ -99,11 +98,17 @@ impl FlushManager {
             }
         });
 
+        *self.background_thread.write() = Some(handle);
+
         Ok(())
     }
 
     pub fn stop_background_flush(&self) {
         self.running.store(false, Ordering::SeqCst);
+        
+        if let Some(handle) = self.background_thread.write().take() {
+            let _ = handle.join();
+        }
     }
 
     pub fn mark_dirty(&self, page_id: PageId) {

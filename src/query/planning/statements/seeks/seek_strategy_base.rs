@@ -257,6 +257,13 @@ impl SeekStrategySelector {
     }
 
     pub fn select_strategy(&self, context: &SeekStrategyContext) -> SeekStrategyType {
+        self.select_strategy_with_estimation(context).strategy_type
+    }
+
+    pub fn select_strategy_with_estimation(
+        &self,
+        context: &SeekStrategyContext,
+    ) -> StrategySelection {
         let candidates = self.evaluate_all_strategies(context);
 
         candidates
@@ -267,8 +274,14 @@ impl SeekStrategySelector {
                     .partial_cmp(&b.cost)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|e| e.strategy_type)
-            .unwrap_or(SeekStrategyType::ScanSeek)
+            .map(|e| StrategySelection {
+                strategy_type: e.strategy_type,
+                estimated_rows: e.estimated_rows,
+            })
+            .unwrap_or(StrategySelection {
+                strategy_type: SeekStrategyType::ScanSeek,
+                estimated_rows: context.total_vertices,
+            })
     }
 
     fn evaluate_all_strategies(
@@ -368,10 +381,17 @@ impl SeekStrategySelector {
     }
 }
 
+#[derive(Debug, Clone)]
 struct StrategyEvaluation {
     strategy_type: SeekStrategyType,
     cost: f64,
     estimated_rows: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct StrategySelection {
+    pub strategy_type: SeekStrategyType,
+    pub estimated_rows: usize,
 }
 
 impl Default for SeekStrategySelector {

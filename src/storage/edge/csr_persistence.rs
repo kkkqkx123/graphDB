@@ -78,21 +78,12 @@ impl CsrFileHeader {
 
 /// CSR file-based persistence
 pub struct CsrPersistence {
-    path: Option<std::path::PathBuf>,
     is_open: AtomicBool,
 }
 
 impl CsrPersistence {
     pub fn new() -> Self {
         Self {
-            path: None,
-            is_open: AtomicBool::new(false),
-        }
-    }
-
-    pub fn with_path<P: AsRef<Path>>(path: P) -> Self {
-        Self {
-            path: Some(path.as_ref().to_path_buf()),
             is_open: AtomicBool::new(false),
         }
     }
