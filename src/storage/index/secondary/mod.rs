@@ -16,9 +16,10 @@ pub use index_data_manager::{
     INVALID_TIMESTAMP, MAX_TIMESTAMP,
 };
 pub use index_gc_manager::{IndexGcConfig, IndexGcManager};
-pub use index_updater::IndexUpdater;
+pub use index_updater::{IndexUndoEntry, IndexUndoLog, IndexUpdateContext, IndexUpdater};
 pub use key_codec::{
-    ByteKey, CompressionConfig, IndexCompressor, KeyBuilder, KeyParser,
+    ByteKey, CompressionConfig, DeltaCompressor, DictionaryCompressor, IndexCompressor, KeyBuilder,
+    KeyParser, PrefixCompressor,
     KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 pub use vertex_index_manager::VertexIndexManager;

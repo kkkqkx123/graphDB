@@ -273,8 +273,8 @@ impl DeltaCompressor {
         let common_len = key.len().min(self.base.len());
         let mut delta_start = 0;
 
-        for i in 0..common_len {
-            if key[i] != self.base[i] {
+        for (i, (key_byte, base_byte)) in key.iter().zip(self.base.iter()).enumerate().take(common_len) {
+            if key_byte != base_byte {
                 delta_start = i;
                 break;
             }
@@ -358,6 +358,7 @@ pub struct IndexCompressor {
     config: CompressionConfig,
     prefix_compressor: Option<PrefixCompressor>,
     dictionary_compressor: Option<DictionaryCompressor>,
+    delta_compressor: Option<DeltaCompressor>,
 }
 
 impl IndexCompressor {
@@ -366,6 +367,7 @@ impl IndexCompressor {
             config,
             prefix_compressor: None,
             dictionary_compressor: None,
+            delta_compressor: None,
         }
     }
 
@@ -392,6 +394,12 @@ impl IndexCompressor {
                     self.config.dictionary_threshold,
                 ));
             }
+            CompressionType::Delta => {
+                if !keys.is_empty() {
+                    let base = keys[0].clone();
+                    self.delta_compressor = Some(DeltaCompressor::with_base(base));
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -409,6 +417,11 @@ impl IndexCompressor {
                 .as_ref()
                 .map(|c| c.compress(key))
                 .unwrap_or_else(|| key.to_vec()),
+            CompressionType::Delta => self
+                .delta_compressor
+                .as_ref()
+                .map(|c| c.compress(key))
+                .unwrap_or_else(|| key.to_vec()),
             _ => key.to_vec(),
         }
     }
@@ -422,6 +435,11 @@ impl IndexCompressor {
                 .unwrap_or_else(|| Ok(compressed.to_vec())),
             CompressionType::Dictionary => self
                 .dictionary_compressor
+                .as_ref()
+                .map(|c| c.decompress(compressed))
+                .unwrap_or_else(|| Ok(compressed.to_vec())),
+            CompressionType::Delta => self
+                .delta_compressor
                 .as_ref()
                 .map(|c| c.decompress(compressed))
                 .unwrap_or_else(|| Ok(compressed.to_vec())),

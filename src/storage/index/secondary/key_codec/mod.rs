@@ -32,7 +32,7 @@ pub mod key_builder;
 pub mod key_parser;
 pub mod key_types;
 
-pub use compression::{CompressionConfig, IndexCompressor};
+pub use compression::{CompressionConfig, DeltaCompressor, DictionaryCompressor, IndexCompressor, PrefixCompressor};
 pub use key_builder::KeyBuilder;
 pub use key_parser::KeyParser;
 pub use key_types::{

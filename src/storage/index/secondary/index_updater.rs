@@ -512,12 +512,14 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
 /// Index update context
 ///
 /// Index update management for use in batch DML operations
+/// Supports undo logging for transaction rollback.
 pub struct IndexUpdateContext<'a, I: IndexDataManager, M: IndexMetadataManager> {
     updater: IndexUpdater<'a, I, M>,
     pending_vertex_updates: Vec<(Value, Vec<Tag>)>,
     pending_edge_updates: Vec<Edge>,
-    pending_vertex_deletes: Vec<Value>,
+    pending_vertex_deletes: Vec<(Value, Vec<Tag>)>,
     pending_edge_deletes: Vec<Edge>,
+    undo_log: IndexUndoLog,
 }
 
 impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I, M> {
@@ -539,6 +541,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
             pending_edge_updates: Vec::new(),
             pending_vertex_deletes: Vec::new(),
             pending_edge_deletes: Vec::new(),
+            undo_log: IndexUndoLog::new(),
         }
     }
 
@@ -553,8 +556,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
     }
 
     /// Add a vertex and delete it.
-    pub fn add_vertex_delete(&mut self, vertex_id: Value) {
-        self.pending_vertex_deletes.push(vertex_id);
+    ///
+    /// # Arguments
+    /// * `vertex_id` - vertex ID
+    /// * `tags` - vertex tags (needed for undo logging)
+    pub fn add_vertex_delete(&mut self, vertex_id: Value, tags: Vec<Tag>) {
+        self.pending_vertex_deletes.push((vertex_id, tags));
     }
 
     /// Add edges; remove edges.
@@ -565,14 +572,19 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
     /// Submit all index updates.
     ///
     /// Called when a transaction is committed, to apply all index updates in batches.
+    /// Records undo entries for transaction rollback support.
     pub fn commit(&mut self) -> Result<(), StorageError> {
+        // Record undo entries before applying index updates
+        self.record_undo_entries()?;
+
         // First, handle the deletion operations, and then proceed with the update operations.
         // This can prevent the problem of having to recreate the index after it has been deleted.
 
         // Delete the vertex index.
         if !self.pending_vertex_deletes.is_empty() {
+            let vertex_ids: Vec<Value> = self.pending_vertex_deletes.iter().map(|(vid, _)| vid.clone()).collect();
             self.updater
-                .batch_delete_vertex_indexes(&self.pending_vertex_deletes)?;
+                .batch_delete_vertex_indexes(&vertex_ids)?;
             self.pending_vertex_deletes.clear();
         }
 
@@ -600,14 +612,144 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
         Ok(())
     }
 
+    /// Record undo entries for all pending index updates
+    fn record_undo_entries(&mut self) -> Result<(), StorageError> {
+        let space_id = self.updater.space_id();
+
+        // Record undo entries for vertex deletes (need to re-insert indexes)
+        for (vertex_id, tags) in &self.pending_vertex_deletes {
+            let indexes = self
+                .updater
+                .index_metadata_manager
+                .list_tag_indexes(space_id)?;
+
+            for index in &indexes {
+                for tag in tags {
+                    if index.schema_name == tag.name {
+                        for field in &index.fields {
+                            if let Some(prop_value) = tag.properties.get(&field.name) {
+                                self.undo_log.add(IndexUndoEntry::DeleteVertexIndex {
+                                    space_id,
+                                    index_name: index.name.clone(),
+                                    vertex_id: vertex_id.clone(),
+                                    prop_name: field.name.clone(),
+                                    prop_value: prop_value.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Record undo entries for edge deletes (need to re-insert indexes)
+        for edge in &self.pending_edge_deletes {
+            let indexes = self
+                .updater
+                .index_metadata_manager
+                .list_edge_indexes(space_id)?;
+
+            for index in &indexes {
+                if index.schema_name == edge.edge_type {
+                    for field in &index.fields {
+                        if let Some(prop_value) = edge.props.get(&field.name) {
+                            self.undo_log.add(IndexUndoEntry::DeleteEdgeIndex {
+                                space_id,
+                                index_name: index.name.clone(),
+                                src: (*edge.src).clone(),
+                                dst: (*edge.dst).clone(),
+                                prop_name: field.name.clone(),
+                                prop_value: prop_value.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Record undo entries for vertex inserts (need to delete indexes on rollback)
+        for (vertex_id, tags) in &self.pending_vertex_updates {
+            let indexes = self
+                .updater
+                .index_metadata_manager
+                .list_tag_indexes(space_id)?;
+
+            for index in &indexes {
+                for tag in tags {
+                    if index.schema_name == tag.name {
+                        for field in &index.fields {
+                            if let Some(prop_value) = tag.properties.get(&field.name) {
+                                self.undo_log.add(IndexUndoEntry::InsertVertexIndex {
+                                    space_id,
+                                    index_name: index.name.clone(),
+                                    vertex_id: vertex_id.clone(),
+                                    prop_name: field.name.clone(),
+                                    prop_value: prop_value.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Record undo entries for edge inserts (need to delete indexes on rollback)
+        for edge in &self.pending_edge_updates {
+            let indexes = self
+                .updater
+                .index_metadata_manager
+                .list_edge_indexes(space_id)?;
+
+            for index in &indexes {
+                if index.schema_name == edge.edge_type {
+                    for field in &index.fields {
+                        if let Some(prop_value) = edge.props.get(&field.name) {
+                            self.undo_log.add(IndexUndoEntry::InsertEdgeIndex {
+                                space_id,
+                                index_name: index.name.clone(),
+                                src: (*edge.src).clone(),
+                                dst: (*edge.dst).clone(),
+                                prop_name: field.name.clone(),
+                                prop_value: prop_value.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Roll back all pending index updates.
     ///
-    /// Called during transaction rollback to clear all pending updates.
-    pub fn rollback(&mut self) {
+    /// Called during transaction rollback to clear all pending updates
+    /// and execute undo operations to revert index changes.
+    pub fn rollback(&mut self) -> Result<(), StorageError> {
+        // Execute undo operations to revert index changes
+        if !self.undo_log.is_empty() {
+            self.undo_log.execute_undo(self.updater.index_data_manager)?;
+        }
+
+        // Clear all pending updates
         self.pending_vertex_updates.clear();
         self.pending_edge_updates.clear();
         self.pending_vertex_deletes.clear();
         self.pending_edge_deletes.clear();
+
+        Ok(())
+    }
+
+    /// Get the undo log for external management
+    pub fn undo_log(&self) -> &IndexUndoLog {
+        &self.undo_log
+    }
+
+    /// Take the undo log for external management
+    pub fn take_undo_log(&mut self) -> IndexUndoLog {
+        IndexUndoLog {
+            entries: std::mem::take(&mut self.undo_log.entries),
+        }
     }
 }
 
@@ -768,51 +910,13 @@ impl IndexUndoLog {
                     prop_name: _,
                     prop_value,
                 } => {
-                    let prefix = super::key_codec::KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
-                    let _end =
-                        super::key_codec::KeyBuilder::build_range_end(
-                            &prefix,
-                        );
-                    let vertex_bytes =
-                        super::key_codec::serialize_value(
-                            &vertex_id,
-                        )?;
-                    let _prop_value_bytes =
-                        super::key_codec::serialize_value(
-                            &prop_value,
-                        )?;
-
-                    let forward_keys_to_delete: Vec<Vec<u8>> = {
-                        let results = manager.lookup_tag_index(
-                            space_id,
-                            &Index::new(crate::core::types::IndexConfig {
-                                id: 0,
-                                name: index_name.clone(),
-                                space_id,
-                                schema_name: String::new(),
-                                fields: vec![],
-                                properties: vec![],
-                                index_type: crate::core::types::IndexType::TagIndex,
-                                is_unique: false,
-                                partial_condition: None,
-                            }),
-                            &prop_value,
-                        )?;
-                        results
-                            .iter()
-                            .filter_map(|v| {
-                                if *v == vertex_id {
-                                    Some(vertex_bytes.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect()
-                    };
-
-                    for _key in forward_keys_to_delete {
-                        // Delete the index entry
-                    }
+                    manager.delete_vertex_index_single(
+                        space_id,
+                        &vertex_id,
+                        &index_name,
+                        &prop_value,
+                        MAX_TIMESTAMP,
+                    )?;
                 }
                 IndexUndoEntry::DeleteVertexIndex {
                     space_id,
@@ -836,7 +940,14 @@ impl IndexUndoLog {
                     prop_name: _,
                     prop_value,
                 } => {
-                    let _ = (space_id, index_name, src, dst, prop_value);
+                    manager.delete_edge_index_single(
+                        space_id,
+                        &src,
+                        &dst,
+                        &index_name,
+                        &prop_value,
+                        MAX_TIMESTAMP,
+                    )?;
                 }
                 IndexUndoEntry::DeleteEdgeIndex {
                     space_id,

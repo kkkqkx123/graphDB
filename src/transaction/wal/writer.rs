@@ -32,6 +32,8 @@ pub trait WalWriter: Send + Sync {
 
 /// Pending write for group commit
 pub(crate) struct PendingWrite {
+    op_type: WalOpType,
+    timestamp: u32,
     data: Vec<u8>,
     result: Arc<Mutex<WalResult<bool>>>,
     notified: Arc<Condvar>,
@@ -55,11 +57,13 @@ impl GroupCommitManager {
         }
     }
 
-    pub fn submit(&self, data: &[u8]) -> WalResult<bool> {
+    pub fn submit(&self, op_type: WalOpType, timestamp: u32, data: &[u8]) -> WalResult<bool> {
         let result = Arc::new(Mutex::new(Ok(false)));
         let notified = Arc::new(Condvar::new());
 
         let pending = PendingWrite {
+            op_type,
+            timestamp,
             data: data.to_vec(),
             result: result.clone(),
             notified: notified.clone(),
@@ -95,7 +99,28 @@ impl GroupCommitManager {
         }
     }
 
-    pub fn collect_batch(&self) -> Option<Vec<PendingWrite>> {
+    pub fn process_batch(&self, writer: &mut LocalWalWriter) -> WalResult<()> {
+        if let Some(batch) = self.collect_batch() {
+            if batch.is_empty() {
+                return Ok(());
+            }
+
+            let entries: Vec<(WalOpType, u32, &[u8])> = batch
+                .iter()
+                .map(|p| (p.op_type, p.timestamp, p.data.as_slice()))
+                .collect();
+
+            let success = writer.append_batch(&entries);
+
+            match success {
+                Ok(_) => Self::notify_results(batch, true),
+                Err(e) => Self::notify_error(batch, e),
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn collect_batch(&self) -> Option<Vec<PendingWrite>> {
         let mut queue = self.pending_writes.lock().ok()?;
 
         if queue.is_empty() {
@@ -107,6 +132,14 @@ impl GroupCommitManager {
         Some(batch)
     }
 
+    pub fn is_leader(&self) -> bool {
+        self.is_leader.load(Ordering::SeqCst)
+    }
+
+    pub fn set_leader(&self, is_leader: bool) {
+        self.is_leader.store(is_leader, Ordering::SeqCst);
+    }
+
     pub fn has_pending(&self) -> bool {
         self.pending_writes
             .lock()
@@ -114,7 +147,7 @@ impl GroupCommitManager {
             .unwrap_or(false)
     }
 
-    pub fn notify_results(batch: Vec<PendingWrite>, success: bool) {
+    pub(crate) fn notify_results(batch: Vec<PendingWrite>, success: bool) {
         for pending in batch {
             if let Ok(mut result) = pending.result.lock() {
                 *result = Ok(success);
@@ -262,8 +295,8 @@ impl LocalWalWriter {
             std::fs::create_dir_all(&wal_dir).map_err(|e| WalError::IoError(e.to_string()))?;
         }
 
-        for version in 0..65536 {
-            let path = wal_dir.join(format!("thread_{}_{}.wal", self.thread_id, version));
+        for version in self.version..65536 {
+            let path = self.get_wal_file_path(version);
             if !path.exists() {
                 return Ok(path);
             }
@@ -461,7 +494,13 @@ impl LocalWalWriter {
 
     /// Clean up old WAL files based on size and TTL
     fn cleanup_old_wal_files(&mut self) -> WalResult<usize> {
-        // Frequency control: only cleanup every 100 writes
+        let now = Instant::now();
+        if let Some(last_time) = self.last_cleanup_time {
+            if now.duration_since(last_time) < Duration::from_secs(1) {
+                return Ok(0);
+            }
+        }
+
         if self.writes_since_cleanup < 100 {
             return Ok(0);
         }
@@ -517,7 +556,7 @@ impl LocalWalWriter {
             log::info!("Cleaned up {} old WAL files", deleted_count);
         }
 
-        // Reset counter after cleanup
+        self.last_cleanup_time = Some(Instant::now());
         self.writes_since_cleanup = 0;
 
         Ok(deleted_count)
@@ -917,6 +956,19 @@ impl LocalWalWriter {
     pub fn reset_stats(&mut self) {
         self.stats = super::types::WalStats::new();
     }
+
+    /// Get group commit manager reference
+    pub fn group_commit_manager(&self) -> Option<&Arc<GroupCommitManager>> {
+        self.group_commit.as_ref()
+    }
+
+    /// Process pending group commit batch
+    pub fn process_group_commit(&mut self) -> WalResult<()> {
+        if let Some(manager) = self.group_commit.clone() {
+            manager.process_batch(self)?;
+        }
+        Ok(())
+    }
 }
 
 impl WalWriter for LocalWalWriter {
@@ -926,8 +978,18 @@ impl WalWriter for LocalWalWriter {
         }
 
         self.version += 1;
-        let path = self.get_wal_file_path(self.version);
-        
+        let path = self.find_available_path()?;
+
+        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+            if let Some(version_str) = file_name
+                .strip_prefix(&format!("thread_{}_wal_", self.thread_id))
+            {
+                if let Ok(version) = u32::from_str_radix(version_str, 16) {
+                    self.version = version;
+                }
+            }
+        }
+
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -1018,9 +1080,6 @@ impl WalWriter for LocalWalWriter {
             )?;
         }
 
-        drop(file);
-
-        // Increment writes since cleanup counter
         self.writes_since_cleanup += 1;
 
         // Trigger cleanup based on frequency control

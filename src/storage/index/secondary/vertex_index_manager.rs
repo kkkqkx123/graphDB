@@ -150,6 +150,41 @@ impl VertexIndexManager {
         self.delete_vertex_indexes_mvcc(space_id, vertex_id, MAX_TIMESTAMP)
     }
 
+    /// Delete a single specific index entry (not all indexes for the vertex)
+    /// Used for undo operations to revert a specific index insertion
+    pub fn delete_vertex_index_single(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        index_name: &str,
+        prop_value: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        let forward_key =
+            KeyBuilder::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)?;
+        let reverse_key =
+            KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
+
+        let compressed_forward = self.compress_key(&forward_key.0);
+        let compressed_reverse = self.compress_key(&reverse_key.0);
+
+        {
+            let mut forward_index = self.forward_index.write();
+            if let Some(entry) = forward_index.get_mut(&compressed_forward) {
+                entry.mark_deleted(write_ts);
+            }
+        }
+
+        {
+            let mut reverse_index = self.reverse_index.write();
+            if let Some(entry) = reverse_index.get_mut(&compressed_reverse) {
+                entry.mark_deleted(write_ts);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn delete_vertex_indexes_mvcc(
         &self,
         space_id: u64,

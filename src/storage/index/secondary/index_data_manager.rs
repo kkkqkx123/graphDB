@@ -113,6 +113,27 @@ pub trait IndexDataManager {
         write_ts: Timestamp,
     ) -> Result<(), StorageError>;
 
+    /// Delete a single specific vertex index entry
+    fn delete_vertex_index_single(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        index_name: &str,
+        prop_value: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.delete_vertex_index_single_mvcc(space_id, vertex_id, index_name, prop_value, write_ts)
+    }
+
+    fn delete_vertex_index_single_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        index_name: &str,
+        prop_value: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError>;
+
     fn delete_edge_indexes(
         &self,
         space_id: u64,
@@ -129,6 +150,29 @@ pub trait IndexDataManager {
         src: &Value,
         dst: &Value,
         index_names: &[String],
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError>;
+
+    /// Delete a single specific edge index entry
+    fn delete_edge_index_single(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_name: &str,
+        prop_value: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.delete_edge_index_single_mvcc(space_id, src, dst, index_name, prop_value, write_ts)
+    }
+
+    fn delete_edge_index_single_mvcc(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_name: &str,
+        prop_value: &Value,
         write_ts: Timestamp,
     ) -> Result<(), StorageError>;
 
@@ -488,6 +532,18 @@ impl IndexDataManager for InMemoryIndexDataManager {
             .delete_vertex_indexes_mvcc(space_id, vertex_id, write_ts)
     }
 
+    fn delete_vertex_index_single_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        index_name: &str,
+        prop_value: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.vertex_manager
+            .delete_vertex_index_single(space_id, vertex_id, index_name, prop_value, write_ts)
+    }
+
     fn delete_edge_indexes_mvcc(
         &self,
         space_id: u64,
@@ -498,6 +554,19 @@ impl IndexDataManager for InMemoryIndexDataManager {
     ) -> Result<(), StorageError> {
         self.edge_manager
             .delete_edge_indexes_mvcc(space_id, src, dst, index_names, write_ts)
+    }
+
+    fn delete_edge_index_single_mvcc(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_name: &str,
+        prop_value: &Value,
+        write_ts: Timestamp,
+    ) -> Result<(), StorageError> {
+        self.edge_manager
+            .delete_edge_index_single(space_id, src, dst, index_name, prop_value, write_ts)
     }
 
     fn lookup_tag_index_mvcc(
