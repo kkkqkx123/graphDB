@@ -45,8 +45,6 @@ use super::query::QueryOps;
 use super::schema::SchemaOps;
 use super::transaction::TransactionOps;
 
-const DATA_FORMAT_VERSION: u32 = 1;
-
 pub struct PropertyGraph {
     schema_ops: SchemaOps,
     edge_ops: EdgeOps,
@@ -213,10 +211,6 @@ impl PropertyGraph {
 
     pub fn stop_background_flush(&self) {
         self.flush_manager.stop_background_flush();
-    }
-
-    fn write_wal(&self, _op_type: u8, _data: &[u8]) -> StorageResult<()> {
-        self.flush_manager.write_wal(_data)
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {

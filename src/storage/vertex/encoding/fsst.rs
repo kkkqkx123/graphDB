@@ -6,83 +6,69 @@
 //!
 //! # Algorithm
 //!
-//! 1. Analyze input strings to find frequent byte sequences (1-8 bytes)
+//! 1. Analyze input strings to find frequent byte sequences (2-8 bytes)
 //! 2. Build a symbol table mapping frequent sequences to single-byte codes
 //! 3. Encode strings using the symbol table
 //! 4. Decoding is a simple table lookup - very fast
+//!
+//! # Performance Optimizations
+//!
+//! - Training uses sampling to limit memory usage
+//! - Encoding uses array-based lookup to avoid heap allocations
+//! - Only extracts ngrams of length 2-8 (single bytes don't benefit from encoding)
 
 use std::collections::HashMap;
 
 const MAX_SYMBOL_LEN: usize = 8;
+const MIN_SYMBOL_LEN: usize = 2;
 const SYMBOL_TABLE_SIZE: usize = 255;
-
-#[derive(Debug, Clone)]
-pub struct FsstSymbol {
-    bytes: Vec<u8>,
-    code: u8,
-    frequency: usize,
-}
-
-impl FsstSymbol {
-    pub fn new(bytes: Vec<u8>, code: u8) -> Self {
-        Self {
-            bytes,
-            code,
-            frequency: 0,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.bytes.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
-    }
-}
+const MAX_TRAINING_SAMPLES: usize = 10000;
+const MAX_NGRAMS_PER_STRING: usize = 1000;
 
 #[derive(Debug, Clone)]
 pub struct FsstSymbolTable {
-    symbols: Vec<Option<FsstSymbol>>,
-    code_to_symbol: HashMap<u8, Vec<u8>>,
-    byte_to_codes: HashMap<Vec<u8>, u8>,
+    code_to_symbol: Vec<Vec<u8>>,
+    byte_to_code: HashMap<Vec<u8>, u8>,
 }
 
 impl FsstSymbolTable {
     pub fn new() -> Self {
         Self {
-            symbols: vec![None; SYMBOL_TABLE_SIZE + 1],
-            code_to_symbol: HashMap::new(),
-            byte_to_codes: HashMap::new(),
+            code_to_symbol: vec![Vec::new(); SYMBOL_TABLE_SIZE + 1],
+            byte_to_code: HashMap::new(),
         }
     }
 
     pub fn insert(&mut self, bytes: Vec<u8>, code: u8) {
-        let symbol = FsstSymbol::new(bytes.clone(), code);
-        self.code_to_symbol.insert(code, bytes.clone());
-        self.byte_to_codes.insert(bytes, code);
-        self.symbols[code as usize] = Some(symbol);
+        self.code_to_symbol[code as usize] = bytes.clone();
+        self.byte_to_code.insert(bytes, code);
     }
 
     pub fn get_by_code(&self, code: u8) -> Option<&Vec<u8>> {
-        self.code_to_symbol.get(&code)
+        let symbol = &self.code_to_symbol[code as usize];
+        if symbol.is_empty() {
+            None
+        } else {
+            Some(symbol)
+        }
     }
 
+    #[inline]
     pub fn get_by_bytes(&self, bytes: &[u8]) -> Option<u8> {
-        self.byte_to_codes.get(bytes).copied()
+        self.byte_to_code.get(bytes).copied()
     }
 
     pub fn len(&self) -> usize {
-        self.code_to_symbol.len()
+        self.byte_to_code.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.code_to_symbol.is_empty()
+        self.byte_to_code.is_empty()
     }
 
     pub fn memory_usage(&self) -> usize {
-        self.code_to_symbol.values().map(|v| v.len()).sum::<usize>()
-            + self.byte_to_codes.keys().map(|k| k.len()).sum::<usize>()
+        self.code_to_symbol.iter().map(|v| v.len()).sum::<usize>()
+            + self.byte_to_code.keys().map(|k| k.len()).sum::<usize>()
             + std::mem::size_of::<Self>()
     }
 }
@@ -96,7 +82,6 @@ impl Default for FsstSymbolTable {
 #[derive(Debug, Clone)]
 pub struct FsstEncoder {
     table: FsstSymbolTable,
-    encoded_count: usize,
     total_input_bytes: usize,
     total_output_bytes: usize,
 }
@@ -105,27 +90,49 @@ impl FsstEncoder {
     pub fn new() -> Self {
         Self {
             table: FsstSymbolTable::new(),
-            encoded_count: 0,
             total_input_bytes: 0,
             total_output_bytes: 0,
         }
     }
 
     pub fn train(strings: &[&str], max_symbols: usize) -> Self {
+        if strings.is_empty() {
+            return Self::new();
+        }
+
         let mut encoder = Self::new();
         encoder.build_symbol_table(strings, max_symbols);
         encoder
     }
 
     fn build_symbol_table(&mut self, strings: &[&str], max_symbols: usize) {
+        let sampled: Vec<&str> = if strings.len() > MAX_TRAINING_SAMPLES {
+            let step = strings.len() / MAX_TRAINING_SAMPLES;
+            strings.iter().step_by(step).copied().collect()
+        } else {
+            strings.to_vec()
+        };
+
         let mut ngram_freq: HashMap<Vec<u8>, usize> = HashMap::new();
 
-        for s in strings {
+        for s in sampled {
             let bytes = s.as_bytes();
-            for len in 1..=MAX_SYMBOL_LEN.min(bytes.len()) {
+            if bytes.len() < MIN_SYMBOL_LEN {
+                continue;
+            }
+
+            let mut ngram_count = 0;
+            for len in MIN_SYMBOL_LEN..=MAX_SYMBOL_LEN.min(bytes.len()) {
                 for i in 0..=bytes.len() - len {
+                    if ngram_count >= MAX_NGRAMS_PER_STRING {
+                        break;
+                    }
                     let ngram: Vec<u8> = bytes[i..i + len].to_vec();
                     *ngram_freq.entry(ngram).or_insert(0) += 1;
+                    ngram_count += 1;
+                }
+                if ngram_count >= MAX_NGRAMS_PER_STRING {
+                    break;
                 }
             }
         }
@@ -142,46 +149,57 @@ impl FsstEncoder {
             if code as usize >= max_symbols.min(SYMBOL_TABLE_SIZE) {
                 break;
             }
-            if ngram.len() > 1 {
-                self.table.insert(ngram, code);
-                code += 1;
-            }
+            self.table.insert(ngram, code);
+            code += 1;
         }
     }
 
     pub fn encode(&self, s: &str) -> Vec<u8> {
         let bytes = s.as_bytes();
+        if bytes.is_empty() {
+            return Vec::new();
+        }
+
         let mut result = Vec::with_capacity(bytes.len());
         let mut i = 0;
 
         while i < bytes.len() {
-            let mut best_match: Option<(u8, usize)> = None;
+            let remaining = bytes.len() - i;
+            let max_len = MAX_SYMBOL_LEN.min(remaining);
 
-            for len in (1..=MAX_SYMBOL_LEN.min(bytes.len() - i)).rev() {
-                let candidate: Vec<u8> = bytes[i..i + len].to_vec();
-                if let Some(code) = self.table.get_by_bytes(&candidate) {
-                    best_match = Some((code, len));
+            let mut found = false;
+            for len in (MIN_SYMBOL_LEN..=max_len).rev() {
+                if let Some(code) = self.table.get_by_bytes(&bytes[i..i + len]) {
+                    result.push(code);
+                    i += len;
+                    found = true;
                     break;
                 }
             }
 
-            match best_match {
-                Some((code, len)) => {
-                    result.push(code);
-                    i += len;
-                }
-                None => {
-                    result.push(bytes[i]);
-                    i += 1;
-                }
+            if !found {
+                result.push(bytes[i]);
+                i += 1;
             }
         }
 
         result
     }
 
+    pub fn encode_with_stats(&mut self, s: &str) -> Vec<u8> {
+        let bytes = s.as_bytes();
+        if bytes.is_empty() {
+            return Vec::new();
+        }
+
+        let result = self.encode(s);
+        self.total_input_bytes += bytes.len();
+        self.total_output_bytes += result.len();
+        result
+    }
+
     pub fn decode(&self, encoded: &[u8]) -> Vec<u8> {
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(encoded.len() * 2);
 
         for &code in encoded {
             if code == 0 {
@@ -216,6 +234,19 @@ impl FsstEncoder {
     pub fn symbol_count(&self) -> usize {
         self.table.len()
     }
+
+    pub fn reset_stats(&mut self) {
+        self.total_input_bytes = 0;
+        self.total_output_bytes = 0;
+    }
+
+    pub fn with_table(table: FsstSymbolTable) -> Self {
+        Self {
+            table,
+            total_input_bytes: 0,
+            total_output_bytes: 0,
+        }
+    }
 }
 
 impl Default for FsstEncoder {
@@ -226,9 +257,9 @@ impl Default for FsstEncoder {
 
 #[derive(Debug, Clone)]
 pub struct FsstColumn {
-    encoder: FsstEncoder,
-    encoded_data: Vec<Vec<u8>>,
-    null_bitmap: Vec<bool>,
+    pub encoder: FsstEncoder,
+    pub encoded_data: Vec<Vec<u8>>,
+    pub null_bitmap: Vec<bool>,
 }
 
 impl FsstColumn {
@@ -242,6 +273,10 @@ impl FsstColumn {
 
     pub fn train_and_build(strings: &[Option<&str>], max_symbols: usize) -> Self {
         let non_null: Vec<&str> = strings.iter().filter_map(|s| *s).collect();
+
+        if non_null.is_empty() {
+            return Self::new();
+        }
 
         let encoder = FsstEncoder::train(&non_null, max_symbols);
 
@@ -262,6 +297,20 @@ impl FsstColumn {
         match value {
             Some(s) => {
                 let encoded = self.encoder.encode(s);
+                self.encoded_data.push(encoded);
+                self.null_bitmap.push(false);
+            }
+            None => {
+                self.encoded_data.push(Vec::new());
+                self.null_bitmap.push(true);
+            }
+        }
+    }
+
+    pub fn append_with_stats(&mut self, value: Option<&str>) {
+        match value {
+            Some(s) => {
+                let encoded = self.encoder.encode_with_stats(s);
                 self.encoded_data.push(encoded);
                 self.null_bitmap.push(false);
             }
@@ -318,17 +367,19 @@ impl FsstColumn {
     }
 
     pub fn compression_ratio(&self) -> f64 {
-        let original_size: usize = self
-            .encoded_data
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| !self.null_bitmap[*i])
-            .map(|(_, v)| {
-                self.encoder.decode(v).len()
-            })
-            .sum();
+        if self.encoded_data.is_empty() {
+            return 0.0;
+        }
 
-        let compressed_size: usize = self.encoded_data.iter().map(|v| v.len()).sum();
+        let mut original_size = 0usize;
+        let mut compressed_size = 0usize;
+
+        for (i, data) in self.encoded_data.iter().enumerate() {
+            if !self.null_bitmap[i] {
+                original_size += self.encoder.decode(data).len();
+                compressed_size += data.len();
+            }
+        }
 
         if original_size == 0 {
             return 0.0;
@@ -340,6 +391,10 @@ impl FsstColumn {
     pub fn encoder(&self) -> &FsstEncoder {
         &self.encoder
     }
+
+    pub fn fast_compression_ratio(&self) -> f64 {
+        self.encoder.compression_ratio()
+    }
 }
 
 impl Default for FsstColumn {
@@ -349,6 +404,10 @@ impl Default for FsstColumn {
 }
 
 pub fn select_fsst(strings: &[&str]) -> bool {
+    if strings.is_empty() {
+        return false;
+    }
+
     if strings.len() < 100 {
         return false;
     }
@@ -470,5 +529,50 @@ mod tests {
             let decoded = encoder.decode_to_string(&encoded);
             assert_eq!(decoded, Some(s.to_string()));
         }
+    }
+
+    #[test]
+    fn test_empty_strings() {
+        let strings: Vec<&str> = vec![];
+        let encoder = FsstEncoder::train(&strings, 100);
+        assert_eq!(encoder.symbol_count(), 0);
+
+        let encoded = encoder.encode("");
+        assert!(encoded.is_empty());
+    }
+
+    #[test]
+    fn test_encode_with_stats() {
+        let strings = vec!["hello world", "hello rust"];
+        let mut encoder = FsstEncoder::train(&strings, 100);
+
+        let _ = encoder.encode_with_stats("hello world");
+        let _ = encoder.encode_with_stats("hello rust");
+
+        assert!(encoder.total_input_bytes > 0);
+        assert!(encoder.total_output_bytes > 0);
+        assert!(encoder.compression_ratio() >= 0.0);
+    }
+
+    #[test]
+    fn test_append_with_stats() {
+        let strings = vec![Some("hello world")];
+        let mut column = FsstColumn::train_and_build(&strings, 100);
+
+        column.append_with_stats(Some("hello rust"));
+        column.append_with_stats(Some("hello code"));
+
+        assert!(column.fast_compression_ratio() >= 0.0);
+    }
+
+    #[test]
+    fn test_large_training_set() {
+        let strings: Vec<String> = (0..20000)
+            .map(|i| format!("long_string_with_prefix_{}", i))
+            .collect();
+        let refs: Vec<&str> = strings.iter().map(|s| s.as_str()).collect();
+
+        let encoder = FsstEncoder::train(&refs, 100);
+        assert!(encoder.symbol_count() > 0);
     }
 }

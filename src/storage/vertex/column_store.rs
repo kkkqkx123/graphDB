@@ -6,6 +6,7 @@
 use bitvec::prelude::*;
 use crate::core::value::DateValue;
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use super::encoding::{EncodingType, FsstColumn, FsstEncoder};
 
 #[derive(Debug, Clone)]
 pub struct Column {
@@ -17,6 +18,8 @@ pub struct Column {
     offsets: Vec<usize>,
     null_bitmap: Option<BitVec<u8, Lsb0>>,
     row_count: usize,
+    encoding_type: EncodingType,
+    fsst_column: Option<FsstColumn>,
 }
 
 impl Column {
@@ -30,6 +33,8 @@ impl Column {
             offsets: Vec::new(),
             null_bitmap: if nullable { Some(BitVec::new()) } else { None },
             row_count: 0,
+            encoding_type: EncodingType::None,
+            fsst_column: None,
         }
     }
 
@@ -54,6 +59,8 @@ impl Column {
                 None
             },
             row_count: 0,
+            encoding_type: EncodingType::None,
+            fsst_column: None,
         }
     }
 
@@ -147,6 +154,10 @@ impl Column {
     }
 
     pub fn get(&self, row_idx: usize) -> Option<Value> {
+        if self.encoding_type == EncodingType::Fsst {
+            return self.decode_fsst_value(row_idx);
+        }
+
         if self.is_null(row_idx) {
             return None;
         }
@@ -323,10 +334,13 @@ impl Column {
 
     pub fn clear(&mut self) {
         self.data.clear();
+        self.offsets.clear();
         if let Some(ref mut bitmap) = self.null_bitmap {
             bitmap.clear();
         }
         self.row_count = 0;
+        self.encoding_type = EncodingType::None;
+        self.fsst_column = None;
     }
 
     pub fn resize(&mut self, new_count: usize) {
@@ -366,6 +380,201 @@ impl Column {
         });
         let element_size = Self::element_size(&self.data_type);
         self.row_count = self.data.len() / element_size.max(1);
+    }
+
+    pub fn encoding_type(&self) -> EncodingType {
+        self.encoding_type
+    }
+
+    pub fn apply_fsst_encoding(&mut self, max_symbols: usize) -> StorageResult<()> {
+        if self.data_type != DataType::String {
+            return Err(StorageError::NotSupported(
+                "FSST encoding only supports String type".to_string(),
+            ));
+        }
+
+        let mut strings: Vec<Option<String>> = Vec::with_capacity(self.row_count);
+        for i in 0..self.row_count {
+            if self.is_null(i) {
+                strings.push(None);
+            } else {
+                match self.get(i) {
+                    Some(Value::String(s)) => strings.push(Some(s)),
+                    _ => strings.push(None),
+                }
+            }
+        }
+
+        let string_refs: Vec<Option<&str>> = strings.iter().map(|s| s.as_deref()).collect();
+        let non_null: Vec<&str> = string_refs.iter().filter_map(|s| *s).collect();
+
+        if non_null.is_empty() {
+            return Ok(());
+        }
+
+        let encoder = FsstEncoder::train(&non_null, max_symbols);
+
+        let mut encoded_data = Vec::with_capacity(self.row_count);
+        let mut null_bitmap = Vec::with_capacity(self.row_count);
+
+        for s in &string_refs {
+            match s {
+                Some(val) => {
+                    encoded_data.push(encoder.encode(val));
+                    null_bitmap.push(false);
+                }
+                None => {
+                    encoded_data.push(Vec::new());
+                    null_bitmap.push(true);
+                }
+            }
+        }
+
+        let fsst_col = FsstColumn {
+            encoder,
+            encoded_data,
+            null_bitmap,
+        };
+
+        self.fsst_column = Some(fsst_col);
+        self.encoding_type = EncodingType::Fsst;
+
+        Ok(())
+    }
+
+    pub fn decode_fsst_value(&self, row_idx: usize) -> Option<Value> {
+        if self.encoding_type != EncodingType::Fsst {
+            return None;
+        }
+
+        let fsst_col = self.fsst_column.as_ref()?;
+
+        if row_idx >= fsst_col.len() || fsst_col.is_null(row_idx) {
+            return None;
+        }
+
+        fsst_col.get(row_idx).map(Value::String)
+    }
+
+    pub fn get_encoded_fsst(&self, row_idx: usize) -> Option<&[u8]> {
+        if self.encoding_type != EncodingType::Fsst {
+            return None;
+        }
+
+        let fsst_col = self.fsst_column.as_ref()?;
+
+        if row_idx >= fsst_col.encoded_data.len() {
+            return None;
+        }
+
+        Some(&fsst_col.encoded_data[row_idx])
+    }
+
+    pub fn fsst_encoder(&self) -> Option<&FsstEncoder> {
+        self.fsst_column.as_ref().map(|c| &c.encoder)
+    }
+
+    pub fn fsst_column(&self) -> Option<&FsstColumn> {
+        self.fsst_column.as_ref()
+    }
+
+    pub fn fsst_symbol_table_bytes(&self) -> Option<Vec<u8>> {
+        self.fsst_column.as_ref().map(|c| {
+            let encoder = &c.encoder;
+            let table = encoder.table();
+            let mut bytes = Vec::new();
+
+            let symbol_count = table.len() as u32;
+            bytes.extend_from_slice(&symbol_count.to_le_bytes());
+
+            for code in 1..=255u8 {
+                if let Some(symbol_bytes) = table.get_by_code(code) {
+                    bytes.push(code);
+                    bytes.push(symbol_bytes.len() as u8);
+                    bytes.extend_from_slice(symbol_bytes);
+                }
+            }
+
+            bytes
+        })
+    }
+
+    pub fn load_fsst_from_data(
+        &mut self,
+        encoded_data: Vec<Vec<u8>>,
+        null_bitmap: Vec<bool>,
+        symbol_table_bytes: &[u8],
+    ) -> StorageResult<()> {
+        let mut table = super::encoding::FsstSymbolTable::new();
+
+        if symbol_table_bytes.len() >= 4 {
+            let symbol_count = u32::from_le_bytes(symbol_table_bytes[0..4].try_into().unwrap()) as usize;
+            let mut offset = 4;
+
+            for _ in 0..symbol_count {
+                if offset + 2 > symbol_table_bytes.len() {
+                    break;
+                }
+
+                let code = symbol_table_bytes[offset];
+                let sym_len = symbol_table_bytes[offset + 1] as usize;
+                offset += 2;
+
+                if offset + sym_len > symbol_table_bytes.len() {
+                    break;
+                }
+
+                let sym_bytes = symbol_table_bytes[offset..offset + sym_len].to_vec();
+                offset += sym_len;
+
+                table.insert(sym_bytes, code);
+            }
+        }
+
+        let encoder = FsstEncoder::with_table(table);
+
+        self.fsst_column = Some(FsstColumn {
+            encoder,
+            encoded_data,
+            null_bitmap,
+        });
+        self.encoding_type = EncodingType::Fsst;
+
+        Ok(())
+    }
+
+    pub fn append_fsst_value(&mut self, value: Option<&str>) -> StorageResult<()> {
+        if self.data_type != DataType::String {
+            return Err(StorageError::NotSupported(
+                "FSST encoding only supports String type".to_string(),
+            ));
+        }
+
+        match &mut self.fsst_column {
+            Some(fsst_col) => {
+                fsst_col.append_with_stats(value);
+                self.row_count = fsst_col.len();
+            }
+            None => {
+                return Err(StorageError::InvalidOperation(
+                    "FSST encoding not initialized. Call apply_fsst_encoding first.".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn can_append_fsst(&self) -> bool {
+        self.encoding_type == EncodingType::Fsst && self.fsst_column.is_some()
+    }
+
+    pub fn fsst_row_count(&self) -> usize {
+        self.fsst_column.as_ref().map(|c| c.len()).unwrap_or(0)
+    }
+
+    pub fn fsst_compression_ratio(&self) -> Option<f64> {
+        self.fsst_column.as_ref().map(|c| c.fast_compression_ratio())
     }
 }
 
@@ -511,6 +720,15 @@ impl ColumnStore {
         self.name_to_index
             .iter()
             .filter_map(|(name, &idx)| self.columns.get(idx).map(|col| (name, col)))
+    }
+
+    pub fn apply_fsst_to_string_columns(&mut self, max_symbols: usize) -> StorageResult<()> {
+        for col in &mut self.columns {
+            if col.data_type == DataType::String && !col.is_empty() {
+                col.apply_fsst_encoding(max_symbols)?;
+            }
+        }
+        Ok(())
     }
 }
 

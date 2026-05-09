@@ -16,15 +16,12 @@ use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::VertexId;
 use crate::transaction::version_manager::VersionManager;
 
-const INVALID_TIMESTAMP: Timestamp = u32::MAX;
-
 #[derive(Clone)]
 pub struct EdgeStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     version_manager: Arc<VersionManager>,
     schema_manager: Arc<dyn SchemaManager + Send + Sync>,
     index_data_manager: InMemoryIndexDataManager,
-    sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
     edge_id_index: Arc<EdgeIdIndex>,
     degree_index: Arc<DegreeIndex>,
 }
@@ -41,14 +38,12 @@ impl EdgeStorage {
         version_manager: Arc<VersionManager>,
         schema_manager: Arc<dyn SchemaManager + Send + Sync>,
         index_data_manager: InMemoryIndexDataManager,
-        sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
     ) -> Result<Self, StorageError> {
         Ok(Self {
             graph,
             version_manager,
             schema_manager,
             index_data_manager,
-            sync_manager,
             edge_id_index: Arc::new(EdgeIdIndex::new()),
             degree_index: Arc::new(DegreeIndex::new()),
         })
@@ -59,7 +54,6 @@ impl EdgeStorage {
         version_manager: Arc<VersionManager>,
         schema_manager: Arc<dyn SchemaManager + Send + Sync>,
         index_data_manager: InMemoryIndexDataManager,
-        sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
         edge_id_index: Arc<EdgeIdIndex>,
         degree_index: Arc<DegreeIndex>,
     ) -> Result<Self, StorageError> {
@@ -68,7 +62,6 @@ impl EdgeStorage {
             version_manager,
             schema_manager,
             index_data_manager,
-            sync_manager,
             edge_id_index,
             degree_index,
         })
@@ -80,18 +73,6 @@ impl EdgeStorage {
 
     pub fn degree_index(&self) -> &DegreeIndex {
         &self.degree_index
-    }
-
-    fn get_space_id(&self, space: &str) -> Result<u64, StorageError> {
-        let space_info = self
-            .schema_manager
-            .get_space(space)?
-            .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
-        Ok(space_info.space_id)
-    }
-
-    fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
-        0
     }
 
     fn value_to_vertex_id(&self, id: &Value) -> Result<VertexId, StorageError> {
@@ -121,10 +102,6 @@ impl EdgeStorage {
 
     fn release_write_timestamp(&self, ts: Timestamp) {
         self.version_manager.release_insert_timestamp(ts);
-    }
-
-    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
-        self.sync_manager.read().clone()
     }
 
     fn edge_record_to_edge(&self, record: &EdgeRecord, edge_type: &str) -> Edge {

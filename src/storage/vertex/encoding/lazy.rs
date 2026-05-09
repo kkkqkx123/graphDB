@@ -17,6 +17,7 @@ use crate::core::Value;
 
 use super::bitpacking::BitPackedColumn;
 use super::dictionary::DictionaryColumn;
+use super::fsst::FsstColumn;
 use super::rle::RleEncoder;
 
 pub trait LazyDecompress {
@@ -246,6 +247,88 @@ impl LazyFind for DictionaryColumn {
     }
 }
 
+impl LazyDecompress for FsstColumn {
+    fn get_encoded_size(&self) -> usize {
+        self.memory_usage()
+    }
+
+    fn get_row_count(&self) -> usize {
+        self.len()
+    }
+
+    fn is_null(&self, row_idx: usize) -> bool {
+        FsstColumn::is_null(self, row_idx)
+    }
+}
+
+impl LazyCompare for FsstColumn {
+    fn equals(&self, row_idx: usize, value: &Value) -> bool {
+        if self.is_null(row_idx) {
+            return false;
+        }
+
+        match value {
+            Value::String(s) => {
+                self.get(row_idx).map(|decoded| decoded == *s).unwrap_or(false)
+            }
+            _ => false,
+        }
+    }
+
+    fn compare(&self, row_idx: usize, value: &Value) -> Option<Ordering> {
+        if self.is_null(row_idx) {
+            return None;
+        }
+
+        let current = self.get(row_idx)?;
+        match value {
+            Value::String(s) => Some(current.as_str().cmp(s.as_str())),
+            _ => None,
+        }
+    }
+}
+
+impl LazyFind for FsstColumn {
+    fn find_value(&self, value: &Value) -> Vec<usize> {
+        let target = match value {
+            Value::String(s) => s.clone(),
+            _ => return Vec::new(),
+        };
+
+        (0..self.len())
+            .filter(|&i| {
+                if self.is_null(i) {
+                    return false;
+                }
+                self.get(i).map(|s| s == target).unwrap_or(false)
+            })
+            .collect()
+    }
+
+    fn find_value_range(&self, min: &Value, max: &Value) -> Vec<usize> {
+        let min_str = match min {
+            Value::String(s) => s.clone(),
+            _ => return Vec::new(),
+        };
+
+        let max_str = match max {
+            Value::String(s) => s.clone(),
+            _ => return Vec::new(),
+        };
+
+        (0..self.len())
+            .filter(|&i| {
+                if self.is_null(i) {
+                    return false;
+                }
+                self.get(i)
+                    .map(|s| s >= min_str && s <= max_str)
+                    .unwrap_or(false)
+            })
+            .collect()
+    }
+}
+
 impl<T: Clone + PartialEq> LazyDecompress for RleEncoder<T> {
     fn get_encoded_size(&self) -> usize {
         self.memory_usage()
@@ -407,5 +490,60 @@ mod tests {
 
         assert_eq!(stats.total_rows, 100);
         assert_eq!(stats.null_count, 0);
+    }
+
+    #[test]
+    fn test_fsst_lazy_compare() {
+        let strings = vec![
+            Some("apple"),
+            Some("banana"),
+            Some("apple"),
+            None,
+            Some("cherry"),
+        ];
+        let column = FsstColumn::train_and_build(&strings, 100);
+
+        assert!(column.equals(0, &Value::String("apple".to_string())));
+        assert!(!column.equals(0, &Value::String("banana".to_string())));
+        assert!(!column.equals(3, &Value::String("apple".to_string())));
+
+        assert!(column.less_than(1, &Value::String("cherry".to_string())));
+        assert!(column.greater_than(4, &Value::String("banana".to_string())));
+    }
+
+    #[test]
+    fn test_fsst_lazy_find() {
+        let strings = vec![
+            Some("apple"),
+            Some("banana"),
+            Some("apple"),
+            None,
+            Some("cherry"),
+        ];
+        let column = FsstColumn::train_and_build(&strings, 100);
+
+        let found = column.find_value(&Value::String("apple".to_string()));
+        assert_eq!(found, vec![0, 2]);
+
+        let count = column.count_value(&Value::String("apple".to_string()));
+        assert_eq!(count, 2);
+
+        let range = column.find_value_range(
+            &Value::String("apple".to_string()),
+            &Value::String("banana".to_string()),
+        );
+        assert_eq!(range.len(), 3);
+    }
+
+    #[test]
+    fn test_fsst_lazy_stats() {
+        let strings = vec![Some("apple"), Some("banana"), None, Some("cherry")];
+        let column = FsstColumn::train_and_build(&strings, 100);
+
+        let stats = LazyStats::from_column(&column);
+
+        assert_eq!(stats.total_rows, 4);
+        assert_eq!(stats.null_count, 1);
+        assert!((stats.null_ratio() - 0.25).abs() < 0.001);
     }
 }

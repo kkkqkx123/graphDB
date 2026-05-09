@@ -14,15 +14,12 @@ use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::transaction::version_manager::VersionManager;
 
-const INVALID_TIMESTAMP: Timestamp = u32::MAX;
-
 #[derive(Clone)]
 pub struct VertexStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     version_manager: Arc<VersionManager>,
     schema_manager: Arc<dyn SchemaManager + Send + Sync>,
     index_data_manager: InMemoryIndexDataManager,
-    sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
 }
 
 impl std::fmt::Debug for VertexStorage {
@@ -37,27 +34,13 @@ impl VertexStorage {
         version_manager: Arc<VersionManager>,
         schema_manager: Arc<dyn SchemaManager + Send + Sync>,
         index_data_manager: InMemoryIndexDataManager,
-        sync_manager: Arc<RwLock<Option<Arc<crate::sync::SyncManager>>>>,
     ) -> Result<Self, StorageError> {
         Ok(Self {
             graph,
             version_manager,
             schema_manager,
             index_data_manager,
-            sync_manager,
         })
-    }
-
-    fn get_space_id(&self, space: &str) -> Result<u64, StorageError> {
-        let space_info = self
-            .schema_manager
-            .get_space(space)?
-            .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
-        Ok(space_info.space_id)
-    }
-
-    fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
-        0
     }
 
     fn get_label_id(&self, _space: &str, tag: &str) -> Result<LabelId, StorageError> {
@@ -697,9 +680,5 @@ impl VertexStorage {
         }
 
         Ok(results)
-    }
-
-    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
-        self.sync_manager.read().clone()
     }
 }
