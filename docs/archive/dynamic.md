@@ -177,6 +177,62 @@
 | `fn as_any(&self) -> &dyn Any` (SchemaManager) | 移除未使用方法 | 简化接口 |
 | `fn as_any(&self) -> &dyn Any` (BatchProcessor) | 移除未使用方法 | 简化接口 |
 | `fn as_any(&self) -> &dyn Any` (ExternalIndexClient) | 移除未使用方法 | 简化接口 |
+| `Arc<dyn StorageInterface>` (BM25 Storage) | 枚举 StorageEnum | 消除堆分配+虚调用，支持条件编译 |
+
+### 2026-05-09 动态分发优化：BM25 存储接口使用枚举替代动态分发
+
+#### 背景
+
+BM25 存储工厂（`crates/bm25/src/storage/factory.rs`）原返回 `Result<Arc<dyn StorageInterface>>`，支持两种存储实现：
+- `TantivyStorage` - 本地文件存储
+- `RedisStorage` - Redis 存储
+
+#### 优化方案
+
+创建 `StorageEnum` 枚举类型，使用条件编译处理不同的 feature 组合：
+
+1. **定义 StorageEnum 枚举**：根据 `storage-tantivy` 和 `storage-redis` features 条件编译不同的变体
+2. **实现 StorageInterface trait**：为枚举实现所有接口方法，通过 match 分发到具体实现
+3. **修改工厂方法**：返回 `Result<StorageEnum>` 而非 `Result<Arc<dyn StorageInterface>>`
+
+#### 修改详情
+
+| 文件 | 修改内容 |
+|------|---------|
+| `crates/bm25/src/storage/storage_enum.rs` | 新增文件，定义 StorageEnum 枚举 |
+| `crates/bm25/src/storage/factory.rs` | 修改返回类型，移除 Arc 和 dyn 使用 |
+| `crates/bm25/src/storage/mod.rs` | 添加 storage_enum 模块导出 |
+| `crates/bm25/src/lib.rs` | 导出 StorageEnum 类型 |
+
+#### 优化效果
+
+- **类型安全**：编译时确定具体类型，无需运行时虚函数调用
+- **性能提升**：消除堆分配（Arc）和虚函数调用开销
+- **符合规范**：遵循项目"优先选择确定性类型"的编码标准
+- **一致性**：与项目中其他枚举优化（ExecutorEnum、PredicateEnum）保持一致
+
+#### 条件编译处理
+
+```rust
+// 两个 features 都启用
+#[cfg(all(feature = "storage-tantivy", feature = "storage-redis"))]
+pub enum StorageEnum {
+    Tantivy(TantivyStorage),
+    Redis(RedisStorage),
+}
+
+// 只启用 Tantivy
+#[cfg(all(feature = "storage-tantivy", not(feature = "storage-redis")))]
+pub enum StorageEnum {
+    Tantivy(TantivyStorage),
+}
+
+// 只启用 Redis
+#[cfg(all(not(feature = "storage-tantivy"), feature = "storage-redis"))]
+pub enum StorageEnum {
+    Redis(RedisStorage),
+}
+```
 
 ### 2025-01-09 动态分发优化：移除 `dyn Any` 向下转型
 

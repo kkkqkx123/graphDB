@@ -7,17 +7,18 @@
 //! ```text
 //! storage/
 //! ├── common/
-//! │ ├── types.rs # Shared type definitions
-//! │ └── trait.rs # Store interface trait
-//! ├── factory.rs # store factory
-//! ├── redis.rs # Redis storage implementation (optional)
-//! └── tantivy.rs # Tantivy local storage (default)
+//! │   ├── types.rs    # Shared type definitions
+//! │   └── trait.rs    # Storage interface trait
+//! ├── factory.rs      # Storage factory
+//! ├── storage_enum.rs # Storage enum for static dispatch
+//! ├── redis.rs        # Redis storage implementation (optional)
+//! └── tantivy.rs      # Tantivy local storage (default)
 //! ```
 //!
 //! ## Conditional compilation features
 //!
-//! - `storage-redis`: Redis 存储
-//! - `storage-tantivy`: Tantivy 本地文件存储（默认启用）
+//! - `storage-redis`: Redis storage
+//! - `storage-tantivy`: Tantivy local file storage (default enabled)
 
 pub mod common;
 
@@ -29,6 +30,9 @@ pub mod redis;
 
 pub mod factory;
 pub mod manager;
+
+#[cfg(any(feature = "storage-tantivy", feature = "storage-redis"))]
+pub mod storage_enum;
 
 pub use common::{
     r#trait::StorageInterface,
@@ -43,3 +47,6 @@ pub use redis::RedisStorage;
 
 pub use factory::StorageFactory;
 pub use manager::{DefaultStorage, MutableStorageManager, StorageManager, StorageManagerBuilder};
+
+#[cfg(any(feature = "storage-tantivy", feature = "storage-redis"))]
+pub use storage_enum::StorageEnum;

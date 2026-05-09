@@ -7,7 +7,7 @@ use crate::config::{RedisStorageConfig, StorageConfig, StorageType, TantivyStora
 use crate::error::Bm25Error;
 use crate::error::Result;
 use crate::storage::common::r#trait::StorageInterface;
-use std::sync::Arc;
+use crate::storage::storage_enum::StorageEnum;
 
 /// Storage factory for creating storage instances
 pub struct StorageFactory;
@@ -21,7 +21,7 @@ impl StorageFactory {
     ///
     /// # Returns
     ///
-    /// * `Result<Arc<dyn StorageInterface>>` - Created storage instance
+    /// * `Result<StorageEnum>` - Created storage instance
     ///
     /// # Examples
     ///
@@ -35,7 +35,7 @@ impl StorageFactory {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn create(config: StorageConfig) -> Result<Arc<dyn StorageInterface>> {
+    pub async fn create(config: StorageConfig) -> Result<StorageEnum> {
         match config.storage_type {
             StorageType::Tantivy => Self::create_tantivy(config.tantivy),
             StorageType::Redis => Self::create_redis(config.redis).await,
@@ -50,8 +50,8 @@ impl StorageFactory {
     ///
     /// # Returns
     ///
-    /// * `Result<Arc<dyn StorageInterface>>` - Created storage instance
-    pub fn create_tantivy(config: TantivyStorageConfig) -> Result<Arc<dyn StorageInterface>> {
+    /// * `Result<StorageEnum>` - Created storage instance
+    pub fn create_tantivy(config: TantivyStorageConfig) -> Result<StorageEnum> {
         #[cfg(feature = "storage-tantivy")]
         {
             use crate::storage::TantivyStorage;
@@ -62,7 +62,7 @@ impl StorageFactory {
             };
 
             let storage = TantivyStorage::new(storage_config);
-            Ok(Arc::new(storage))
+            Ok(StorageEnum::Tantivy(storage))
         }
 
         #[cfg(not(feature = "storage-tantivy"))]
@@ -83,8 +83,8 @@ impl StorageFactory {
     ///
     /// # Returns
     ///
-    /// * `Result<Arc<dyn StorageInterface>>` - Created storage instance
-    pub async fn create_redis(config: RedisStorageConfig) -> Result<Arc<dyn StorageInterface>> {
+    /// * `Result<StorageEnum>` - Created storage instance
+    pub async fn create_redis(config: RedisStorageConfig) -> Result<StorageEnum> {
         #[cfg(feature = "storage-redis")]
         {
             use crate::storage::redis::RedisStorageConfig as InternalRedisConfig;
@@ -104,12 +104,12 @@ impl StorageFactory {
             let mut storage = RedisStorage::new(storage_config).await?;
             storage.init().await?;
 
-            Ok(Arc::new(storage))
+            Ok(StorageEnum::Redis(storage))
         }
 
         #[cfg(not(feature = "storage-redis"))]
         {
-            let _config = config; // Suppress unused variable warning
+            let _config = config;
             Err(Bm25Error::StorageError(
                 "Redis storage is not enabled. Please enable the 'storage-redis' feature."
                     .to_string(),
@@ -127,12 +127,10 @@ impl StorageFactory {
     ///
     /// # Returns
     ///
-    /// * `Result<Arc<dyn StorageInterface>>` - Created and initialized storage instance
-    pub async fn create_and_init(config: StorageConfig) -> Result<Arc<dyn StorageInterface>> {
-        let storage = Self::create(config).await?;
-
-        // Clone the Arc to call init
-        // Note: This requires the storage to be mutable, which is handled internally
+    /// * `Result<StorageEnum>` - Created and initialized storage instance
+    pub async fn create_and_init(config: StorageConfig) -> Result<StorageEnum> {
+        let mut storage = Self::create(config).await?;
+        storage.init().await?;
         Ok(storage)
     }
 }

@@ -100,6 +100,16 @@ pub struct RedisStorage {
     error_stats: Arc<ErrorStats>,
 }
 
+impl std::fmt::Debug for RedisStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RedisStorage")
+            .field("key_prefix", &self.key_prefix)
+            .field("memory_usage", &self.memory_usage.load(Ordering::Relaxed))
+            .field("operation_count", &self.operation_count.load(Ordering::Relaxed))
+            .finish()
+    }
+}
+
 impl RedisStorage {
     pub async fn new(config: RedisStorageConfig) -> Result<Self> {
         let key_prefix = config.key_prefix.clone();

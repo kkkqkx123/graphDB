@@ -47,7 +47,7 @@ pub use config::{
 
 // Re-export storage types
 #[cfg(any(feature = "storage-tantivy", feature = "storage-redis"))]
-pub use storage::{Bm25Stats, StorageInfo, StorageInterface};
+pub use storage::{Bm25Stats, StorageEnum, StorageInfo, StorageInterface};
 
 #[cfg(feature = "storage-tantivy")]
 pub use storage::TantivyStorage;

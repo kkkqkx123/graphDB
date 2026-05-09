@@ -37,6 +37,17 @@ pub struct TantivyStorage {
     reader: Option<Arc<RwLock<IndexReader>>>,
 }
 
+impl std::fmt::Debug for TantivyStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TantivyStorage")
+            .field("config", &self.config)
+            .field("index", &self.index.is_some())
+            .field("writer", &self.writer.is_some())
+            .field("reader", &self.reader.is_some())
+            .finish()
+    }
+}
+
 impl TantivyStorage {
     pub fn new(config: TantivyStorageConfig) -> Self {
         let schema = Self::build_schema();
