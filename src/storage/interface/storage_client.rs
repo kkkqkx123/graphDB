@@ -4,12 +4,10 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::metadata::{InMemorySchemaManager, Schema};
+use crate::transaction::context::TransactionContext;
 use std::sync::Arc;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
-    /// Get a reference to self as Any for downcasting
-    fn as_any(&self) -> &dyn std::any::Any;
-
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError>;
     fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError>;
     fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError>;
@@ -228,6 +226,16 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn get_schema_manager(&self) -> Option<Arc<InMemorySchemaManager>> {
         None
     }
+
+    /// Get transaction context (for MVCC support)
+    /// Default implementation returns None for storage clients that don't support transactions
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+        None
+    }
+
+    /// Set transaction context (for MVCC support)
+    /// Default implementation does nothing for storage clients that don't support transactions
+    fn set_transaction_context(&self, _context: Option<Arc<TransactionContext>>) {}
 }
 
 /// Storing statistical information

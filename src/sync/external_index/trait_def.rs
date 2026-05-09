@@ -92,8 +92,6 @@ pub trait ExternalIndexClient: Send + Sync + std::fmt::Debug {
     async fn rollback(&self) -> IndexResult<()>;
 
     async fn stats(&self) -> IndexResult<IndexStats>;
-
-    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 #[derive(Debug, Clone, Default)]

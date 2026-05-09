@@ -8,7 +8,7 @@ use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::{GraphStorage, InMemorySchemaManager, StorageClient};
+use crate::storage::{InMemorySchemaManager, StorageClient};
 use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -17,21 +17,19 @@ use std::time::Duration;
 use vector_client::VectorManager;
 
 /// RAII guard to ensure transaction context is always cleared from storage.
-struct TransactionContextGuard<'a> {
-    storage: Option<&'a GraphStorage>,
+struct TransactionContextGuard<'a, S: StorageClient + ?Sized> {
+    storage: &'a S,
 }
 
-impl<'a> TransactionContextGuard<'a> {
-    fn new(storage: Option<&'a GraphStorage>) -> Self {
+impl<'a, S: StorageClient + ?Sized> TransactionContextGuard<'a, S> {
+    fn new(storage: &'a S) -> Self {
         Self { storage }
     }
 }
 
-impl<'a> Drop for TransactionContextGuard<'a> {
+impl<S: StorageClient + ?Sized> Drop for TransactionContextGuard<'_, S> {
     fn drop(&mut self) {
-        if let Some(storage) = self.storage {
-            storage.set_transaction_context(None);
-        }
+        self.storage.set_transaction_context(None);
     }
 }
 
@@ -315,15 +313,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             None
         };
 
-        let graph_storage = self.storage.as_any().downcast_ref::<GraphStorage>();
         if let Some(ref ctx) = txn_context {
-            if let Some(storage) = graph_storage {
-                storage.set_transaction_context(Some(ctx.clone()));
-            }
+            self.storage.set_transaction_context(Some(ctx.clone()));
         }
 
         // RAII guard ensures transaction context is cleared even if query panics
-        let _guard = TransactionContextGuard::new(graph_storage);
+        let _guard = TransactionContextGuard::new(self.storage.as_ref());
 
         // Use core layer QueryApi to execute query
         let query_request = crate::api::core::QueryRequest {

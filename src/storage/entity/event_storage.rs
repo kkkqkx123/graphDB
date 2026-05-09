@@ -56,17 +56,9 @@ impl<S: StorageClient> SyncStorage<S> {
 
     /// Get the current transaction ID from storage context
     fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
-        // Try to get transaction context from GraphStorage
-        if let Some(graph_storage) = self
-            .inner
-            .as_any()
-            .downcast_ref::<crate::storage::GraphStorage>()
-        {
-            if let Some(ctx) = graph_storage.get_transaction_context() {
-                return ctx.id;
-            }
+        if let Some(ctx) = self.inner.get_transaction_context() {
+            return ctx.id;
         }
-        // Default to 0 for non-transactional operations
         0
     }
 
@@ -115,10 +107,6 @@ impl<S: StorageClient> SyncStorage<S> {
 }
 
 impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn get_schema_manager(&self) -> Option<Arc<InMemorySchemaManager>> {
         self.inner.get_schema_manager()
     }
@@ -805,5 +793,13 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
 
     fn get_sync_manager(&self) -> Option<std::sync::Arc<crate::sync::SyncManager>> {
         self.sync_manager.clone()
+    }
+
+    fn get_transaction_context(&self) -> Option<std::sync::Arc<crate::transaction::context::TransactionContext>> {
+        self.inner.get_transaction_context()
+    }
+
+    fn set_transaction_context(&self, context: Option<std::sync::Arc<crate::transaction::context::TransactionContext>>) {
+        self.inner.set_transaction_context(context);
     }
 }

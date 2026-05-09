@@ -239,10 +239,6 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
             task.abort();
         }
     }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
 }
 
 /// Entry for buffering operations within a transaction

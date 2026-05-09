@@ -171,10 +171,6 @@ impl Default for GraphStorage {
 }
 
 impl StorageClient for GraphStorage {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         let _space_info = self.get_space(space)?
             .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
@@ -1531,6 +1527,14 @@ impl StorageClient for GraphStorage {
 
     fn get_db_path(&self) -> &str {
         &self.db_path
+    }
+
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+        self.current_txn_context.lock().clone()
+    }
+
+    fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
+        *self.current_txn_context.lock() = context;
     }
 }
 

@@ -27,9 +27,6 @@ pub trait BatchProcessor: Send + Sync + std::fmt::Debug {
 
     /// Stop the background flushing task
     async fn stop_background_task(&self);
-
-    /// Return as Any for downcasting
-    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// Trait for transaction-aware buffering of index operations

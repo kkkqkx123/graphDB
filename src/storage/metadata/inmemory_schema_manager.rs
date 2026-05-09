@@ -2,7 +2,6 @@ use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use crate::storage::{FieldDef, Schema};
 use parking_lot::RwLock;
-use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -165,10 +164,6 @@ impl Default for InMemorySchemaManager {
 }
 
 impl super::SchemaManager for InMemorySchemaManager {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError> {
         let mut name_index = self.space_name_index.write();
         if name_index.contains_key(&space.space_name) {

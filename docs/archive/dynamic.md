@@ -173,6 +173,52 @@
 | `&'a mut dyn InsertTarget`  | 泛型     | 消除虚函数调用    |
 | `&'a mut dyn UpdateTarget`  | 泛型     | 消除虚函数调用    |
 | `&'a mut dyn CompactTarget` | 泛型     | 消除虚函数调用    |
+| `fn as_any(&self) -> &dyn Any` (StorageClient) | Trait 方法扩展 | 类型安全，消除运行时转型 |
+| `fn as_any(&self) -> &dyn Any` (SchemaManager) | 移除未使用方法 | 简化接口 |
+| `fn as_any(&self) -> &dyn Any` (BatchProcessor) | 移除未使用方法 | 简化接口 |
+| `fn as_any(&self) -> &dyn Any` (ExternalIndexClient) | 移除未使用方法 | 简化接口 |
+
+### 2025-01-09 动态分发优化：移除 `dyn Any` 向下转型
+
+#### 背景
+
+项目中多处使用 `as_any(&self) -> &dyn Any` 方法配合 `downcast_ref::<T>()` 进行向下转型，这种设计存在以下问题：
+
+1. **违反抽象原则**：调用方必须知道具体的实现类型，破坏了 trait 的多态性
+2. **静默失败风险**：`downcast_ref` 返回 `Option`，可能静默失败
+3. **增加耦合**：模块间依赖具体实现类型而非抽象接口
+
+#### 优化方案
+
+采用**方案1（扩展 Trait 接口）+ 方案3（使用泛型）**的组合：
+
+1. **扩展 StorageClient trait**：添加 `get_transaction_context` 和 `set_transaction_context` 方法，提供默认实现
+2. **移除 as_any 方法**：不再需要向下转型
+3. **保持泛型设计**：GraphService 已经是泛型的 `S: StorageClient`，保持这个设计
+
+#### 修改详情
+
+| 文件 | 修改内容 |
+|------|---------|
+| `src/storage/interface/storage_client.rs` | 移除 `as_any` 方法，添加事务上下文方法 |
+| `src/storage/engine/graph_storage.rs` | 移除 `as_any` 实现，添加事务上下文方法实现 |
+| `src/storage/entity/event_storage.rs` | 移除 `as_any` 实现，使用 trait 方法替代 downcast |
+| `src/storage/test_mock.rs` | 移除 `as_any` 实现 |
+| `src/api/server/graph_service.rs` | 使用 trait 方法替代 downcast_ref |
+| `src/storage/metadata/schema_manager.rs` | 移除 `as_any` 方法 |
+| `src/storage/metadata/inmemory_schema_manager.rs` | 移除 `as_any` 实现 |
+| `src/sync/batch/trait_def.rs` | 移除 `as_any` 方法 |
+| `src/sync/batch/processor.rs` | 移除 `as_any` 实现 |
+| `src/sync/external_index/trait_def.rs` | 移除 `as_any` 方法 |
+| `src/sync/external_index/vector_client.rs` | 移除 `as_any` 实现 |
+| `src/sync/external_index/fulltext_client.rs` | 移除 `as_any` 实现 |
+
+#### 优化效果
+
+- **类型安全**：编译时保证类型正确，无需运行时检查
+- **更好的抽象**：调用方只依赖 trait 接口，不依赖具体实现
+- **更易测试**：Mock 实现可以提供完整的功能
+- **符合项目规范**：减少动态分发的使用
 
 ## 建议
 

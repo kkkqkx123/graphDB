@@ -1,12 +1,9 @@
 use crate::core::types::{EdgeTypeInfo, Index, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use crate::storage::metadata::Schema;
-use std::any::Any;
 use std::path::Path;
 
 pub trait SchemaManager: Send + Sync + std::fmt::Debug {
-    fn as_any(&self) -> &dyn Any;
-
     fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&self, space_name: &str) -> Result<bool, StorageError>;
     fn clear_space(&self, space_name: &str) -> Result<bool, StorageError>;

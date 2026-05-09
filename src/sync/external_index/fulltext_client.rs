@@ -129,8 +129,4 @@ impl ExternalIndexClient for FulltextClient {
             last_commit_time: None,
         })
     }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
 }
