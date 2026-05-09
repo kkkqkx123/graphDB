@@ -10,7 +10,7 @@ use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
 use super::index_data_manager::{IndexEntry, Timestamp, MAX_TIMESTAMP};
 use super::key_codec::{
-    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, IndexKey, KeyBuilder,
+    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, SecondaryIndexKey, KeyBuilder,
     KeyParser,
 };
 use crate::storage::index::index_types::IndexEstimate;
@@ -21,8 +21,8 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct EdgeIndexManager {
-    forward_index: Arc<RwLock<BTreeMap<IndexKey, IndexEntry>>>,
-    reverse_index: Arc<RwLock<BTreeMap<IndexKey, IndexEntry>>>,
+    forward_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
+    reverse_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
     compressor: Option<Arc<RwLock<IndexCompressor>>>,
 }
 
@@ -109,8 +109,8 @@ impl EdgeIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
             let index_key =
@@ -200,8 +200,8 @@ impl EdgeIndexManager {
             KeyBuilder::build_edge_reverse_prefix_v2_with_dst(space_id, src, dst)?;
         let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
-        let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
-        let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
+        let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+        let mut reverse_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
 
         {
             let reverse_index = self.reverse_index.read();
@@ -365,7 +365,7 @@ impl EdgeIndexManager {
         let prefix = KeyBuilder::build_edge_index_prefix(space_id, index_name);
         let end = KeyBuilder::build_range_end(&prefix);
 
-        let mut keys_to_delete: Vec<IndexKey> = Vec::new();
+        let mut keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
 
         {
             let forward_index = self.forward_index.read();
@@ -783,7 +783,7 @@ impl EdgeIndexManager {
 
         {
             let mut forward_index = self.forward_index.write();
-            let keys_to_remove: Vec<IndexKey> = forward_index
+            let keys_to_remove: Vec<SecondaryIndexKey> = forward_index
                 .iter()
                 .filter(|(_, entry)| {
                     entry
@@ -801,7 +801,7 @@ impl EdgeIndexManager {
 
         {
             let mut reverse_index = self.reverse_index.write();
-            let keys_to_remove: Vec<IndexKey> = reverse_index
+            let keys_to_remove: Vec<SecondaryIndexKey> = reverse_index
                 .iter()
                 .filter(|(_, entry)| {
                     entry
@@ -923,8 +923,8 @@ impl EdgeIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(IndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
             let index_key = KeyBuilder::build_edge_index_key_native(
@@ -979,8 +979,8 @@ impl EdgeIndexManager {
             KeyBuilder::build_edge_reverse_prefix_native_with_dst(space_id, src, dst);
         let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
-        let mut forward_keys_to_delete: Vec<IndexKey> = Vec::new();
-        let mut reverse_keys_to_delete: Vec<IndexKey> = Vec::new();
+        let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+        let mut reverse_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
 
         {
             let reverse_index = self.reverse_index.read();

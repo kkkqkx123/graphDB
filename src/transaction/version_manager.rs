@@ -64,25 +64,6 @@ impl BitSet {
         }
     }
 
-    fn reset(&self, index: u32) {
-        let word = index as usize / 64;
-        let bit = index as usize % 64;
-        let mut data = self.data.write();
-        if word < data.len() {
-            data[word] &= !(1u64 << bit);
-        }
-    }
-
-    fn test(&self, index: u32) -> bool {
-        let word = index as usize / 64;
-        let bit = index as usize % 64;
-        let data = self.data.read();
-        if word < data.len() {
-            return (data[word] & (1u64 << bit)) != 0;
-        }
-        false
-    }
-
     fn atomic_reset_with_ret(&self, index: u32) -> bool {
         let word = index as usize / 64;
         let bit = index as usize % 64;

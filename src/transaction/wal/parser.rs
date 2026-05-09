@@ -520,10 +520,6 @@ impl FragmentBuffer {
         }
     }
 
-    fn is_empty(&self) -> bool {
-        self.fragments.is_empty()
-    }
-
     fn reset(&mut self) {
         self.fragments.clear();
         self.first_header = None;

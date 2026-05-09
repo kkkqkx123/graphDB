@@ -22,5 +22,5 @@ pub use key_codec::{
     KeyParser, PrefixCompressor,
     KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
-pub use key_codec::key_types::IndexKey;
+pub use key_codec::key_types::SecondaryIndexKey;
 pub use vertex_index_manager::VertexIndexManager;

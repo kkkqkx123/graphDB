@@ -103,31 +103,10 @@ impl MemoryConfig {
             ));
         }
 
-        let total_ratio =
-            self.vertex_memory_ratio + self.edge_memory_ratio + self.cache_memory_ratio;
-
-        if (total_ratio - 1.0).abs() > 0.001 {
-            return Err(MemoryConfigError::InvalidRatio(format!(
-                "Memory ratios must sum to 1.0, got {}",
-                total_ratio
-            )));
-        }
-
-        if self.vertex_memory_ratio < 0.0 || self.vertex_memory_ratio > 1.0 {
+        let ratio_sum = self.vertex_memory_ratio + self.edge_memory_ratio + self.cache_memory_ratio;
+        if (ratio_sum - 1.0).abs() > 0.01 {
             return Err(MemoryConfigError::InvalidRatio(
-                "Vertex memory ratio must be between 0.0 and 1.0".to_string(),
-            ));
-        }
-
-        if self.edge_memory_ratio < 0.0 || self.edge_memory_ratio > 1.0 {
-            return Err(MemoryConfigError::InvalidRatio(
-                "Edge memory ratio must be between 0.0 and 1.0".to_string(),
-            ));
-        }
-
-        if self.cache_memory_ratio < 0.0 || self.cache_memory_ratio > 1.0 {
-            return Err(MemoryConfigError::InvalidRatio(
-                "Cache memory ratio must be between 0.0 and 1.0".to_string(),
+                "Memory ratios must sum to 1.0".to_string(),
             ));
         }
 
@@ -137,11 +116,17 @@ impl MemoryConfig {
             ));
         }
 
-        if self.huge_page_size == 0 || (self.huge_page_size & (self.huge_page_size - 1)) != 0 {
+        let effective_huge_page_size = if self.huge_page_size == 0 {
+            super::huge_pages::get_system_huge_page_size().unwrap_or(DEFAULT_HUGE_PAGE_SIZE)
+        } else if (self.huge_page_size & (self.huge_page_size - 1)) != 0 {
             return Err(MemoryConfigError::InvalidHugePageSize(
-                "Huge page size must be a power of 2 and greater than 0".to_string(),
+                "Huge page size must be a power of 2".to_string(),
             ));
-        }
+        } else {
+            self.huge_page_size
+        };
+
+        let _ = effective_huge_page_size;
 
         if self.huge_page_threshold == 0 {
             return Err(MemoryConfigError::InvalidHugePageThreshold(

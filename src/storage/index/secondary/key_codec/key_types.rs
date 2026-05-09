@@ -29,7 +29,7 @@ impl From<ByteKey> for Vec<u8> {
 }
 
 
-pub type IndexKey = Vec<u8>;
+pub type SecondaryIndexKey = Vec<u8>;
 
 pub const KEY_TYPE_VERTEX_REVERSE: u8 = 0x01;
 pub const KEY_TYPE_EDGE_REVERSE: u8 = 0x02;

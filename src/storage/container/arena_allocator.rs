@@ -58,10 +58,6 @@ impl Chunk {
         Some(ptr)
     }
 
-    fn remaining(&self) -> usize {
-        self.size - self.used
-    }
-
     fn reset(&mut self) {
         self.used = 0;
     }

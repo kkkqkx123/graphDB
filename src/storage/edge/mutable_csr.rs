@@ -188,31 +188,6 @@ impl MutableCsr {
         }
     }
 
-    /// Get the start index in nbr_list for a vertex
-    #[inline]
-    fn nbr_start(&self, src: VertexId) -> usize {
-        let src_idx = src as usize;
-        if src_idx < self.adj_offsets.len() {
-            self.adj_offsets[src_idx]
-        } else {
-            0
-        }
-    }
-
-    /// Get pointer to neighbor array for a vertex
-    #[inline]
-    fn nbr_ptr(&self, src: VertexId) -> *const Nbr {
-        let start = self.nbr_start(src);
-        self.nbr_list.as_ptr().wrapping_add(start)
-    }
-
-    /// Get mutable pointer to neighbor array for a vertex
-    #[inline]
-    fn nbr_ptr_mut(&mut self, src: VertexId) -> *mut Nbr {
-        let start = self.nbr_start(src);
-        self.nbr_list.as_mut_ptr().wrapping_add(start)
-    }
-
     /// Insert an edge
     pub fn insert_edge(
         &mut self,
