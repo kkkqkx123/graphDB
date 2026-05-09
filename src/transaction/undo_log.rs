@@ -47,15 +47,6 @@ impl PropertyValue {
     }
 }
 
-/// Trait for undo log entries
-pub trait UndoLog: Send + Sync {
-    /// Execute the undo operation
-    fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()>;
-
-    /// Get a description of this undo operation
-    fn description(&self) -> String;
-}
-
 /// Target for undo operations (will be PropertyGraph in phase 2)
 pub trait UndoTarget: Send + Sync {
     fn delete_vertex_type(&mut self, label: LabelId) -> UndoLogResult<()>;
@@ -156,12 +147,12 @@ pub struct CreateVertexTypeUndo {
     pub vertex_type: LabelId,
 }
 
-impl UndoLog for CreateVertexTypeUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl CreateVertexTypeUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.delete_vertex_type(self.vertex_type)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!("CreateVertexTypeUndo(label={})", self.vertex_type)
     }
 }
@@ -174,12 +165,12 @@ pub struct CreateEdgeTypeUndo {
     pub edge_type: LabelId,
 }
 
-impl UndoLog for CreateEdgeTypeUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl CreateEdgeTypeUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.delete_edge_type(self.src_type, self.dst_type, self.edge_type)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "CreateEdgeTypeUndo(src={}, dst={}, edge={})",
             self.src_type, self.dst_type, self.edge_type
@@ -194,12 +185,12 @@ pub struct InsertVertexUndo {
     pub vid: VertexId,
 }
 
-impl UndoLog for InsertVertexUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
+impl InsertVertexUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.delete_vertex(self.v_label, self.vid, ts)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!("InsertVertexUndo(label={}, vid={})", self.v_label, self.vid)
     }
 }
@@ -216,8 +207,8 @@ pub struct InsertEdgeUndo {
     pub ie_offset: i32,
 }
 
-impl UndoLog for InsertEdgeUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
+impl InsertEdgeUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.delete_edge(
             self.src_label,
             self.src_vid,
@@ -230,7 +221,7 @@ impl UndoLog for InsertEdgeUndo {
         )
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "InsertEdgeUndo(src={}, dst={}, edge={}, src_vid={}, dst_vid={})",
             self.src_label, self.dst_label, self.edge_label, self.src_vid, self.dst_vid
@@ -247,8 +238,8 @@ pub struct UpdateVertexPropUndo {
     pub old_value: PropertyValue,
 }
 
-impl UndoLog for UpdateVertexPropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
+impl UpdateVertexPropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.undo_update_vertex_property(
             self.v_label,
             self.vid,
@@ -258,7 +249,7 @@ impl UndoLog for UpdateVertexPropUndo {
         )
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "UpdateVertexPropUndo(label={}, vid={}, col={})",
             self.v_label, self.vid, self.col_id
@@ -280,8 +271,8 @@ pub struct UpdateEdgePropUndo {
     pub old_value: PropertyValue,
 }
 
-impl UndoLog for UpdateEdgePropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
+impl UpdateEdgePropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.undo_update_edge_property(
             self.src_label,
             self.src_vid,
@@ -296,7 +287,7 @@ impl UndoLog for UpdateEdgePropUndo {
         )
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "UpdateEdgePropUndo(src={}, dst={}, edge={}, col={})",
             self.src_label, self.dst_label, self.edge_label, self.col_id
@@ -321,8 +312,8 @@ pub struct RemoveVertexUndo {
     pub related_edges: Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>,
 }
 
-impl UndoLog for RemoveVertexUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
+impl RemoveVertexUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_vertex(self.v_label, self.vid, ts)?;
 
         for (src_label, dst_label, edge_label, edges) in &self.related_edges {
@@ -343,7 +334,7 @@ impl UndoLog for RemoveVertexUndo {
         Ok(())
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "RemoveVertexUndo(label={}, vid={}, edges={})",
             self.v_label,
@@ -365,8 +356,8 @@ pub struct RemoveEdgeUndo {
     pub ie_offset: i32,
 }
 
-impl UndoLog for RemoveEdgeUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
+impl RemoveEdgeUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_edge(
             self.src_label,
             self.src_vid,
@@ -379,7 +370,7 @@ impl UndoLog for RemoveEdgeUndo {
         )
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "RemoveEdgeUndo(src={}, dst={}, edge={})",
             self.src_label, self.dst_label, self.edge_label
@@ -395,12 +386,12 @@ pub struct AddVertexPropUndo {
     pub prop_names: Vec<String>,
 }
 
-impl UndoLog for AddVertexPropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl AddVertexPropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_vertex_properties(&self.label_name, &self.prop_names)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "AddVertexPropUndo(label={}, props={:?})",
             self.label_name, self.prop_names
@@ -420,8 +411,8 @@ pub struct AddEdgePropUndo {
     pub prop_names: Vec<String>,
 }
 
-impl UndoLog for AddEdgePropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl AddEdgePropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_edge_properties(
             &self.src_label_name,
             &self.dst_label_name,
@@ -430,7 +421,7 @@ impl UndoLog for AddEdgePropUndo {
         )
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "AddEdgePropUndo(edge={}, props={:?})",
             self.edge_label_name, self.prop_names
@@ -446,8 +437,8 @@ pub struct RenameVertexPropUndo {
     pub old_names_to_new_names: Vec<(String, String)>,
 }
 
-impl UndoLog for RenameVertexPropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl RenameVertexPropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         let current_names: Vec<_> = self
             .old_names_to_new_names
             .iter()
@@ -461,7 +452,7 @@ impl UndoLog for RenameVertexPropUndo {
         graph.revert_rename_vertex_properties(&self.label_name, &current_names, &original_names)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "RenameVertexPropUndo(label={}, renames={:?})",
             self.label_name, self.old_names_to_new_names
@@ -481,8 +472,8 @@ pub struct RenameEdgePropUndo {
     pub old_names_to_new_names: Vec<(String, String)>,
 }
 
-impl UndoLog for RenameEdgePropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl RenameEdgePropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         let current_names: Vec<_> = self
             .old_names_to_new_names
             .iter()
@@ -502,7 +493,7 @@ impl UndoLog for RenameEdgePropUndo {
         )
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "RenameEdgePropUndo(edge={}, renames={:?})",
             self.edge_label_name, self.old_names_to_new_names
@@ -518,12 +509,12 @@ pub struct DeleteVertexPropUndo {
     pub prop_names: Vec<String>,
 }
 
-impl UndoLog for DeleteVertexPropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl DeleteVertexPropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_vertex_properties(&self.label_name, &self.prop_names)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "DeleteVertexPropUndo(label={}, props={:?})",
             self.label_name, self.prop_names
@@ -543,8 +534,8 @@ pub struct DeleteEdgePropUndo {
     pub prop_names: Vec<String>,
 }
 
-impl UndoLog for DeleteEdgePropUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl DeleteEdgePropUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_edge_properties(
             &self.src_label_name,
             &self.dst_label_name,
@@ -553,7 +544,7 @@ impl UndoLog for DeleteEdgePropUndo {
         )
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "DeleteEdgePropUndo(edge={}, props={:?})",
             self.edge_label_name, self.prop_names
@@ -567,12 +558,12 @@ pub struct DeleteVertexTypeUndo {
     pub v_label: String,
 }
 
-impl UndoLog for DeleteVertexTypeUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl DeleteVertexTypeUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_vertex_label(&self.v_label)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!("DeleteVertexTypeUndo(label={})", self.v_label)
     }
 }
@@ -585,12 +576,12 @@ pub struct DeleteEdgeTypeUndo {
     pub edge_label: String,
 }
 
-impl UndoLog for DeleteEdgeTypeUndo {
-    fn undo(&self, graph: &mut dyn UndoTarget, _ts: Timestamp) -> UndoLogResult<()> {
+impl DeleteEdgeTypeUndo {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_edge_label(&self.src_label, &self.dst_label, &self.edge_label)
     }
 
-    fn description(&self) -> String {
+    pub fn description(&self) -> String {
         format!(
             "DeleteEdgeTypeUndo(src={}, dst={}, edge={})",
             self.src_label, self.dst_label, self.edge_label
@@ -598,9 +589,74 @@ impl UndoLog for DeleteEdgeTypeUndo {
     }
 }
 
+/// Undo log entry enum - zero-cost abstraction for all undo types
+#[derive(Debug, Clone)]
+pub enum UndoLogEntry {
+    CreateVertexType(CreateVertexTypeUndo),
+    CreateEdgeType(CreateEdgeTypeUndo),
+    InsertVertex(InsertVertexUndo),
+    InsertEdge(InsertEdgeUndo),
+    UpdateVertexProp(UpdateVertexPropUndo),
+    UpdateEdgeProp(UpdateEdgePropUndo),
+    RemoveVertex(RemoveVertexUndo),
+    RemoveEdge(RemoveEdgeUndo),
+    AddVertexProp(AddVertexPropUndo),
+    AddEdgeProp(AddEdgePropUndo),
+    RenameVertexProp(RenameVertexPropUndo),
+    RenameEdgeProp(RenameEdgePropUndo),
+    DeleteVertexProp(DeleteVertexPropUndo),
+    DeleteEdgeProp(DeleteEdgePropUndo),
+    DeleteVertexType(DeleteVertexTypeUndo),
+    DeleteEdgeType(DeleteEdgeTypeUndo),
+}
+
+impl UndoLogEntry {
+    pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
+        match self {
+            UndoLogEntry::CreateVertexType(u) => u.undo(graph, ts),
+            UndoLogEntry::CreateEdgeType(u) => u.undo(graph, ts),
+            UndoLogEntry::InsertVertex(u) => u.undo(graph, ts),
+            UndoLogEntry::InsertEdge(u) => u.undo(graph, ts),
+            UndoLogEntry::UpdateVertexProp(u) => u.undo(graph, ts),
+            UndoLogEntry::UpdateEdgeProp(u) => u.undo(graph, ts),
+            UndoLogEntry::RemoveVertex(u) => u.undo(graph, ts),
+            UndoLogEntry::RemoveEdge(u) => u.undo(graph, ts),
+            UndoLogEntry::AddVertexProp(u) => u.undo(graph, ts),
+            UndoLogEntry::AddEdgeProp(u) => u.undo(graph, ts),
+            UndoLogEntry::RenameVertexProp(u) => u.undo(graph, ts),
+            UndoLogEntry::RenameEdgeProp(u) => u.undo(graph, ts),
+            UndoLogEntry::DeleteVertexProp(u) => u.undo(graph, ts),
+            UndoLogEntry::DeleteEdgeProp(u) => u.undo(graph, ts),
+            UndoLogEntry::DeleteVertexType(u) => u.undo(graph, ts),
+            UndoLogEntry::DeleteEdgeType(u) => u.undo(graph, ts),
+        }
+    }
+
+    pub fn description(&self) -> String {
+        match self {
+            UndoLogEntry::CreateVertexType(u) => u.description(),
+            UndoLogEntry::CreateEdgeType(u) => u.description(),
+            UndoLogEntry::InsertVertex(u) => u.description(),
+            UndoLogEntry::InsertEdge(u) => u.description(),
+            UndoLogEntry::UpdateVertexProp(u) => u.description(),
+            UndoLogEntry::UpdateEdgeProp(u) => u.description(),
+            UndoLogEntry::RemoveVertex(u) => u.description(),
+            UndoLogEntry::RemoveEdge(u) => u.description(),
+            UndoLogEntry::AddVertexProp(u) => u.description(),
+            UndoLogEntry::AddEdgeProp(u) => u.description(),
+            UndoLogEntry::RenameVertexProp(u) => u.description(),
+            UndoLogEntry::RenameEdgeProp(u) => u.description(),
+            UndoLogEntry::DeleteVertexProp(u) => u.description(),
+            UndoLogEntry::DeleteEdgeProp(u) => u.description(),
+            UndoLogEntry::DeleteVertexType(u) => u.description(),
+            UndoLogEntry::DeleteEdgeType(u) => u.description(),
+        }
+    }
+}
+
 /// Undo log manager for collecting and executing undo logs
 pub struct UndoLogManager {
-    logs: Vec<Box<dyn UndoLog>>,
+    logs: Vec<UndoLogEntry>,
 }
 
 impl UndoLogManager {
@@ -608,12 +664,12 @@ impl UndoLogManager {
         Self { logs: Vec::new() }
     }
 
-    pub fn add(&mut self, log: Box<dyn UndoLog>) {
+    pub fn add(&mut self, log: UndoLogEntry) {
         self.logs.push(log);
     }
 
     pub fn add_insert_vertex(&mut self, label: LabelId, vid: VertexId) {
-        self.add(Box::new(InsertVertexUndo {
+        self.add(UndoLogEntry::InsertVertex(InsertVertexUndo {
             v_label: label,
             vid,
         }));
@@ -629,7 +685,7 @@ impl UndoLogManager {
         oe_offset: i32,
         ie_offset: i32,
     ) {
-        self.add(Box::new(InsertEdgeUndo {
+        self.add(UndoLogEntry::InsertEdge(InsertEdgeUndo {
             src_label,
             dst_label,
             edge_label,
@@ -647,7 +703,7 @@ impl UndoLogManager {
         col_id: ColumnId,
         old_value: PropertyValue,
     ) {
-        self.add(Box::new(UpdateVertexPropUndo {
+        self.add(UndoLogEntry::UpdateVertexProp(UpdateVertexPropUndo {
             v_label: label,
             vid,
             col_id,
@@ -667,7 +723,7 @@ impl UndoLogManager {
         col_id: ColumnId,
         old_value: PropertyValue,
     ) {
-        self.add(Box::new(UpdateEdgePropUndo {
+        self.add(UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
             src_label,
             src_vid,
             dst_label,
@@ -692,11 +748,11 @@ impl UndoLogManager {
         self.logs.clear();
     }
 
-    pub fn pop(&mut self) -> Option<Box<dyn UndoLog>> {
+    pub fn pop(&mut self) -> Option<UndoLogEntry> {
         self.logs.pop()
     }
 
-    pub fn execute_undo(&mut self, graph: &mut dyn UndoTarget, ts: Timestamp) -> UndoLogResult<()> {
+    pub fn execute_undo<T: UndoTarget + ?Sized>(&mut self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         while let Some(log) = self.logs.pop() {
             log.undo(graph, ts)?;
         }
@@ -1133,5 +1189,17 @@ mod tests {
 
         let mut target = MockUndoTarget;
         undo.undo(&mut target, 1).expect("Undo failed");
+    }
+
+    #[test]
+    fn test_undo_log_entry_enum() {
+        let entry = UndoLogEntry::InsertVertex(InsertVertexUndo {
+            v_label: 1,
+            vid: 100,
+        });
+
+        let mut target = MockUndoTarget;
+        entry.undo(&mut target, 1).expect("Undo failed");
+        assert!(entry.description().contains("InsertVertexUndo"));
     }
 }

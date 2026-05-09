@@ -13,7 +13,7 @@ use super::read_transaction::INVALID_TIMESTAMP;
 use super::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
     DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
-    RemoveVertexUndo, UndoLogError, UndoLogManager, UndoTarget, UpdateEdgePropUndo,
+    RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoTarget, UpdateEdgePropUndo,
     UpdateVertexPropUndo,
 };
 use super::version_manager::{VersionManager, VersionManagerError};
@@ -302,7 +302,7 @@ impl<'a> UpdateTransaction<'a> {
         let _label_name = param.label_name.clone();
         let label_id = self.graph.create_vertex_type(param)?;
 
-        self.undo_logs.add(Box::new(CreateVertexTypeUndo {
+        self.undo_logs.add(UndoLogEntry::CreateVertexType(CreateVertexTypeUndo {
             vertex_type: label_id,
         }));
 
@@ -348,7 +348,7 @@ impl<'a> UpdateTransaction<'a> {
         let dst_label_id = self.graph.get_vertex_label_id(&dst_label).unwrap_or(0);
         let edge_label_id = self.graph.get_edge_label_id(&edge_label).unwrap_or(0);
 
-        self.undo_logs.add(Box::new(CreateEdgeTypeUndo {
+        self.undo_logs.add(UndoLogEntry::CreateEdgeType(CreateEdgeTypeUndo {
             src_type: src_label_id,
             dst_type: dst_label_id,
             edge_type: edge_label_id,
@@ -378,7 +378,7 @@ impl<'a> UpdateTransaction<'a> {
 
         self.graph.add_vertex_properties(param)?;
 
-        self.undo_logs.add(Box::new(AddVertexPropUndo {
+        self.undo_logs.add(UndoLogEntry::AddVertexProp(AddVertexPropUndo {
             label: label_id,
             label_name: param.label_name.clone(),
             prop_names,
@@ -413,7 +413,7 @@ impl<'a> UpdateTransaction<'a> {
 
         self.graph.add_edge_properties(param)?;
 
-        self.undo_logs.add(Box::new(AddEdgePropUndo {
+        self.undo_logs.add(UndoLogEntry::AddEdgeProp(AddEdgePropUndo {
             src_label: src_label_id,
             dst_label: dst_label_id,
             edge_label: edge_label_id,
@@ -443,7 +443,7 @@ impl<'a> UpdateTransaction<'a> {
 
         self.graph.delete_vertex_properties(param)?;
 
-        self.undo_logs.add(Box::new(DeleteVertexPropUndo {
+        self.undo_logs.add(UndoLogEntry::DeleteVertexProp(DeleteVertexPropUndo {
             label: label_id,
             label_name: param.label_name.clone(),
             prop_names: param.properties.clone(),
@@ -477,7 +477,7 @@ impl<'a> UpdateTransaction<'a> {
 
         self.graph.delete_edge_properties(param)?;
 
-        self.undo_logs.add(Box::new(DeleteEdgePropUndo {
+        self.undo_logs.add(UndoLogEntry::DeleteEdgeProp(DeleteEdgePropUndo {
             src_label: src_label_id,
             dst_label: dst_label_id,
             edge_label: edge_label_id,
@@ -503,7 +503,7 @@ impl<'a> UpdateTransaction<'a> {
         self.graph
             .update_vertex_property(label, vid, prop_name, value, self.timestamp)?;
 
-        self.undo_logs.add(Box::new(UpdateVertexPropUndo {
+        self.undo_logs.add(UndoLogEntry::UpdateVertexProp(UpdateVertexPropUndo {
             v_label: label,
             vid,
             col_id: 0,
@@ -536,7 +536,7 @@ impl<'a> UpdateTransaction<'a> {
             self.timestamp,
         )?;
 
-        self.undo_logs.add(Box::new(UpdateEdgePropUndo {
+        self.undo_logs.add(UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
             src_label,
             src_vid,
             dst_label,
@@ -555,7 +555,7 @@ impl<'a> UpdateTransaction<'a> {
     pub fn delete_vertex(&mut self, label: LabelId, vid: VertexId) -> UpdateTransactionResult<()> {
         let related_edges = UpdateTarget::delete_vertex(self.graph, label, vid, self.timestamp)?;
 
-        self.undo_logs.add(Box::new(RemoveVertexUndo {
+        self.undo_logs.add(UndoLogEntry::RemoveVertex(RemoveVertexUndo {
             v_label: label,
             vid,
             related_edges: related_edges
@@ -590,7 +590,7 @@ impl<'a> UpdateTransaction<'a> {
             self.timestamp,
         )?;
 
-        self.undo_logs.add(Box::new(RemoveEdgeUndo {
+        self.undo_logs.add(UndoLogEntry::RemoveEdge(RemoveEdgeUndo {
             src_label,
             src_vid,
             dst_label,

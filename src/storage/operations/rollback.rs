@@ -5,7 +5,7 @@
 
 use crate::core::StorageError;
 use crate::transaction::types::OperationLog;
-use crate::transaction::undo_log::{UndoLog, UndoTarget};
+use crate::transaction::undo_log::{UndoLogEntry, UndoTarget};
 use crate::transaction::wal::types::{LabelId, Timestamp};
 
 pub use crate::transaction::undo_log::{
@@ -56,8 +56,8 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
 /// This is the primary rollback mechanism for NeuG architecture.
 pub trait UndoLogContext {
     fn undo_log_len(&self) -> usize;
-    fn add_undo_log(&self, log: Box<dyn UndoLog>);
-    fn execute_undo_logs(&self, target: &mut dyn UndoTarget) -> Result<(), StorageError>;
+    fn add_undo_log(&self, log: UndoLogEntry);
+    fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), StorageError>;
     fn clear_undo_logs(&self);
 }
 
@@ -66,11 +66,11 @@ impl UndoLogContext for crate::transaction::context::TransactionContext {
         self.undo_log_len()
     }
 
-    fn add_undo_log(&self, log: Box<dyn UndoLog>) {
+    fn add_undo_log(&self, log: UndoLogEntry) {
         self.add_undo_log(log);
     }
 
-    fn execute_undo_logs(&self, target: &mut dyn UndoTarget) -> Result<(), StorageError> {
+    fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), StorageError> {
         self.execute_undo_logs(target)
             .map_err(|e| StorageError::DbError(e.to_string()))
     }
@@ -176,9 +176,9 @@ impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
         Self { ctx }
     }
 
-    pub fn execute_rollback(
+    pub fn execute_rollback<U: UndoTarget + ?Sized>(
         &self,
-        target: &mut dyn UndoTarget,
+        target: &mut U,
         _ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.ctx.execute_undo_logs(target)
@@ -192,7 +192,7 @@ impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
         self.ctx.clear_undo_logs();
     }
 
-    pub fn add_log(&self, log: Box<dyn UndoLog>) {
+    pub fn add_log(&self, log: UndoLogEntry) {
         self.ctx.add_undo_log(log);
     }
 }
@@ -210,9 +210,9 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
         Self { ctx }
     }
 
-    pub fn execute_undo_rollback(
+    pub fn execute_undo_rollback<U: UndoTarget + ?Sized>(
         &self,
-        target: &mut dyn UndoTarget,
+        target: &mut U,
         _ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.ctx.execute_undo_logs(target)
@@ -250,8 +250,8 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
 pub struct RollbackHelper;
 
 impl RollbackHelper {
-    pub fn create_insert_vertex_undo(label: LabelId, vid: u64) -> Box<dyn UndoLog> {
-        Box::new(InsertVertexUndo {
+    pub fn create_insert_vertex_undo(label: LabelId, vid: u64) -> UndoLogEntry {
+        UndoLogEntry::InsertVertex(InsertVertexUndo {
             v_label: label,
             vid,
         })
@@ -265,8 +265,8 @@ impl RollbackHelper {
         dst_vid: u64,
         oe_offset: i32,
         ie_offset: i32,
-    ) -> Box<dyn UndoLog> {
-        Box::new(InsertEdgeUndo {
+    ) -> UndoLogEntry {
+        UndoLogEntry::InsertEdge(InsertEdgeUndo {
             src_label,
             dst_label,
             edge_label,
@@ -282,8 +282,8 @@ impl RollbackHelper {
         vid: u64,
         col_id: i32,
         old_value: PropertyValue,
-    ) -> Box<dyn UndoLog> {
-        Box::new(UpdateVertexPropUndo {
+    ) -> UndoLogEntry {
+        UndoLogEntry::UpdateVertexProp(UpdateVertexPropUndo {
             v_label: label,
             vid,
             col_id,
@@ -301,8 +301,8 @@ impl RollbackHelper {
         ie_offset: i32,
         col_id: i32,
         old_value: PropertyValue,
-    ) -> Box<dyn UndoLog> {
-        Box::new(UpdateEdgePropUndo {
+    ) -> UndoLogEntry {
+        UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
             src_label,
             src_vid,
             dst_label,
@@ -319,8 +319,8 @@ impl RollbackHelper {
         label: LabelId,
         vid: u64,
         related_edges: Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>,
-    ) -> Box<dyn UndoLog> {
-        Box::new(RemoveVertexUndo {
+    ) -> UndoLogEntry {
+        UndoLogEntry::RemoveVertex(RemoveVertexUndo {
             v_label: label,
             vid,
             related_edges,
@@ -335,8 +335,8 @@ impl RollbackHelper {
         edge_label: LabelId,
         oe_offset: i32,
         ie_offset: i32,
-    ) -> Box<dyn UndoLog> {
-        Box::new(RemoveEdgeUndo {
+    ) -> UndoLogEntry {
+        UndoLogEntry::RemoveEdge(RemoveEdgeUndo {
             src_label,
             src_vid,
             dst_label,
@@ -347,16 +347,16 @@ impl RollbackHelper {
         })
     }
 
-    pub fn create_create_vertex_type_undo(label: LabelId) -> Box<dyn UndoLog> {
-        Box::new(CreateVertexTypeUndo { vertex_type: label })
+    pub fn create_create_vertex_type_undo(label: LabelId) -> UndoLogEntry {
+        UndoLogEntry::CreateVertexType(CreateVertexTypeUndo { vertex_type: label })
     }
 
     pub fn create_create_edge_type_undo(
         src_type: LabelId,
         dst_type: LabelId,
         edge_type: LabelId,
-    ) -> Box<dyn UndoLog> {
-        Box::new(CreateEdgeTypeUndo {
+    ) -> UndoLogEntry {
+        UndoLogEntry::CreateEdgeType(CreateEdgeTypeUndo {
             src_type,
             dst_type,
             edge_type,
@@ -386,11 +386,11 @@ mod tests {
             self.logs.borrow().len()
         }
 
-        fn add_undo_log(&self, log: Box<dyn UndoLog>) {
+        fn add_undo_log(&self, log: UndoLogEntry) {
             self.logs.borrow_mut().add(log);
         }
 
-        fn execute_undo_logs(&self, _target: &mut dyn UndoTarget) -> Result<(), StorageError> {
+        fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, _target: &mut T) -> Result<(), StorageError> {
             self.logs.borrow_mut().clear();
             Ok(())
         }

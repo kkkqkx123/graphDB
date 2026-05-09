@@ -61,13 +61,6 @@
 - **分析**: 存储引擎需要支持多种实现（如 ReDB、内存存储等），运行时多态是必要的
 - **状态**: ✅ 保留
 
-#### 2.2 Schema 管理器
-
-- **文件**: `src/storage/runtime_context.rs:18`
-- **代码**: `pub schema_manager: Arc<dyn SchemaManager>`
-- **分析**: Schema 管理器需要支持多种实现，运行时多态是必要的
-- **状态**: ✅ 保留
-
 #### 2.3 边过滤函数
 
 - **文件**: `src/storage/storage_client.rs:41`, `src/storage/redb_storage.rs:284`, `src/storage/operations/reader.rs:39`, `src/storage/operations/redb_operations.rs:207`
@@ -158,7 +151,6 @@
 | 位置                                               | 使用方式       | 保留原因                         |
 | -------------------------------------------------- | -------------- | -------------------------------- |
 | `Arc<dyn StorageClient>`                           | 存储引擎抽象   | 需要运行时多态，支持多种存储实现 |
-| `Arc<dyn SchemaManager>`                           | Schema 管理器  | 需要运行时多态                   |
 | `Box<dyn Fn(&Edge) -> bool>`                       | 边过滤函数     | 闭包类型编译时无法确定           |
 | `Arc<dyn Fn(&Row) -> bool>`                        | 组合迭代器过滤 | 闭包类型编译时无法确定           |
 | `Arc<dyn Fn(Row) -> Row>`                          | 组合迭代器映射 | 闭包类型编译时无法确定           |
@@ -173,12 +165,9 @@
 
 ## 建议
 
-1. ✅ **已完成**: Predicate 系统使用 `PredicateEnum` 实现静态分发
-2. ✅ **已完成**: ResultIterator 使用 `ResultIteratorEnum` 实现静态分发
-3. ✅ **已完成**: 执行器模块使用 `ExecutorEnum` 实现静态分发
-4. **继续保持** 现有的其他 `dyn` 使用模式，因为它们符合项目的架构设计
-5. 在性能关键路径上，定期审查是否存在可以通过静态分派优化的机会
-6. 添加注释说明为什么在特定位置使用 `dyn`，以便未来的维护者理解设计决策
+5. **继续保持** 现有的其他 `dyn` 使用模式，因为它们符合项目的架构设计
+6. 在性能关键路径上，定期审查是否存在可以通过静态分派优化的机会
+7. 添加注释说明为什么在特定位置使用 `dyn`，以便未来的维护者理解设计决策
 
 ## 相关文档
 

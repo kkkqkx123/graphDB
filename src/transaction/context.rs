@@ -10,7 +10,7 @@ use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
 use super::types::*;
-use super::undo_log::{UndoLogManager, UndoTarget};
+use super::undo_log::{UndoLogEntry, UndoLogManager, UndoTarget};
 use super::wal::types::Timestamp;
 
 /// Transaction Context
@@ -462,7 +462,7 @@ impl TransactionContext {
     }
 
     /// Add undo log
-    pub fn add_undo_log(&self, log: Box<dyn super::undo_log::UndoLog>) {
+    pub fn add_undo_log(&self, log: UndoLogEntry) {
         let mut undo_logs = self.undo_logs.write();
         undo_logs.add(log);
     }
@@ -480,7 +480,7 @@ impl TransactionContext {
     }
 
     /// Execute undo logs for rollback
-    pub fn execute_undo_logs(&self, target: &mut dyn UndoTarget) -> Result<(), TransactionError> {
+    pub fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), TransactionError> {
         let mut undo_logs = self.undo_logs.write();
         undo_logs
             .execute_undo(target, self.start_timestamp)
