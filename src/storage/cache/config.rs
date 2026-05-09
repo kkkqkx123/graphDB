@@ -50,33 +50,3 @@ impl Default for MemoryPressureConfig {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct CacheWarmupConfig {
-    pub enabled: bool,
-    pub warmup_vertex_labels: Vec<u16>,
-    pub warmup_edge_labels: Vec<u16>,
-    pub max_warmup_entries: usize,
-}
-
-impl Default for CacheWarmupConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            warmup_vertex_labels: vec![],
-            warmup_edge_labels: vec![],
-            max_warmup_entries: 10000,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-#[derive(Default)]
-pub struct WarmupStats {
-    pub vertices_loaded: usize,
-    pub edges_loaded: usize,
-    pub id_indexes_loaded: usize,
-    pub total_bytes: usize,
-    pub duration_ms: u64,
-}
-

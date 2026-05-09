@@ -538,38 +538,6 @@ fn test_memory_pressure_config() {
 }
 
 #[test]
-fn test_cache_warmup_config() {
-    let config = CacheWarmupConfig {
-        enabled: true,
-        warmup_vertex_labels: vec![1, 2, 3],
-        warmup_edge_labels: vec![4, 5],
-        max_warmup_entries: 5000,
-    };
-
-    assert!(config.enabled);
-    assert_eq!(config.warmup_vertex_labels.len(), 3);
-    assert_eq!(config.warmup_edge_labels.len(), 2);
-    assert_eq!(config.max_warmup_entries, 5000);
-}
-
-#[test]
-fn test_warmup_stats() {
-    let stats = WarmupStats {
-        vertices_loaded: 100,
-        edges_loaded: 200,
-        id_indexes_loaded: 50,
-        total_bytes: 1024 * 1024,
-        duration_ms: 500,
-    };
-
-    assert_eq!(stats.vertices_loaded, 100);
-    assert_eq!(stats.edges_loaded, 200);
-    assert_eq!(stats.id_indexes_loaded, 50);
-    assert_eq!(stats.total_bytes, 1024 * 1024);
-    assert_eq!(stats.duration_ms, 500);
-}
-
-#[test]
 fn test_hit_rate_predictor_basic() {
     let mut predictor = HitRatePredictor::new(1000, 1024 * 1024);
 

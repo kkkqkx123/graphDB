@@ -1,4 +1,15 @@
+//! Storage Module
+//!
+//! Core storage layer for the graph database, providing:
+//! - Container: Memory-mapped storage containers
+//! - CSR: Compressed Sparse Row graph structures
+//! - Vertex/Edge: Vertex and edge storage
+//! - Index: Primary and secondary indexes
+//! - Cache: Record caching
+//! - Engine: Storage engine core
+
 pub mod cache;
+pub mod compression;
 pub mod container;
 pub mod edge;
 pub mod engine;
@@ -11,8 +22,6 @@ pub mod lob;
 pub mod memory;
 pub mod metadata;
 pub mod operations;
-pub mod page;
-pub mod persistence;
 pub mod stats;
 pub mod vertex;
 
@@ -44,6 +53,8 @@ pub use operations::*;
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
 
+pub use compression::{CompressionType, Compressor};
+
 pub use container::{
     AnonMmap, ArenaAllocator, ArenaPool, ContainerConfig, ContainerError, ContainerResult,
     ContainerStats, FileHeader, FileSharedMmap, IDataContainer, MmapContainer, ThreadLocalArena,
@@ -66,9 +77,7 @@ pub use engine::{
 
 pub use lob::{LargeObjectStore, LobId, LobStats, DEFAULT_LOB_THRESHOLD};
 
-pub use stats::{
-    ColumnStatistics, Histogram, HistogramBucket, StatsCollector,
-};
+pub use stats::{ColumnStatistics, Histogram, HistogramBucket, StatsCollector};
 
 #[cfg(test)]
 pub use test_mock::*;

@@ -1,7 +1,8 @@
+//! Property Graph Configuration
+
 use std::path::PathBuf;
 
 use crate::storage::memory::MemoryConfig;
-use crate::storage::persistence::CompressionType;
 
 #[derive(Debug, Clone)]
 pub struct PropertyGraphConfig {
@@ -11,10 +12,6 @@ pub struct PropertyGraphConfig {
     pub enable_cache: bool,
     pub cache_memory: usize,
     pub memory_config: MemoryConfig,
-    pub flush_threshold: usize,
-    pub flush_interval_secs: u64,
-    pub compression: CompressionType,
-    pub enable_incremental_flush: bool,
 }
 
 impl Default for PropertyGraphConfig {
@@ -26,10 +23,6 @@ impl Default for PropertyGraphConfig {
             enable_cache: true,
             cache_memory: 256 * 1024 * 1024,
             memory_config: MemoryConfig::default(),
-            flush_threshold: 1000,
-            flush_interval_secs: 60,
-            compression: CompressionType::Zstd { level: 3 },
-            enable_incremental_flush: true,
         }
     }
 }
@@ -46,14 +39,14 @@ impl PropertyGraphConfig {
         self
     }
 
-    pub fn with_flush_config(mut self, threshold: usize, interval_secs: u64) -> Self {
-        self.flush_threshold = threshold;
-        self.flush_interval_secs = interval_secs;
+    pub fn with_work_dir(mut self, work_dir: PathBuf) -> Self {
+        self.work_dir = work_dir;
         self
     }
 
-    pub fn with_compression(mut self, compression: CompressionType) -> Self {
-        self.compression = compression;
+    pub fn with_capacity(mut self, vertex_capacity: usize, edge_capacity: usize) -> Self {
+        self.initial_vertex_capacity = vertex_capacity;
+        self.initial_edge_capacity = edge_capacity;
         self
     }
 }

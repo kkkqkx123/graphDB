@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::{StorageError, StorageResult, Value};
+use crate::storage::engine::CacheManager;
 use crate::storage::vertex::{
     LabelId, PropertyDef as VertexPropertyDef, Timestamp,
     VertexRecord, VertexSchema, VertexTable,
@@ -103,6 +104,30 @@ impl SchemaOps {
             .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
 
         table.insert(external_id, properties, ts)
+    }
+
+    pub fn get_vertex(
+        &self,
+        label: LabelId,
+        external_id: &str,
+        ts: Timestamp,
+        _cache_manager: &CacheManager,
+    ) -> Option<VertexRecord> {
+        self.vertex_tables.get(&label)?.get(external_id, ts)
+    }
+
+    pub fn scan_vertices(
+        &self,
+        label: LabelId,
+        ts: Timestamp,
+        _cache_manager: &CacheManager,
+    ) -> Option<impl Iterator<Item = VertexRecord> + use<'_>> {
+        let table = self.vertex_tables.get(&label)?;
+        Some(table.scan(ts))
+    }
+
+    pub fn vertex_count(&self, label: LabelId) -> usize {
+        self.vertex_tables.get(&label).map(|t| t.vertex_count(Timestamp::MAX)).unwrap_or(0)
     }
 
     pub fn get_vertex_internal_id(

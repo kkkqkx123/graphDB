@@ -437,24 +437,14 @@ impl StorageClient for GraphStorage {
         if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                 if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
-                    for src_vid in 0..table.vertex_capacity() {
-                        if let Some(out_edges) = graph.out_edges(
-                            edge_label_id,
-                            src_label_id,
-                            dst_label_id,
-                            &format!("{}", src_vid),
-                            ts,
-                        ) {
-                            for record in out_edges {
-                                let edge = Self::edge_record_to_edge(
-                                    &record,
-                                    edge_type,
-                                    &format!("{}", record.src_vid),
-                                    &format!("{}", record.dst_vid),
-                                );
-                                edges.push(edge);
-                            }
-                        }
+                    for record in table.scan(ts) {
+                        let edge = Self::edge_record_to_edge(
+                            &record,
+                            edge_type,
+                            &format!("{}", record.src_vid),
+                            &format!("{}", record.dst_vid),
+                        );
+                        edges.push(edge);
                     }
                 }
             }
@@ -1370,19 +1360,9 @@ impl StorageClient for GraphStorage {
                 if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
                     let schema = self.schema_manager.get_edge_type_schema(space, edge_type)?;
                     
-                    for src_vid in 0..table.vertex_capacity() {
-                        if let Some(out_edges) = graph.out_edges(
-                            edge_label_id,
-                            src_label_id,
-                            dst_label_id,
-                            &format!("{}", src_vid),
-                            ts,
-                        ) {
-                            for record in out_edges {
-                                let data = Self::serialize_properties(&record.properties);
-                                results.push((schema.clone(), data));
-                            }
-                        }
+                    for record in table.scan(ts) {
+                        let data = Self::serialize_properties(&record.properties);
+                        results.push((schema.clone(), data));
                     }
                 }
             }
@@ -1435,14 +1415,14 @@ impl StorageClient for GraphStorage {
     fn get_storage_stats(&self) -> StorageStats {
         let graph = self.graph.read();
         
-        let total_vertices: usize = graph.vertex_label_names().iter()
-            .filter_map(|name| graph.get_vertex_label_id(name))
-            .map(|label_id| graph.vertex_count(label_id, 0))
+        let total_vertices: usize = graph.vertex_label_names()
+            .values()
+            .map(|&label_id| graph.vertex_count(label_id))
             .sum();
 
-        let total_edges: u64 = graph.edge_label_names().iter()
-            .filter_map(|name| graph.get_edge_label_id(name))
-            .map(|label_id| graph.edge_count(label_id))
+        let total_edges: usize = graph.edge_tables()
+            .values()
+            .map(|table| table.edge_count() as usize)
             .sum();
 
         let spaces = self.schema_manager.list_spaces().unwrap_or_default();
@@ -1473,38 +1453,28 @@ impl StorageClient for GraphStorage {
         let graph = self.graph.read();
         let mut dangling_edges = Vec::new();
 
-        for ((src_label_id, dst_label_id, edge_label_id), table) in graph.edge_tables() {
+        for ((src_label_id, dst_label_id, _edge_label_id), table) in graph.edge_tables() {
             let edge_type_name = table.label_name().to_string();
-            for src_vid in 0..table.vertex_capacity() {
-                if let Some(out_edges) = graph.out_edges(
-                    *edge_label_id,
+            for record in table.scan(ts) {
+                let src_exists = graph.get_vertex_by_internal_id(
                     *src_label_id,
-                    *dst_label_id,
-                    &format!("{}", src_vid),
+                    record.src_vid as u32,
                     ts,
-                ) {
-                    for record in out_edges {
-                        let src_exists = graph.get_vertex_by_internal_id(
-                            *src_label_id,
-                            record.src_vid as u32,
-                            ts,
-                        ).is_some();
-                        let dst_exists = graph.get_vertex_by_internal_id(
-                            *dst_label_id,
-                            record.dst_vid as u32,
-                            ts,
-                        ).is_some();
+                ).is_some();
+                let dst_exists = graph.get_vertex_by_internal_id(
+                    *dst_label_id,
+                    record.dst_vid as u32,
+                    ts,
+                ).is_some();
 
-                        if !src_exists || !dst_exists {
-                            let edge = Self::edge_record_to_edge(
-                                &record,
-                                &edge_type_name,
-                                &format!("{}", record.src_vid),
-                                &format!("{}", record.dst_vid),
-                            );
-                            dangling_edges.push(edge);
-                        }
-                    }
+                if !src_exists || !dst_exists {
+                    let edge = Self::edge_record_to_edge(
+                        &record,
+                        &edge_type_name,
+                        &format!("{}", record.src_vid),
+                        &format!("{}", record.dst_vid),
+                    );
+                    dangling_edges.push(edge);
                 }
             }
         }

@@ -1,3 +1,5 @@
+//! Compression utilities for storage layer
+
 use crate::core::{StorageError, StorageResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
