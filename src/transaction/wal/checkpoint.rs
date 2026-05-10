@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use super::types::{
     Lsn, PageId, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
 };
+use crate::storage::persistence::{DirtyPageId, TableType};
 
 /// Checkpoint information
 #[derive(Debug, Clone)]
@@ -357,6 +358,37 @@ impl CheckpointManager {
             dirty_pages: self.dirty_pages.clone(),
             redo_lsn: self.calculate_redo_lsn(),
         })
+    }
+
+    /// Mark a dirty page using DirtyPageId
+    pub fn mark_dirty_page(&mut self, page_id: &DirtyPageId) {
+        let raw_id = page_id.to_u64();
+        self.mark_page_dirty(raw_id);
+    }
+
+    /// Mark a dirty page as clean using DirtyPageId
+    pub fn mark_clean_page(&mut self, page_id: &DirtyPageId) {
+        let raw_id = page_id.to_u64();
+        self.mark_page_clean(raw_id);
+    }
+
+    /// Get dirty pages as DirtyPageId vector
+    pub fn dirty_pages_as_dirty_page_ids(&self) -> Vec<DirtyPageId> {
+        self.dirty_pages
+            .iter()
+            .filter_map(|&raw_id| DirtyPageId::try_from_u64(raw_id))
+            .collect()
+    }
+
+    /// Create checkpoint with DirtyPageId list
+    pub fn create_checkpoint_with_dirty_page_ids(
+        &mut self,
+        timestamp: Timestamp,
+        lsn: Lsn,
+        dirty_page_ids: &[DirtyPageId],
+    ) -> WalResult<Checkpoint> {
+        let raw_ids: Vec<PageId> = dirty_page_ids.iter().map(|id| id.to_u64()).collect();
+        self.create_checkpoint_with_full_pages(timestamp, lsn, raw_ids)
     }
 }
 

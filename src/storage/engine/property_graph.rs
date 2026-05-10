@@ -25,8 +25,8 @@ use crate::transaction::wal::types::{
     ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
 use crate::transaction::wal::writer::WalWriter;
-use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, FlushManager};
-use crate::storage::page::{PageLockId, PageLockManager, LockMode, LockResult};
+use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, FlushManager, TableType};
+use crate::storage::page::{PageLockId, PageLockManager, PageManager, LockMode, LockResult};
 
 use super::cache::CacheManager;
 use super::config::PropertyGraphConfig;
@@ -43,6 +43,7 @@ pub struct PropertyGraph {
     edge_ops: EdgeOps,
     cache_manager: CacheManager,
     wal_manager: WalManager,
+    page_manager: Arc<PageManager>,
     dirty_tracker: Arc<DirtyPageTracker>,
     flush_manager: Option<FlushManager>,
     lock_manager: PageLockManager,
@@ -85,6 +86,13 @@ impl PropertyGraph {
             memory_tracker.clone(),
         );
 
+        let page_manager = Arc::new(PageManager::with_config(
+            crate::storage::page::PageManagerConfig {
+                base_path: config.work_dir.clone(),
+                max_pages: (config.cache_memory / 4096) as u64,
+            },
+        ));
+
         let dirty_tracker = Arc::new(DirtyPageTracker::with_config(
             crate::storage::persistence::DirtyTrackerConfig {
                 flush_threshold: config.flush_config.flush_threshold,
@@ -93,7 +101,10 @@ impl PropertyGraph {
         ));
 
         let flush_manager = if config.enable_background_flush {
-            Some(FlushManager::new(config.flush_config.clone()))
+            Some(
+                FlushManager::new(config.flush_config.clone())
+                    .with_page_manager(page_manager.clone()),
+            )
         } else {
             None
         };
@@ -105,6 +116,7 @@ impl PropertyGraph {
             edge_ops: EdgeOps::new(),
             cache_manager,
             wal_manager: WalManager::new(),
+            page_manager,
             dirty_tracker,
             flush_manager,
             lock_manager,
@@ -128,6 +140,10 @@ impl PropertyGraph {
 
     pub fn dirty_tracker(&self) -> &Arc<DirtyPageTracker> {
         &self.dirty_tracker
+    }
+
+    pub fn page_manager(&self) -> &Arc<PageManager> {
+        &self.page_manager
     }
 
     pub fn lock_manager(&self) -> &PageLockManager {
@@ -157,6 +173,14 @@ impl PropertyGraph {
 
     pub fn get_dirty_page_count(&self) -> usize {
         self.dirty_tracker.get_dirty_page_count()
+    }
+
+    pub fn mark_page_dirty(&self, table_type: TableType, label_id: u16, block_number: u64) {
+        let page_id = DirtyPageId::new(table_type, label_id, block_number);
+        self.dirty_tracker.mark_dirty(page_id);
+        if let Some(ref flush_manager) = self.flush_manager {
+            flush_manager.mark_dirty(page_id);
+        }
     }
 
     pub fn record_cache(&self) -> Option<&crate::storage::cache::SharedRecordCache> {

@@ -3,6 +3,7 @@
 //! Tracks modified pages for efficient checkpointing and full page writes.
 
 use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use parking_lot::RwLock;
@@ -14,6 +15,22 @@ pub enum TableType {
     Edge = 2,
     Property = 3,
     Schema = 4,
+}
+
+impl TableType {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            1 => Some(TableType::Vertex),
+            2 => Some(TableType::Edge),
+            3 => Some(TableType::Property),
+            4 => Some(TableType::Schema),
+            _ => None,
+        }
+    }
+
+    pub fn as_u8(&self) -> u8 {
+        *self as u8
+    }
 }
 
 /// Dirty page identifier with table context
@@ -51,6 +68,45 @@ impl DirtyPageId {
 
     pub fn schema(block_number: u64) -> Self {
         Self::new(TableType::Schema, 0, block_number)
+    }
+
+    pub fn to_u64(&self) -> u64 {
+        ((self.table_type as u64) << 56)
+            | ((self.label_id as u64) << 40)
+            | (self.block_number & 0xFFFFFFFFFF)
+    }
+
+    pub fn from_u64(value: u64) -> Self {
+        let table_type_byte = ((value >> 56) & 0xFF) as u8;
+        let table_type = TableType::from_u8(table_type_byte).unwrap_or(TableType::Schema);
+        Self {
+            table_type,
+            label_id: ((value >> 40) & 0xFFFF) as u16,
+            block_number: value & 0xFFFFFFFFFF,
+        }
+    }
+
+    pub fn try_from_u64(value: u64) -> Option<Self> {
+        let table_type_byte = ((value >> 56) & 0xFF) as u8;
+        let table_type = TableType::from_u8(table_type_byte)?;
+        Some(Self {
+            table_type,
+            label_id: ((value >> 40) & 0xFFFF) as u16,
+            block_number: value & 0xFFFFFFFFFF,
+        })
+    }
+
+    pub fn file_path(&self, base_dir: &Path) -> PathBuf {
+        let table_dir = match self.table_type {
+            TableType::Vertex => "vertex",
+            TableType::Edge => "edge",
+            TableType::Property => "property",
+            TableType::Schema => "schema",
+        };
+        base_dir
+            .join(table_dir)
+            .join(format!("label_{}", self.label_id))
+            .join(format!("block_{:08}.page", self.block_number))
     }
 }
 

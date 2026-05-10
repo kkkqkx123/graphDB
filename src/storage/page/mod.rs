@@ -21,8 +21,12 @@ pub use page_header::{PageHeader, PageType, PAGE_DATA_SIZE, PAGE_FLAG_DIRTY, PAG
 pub use page_lock::{
     LockMode, LockResult, LockStats, PageLockConfig, PageLockId, PageLockManager,
 };
-pub use page_manager::{PageManager, PageManagerConfig, PageManagerStats, StoragePageId};
+pub use page_manager::{PageManager, PageManagerConfig, PageManagerStats, PageId};
+#[allow(deprecated)]
+pub use page_manager::StoragePageId;
 pub use record::{
     EdgeRecord, VertexRecord, DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP,
     VERTEX_RECORD_SIZE,
 };
+
+pub use crate::storage::persistence::{DirtyPageId, TableType};
