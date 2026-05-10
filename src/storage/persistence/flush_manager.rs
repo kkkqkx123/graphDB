@@ -3,14 +3,14 @@
 //! Manages background flushing of dirty pages to persistent storage.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use parking_lot::RwLock;
 
-use super::dirty_tracker::{DirtyPageId, DirtyPageTracker, TableType};
+use super::dirty_tracker::{DirtyPageId, DirtyPageTracker};
 use super::page_writer::FilePageWriter;
 use crate::core::StorageResult;
 use crate::storage::compression::{CompressionType, Compressor};
@@ -133,7 +133,6 @@ impl FlushManager {
         let running = self.running.clone();
         let max_retries = self.config.max_retries;
         let retry_delay = Duration::from_millis(self.config.retry_delay_ms);
-        let stats = Arc::new(AtomicU64::new(0));
 
         let handle = thread::spawn(move || {
             while running.load(Ordering::Relaxed) {
@@ -329,6 +328,7 @@ impl Drop for FlushManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::persistence::dirty_tracker::TableType;
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -401,10 +401,6 @@ mod tests {
             Self {
                 pages: Mutex::new(HashMap::new()),
             }
-        }
-
-        fn page_count(&self) -> usize {
-            self.pages.lock().expect("lock poisoned").len()
         }
     }
 

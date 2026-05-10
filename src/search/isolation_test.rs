@@ -131,10 +131,6 @@ mod tests {
         Arc::new(manager)
     }
 
-    fn create_test_schema_manager_empty() -> Arc<InMemorySchemaManager> {
-        Arc::new(InMemorySchemaManager::new())
-    }
-
     // ==================== Space Existence Validation Tests ====================
 
     /// Test index creation fails when space does not exist

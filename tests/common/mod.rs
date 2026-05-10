@@ -19,12 +19,18 @@ pub mod validation_helpers;
 #[cfg(feature = "c-api")]
 pub mod c_api_helpers;
 
-use graphdb::core::error::DBResult;
+use graphdb::core::error::DBError;
 use graphdb::storage::metadata::InMemorySchemaManager;
 use graphdb::storage::GraphStorage;
 use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+/// Lightweight result type for test code
+///
+/// Uses `Box<DBError>` to reduce the size of the Err variant from ~160 bytes to ~8 bytes (pointer size).
+/// This avoids clippy's `result_large_err` warning while preserving full error information.
+pub type TestResult<T> = Result<T, Box<DBError>>;
 
 /// Test Storage Instance Wrapper
 ///
@@ -37,11 +43,13 @@ pub struct TestStorage {
 
 impl TestStorage {
     /// Creating a New Test Storage Instance
-    pub fn new() -> DBResult<Self> {
-        let temp_dir = tempfile::tempdir()?;
+    pub fn new() -> TestResult<Self> {
+        let temp_dir = tempfile::tempdir().map_err(|e| DBError::Io(e.to_string()))?;
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = Arc::new(Mutex::new(GraphStorage::new_with_path(db_path)?));
+        let storage = Arc::new(Mutex::new(
+            GraphStorage::new_with_path(db_path).map_err(|e| Box::new(DBError::Storage(e)))?,
+        ));
         Ok(Self {
             storage,
             temp_path: temp_dir.path().to_path_buf(),
@@ -49,8 +57,10 @@ impl TestStorage {
     }
 
     /// Creating a Test Storage Instance with a specific path
-    pub fn new_with_path(path: PathBuf) -> DBResult<Self> {
-        let storage = Arc::new(Mutex::new(GraphStorage::new_with_path(path)?));
+    pub fn new_with_path(path: PathBuf) -> TestResult<Self> {
+        let storage = Arc::new(Mutex::new(
+            GraphStorage::new_with_path(path).map_err(|e| Box::new(DBError::Storage(e)))?,
+        ));
         Ok(Self {
             storage,
             temp_path: PathBuf::new(),

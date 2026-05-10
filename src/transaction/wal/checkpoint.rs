@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use super::types::{
     Lsn, PageId, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
 };
-use crate::storage::persistence::{DirtyPageId, TableType};
+use crate::storage::persistence::DirtyPageId;
 
 /// Checkpoint information
 #[derive(Debug, Clone)]

@@ -2,7 +2,7 @@
 //!
 //! Provides functions to validate data state in storage after operations
 
-use graphdb::core::error::DBResult;
+use crate::common::TestResult;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
@@ -32,16 +32,16 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
     // ==================== Vertex Validation ====================
 
     /// Check if a vertex exists with the given tag
-    pub fn vertex_exists(&mut self, vid: i64, tag: &str) -> DBResult<bool> {
+    pub fn vertex_exists(&mut self, vid: i64, tag: &str) -> TestResult<bool> {
         let query = format!("FETCH PROP ON {} {}", tag, vid);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
         Ok(result.count() > 0)
     }
 
     /// Get vertex properties
-    pub fn get_vertex_props(&mut self, vid: i64, tag: &str) -> DBResult<HashMap<String, Value>> {
+    pub fn get_vertex_props(&mut self, vid: i64, tag: &str) -> TestResult<HashMap<String, Value>> {
         let query = format!("FETCH PROP ON {} {}", tag, vid);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
 
         match result {
             ExecutionResult::DataSet(ds) => {
@@ -67,7 +67,7 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         tag: &str,
         prop: &str,
         expected: &Value,
-    ) -> DBResult<bool> {
+    ) -> TestResult<bool> {
         let props = self.get_vertex_props(vid, tag)?;
         match props.get(prop) {
             Some(value) => Ok(value == expected),
@@ -76,18 +76,18 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
     }
 
     /// Count vertices with specific tag
-    pub fn count_vertices(&mut self, tag: &str) -> DBResult<usize> {
+    pub fn count_vertices(&mut self, tag: &str) -> TestResult<usize> {
         let query = format!("LOOKUP ON {}", tag);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
         Ok(result.count())
     }
 
     // ==================== Edge Validation ====================
 
     /// Check if an edge exists
-    pub fn edge_exists(&mut self, src: i64, dst: i64, edge_type: &str) -> DBResult<bool> {
+    pub fn edge_exists(&mut self, src: i64, dst: i64, edge_type: &str) -> TestResult<bool> {
         let query = format!("FETCH PROP ON {} {} -> {}", edge_type, src, dst);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
         Ok(result.count() > 0)
     }
 
@@ -97,9 +97,9 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         src: i64,
         dst: i64,
         edge_type: &str,
-    ) -> DBResult<HashMap<String, Value>> {
+    ) -> TestResult<HashMap<String, Value>> {
         let query = format!("FETCH PROP ON {} {} -> {}", edge_type, src, dst);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
 
         match result {
             ExecutionResult::DataSet(ds) => {
@@ -126,7 +126,7 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         edge_type: &str,
         prop: &str,
         expected: &Value,
-    ) -> DBResult<bool> {
+    ) -> TestResult<bool> {
         let props = self.get_edge_props(src, dst, edge_type)?;
         match props.get(prop) {
             Some(value) => Ok(value == expected),
@@ -135,32 +135,32 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
     }
 
     /// Count edges of specific type
-    pub fn count_edges(&mut self, edge_type: &str) -> DBResult<usize> {
+    pub fn count_edges(&mut self, edge_type: &str) -> TestResult<usize> {
         let query = format!("LOOKUP ON {}", edge_type);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
         Ok(result.count())
     }
 
     // ==================== Schema Validation ====================
 
     /// Check if tag exists
-    pub fn tag_exists(&mut self, tag: &str) -> DBResult<bool> {
+    pub fn tag_exists(&mut self, tag: &str) -> TestResult<bool> {
         let query = format!("DESC TAG {}", tag);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
         Ok(result.count() > 0)
     }
 
     /// Check if edge type exists
-    pub fn edge_type_exists(&mut self, edge_type: &str) -> DBResult<bool> {
+    pub fn edge_type_exists(&mut self, edge_type: &str) -> TestResult<bool> {
         let query = format!("DESC EDGE {}", edge_type);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
         Ok(result.count() > 0)
     }
 
     /// Get tag schema
-    pub fn get_tag_schema(&mut self, tag: &str) -> DBResult<Vec<(String, String)>> {
+    pub fn get_tag_schema(&mut self, tag: &str) -> TestResult<Vec<(String, String)>> {
         let query = format!("DESC TAG {}", tag);
-        let result = self.pipeline.execute_query(&query)?;
+        let result = self.pipeline.execute_query(&query).map_err(Box::new)?;
 
         let mut schema = Vec::new();
         #[allow(clippy::single_match)]
@@ -182,7 +182,7 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
     }
 
     /// Check if tag has specific field
-    pub fn tag_has_field(&mut self, tag: &str, field: &str) -> DBResult<bool> {
+    pub fn tag_has_field(&mut self, tag: &str, field: &str) -> TestResult<bool> {
         let schema = self.get_tag_schema(tag)?;
         Ok(schema.iter().any(|(f, _)| f == field))
     }
@@ -193,7 +193,7 @@ impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
         tag: &str,
         field: &str,
         expected_type: &str,
-    ) -> DBResult<bool> {
+    ) -> TestResult<bool> {
         let schema = self.get_tag_schema(tag)?;
         Ok(schema.iter().any(|(f, t)| f == field && t == expected_type))
     }

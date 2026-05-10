@@ -44,11 +44,7 @@ pub use extend::FulltextStorage;
 
 pub use index::*;
 pub use iterator::*;
-pub use memory::{
-    AllocationResult, HugePageAllocator, HugePageBuffer, HugePageConfig, HugePageError,
-    MemoryConfig, MemoryConfigBuilder, MemoryLevel, MemoryStats, MemoryTracker, NullBitmap,
-    DEFAULT_HUGE_PAGE_SIZE,
-};
+pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryStats, MemoryTracker, NullBitmap};
 pub use metadata::*;
 pub use operations::*;
 
@@ -58,8 +54,9 @@ pub use crate::core::StorageResult;
 pub use compression::{CompressionType, Compressor};
 
 pub use container::{
-    AnonMmap, ArenaAllocator, ArenaPool, ContainerConfig, ContainerError, ContainerResult,
-    ContainerStats, FileHeader, FileSharedMmap, IDataContainer, MmapContainer, ThreadLocalArena,
+    open_container, open_container_from_file, AnonMmap, ArenaAllocator, ArenaPool,
+    ContainerConfig, ContainerError, ContainerResult, ContainerStats, FileHeader, FileMmap,
+    HugePageMmap, IDataContainer, MemoryLevel, DEFAULT_HUGE_PAGE_SIZE,
 };
 
 pub use vertex::{

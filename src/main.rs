@@ -3,7 +3,6 @@ mod server_main {
     use clap::Parser;
     use graphdb::api;
     use graphdb::config::Config;
-    use graphdb::core::error::DBResult;
     use graphdb::utils::logging;
 
     #[derive(Parser)]
@@ -21,10 +20,10 @@ mod server_main {
         },
     }
 
-    pub fn main() -> DBResult<()> {
+    pub fn main() {
         let cli = Cli::parse();
 
-        match cli {
+        let result = match cli {
             Cli::Serve { config } => {
                 println!("Starting GraphDB service with config: {}", config);
                 println!("Process ID: {}", std::process::id());
@@ -47,12 +46,18 @@ mod server_main {
                 }
 
                 // Create Tokio runtime and start service
-                let rt = tokio::runtime::Runtime::new()?;
+                let rt = match tokio::runtime::Runtime::new() {
+                    Ok(rt) => rt,
+                    Err(e) => {
+                        eprintln!("Failed to create tokio runtime: {}", e);
+                        return;
+                    }
+                };
                 let result = rt.block_on(async { api::start_service_with_config(cfg).await });
 
                 // Ensure logging is flushed before exiting
                 logging::shutdown();
-                result?;
+                result
             }
             Cli::Query { query } => {
                 println!("Executing query: {}", query);
@@ -65,24 +70,30 @@ mod server_main {
                 }
 
                 // Execute query directly using tokio runtime
-                let rt = tokio::runtime::Runtime::new()?;
+                let rt = match tokio::runtime::Runtime::new() {
+                    Ok(rt) => rt,
+                    Err(e) => {
+                        eprintln!("Failed to create tokio runtime: {}", e);
+                        return;
+                    }
+                };
                 let result = rt.block_on(api::execute_query(&query));
 
                 // Ensure logging is flushed before exiting
                 logging::shutdown();
-                result?;
+                result
             }
-        }
+        };
 
-        Ok(())
+        if let Err(e) = result {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
     }
 }
 
 #[cfg(feature = "server")]
-use graphdb::core::error::DBResult;
-
-#[cfg(feature = "server")]
-fn main() -> DBResult<()> {
+fn main() {
     server_main::main()
 }
 

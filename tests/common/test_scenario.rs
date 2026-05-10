@@ -2,7 +2,7 @@
 //!
 //! Provides a high-level API for writing integration tests with fluent interface
 
-use graphdb::core::error::DBResult;
+use crate::common::TestResult;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
@@ -25,7 +25,7 @@ pub struct TestScenario {
 
 impl TestScenario {
     /// Create a new test scenario
-    pub fn new() -> DBResult<Self> {
+    pub fn new() -> TestResult<Self> {
         let test_storage = TestStorage::new()?;
         let storage = test_storage.storage();
 
@@ -350,14 +350,9 @@ impl TestScenario {
             let found = rows.iter().any(|row| {
                 row.iter().any(|val| match val {
                     Value::Vertex(v) => v.tags.iter().any(|tag| {
-                        tag.properties
-                            .get(prop_name)
-                            .map_or(false, |v| v == &expected_value)
+                        tag.properties.get(prop_name) == Some(&expected_value)
                     }),
-                    Value::Edge(e) => e
-                        .props
-                        .get(prop_name)
-                        .map_or(false, |v| v == &expected_value),
+                    Value::Edge(e) => e.props.get(prop_name) == Some(&expected_value),
                     _ => false,
                 })
             });

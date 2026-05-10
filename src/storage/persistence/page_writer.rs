@@ -650,10 +650,6 @@ mod tests {
         let work_dir = temp_dir.path().to_path_buf();
 
         let dirty_tracker = Arc::new(DirtyPageTracker::new(1000, std::time::Duration::from_secs(60)));
-        let writer = Arc::new(
-            FilePageWriter::new(work_dir.clone(), CompressionType::None)
-                .expect("Failed to create writer"),
-        );
 
         let manager = CheckpointManager::new(work_dir, dirty_tracker.clone());
 

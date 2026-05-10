@@ -18,11 +18,8 @@ const MIN_ALIGNMENT: usize = 8;
 
 /// Memory chunk in the arena
 struct Chunk {
-    /// Pointer to the chunk memory
     data: NonNull<u8>,
-    /// Total size of the chunk
     size: usize,
-    /// Used bytes in this chunk
     used: usize,
 }
 
@@ -76,25 +73,18 @@ unsafe impl Send for Chunk {}
 
 /// Arena allocator for efficient batch allocations
 pub struct ArenaAllocator {
-    /// Current chunk
     current: UnsafeCell<Option<Chunk>>,
-    /// List of all chunks
     chunks: UnsafeCell<Vec<Chunk>>,
-    /// Default chunk size
     chunk_size: usize,
-    /// Total allocated bytes
     total_allocated: AtomicUsize,
-    /// Total used bytes
     total_used: AtomicUsize,
 }
 
 impl ArenaAllocator {
-    /// Create a new arena allocator with default chunk size
     pub fn new() -> ContainerResult<Self> {
         Self::with_chunk_size(DEFAULT_CHUNK_SIZE)
     }
 
-    /// Create a new arena allocator with specified chunk size
     pub fn with_chunk_size(chunk_size: usize) -> ContainerResult<Self> {
         let chunk = Chunk::new(chunk_size)?;
         Ok(Self {
@@ -106,7 +96,6 @@ impl ArenaAllocator {
         })
     }
 
-    /// Allocate memory with the given size and alignment
     pub fn allocate(&self, size: usize, align: usize) -> ContainerResult<NonNull<u8>> {
         let align = align.max(MIN_ALIGNMENT);
         let size = (size + align - 1) & !(align - 1);
@@ -138,7 +127,6 @@ impl ArenaAllocator {
         }
     }
 
-    /// Allocate memory for a type T
     pub fn allocate_type<T>(&self) -> ContainerResult<NonNull<T>> {
         let size = std::mem::size_of::<T>();
         let align = std::mem::align_of::<T>();
@@ -146,7 +134,6 @@ impl ArenaAllocator {
         Ok(unsafe { NonNull::new_unchecked(ptr.as_ptr() as *mut T) })
     }
 
-    /// Allocate memory for a slice of type T
     pub fn allocate_slice<T>(&self, count: usize) -> ContainerResult<NonNull<T>> {
         if count == 0 {
             return Ok(NonNull::dangling());
@@ -158,7 +145,6 @@ impl ArenaAllocator {
         Ok(unsafe { NonNull::new_unchecked(ptr.as_ptr() as *mut T) })
     }
 
-    /// Allocate and copy a byte slice
     pub fn allocate_bytes(&self, bytes: &[u8]) -> ContainerResult<NonNull<u8>> {
         let ptr = self.allocate(bytes.len(), 1)?;
         unsafe {
@@ -167,7 +153,6 @@ impl ArenaAllocator {
         Ok(ptr)
     }
 
-    /// Reset the arena, freeing all allocations
     pub fn reset(&self) {
         unsafe {
             if let Some(ref mut chunk) = *self.current.get() {
@@ -181,29 +166,21 @@ impl ArenaAllocator {
         self.total_used.store(0, Ordering::Relaxed);
     }
 
-    /// Get total allocated bytes
     pub fn total_allocated(&self) -> usize {
         self.total_allocated.load(Ordering::Relaxed)
     }
 
-    /// Get total used bytes
     pub fn total_used(&self) -> usize {
         self.total_used.load(Ordering::Relaxed)
     }
 
-    /// Get the number of chunks
     pub fn chunk_count(&self) -> usize {
         unsafe {
-            let current_count = if (*self.current.get()).is_some() {
-                1
-            } else {
-                0
-            };
+            let current_count = if (*self.current.get()).is_some() { 1 } else { 0 };
             (*self.chunks.get()).len() + current_count
         }
     }
 
-    /// Get memory utilization (used / allocated)
     pub fn utilization(&self) -> f64 {
         let allocated = self.total_allocated();
         if allocated == 0 {
@@ -231,67 +208,13 @@ impl Drop for ArenaAllocator {
 
 unsafe impl Sync for ArenaAllocator {}
 
-/// Thread-local arena allocator wrapper
-pub struct ThreadLocalArena {
-    arena: ArenaAllocator,
-}
-
-impl ThreadLocalArena {
-    pub fn new() -> ContainerResult<Self> {
-        Ok(Self {
-            arena: ArenaAllocator::new()?,
-        })
-    }
-
-    pub fn with_chunk_size(chunk_size: usize) -> ContainerResult<Self> {
-        Ok(Self {
-            arena: ArenaAllocator::with_chunk_size(chunk_size)?,
-        })
-    }
-
-    pub fn allocate(&self, size: usize, align: usize) -> ContainerResult<NonNull<u8>> {
-        self.arena.allocate(size, align)
-    }
-
-    pub fn allocate_type<T>(&self) -> ContainerResult<NonNull<T>> {
-        self.arena.allocate_type()
-    }
-
-    pub fn allocate_slice<T>(&self, count: usize) -> ContainerResult<NonNull<T>> {
-        self.arena.allocate_slice(count)
-    }
-
-    pub fn allocate_bytes(&self, bytes: &[u8]) -> ContainerResult<NonNull<u8>> {
-        self.arena.allocate_bytes(bytes)
-    }
-
-    pub fn reset(&self) {
-        self.arena.reset();
-    }
-
-    pub fn total_allocated(&self) -> usize {
-        self.arena.total_allocated()
-    }
-
-    pub fn total_used(&self) -> usize {
-        self.arena.total_used()
-    }
-}
-
-impl Default for ThreadLocalArena {
-    fn default() -> Self {
-        Self::new().expect("Failed to create default thread local arena")
-    }
-}
-
-/// Global arena pool for multi-threaded allocation
+/// Arena pool for multi-threaded allocation
 pub struct ArenaPool {
     arenas: Vec<ArenaAllocator>,
     current: AtomicUsize,
 }
 
 impl ArenaPool {
-    /// Create a new arena pool with the specified number of arenas
     pub fn new(arena_count: usize) -> ContainerResult<Self> {
         let arenas = (0..arena_count)
             .map(|_| ArenaAllocator::new())
@@ -303,7 +226,6 @@ impl ArenaPool {
         })
     }
 
-    /// Create a new arena pool with custom chunk size
     pub fn with_chunk_size(arena_count: usize, chunk_size: usize) -> ContainerResult<Self> {
         let arenas = (0..arena_count)
             .map(|_| ArenaAllocator::with_chunk_size(chunk_size))
@@ -315,25 +237,21 @@ impl ArenaPool {
         })
     }
 
-    /// Get an arena from the pool (round-robin)
     pub fn get_arena(&self) -> &ArenaAllocator {
         let idx = self.current.fetch_add(1, Ordering::Relaxed) % self.arenas.len();
         &self.arenas[idx]
     }
 
-    /// Reset all arenas
     pub fn reset_all(&self) {
         for arena in &self.arenas {
             arena.reset();
         }
     }
 
-    /// Get total allocated bytes across all arenas
     pub fn total_allocated(&self) -> usize {
         self.arenas.iter().map(|a| a.total_allocated()).sum()
     }
 
-    /// Get total used bytes across all arenas
     pub fn total_used(&self) -> usize {
         self.arenas.iter().map(|a| a.total_used()).sum()
     }
