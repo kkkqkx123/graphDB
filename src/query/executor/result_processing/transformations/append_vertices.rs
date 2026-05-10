@@ -86,10 +86,10 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             .context
             .get_result(&self.input_var)
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Input variable '{}' not found",
                     self.input_var
-                )))
+                ))
             })?;
 
         // Create the context for the expression.
@@ -112,9 +112,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                         let vid =
                             ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
                                 .map_err(|e| {
-                                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                        e.to_string(),
-                                    ))
+                                    DBError::query(e.to_string())
                                 })?;
 
                         if let Some(ref mut seen_map) = seen {
@@ -132,9 +130,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             | ExecutionResult::Success
             | ExecutionResult::SpaceSwitched(_) => {}
             ExecutionResult::Error(msg) => {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(msg),
-                ));
+                return Err(DBError::query(msg));
             }
         }
 
@@ -224,9 +220,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 let filter_result =
                     ExpressionEvaluator::evaluate(filter_expression, &mut row_context).map_err(
                         |e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
+                            DBError::query(e.to_string())
                         },
                     )?;
 

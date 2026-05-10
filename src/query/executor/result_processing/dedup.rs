@@ -411,9 +411,7 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> 
         };
 
         self.process_input(input).map_err(|e| {
-            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                e.to_string(),
-            ))
+            crate::core::error::DBError::query(e.to_string())
         })
     }
 

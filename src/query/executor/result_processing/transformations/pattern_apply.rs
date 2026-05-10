@@ -34,9 +34,7 @@ fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DB
         ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
             Ok(Vec::new())
         }
-        ExecutionResult::Error(msg) => Err(DBError::Query(
-            crate::core::error::QueryError::ExecutionError(msg.clone()),
-        )),
+        ExecutionResult::Error(msg) => Err(DBError::query(msg.clone())),
     }
 }
 
@@ -93,10 +91,10 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
             .context
             .get_result(&self.left_input_var)
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Left input variable '{}' not found",
                     self.left_input_var
-                )))
+                ))
             })?;
 
         let _right_result = self
@@ -104,10 +102,10 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
             .context
             .get_result(&self.right_input_var)
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Right input variable '{}' not found",
                     self.right_input_var
-                )))
+                ))
             })?;
 
         Ok(())
@@ -130,9 +128,7 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
 
             for col in &self.key_cols {
                 let val = ExpressionEvaluator::evaluate(col, &mut expr_context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
+                    DBError::query(e.to_string())
                 })?;
                 key_list.values.push(val);
             }
@@ -156,9 +152,7 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
 
             let val = ExpressionEvaluator::evaluate(&self.key_cols[0], &mut expr_context).map_err(
                 |e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
+                    DBError::query(e.to_string())
                 },
             )?;
             valid_keys.insert(val);
@@ -175,10 +169,10 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
             .context
             .get_result(&self.left_input_var)
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Left input variable '{}' not found",
                     self.left_input_var
-                )))
+                ))
             })?;
 
         let right_result = self
@@ -186,10 +180,10 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
             .context
             .get_result(&self.right_input_var)
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Right input variable '{}' not found",
                     self.right_input_var
-                )))
+                ))
             })?;
 
         let left_values = execution_result_to_values(&left_result)?;
@@ -243,9 +237,7 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
 
             let key_val =
                 ExpressionEvaluator::evaluate(&self.key_cols[0], expr_context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
+                    DBError::query(e.to_string())
                 })?;
 
             let apply_flag = (valid_keys.contains(&key_val)) ^ self.is_anti_predicate;
@@ -278,9 +270,7 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
 
             for col in &self.key_cols {
                 let val = ExpressionEvaluator::evaluate(col, expr_context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
+                    DBError::query(e.to_string())
                 })?;
                 key_list.values.push(val);
             }

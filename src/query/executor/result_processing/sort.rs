@@ -537,10 +537,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     /// Compare two values based on the sorting direction.
     fn compare_values(&self, a: &Value, b: &Value, order: &SortOrder) -> DBResult<Ordering> {
         let comparison = a.partial_cmp(b).ok_or_else(|| {
-            DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+            DBError::query(format!(
                 "Sorted value comparison failed with type mismatch: {:?} and {:?}",
                 a, b
-            )))
+            ))
         })?;
 
         Ok(match order {
@@ -794,19 +794,14 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 if column_index < row.len() {
                     sort_values.push(row[column_index].clone());
                 } else {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(format!(
-                            "Column index out of range: {} (Row length: {})",
-                            column_index,
-                            row.len()
-                        )),
-                    ));
+                    return Err(DBError::query(format!(
+                        "Column index out of range: {} (Row length: {})",
+                        column_index, row.len()
+                    )));
                 }
             } else {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Extract_column_sort_values is not available for non-column index sort keys".to_string(),
-                    ),
+                return Err(DBError::query(
+                    "Extract_column_sort_values is not available for non-column index sort keys".to_string(),
                 ));
             }
         }

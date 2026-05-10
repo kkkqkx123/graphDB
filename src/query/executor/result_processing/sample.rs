@@ -74,10 +74,8 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         } else if let Some(input) = &self.base.input {
             self.sample_input(input.clone())
         } else {
-            Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Sample executor requires input".to_string(),
-                ),
+            Err(DBError::query(
+                "Sample executor requires input".to_string(),
             ))
         }
     }
@@ -92,9 +90,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
             ExecutionResult::Empty
             | ExecutionResult::Success
             | ExecutionResult::SpaceSwitched(_) => Ok(input),
-            ExecutionResult::Error(msg) => Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(msg),
-            )),
+            ExecutionResult::Error(msg) => Err(DBError::query(msg)),
         }
     }
 

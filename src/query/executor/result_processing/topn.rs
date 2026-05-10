@@ -257,9 +257,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 ExecutionResult::Empty
                 | ExecutionResult::Success
                 | ExecutionResult::SpaceSwitched(_) => Ok(ExecutionResult::DataSet(DataSet::new())),
-                ExecutionResult::Error(msg) => Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(msg),
-                )),
+                ExecutionResult::Error(msg) => Err(DBError::query(msg)),
             }
         } else if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute()?;
@@ -272,15 +270,11 @@ impl<S: StorageClient> TopNExecutor<S> {
                 ExecutionResult::Empty
                 | ExecutionResult::Success
                 | ExecutionResult::SpaceSwitched(_) => Ok(ExecutionResult::DataSet(DataSet::new())),
-                ExecutionResult::Error(msg) => Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(msg),
-                )),
+                ExecutionResult::Error(msg) => Err(DBError::query(msg)),
             }
         } else {
-            Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "TopN executor requires input executor".to_string(),
-                ),
+            Err(DBError::query(
+                "TopN executor requires input executor".to_string(),
             ))
         }
     }
@@ -526,10 +520,10 @@ impl<S: StorageClient> TopNExecutor<S> {
         for sort_key in &self.sort_keys {
             let value =
                 ExpressionEvaluator::evaluate(&sort_key.expression, &mut context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    DBError::query(format!(
                         "Failed to evaluate sort expression: {}",
                         e
-                    )))
+                    ))
                 })?;
             sort_values.push(value);
         }
@@ -821,9 +815,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 }
 
                 ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
+                    DBError::query(e.to_string())
                 })
             }
         }
@@ -882,9 +874,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 }
 
                 ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
+                    DBError::query(e.to_string())
                 })
             }
         }
@@ -1194,27 +1184,19 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
                 let topn_result = self.execute_topn_dataset(dataset)?;
                 Ok(ExecutionResult::DataSet(topn_result))
             }
-            _ => Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "TopN executor expects DataSet input type".to_string(),
-                ),
+            _ => Err(DBError::query(
+                "TopN executor expects DataSet input type".to_string(),
             )),
         }
     }
 
     fn open(&mut self) -> DBResult<()> {
         if self.is_open {
-            return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError("Executor already open".to_string()),
-            ));
+            return Err(DBError::query("Executor already open".to_string()));
         }
 
         if self.input_executor.is_none() {
-            return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Missing input executor".to_string(),
-                ),
-            ));
+            return Err(DBError::query("Missing input executor".to_string()));
         }
 
         if let Some(ref mut input_exec) = self.input_executor {
@@ -1271,9 +1253,7 @@ impl<S: StorageClient + Send + Sync + 'static> TopNExecutor<S> {
     pub fn execute_with_recovery(&mut self) -> DBResult<ExecutionResult> {
         match self.execute() {
             Ok(result) => Ok(result),
-            Err(DBError::Query(crate::core::error::QueryError::ExecutionError(ref msg)))
-                if msg.contains("memory") || msg.contains("limit") =>
-            {
+            Err(ref err) if err.message().contains("memory") || err.message().contains("limit") => {
                 self.fallback_to_external_sort()
             }
             Err(e) => Err(e),
@@ -1281,10 +1261,8 @@ impl<S: StorageClient + Send + Sync + 'static> TopNExecutor<S> {
     }
 
     fn fallback_to_external_sort(&mut self) -> DBResult<ExecutionResult> {
-        Err(DBError::Query(
-            crate::core::error::QueryError::ExecutionError(
-                "Memory limit exceeded, consider reducing the dataset size or N value".to_string(),
-            ),
+        Err(DBError::query(
+            "Memory limit exceeded, consider reducing the dataset size or N value".to_string(),
         ))
     }
 }

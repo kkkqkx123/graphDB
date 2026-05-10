@@ -62,10 +62,8 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             // Use base.input as an alternative
             self.apply_limits_to_input(input.clone())
         } else {
-            Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Limit executor requires input".to_string(),
-                ),
+            Err(DBError::query(
+                "Limit executor requires input".to_string(),
             ))
         }
     }
@@ -80,9 +78,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             ExecutionResult::Empty
             | ExecutionResult::Success
             | ExecutionResult::SpaceSwitched(_) => Ok(DataSet::new()),
-            ExecutionResult::Error(msg) => Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(msg),
-            )),
+            ExecutionResult::Error(msg) => Err(DBError::query(msg)),
         }
     }
 

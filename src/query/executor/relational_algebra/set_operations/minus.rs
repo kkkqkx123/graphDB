@@ -534,11 +534,9 @@ mod tests {
         let result = executor.execute();
         assert!(result.is_err());
 
-        if let Err(crate::core::error::DBError::Query(
-            crate::core::error::QueryError::ExecutionError(msg),
-        )) = result
-        {
-            assert!(msg.contains("column name mismatch"));
+        if let Err(err) = result {
+            assert_eq!(err.kind(), crate::core::error::ErrorKind::Query);
+            assert!(err.message().contains("column name mismatch"));
         } else {
             panic!("Error: The expected column names do not match.");
         }

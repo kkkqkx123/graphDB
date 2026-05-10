@@ -61,9 +61,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
         for (var_name, expression) in &self.assign_items {
             let value =
                 ExpressionEvaluator::evaluate(expression, &mut self.base.context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
+                    DBError::query(e.to_string())
                 })?;
 
             match &value {

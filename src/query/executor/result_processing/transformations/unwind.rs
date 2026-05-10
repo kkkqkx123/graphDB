@@ -96,9 +96,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     let unwind_value =
                         ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                             .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
+                            DBError::query(e.to_string())
                         })?;
 
                     let list_values = self.extract_list(&unwind_value);
@@ -127,9 +125,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                             &mut expr_context,
                         )
                         .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
+                            DBError::query(e.to_string())
                         })?;
 
                         let list_values = self.extract_list(&unwind_value);
@@ -148,9 +144,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 let unwind_value =
                     ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                         .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
+                            DBError::query(e.to_string())
                         })?;
 
                 let list_values = self.extract_list(&unwind_value);
@@ -160,12 +154,10 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Error(e) => {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(format!(
-                        "Error in input result: {}",
-                        e
-                    )),
-                ));
+                return Err(DBError::query(format!(
+                    "Error in input result: {}",
+                    e
+                )));
             }
         }
 
