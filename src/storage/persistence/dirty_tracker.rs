@@ -12,6 +12,7 @@ use parking_lot::RwLock;
 pub enum TableType {
     Vertex = 1,
     Edge = 2,
+    Property = 3,
     Schema = 4,
 }
 
@@ -42,6 +43,10 @@ impl DirtyPageId {
 
     pub fn edge(label_id: u16, block_number: u64) -> Self {
         Self::new(TableType::Edge, label_id, block_number)
+    }
+
+    pub fn property(label_id: u16, block_number: u64) -> Self {
+        Self::new(TableType::Property, label_id, block_number)
     }
 
     pub fn schema(block_number: u64) -> Self {

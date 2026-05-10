@@ -45,13 +45,12 @@
 //! ```
 
 pub mod checkpoint;
-pub mod dirty_tracker;
 pub mod parser;
 pub mod types;
 pub mod writer;
 
 pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointResult};
-pub use dirty_tracker::{DirtyPageId, DirtyPageTracker, DirtyTrackerConfig, TableType};
+pub use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, DirtyTrackerConfig, TableType};
 pub use parser::{
     FullPageWriteEntry, LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
     WalEntry, WalEntryIter, WalParser, WalParserFactory,

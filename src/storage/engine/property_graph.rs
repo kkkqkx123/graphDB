@@ -25,7 +25,8 @@ use crate::transaction::wal::types::{
     ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
 use crate::transaction::wal::writer::WalWriter;
-use crate::transaction::wal::{DirtyPageId, DirtyPageTracker};
+use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, FlushManager};
+use crate::storage::page::{PageLockId, PageLockManager, LockMode, LockResult};
 
 use super::cache::CacheManager;
 use super::config::PropertyGraphConfig;
@@ -43,6 +44,8 @@ pub struct PropertyGraph {
     cache_manager: CacheManager,
     wal_manager: WalManager,
     dirty_tracker: Arc<DirtyPageTracker>,
+    flush_manager: Option<FlushManager>,
+    lock_manager: PageLockManager,
     config: PropertyGraphConfig,
     is_open: bool,
 }
@@ -82,7 +85,20 @@ impl PropertyGraph {
             memory_tracker.clone(),
         );
 
-        let dirty_tracker = Arc::new(DirtyPageTracker::default());
+        let dirty_tracker = Arc::new(DirtyPageTracker::with_config(
+            crate::storage::persistence::DirtyTrackerConfig {
+                flush_threshold: config.flush_config.flush_threshold,
+                flush_interval: config.flush_config.flush_interval,
+            },
+        ));
+
+        let flush_manager = if config.enable_background_flush {
+            Some(FlushManager::new(config.flush_config.clone()))
+        } else {
+            None
+        };
+
+        let lock_manager = PageLockManager::new();
 
         Self {
             schema_ops: SchemaOps::new(),
@@ -90,6 +106,8 @@ impl PropertyGraph {
             cache_manager,
             wal_manager: WalManager::new(),
             dirty_tracker,
+            flush_manager,
+            lock_manager,
             config,
             is_open: true,
         }
@@ -110,6 +128,27 @@ impl PropertyGraph {
 
     pub fn dirty_tracker(&self) -> &Arc<DirtyPageTracker> {
         &self.dirty_tracker
+    }
+
+    pub fn lock_manager(&self) -> &PageLockManager {
+        &self.lock_manager
+    }
+
+    pub fn acquire_page_lock(
+        &self,
+        page_id: PageLockId,
+        txn_id: u64,
+        mode: LockMode,
+    ) -> LockResult {
+        self.lock_manager.acquire_lock(page_id, txn_id, mode)
+    }
+
+    pub fn release_page_lock(&self, page_id: PageLockId, txn_id: u64) -> bool {
+        self.lock_manager.release_lock(page_id, txn_id)
+    }
+
+    pub fn release_all_page_locks(&self, txn_id: u64) -> usize {
+        self.lock_manager.release_all_locks(txn_id)
     }
 
     pub fn should_flush(&self) -> bool {
@@ -150,7 +189,25 @@ impl PropertyGraph {
         Ok(graph)
     }
 
+    pub fn start_background_flush(&self) -> StorageResult<()> {
+        if let Some(ref flush_manager) = self.flush_manager {
+            flush_manager.start_background_flush()?;
+        }
+        Ok(())
+    }
+
+    pub fn stop_background_flush(&self) {
+        if let Some(ref flush_manager) = self.flush_manager {
+            flush_manager.stop_background_flush();
+        }
+    }
+
+    pub fn flush_manager(&self) -> Option<&FlushManager> {
+        self.flush_manager.as_ref()
+    }
+
     pub fn close(&mut self) {
+        self.stop_background_flush();
         self.is_open = false;
         for table in self.schema_ops.vertex_tables.values_mut() {
             table.close();
@@ -557,7 +614,54 @@ impl PropertyGraph {
 
         self.wal_manager.sync()?;
 
+        self.dirty_tracker.clear();
+
         Ok(())
+    }
+
+    pub fn flush_incremental(&self) -> StorageResult<Vec<DirtyPageId>> {
+        let dirty_pages = self.dirty_tracker.flush_and_reset();
+
+        if dirty_pages.is_empty() {
+            return Ok(dirty_pages);
+        }
+
+        use std::fs;
+        let data_dir = self.config.work_dir.join("data");
+        fs::create_dir_all(&data_dir)?;
+
+        let mut flushed_labels = std::collections::HashSet::new();
+
+        for page_id in &dirty_pages {
+            match page_id.table_type {
+                crate::storage::persistence::TableType::Vertex => {
+                    if flushed_labels.insert(("vertex", page_id.label_id)) {
+                        if let Some(table) = self.schema_ops.vertex_tables.get(&page_id.label_id) {
+                            let vertex_dir = data_dir.join("vertices");
+                            let table_dir = vertex_dir.join(format!("label_{}", page_id.label_id));
+                            table.flush(&table_dir)?;
+                        }
+                    }
+                }
+                crate::storage::persistence::TableType::Edge => {
+                    if flushed_labels.insert(("edge", page_id.label_id)) {
+                        for ((src, dst, label), table) in &self.edge_ops.edge_tables {
+                            if *label == page_id.label_id {
+                                let edge_dir = data_dir.join("edges");
+                                let table_dir = edge_dir.join(format!("{}_{}_{}", src, dst, label));
+                                table.flush(&table_dir)?;
+                            }
+                        }
+                    }
+                }
+                crate::storage::persistence::TableType::Schema => {}
+                crate::storage::persistence::TableType::Property => {}
+            }
+        }
+
+        self.wal_manager.sync()?;
+
+        Ok(dirty_pages)
     }
 
     pub fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
@@ -798,7 +902,9 @@ impl InsertTarget for PropertyGraph {
 
 impl UndoTarget for PropertyGraph {
     fn delete_vertex_type(&mut self, label: TxnLabelId) -> UndoLogResult<()> {
-        TransactionOps::delete_vertex_type(&mut self.schema_ops, &mut self.edge_ops, label)
+        TransactionOps::delete_vertex_type(&mut self.schema_ops, &mut self.edge_ops, label)?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        Ok(())
     }
 
     fn delete_edge_type(
@@ -807,7 +913,9 @@ impl UndoTarget for PropertyGraph {
         dst_label: TxnLabelId,
         edge_label: TxnLabelId,
     ) -> UndoLogResult<()> {
-        TransactionOps::delete_edge_type(&mut self.edge_ops, src_label, dst_label, edge_label)
+        TransactionOps::delete_edge_type(&mut self.edge_ops, src_label, dst_label, edge_label)?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        Ok(())
     }
 
     fn delete_vertex(
@@ -816,7 +924,9 @@ impl UndoTarget for PropertyGraph {
         vid: TxnVertexId,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        TransactionOps::delete_vertex(&mut self.schema_ops, label, vid, ts)
+        TransactionOps::delete_vertex(&mut self.schema_ops, label, vid, ts)?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        Ok(())
     }
 
     fn delete_edge(
@@ -840,7 +950,9 @@ impl UndoTarget for PropertyGraph {
             oe_offset,
             ie_offset,
             ts,
-        )
+        )?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        Ok(())
     }
 
     fn undo_update_vertex_property(
@@ -851,7 +963,9 @@ impl UndoTarget for PropertyGraph {
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        TransactionOps::update_vertex_property_undo(&mut self.schema_ops, label, vid, col_id, value, ts)
+        TransactionOps::update_vertex_property_undo(&mut self.schema_ops, label, vid, col_id, value, ts)?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        Ok(())
     }
 
     fn undo_update_edge_property(
@@ -879,7 +993,9 @@ impl UndoTarget for PropertyGraph {
             col_id,
             value,
             ts,
-        )
+        )?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        Ok(())
     }
 
     fn revert_delete_vertex(
@@ -898,7 +1014,9 @@ impl UndoTarget for PropertyGraph {
             0,
             0,
             ts,
-        )
+        )?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        Ok(())
     }
 
     fn revert_delete_edge(
@@ -922,7 +1040,9 @@ impl UndoTarget for PropertyGraph {
             oe_offset,
             ie_offset,
             ts,
-        )
+        )?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        Ok(())
     }
 
     fn revert_delete_vertex_properties(
@@ -930,7 +1050,11 @@ impl UndoTarget for PropertyGraph {
         label_name: &str,
         prop_names: &[String],
     ) -> UndoLogResult<()> {
-        TransactionOps::revert_delete_vertex_properties(&mut self.schema_ops, label_name, prop_names)
+        TransactionOps::revert_delete_vertex_properties(&mut self.schema_ops, label_name, prop_names)?;
+        if let Some(label) = self.schema_ops.vertex_label_names.get(label_name) {
+            self.dirty_tracker.mark_dirty(DirtyPageId::vertex(*label, 0));
+        }
+        Ok(())
     }
 
     fn revert_delete_edge_properties(
@@ -947,12 +1071,18 @@ impl UndoTarget for PropertyGraph {
             edge_label,
             &self.schema_ops,
             prop_names,
-        )
+        )?;
+        if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
+            self.dirty_tracker.mark_dirty(DirtyPageId::edge(*label, 0));
+        }
+        Ok(())
     }
 
     fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()> {
         let label = self.schema_ops.vertex_label_counter;
-        TransactionOps::create_vertex_type_undo(&mut self.schema_ops, label_name, label)
+        TransactionOps::create_vertex_type_undo(&mut self.schema_ops, label_name, label)?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        Ok(())
     }
 
     fn revert_delete_edge_label(
@@ -986,6 +1116,10 @@ impl UndoTarget for PropertyGraph {
             )
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
 
+        if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
+            self.dirty_tracker.mark_dirty(DirtyPageId::edge(*label, 0));
+        }
+
         Ok(())
     }
 
@@ -1000,7 +1134,11 @@ impl UndoTarget for PropertyGraph {
             label,
             current_names,
             original_names,
-        )
+        )?;
+        if let Some(label_id) = self.schema_ops.vertex_label_names.get(label) {
+            self.dirty_tracker.mark_dirty(DirtyPageId::vertex(*label_id, 0));
+        }
+        Ok(())
     }
 
     fn revert_rename_edge_properties(
@@ -1019,6 +1157,10 @@ impl UndoTarget for PropertyGraph {
             &self.schema_ops,
             current_names,
             original_names,
-        )
+        )?;
+        if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
+            self.dirty_tracker.mark_dirty(DirtyPageId::edge(*label, 0));
+        }
+        Ok(())
     }
 }

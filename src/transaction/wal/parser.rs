@@ -1015,6 +1015,11 @@ impl LocalWalParser {
         entries.sort_by_key(|e| e.lsn);
         entries
     }
+
+    /// Get insert WAL list
+    pub fn insert_wal_list(&self) -> &[WalContentUnit] {
+        &self.insert_wal_list
+    }
 }
 
 impl Default for LocalWalParser {

@@ -22,6 +22,8 @@ pub mod lob;
 pub mod memory;
 pub mod metadata;
 pub mod operations;
+pub mod page;
+pub mod persistence;
 pub mod stats;
 pub mod vertex;
 
