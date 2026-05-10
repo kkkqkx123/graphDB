@@ -12,7 +12,8 @@ use super::common;
 use common::test_scenario::TestScenario;
 use graphdb::core::Value;
 use graphdb::transaction::{
-    TransactionError, TransactionManager, TransactionManagerConfig, TransactionOptions,
+    TransactionError, TransactionErrorKind, TransactionManager, TransactionManagerConfig,
+    TransactionOptions,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -97,8 +98,11 @@ fn test_write_transaction_exclusivity() {
 
     let result = manager.begin_transaction(TransactionOptions::default());
 
-    assert!(
-        matches!(result, Err(TransactionError::WriteTransactionConflict)),
+    assert!(result.is_err(), "Expected error");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::WriteTransactionConflict,
         "Expected WriteTransactionConflict error"
     );
 

@@ -19,6 +19,7 @@ use crate::storage::vertex::vertex_table::VertexIterator;
 use crate::storage::vertex::{
     LabelId, PropertyDef as VertexPropertyDef, VertexRecord, VertexTable,
 };
+use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 use crate::transaction::insert_transaction::{InsertTarget, InsertTransactionResult};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 use crate::transaction::wal::types::{
@@ -931,74 +932,61 @@ impl UndoTarget for PropertyGraph {
         Ok(())
     }
 
-    fn delete_edge_type(
-        &mut self,
-        src_label: TxnLabelId,
-        dst_label: TxnLabelId,
-        edge_label: TxnLabelId,
-    ) -> UndoLogResult<()> {
-        TransactionOps::delete_edge_type(&mut self.edge_ops, src_label, dst_label, edge_label)?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+    fn delete_edge_type(&mut self, edge_key: EdgeKey) -> UndoLogResult<()> {
+        TransactionOps::delete_edge_type(
+            &mut self.edge_ops,
+            edge_key.src_label,
+            edge_key.dst_label,
+            edge_key.edge_label,
+        )?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_key.edge_label, 0));
         Ok(())
     }
 
-    fn delete_vertex(
-        &mut self,
-        label: TxnLabelId,
-        vid: TxnVertexId,
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
-        TransactionOps::delete_vertex(&mut self.schema_ops, label, vid, ts)?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+    fn delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
+        TransactionOps::delete_vertex(&mut self.schema_ops, vertex.label, vertex.vid, ts)?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(vertex.label, 0));
         Ok(())
     }
 
-    fn delete_edge(
-        &mut self,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         TransactionOps::delete_edge(
             &mut self.edge_ops,
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
-            oe_offset,
-            ie_offset,
-            ts,
+            edge_ctx.edge_id.src_label,
+            edge_ctx.edge_id.src_vid,
+            edge_ctx.edge_id.dst_label,
+            edge_ctx.edge_id.dst_vid,
+            edge_ctx.edge_id.edge_label,
+            edge_ctx.oe_offset,
+            edge_ctx.ie_offset,
+            edge_ctx.timestamp,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_ctx.edge_id.edge_label, 0));
         Ok(())
     }
 
     fn undo_update_vertex_property(
         &mut self,
-        label: TxnLabelId,
-        vid: TxnVertexId,
+        vertex: VertexIdentifier,
         col_id: ColumnId,
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        TransactionOps::update_vertex_property_undo(&mut self.schema_ops, label, vid, col_id, value, ts)?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        TransactionOps::update_vertex_property_undo(
+            &mut self.schema_ops,
+            vertex.label,
+            vertex.vid,
+            col_id,
+            value,
+            ts,
+        )?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(vertex.label, 0));
         Ok(())
     }
 
     fn undo_update_edge_property(
         &mut self,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
+        edge_id: EdgeIdentifier,
         oe_offset: i32,
         ie_offset: i32,
         col_id: ColumnId,
@@ -1007,65 +995,50 @@ impl UndoTarget for PropertyGraph {
     ) -> UndoLogResult<()> {
         TransactionOps::update_edge_property_undo(
             &mut self.edge_ops,
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
+            edge_id.src_label,
+            edge_id.src_vid,
+            edge_id.dst_label,
+            edge_id.dst_vid,
+            edge_id.edge_label,
             oe_offset,
             ie_offset,
             col_id,
             value,
             ts,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_id.edge_label, 0));
         Ok(())
     }
 
-    fn revert_delete_vertex(
-        &mut self,
-        label: TxnLabelId,
-        vid: TxnVertexId,
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn revert_delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
         TransactionOps::revert_delete_edge(
             &mut self.edge_ops,
-            label,
-            vid,
-            label,
-            vid,
-            label,
+            vertex.label,
+            vertex.vid,
+            vertex.label,
+            vertex.vid,
+            vertex.label,
             0,
             0,
             ts,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(vertex.label, 0));
         Ok(())
     }
 
-    fn revert_delete_edge(
-        &mut self,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn revert_delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         TransactionOps::revert_delete_edge(
             &mut self.edge_ops,
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
-            oe_offset,
-            ie_offset,
-            ts,
+            edge_ctx.edge_id.src_label,
+            edge_ctx.edge_id.src_vid,
+            edge_ctx.edge_id.dst_label,
+            edge_ctx.edge_id.dst_vid,
+            edge_ctx.edge_id.edge_label,
+            edge_ctx.oe_offset,
+            edge_ctx.ie_offset,
+            edge_ctx.timestamp,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_ctx.edge_id.edge_label, 0));
         Ok(())
     }
 

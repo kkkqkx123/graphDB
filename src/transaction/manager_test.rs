@@ -6,9 +6,10 @@ use std::time::Duration;
 
 use crate::transaction::manager::TransactionManager;
 use crate::transaction::types::{
-    DurabilityLevel, TransactionError, TransactionManagerConfig, TransactionOptions,
-    TransactionState,
+    DurabilityLevel, TransactionManagerConfig, TransactionOptions, TransactionState,
 };
+use crate::transaction::TransactionError;
+use crate::transaction::TransactionErrorKind;
 
 fn create_test_manager() -> TransactionManager {
     let config = TransactionManagerConfig {
@@ -153,10 +154,9 @@ fn test_get_transaction_not_found() {
     let manager = create_test_manager();
 
     let result = manager.get_context(9999);
-    assert!(matches!(
-        result,
-        Err(TransactionError::transaction_not_found(9999))
-    ));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
 }
 
 #[test]
@@ -164,10 +164,9 @@ fn test_commit_transaction_not_found() {
     let manager = create_test_manager();
 
     let result = manager.commit_transaction(9999);
-    assert!(matches!(
-        result,
-        Err(TransactionError::transaction_not_found(_))
-    ));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
 }
 
 #[test]
@@ -175,10 +174,9 @@ fn test_abort_transaction_not_found() {
     let manager = create_test_manager();
 
     let result = manager.abort_transaction(9999);
-    assert!(matches!(
-        result,
-        Err(TransactionError::transaction_not_found(_))
-    ));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
 }
 
 #[test]
@@ -194,10 +192,9 @@ fn test_commit_already_committed_transaction() {
         .expect("First commit failed");
 
     let result = manager.commit_transaction(txn_id);
-    assert!(matches!(
-        result,
-        Err(TransactionError::transaction_not_found(_))
-    ));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
 }
 
 #[test]
@@ -213,10 +210,9 @@ fn test_abort_already_aborted_transaction() {
         .expect("First abort failed");
 
     let result = manager.abort_transaction(txn_id);
-    assert!(matches!(
-        result,
-        Err(TransactionError::transaction_not_found(_))
-    ));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
 }
 
 #[test]
@@ -303,7 +299,9 @@ fn test_transaction_timeout() {
     std::thread::sleep(Duration::from_millis(100));
 
     let result = manager.commit_transaction(txn_id);
-    assert!(matches!(result, Err(TransactionError::transaction_timeout())));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TransactionTimeout);
 
     let stats = manager.stats();
     assert_eq!(
@@ -380,7 +378,9 @@ fn test_max_concurrent_transactions() {
         .expect("Failed to begin second transaction");
 
     let result = manager.begin_transaction(TransactionOptions::new().read_only());
-    assert!(matches!(result, Err(TransactionError::too_many_transactions())));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TooManyTransactions);
 
     manager
         .commit_transaction(txn1)
@@ -503,7 +503,9 @@ fn test_shutdown_manager() {
     assert!(!manager.is_transaction_active(txn2));
 
     let result = manager.begin_transaction(TransactionOptions::default());
-    assert!(matches!(result, Err(TransactionError::internal(_))));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::Internal);
 }
 
 #[test]

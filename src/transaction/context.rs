@@ -3,6 +3,7 @@
 //! Manages the state and resources of a single transaction.
 
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
@@ -55,6 +56,19 @@ pub struct TransactionContext {
     undo_logs: RwLock<UndoLogManager>,
     /// Whether to enable two-phase commit
     two_phase_enabled: bool,
+}
+
+impl fmt::Debug for TransactionContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TransactionContext")
+            .field("id", &self.id)
+            .field("state", &self.state.load())
+            .field("start_timestamp", &self.start_timestamp)
+            .field("read_only", &self.read_only)
+            .field("isolation_level", &self.isolation_level)
+            .field("durability", &self.durability)
+            .finish()
+    }
 }
 
 /// Savepoint Manager

@@ -23,6 +23,7 @@ pub mod memory;
 pub mod metadata;
 pub mod operations;
 pub mod page;
+pub mod params;
 pub mod persistence;
 pub mod stats;
 pub mod vertex;
@@ -67,6 +68,11 @@ pub use vertex::{
 pub use edge::{
     Csr, EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, ImmutableNbr,
     MutableCsr, Nbr, PropertyDef as EdgePropertyDef, PropertyTable,
+};
+
+pub use params::{
+    EdgeDeletionContext, EdgeIdentifier, EdgeKey, EdgeLocation, EdgeOperationContext,
+    EdgePropertyUpdateContext, VertexIdentifier,
 };
 
 pub use engine::{

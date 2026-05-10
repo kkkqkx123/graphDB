@@ -3,6 +3,7 @@
 //! Provides transaction rollback support through undo log entries.
 //! Each undo log entry can reverse a specific operation during transaction abort.
 
+use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 use super::wal::types::{ColumnId, EdgeId, LabelId, Timestamp, VertexId};
 
 /// Undo log error
@@ -50,62 +51,27 @@ impl PropertyValue {
 /// Target for undo operations (will be PropertyGraph in phase 2)
 pub trait UndoTarget: Send + Sync {
     fn delete_vertex_type(&mut self, label: LabelId) -> UndoLogResult<()>;
-    fn delete_edge_type(
-        &mut self,
-        src_label: LabelId,
-        dst_label: LabelId,
-        edge_label: LabelId,
-    ) -> UndoLogResult<()>;
-    fn delete_vertex(&mut self, label: LabelId, vid: VertexId, ts: Timestamp) -> UndoLogResult<()>;
-    fn delete_edge(
-        &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-        ts: Timestamp,
-    ) -> UndoLogResult<()>;
+    fn delete_edge_type(&mut self, edge_key: EdgeKey) -> UndoLogResult<()>;
+    fn delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()>;
+    fn delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()>;
     fn undo_update_vertex_property(
         &mut self,
-        label: LabelId,
-        vid: VertexId,
+        vertex: VertexIdentifier,
         col_id: ColumnId,
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()>;
     fn undo_update_edge_property(
         &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
+        edge_id: EdgeIdentifier,
         oe_offset: i32,
         ie_offset: i32,
         col_id: ColumnId,
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()>;
-    fn revert_delete_vertex(
-        &mut self,
-        label: LabelId,
-        vid: VertexId,
-        ts: Timestamp,
-    ) -> UndoLogResult<()>;
-    fn revert_delete_edge(
-        &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-        ts: Timestamp,
-    ) -> UndoLogResult<()>;
+    fn revert_delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()>;
+    fn revert_delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()>;
     fn revert_delete_vertex_properties(
         &mut self,
         label_name: &str,
@@ -167,7 +133,7 @@ pub struct CreateEdgeTypeUndo {
 
 impl CreateEdgeTypeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, _ts: Timestamp) -> UndoLogResult<()> {
-        graph.delete_edge_type(self.src_type, self.dst_type, self.edge_type)
+        graph.delete_edge_type(EdgeKey::new(self.src_type, self.dst_type, self.edge_type))
     }
 
     pub fn description(&self) -> String {
@@ -187,7 +153,7 @@ pub struct InsertVertexUndo {
 
 impl InsertVertexUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.delete_vertex(self.v_label, self.vid, ts)
+        graph.delete_vertex(VertexIdentifier::new(self.v_label, self.vid), ts)
     }
 
     pub fn description(&self) -> String {
@@ -209,7 +175,7 @@ pub struct InsertEdgeUndo {
 
 impl InsertEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.delete_edge(
+        graph.delete_edge(EdgeDeletionContext::new(
             self.src_label,
             self.src_vid,
             self.dst_label,
@@ -218,7 +184,7 @@ impl InsertEdgeUndo {
             self.oe_offset,
             self.ie_offset,
             ts,
-        )
+        ))
     }
 
     pub fn description(&self) -> String {
@@ -241,8 +207,7 @@ pub struct UpdateVertexPropUndo {
 impl UpdateVertexPropUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.undo_update_vertex_property(
-            self.v_label,
-            self.vid,
+            VertexIdentifier::new(self.v_label, self.vid),
             self.col_id,
             self.old_value.clone(),
             ts,
@@ -274,11 +239,13 @@ pub struct UpdateEdgePropUndo {
 impl UpdateEdgePropUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
         graph.undo_update_edge_property(
-            self.src_label,
-            self.src_vid,
-            self.dst_label,
-            self.dst_vid,
-            self.edge_label,
+            EdgeIdentifier::new(
+                self.src_label,
+                self.src_vid,
+                self.dst_label,
+                self.dst_vid,
+                self.edge_label,
+            ),
             self.oe_offset,
             self.ie_offset,
             self.col_id,
@@ -314,11 +281,11 @@ pub struct RemoveVertexUndo {
 
 impl RemoveVertexUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.revert_delete_vertex(self.v_label, self.vid, ts)?;
+        graph.revert_delete_vertex(VertexIdentifier::new(self.v_label, self.vid), ts)?;
 
         for (src_label, dst_label, edge_label, edges) in &self.related_edges {
             for edge in edges {
-                graph.revert_delete_edge(
+                graph.revert_delete_edge(EdgeDeletionContext::new(
                     *src_label,
                     edge.src_vid,
                     *dst_label,
@@ -327,7 +294,7 @@ impl RemoveVertexUndo {
                     edge.oe_offset,
                     edge.ie_offset,
                     ts,
-                )?;
+                ))?;
             }
         }
 
@@ -358,7 +325,7 @@ pub struct RemoveEdgeUndo {
 
 impl RemoveEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.revert_delete_edge(
+        graph.revert_delete_edge(EdgeDeletionContext::new(
             self.src_label,
             self.src_vid,
             self.dst_label,
@@ -367,7 +334,7 @@ impl RemoveEdgeUndo {
             self.oe_offset,
             self.ie_offset,
             ts,
-        )
+        ))
     }
 
     pub fn description(&self) -> String {
@@ -777,42 +744,21 @@ mod tests {
             Ok(())
         }
 
-        fn delete_edge_type(
-            &mut self,
-            _src_label: LabelId,
-            _dst_label: LabelId,
-            _edge_label: LabelId,
-        ) -> UndoLogResult<()> {
+        fn delete_edge_type(&mut self, _edge_key: EdgeKey) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_vertex(
-            &mut self,
-            _label: LabelId,
-            _vid: VertexId,
-            _ts: Timestamp,
-        ) -> UndoLogResult<()> {
+        fn delete_vertex(&mut self, _vertex: VertexIdentifier, _ts: Timestamp) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_edge(
-            &mut self,
-            _src_label: LabelId,
-            _src_vid: VertexId,
-            _dst_label: LabelId,
-            _dst_vid: VertexId,
-            _edge_label: LabelId,
-            _oe_offset: i32,
-            _ie_offset: i32,
-            _ts: Timestamp,
-        ) -> UndoLogResult<()> {
+        fn delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn undo_update_vertex_property(
             &mut self,
-            _label: LabelId,
-            _vid: VertexId,
+            _vertex: VertexIdentifier,
             _col_id: ColumnId,
             _value: PropertyValue,
             _ts: Timestamp,
@@ -822,11 +768,7 @@ mod tests {
 
         fn undo_update_edge_property(
             &mut self,
-            _src_label: LabelId,
-            _src_vid: VertexId,
-            _dst_label: LabelId,
-            _dst_vid: VertexId,
-            _edge_label: LabelId,
+            _edge_id: EdgeIdentifier,
             _oe_offset: i32,
             _ie_offset: i32,
             _col_id: ColumnId,
@@ -838,24 +780,13 @@ mod tests {
 
         fn revert_delete_vertex(
             &mut self,
-            _label: LabelId,
-            _vid: VertexId,
+            _vertex: VertexIdentifier,
             _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_edge(
-            &mut self,
-            _src_label: LabelId,
-            _src_vid: VertexId,
-            _dst_label: LabelId,
-            _dst_vid: VertexId,
-            _edge_label: LabelId,
-            _oe_offset: i32,
-            _ie_offset: i32,
-            _ts: Timestamp,
-        ) -> UndoLogResult<()> {
+        fn revert_delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
             Ok(())
         }
 

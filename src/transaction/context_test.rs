@@ -4,14 +4,15 @@
 
 use std::time::Duration;
 
+use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::{
-    DurabilityLevel, OperationLog, TransactionConfig, TransactionError, TransactionId,
-    TransactionState,
+    DurabilityLevel, OperationLog, TransactionConfig, TransactionId, TransactionState,
 };
+use crate::transaction::TransactionErrorKind;
 use crate::transaction::undo_log::PropertyValue;
 use crate::transaction::undo_log::{UndoLogResult, UndoTarget};
-use crate::transaction::wal::types::{ColumnId, LabelId, Timestamp, VertexId};
+use crate::transaction::wal::types::{ColumnId, LabelId, Timestamp};
 
 struct MockUndoTarget;
 
@@ -19,39 +20,18 @@ impl UndoTarget for MockUndoTarget {
     fn delete_vertex_type(&mut self, _label: LabelId) -> UndoLogResult<()> {
         Ok(())
     }
-    fn delete_edge_type(
-        &mut self,
-        _src_label: LabelId,
-        _dst_label: LabelId,
-        _edge_label: LabelId,
-    ) -> UndoLogResult<()> {
+    fn delete_edge_type(&mut self, _edge_key: EdgeKey) -> UndoLogResult<()> {
         Ok(())
     }
-    fn delete_vertex(
-        &mut self,
-        _label: LabelId,
-        _vid: VertexId,
-        _ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn delete_vertex(&mut self, _vertex: VertexIdentifier, _ts: Timestamp) -> UndoLogResult<()> {
         Ok(())
     }
-    fn delete_edge(
-        &mut self,
-        _src_label: LabelId,
-        _src_vid: VertexId,
-        _dst_label: LabelId,
-        _dst_vid: VertexId,
-        _edge_label: LabelId,
-        _oe_offset: i32,
-        _ie_offset: i32,
-        _ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         Ok(())
     }
     fn undo_update_vertex_property(
         &mut self,
-        _label: LabelId,
-        _vid: VertexId,
+        _vertex: VertexIdentifier,
         _col_id: ColumnId,
         _value: PropertyValue,
         _ts: Timestamp,
@@ -60,11 +40,7 @@ impl UndoTarget for MockUndoTarget {
     }
     fn undo_update_edge_property(
         &mut self,
-        _src_label: LabelId,
-        _src_vid: VertexId,
-        _dst_label: LabelId,
-        _dst_vid: VertexId,
-        _edge_label: LabelId,
+        _edge_id: EdgeIdentifier,
         _oe_offset: i32,
         _ie_offset: i32,
         _col_id: ColumnId,
@@ -75,23 +51,12 @@ impl UndoTarget for MockUndoTarget {
     }
     fn revert_delete_vertex(
         &mut self,
-        _label: LabelId,
-        _vid: VertexId,
+        _vertex: VertexIdentifier,
         _ts: Timestamp,
     ) -> UndoLogResult<()> {
         Ok(())
     }
-    fn revert_delete_edge(
-        &mut self,
-        _src_label: LabelId,
-        _src_vid: VertexId,
-        _dst_label: LabelId,
-        _dst_vid: VertexId,
-        _edge_label: LabelId,
-        _oe_offset: i32,
-        _ie_offset: i32,
-        _ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn revert_delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         Ok(())
     }
     fn revert_delete_vertex_properties(
@@ -205,10 +170,8 @@ fn test_transaction_context_invalid_state_transition() {
 
     let result = ctx.transition_to(TransactionState::Committed);
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        TransactionError::InvalidStateTransition { .. }
-    ));
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::InvalidStateTransition);
 
     assert!(ctx.transition_to(TransactionState::Committing).is_ok());
     assert_eq!(ctx.state(), TransactionState::Committing);
@@ -326,10 +289,8 @@ fn test_transaction_context_can_execute_expired() {
 
     let result = ctx.can_execute();
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        TransactionError::transaction_expired()
-    ));
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::TransactionExpired);
 }
 
 #[test]
@@ -428,10 +389,8 @@ fn test_rollback_to_nonexistent_savepoint() {
     let mut mock_target = MockUndoTarget;
     let result = ctx.rollback_to_savepoint(999, &mut mock_target);
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        TransactionError::savepoint_not_found(_)
-    ));
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::SavepointNotFound);
 }
 
 #[test]
@@ -461,10 +420,8 @@ fn test_release_nonexistent_savepoint() {
 
     let result = ctx.release_savepoint(999);
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        TransactionError::savepoint_not_found(_)
-    ));
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), TransactionErrorKind::SavepointNotFound);
 }
 
 #[test]

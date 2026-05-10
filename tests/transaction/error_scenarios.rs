@@ -12,8 +12,8 @@
 //! - Shutdown errors
 
 use graphdb::transaction::{
-    TransactionError, TransactionManager, TransactionManagerConfig, TransactionOptions,
-    TransactionState,
+    TransactionError, TransactionErrorKind, TransactionManager, TransactionManagerConfig,
+    TransactionOptions, TransactionState,
 };
 use std::time::Duration;
 use tokio::time::sleep;
@@ -24,20 +24,29 @@ fn test_error_transaction_not_found() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
     let result = manager.get_context(99999);
-    assert!(
-        matches!(result, Err(TransactionError::TransactionNotFound(99999))),
+    assert!(result.is_err(), "Expected error");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionNotFound,
         "Expected TransactionNotFound error"
     );
 
     let result = manager.commit_transaction(99999);
-    assert!(
-        matches!(result, Err(TransactionError::TransactionNotFound(99999))),
+    assert!(result.is_err(), "Expected error on commit");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionNotFound,
         "Expected TransactionNotFound error on commit"
     );
 
     let result = manager.abort_transaction(99999);
-    assert!(
-        matches!(result, Err(TransactionError::TransactionNotFound(99999))),
+    assert!(result.is_err(), "Expected error on abort");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionNotFound,
         "Expected TransactionNotFound error on abort"
     );
 }
@@ -58,14 +67,11 @@ fn test_error_invalid_state_transition() {
         .expect("Failed to transition to Committing");
 
     let result = context.transition_to(TransactionState::Aborting);
-    assert!(
-        matches!(
-            result,
-            Err(TransactionError::InvalidStateTransition {
-                from: TransactionState::Committing,
-                to: TransactionState::Aborting
-            })
-        ),
+    assert!(result.is_err(), "Expected error");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::InvalidStateTransition,
         "Expected InvalidStateTransition error"
     );
 
@@ -74,14 +80,11 @@ fn test_error_invalid_state_transition() {
         .expect("Failed to transition to Committed");
 
     let result = context.transition_to(TransactionState::Active);
-    assert!(
-        matches!(
-            result,
-            Err(TransactionError::InvalidStateTransition {
-                from: TransactionState::Committed,
-                to: TransactionState::Active
-            })
-        ),
+    assert!(result.is_err(), "Expected error from terminal state");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::InvalidStateTransition,
         "Expected InvalidStateTransition error from terminal state"
     );
 }
@@ -102,8 +105,11 @@ fn test_error_invalid_state_for_commit_abort() {
         .expect("Failed to transition");
 
     let result = context.can_execute();
-    assert!(
-        matches!(result, Err(TransactionError::InvalidStateForCommit(_))),
+    assert!(result.is_err(), "Expected error");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::InvalidStateForCommit,
         "Expected InvalidStateForCommit error"
     );
 }
@@ -139,13 +145,15 @@ fn test_error_write_transaction_exclusivity() {
                 .commit_transaction(txn2)
                 .expect("Failed to commit second transaction");
         }
-        Err(TransactionError::WriteTransactionConflict) => {
-            // Expected behavior - some implementations may reject concurrent writes
+        Err(e) => {
+            let kind = e.kind();
+            assert!(
+                kind == TransactionErrorKind::WriteTransactionConflict
+                    || kind == TransactionErrorKind::TooManyTransactions,
+                "Expected WriteTransactionConflict or TooManyTransactions error, got {:?}",
+                kind
+            );
         }
-        Err(TransactionError::TooManyTransactions) => {
-            // Also acceptable - max concurrent limit reached
-        }
-        Err(e) => panic!("Unexpected error: {:?}", e),
     }
 
     manager
@@ -171,8 +179,11 @@ fn test_error_too_many_transactions() {
         .expect("Failed to begin transaction 2");
 
     let result = manager.begin_transaction(TransactionOptions::new().read_only());
-    assert!(
-        matches!(result, Err(TransactionError::TooManyTransactions)),
+    assert!(result.is_err(), "Expected error");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TooManyTransactions,
         "Expected TooManyTransactions error"
     );
 
@@ -197,10 +208,13 @@ async fn test_error_transaction_timeout() {
     sleep(Duration::from_millis(100)).await;
 
     let result = manager.commit_transaction(txn_id);
-    assert!(
-        matches!(result, Err(TransactionError::TransactionTimeout)),
+    assert!(result.is_err(), "Expected error");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionTimeout,
         "Expected TransactionTimeout error, got {:?}",
-        result
+        err.kind()
     );
 }
 
@@ -219,8 +233,11 @@ async fn test_error_transaction_expired() {
     sleep(Duration::from_millis(100)).await;
 
     let result = context.can_execute();
-    assert!(
-        matches!(result, Err(TransactionError::TransactionExpired)),
+    assert!(result.is_err(), "Expected error");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionExpired,
         "Expected TransactionExpired error"
     );
 }
@@ -258,8 +275,11 @@ fn test_error_double_commit() {
         .expect("First commit should succeed");
 
     let result = manager.commit_transaction(txn_id);
-    assert!(
-        matches!(result, Err(TransactionError::TransactionNotFound(_))),
+    assert!(result.is_err(), "Expected error on double commit");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionNotFound,
         "Expected TransactionNotFound on double commit"
     );
 }
@@ -278,8 +298,11 @@ fn test_error_double_abort() {
         .expect("First abort should succeed");
 
     let result = manager.abort_transaction(txn_id);
-    assert!(
-        matches!(result, Err(TransactionError::TransactionNotFound(_))),
+    assert!(result.is_err(), "Expected error on double abort");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionNotFound,
         "Expected TransactionNotFound on double abort"
     );
 }
@@ -298,8 +321,11 @@ fn test_error_commit_after_abort() {
         .expect("Abort should succeed");
 
     let result = manager.commit_transaction(txn_id);
-    assert!(
-        matches!(result, Err(TransactionError::TransactionNotFound(_))),
+    assert!(result.is_err(), "Expected error on commit after abort");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::TransactionNotFound,
         "Expected TransactionNotFound on commit after abort"
     );
 }
@@ -312,8 +338,11 @@ fn test_error_shutdown() {
     manager.shutdown();
 
     let result = manager.begin_transaction(TransactionOptions::default());
-    assert!(
-        matches!(result, Err(TransactionError::Internal(_))),
+    assert!(result.is_err(), "Expected error after shutdown");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.kind(),
+        TransactionErrorKind::Internal,
         "Expected Internal error after shutdown"
     );
 }
@@ -367,15 +396,15 @@ fn test_transaction_state_helpers() {
 /// Test error formatting
 #[test]
 fn test_error_formatting() {
-    let error = TransactionError::TransactionNotFound(123);
+    let error = TransactionError::transaction_not_found(123);
     assert!(format!("{}", error).contains("123"));
 
-    let error = TransactionError::TooManyTransactions;
-    assert!(format!("{}", error).contains("Too many"));
+    let error = TransactionError::too_many_transactions();
+    assert!(format!("{}", error).contains("many"));
 
-    let error = TransactionError::TransactionTimeout;
+    let error = TransactionError::transaction_timeout();
     assert!(format!("{}", error).contains("timeout"));
 
-    let error = TransactionError::Internal("test error".to_string());
+    let error = TransactionError::internal("test error");
     assert!(format!("{}", error).contains("test error"));
 }
