@@ -563,8 +563,7 @@ impl SsTableReader {
             let value = block_data[offset..offset + value_len].to_vec();
             offset += value_len;
 
-            let include = true
-                && start_key.is_none_or(|start| key.as_slice() >= start)
+            let include = start_key.is_none_or(|start| key.as_slice() >= start)
                 && end_key.is_none_or(|end| key.as_slice() <= end);
 
             if include {

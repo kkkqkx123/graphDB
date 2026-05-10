@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use crate::core::error::{DBError, DBResult, StorageError};
+use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Value};
 use crate::query::executor::base::EdgeDirection;
 use crate::storage::StorageClient;

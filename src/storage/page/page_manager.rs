@@ -98,7 +98,7 @@ impl PageManager {
             .weigher(|_key: &PageId, _value: &Page| 1u32)
             .eviction_listener(move |page_id, page, _cause| {
                 if page.is_dirty() {
-                    if let Err(e) = Self::flush_page_to_disk_static(&base_path_for_listener, &*page_id, &page) {
+                    if let Err(e) = Self::flush_page_to_disk_static(&base_path_for_listener, &page_id, &page) {
                         eprintln!("Failed to flush page during eviction: {:?}", e);
                     }
                 }

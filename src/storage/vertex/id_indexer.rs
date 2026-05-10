@@ -88,11 +88,7 @@ where
         Self {
             keys: Vec::with_capacity(capacity),
             key_to_index: HashMap::with_capacity(capacity),
-            free_list: if config.enable_free_list {
-                VecDeque::new()
-            } else {
-                VecDeque::new()
-            },
+            free_list: VecDeque::new(),
             config,
         }
     }

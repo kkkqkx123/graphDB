@@ -284,19 +284,17 @@ impl PipeVariableResolver {
     fn infer_columns_from_value(&self, value: &Value) -> Vec<ColumnSchema> {
         match value {
             Value::List(values) => {
-                if let Some(first) = values.values.first() {
-                    if let Value::Map(map) = first {
-                        return map
-                            .keys()
-                            .map(|k| {
-                                let data_type = map
-                                    .get(k)
-                                    .map(ColumnDataType::from_value)
-                                    .unwrap_or(ColumnDataType::Unknown);
-                                ColumnSchema::new(k.clone(), data_type)
-                            })
-                            .collect();
-                    }
+                if let Some(Value::Map(map)) = values.values.first() {
+                    return map
+                        .keys()
+                        .map(|k| {
+                            let data_type = map
+                                .get(k)
+                                .map(ColumnDataType::from_value)
+                                .unwrap_or(ColumnDataType::Unknown);
+                            ColumnSchema::new(k.clone(), data_type)
+                        })
+                        .collect();
                 }
                 vec![]
             }

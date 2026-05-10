@@ -1437,7 +1437,7 @@ impl StorageClient for GraphStorage {
 
         StorageStats {
             total_vertices,
-            total_edges: total_edges as usize,
+            total_edges,
             total_spaces: spaces.len(),
             total_tags: tags,
             total_edge_types: edge_types,

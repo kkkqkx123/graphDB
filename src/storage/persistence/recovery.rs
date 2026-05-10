@@ -192,7 +192,7 @@ impl RecoveryManager {
     fn parse_page_id(page_id: u64) -> DirtyPageId {
         let table_type = ((page_id >> 56) & 0xFF) as u8;
         let label_id = ((page_id >> 40) & 0xFFFF) as u16;
-        let block_number = (page_id & 0xFFFFFFFFFF) as u64;
+        let block_number = page_id & 0xFFFFFFFFFF;
 
         let table = match table_type {
             1 => TableType::Vertex,

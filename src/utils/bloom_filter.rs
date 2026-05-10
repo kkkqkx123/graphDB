@@ -35,7 +35,7 @@ impl BloomFilter {
             3
         } else {
             let k = (bit_count as f64 / expected_items as f64 * ln2).ceil();
-            k.max(1.0).min(20.0) as usize
+            k.clamp(1.0, 20.0) as usize
         };
 
         Self {

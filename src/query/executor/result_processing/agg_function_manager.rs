@@ -4,7 +4,7 @@
 //! Unified management of built-in aggregate functions, with support for dynamic registration and retrieval.
 
 use super::agg_data::AggData;
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::DBError;
 use crate::core::value::list::List;
 use crate::core::value::{NullType, Value};
 use std::collections::HashMap;

@@ -1,8 +1,13 @@
 //! Query layer error type
 //!
 //! This includes errors that occur during the processes of query parsing, validation, and execution.
+//!
+//! ## Design
+//!
+//! `QueryError` is a struct with boxed source error to keep size small (~24 bytes).
+//! This follows the same pattern as `DBError` for consistency.
 
-use thiserror::Error;
+use std::error::Error;
 
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 use crate::core::error::expression::{ExpressionError, ExpressionErrorType};
@@ -11,6 +16,9 @@ use crate::core::error::permission::PermissionError;
 use crate::core::error::session::SessionError;
 use crate::core::error::storage::StorageError;
 use crate::core::error::DBError;
+
+/// Thread-safe boxed error type
+pub type BoxedError = Box<dyn Error + Send + Sync>;
 
 /// Query processing phase enumeration
 ///
@@ -113,8 +121,6 @@ pub type QueryResult<T> = Result<T, QueryError>;
 /// Structured parse error information
 ///
 /// Preserves detailed error context from the parser for better error reporting.
-/// This type is Clone-friendly, unlike the original ParseError which contains
-/// a `Box<dyn Error>`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructuredParseError {
     /// Error category
@@ -210,92 +216,167 @@ impl std::fmt::Display for StructuredParseError {
     }
 }
 
+impl std::error::Error for StructuredParseError {}
+
+/// Query error kind enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum QueryErrorKind {
+    Storage,
+    Parse,
+    Planning,
+    Optimization,
+    InvalidQuery,
+    Execution,
+    Expression,
+    PlanNodeVisit,
+    Session,
+    Permission,
+    Transaction,
+    Type,
+    Timeout,
+}
+
+impl QueryErrorKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            QueryErrorKind::Storage => "storage",
+            QueryErrorKind::Parse => "parse",
+            QueryErrorKind::Planning => "planning",
+            QueryErrorKind::Optimization => "optimization",
+            QueryErrorKind::InvalidQuery => "invalid_query",
+            QueryErrorKind::Execution => "execution",
+            QueryErrorKind::Expression => "expression",
+            QueryErrorKind::PlanNodeVisit => "plan_node_visit",
+            QueryErrorKind::Session => "session",
+            QueryErrorKind::Permission => "permission",
+            QueryErrorKind::Transaction => "transaction",
+            QueryErrorKind::Type => "type",
+            QueryErrorKind::Timeout => "timeout",
+        }
+    }
+}
+
 /// Query layer error type
-#[derive(Debug, Clone)]
-pub enum QueryError {
-    StorageError(StorageErrorWrapper),
-    ParseError(StructuredParseError),
-    PlanningError(String),
-    OptimizationError(String),
-    InvalidQuery(String),
-    ExecutionError(String),
-    ExpressionError(ExpressionErrorWrapper),
-    PlanNodeVisitError(PlanNodeVisitError),
-    SessionError(SessionError),
-    PermissionError(PermissionError),
-    TransactionError(String),
-    TypeError(String),
-    Timeout(String),
+///
+/// Design principles:
+/// 1. Small size: Uses boxed errors to keep struct size minimal (~24 bytes)
+/// 2. Full context: Preserves error chain
+/// 3. Clone support: Can be cloned for logging/propagation
+#[derive(Debug)]
+pub struct QueryError {
+    kind: QueryErrorKind,
+    message: String,
+    source: Option<BoxedError>,
+}
+
+impl QueryError {
+    pub fn new(kind: QueryErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn with_source(mut self, source: BoxedError) -> Self {
+        self.source = Some(source);
+        self
+    }
+
+    pub fn kind(&self) -> QueryErrorKind {
+        self.kind
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    pub fn source(&self) -> &Option<BoxedError> {
+        &self.source
+    }
+
+    fn from_boxed<E: Error + Send + Sync + 'static>(kind: QueryErrorKind, error: E) -> Self {
+        Self {
+            kind,
+            message: error.to_string(),
+            source: Some(Box::new(error)),
+        }
+    }
 }
 
 impl std::fmt::Display for QueryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            QueryError::StorageError(e) => write!(f, "Storage error: {}", e),
-            QueryError::ParseError(e) => write!(f, "Parse error: {}", e),
-            QueryError::PlanningError(msg) => write!(f, "Planning error: {}", msg),
-            QueryError::OptimizationError(msg) => write!(f, "Optimization error: {}", msg),
-            QueryError::InvalidQuery(msg) => write!(f, "Invalid query: {}", msg),
-            QueryError::ExecutionError(msg) => write!(f, "Execution error: {}", msg),
-            QueryError::ExpressionError(e) => write!(f, "Expression error: {}", e),
-            QueryError::PlanNodeVisitError(e) => write!(f, "Plan node visit error: {}", e),
-            QueryError::SessionError(e) => write!(f, "Session error: {}", e),
-            QueryError::PermissionError(e) => write!(f, "Permission error: {}", e),
-            QueryError::TransactionError(msg) => write!(f, "Transaction error: {}", msg),
-            QueryError::TypeError(msg) => write!(f, "Type error: {}", msg),
-            QueryError::Timeout(msg) => write!(f, "Timeout: {}", msg),
+        write!(f, "[{}] {}", self.kind.as_str(), self.message)?;
+        if let Some(ref source) = self.source {
+            write!(f, "\n  Caused by: {}", source)?;
+        }
+        Ok(())
+    }
+}
+
+impl Clone for QueryError {
+    fn clone(&self) -> Self {
+        Self {
+            kind: self.kind,
+            message: self.message.clone(),
+            source: None,
         }
     }
 }
 
 impl std::error::Error for QueryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            QueryError::StorageError(e) => Some(e),
-            QueryError::ExpressionError(e) => Some(e),
-            QueryError::PlanNodeVisitError(e) => Some(e),
-            QueryError::SessionError(e) => Some(e),
-            QueryError::PermissionError(e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
-/// Wrapper for StorageError to implement Clone
-#[derive(Error, Debug, Clone)]
-#[error("{0}")]
-pub struct StorageErrorWrapper(String);
-
-impl From<StorageError> for StorageErrorWrapper {
-    fn from(e: StorageError) -> Self {
-        StorageErrorWrapper(e.to_string())
-    }
-}
-
-/// Wrapper for ExpressionError to implement Clone
-#[derive(Error, Debug, Clone)]
-#[error("{0}")]
-pub struct ExpressionErrorWrapper(String);
-
-impl From<ExpressionError> for ExpressionErrorWrapper {
-    fn from(e: ExpressionError) -> Self {
-        ExpressionErrorWrapper(e.to_string())
-    }
-}
-
-impl From<ExpressionErrorType> for ExpressionErrorWrapper {
-    fn from(e: ExpressionErrorType) -> Self {
-        ExpressionErrorWrapper(e.to_string())
+        self.source.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 
 impl QueryError {
-    pub fn storage_error(message: impl Into<String>) -> Self {
-        QueryError::StorageError(StorageErrorWrapper(message.into()))
+    pub fn storage(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Storage, message)
+    }
+
+    pub fn parse(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Parse, message)
+    }
+
+    pub fn planning(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Planning, message)
+    }
+
+    pub fn optimization(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Optimization, message)
+    }
+
+    pub fn invalid_query(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::InvalidQuery, message)
+    }
+
+    pub fn execution(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Execution, message)
+    }
+
+    pub fn expression(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Expression, message)
+    }
+
+    pub fn transaction(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Transaction, message)
+    }
+
+    pub fn type_error(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Type, message)
+    }
+
+    pub fn timeout(message: impl Into<String>) -> Self {
+        Self::new(QueryErrorKind::Timeout, message)
+    }
+
+    pub fn structured_parse_error(err: StructuredParseError) -> Self {
+        Self::from_boxed(QueryErrorKind::Parse, err)
     }
 
     pub fn parse_error(message: impl Into<String>) -> Self {
-        QueryError::ParseError(StructuredParseError {
+        Self::structured_parse_error(StructuredParseError {
             kind: ParseErrorKind::SyntaxError,
             message: message.into(),
             position: crate::core::types::Position::new(0, 0),
@@ -308,7 +389,7 @@ impl QueryError {
     }
 
     pub fn parse_error_with_offset(message: impl Into<String>, offset: usize) -> Self {
-        QueryError::ParseError(StructuredParseError {
+        Self::structured_parse_error(StructuredParseError {
             kind: ParseErrorKind::SyntaxError,
             message: message.into(),
             position: crate::core::types::Position::new(0, 0),
@@ -325,7 +406,7 @@ impl QueryError {
         offset: usize,
         location: impl Into<String>,
     ) -> Self {
-        QueryError::ParseError(StructuredParseError {
+        Self::structured_parse_error(StructuredParseError {
             kind: ParseErrorKind::SyntaxError,
             message: message.into(),
             position: crate::core::types::Position::new(0, 0),
@@ -337,78 +418,86 @@ impl QueryError {
         })
     }
 
-    pub fn structured_parse_error(err: StructuredParseError) -> Self {
-        QueryError::ParseError(err)
-    }
-
     pub fn offset(&self) -> Option<usize> {
-        match self {
-            QueryError::ParseError(e) => e.offset,
-            _ => None,
+        if self.kind == QueryErrorKind::Parse {
+            if let Some(ref source) = self.source {
+                if let Some(pe) = source.downcast_ref::<StructuredParseError>() {
+                    return pe.offset;
+                }
+            }
         }
+        None
     }
 
     pub fn location(&self) -> Option<&str> {
-        match self {
-            QueryError::ParseError(e) => {
-                if e.hints.is_empty() {
-                    None
-                } else {
-                    Some(&e.hints[0])
+        if self.kind == QueryErrorKind::Parse {
+            if let Some(ref source) = self.source {
+                if let Some(pe) = source.downcast_ref::<StructuredParseError>() {
+                    if !pe.hints.is_empty() {
+                        return Some(&pe.hints[0]);
+                    }
                 }
             }
-            _ => None,
         }
+        None
     }
 
-    pub fn parse_error_position(&self) -> Option<&crate::core::types::Position> {
-        match self {
-            QueryError::ParseError(e) => Some(&e.position),
-            _ => None,
+    pub fn parse_error_position(&self) -> Option<crate::core::types::Position> {
+        if self.kind == QueryErrorKind::Parse {
+            if let Some(ref source) = self.source {
+                if let Some(pe) = source.downcast_ref::<StructuredParseError>() {
+                    return Some(pe.position);
+                }
+            }
         }
+        None
     }
 
     pub fn parse_error_kind(&self) -> Option<ParseErrorKind> {
-        match self {
-            QueryError::ParseError(e) => Some(e.kind),
-            _ => None,
+        if self.kind == QueryErrorKind::Parse {
+            if let Some(ref source) = self.source {
+                if let Some(pe) = source.downcast_ref::<StructuredParseError>() {
+                    return Some(pe.kind);
+                }
+            }
         }
+        None
     }
 
-    pub fn pipeline_parse_error<E: std::error::Error>(e: E) -> Self {
-        QueryError::parse_error(e.to_string())
+    pub fn pipeline_parse_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> Self {
+        Self::from_boxed(QueryErrorKind::Parse, e)
     }
 
-    pub fn pipeline_validation_error<E: std::error::Error>(e: E) -> Self {
-        QueryError::InvalidQuery(e.to_string())
+    pub fn pipeline_validation_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> Self {
+        Self::from_boxed(QueryErrorKind::InvalidQuery, e)
     }
 
-    pub fn pipeline_planning_error<E: std::error::Error>(e: E) -> Self {
-        QueryError::PlanningError(e.to_string())
+    pub fn pipeline_planning_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> Self {
+        Self::from_boxed(QueryErrorKind::Planning, e)
     }
 
-    pub fn pipeline_optimization_error<E: std::error::Error>(e: E) -> Self {
-        QueryError::OptimizationError(e.to_string())
+    pub fn pipeline_optimization_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> Self {
+        Self::from_boxed(QueryErrorKind::Optimization, e)
     }
 
-    pub fn pipeline_execution_error<E: std::error::Error>(e: E) -> Self {
-        QueryError::ExecutionError(e.to_string())
+    pub fn pipeline_execution_error<E: std::error::Error + Send + Sync + 'static>(e: E) -> Self {
+        Self::from_boxed(QueryErrorKind::Execution, e)
     }
 
     pub fn pipeline_error(phase: QueryPhase, message: String) -> Self {
         match phase {
-            QueryPhase::Parse => QueryError::parse_error(message),
-            QueryPhase::Validate => QueryError::InvalidQuery(message),
-            QueryPhase::Plan => QueryError::PlanningError(message),
-            QueryPhase::Optimize => QueryError::OptimizationError(message),
-            QueryPhase::Execute => QueryError::ExecutionError(message),
+            QueryPhase::Parse => Self::parse(message),
+            QueryPhase::Validate => Self::invalid_query(message),
+            QueryPhase::Plan => Self::planning(message),
+            QueryPhase::Optimize => Self::optimization(message),
+            QueryPhase::Execute => Self::execution(message),
         }
     }
 }
 
 impl From<StorageError> for QueryError {
     fn from(e: StorageError) -> Self {
-        QueryError::StorageError(e.into())
+        Self::from_boxed(QueryErrorKind::Storage, e)
     }
 }
 
@@ -422,86 +511,86 @@ impl From<DBError> for QueryError {
                         return qe.clone();
                     }
                 }
-                QueryError::ExecutionError(e.message().to_string())
+                Self::execution(e.message().to_string())
             }
-            ErrorKind::Storage => QueryError::StorageError(StorageErrorWrapper(e.message().to_string())),
-            ErrorKind::Expression => QueryError::ExpressionError(ExpressionErrorWrapper(e.message().to_string())),
-            ErrorKind::Plan => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Manager => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Validation => QueryError::InvalidQuery(e.message().to_string()),
-            ErrorKind::Io => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::TypeDeduction => QueryError::TypeError(e.message().to_string()),
-            ErrorKind::Serialization => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Index => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Transaction => QueryError::TransactionError(e.message().to_string()),
-            ErrorKind::Internal => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Storage => Self::storage(e.message()),
+            ErrorKind::Expression => Self::expression(e.message()),
+            ErrorKind::Plan => Self::execution(e.message()),
+            ErrorKind::Manager => Self::execution(e.message()),
+            ErrorKind::Validation => Self::invalid_query(e.message()),
+            ErrorKind::Io => Self::execution(e.message()),
+            ErrorKind::TypeDeduction => Self::type_error(e.message()),
+            ErrorKind::Serialization => Self::execution(e.message()),
+            ErrorKind::Index => Self::execution(e.message()),
+            ErrorKind::Transaction => Self::transaction(e.message()),
+            ErrorKind::Internal => Self::execution(e.message()),
             ErrorKind::Session => {
                 if let Some(ref source) = e.source() {
                     if let Some(se) = source.downcast_ref::<SessionError>() {
-                        return QueryError::SessionError(se.clone());
+                        return Self::from_boxed(QueryErrorKind::Session, se.clone());
                     }
                 }
-                QueryError::ExecutionError(e.message().to_string())
+                Self::execution(e.message())
             }
-            ErrorKind::Auth => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Auth => Self::execution(e.message()),
             ErrorKind::Permission => {
                 if let Some(ref source) = e.source() {
                     if let Some(pe) = source.downcast_ref::<PermissionError>() {
-                        return QueryError::PermissionError(pe.clone());
+                        return Self::from_boxed(QueryErrorKind::Permission, pe.clone());
                     }
                 }
-                QueryError::ExecutionError(e.message().to_string())
+                Self::execution(e.message())
             }
-            ErrorKind::MemoryLimitExceeded => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Fulltext => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Coordinator => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Vector => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::VectorCoordinator => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::Search => QueryError::ExecutionError(e.message().to_string()),
-            ErrorKind::GraphService => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::MemoryLimitExceeded => Self::execution(e.message()),
+            ErrorKind::Fulltext => Self::execution(e.message()),
+            ErrorKind::Coordinator => Self::execution(e.message()),
+            ErrorKind::Vector => Self::execution(e.message()),
+            ErrorKind::VectorCoordinator => Self::execution(e.message()),
+            ErrorKind::Search => Self::execution(e.message()),
+            ErrorKind::GraphService => Self::execution(e.message()),
         }
     }
 }
 
 impl From<std::io::Error> for QueryError {
     fn from(e: std::io::Error) -> Self {
-        QueryError::ExecutionError(e.to_string())
+        Self::execution(e.to_string())
     }
 }
 
 impl From<PlanNodeVisitError> for QueryError {
     fn from(e: PlanNodeVisitError) -> Self {
-        QueryError::PlanNodeVisitError(e)
+        Self::from_boxed(QueryErrorKind::PlanNodeVisit, e)
     }
 }
 
 impl From<ManagerError> for QueryError {
     fn from(e: ManagerError) -> Self {
-        QueryError::ExecutionError(e.to_string())
+        Self::execution(e.to_string())
     }
 }
 
 impl From<SessionError> for QueryError {
     fn from(e: SessionError) -> Self {
-        QueryError::SessionError(e)
+        Self::from_boxed(QueryErrorKind::Session, e)
     }
 }
 
 impl From<PermissionError> for QueryError {
     fn from(e: PermissionError) -> Self {
-        QueryError::PermissionError(e)
+        Self::from_boxed(QueryErrorKind::Permission, e)
     }
 }
 
 impl From<ExpressionError> for QueryError {
     fn from(e: ExpressionError) -> Self {
-        QueryError::ExpressionError(e.into())
+        Self::from_boxed(QueryErrorKind::Expression, e)
     }
 }
 
 impl From<ExpressionErrorType> for QueryError {
     fn from(e: ExpressionErrorType) -> Self {
-        QueryError::ExpressionError(e.into())
+        Self::expression(e.to_string())
     }
 }
 
@@ -511,29 +600,102 @@ impl ToPublicError for QueryError {
     }
 
     fn to_error_code(&self) -> ErrorCode {
-        match self {
-            QueryError::ParseError { .. } => ErrorCode::ParseError,
-            QueryError::InvalidQuery(_) => ErrorCode::ValidationError,
-            QueryError::PlanningError(_) => ErrorCode::ExecutionError,
-            QueryError::OptimizationError(_) => ErrorCode::ExecutionError,
-            QueryError::ExecutionError(_) => ErrorCode::ExecutionError,
-            QueryError::ExpressionError(_) => ErrorCode::ExecutionError,
-            QueryError::StorageError(_) => ErrorCode::InternalError,
-            QueryError::PlanNodeVisitError(_) => ErrorCode::ExecutionError,
-            QueryError::SessionError(se) => se.to_error_code(),
-            QueryError::PermissionError(pe) => pe.to_error_code(),
-            QueryError::TransactionError(_) => ErrorCode::ExecutionError,
-            QueryError::TypeError(_) => ErrorCode::TypeError,
-            QueryError::Timeout(_) => ErrorCode::Timeout,
+        match self.kind {
+            QueryErrorKind::Parse => ErrorCode::ParseError,
+            QueryErrorKind::InvalidQuery => ErrorCode::ValidationError,
+            QueryErrorKind::Planning => ErrorCode::ExecutionError,
+            QueryErrorKind::Optimization => ErrorCode::ExecutionError,
+            QueryErrorKind::Execution => ErrorCode::ExecutionError,
+            QueryErrorKind::Expression => ErrorCode::ExecutionError,
+            QueryErrorKind::Storage => ErrorCode::InternalError,
+            QueryErrorKind::PlanNodeVisit => ErrorCode::ExecutionError,
+            QueryErrorKind::Session => {
+                if let Some(ref source) = self.source {
+                    if let Some(se) = source.downcast_ref::<SessionError>() {
+                        return se.to_error_code();
+                    }
+                }
+                ErrorCode::Unauthorized
+            }
+            QueryErrorKind::Permission => {
+                if let Some(ref source) = self.source {
+                    if let Some(pe) = source.downcast_ref::<PermissionError>() {
+                        return pe.to_error_code();
+                    }
+                }
+                ErrorCode::PermissionDenied
+            }
+            QueryErrorKind::Transaction => ErrorCode::ExecutionError,
+            QueryErrorKind::Type => ErrorCode::TypeError,
+            QueryErrorKind::Timeout => ErrorCode::Timeout,
         }
     }
 
     fn to_public_message(&self) -> String {
-        match self {
-            QueryError::SessionError(se) => se.to_public_message(),
-            QueryError::PermissionError(pe) => pe.to_public_message(),
-            QueryError::StorageError(_) => "Storage operation failed".to_string(),
-            _ => self.to_string(),
+        match self.kind {
+            QueryErrorKind::Session => {
+                if let Some(ref source) = self.source {
+                    if let Some(se) = source.downcast_ref::<SessionError>() {
+                        return se.to_public_message();
+                    }
+                }
+                self.message.clone()
+            }
+            QueryErrorKind::Permission => {
+                if let Some(ref source) = self.source {
+                    if let Some(pe) = source.downcast_ref::<PermissionError>() {
+                        return pe.to_public_message();
+                    }
+                }
+                self.message.clone()
+            }
+            QueryErrorKind::Storage => "Storage operation failed".to_string(),
+            _ => self.message.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_queryerror_size() {
+        assert!(
+            std::mem::size_of::<QueryError>() <= 64,
+            "QueryError should be small, got {} bytes",
+            std::mem::size_of::<QueryError>()
+        );
+    }
+
+    #[test]
+    fn test_queryerror_creation() {
+        let err = QueryError::parse("test parse error");
+        assert_eq!(err.kind(), QueryErrorKind::Parse);
+        assert!(err.message().contains("test parse error"));
+    }
+
+    #[test]
+    fn test_queryerror_with_source() {
+        let storage_err = StorageError::NodeNotFound(crate::core::Value::Int(42));
+        let query_err = QueryError::from(storage_err);
+        assert_eq!(query_err.kind(), QueryErrorKind::Storage);
+    }
+
+    #[test]
+    fn test_queryerror_clone() {
+        let err = QueryError::execution("test error");
+        let cloned = err.clone();
+        assert_eq!(err.kind(), cloned.kind());
+        assert_eq!(err.message(), cloned.message());
+    }
+
+    #[test]
+    fn test_pipeline_error() {
+        let err = QueryError::pipeline_error(QueryPhase::Parse, "parse failed".to_string());
+        assert_eq!(err.kind(), QueryErrorKind::Parse);
+
+        let err = QueryError::pipeline_error(QueryPhase::Execute, "exec failed".to_string());
+        assert_eq!(err.kind(), QueryErrorKind::Execution);
     }
 }

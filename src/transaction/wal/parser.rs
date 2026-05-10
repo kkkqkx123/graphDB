@@ -176,8 +176,6 @@ impl ParallelWalParser {
                 .into_iter()
                 .map(|chunk| {
                     let results = Arc::clone(&results);
-                    let recovery_mode = recovery_mode;
-                    let verify_checksum = verify_checksum;
 
                     std::thread::spawn(move || {
                         let mut local_results = Vec::new();

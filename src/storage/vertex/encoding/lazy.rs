@@ -178,10 +178,8 @@ impl LazyCompare for DictionaryColumn {
 
         match value {
             Value::String(s) => {
-                if let Some(current) = self.get(row_idx) {
-                    if let Value::String(current_str) = current {
-                        return current_str == *s;
-                    }
+                if let Some(Value::String(current_str)) = self.get(row_idx) {
+                    return current_str == *s;
                 }
                 false
             }
