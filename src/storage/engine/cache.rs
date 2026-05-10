@@ -1,10 +1,29 @@
+//! Cache Manager
+//!
+//! Manages record cache and memory tracking for the storage engine.
+//!
+//! ## Design Note: Why No Edge Cache?
+//!
+//! Edge data is NOT cached separately because:
+//!
+//! 1. **CSR is already read-optimized**: The CSR structure provides O(1) edge list
+//!    access with contiguous memory layout, which is CPU cache-friendly.
+//!
+//! 2. **High memory cost**: Edge data volume is typically much larger than vertex data.
+//!
+//! 3. **Frequent updates**: Edges are updated more frequently than vertices.
+//!
+//! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
+//!    with direct offset access.
+
 use crate::storage::cache::{
-    CachedEdge, CachedVertex, EdgeQueryKey, RecordCache, RecordCacheConfig,
+    CachedVertex, RecordCache, RecordCacheConfig,
     RecordCacheStats, SharedRecordCache, VertexCacheKey,
 };
 use crate::storage::memory::SharedMemoryTracker;
 use crate::storage::vertex::LabelId;
 
+/// Manager for storage caches
 pub struct CacheManager {
     pub record_cache: Option<SharedRecordCache>,
     pub memory_tracker: Option<SharedMemoryTracker>,
@@ -57,6 +76,8 @@ impl CacheManager {
         }
     }
 
+    // ==================== ID Index Cache Operations ====================
+
     pub fn get_cached_vertex_id(
         &self,
         label: LabelId,
@@ -78,6 +99,8 @@ impl CacheManager {
             rc.remove_id_index(label, external_id);
         }
     }
+
+    // ==================== Vertex Cache Operations ====================
 
     pub fn get_cached_vertex(
         &self,
@@ -111,37 +134,12 @@ impl CacheManager {
         }
     }
 
-    pub fn get_cached_edge(
-        &self,
-        edge_label: LabelId,
-        src_internal: u64,
-        dst_internal: u64,
-    ) -> Option<CachedEdge> {
-        self.record_cache
-            .as_ref()
-            .and_then(|rc| {
-                let key = EdgeQueryKey::new(edge_label, src_internal, dst_internal);
-                rc.get_edge_by_query(&key)
-            })
-    }
+    // ==================== Cache Invalidation ====================
 
-    pub fn cache_edge(&self, edge_label: LabelId, src_internal: u64, dst_internal: u64, edge_id: u64, properties: Vec<(String, crate::core::Value)>) {
+    pub fn invalidate_vertices_by_label(&self, label: LabelId) {
         if let Some(ref rc) = self.record_cache {
-            let key = EdgeQueryKey::new(edge_label, src_internal, dst_internal);
-            let cached = CachedEdge {
-                edge_id,
-                src_vid: src_internal,
-                dst_vid: dst_internal,
-                properties,
-            };
-            rc.insert_edge_query(key, cached);
-        }
-    }
-
-    pub fn remove_cached_edge(&self, edge_label: LabelId, src_internal: u64, dst_internal: u64) {
-        if let Some(ref rc) = self.record_cache {
-            let key = EdgeQueryKey::new(edge_label, src_internal, dst_internal);
-            rc.remove_edge_query(&key);
+            rc.invalidate_vertices_by_label(label);
+            rc.invalidate_id_indexes_by_label(label);
         }
     }
 }

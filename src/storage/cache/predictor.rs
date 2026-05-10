@@ -1,34 +1,47 @@
 //! Hit Rate Predictor
 //!
 //! Predicts cache hit rate for capacity planning.
+//! Used for determining optimal cache size based on access patterns.
 
 use std::collections::HashMap;
 use std::time::Instant;
 
+/// Record of a cache access event
 #[derive(Debug, Clone)]
 pub struct CacheAccess {
+    /// Type of cache accessed
     pub cache_type: CacheAccessType,
+    /// Hash of the key accessed
     pub key_hash: u64,
+    /// Size of the value in bytes
     pub size: usize,
+    /// When the access occurred
     pub timestamp: Instant,
 }
 
+/// Type of cache being accessed
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CacheAccessType {
+    /// Vertex record cache
     Vertex,
-    Edge,
-    EdgeQuery,
+    /// ID index cache (external_id -> internal_id)
     IdIndex,
 }
 
+/// Result of a hit rate prediction
 #[derive(Debug, Clone)]
 pub struct PredictionResult {
+    /// Predicted hit rate at the target capacity
     pub predicted_hit_rate: f64,
+    /// The target capacity used for prediction
     pub recommended_capacity: usize,
+    /// Expected memory usage at target capacity
     pub expected_memory_usage: usize,
+    /// Current hit rate
     pub current_hit_rate: f64,
 }
 
+/// Predictor for cache hit rate based on access history
 pub struct HitRatePredictor {
     access_history: Vec<CacheAccess>,
     max_history: usize,
@@ -36,6 +49,11 @@ pub struct HitRatePredictor {
 }
 
 impl HitRatePredictor {
+    /// Create a new predictor
+    ///
+    /// # Arguments
+    /// * `max_history` - Maximum number of access records to keep
+    /// * `current_capacity` - Current cache capacity in bytes
     pub fn new(max_history: usize, current_capacity: usize) -> Self {
         Self {
             access_history: Vec::with_capacity(max_history),
@@ -44,6 +62,7 @@ impl HitRatePredictor {
         }
     }
 
+    /// Record a cache access
     pub fn record_access(&mut self, access: CacheAccess) {
         if self.access_history.len() >= self.max_history {
             self.access_history.remove(0);
@@ -51,6 +70,7 @@ impl HitRatePredictor {
         self.access_history.push(access);
     }
 
+    /// Predict hit rate for a given target capacity
     pub fn predict_for_capacity(&self, target_capacity: usize) -> PredictionResult {
         let mut simulated_cache_size = 0usize;
         let mut hits = 0usize;
@@ -91,6 +111,7 @@ impl HitRatePredictor {
         }
     }
 
+    /// Find the optimal capacity to achieve a target hit rate
     pub fn find_optimal_capacity(&self, target_hit_rate: f64) -> Option<PredictionResult> {
         if self.access_history.is_empty() {
             return None;
@@ -110,10 +131,12 @@ impl HitRatePredictor {
         self.predict_for_capacity(max_capacity).into()
     }
 
+    /// Get the number of recorded accesses
     pub fn access_count(&self) -> usize {
         self.access_history.len()
     }
 
+    /// Clear access history
     pub fn clear_history(&mut self) {
         self.access_history.clear();
     }

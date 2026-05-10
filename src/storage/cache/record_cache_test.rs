@@ -28,25 +28,6 @@ fn test_vertex_cache_basic() {
 }
 
 #[test]
-fn test_edge_query_cache_basic() {
-    let cache = RecordCache::new();
-
-    let key = EdgeQueryKey::new(1, 100, 200);
-    let edge = CachedEdge {
-        edge_id: 1,
-        src_vid: 100,
-        dst_vid: 200,
-        properties: vec![("weight".to_string(), Value::Double(1.5))],
-    };
-
-    cache.insert_edge_query(key, edge);
-
-    let cached = cache.get_edge_by_query(&EdgeQueryKey::new(1, 100, 200));
-    assert!(cached.is_some());
-    assert_eq!(cached.unwrap().edge_id, 1);
-}
-
-#[test]
 fn test_cache_stats() {
     let cache = RecordCache::new();
 
@@ -153,7 +134,7 @@ fn test_cache_config_with_ttl() {
 
     let config = RecordCacheConfig {
         max_memory: 1024 * 1024,
-        memory_ratio: (50, 30, 20),
+        memory_ratio: (70, 30),
         ttl: Some(Duration::from_secs(60)),
         tti: Some(Duration::from_secs(30)),
         high_priority_ratio: 0.0,
@@ -184,23 +165,10 @@ fn test_fine_grained_stats() {
         },
     );
 
-    cache.insert_edge_query(
-        EdgeQueryKey::new(1, 100, 200),
-        CachedEdge {
-            edge_id: 1,
-            src_vid: 100,
-            dst_vid: 200,
-            properties: vec![],
-        },
-    );
-
     cache.insert_id_index(1, "user_001", 100);
 
     cache.get_vertex(&VertexCacheKey::new(1, 100));
     cache.get_vertex(&VertexCacheKey::new(1, 999));
-
-    cache.get_edge_by_query(&EdgeQueryKey::new(1, 100, 200));
-    cache.get_edge_by_query(&EdgeQueryKey::new(1, 999, 200));
 
     cache.get_id_index(1, "user_001");
     cache.get_id_index(1, "nonexistent");
@@ -210,21 +178,18 @@ fn test_fine_grained_stats() {
     assert_eq!(stats.vertex.hits, 1);
     assert_eq!(stats.vertex.misses, 1);
 
-    assert_eq!(stats.edge_query.hits, 1);
-    assert_eq!(stats.edge_query.misses, 1);
-
     assert_eq!(stats.id_index.hits, 1);
     assert_eq!(stats.id_index.misses, 1);
 
-    assert_eq!(stats.total_hits, 3);
-    assert_eq!(stats.total_misses, 3);
+    assert_eq!(stats.total_hits, 2);
+    assert_eq!(stats.total_misses, 2);
 }
 
 #[test]
 fn test_high_priority_pool() {
     let config = RecordCacheConfig {
         max_memory: 1024 * 1024,
-        memory_ratio: (50, 30, 20),
+        memory_ratio: (70, 30),
         high_priority_ratio: 0.1,
         ..Default::default()
     };
@@ -349,29 +314,6 @@ fn test_batch_insert_vertices() {
 }
 
 #[test]
-fn test_batch_get_edges() {
-    let cache = RecordCache::new();
-
-    for i in 0..5u64 {
-        let key = EdgeQueryKey::new(1, i, i + 1);
-        let edge = CachedEdge {
-            edge_id: i,
-            src_vid: i,
-            dst_vid: i + 1,
-            properties: vec![],
-        };
-        cache.insert_edge_query(key, edge);
-    }
-
-    let keys: Vec<EdgeQueryKey> = (0..8u64).map(|i| EdgeQueryKey::new(1, i, i + 1)).collect();
-    let result = cache.get_edge_queries_batch(&keys);
-
-    assert_eq!(result.results.len(), 8);
-    assert_eq!(result.hits, 5);
-    assert_eq!(result.misses, 3);
-}
-
-#[test]
 fn test_batch_id_indexes() {
     let cache = RecordCache::new();
 
@@ -424,65 +366,19 @@ fn test_invalidate_batch() {
             properties: vec![],
         },
     );
-    cache.insert_edge_query(
-        EdgeQueryKey::new(1, 100, 200),
-        CachedEdge {
-            edge_id: 1,
-            src_vid: 100,
-            dst_vid: 200,
-            properties: vec![],
-        },
-    );
     cache.insert_id_index(1, "user_001", 100);
 
     let keys: Vec<CacheKeyRef<'_>> = vec![
         CacheKeyRef::Vertex(VertexCacheKey::new(1, 100)),
-        CacheKeyRef::EdgeQuery(EdgeQueryKey::new(1, 100, 200)),
         CacheKeyRef::IdIndex(1, "user_001"),
         CacheKeyRef::Vertex(VertexCacheKey::new(1, 999)),
     ];
 
     let invalidated = cache.invalidate_batch(&keys);
-    assert_eq!(invalidated, 3);
+    assert_eq!(invalidated, 2);
 
     assert!(cache.get_vertex(&VertexCacheKey::new(1, 100)).is_none());
-    assert!(cache.get_edge_by_query(&EdgeQueryKey::new(1, 100, 200)).is_none());
     assert_eq!(cache.get_id_index(1, "user_001"), None);
-}
-
-#[test]
-fn test_memory_pressure_level() {
-    let config = RecordCacheConfig {
-        max_memory: 1024,
-        ..Default::default()
-    };
-    let cache = RecordCache::with_config(config);
-
-    assert_eq!(
-        cache.memory_pressure_level(),
-        MemoryPressureLevel::Normal
-    );
-
-    for i in 0..50u32 {
-        let key = VertexCacheKey::new(1, i);
-        let vertex = CachedVertex {
-            internal_id: i,
-            external_id: format!("vertex_{}", i),
-            properties: vec![("data".to_string(), Value::String("x".repeat(20)))],
-        };
-        cache.insert_vertex(key, vertex);
-    }
-
-    let utilization = cache.utilization();
-    let pressure = cache.memory_pressure_level();
-
-    if utilization >= 0.9 {
-        assert_eq!(pressure, MemoryPressureLevel::Critical);
-    } else if utilization >= 0.7 {
-        assert_eq!(pressure, MemoryPressureLevel::Warning);
-    } else {
-        assert_eq!(pressure, MemoryPressureLevel::Normal);
-    }
 }
 
 #[test]
@@ -533,8 +429,23 @@ fn test_memory_pressure_config() {
 
     let cache = RecordCache::new().with_memory_pressure_config(custom_config.clone());
 
-    let pressure_level = cache.memory_pressure_level();
-    assert_eq!(pressure_level, MemoryPressureLevel::Normal);
+    for i in 0..10u32 {
+        let key = VertexCacheKey::new(1, i);
+        let vertex = CachedVertex {
+            internal_id: i,
+            external_id: format!("v{}", i),
+            properties: vec![],
+        };
+        cache.insert_vertex(key, vertex);
+    }
+
+    for i in 0..10u32 {
+        let key = VertexCacheKey::new(1, i);
+        assert!(cache.get_vertex(&key).is_some(), "Vertex {} should be cached", i);
+    }
+
+    let stats = cache.stats();
+    assert!(stats.vertex.hits >= 10, "Should have at least 10 hits, got {}", stats.vertex.hits);
 }
 
 #[test]
@@ -636,4 +547,39 @@ fn test_hit_rate_predictor_history_limit() {
     }
 
     assert_eq!(predictor.access_count(), 10);
+}
+
+#[test]
+fn test_invalidate_by_label() {
+    let cache = RecordCache::new();
+
+    cache.insert_vertex(
+        VertexCacheKey::new(1, 100),
+        CachedVertex {
+            internal_id: 100,
+            external_id: "v1".to_string(),
+            properties: vec![],
+        },
+    );
+    cache.insert_vertex(
+        VertexCacheKey::new(2, 200),
+        CachedVertex {
+            internal_id: 200,
+            external_id: "v2".to_string(),
+            properties: vec![],
+        },
+    );
+    cache.insert_id_index(1, "user_001", 100);
+    cache.insert_id_index(2, "user_002", 200);
+
+    assert!(cache.get_vertex(&VertexCacheKey::new(1, 100)).is_some(), "Vertex 1,100 should be cached before invalidation");
+    assert!(cache.get_vertex(&VertexCacheKey::new(2, 200)).is_some(), "Vertex 2,200 should be cached before invalidation");
+
+    cache.invalidate_vertices_by_label(1);
+    cache.invalidate_id_indexes_by_label(1);
+
+    assert!(cache.get_vertex(&VertexCacheKey::new(1, 100)).is_none(), "Vertex 1,100 should be invalidated");
+    assert!(cache.get_vertex(&VertexCacheKey::new(2, 200)).is_some(), "Vertex 2,200 should still be cached");
+    assert_eq!(cache.get_id_index(1, "user_001"), None, "ID index 1,user_001 should be invalidated");
+    assert_eq!(cache.get_id_index(2, "user_002"), Some(200), "ID index 2,user_002 should still be cached");
 }

@@ -1,6 +1,27 @@
 //! Cache Types
 //!
 //! Core types for cache keys, values, and eviction handling.
+//!
+//! ## Design Note: Why No Edge Cache?
+//!
+//! Edge data is NOT cached separately because:
+//!
+//! 1. **CSR is already read-optimized**: The CSR (Compressed Sparse Row) structure
+//!    provides O(1) edge list access with contiguous memory layout, which is
+//!    CPU cache-friendly. Adding another cache layer would not improve performance.
+//!
+//! 2. **High memory cost**: Edge data volume is typically much larger than vertex
+//!    data. Caching edges would consume significant memory with limited benefit.
+//!
+//! 3. **Frequent updates**: Edges are updated more frequently than vertices,
+//!    making cache invalidation complex and potentially causing consistency issues.
+//!
+//! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
+//!    with direct offset access, which is already optimal.
+//!
+//! The cache focuses on:
+//! - **Vertex Cache**: Caches vertex records for fast point lookups
+//! - **ID Index Cache**: Caches external_id -> internal_id mappings
 
 use std::sync::Arc;
 
@@ -35,6 +56,7 @@ impl From<RemovalCause> for EvictionCause {
 /// Callback type for eviction notifications
 pub type EvictionCallback = Arc<dyn Fn(&str, EvictionCause) + Send + Sync>;
 
+/// Key for vertex cache: (label_id, internal_id)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct VertexCacheKey {
     pub label_id: u16,
@@ -50,50 +72,7 @@ impl VertexCacheKey {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct EdgeCacheKey {
-    pub edge_label_id: u16,
-    pub src_vid: u64,
-    pub dst_vid: u64,
-    pub edge_id: u64,
-    pub timestamp: u64,
-}
-
-impl EdgeCacheKey {
-    pub fn new(
-        edge_label_id: u16,
-        src_vid: u64,
-        dst_vid: u64,
-        edge_id: u64,
-        timestamp: u64,
-    ) -> Self {
-        Self {
-            edge_label_id,
-            src_vid,
-            dst_vid,
-            edge_id,
-            timestamp,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct EdgeQueryKey {
-    pub edge_label_id: u16,
-    pub src_vid: u64,
-    pub dst_vid: u64,
-}
-
-impl EdgeQueryKey {
-    pub fn new(edge_label_id: u16, src_vid: u64, dst_vid: u64) -> Self {
-        Self {
-            edge_label_id,
-            src_vid,
-            dst_vid,
-        }
-    }
-}
-
+/// Key for ID index cache: (label_id, external_id)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdIndexCacheKey {
     pub label_id: u16,
@@ -109,6 +88,7 @@ impl IdIndexCacheKey {
     }
 }
 
+/// Cached vertex record
 #[derive(Debug, Clone)]
 pub struct CachedVertex {
     pub internal_id: u32,
@@ -120,25 +100,6 @@ impl CachedVertex {
     pub fn estimated_size(&self) -> u32 {
         let mut size = std::mem::size_of::<u32>() * 2;
         size += self.external_id.len();
-        for (name, value) in &self.properties {
-            size += name.len();
-            size += value.estimated_size();
-        }
-        size as u32
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct CachedEdge {
-    pub edge_id: u64,
-    pub src_vid: u64,
-    pub dst_vid: u64,
-    pub properties: Vec<(String, Value)>,
-}
-
-impl CachedEdge {
-    pub fn estimated_size(&self) -> u32 {
-        let mut size = std::mem::size_of::<u64>() * 3;
         for (name, value) in &self.properties {
             size += name.len();
             size += value.estimated_size();
