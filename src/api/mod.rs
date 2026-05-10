@@ -268,7 +268,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
         Ok(session) => session,
         Err(e) => {
             error!("Failed to create session: {}", e);
-            return Err(crate::core::error::DBError::Session(
+            return Err(crate::core::error::DBError::from(
                 crate::core::error::SessionError::ManagerError(format!(
                     "Failed to create session: {}",
                     e
@@ -379,7 +379,7 @@ pub async fn start_http_and_grpc_servers<
     // Setup gRPC address
     let grpc_addr = format!("{}:{}", config.host(), config.grpc_port())
         .parse::<std::net::SocketAddr>()
-        .map_err(|e| crate::core::error::DBError::Internal(e.to_string()))?;
+        .map_err(|e| crate::core::error::DBError::internal(e.to_string()))?;
 
     // Setup HTTP address
     let http_addr = format!("{}:{}", config.host(), config.port());
@@ -404,7 +404,7 @@ pub async fn start_http_and_grpc_servers<
     let grpc_future = async move {
         crate::api::server::grpc::run_server(grpc_state, grpc_config, grpc_addr)
             .await
-            .map_err(|e| crate::core::error::DBError::Internal(e.to_string()))?;
+            .map_err(|e| crate::core::error::DBError::internal(e.to_string()))?;
         Ok::<(), crate::core::error::DBError>(())
     };
 

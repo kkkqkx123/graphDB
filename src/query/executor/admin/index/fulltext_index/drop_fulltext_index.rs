@@ -3,7 +3,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::DBError;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::error::SearchError;
@@ -90,22 +90,22 @@ impl<S: StorageClient> Executor<S> for DropFulltextIndexExecutor<S> {
                                 self.index_name
                             );
                         } else {
-                            return Err(DBError::Search(format!(
+                            return Err(DBError::search(format!(
                                 "Index not found: {}",
                                 self.index_name
                             )));
                         }
                     }
                     Err(e) => {
-                        return Err(DBError::Search(e.to_string()));
+                        return Err(DBError::search(e.to_string()));
                     }
                 }
             }
             None => {
-                return Err(DBError::Query(QueryError::ExecutionError(format!(
+                return Err(DBError::query(format!(
                     "Invalid fulltext index name format: '{}'",
                     self.index_name
-                ))));
+                )));
             }
         }
 

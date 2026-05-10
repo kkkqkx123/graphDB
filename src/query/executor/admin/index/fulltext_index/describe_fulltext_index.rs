@@ -3,7 +3,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::DBError;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -67,10 +67,10 @@ impl<S: StorageClient> Executor<S> for DescribeFulltextIndexExecutor<S> {
         let (tag_name, field_name) = match parsed {
             Some((t, f)) => (t, f),
             None => {
-                return Err(DBError::Query(QueryError::ExecutionError(format!(
+                return Err(DBError::query(format!(
                     "Invalid fulltext index name format: '{}'. Expected format: <prefix>_<tag>_<field>",
                     self.index_name
-                ))));
+                )));
             }
         };
 

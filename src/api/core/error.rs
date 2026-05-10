@@ -7,7 +7,6 @@ use thiserror::Error;
 /// Extended Error Code Types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtendedErrorCode {
-    // No extension error
     None = 0,
 
     // Parsing Related (1000-1099)
@@ -40,7 +39,6 @@ pub enum ExtendedErrorCode {
 }
 
 impl ExtendedErrorCode {
-    /// Convert to integer error code
     pub fn as_i32(&self) -> i32 {
         *self as i32
     }
@@ -70,7 +68,6 @@ pub enum CoreError {
     #[error("Internal error: {0}")]
     Internal(String),
 
-    /// Query error with details
     #[error("Query error: {message}")]
     DetailedQueryError {
         message: String,
@@ -86,7 +83,6 @@ pub enum CoreError {
 }
 
 impl CoreError {
-    /// Get Extended Error Code
     pub fn extended_code(&self) -> ExtendedErrorCode {
         match self {
             CoreError::DetailedQueryError { extended_code, .. } => *extended_code,
@@ -94,7 +90,6 @@ impl CoreError {
         }
     }
 
-    /// Get error position offset
     pub fn error_offset(&self) -> Option<usize> {
         match self {
             CoreError::DetailedQueryError { offset, .. } => *offset,
@@ -102,7 +97,6 @@ impl CoreError {
         }
     }
 
-    /// Creating Query Errors with Details
     pub fn detailed_query_error(
         message: impl Into<String>,
         extended_code: ExtendedErrorCode,
@@ -119,7 +113,6 @@ impl CoreError {
 /// Core layer result types
 pub type CoreResult<T> = Result<T, CoreError>;
 
-// Conversion from underlying error
 impl From<crate::core::error::QueryError> for CoreError {
     fn from(err: crate::core::error::QueryError) -> Self {
         CoreError::QueryExecutionFailed(err.to_string())
@@ -134,10 +127,11 @@ impl From<crate::storage::StorageError> for CoreError {
 
 impl From<crate::core::error::DBError> for CoreError {
     fn from(err: crate::core::error::DBError) -> Self {
-        match err {
-            crate::core::error::DBError::Query(e) => CoreError::QueryExecutionFailed(e.to_string()),
-            crate::core::error::DBError::Storage(e) => CoreError::StorageError(e.to_string()),
-            crate::core::error::DBError::Transaction(s) => CoreError::TransactionFailed(s),
+        use crate::core::error::ErrorKind;
+        match err.kind() {
+            ErrorKind::Query => CoreError::QueryExecutionFailed(err.message().to_string()),
+            ErrorKind::Storage => CoreError::StorageError(err.message().to_string()),
+            ErrorKind::Transaction => CoreError::TransactionFailed(err.message().to_string()),
             _ => CoreError::Internal(err.to_string()),
         }
     }

@@ -154,16 +154,14 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         direction: EdgeDirection,
     ) -> DBResult<Vec<(Value, Edge)>> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
-            DBError::Storage(crate::core::error::StorageError::DbError(
-                "Storage not set".to_string(),
-            ))
+            DBError::storage("Storage not set".to_string())
         })?;
         let storage = storage.lock();
 
         let edges = storage
             .get_node_edges("default", node_id, direction)
             .map_err(|e| {
-                DBError::Storage(crate::core::error::StorageError::DbError(e.to_string()))
+                DBError::storage(e.to_string())
             })?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -512,9 +510,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for MultiShortestPathExecutor<S> {
     fn execute(&mut self) -> ExecDBResult<ExecutionResult> {
         let paths = self.execute_multi_path().map_err(|e| {
-            crate::core::error::DBError::Query(crate::query::QueryError::ExecutionError(
-                e.to_string(),
-            ))
+            DBError::query(e.to_string())
         })?;
 
         let rows: Vec<Vec<Value>> = paths.into_iter().map(|p| vec![Value::path(p)]).collect();

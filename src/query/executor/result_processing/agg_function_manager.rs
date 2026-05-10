@@ -494,10 +494,10 @@ impl AggFunctionManager {
     pub fn register(&mut self, name: &str, func: AggFunction) -> Result<(), DBError> {
         let upper_name = name.to_uppercase();
         if self.functions.contains_key(&upper_name) {
-            return Err(DBError::Query(QueryError::ExecutionError(format!(
+            return Err(DBError::query(format!(
                 "The aggregate function '{}' already exists.",
                 name
-            ))));
+            )));
         }
         self.functions.insert(upper_name, func);
         Ok(())

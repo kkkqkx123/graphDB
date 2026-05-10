@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::core::error::DBError;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::{Expression, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
@@ -324,12 +325,10 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 if let Some(expr) = ctx_expr.get_expression() {
                     let value =
                         ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
-                            crate::core::error::DBError::Query(
-                                crate::core::error::QueryError::ExecutionError(format!(
-                                    "Failed to evaluate expression for property '{}': {}",
-                                    key, e
-                                )),
-                            )
+                            DBError::query(format!(
+                                "Failed to evaluate expression for property '{}': {}",
+                                key, e
+                            ))
                         })?;
                     result.insert(key.clone(), value);
                 } else if let Some(value) = base_properties.get(key) {
@@ -362,12 +361,10 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 if let Some(expr) = ctx_expr.get_expression() {
                     let value =
                         ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
-                            crate::core::error::DBError::Query(
-                                crate::core::error::QueryError::ExecutionError(format!(
-                                    "Failed to evaluate expression for edge property '{}': {}",
-                                    key, e
-                                )),
-                            )
+                            DBError::query(format!(
+                                "Failed to evaluate expression for edge property '{}': {}",
+                                key, e
+                            ))
                         })?;
                     result.insert(key.clone(), value);
                 } else if let Some(value) = base_properties.get(key) {
@@ -406,17 +403,13 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
         }
 
         let result = ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                format!("Conditional evaluation failed: {}", e),
-            ))
+            DBError::query(format!("Conditional evaluation failed: {}", e))
         })?;
 
         match result {
             crate::core::Value::Bool(b) => Ok(b),
-            _ => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Conditional expression must return a boolean value".to_string(),
-                ),
+            _ => Err(DBError::query(
+                "Conditional expression must return a boolean value".to_string(),
             )),
         }
     }

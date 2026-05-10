@@ -74,7 +74,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
         }
 
         let index_name = self.fulltext_condition.index_name.as_ref().ok_or_else(|| {
-            DBError::Validation("Index name is required for MATCH FULLTEXT".to_string())
+            DBError::validation("Index name is required for MATCH FULLTEXT")
         })?;
 
         let indexes = self.fulltext_manager.list_indexes();
@@ -85,7 +85,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
             }
         }
 
-        Err(DBError::Validation(format!(
+        Err(DBError::validation(format!(
             "Fulltext index '{}' not found",
             index_name
         )))
@@ -122,10 +122,10 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
 
             let vertex = storage_guard
                 .get_vertex("", vertex_id)
-                .map_err(DBError::Storage)?;
+                .map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {
-                let mut row = HashMap::new();
+                let mut row: HashMap<String, Value> = HashMap::new();
 
                 if let Some(ref yield_clause) = self.yield_clause {
                     for yield_item in &yield_clause.items {
@@ -207,7 +207,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
             }
         }
 
-        rows.sort_by(|a, b| {
+        rows.sort_by(|a: &HashMap<String, Value>, b: &HashMap<String, Value>| {
             let score_a = a
                 .get("score")
                 .and_then(|v| match v {

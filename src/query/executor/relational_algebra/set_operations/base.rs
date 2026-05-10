@@ -181,10 +181,8 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::Executor<S
     fn execute(
         &mut self,
     ) -> crate::query::executor::base::DBResult<crate::query::executor::base::ExecutionResult> {
-        Err(crate::core::error::DBError::Query(
-            crate::core::error::QueryError::ExecutionError(
-                "SetExecutor is an abstract base class and cannot be executed directly".to_string(),
-            ),
+        Err(crate::core::error::DBError::query(
+            "SetExecutor is an abstract base class and cannot be executed directly".to_string(),
         ))
     }
 

@@ -5,7 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::core::error::DBError;
+use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
@@ -48,7 +49,7 @@ impl<S: StorageClient> DropUserExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropUserExecutor<S> {
-    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage = storage.lock();
         let result = storage.drop_user(&self.username);
@@ -59,20 +60,18 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropUserExecutor<
                 if self.if_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Err(crate::core::error::DBError::Storage(
-                        crate::core::StorageError::DbError("User not found".to_string()),
-                    ))
+                    Err(DBError::storage("User not found"))
                 }
             }
-            Err(e) => Err(crate::core::error::DBError::Storage(e)),
+            Err(e) => Err(DBError::from(e)),
         }
     }
 
-    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+    fn open(&mut self) -> DBResult<()> {
         self.base.open()
     }
 
-    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+    fn close(&mut self) -> DBResult<()> {
         self.base.close()
     }
 

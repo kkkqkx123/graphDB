@@ -3,6 +3,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::error::DBError;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::AlterIndexAction;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -47,14 +48,14 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
     async fn execute_alter_actions(&self) -> DBResult<ExecutionResult> {
         let parts: Vec<&str> = self.index_name.split('_').collect();
         if parts.len() != 3 {
-            return Err(crate::core::error::DBError::Internal(format!(
+            return Err(DBError::internal(format!(
                 "Invalid index name format: {}",
                 self.index_name
             )));
         }
 
         let space_id: u64 = parts[0].parse().map_err(|_| {
-            crate::core::error::DBError::Internal(format!(
+            DBError::internal(format!(
                 "Invalid space_id in index name: {}",
                 self.index_name
             ))
@@ -69,13 +70,13 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
                         .fulltext_manager
                         .get_engine(space_id, tag_name, field_name)
                         .ok_or_else(|| {
-                            crate::core::error::DBError::Internal(format!(
+                            DBError::internal(format!(
                                 "Index not found: {}.{}.{}",
                                 space_id, tag_name, field_name
                             ))
                         })?;
                     engine.commit().await.map_err(|e| {
-                        crate::core::error::DBError::Internal(format!(
+                        DBError::internal(format!(
                             "Failed to rebuild index: {}",
                             e
                         ))
@@ -83,24 +84,24 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
                 }
                 AlterIndexAction::Optimize => {
                     self.fulltext_manager.commit_all().await.map_err(|e| {
-                        crate::core::error::DBError::Internal(format!(
+                        DBError::internal(format!(
                             "Failed to optimize index: {}",
                             e
                         ))
                     })?;
                 }
                 AlterIndexAction::AddField(_) => {
-                    return Err(crate::core::error::DBError::Internal(
+                    return Err(DBError::internal(
                         "AddField action is not supported yet".to_string(),
                     ));
                 }
                 AlterIndexAction::DropField(_) => {
-                    return Err(crate::core::error::DBError::Internal(
+                    return Err(DBError::internal(
                         "DropField action is not supported yet".to_string(),
                     ));
                 }
                 AlterIndexAction::SetOption(_, _) => {
-                    return Err(crate::core::error::DBError::Internal(
+                    return Err(DBError::internal(
                         "SetOption action is not supported yet".to_string(),
                     ));
                 }

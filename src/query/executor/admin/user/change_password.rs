@@ -5,8 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::error::DBError;
 use crate::core::types::PasswordInfo;
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
@@ -45,7 +46,7 @@ impl<S: StorageClient> ChangePasswordExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExecutor<S> {
-    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage = storage.lock();
         let password_info = PasswordInfo {
@@ -57,18 +58,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExe
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => Err(crate::core::error::DBError::Storage(
-                crate::core::StorageError::DbError("Failed to change password".to_string()),
-            )),
-            Err(e) => Err(crate::core::error::DBError::Storage(e)),
+            Ok(false) => Err(DBError::storage("Failed to change password")),
+            Err(e) => Err(DBError::from(e)),
         }
     }
 
-    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+    fn open(&mut self) -> DBResult<()> {
         self.base.open()
     }
 
-    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+    fn close(&mut self) -> DBResult<()> {
         self.base.close()
     }
 

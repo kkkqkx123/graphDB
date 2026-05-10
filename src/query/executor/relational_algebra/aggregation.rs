@@ -17,6 +17,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::core::error::DBError;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::{NullType, Value};
 use crate::core::Expression;
@@ -278,10 +279,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
         } else if let Some(input) = &self.base.input {
             input.clone()
         } else {
-            return Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Aggregate executor requires input executor".to_string(),
-                ),
+            return Err(DBError::query(
+                "Aggregate executor requires input executor".to_string(),
             ));
         };
 
@@ -293,9 +292,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 let dataset = crate::query::DataSet::new();
                 self.aggregate_dataset(dataset)
             }
-            ExecutionResult::Error(msg) => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(msg),
-            )),
+            ExecutionResult::Error(msg) => Err(DBError::query(msg)),
         }
     }
 
@@ -1001,10 +998,8 @@ impl<S: StorageClient> HavingExecutor<S> {
                     self.apply_having_condition(&mut dataset)?;
                     Ok(dataset)
                 }
-                _ => Err(crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Having executor expects DataSet input".to_string(),
-                    ),
+                _ => Err(DBError::query(
+                    "Having executor expects DataSet input".to_string(),
                 )),
             }
         } else if let Some(input) = &self.base.input {
@@ -1014,17 +1009,13 @@ impl<S: StorageClient> HavingExecutor<S> {
                     self.apply_having_condition(&mut dataset)?;
                     Ok(dataset)
                 }
-                _ => Err(crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Having executor expects DataSet input".to_string(),
-                    ),
+                _ => Err(DBError::query(
+                    "Having executor expects DataSet input".to_string(),
                 )),
             }
         } else {
-            Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Having executor requires input executor".to_string(),
-                ),
+            Err(DBError::query(
+                "Having executor requires input executor".to_string(),
             ))
         }
     }
@@ -1053,12 +1044,10 @@ impl<S: StorageClient> HavingExecutor<S> {
                     // Non-boolean values are considered false.
                 }
                 Err(e) => {
-                    return Err(crate::core::error::DBError::Expression(
-                        crate::core::error::ExpressionError::function_error(format!(
-                            "Failed to evaluate HAVING condition: {}",
-                            e
-                        )),
-                    ));
+                    return Err(DBError::query(format!(
+                        "Failed to evaluate HAVING condition: {}",
+                        e
+                    )));
                 }
             }
         }

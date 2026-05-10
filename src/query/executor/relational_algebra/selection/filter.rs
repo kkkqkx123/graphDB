@@ -208,10 +208,8 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         } else if let Some(input) = &self.base.input {
             self.filter_input(input.clone())
         } else {
-            Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Filter executor requires input".to_string(),
-                ),
+            Err(DBError::query(
+                "Filter executor requires input".to_string(),
             ))
         }
     }
@@ -321,8 +319,9 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
-                    DBError::Expression(crate::core::error::ExpressionError::function_error(
-                        format!("Failed to evaluate filter condition: {}", e),
+                    DBError::expression(format!(
+                        "Failed to evaluate filter condition: {}",
+                        e
                     ))
                 })?;
 

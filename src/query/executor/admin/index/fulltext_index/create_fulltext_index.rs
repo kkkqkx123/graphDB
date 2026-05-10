@@ -114,14 +114,14 @@ impl<S: StorageClient> Executor<S> for CreateFulltextIndexExecutor<S> {
                             self.index_name
                         );
                     } else {
-                        return Err(DBError::Search(format!(
+                        return Err(DBError::search(format!(
                             "Index already exists: {}",
                             self.index_name
                         )));
                     }
                 }
                 Err(e) => {
-                    return Err(DBError::Search(e.to_string()));
+                    return Err(DBError::search(e.to_string()));
                 }
             }
         }

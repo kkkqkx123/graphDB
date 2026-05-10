@@ -414,29 +414,51 @@ impl From<StorageError> for QueryError {
 
 impl From<DBError> for QueryError {
     fn from(e: DBError) -> Self {
-        match e {
-            DBError::Query(qe) => qe,
-            DBError::Storage(se) => QueryError::StorageError(se.into()),
-            DBError::Expression(expression) => QueryError::ExpressionError(expression.into()),
-            DBError::Plan(plan) => QueryError::ExecutionError(plan.to_string()),
-            DBError::Manager(manager) => QueryError::ExecutionError(manager.to_string()),
-            DBError::Validation(msg) => QueryError::InvalidQuery(msg),
-            DBError::Io(io) => QueryError::ExecutionError(io.to_string()),
-            DBError::TypeDeduction(msg) => QueryError::TypeError(msg),
-            DBError::Serialization(msg) => QueryError::ExecutionError(msg),
-            DBError::Index(msg) => QueryError::ExecutionError(msg),
-            DBError::Transaction(msg) => QueryError::TransactionError(msg),
-            DBError::Internal(msg) => QueryError::ExecutionError(msg),
-            DBError::Session(session) => QueryError::SessionError(session),
-            DBError::Auth(auth) => QueryError::ExecutionError(auth.to_string()),
-            DBError::Permission(permission) => QueryError::PermissionError(permission),
-            DBError::MemoryLimitExceeded(msg) => QueryError::ExecutionError(msg),
-            DBError::Fulltext(fe) => QueryError::ExecutionError(fe.to_string()),
-            DBError::Coordinator(ce) => QueryError::ExecutionError(ce.to_string()),
-            DBError::Vector(ve) => QueryError::ExecutionError(ve.to_string()),
-            DBError::VectorCoordinator(vce) => QueryError::ExecutionError(vce.to_string()),
-            DBError::Search(se) => QueryError::ExecutionError(se),
-            DBError::GraphService(gs) => QueryError::ExecutionError(gs),
+        use crate::core::error::ErrorKind;
+        match e.kind() {
+            ErrorKind::Query => {
+                if let Some(ref source) = e.source() {
+                    if let Some(qe) = source.downcast_ref::<QueryError>() {
+                        return qe.clone();
+                    }
+                }
+                QueryError::ExecutionError(e.message().to_string())
+            }
+            ErrorKind::Storage => QueryError::StorageError(StorageErrorWrapper(e.message().to_string())),
+            ErrorKind::Expression => QueryError::ExpressionError(ExpressionErrorWrapper(e.message().to_string())),
+            ErrorKind::Plan => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Manager => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Validation => QueryError::InvalidQuery(e.message().to_string()),
+            ErrorKind::Io => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::TypeDeduction => QueryError::TypeError(e.message().to_string()),
+            ErrorKind::Serialization => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Index => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Transaction => QueryError::TransactionError(e.message().to_string()),
+            ErrorKind::Internal => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Session => {
+                if let Some(ref source) = e.source() {
+                    if let Some(se) = source.downcast_ref::<SessionError>() {
+                        return QueryError::SessionError(se.clone());
+                    }
+                }
+                QueryError::ExecutionError(e.message().to_string())
+            }
+            ErrorKind::Auth => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Permission => {
+                if let Some(ref source) = e.source() {
+                    if let Some(pe) = source.downcast_ref::<PermissionError>() {
+                        return QueryError::PermissionError(pe.clone());
+                    }
+                }
+                QueryError::ExecutionError(e.message().to_string())
+            }
+            ErrorKind::MemoryLimitExceeded => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Fulltext => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Coordinator => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Vector => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::VectorCoordinator => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::Search => QueryError::ExecutionError(e.message().to_string()),
+            ErrorKind::GraphService => QueryError::ExecutionError(e.message().to_string()),
         }
     }
 }

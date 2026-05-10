@@ -58,7 +58,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
             VectorQueryType::Vector => {
                 // Parse vector literal: [0.1, 0.2, 0.3, ...]
                 self.parse_vector_literal(&query.query_data).ok_or_else(|| {
-                    DBError::Validation(format!("Invalid vector format: {}", query.query_data))
+                    DBError::validation(format!("Invalid vector format: {}", query.query_data))
                 })
             }
             VectorQueryType::Text => {
@@ -71,7 +71,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                     coordinator
                         .embed_text(text)
                         .await
-                        .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
+                        .map_err(|e| DBError::internal(format!("Text embedding failed: {}", e)))
                 })
             }
             VectorQueryType::Parameter => {
@@ -86,7 +86,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                                     if let crate::core::Value::Float(f) = v {
                                         Ok(*f)
                                     } else {
-                                        Err(DBError::Validation(format!(
+                                        Err(DBError::validation(format!(
                                             "Parameter {} contains non-float value",
                                             param_name
                                         )))
@@ -95,13 +95,13 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                                 .collect();
                             vector
                         }
-                        _ => Err(DBError::Validation(format!(
+                        _ => Err(DBError::validation(format!(
                             "Parameter {} is not a vector",
                             param_name
                         ))),
                     }
                 } else {
-                    Err(DBError::Validation(format!(
+                    Err(DBError::validation(format!(
                         "Parameter {} not found",
                         param_name
                     )))
@@ -207,7 +207,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                     }
                 }
             })
-            .map_err(|e| DBError::Internal(format!("Vector search failed: {}", e)))?;
+            .map_err(|e| DBError::internal(format!("Vector search failed: {}", e)))?;
 
         Ok(result)
     }
@@ -241,7 +241,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
                 };
                 Ok((tag, field))
             } else {
-                Err(DBError::Validation(format!(
+                Err(DBError::validation(format!(
                     "Cannot resolve tag_name and field_name from index_name: {}",
                     index_name
                 )))
@@ -417,7 +417,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                 text.split(',')
                     .map(|s| s.trim().parse::<f32>())
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| DBError::Validation(format!("Invalid vector format: {}", e)))
+                    .map_err(|e| DBError::validation(format!("Invalid vector format: {}", e)))
             }
             VectorQueryType::Text => {
                 let text = &query.query_data;
@@ -427,7 +427,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                     coordinator
                         .embed_text(text)
                         .await
-                        .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
+                        .map_err(|e| DBError::internal(format!("Text embedding failed: {}", e)))
                 })
             }
             VectorQueryType::Parameter => {
@@ -441,7 +441,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                                     if let crate::core::Value::Float(f) = v {
                                         Ok(*f)
                                     } else {
-                                        Err(DBError::Validation(format!(
+                                        Err(DBError::validation(format!(
                                             "Parameter {} contains non-float value",
                                             param_name
                                         )))
@@ -450,13 +450,13 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                                 .collect();
                             vector
                         }
-                        _ => Err(DBError::Validation(format!(
+                        _ => Err(DBError::validation(format!(
                             "Parameter {} is not a vector",
                             param_name
                         ))),
                     }
                 } else {
-                    Err(DBError::Validation(format!(
+                    Err(DBError::validation(format!(
                         "Parameter {} not found",
                         param_name
                     )))
@@ -491,7 +491,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                     .search_by_location(space_id, &tag_name, &field_name, query_vector, limit)
                     .await
             })
-            .map_err(|e| DBError::Internal(format!("Vector lookup failed: {}", e)))
+            .map_err(|e| DBError::internal(format!("Vector lookup failed: {}", e)))
     }
 
     /// Build result dataset from search results
@@ -642,7 +642,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                 text.split(',')
                     .map(|s| s.trim().parse::<f32>())
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| DBError::Validation(format!("Invalid vector format: {}", e)))
+                    .map_err(|e| DBError::validation(format!("Invalid vector format: {}", e)))
             }
             VectorQueryType::Text => {
                 let text = &query.query_data;
@@ -652,7 +652,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                     coordinator
                         .embed_text(text)
                         .await
-                        .map_err(|e| DBError::Internal(format!("Text embedding failed: {}", e)))
+                        .map_err(|e| DBError::internal(format!("Text embedding failed: {}", e)))
                 })
             }
             VectorQueryType::Parameter => {
@@ -666,7 +666,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                                     if let crate::core::Value::Float(f) = v {
                                         Ok(*f)
                                     } else {
-                                        Err(DBError::Validation(format!(
+                                        Err(DBError::validation(format!(
                                             "Parameter {} contains non-float value",
                                             param_name
                                         )))
@@ -675,13 +675,13 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                                 .collect();
                             vector
                         }
-                        _ => Err(DBError::Validation(format!(
+                        _ => Err(DBError::validation(format!(
                             "Parameter {} is not a vector",
                             param_name
                         ))),
                     }
                 } else {
-                    Err(DBError::Validation(format!(
+                    Err(DBError::validation(format!(
                         "Parameter {} not found",
                         param_name
                     )))
@@ -734,7 +734,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
                         .await
                 }
             })
-            .map_err(|e| DBError::Internal(format!("Vector match failed: {}", e)))
+            .map_err(|e| DBError::internal(format!("Vector match failed: {}", e)))
     }
 }
 

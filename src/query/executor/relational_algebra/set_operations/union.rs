@@ -77,9 +77,7 @@ impl<S: StorageClient> UnionExecutor<S> {
 impl<S: StorageClient + Send + 'static> Executor<S> for UnionExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_union().map_err(|e| {
-            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                e.to_string(),
-            ))
+            crate::core::error::DBError::query(e.to_string())
         })?;
 
         Ok(ExecutionResult::DataSet(dataset))

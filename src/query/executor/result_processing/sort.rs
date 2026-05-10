@@ -138,17 +138,13 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                     self.execute_sort(&mut data_set)?;
                     Ok(data_set)
                 }
-                _ => Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Sort executor expects DataSet input".to_string(),
-                    ),
+                _ => Err(DBError::query(
+                    "Sort executor expects DataSet input".to_string(),
                 )),
             }
         } else {
-            Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Sort executor requires input executor".to_string(),
-                ),
+            Err(DBError::query(
+                "Sort executor requires input executor".to_string(),
             ))
         }
     }
@@ -238,12 +234,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         // Check whether the memory usage exceeds the limits.
         let estimated_memory = self.estimate_memory_usage(data_set);
         if estimated_memory > self.config.memory_limit {
-            return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(format!(
-                    "Sort operation memory usage limit exceeded: {} > {}",
-                    estimated_memory, self.config.memory_limit
-                )),
-            ));
+            return Err(DBError::query(format!(
+                "Sort operation memory usage limit exceeded: {} > {}",
+                estimated_memory, self.config.memory_limit
+            )));
         }
 
         let total_size = data_set.rows.len();
@@ -278,13 +272,11 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         for sort_key in &self.sort_keys {
             if let Some(column_index) = sort_key.column_index {
                 if data_set.rows.iter().any(|row| column_index >= row.len()) {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(format!(
-                            "Column index out of range: {} (Maximum index: {})",
-                            column_index,
-                            data_set.rows[0].len() - 1
-                        )),
-                    ));
+                    return Err(DBError::query(format!(
+                        "Column index out of range: {} (Maximum index: {})",
+                        column_index,
+                        data_set.rows[0].len() - 1
+                    )));
                 }
             }
         }
@@ -323,23 +315,21 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         for sort_key in &self.sort_keys {
             if let Some(column_index) = sort_key.column_index {
                 if column_index >= a.len() || column_index >= b.len() {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(format!(
-                            "Column index out of range: {} (Maximum index: {})",
-                            column_index,
-                            a.len().min(b.len()) - 1
-                        )),
-                    ));
+                    return Err(DBError::query(format!(
+                        "Column index out of range: {} (Maximum index: {})",
+                        column_index,
+                        a.len().min(b.len()) - 1
+                    )));
                 }
 
                 let a_val = &a[column_index];
                 let b_val = &b[column_index];
 
                 let cmp = a_val.partial_cmp(b_val).ok_or_else(|| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    DBError::query(format!(
                         "Value comparison failed with type mismatch: {:?} and {:?}",
                         a_val, b_val
-                    )))
+                    ))
                 })?;
                 if cmp != Ordering::Equal {
                     return Ok(match sort_key.order {
@@ -505,13 +495,11 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 if idx < row.len() {
                     sort_values.push(row[idx].clone());
                 } else {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(format!(
-                            "Column index {} out of range, row length:{}",
-                            idx,
-                            row.len()
-                        )),
-                    ));
+                    return Err(DBError::query(format!(
+                        "Column index {} out of range, row length:{}",
+                        idx,
+                        row.len()
+                    )));
                 }
             } else {
                 // Use an expression evaluator to process other types of expressions.
@@ -525,9 +513,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 let sort_value =
                     ExpressionEvaluator::evaluate(&sort_key.expression, &mut expr_context)
                         .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
+                            DBError::query(e.to_string())
                         })?;
                 sort_values.push(sort_value);
             }

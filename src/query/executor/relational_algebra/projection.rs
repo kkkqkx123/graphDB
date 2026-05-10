@@ -267,12 +267,10 @@ impl<S: StorageClient> ProjectExecutor<S> {
             match ExpressionEvaluator::evaluate(&expr, &mut context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
-                    return Err(DBError::Expression(
-                        crate::core::error::ExpressionError::function_error(format!(
-                            "Failed to evaluate projection expression '{}': {}",
-                            column.name, e
-                        )),
-                    ));
+                    return Err(DBError::expression(format!(
+                        "Failed to evaluate projection expression '{}': {}",
+                        column.name, e
+                    )));
                 }
             }
         }

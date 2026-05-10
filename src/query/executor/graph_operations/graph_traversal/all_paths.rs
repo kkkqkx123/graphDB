@@ -229,7 +229,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         let edges = storage
             .get_node_edges("default", node_id, direction)
             .map_err(|e| {
-                DBError::Storage(crate::core::error::StorageError::DbError(e.to_string()))
+                DBError::storage(e.to_string())
             })?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {

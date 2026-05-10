@@ -6,6 +6,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::core::error::DBError;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
@@ -157,12 +158,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 
                         let result = ExpressionEvaluator::evaluate(expression, &mut context)
                             .map_err(|e| {
-                                crate::core::error::DBError::Query(
-                                    crate::core::error::QueryError::ExecutionError(format!(
-                                        "Condition evaluation failed: {}",
-                                        e
-                                    )),
-                                )
+                                crate::core::error::DBError::query(format!(
+                                    "Condition evaluation failed: {}",
+                                    e
+                                ))
                             })?;
 
                         match result {
@@ -181,12 +180,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                         let edges = storage
                             .get_node_edges(&self.space_name, id, crate::core::EdgeDirection::Both)
                             .map_err(|e| {
-                                crate::core::error::DBError::Storage(
-                                    crate::core::error::StorageError::StorageError(format!(
-                                        "Failed to retrieve associated edges: {}",
-                                        e
-                                    )),
-                                )
+                                crate::core::error::DBError::storage(format!(
+                                    "Failed to retrieve associated edges: {}",
+                                    e
+                                ))
                             })?;
                         for edge in edges {
                             storage
@@ -198,12 +195,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                                     edge.ranking,
                                 )
                                 .map_err(|e| {
-                                    crate::core::error::DBError::Storage(
-                                        crate::core::error::StorageError::StorageError(format!(
-                                            "Failed to delete the associated edge: {}",
-                                            e
-                                        )),
-                                    )
+                                    crate::core::error::DBError::storage(format!(
+                                        "Failed to delete the associated edge: {}",
+                                        e
+                                    ))
                                 })?;
                             total_deleted += 1;
                         }
@@ -236,12 +231,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 
                         let result = ExpressionEvaluator::evaluate(expression, &mut context)
                             .map_err(|e| {
-                                crate::core::error::DBError::Query(
-                                    crate::core::error::QueryError::ExecutionError(format!(
-                                        "Condition evaluation failed: {}",
-                                        e
-                                    )),
-                                )
+                                crate::core::error::DBError::query(format!(
+                                    "Condition evaluation failed: {}",
+                                    e
+                                ))
                             })?;
 
                         match result {
@@ -258,12 +251,12 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                 if should_delete {
                     let edges = storage
                         .scan_edges_by_type(&self.space_name, edge_type)
-                        .map_err(crate::core::error::DBError::Storage)?;
+                        .map_err(DBError::from)?;
                     for edge in edges {
                         if *edge.src == *src && *edge.dst == *dst {
                             storage
                                 .delete_edge(&self.space_name, src, dst, edge_type, edge.ranking)
-                                .map_err(crate::core::error::DBError::Storage)?;
+                                .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;
                         }
@@ -470,9 +463,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         let mut total_deleted = 0;
 
         let input_data = self.input_data.as_ref().ok_or_else(|| {
-            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                "PipeDeleteExecutor requires input data".to_string(),
-            ))
+            DBError::query("PipeDeleteExecutor requires input data".to_string())
         })?;
 
         let col_names = &input_data.col_names;
@@ -495,12 +486,10 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                                     crate::core::EdgeDirection::Both,
                                 )
                                 .map_err(|e| {
-                                    crate::core::error::DBError::Storage(
-                                        crate::core::error::StorageError::StorageError(format!(
-                                            "Failed to retrieve associated edges: {}",
-                                            e
-                                        )),
-                                    )
+                                    DBError::storage(format!(
+                                        "Failed to retrieve associated edges: {}",
+                                        e
+                                    ))
                                 })?;
                             for edge in edges {
                                 storage
@@ -512,14 +501,10 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                                         edge.ranking,
                                     )
                                     .map_err(|e| {
-                                        crate::core::error::DBError::Storage(
-                                            crate::core::error::StorageError::StorageError(
-                                                format!(
-                                                    "Failed to delete the associated edge: {}",
-                                                    e
-                                                ),
-                                            ),
-                                        )
+                                        DBError::storage(format!(
+                                            "Failed to delete the associated edge: {}",
+                                            e
+                                        ))
                                     })?;
                                 total_deleted += 1;
                             }
@@ -547,13 +532,13 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
 
                     let edges = storage
                         .scan_edges_by_type(&self.space_name, &edge_type)
-                        .map_err(crate::core::error::DBError::Storage)?;
+                        .map_err(DBError::from)?;
 
                     for edge in edges {
                         if *edge.src == src && *edge.dst == dst {
                             storage
                                 .delete_edge(&self.space_name, &src, &dst, &edge_type, edge.ranking)
-                                .map_err(crate::core::error::DBError::Storage)?;
+                                .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;
                         }
@@ -572,9 +557,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         row: &[Value],
     ) -> DBResult<Value> {
         let expression = expr.get_expression().ok_or_else(|| {
-            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                "Expression not found in ContextualExpression".to_string(),
-            ))
+            DBError::query("Expression not found in ContextualExpression".to_string())
         })?;
 
         let mut context = DefaultExpressionContext::new();
@@ -586,9 +569,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         }
 
         ExpressionEvaluator::evaluate(&expression, &mut context).map_err(|e| {
-            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                format!("Expression evaluation failed: {}", e),
-            ))
+            DBError::query(format!("Expression evaluation failed: {}", e))
         })
     }
 

@@ -221,10 +221,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 .context
                 .get_result(left_var)
                 .ok_or_else(|| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    DBError::query(format!(
                         "Left input variable not found: {}",
                         left_var
-                    )))
+                    ))
                 })?;
 
             let right_result = self
@@ -233,10 +233,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 .context
                 .get_result(right_var)
                 .ok_or_else(|| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    DBError::query(format!(
                         "Right input variable not found: {}",
                         right_var
-                    )))
+                    ))
                 })?;
 
             let left_dataset = match left_result {
@@ -248,9 +248,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                     rows: Vec::new(),
                 },
                 ExecutionResult::Error(msg) => {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(msg),
-                    ));
+                    return Err(DBError::query(msg));
                 }
             };
 
@@ -263,9 +261,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                     rows: Vec::new(),
                 },
                 ExecutionResult::Error(msg) => {
-                    return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(msg),
-                    ));
+                    return Err(DBError::query(msg));
                 }
             };
 

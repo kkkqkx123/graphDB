@@ -44,7 +44,7 @@ pub fn get_neighbors<S: StorageClient>(
 
     let edges = storage_guard
         .get_node_edges("default", node_id, EdgeDirection::Both)
-        .map_err(|e| DBError::Storage(StorageError::DbError(e.to_string())))?;
+        .map_err(|e| DBError::storage(e.to_string()))?;
 
     let filtered_edges: Vec<Edge> = if let Some(ref edge_types) = edge_types {
         edges
@@ -127,7 +127,7 @@ pub fn get_neighbors_with_edges<S: StorageClient>(
 
     let edges = storage_guard
         .get_node_edges("default", node_id, EdgeDirection::Both)
-        .map_err(|e| DBError::Storage(StorageError::DbError(e.to_string())))?;
+        .map_err(|e| DBError::storage(e.to_string()))?;
 
     let filtered_edges: Vec<Edge> = if let Some(ref edge_types) = edge_types {
         edges

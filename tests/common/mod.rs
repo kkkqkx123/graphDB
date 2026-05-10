@@ -27,9 +27,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Lightweight result type for test code
-///
-/// Uses `Box<DBError>` to reduce the size of the Err variant from ~160 bytes to ~8 bytes (pointer size).
-/// This avoids clippy's `result_large_err` warning while preserving full error information.
 pub type TestResult<T> = Result<T, Box<DBError>>;
 
 /// Test Storage Instance Wrapper
@@ -44,11 +41,11 @@ pub struct TestStorage {
 impl TestStorage {
     /// Creating a New Test Storage Instance
     pub fn new() -> TestResult<Self> {
-        let temp_dir = tempfile::tempdir().map_err(|e| DBError::Io(e.to_string()))?;
+        let temp_dir = tempfile::tempdir().map_err(|e| DBError::io(e.to_string()))?;
         let db_path = temp_dir.path().join("test.db");
 
         let storage = Arc::new(Mutex::new(
-            GraphStorage::new_with_path(db_path).map_err(|e| Box::new(DBError::Storage(e)))?,
+            GraphStorage::new_with_path(db_path).map_err(|e| Box::new(DBError::from(e)))?,
         ));
         Ok(Self {
             storage,
@@ -59,7 +56,7 @@ impl TestStorage {
     /// Creating a Test Storage Instance with a specific path
     pub fn new_with_path(path: PathBuf) -> TestResult<Self> {
         let storage = Arc::new(Mutex::new(
-            GraphStorage::new_with_path(path).map_err(|e| Box::new(DBError::Storage(e)))?,
+            GraphStorage::new_with_path(path).map_err(|e| Box::new(DBError::from(e)))?,
         ));
         Ok(Self {
             storage,
@@ -81,7 +78,6 @@ impl TestStorage {
 
 impl Drop for TestStorage {
     fn drop(&mut self) {
-        // Try to clean up the temporary directory and ignore the error
         let _ = std::fs::remove_dir_all(&self.temp_path);
     }
 }

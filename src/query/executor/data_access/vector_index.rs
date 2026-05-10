@@ -74,7 +74,7 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
 
         if exists {
             if !self.node.if_not_exists {
-                return Err(DBError::Validation(format!(
+                return Err(DBError::validation(format!(
                     "Vector index '{}' already exists on {}.{}",
                     self.node.index_name, self.node.tag_name, self.node.field_name
                 )));
@@ -113,7 +113,7 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
                     .create_index_with_config(space_id, &tag_name, &field_name, config)
                     .await
             })
-            .map_err(|e| DBError::Internal(format!("Failed to create vector index: {}", e)))?;
+            .map_err(|e| DBError::internal(format!("Failed to create vector index: {}", e)))?;
 
         Ok(ExecutionResult::Success)
     }
@@ -204,7 +204,7 @@ impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
 
         if index_metadata.is_none() {
             if !self.node.if_exists {
-                return Err(DBError::Validation(format!(
+                return Err(DBError::validation(format!(
                     "Vector index '{}' does not exist",
                     self.node.index_name
                 )));
@@ -225,7 +225,7 @@ impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
                     .drop_vector_index(space_id, &tag_name, &field_name)
                     .await
             })
-            .map_err(|e| DBError::Internal(format!("Failed to drop vector index: {}", e)))?;
+            .map_err(|e| DBError::internal(format!("Failed to drop vector index: {}", e)))?;
 
         Ok(ExecutionResult::Success)
     }

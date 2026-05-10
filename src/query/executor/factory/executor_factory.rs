@@ -120,10 +120,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     /// Verify the security of the plan nodes.
     fn validate_plan_node(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
         let validator = PlanValidator::new();
-        validator.validate(plan_node).map_err(|e| match e {
-            crate::core::error::DBError::Query(qe) => qe,
-            _ => QueryError::ExecutionError(e.to_string()),
-        })
+        validator.validate(plan_node).map_err(|e| QueryError::ExecutionError(e.to_string()))
     }
 
     /// Create an executor based on the planned node.

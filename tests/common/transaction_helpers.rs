@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 
 /// Convert TransactionError to DBError
 fn txn_err_to_db_err(e: TransactionError) -> graphdb::core::error::DBError {
-    graphdb::core::error::DBError::Transaction(e.to_string())
+    graphdb::core::error::DBError::transaction(e.to_string())
 }
 
 /// Transaction test context for managing test transactions
@@ -49,7 +49,7 @@ impl TransactionTestContext {
     /// Commit a transaction by name
     pub async fn commit_transaction(&mut self, name: &str) -> DBResult<()> {
         let txn_id = self.active_transactions.remove(name).ok_or_else(|| {
-            graphdb::core::error::DBError::Transaction(format!("Transaction '{}' not found", name))
+            graphdb::core::error::DBError::transaction(format!("Transaction '{}' not found", name))
         })?;
 
         let manager = self.manager.lock().await;
@@ -63,7 +63,7 @@ impl TransactionTestContext {
     /// Rollback a transaction by name
     pub async fn rollback_transaction(&mut self, name: &str) -> DBResult<()> {
         let txn_id = self.active_transactions.remove(name).ok_or_else(|| {
-            graphdb::core::error::DBError::Transaction(format!("Transaction '{}' not found", name))
+            graphdb::core::error::DBError::transaction(format!("Transaction '{}' not found", name))
         })?;
 
         let manager = self.manager.lock().await;

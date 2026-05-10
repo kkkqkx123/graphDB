@@ -136,7 +136,7 @@ impl HashTableBuilder {
                 if key_index < row.len() {
                     key_values.push(row[key_index].clone());
                 } else {
-                    return Err(DBError::Validation(format!(
+                    return Err(DBError::validation(format!(
                         "Key index {} out of bounds for row with {} columns",
                         key_index,
                         row.len()

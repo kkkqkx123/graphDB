@@ -27,25 +27,21 @@ impl RecursionDetector {
     pub fn validate_executor(&mut self, executor_id: i64, executor_name: &str) -> DBResult<()> {
         // Check the depth of access.
         if self.visited_stack.len() >= self.max_depth {
-            return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(format!(
-                    "Executor call depth exceeds the maximum limit: Depth {}, Path {:?}",
-                    self.max_depth,
-                    self.get_recursion_path()
-                )),
-            ));
+            return Err(DBError::query(format!(
+                "Executor call depth exceeds the maximum limit: Depth {}, Path {:?}",
+                self.max_depth,
+                self.get_recursion_path()
+            )));
         }
 
         // Check for circular references.
         if self.visited_set.contains(&executor_id) {
-            return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(format!(
-                    "Detected an executor circular reference: {} (ID: {}) at path {:?}",
-                    executor_name,
-                    executor_id,
-                    self.get_recursion_path()
-                )),
-            ));
+            return Err(DBError::query(format!(
+                "Detected an executor circular reference: {} (ID: {}) at path {:?}",
+                executor_name,
+                executor_id,
+                self.get_recursion_path()
+            )));
         }
 
         // Record visits
@@ -219,12 +215,10 @@ impl ExecutorSafetyValidator {
     pub fn validate_loop_config(&self, max_iterations: Option<usize>) -> DBResult<()> {
         if let Some(iterations) = max_iterations {
             if iterations > self.config.max_loop_iterations {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(format!(
-                        "The maximum number of loop iterations {} exceeds the limit of {}.",
-                        iterations, self.config.max_loop_iterations
-                    )),
-                ));
+                return Err(DBError::query(format!(
+                    "The maximum number of loop iterations {} exceeds the limit of {}.",
+                    iterations, self.config.max_loop_iterations
+                )));
             }
         }
         Ok(())
@@ -234,12 +228,10 @@ impl ExecutorSafetyValidator {
     pub fn validate_expand_config(&self, max_depth: Option<usize>) -> DBResult<()> {
         if let Some(depth) = max_depth {
             if depth > self.config.max_expand_depth {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(format!(
-                        "The maximum depth extension {} exceeds the limit of {}.",
-                        depth, self.config.max_expand_depth
-                    )),
-                ));
+                return Err(DBError::query(format!(
+                    "The maximum depth extension {} exceeds the limit of {}.",
+                    depth, self.config.max_expand_depth
+                )));
             }
         }
         Ok(())

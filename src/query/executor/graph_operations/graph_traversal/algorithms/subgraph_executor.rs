@@ -200,16 +200,14 @@ impl<S: StorageClient> SubgraphExecutor<S> {
     /// Obtaining neighbor nodes
     fn get_neighbors(&self, node_id: &Value) -> DBResult<Vec<(Value, Edge)>> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
-            DBError::Storage(crate::core::error::StorageError::DbError(
-                "Storage not set".to_string(),
-            ))
+            DBError::storage("Storage not set".to_string())
         })?;
         let storage = storage.lock();
 
         let edges = storage
             .get_node_edges("default", node_id, self.config.edge_direction)
             .map_err(|e| {
-                DBError::Storage(crate::core::error::StorageError::DbError(e.to_string()))
+                DBError::storage(e.to_string())
             })?;
 
         let filtered_edges = if let Some(ref edge_types) = self.config.edge_types {
@@ -291,9 +289,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
     /// Obtain detailed information about the vertices
     fn fetch_vertices(&mut self) -> DBResult<()> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
-            DBError::Storage(crate::core::error::StorageError::DbError(
-                "Storage not set".to_string(),
-            ))
+            DBError::storage("Storage not set".to_string())
         })?;
         let storage = storage.lock();
 
@@ -308,9 +304,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
                     self.result.vertices.insert(vid.clone(), vertex);
                 }
                 Err(e) => {
-                    return Err(DBError::Storage(crate::core::error::StorageError::DbError(
-                        e.to_string(),
-                    )));
+                    return Err(DBError::storage(e.to_string()));
                 }
             }
         }
@@ -370,9 +364,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for SubgraphExecutor<S> {
     fn execute(&mut self) -> ExecDBResult<ExecutionResult> {
         let result = self.execute_subgraph().map_err(|e| {
-            crate::core::error::DBError::Query(crate::query::QueryError::ExecutionError(
-                e.to_string(),
-            ))
+            DBError::query(e.to_string())
         })?;
 
         let paths = result.to_paths();

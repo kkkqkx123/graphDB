@@ -70,10 +70,10 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
             .context
             .get_result(self.base.left_var())
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Left input variable '{}' not found",
                     self.base.left_var()
-                )))
+                ))
             })?
             .clone();
 
@@ -83,10 +83,10 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
             .context
             .get_result(self.base.right_var())
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Right input variable '{}' not found",
                     self.base.right_var()
-                )))
+                ))
             })?
             .clone();
 
@@ -94,10 +94,8 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         let left_dataset = match left_result {
             ExecutionResult::DataSet(ds) => ds,
             _ => {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Left input must be a DataSet".to_string(),
-                    ),
+                return Err(DBError::query(
+                    "Left input must be a DataSet".to_string(),
                 ))
             }
         };
@@ -105,10 +103,8 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         let right_dataset = match right_result {
             ExecutionResult::DataSet(ds) => ds,
             _ => {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Right input must be a DataSet".to_string(),
-                    ),
+                return Err(DBError::query(
+                    "Right input must be a DataSet".to_string(),
                 ))
             }
         };
@@ -131,10 +127,10 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         // Create a hash table for the left table: Use the join key from the left table as the key, and the row index as the value.
         let left_hash_table_indices = build_hash_table(&left_dataset, self.base.hash_keys())
             .map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Failed to build left hash table: {}",
                     e
-                )))
+                ))
             })?;
 
         // Convert to a hash table with matching indicators
@@ -149,10 +145,10 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         // Construct a hash table for the right table: Use the join key from the right table as the key, and the row index as the value.
         let right_hash_table_indices = build_hash_table(&right_dataset, self.base.probe_keys())
             .map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Failed to build right hash table: {}",
                     e
-                )))
+                ))
             })?;
 
         // Convert to a hash table with matching indicators

@@ -6,6 +6,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::error::DBError;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor};
@@ -97,9 +98,7 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
         }
 
         let input = self.input_executor.as_mut().ok_or_else(|| {
-            crate::core::DBError::Query(crate::core::QueryError::ExecutionError(
-                "Lack of inputs for materialized actuators".to_string(),
-            ))
+            DBError::query("Lack of inputs for materialized actuators".to_string())
         })?;
 
         let result = input.execute()?;
@@ -112,10 +111,8 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
                 "物化数据大小({} bytes)超过内存限制({} bytes)",
                 self.current_memory_usage, self.memory_limit
             ));
-            return Err(crate::core::DBError::Query(
-                crate::core::QueryError::ExecutionError(
-                    "Physical data exceeds memory limits".to_string(),
-                ),
+            return Err(DBError::query(
+                "Physical data exceeds memory limits".to_string(),
             ));
         }
 
@@ -146,9 +143,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for MaterializeExecutor<S> {
 
         // Cloning of the materialized data
         self.materialized_data.clone().ok_or_else(|| {
-            crate::core::DBError::Query(crate::core::QueryError::ExecutionError(
-                "Physical data not available".to_string(),
-            ))
+            DBError::query("Physical data not available".to_string())
         })
     }
 

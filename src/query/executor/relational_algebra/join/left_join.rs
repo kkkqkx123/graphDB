@@ -87,10 +87,10 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         // Constructing a hash table
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
             .map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Failed to build hash table: {}",
                     e
-                )))
+                ))
             })?;
 
         // Construct a mapping from column names to indices.
@@ -168,10 +168,10 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         // Constructing a hash table
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
             .map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                DBError::query(format!(
                     "Failed to build multi-key hash table: {}",
                     e
-                )))
+                ))
             })?;
 
         // Construct a mapping from column names to indexes.

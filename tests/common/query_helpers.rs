@@ -40,9 +40,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
         #[allow(clippy::unreachable)]
         match result {
             ExecutionResult::Success | ExecutionResult::Empty => Ok(()),
-            ExecutionResult::Error(msg) => Err(Box::new(DBError::Query(
-                graphdb::core::error::QueryError::ExecutionError(msg),
-            ))),
+            ExecutionResult::Error(msg) => Err(Box::new(DBError::query(msg))),
             _ => Ok(()),
         }
     }
@@ -56,9 +54,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
             ExecutionResult::Success => Ok(1),
             ExecutionResult::Empty => Ok(0),
             ExecutionResult::DataSet(ds) => Ok(ds.row_count()),
-            ExecutionResult::Error(msg) => Err(Box::new(DBError::Query(
-                graphdb::core::error::QueryError::ExecutionError(msg),
-            ))),
+            ExecutionResult::Error(msg) => Err(Box::new(DBError::query(msg))),
             _ => Ok(0),
         }
     }
@@ -69,9 +65,7 @@ impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
         match result {
             ExecutionResult::DataSet(ds) => Ok(ds.rows),
             ExecutionResult::Empty => Ok(vec![]),
-            ExecutionResult::Error(msg) => Err(Box::new(DBError::Query(
-                graphdb::core::error::QueryError::ExecutionError(msg),
-            ))),
+            ExecutionResult::Error(msg) => Err(Box::new(DBError::query(msg))),
             _ => Ok(vec![]),
         }
     }
@@ -107,7 +101,7 @@ impl FromValue for i64 {
     fn from_value(value: &Value) -> TestResult<Self> {
         match value {
             Value::Int(i) => Ok(*i as i64),
-            _ => Err(Box::new(DBError::Validation(format!(
+            _ => Err(Box::new(DBError::validation(format!(
                 "Expected Int, got {:?}",
                 value
             )))),
@@ -119,7 +113,7 @@ impl FromValue for String {
     fn from_value(value: &Value) -> TestResult<Self> {
         match value {
             Value::String(s) => Ok(s.clone()),
-            _ => Err(Box::new(DBError::Validation(format!(
+            _ => Err(Box::new(DBError::validation(format!(
                 "Expected String, got {:?}",
                 value
             )))),
@@ -131,7 +125,7 @@ impl FromValue for f64 {
     fn from_value(value: &Value) -> TestResult<Self> {
         match value {
             Value::Float(f) => Ok(*f as f64),
-            _ => Err(Box::new(DBError::Validation(format!(
+            _ => Err(Box::new(DBError::validation(format!(
                 "Expected Float, got {:?}",
                 value
             )))),
@@ -143,7 +137,7 @@ impl FromValue for bool {
     fn from_value(value: &Value) -> TestResult<Self> {
         match value {
             Value::Bool(b) => Ok(*b),
-            _ => Err(Box::new(DBError::Validation(format!(
+            _ => Err(Box::new(DBError::validation(format!(
                 "Expected Bool, got {:?}",
                 value
             )))),

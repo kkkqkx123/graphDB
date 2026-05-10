@@ -158,12 +158,10 @@ impl<S: StorageClient> BaseResultProcessor<S> {
     pub fn check_memory_limit(&self) -> DBResult<()> {
         if let Some(limit) = self.context.memory_limit {
             if self.memory_usage > limit {
-                return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(format!(
-                        "Memory usage limit exceeded: {} > {}",
-                        self.memory_usage, limit
-                    )),
-                ));
+                return Err(DBError::query(format!(
+                    "Memory usage limit exceeded: {} > {}",
+                    self.memory_usage, limit
+                )));
             }
         }
         Ok(())

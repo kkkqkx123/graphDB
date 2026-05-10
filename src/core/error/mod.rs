@@ -2,16 +2,17 @@
 //!
 //! ## Design concepts ##
 //!
-//! 1. **Design on demand**: selection of appropriate structures based on error complexity
-//! - Core errors (e.g., expressions) use a structured design that retains the full error chain and location information
-//! - Simple errors (e.g., transactions, indexes) are designed using enumerations for simplicity and efficiency
+//! 1. **Boxed errors**: All sub-errors are boxed to keep DBError small (~24 bytes instead of ~160 bytes)
+//! 2. **Error classification**: Each error has a class for unified handling strategies
+//! 3. **Error chain**: Full error chain support with source tracking
+//! 4. **Public API**: Stable error codes for external API, hiding internal details
 //!
-//! 2. **Layered conversion**:
-//!    - Core errors use `#[from]` attribute for automatic conversion, preserving complete error information
-//! - External errors are converted to strings using custom `From` implementation, reducing module coupling
-//!
-//! 3. **Harmonized interface**: `DBResult<T>` provides harmonized return types to simplify error propagation
+//! ## Error Size Comparison ##
+//! - Old design: ~160 bytes (embedded sub-errors)
+//! - New design: ~24 bytes (boxed sub-errors)
 
+use std::error::Error;
+use std::sync::Arc;
 use thiserror::Error;
 
 // submodule
@@ -48,83 +49,429 @@ pub use vector::{VectorCoordinatorError, VectorCoordinatorResult, VectorError, V
 
 pub use crate::core::types::DataType;
 
-/// Harmonized database error types
-#[derive(Error, Debug, Clone)]
-pub enum DBError {
-    #[error("Storage error: {0}")]
-    Storage(#[from] StorageError),
+// ==================== Error Classification ====================
 
-    #[error("Query error: {0}")]
-    Query(#[from] QueryError),
-
-    #[error("Expression error: {0}")]
-    Expression(#[from] ExpressionError),
-
-    #[error("Plan node visit error: {0}")]
-    Plan(#[from] PlanNodeVisitError),
-
-    #[error("Manager error: {0}")]
-    Manager(#[from] ManagerError),
-
-    #[error("Validation error: {0}")]
-    Validation(String),
-
-    #[error("IO error: {0}")]
-    Io(String),
-
-    #[error("Type deduction error: {0}")]
-    TypeDeduction(String),
-
-    #[error("Serialization error: {0}")]
-    Serialization(String),
-
-    #[error("Index error: {0}")]
-    Index(String),
-
-    #[error("Transaction error: {0}")]
-    Transaction(String),
-
-    #[error("Graph service error: {0}")]
-    GraphService(String),
-
-    #[error("Internal error: {0}")]
-    Internal(String),
-
-    #[error("Session error: {0}")]
-    Session(#[from] SessionError),
-
-    #[error("Auth error: {0}")]
-    Auth(#[from] AuthError),
-
-    #[error("Permission error: {0}")]
-    Permission(#[from] PermissionError),
-
-    #[error("Memory limit exceeded: {0}")]
-    MemoryLimitExceeded(String),
-
-    #[error("Fulltext search error: {0}")]
-    Fulltext(#[from] FulltextError),
-
-    #[error("Coordinator error: {0}")]
-    Coordinator(#[from] CoordinatorError),
-
-    #[error("Vector search error: {0}")]
-    Vector(#[from] VectorError),
-
-    #[error("Vector coordinator error: {0}")]
-    VectorCoordinator(#[from] VectorCoordinatorError),
-
-    #[error("Search error: {0}")]
-    Search(String),
+/// Error classification for unified handling strategies
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorClass {
+    /// Transient errors that can be retried
+    Retryable,
+    /// User input errors (client should fix the request)
+    UserError,
+    /// System errors (server-side issues)
+    SystemError,
+    /// Fatal errors (service should stop)
+    Fatal,
 }
 
-/// Harmonized result types
-pub type DBResult<T> = Result<T, DBError>;
+impl ErrorClass {
+    pub fn is_retryable(&self) -> bool {
+        matches!(self, ErrorClass::Retryable)
+    }
 
-/// Type aliases for backward compatibility
-pub type GraphDBResult<T> = DBResult<T>;
+    pub fn is_user_error(&self) -> bool {
+        matches!(self, ErrorClass::UserError)
+    }
 
-// ==================== External error conversion implementation ====================
+    pub fn is_system_error(&self) -> bool {
+        matches!(self, ErrorClass::SystemError | ErrorClass::Fatal)
+    }
+}
+
+// ==================== Boxed Error Type ====================
+
+/// Thread-safe boxed error type
+pub type BoxedError = Box<dyn Error + Send + Sync>;
+
+/// Reference-counted error for cloning
+pub type SharedError = Arc<dyn Error + Send + Sync>;
+
+// ==================== Error Kind ====================
+
+/// Error kind enumeration for categorization
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ErrorKind {
+    Storage,
+    Query,
+    Expression,
+    Plan,
+    Manager,
+    Validation,
+    Io,
+    TypeDeduction,
+    Serialization,
+    Index,
+    Transaction,
+    GraphService,
+    Internal,
+    Session,
+    Auth,
+    Permission,
+    MemoryLimitExceeded,
+    Fulltext,
+    Coordinator,
+    Vector,
+    VectorCoordinator,
+    Search,
+}
+
+impl ErrorKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ErrorKind::Storage => "storage",
+            ErrorKind::Query => "query",
+            ErrorKind::Expression => "expression",
+            ErrorKind::Plan => "plan",
+            ErrorKind::Manager => "manager",
+            ErrorKind::Validation => "validation",
+            ErrorKind::Io => "io",
+            ErrorKind::TypeDeduction => "type_deduction",
+            ErrorKind::Serialization => "serialization",
+            ErrorKind::Index => "index",
+            ErrorKind::Transaction => "transaction",
+            ErrorKind::GraphService => "graph_service",
+            ErrorKind::Internal => "internal",
+            ErrorKind::Session => "session",
+            ErrorKind::Auth => "auth",
+            ErrorKind::Permission => "permission",
+            ErrorKind::MemoryLimitExceeded => "memory_limit_exceeded",
+            ErrorKind::Fulltext => "fulltext",
+            ErrorKind::Coordinator => "coordinator",
+            ErrorKind::Vector => "vector",
+            ErrorKind::VectorCoordinator => "vector_coordinator",
+            ErrorKind::Search => "search",
+        }
+    }
+}
+
+// ==================== Core DBError ====================
+
+/// Unified database error type
+///
+/// Design principles:
+/// 1. Small size: Uses boxed errors to keep enum size minimal (~24 bytes)
+/// 2. Full context: Preserves error chain and classification
+/// 3. Clone support: Can be cloned for logging/propagation
+#[derive(Error, Debug)]
+pub struct DBError {
+    kind: ErrorKind,
+    message: String,
+    #[source]
+    source: Option<BoxedError>,
+    class: ErrorClass,
+}
+
+impl DBError {
+    pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
+        let class = kind.default_class();
+        Self {
+            kind,
+            message: message.into(),
+            source: None,
+            class,
+        }
+    }
+
+    pub fn with_source(mut self, source: BoxedError) -> Self {
+        self.source = Some(source);
+        self
+    }
+
+    pub fn with_class(mut self, class: ErrorClass) -> Self {
+        self.class = class;
+        self
+    }
+
+    pub fn kind(&self) -> ErrorKind {
+        self.kind
+    }
+
+    pub fn class(&self) -> ErrorClass {
+        self.class
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    pub fn is_retryable(&self) -> bool {
+        self.class.is_retryable()
+    }
+
+    pub fn is_user_error(&self) -> bool {
+        self.class.is_user_error()
+    }
+
+    pub fn is_system_error(&self) -> bool {
+        self.class.is_system_error()
+    }
+
+    pub fn source(&self) -> &Option<BoxedError> {
+        &self.source
+    }
+
+    fn from_boxed<E: Error + Send + Sync + 'static>(kind: ErrorKind, error: E) -> Self {
+        let class = kind.default_class();
+        Self {
+            kind,
+            message: error.to_string(),
+            source: Some(Box::new(error)),
+            class,
+        }
+    }
+}
+
+impl std::fmt::Display for DBError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}] {}", self.kind.as_str(), self.message)?;
+        if let Some(ref source) = self.source {
+            write!(f, "\n  Caused by: {}", source)?;
+        }
+        Ok(())
+    }
+}
+
+impl Clone for DBError {
+    fn clone(&self) -> Self {
+        Self {
+            kind: self.kind,
+            message: self.message.clone(),
+            source: None,
+            class: self.class,
+        }
+    }
+}
+
+impl ErrorKind {
+    fn default_class(&self) -> ErrorClass {
+        match self {
+            ErrorKind::Storage => ErrorClass::SystemError,
+            ErrorKind::Query => ErrorClass::UserError,
+            ErrorKind::Expression => ErrorClass::UserError,
+            ErrorKind::Plan => ErrorClass::UserError,
+            ErrorKind::Manager => ErrorClass::SystemError,
+            ErrorKind::Validation => ErrorClass::UserError,
+            ErrorKind::Io => ErrorClass::SystemError,
+            ErrorKind::TypeDeduction => ErrorClass::UserError,
+            ErrorKind::Serialization => ErrorClass::SystemError,
+            ErrorKind::Index => ErrorClass::SystemError,
+            ErrorKind::Transaction => ErrorClass::SystemError,
+            ErrorKind::GraphService => ErrorClass::SystemError,
+            ErrorKind::Internal => ErrorClass::SystemError,
+            ErrorKind::Session => ErrorClass::UserError,
+            ErrorKind::Auth => ErrorClass::UserError,
+            ErrorKind::Permission => ErrorClass::UserError,
+            ErrorKind::MemoryLimitExceeded => ErrorClass::SystemError,
+            ErrorKind::Fulltext => ErrorClass::SystemError,
+            ErrorKind::Coordinator => ErrorClass::SystemError,
+            ErrorKind::Vector => ErrorClass::SystemError,
+            ErrorKind::VectorCoordinator => ErrorClass::SystemError,
+            ErrorKind::Search => ErrorClass::SystemError,
+        }
+    }
+}
+
+// ==================== Convenience Constructors ====================
+
+impl DBError {
+    pub fn storage(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Storage, message)
+    }
+
+    pub fn query(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Query, message)
+    }
+
+    pub fn validation(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Validation, message)
+    }
+
+    pub fn io(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Io, message)
+    }
+
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Internal, message)
+    }
+
+    pub fn transaction(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Transaction, message)
+    }
+
+    pub fn search(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Search, message)
+    }
+
+    pub fn expression(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Expression, message)
+    }
+
+    pub fn plan(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Plan, message)
+    }
+
+    pub fn manager(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Manager, message)
+    }
+
+    pub fn session(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Session, message)
+    }
+
+    pub fn auth(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Auth, message)
+    }
+
+    pub fn permission(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Permission, message)
+    }
+
+    pub fn fulltext(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Fulltext, message)
+    }
+
+    pub fn vector(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Vector, message)
+    }
+
+    pub fn index(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Index, message)
+    }
+}
+
+// ==================== From Implementations ====================
+
+impl From<StorageError> for DBError {
+    fn from(e: StorageError) -> Self {
+        let class = if e.is_retryable() {
+            ErrorClass::Retryable
+        } else {
+            ErrorClass::SystemError
+        };
+        DBError {
+            kind: ErrorKind::Storage,
+            message: e.to_string(),
+            source: Some(Box::new(e)),
+            class,
+        }
+    }
+}
+
+impl From<QueryError> for DBError {
+    fn from(e: QueryError) -> Self {
+        DBError::from_boxed(ErrorKind::Query, e)
+    }
+}
+
+impl From<ExpressionError> for DBError {
+    fn from(e: ExpressionError) -> Self {
+        DBError::from_boxed(ErrorKind::Expression, e)
+    }
+}
+
+impl From<PlanNodeVisitError> for DBError {
+    fn from(e: PlanNodeVisitError) -> Self {
+        DBError::from_boxed(ErrorKind::Plan, e)
+    }
+}
+
+impl From<ManagerError> for DBError {
+    fn from(e: ManagerError) -> Self {
+        DBError::from_boxed(ErrorKind::Manager, e)
+    }
+}
+
+impl From<SessionError> for DBError {
+    fn from(e: SessionError) -> Self {
+        DBError::from_boxed(ErrorKind::Session, e)
+    }
+}
+
+impl From<AuthError> for DBError {
+    fn from(e: AuthError) -> Self {
+        DBError::from_boxed(ErrorKind::Auth, e)
+    }
+}
+
+impl From<PermissionError> for DBError {
+    fn from(e: PermissionError) -> Self {
+        DBError::from_boxed(ErrorKind::Permission, e)
+    }
+}
+
+impl From<FulltextError> for DBError {
+    fn from(e: FulltextError) -> Self {
+        DBError::from_boxed(ErrorKind::Fulltext, e)
+    }
+}
+
+impl From<CoordinatorError> for DBError {
+    fn from(e: CoordinatorError) -> Self {
+        DBError::from_boxed(ErrorKind::Coordinator, e)
+    }
+}
+
+impl From<VectorError> for DBError {
+    fn from(e: VectorError) -> Self {
+        DBError::from_boxed(ErrorKind::Vector, e)
+    }
+}
+
+impl From<VectorCoordinatorError> for DBError {
+    fn from(e: VectorCoordinatorError) -> Self {
+        DBError::from_boxed(ErrorKind::VectorCoordinator, e)
+    }
+}
+
+impl From<serde_json::Error> for DBError {
+    fn from(err: serde_json::Error) -> Self {
+        DBError::new(ErrorKind::Serialization, err.to_string())
+    }
+}
+
+impl From<crate::query::planning::planner::PlannerError> for DBError {
+    fn from(err: crate::query::planning::planner::PlannerError) -> Self {
+        DBError::query(err.to_string())
+    }
+}
+
+impl From<crate::query::parser::lexing::LexError> for DBError {
+    fn from(err: crate::query::parser::lexing::LexError) -> Self {
+        DBError::query(err.to_string())
+    }
+}
+
+impl From<validation::SchemaValidationError> for DBError {
+    fn from(err: validation::SchemaValidationError) -> Self {
+        DBError::validation(err.to_string())
+    }
+}
+
+impl From<validation::ValidationError> for DBError {
+    fn from(err: validation::ValidationError) -> Self {
+        DBError::validation(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for DBError {
+    fn from(err: std::io::Error) -> Self {
+        DBError::io(err.to_string())
+    }
+}
+
+impl From<crate::search::error::SearchError> for DBError {
+    fn from(err: crate::search::error::SearchError) -> Self {
+        DBError::search(err.to_string())
+    }
+}
+
+impl From<crate::transaction::TransactionError> for DBError {
+    fn from(err: crate::transaction::TransactionError) -> Self {
+        DBError::transaction(err.to_string())
+    }
+}
+
+// ==================== ToPublicError Implementation ====================
 
 impl ToPublicError for DBError {
     fn to_public_error(&self) -> PublicError {
@@ -132,109 +479,112 @@ impl ToPublicError for DBError {
     }
 
     fn to_error_code(&self) -> ErrorCode {
-        match self {
-            DBError::Storage(se) => se.to_error_code(),
-            DBError::Query(qe) => qe.to_error_code(),
-            DBError::Expression(_) => ErrorCode::ExecutionError,
-            DBError::Plan(_) => ErrorCode::ExecutionError,
-            DBError::Manager(me) => me.to_error_code(),
-            DBError::Validation(_) => ErrorCode::ValidationError,
-            DBError::Io(_) => ErrorCode::InternalError,
-            DBError::TypeDeduction(_) => ErrorCode::ValidationError,
-            DBError::Serialization(_) => ErrorCode::InternalError,
-            DBError::Index(_) => ErrorCode::InternalError,
-            DBError::Transaction(_) => ErrorCode::ExecutionError,
-            DBError::GraphService(_) => ErrorCode::ExecutionError,
-            DBError::Internal(_) => ErrorCode::InternalError,
-            DBError::Session(_) => ErrorCode::Unauthorized,
-            DBError::Auth(_) => ErrorCode::Unauthorized,
-            DBError::Permission(_) => ErrorCode::PermissionDenied,
-            DBError::MemoryLimitExceeded(_) => ErrorCode::ResourceExhausted,
-            DBError::Fulltext(_) => ErrorCode::ExecutionError,
-            DBError::Coordinator(_) => ErrorCode::ExecutionError,
-            DBError::Vector(_) => ErrorCode::ExecutionError,
-            DBError::VectorCoordinator(_) => ErrorCode::ExecutionError,
-            DBError::Search(_) => ErrorCode::ExecutionError,
+        match self.kind {
+            ErrorKind::Storage => {
+                if let Some(ref source) = self.source {
+                    if let Some(se) = source.downcast_ref::<StorageError>() {
+                        return se.to_error_code();
+                    }
+                }
+                ErrorCode::InternalError
+            }
+            ErrorKind::Query => {
+                if let Some(ref source) = self.source {
+                    if let Some(qe) = source.downcast_ref::<QueryError>() {
+                        return qe.to_error_code();
+                    }
+                }
+                ErrorCode::ExecutionError
+            }
+            ErrorKind::Expression | ErrorKind::Plan => ErrorCode::ExecutionError,
+            ErrorKind::Manager => {
+                if let Some(ref source) = self.source {
+                    if let Some(me) = source.downcast_ref::<ManagerError>() {
+                        return me.to_error_code();
+                    }
+                }
+                ErrorCode::InternalError
+            }
+            ErrorKind::Validation | ErrorKind::TypeDeduction => ErrorCode::ValidationError,
+            ErrorKind::Io | ErrorKind::Serialization | ErrorKind::Index => ErrorCode::InternalError,
+            ErrorKind::Transaction | ErrorKind::GraphService => ErrorCode::ExecutionError,
+            ErrorKind::Internal => ErrorCode::InternalError,
+            ErrorKind::Session => ErrorCode::Unauthorized,
+            ErrorKind::Auth => ErrorCode::Unauthorized,
+            ErrorKind::Permission => ErrorCode::PermissionDenied,
+            ErrorKind::MemoryLimitExceeded => ErrorCode::ResourceExhausted,
+            ErrorKind::Fulltext | ErrorKind::Coordinator => ErrorCode::ExecutionError,
+            ErrorKind::Vector | ErrorKind::VectorCoordinator => ErrorCode::ExecutionError,
+            ErrorKind::Search => ErrorCode::ExecutionError,
         }
     }
 
     fn to_public_message(&self) -> String {
-        match self {
-            DBError::Internal(_) => "Internal server error".to_string(),
-            DBError::Io(_) => "IO operation failed".to_string(),
-            DBError::Serialization(_) => "Data serialization failed".to_string(),
-            DBError::Index(_) => "Index operation failed".to_string(),
-            DBError::GraphService(_) => "Graph service error".to_string(),
-            _ => self.to_string(),
+        match self.kind {
+            ErrorKind::Internal => "Internal server error".to_string(),
+            ErrorKind::Io => "IO operation failed".to_string(),
+            ErrorKind::Serialization => "Data serialization failed".to_string(),
+            ErrorKind::Index => "Index operation failed".to_string(),
+            ErrorKind::GraphService => "Graph service error".to_string(),
+            _ => self.message.clone(),
         }
     }
 }
 
-// ==================== External error conversion implementation ====================
+// ==================== Result Type Aliases ====================
 
-impl From<serde_json::Error> for DBError {
-    fn from(err: serde_json::Error) -> Self {
-        DBError::Serialization(err.to_string())
-    }
-}
+/// Harmonized result types
+pub type DBResult<T> = Result<T, DBError>;
 
-impl From<crate::query::planning::planner::PlannerError> for DBError {
-    fn from(err: crate::query::planning::planner::PlannerError) -> Self {
-        DBError::Query(QueryError::ExecutionError(err.to_string()))
-    }
-}
+/// Type aliases for backward compatibility
+pub type GraphDBResult<T> = DBResult<T>;
 
-impl From<crate::query::parser::lexing::LexError> for DBError {
-    fn from(err: crate::query::parser::lexing::LexError) -> Self {
-        DBError::Query(QueryError::parse_error(err.to_string()))
-    }
-}
-
-impl From<validation::SchemaValidationError> for DBError {
-    fn from(err: validation::SchemaValidationError) -> Self {
-        DBError::Validation(err.to_string())
-    }
-}
-
-impl From<validation::ValidationError> for DBError {
-    fn from(err: validation::ValidationError) -> Self {
-        DBError::Validation(err.to_string())
-    }
-}
-
-impl From<std::io::Error> for DBError {
-    fn from(err: std::io::Error) -> Self {
-        DBError::Io(err.to_string())
-    }
-}
-
-impl From<crate::search::error::SearchError> for DBError {
-    fn from(err: crate::search::error::SearchError) -> Self {
-        DBError::Search(err.to_string())
-    }
-}
-
-impl From<crate::transaction::TransactionError> for DBError {
-    fn from(err: crate::transaction::TransactionError) -> Self {
-        DBError::Transaction(err.to_string())
-    }
-}
+// ==================== Tests ====================
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn test_dberror_size() {
+        assert!(std::mem::size_of::<DBError>() <= 64, "DBError should be small");
+    }
+
+    #[test]
     fn test_dberror_creation() {
         let storage_err = StorageError::NodeNotFound(crate::core::Value::Int(42));
         let db_err: DBError = storage_err.into();
-        assert!(matches!(db_err, DBError::Storage(_)));
+        assert_eq!(db_err.kind(), ErrorKind::Storage);
+        assert!(!db_err.is_retryable());
     }
 
     #[test]
     fn test_error_conversion() {
         let query_err = QueryError::parse_error("test error");
         let db_err: DBError = query_err.into();
-        assert!(matches!(db_err, DBError::Query(_)));
+        assert_eq!(db_err.kind(), ErrorKind::Query);
+        assert!(db_err.is_user_error());
+    }
+
+    #[test]
+    fn test_error_class() {
+        let err = DBError::validation("test");
+        assert!(err.is_user_error());
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn test_retryable_error() {
+        let storage_err = StorageError::LockTimeout("test".to_string());
+        let db_err: DBError = storage_err.into();
+        assert!(db_err.is_retryable());
+    }
+
+    #[test]
+    fn test_error_display() {
+        let err = DBError::query("test query error");
+        let display = format!("{}", err);
+        assert!(display.contains("query"));
+        assert!(display.contains("test query error"));
     }
 }

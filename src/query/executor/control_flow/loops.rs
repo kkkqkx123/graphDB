@@ -75,10 +75,8 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
     /// Verify whether the loop executor contains any self-references.
     pub fn validate_no_self_reference(&self) -> Result<(), DBError> {
         if self.body_executor.id() == self.base.id {
-            return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Loop executors cannot be self-referential".to_string(),
-                ),
+            return Err(DBError::query(
+                "Loop executors cannot be self-referential".to_string(),
             ));
         }
         Ok(())
@@ -89,7 +87,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
             Some(expression) => {
                 let result = ExpressionEvaluator::evaluate(expression, &mut self.loop_context)
                     .map_err(|e| {
-                        DBError::Expression(crate::core::error::ExpressionError::function_error(
+                        DBError::from(crate::core::error::ExpressionError::function_error(
                             e.to_string(),
                         ))
                     })?;
@@ -560,7 +558,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
 
         let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
             .map_err(|e| {
-                DBError::Expression(crate::core::error::ExpressionError::function_error(
+                DBError::from(crate::core::error::ExpressionError::function_error(
                     e.to_string(),
                 ))
             })?;

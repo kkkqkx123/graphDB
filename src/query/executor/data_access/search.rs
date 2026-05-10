@@ -123,7 +123,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         .unwrap_or(Value::Null(NullType::Null));
                     storage
                         .lookup_index(&space_name, &self.index_name, &value)
-                        .map_err(DBError::Storage)
+                        .map_err(DBError::from)
                 } else {
                     Ok(Vec::new())
                 }
@@ -138,7 +138,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         .unwrap_or(Value::Null(NullType::Null));
                     storage
                         .lookup_index(&space_name, &self.index_name, &prefix)
-                        .map_err(DBError::Storage)
+                        .map_err(DBError::from)
                 } else {
                     Ok(Vec::new())
                 }
@@ -153,7 +153,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         // Scan edges by type
                         let edges = storage
                             .scan_edges_by_type(&space_name, &self.schema_name)
-                            .map_err(DBError::Storage)?;
+                            .map_err(DBError::from)?;
 
                         let mut results = Vec::new();
                         for edge in &edges {
@@ -211,7 +211,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     } else {
                         let vertices = storage
                             .scan_vertices_by_tag(&space_name, &self.schema_name)
-                            .map_err(DBError::Storage)?;
+                            .map_err(DBError::from)?;
 
                         let mut results = Vec::new();
                         for vertex in vertices {
@@ -365,7 +365,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         };
                         if let Some(edge) = storage
                             .get_edge(&space_name, &src, &dst, schema_name, rank)
-                            .map_err(DBError::Storage)?
+                            .map_err(DBError::from)?
                         {
                             results.push(Value::edge(edge));
                         }
@@ -375,7 +375,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 // Vertex Type
                 if let Some(vertex) = storage
                     .get_vertex(&space_name, &id)
-                    .map_err(DBError::Storage)?
+                    .map_err(DBError::from)?
                 {
                     results.push(Value::Vertex(Box::new(vertex)));
                 }

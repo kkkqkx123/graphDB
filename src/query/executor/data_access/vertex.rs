@@ -178,7 +178,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 match storage.get_vertex(&self.space_name, &ids[0]) {
                     Ok(Some(vertex)) => Ok(vec![vertex]),
                     Ok(None) => Ok(vec![]),
-                    Err(e) => Err(crate::core::error::DBError::Storage(e)),
+                    Err(e) => Err(crate::core::error::DBError::from(e)),
                 }
             }
             Some(_) => Ok(Vec::new()),

@@ -9,10 +9,10 @@ pub fn get_input_result(
     var_name: &str,
 ) -> DBResult<ExecutionResult> {
     context.get_result(var_name).ok_or_else(|| {
-        DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+        DBError::query(format!(
             "Input variable '{}' not found",
             var_name
-        )))
+        ))
     })
 }
 
@@ -32,9 +32,7 @@ pub fn execution_result_to_values(
         ExecutionResult::Empty | ExecutionResult::Success | ExecutionResult::SpaceSwitched(_) => {
             Ok(Vec::new())
         }
-        ExecutionResult::Error(msg) => Err(DBError::Query(
-            crate::core::error::QueryError::ExecutionError(msg.clone()),
-        )),
+        ExecutionResult::Error(msg) => Err(DBError::query(msg.clone())),
     }
 }
 
@@ -44,12 +42,10 @@ pub fn require_input_result(
     var_name: &str,
 ) -> DBResult<()> {
     if context.get_result(var_name).is_none() {
-        Err(DBError::Query(
-            crate::core::error::QueryError::ExecutionError(format!(
-                "Input variable '{}' not found",
-                var_name
-            )),
-        ))
+        Err(DBError::query(format!(
+            "Input variable '{}' not found",
+            var_name
+        )))
     } else {
         Ok(())
     }

@@ -136,9 +136,7 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
 
         for remove_item in &self.remove_items {
             let expression = remove_item.expression.get_expression().ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    "REMOVE expression does not exist".to_string(),
-                ))
+                DBError::query("REMOVE expression does not exist".to_string())
             })?;
 
             match &remove_item.item_type {
@@ -190,9 +188,7 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
     fn evaluate_to_vertex_id(&self, expr: &Expression) -> DBResult<Value> {
         let mut context = DefaultExpressionContext::new();
         let value = ExpressionEvaluator::evaluate(expr, &mut context).map_err(|e| {
-            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                e.to_string(),
-            ))
+            DBError::query(e.to_string())
         })?;
         Ok(value)
     }

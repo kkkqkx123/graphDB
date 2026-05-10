@@ -5,7 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::core::error::DBError;
+use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
@@ -36,14 +37,12 @@ impl<S: StorageClient> RevokeRoleExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RevokeRoleExecutor<S> {
-    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
         let space_id = storage_guard.get_space_id(&self.space_name).map_err(|e| {
-            crate::core::error::DBError::Storage(crate::core::error::StorageError::DbError(
-                format!("Failed to get space ID: {}", e),
-            ))
+            DBError::storage(format!("Failed to get space ID: {}", e))
         })?;
 
         let result = storage_guard.revoke_role(&self.username, space_id);
@@ -57,11 +56,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RevokeRoleExecuto
         }
     }
 
-    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+    fn open(&mut self) -> DBResult<()> {
         self.base.open()
     }
 
-    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+    fn close(&mut self) -> DBResult<()> {
         self.base.close()
     }
 

@@ -124,7 +124,7 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
             }
         }
 
-        Err(DBError::Validation(format!(
+        Err(DBError::validation(format!(
             "Fulltext index '{}' not found",
             index_name
         )))
@@ -418,7 +418,7 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
             }
         }
 
-        Err(DBError::Validation(format!(
+        Err(DBError::validation(format!(
             "Fulltext index '{}' not found",
             self.index_name
         )))
@@ -451,10 +451,10 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
 
             let vertex = storage_guard
                 .get_vertex("", vertex_id)
-                .map_err(DBError::Storage)?;
+                .map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {
-                let mut row = HashMap::new();
+                let mut row: HashMap<String, Value> = HashMap::new();
 
                 if let Some(yield_clause) = &self.statement.yield_clause {
                     for yield_item in &yield_clause.items {
@@ -639,10 +639,10 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
 
             let vertex = storage_guard
                 .get_vertex("", vertex_id)
-                .map_err(DBError::Storage)?;
+                .map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {
-                let mut row = HashMap::new();
+                let mut row: HashMap<String, Value> = HashMap::new();
                 row.insert("doc_id".to_string(), result.doc_id.clone());
                 row.insert("score".to_string(), Value::Double(result.score as f64));
 
