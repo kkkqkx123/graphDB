@@ -28,6 +28,35 @@ pub struct Checkpoint {
     pub redo_lsn: Lsn,
 }
 
+/// Checkpoint mode (similar to SQLite's checkpoint modes)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CheckpointMode {
+    /// Passive: checkpoint as many frames as possible without blocking writers
+    Passive,
+    /// Full: block until no writers, checkpoint all frames
+    #[default]
+    Full,
+    /// Restart: same as Full, but ensures next writer restarts log
+    Restart,
+    /// Truncate: same as Restart, but also truncates WAL file
+    Truncate,
+}
+
+/// Result of a checkpoint operation
+#[derive(Debug, Clone, Default)]
+pub struct CheckpointResult {
+    /// Number of pages checkpointed
+    pub pages_written: usize,
+    /// Number of WAL files processed
+    pub wal_files_processed: usize,
+    /// Duration of checkpoint in microseconds
+    pub duration_us: u64,
+    /// Checkpoint mode used
+    pub mode: CheckpointMode,
+    /// Whether the checkpoint was successful
+    pub success: bool,
+}
+
 /// Checkpoint manager for WAL
 pub struct CheckpointManager {
     /// WAL directory path
@@ -191,6 +220,58 @@ impl CheckpointManager {
     ) -> WalResult<Checkpoint> {
         self.dirty_pages = dirty_pages;
         self.create_checkpoint(timestamp, lsn)
+    }
+
+    /// Create a checkpoint with specified mode
+    pub fn checkpoint(
+        &mut self,
+        timestamp: Timestamp,
+        lsn: Lsn,
+        mode: CheckpointMode,
+    ) -> WalResult<CheckpointResult> {
+        let start_time = std::time::Instant::now();
+        
+        let checkpoint = match mode {
+            CheckpointMode::Passive => self.checkpoint_passive(timestamp, lsn)?,
+            CheckpointMode::Full => self.create_checkpoint(timestamp, lsn)?,
+            CheckpointMode::Restart => self.checkpoint_restart(timestamp, lsn)?,
+            CheckpointMode::Truncate => self.checkpoint_truncate(timestamp, lsn)?,
+        };
+
+        let duration_us = start_time.elapsed().as_micros() as u64;
+        
+        Ok(CheckpointResult {
+            pages_written: checkpoint.dirty_pages.len(),
+            wal_files_processed: checkpoint.wal_files.len(),
+            duration_us,
+            mode,
+            success: true,
+        })
+    }
+
+    /// Passive checkpoint: checkpoint without blocking writers
+    fn checkpoint_passive(&mut self, timestamp: Timestamp, lsn: Lsn) -> WalResult<Checkpoint> {
+        self.create_checkpoint(timestamp, lsn)
+    }
+
+    /// Restart checkpoint: full checkpoint and reset log
+    fn checkpoint_restart(&mut self, timestamp: Timestamp, lsn: Lsn) -> WalResult<Checkpoint> {
+        let checkpoint = self.create_checkpoint(timestamp, lsn)?;
+        self.dirty_pages.clear();
+        Ok(checkpoint)
+    }
+
+    /// Truncate checkpoint: full checkpoint, reset log, and truncate WAL
+    fn checkpoint_truncate(&mut self, timestamp: Timestamp, lsn: Lsn) -> WalResult<Checkpoint> {
+        let checkpoint = self.checkpoint_restart(timestamp, lsn)?;
+        
+        for wal_file in &checkpoint.wal_files {
+            if wal_file.exists() {
+                fs::remove_file(wal_file).map_err(|e| WalError::IoError(e.to_string()))?;
+            }
+        }
+        
+        Ok(checkpoint)
     }
 
     /// Get WAL files that can be deleted before current checkpoint

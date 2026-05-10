@@ -1415,14 +1415,13 @@ impl StorageClient for GraphStorage {
     fn get_storage_stats(&self) -> StorageStats {
         let graph = self.graph.read();
         
-        let total_vertices: usize = graph.vertex_label_names()
+        let total_vertices: usize = graph.vertex_tables()
             .values()
-            .map(|&label_id| graph.vertex_count(label_id))
+            .map(|table| table.total_count())
             .sum();
 
         let total_edges: usize = graph.edge_tables()
-            .values()
-            .map(|table| table.edge_count() as usize)
+            .map(|(_, table)| table.edge_count() as usize)
             .sum();
 
         let spaces = self.schema_manager.list_spaces().unwrap_or_default();

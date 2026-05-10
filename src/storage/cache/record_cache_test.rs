@@ -153,7 +153,7 @@ fn test_cache_config_with_ttl() {
 
     let config = RecordCacheConfig {
         max_memory: 1024 * 1024,
-        memory_ratio: (40, 0, 40, 20),
+        memory_ratio: (50, 30, 20),
         ttl: Some(Duration::from_secs(60)),
         tti: Some(Duration::from_secs(30)),
         high_priority_ratio: 0.0,
@@ -224,7 +224,7 @@ fn test_fine_grained_stats() {
 fn test_high_priority_pool() {
     let config = RecordCacheConfig {
         max_memory: 1024 * 1024,
-        memory_ratio: (40, 0, 40, 20),
+        memory_ratio: (50, 30, 20),
         high_priority_ratio: 0.1,
         ..Default::default()
     };

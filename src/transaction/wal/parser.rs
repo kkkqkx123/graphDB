@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use super::types::{
     Lsn, RecordType, Timestamp, UpdateWalUnit, WalCompression, WalContentUnit, WalError,
-    WalFileHeader, WalHeader, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
+    WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
     WAL_HEADER_SIZE,
 };
 
@@ -37,6 +37,8 @@ pub struct RecoveryResult {
     pub insert_wal_list: Vec<WalContentUnit>,
     /// Update WAL entries sorted by timestamp
     pub update_wal_list: Vec<UpdateWalUnit>,
+    /// Full page write entries for torn page recovery
+    pub full_page_writes: Vec<FullPageWriteEntry>,
     /// Last seen timestamp
     pub last_timestamp: Timestamp,
     /// Last seen LSN
@@ -47,6 +49,39 @@ pub struct RecoveryResult {
     pub skipped_count: usize,
     /// All parsed entries with LSN info
     pub all_entries: Vec<ParsedWalEntry>,
+}
+
+/// Full page write entry for torn page recovery
+#[derive(Debug, Clone)]
+pub struct FullPageWriteEntry {
+    /// Page ID being written
+    pub page_id: super::types::PageId,
+    /// LSN of the page before modification
+    pub page_lsn: Lsn,
+    /// LSN of this full page write record
+    pub record_lsn: Lsn,
+    /// Page data
+    pub page_data: Vec<u8>,
+    /// Timestamp of the write
+    pub timestamp: Timestamp,
+}
+
+impl FullPageWriteEntry {
+    pub fn new(
+        page_id: super::types::PageId,
+        page_lsn: Lsn,
+        record_lsn: Lsn,
+        page_data: Vec<u8>,
+        timestamp: Timestamp,
+    ) -> Self {
+        Self {
+            page_id,
+            page_lsn,
+            record_lsn,
+            page_data,
+            timestamp,
+        }
+    }
 }
 
 /// Parallel WAL parser for faster recovery
@@ -307,7 +342,7 @@ impl ParallelWalParser {
 
                 result.all_entries.push(ParsedWalEntry {
                     header,
-                    payload: final_payload,
+                    payload: final_payload.clone(),
                     checksum_valid: true,
                     offset,
                     lsn: entry_lsn,
@@ -315,7 +350,23 @@ impl ParallelWalParser {
                     file_start_lsn,
                 });
 
-                if header.is_update {
+                let op_type = match WalOpType::try_from(header.op_type) {
+                    Ok(t) => t,
+                    Err(_) => {
+                        result.corrupted_count += 1;
+                        offset = payload_end;
+                        continue;
+                    }
+                };
+
+                if op_type == WalOpType::FullPageWrite {
+                    if let Some(fpw_entry) = Self::parse_full_page_write(
+                        &final_payload,
+                        header.timestamp,
+                    ) {
+                        result.full_page_writes.push(fpw_entry);
+                    }
+                } else if header.is_update {
                     result
                         .update_wal_list
                         .push(UpdateWalUnit::new(header.timestamp, content.data));
@@ -414,6 +465,32 @@ impl ParallelWalParser {
             }
             WalCompression::None => Ok(payload.to_vec()),
         }
+    }
+
+    /// Parse a full page write entry from payload
+    fn parse_full_page_write(payload: &[u8], timestamp: Timestamp) -> Option<FullPageWriteEntry> {
+        use super::types::FullPageWriteHeader;
+
+        if payload.len() < 8 {
+            return None;
+        }
+
+        let header = FullPageWriteHeader::deserialize(payload)?;
+        let page_data_offset = std::mem::size_of::<u64>() * 4 + 6;
+        
+        if payload.len() < page_data_offset + header.page_size as usize {
+            return None;
+        }
+
+        let page_data = payload[page_data_offset..page_data_offset + header.page_size as usize].to_vec();
+
+        Some(FullPageWriteEntry::new(
+            header.page_id,
+            header.page_lsn,
+            header.record_lsn,
+            page_data,
+            timestamp,
+        ))
     }
 
     /// Merge multiple recovery results into one

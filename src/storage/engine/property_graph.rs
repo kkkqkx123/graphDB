@@ -10,46 +10,39 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::cache::{
-    RecordCacheStats, SharedRecordCache,
-};
+use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{
-    EdgeId, EdgeRecord, EdgeStrategy, EdgeTable,
-    PropertyDef as EdgePropertyDef,
+    EdgeId, EdgeRecord, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef,
 };
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
-use crate::storage::persistence::{
-    DirtyPageTracker, FlushManager, PageId,
-    TableType as PersistenceTableType,
-};
 use crate::storage::vertex::vertex_table::VertexIterator;
 use crate::storage::vertex::{
-    LabelId, PropertyDef as VertexPropertyDef,
-    VertexRecord, VertexTable,
+    LabelId, PropertyDef as VertexPropertyDef, VertexRecord, VertexTable,
 };
-use crate::transaction::insert_transaction::{
-    InsertTarget, InsertTransactionResult,
-};
+use crate::transaction::insert_transaction::{InsertTarget, InsertTransactionResult};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 use crate::transaction::wal::types::{
     ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
 use crate::transaction::wal::writer::WalWriter;
+use crate::transaction::wal::{DirtyPageId, DirtyPageTracker};
 
 use super::cache::CacheManager;
 use super::config::PropertyGraphConfig;
 use super::edge::EdgeOps;
-use super::flush::FlushManagerWrapper;
-use super::persistence::PersistenceOps;
 use super::query::QueryOps;
 use super::schema::SchemaOps;
 use super::transaction::TransactionOps;
+use super::wal_manager::WalManager;
+
+const DATA_FORMAT_VERSION: u32 = 1;
 
 pub struct PropertyGraph {
     schema_ops: SchemaOps,
     edge_ops: EdgeOps,
     cache_manager: CacheManager,
-    flush_manager: FlushManagerWrapper,
+    wal_manager: WalManager,
+    dirty_tracker: Arc<DirtyPageTracker>,
     config: PropertyGraphConfig,
     is_open: bool,
 }
@@ -89,38 +82,45 @@ impl PropertyGraph {
             memory_tracker.clone(),
         );
 
-        let flush_manager = FlushManagerWrapper::new(
-            config.enable_incremental_flush,
-            config.flush_threshold,
-            config.flush_interval_secs,
-            config.compression,
-            config.work_dir.clone(),
-        );
+        let dirty_tracker = Arc::new(DirtyPageTracker::default());
 
         Self {
             schema_ops: SchemaOps::new(),
             edge_ops: EdgeOps::new(),
             cache_manager,
-            flush_manager,
+            wal_manager: WalManager::new(),
+            dirty_tracker,
             config,
             is_open: true,
         }
     }
 
     pub fn with_wal(mut self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) -> Self {
-        self.flush_manager.set_wal_writer(wal_writer);
+        self.wal_manager.set_wal_writer(wal_writer);
         self
     }
 
     pub fn set_wal_writer(&mut self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) {
-        self.flush_manager.set_wal_writer(wal_writer);
+        self.wal_manager.set_wal_writer(wal_writer);
     }
 
     pub fn wal_enabled(&self) -> bool {
-        self.flush_manager.wal_enabled()
+        self.wal_manager.is_enabled()
     }
 
-    pub fn record_cache(&self) -> Option<&SharedRecordCache> {
+    pub fn dirty_tracker(&self) -> &Arc<DirtyPageTracker> {
+        &self.dirty_tracker
+    }
+
+    pub fn should_flush(&self) -> bool {
+        self.dirty_tracker.should_flush()
+    }
+
+    pub fn get_dirty_page_count(&self) -> usize {
+        self.dirty_tracker.get_dirty_page_count()
+    }
+
+    pub fn record_cache(&self) -> Option<&crate::storage::cache::SharedRecordCache> {
         self.cache_manager.record_cache()
     }
 
@@ -138,79 +138,6 @@ impl PropertyGraph {
 
     pub fn clear_cache(&self) {
         self.cache_manager.clear_cache();
-    }
-
-    pub fn dirty_tracker(&self) -> Option<&Arc<DirtyPageTracker>> {
-        self.flush_manager.dirty_tracker()
-    }
-
-    pub fn flush_manager(&self) -> Option<&Arc<FlushManager>> {
-        self.flush_manager.flush_manager()
-    }
-
-    pub fn get_dirty_page_count(&self) -> usize {
-        self.flush_manager.get_dirty_page_count()
-    }
-
-    pub fn should_flush(&self) -> bool {
-        self.flush_manager.should_flush()
-    }
-
-    pub fn flush_dirty_pages(&self) -> StorageResult<Vec<PageId>> {
-        let pages = self.flush_manager.flush_dirty_pages()?;
-        if !pages.is_empty() {
-            self.flush_pages(&pages)?;
-        }
-        Ok(pages)
-    }
-
-    fn flush_pages(&self, pages: &[PageId]) -> StorageResult<()> {
-        use std::fs;
-
-        let data_dir = self.config.work_dir.join("data");
-        fs::create_dir_all(&data_dir).map_err(|e| StorageError::IOError(e.to_string()))?;
-
-        for page_id in pages {
-            match page_id.table_type {
-                PersistenceTableType::Vertex => {
-                    let vertex_dir = data_dir.join("vertices");
-                    fs::create_dir_all(&vertex_dir)
-                        .map_err(|e| StorageError::IOError(e.to_string()))?;
-
-                    let table_dir = vertex_dir.join(format!("label_{}", page_id.label_id));
-                    if let Some(table) = self.schema_ops.vertex_tables.get(&page_id.label_id) {
-                        table.flush(&table_dir)?;
-                    }
-                }
-                PersistenceTableType::Edge => {
-                    let edge_dir = data_dir.join("edges");
-                    fs::create_dir_all(&edge_dir)
-                        .map_err(|e| StorageError::IOError(e.to_string()))?;
-
-                    let src_label = (page_id.block_number >> 32) as LabelId;
-                    let dst_label = page_id.block_number as LabelId;
-                    let key = (src_label, dst_label, page_id.label_id);
-                    let table_dir =
-                        edge_dir.join(format!("{}_{}_{}", src_label, dst_label, page_id.label_id));
-                    if let Some(table) = self.edge_ops.edge_tables.get(&key) {
-                        table.flush(&table_dir)?;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        self.flush_manager.sync_wal()?;
-
-        Ok(())
-    }
-
-    pub fn start_background_flush(&self) -> StorageResult<()> {
-        self.flush_manager.start_background_flush()
-    }
-
-    pub fn stop_background_flush(&self) {
-        self.flush_manager.stop_background_flush();
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {
@@ -242,9 +169,7 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        let label_id = self.schema_ops.create_vertex_type(name, properties, primary_key)?;
-        self.mark_vertex_dirty(label_id);
-        Ok(label_id)
+        self.schema_ops.create_vertex_type(name, properties, primary_key)
     }
 
     pub fn create_edge_type(
@@ -259,7 +184,7 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        let label_id = self.edge_ops.create_edge_type(
+        self.edge_ops.create_edge_type(
             name,
             src_label,
             dst_label,
@@ -267,9 +192,7 @@ impl PropertyGraph {
             oe_strategy,
             ie_strategy,
             &self.schema_ops.vertex_tables,
-        )?;
-        self.mark_edge_dirty(src_label, dst_label, label_id);
-        Ok(label_id)
+        )
     }
 
     pub fn drop_vertex_type(&mut self, name: &str) -> StorageResult<()> {
@@ -304,11 +227,7 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        let result = self
-            .schema_ops
-            .insert_vertex(label, external_id, properties, ts)?;
-        self.mark_vertex_dirty(label);
-        Ok(result)
+        self.schema_ops.insert_vertex(label, external_id, properties, ts)
     }
 
     pub fn get_vertex(
@@ -388,9 +307,7 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        self.schema_ops.delete_vertex(label, external_id, ts)?;
-        self.mark_vertex_dirty(label);
-        Ok(())
+        self.schema_ops.delete_vertex(label, external_id, ts)
     }
 
     pub fn update_vertex_property(
@@ -404,15 +321,8 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        self.schema_ops.update_vertex_property(
-            label,
-            external_id,
-            property_name,
-            value,
-            ts,
-        )?;
-        self.mark_vertex_dirty(label);
-        Ok(())
+        self.schema_ops
+            .update_vertex_property(label, external_id, property_name, value, ts)
     }
 
     pub fn insert_edge(
@@ -428,7 +338,7 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        let edge_id = self.edge_ops.insert_edge(
+        self.edge_ops.insert_edge(
             edge_label,
             src_label,
             src_id,
@@ -437,9 +347,7 @@ impl PropertyGraph {
             properties,
             ts,
             &self.schema_ops.vertex_tables,
-        )?;
-        self.mark_edge_dirty(src_label, dst_label, edge_label);
-        Ok(edge_id)
+        )
     }
 
     pub fn get_edge(
@@ -477,7 +385,7 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        let deleted = self.edge_ops.delete_edge(
+        self.edge_ops.delete_edge(
             edge_label,
             src_label,
             src_id,
@@ -485,11 +393,7 @@ impl PropertyGraph {
             dst_id,
             ts,
             &self.schema_ops.vertex_tables,
-        )?;
-        if deleted {
-            self.mark_edge_dirty(src_label, dst_label, edge_label);
-        }
-        Ok(deleted)
+        )
     }
 
     pub fn update_edge_property(
@@ -506,7 +410,7 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::StorageNotOpen);
         }
-        let updated = self.edge_ops.update_edge_property(
+        self.edge_ops.update_edge_property(
             edge_label,
             src_label,
             src_id,
@@ -516,11 +420,7 @@ impl PropertyGraph {
             value,
             ts,
             &self.schema_ops.vertex_tables,
-        )?;
-        if updated {
-            self.mark_edge_dirty(src_label, dst_label, edge_label);
-        }
-        Ok(updated)
+        )
     }
 
     pub fn out_edges(
@@ -624,22 +524,64 @@ impl PropertyGraph {
         self.schema_ops.vertex_tables()
     }
 
+    // ==================== Persistence Operations ====================
+
     pub fn flush(&self) -> StorageResult<()> {
-        PersistenceOps::flush(
-            &self.schema_ops.vertex_tables,
-            &self.edge_ops.edge_tables,
-            &self.config.work_dir,
-            &self.flush_manager,
-        )
+        use std::fs;
+        use std::io::Write;
+
+        let data_dir = self.config.work_dir.join("data");
+        fs::create_dir_all(&data_dir)?;
+
+        let version_file = data_dir.join("version");
+        let mut file = fs::File::create(&version_file)
+            .map_err(|e| StorageError::IOError(format!("Failed to create version file: {}", e)))?;
+        writeln!(file, "{}", DATA_FORMAT_VERSION)
+            .map_err(|e| StorageError::IOError(format!("Failed to write version file: {}", e)))?;
+
+        let vertex_dir = data_dir.join("vertices");
+        fs::create_dir_all(&vertex_dir)?;
+
+        for (label_id, table) in &self.schema_ops.vertex_tables {
+            let table_dir = vertex_dir.join(format!("label_{}", label_id));
+            table.flush(&table_dir)?;
+        }
+
+        let edge_dir = data_dir.join("edges");
+        fs::create_dir_all(&edge_dir)?;
+
+        for ((src_label, dst_label, edge_label), table) in &self.edge_ops.edge_tables {
+            let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
+            table.flush(&table_dir)?;
+        }
+
+        self.wal_manager.sync()?;
+
+        Ok(())
     }
 
     pub fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
-        PersistenceOps::flush_tables_to_dir(
-            &self.schema_ops.vertex_tables,
-            &self.edge_ops.edge_tables,
-            data_dir,
-            &self.flush_manager,
-        )
+        use std::fs;
+
+        let vertex_dir = data_dir.join("vertices");
+        fs::create_dir_all(&vertex_dir)?;
+
+        for (label_id, table) in &self.schema_ops.vertex_tables {
+            let table_dir = vertex_dir.join(format!("label_{}", label_id));
+            table.flush(&table_dir)?;
+        }
+
+        let edge_dir = data_dir.join("edges");
+        fs::create_dir_all(&edge_dir)?;
+
+        for ((src_label, dst_label, edge_label), table) in &self.edge_ops.edge_tables {
+            let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
+            table.flush(&table_dir)?;
+        }
+
+        self.wal_manager.sync()?;
+
+        Ok(())
     }
 
     pub fn load(&mut self) -> StorageResult<()> {
@@ -647,28 +589,134 @@ impl PropertyGraph {
     }
 
     fn load_data(&mut self) -> StorageResult<()> {
-        PersistenceOps::load(
-            &mut self.schema_ops.vertex_tables,
-            &mut self.edge_ops.edge_tables,
-            &self.config.work_dir,
-        )
+        use std::fs;
+        use std::io::Read;
+
+        let data_dir = self.config.work_dir.join("data");
+
+        let version_file = data_dir.join("version");
+        if version_file.exists() {
+            let mut file = fs::File::open(&version_file)
+                .map_err(|e| StorageError::IOError(format!("Failed to open version file: {}", e)))?;
+            let mut content = String::new();
+            file.read_to_string(&mut content)
+                .map_err(|e| StorageError::IOError(format!("Failed to read version file: {}", e)))?;
+            let version: u32 = content.trim().parse().map_err(|e| {
+                StorageError::DeserializeError(format!("Invalid version format: {}", e))
+            })?;
+            if version > DATA_FORMAT_VERSION {
+                return Err(StorageError::DeserializeError(format!(
+                    "Data format version {} is newer than supported version {}",
+                    version, DATA_FORMAT_VERSION
+                )));
+            }
+        }
+
+        let vertex_dir = data_dir.join("vertices");
+        if vertex_dir.exists() {
+            for entry in fs::read_dir(&vertex_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            if let Some(label_str) = name_str.strip_prefix("label_") {
+                                if let Ok(label_id) = label_str.parse::<LabelId>() {
+                                    if let Some(table) = self.schema_ops.vertex_tables.get_mut(&label_id) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let edge_dir = data_dir.join("edges");
+        if edge_dir.exists() {
+            for entry in fs::read_dir(&edge_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            let parts: Vec<&str> = name_str.splitn(3, '_').collect();
+                            if parts.len() == 3 {
+                                if let (Ok(src_label), Ok(dst_label), Ok(edge_label)) = (
+                                    parts[0].parse::<LabelId>(),
+                                    parts[1].parse::<LabelId>(),
+                                    parts[2].parse::<LabelId>(),
+                                ) {
+                                    let key = (src_label, dst_label, edge_label);
+                                    if let Some(table) = self.edge_ops.edge_tables.get_mut(&key) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn restore_from_checkpoint(&mut self, checkpoint_dir: &Path) -> StorageResult<()> {
-        PersistenceOps::restore_from_checkpoint(
-            &mut self.schema_ops.vertex_tables,
-            &mut self.edge_ops.edge_tables,
-            checkpoint_dir,
-        )
-    }
+        use std::fs;
 
-    fn mark_vertex_dirty(&self, label_id: LabelId) {
-        self.flush_manager.mark_vertex_dirty(label_id);
-    }
+        let data_dir = checkpoint_dir.join("data");
 
-    fn mark_edge_dirty(&self, src_label: LabelId, dst_label: LabelId, edge_label: LabelId) {
-        self.flush_manager
-            .mark_edge_dirty(src_label, dst_label, edge_label);
+        let vertex_dir = data_dir.join("vertices");
+        if vertex_dir.exists() {
+            for entry in fs::read_dir(&vertex_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            if let Some(label_str) = name_str.strip_prefix("label_") {
+                                if let Ok(label_id) = label_str.parse::<LabelId>() {
+                                    if let Some(table) = self.schema_ops.vertex_tables.get_mut(&label_id) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let edge_dir = data_dir.join("edges");
+        if edge_dir.exists() {
+            for entry in fs::read_dir(&edge_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(dir_name) = path.file_name() {
+                        if let Some(name_str) = dir_name.to_str() {
+                            let parts: Vec<&str> = name_str.splitn(3, '_').collect();
+                            if parts.len() == 3 {
+                                if let (Ok(src_label), Ok(dst_label), Ok(edge_label)) = (
+                                    parts[0].parse::<LabelId>(),
+                                    parts[1].parse::<LabelId>(),
+                                    parts[2].parse::<LabelId>(),
+                                ) {
+                                    let key = (src_label, dst_label, edge_label);
+                                    if let Some(table) = self.edge_ops.edge_tables.get_mut(&key) {
+                                        table.load(&path)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -680,7 +728,12 @@ impl InsertTarget for PropertyGraph {
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<TxnVertexId> {
-        TransactionOps::add_vertex(&mut self.schema_ops, label, oid, properties, ts)
+        let result = TransactionOps::add_vertex(&mut self.schema_ops, label, oid, properties, ts)?;
+        
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        self.dirty_tracker.mark_modified_since_checkpoint(DirtyPageId::vertex(label, 0));
+        
+        Ok(result)
     }
 
     fn add_edge(
@@ -693,7 +746,7 @@ impl InsertTarget for PropertyGraph {
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<EdgeId> {
-        TransactionOps::add_edge(
+        let result = TransactionOps::add_edge(
             &mut self.edge_ops,
             &self.schema_ops,
             src_label,
@@ -703,19 +756,21 @@ impl InsertTarget for PropertyGraph {
             edge_label,
             properties,
             ts,
-        )
+        )?;
+        
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        self.dirty_tracker.mark_modified_since_checkpoint(DirtyPageId::edge(edge_label, 0));
+        
+        Ok(result)
     }
 
     fn get_vertex_id(&self, label: TxnLabelId, oid: &[u8], ts: Timestamp) -> Option<TxnVertexId> {
-        TransactionOps::get_vertex_id(&self.schema_ops, label, oid, ts)
+        let oid_str = String::from_utf8_lossy(oid).to_string();
+        self.get_vertex(label, &oid_str, ts)
+            .map(|v| v.internal_id as TxnVertexId)
     }
 
-    fn get_vertex_oid(
-        &self,
-        label: TxnLabelId,
-        vid: TxnVertexId,
-        ts: Timestamp,
-    ) -> Option<Vec<u8>> {
+    fn get_vertex_oid(&self, label: TxnLabelId, vid: TxnVertexId, ts: Timestamp) -> Option<Vec<u8>> {
         TransactionOps::get_vertex_oid(&self.schema_ops, label, vid, ts)
     }
 
@@ -793,17 +848,10 @@ impl UndoTarget for PropertyGraph {
         label: TxnLabelId,
         vid: TxnVertexId,
         col_id: ColumnId,
-        old_value: PropertyValue,
+        value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        TransactionOps::update_vertex_property_undo(
-            &mut self.schema_ops,
-            label,
-            vid,
-            col_id,
-            old_value,
-            ts,
-        )
+        TransactionOps::update_vertex_property_undo(&mut self.schema_ops, label, vid, col_id, value, ts)
     }
 
     fn undo_update_edge_property(
@@ -816,7 +864,7 @@ impl UndoTarget for PropertyGraph {
         oe_offset: i32,
         ie_offset: i32,
         col_id: ColumnId,
-        old_value: PropertyValue,
+        value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         TransactionOps::update_edge_property_undo(
@@ -829,7 +877,7 @@ impl UndoTarget for PropertyGraph {
             oe_offset,
             ie_offset,
             col_id,
-            old_value,
+            value,
             ts,
         )
     }
@@ -840,7 +888,17 @@ impl UndoTarget for PropertyGraph {
         vid: TxnVertexId,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        TransactionOps::delete_vertex(&mut self.schema_ops, label, vid, ts)
+        TransactionOps::revert_delete_edge(
+            &mut self.edge_ops,
+            label,
+            vid,
+            label,
+            vid,
+            label,
+            0,
+            0,
+            ts,
+        )
     }
 
     fn revert_delete_edge(
@@ -872,11 +930,7 @@ impl UndoTarget for PropertyGraph {
         label_name: &str,
         prop_names: &[String],
     ) -> UndoLogResult<()> {
-        TransactionOps::revert_delete_vertex_properties(
-            &mut self.schema_ops,
-            label_name,
-            prop_names,
-        )
+        TransactionOps::revert_delete_vertex_properties(&mut self.schema_ops, label_name, prop_names)
     }
 
     fn revert_delete_edge_properties(
@@ -898,11 +952,7 @@ impl UndoTarget for PropertyGraph {
 
     fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()> {
         let label = self.schema_ops.vertex_label_counter;
-        TransactionOps::create_vertex_type_undo(
-            &mut self.schema_ops,
-            label_name,
-            label,
-        )
+        TransactionOps::create_vertex_type_undo(&mut self.schema_ops, label_name, label)
     }
 
     fn revert_delete_edge_label(

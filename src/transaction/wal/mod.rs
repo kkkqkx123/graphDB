@@ -45,14 +45,16 @@
 //! ```
 
 pub mod checkpoint;
+pub mod dirty_tracker;
 pub mod parser;
 pub mod types;
 pub mod writer;
 
-pub use checkpoint::{Checkpoint, CheckpointManager};
+pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointResult};
+pub use dirty_tracker::{DirtyPageId, DirtyPageTracker, DirtyTrackerConfig, TableType};
 pub use parser::{
-    LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult, WalEntry, WalEntryIter,
-    WalParser, WalParserFactory,
+    FullPageWriteEntry, LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
+    WalEntry, WalEntryIter, WalParser, WalParserFactory,
 };
 pub use types::{
     align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ArchiveMode, ColumnId,

@@ -21,7 +21,7 @@ impl Default for PropertyGraphConfig {
             initial_edge_capacity: 4096,
             work_dir: PathBuf::from("./data"),
             enable_cache: true,
-            cache_memory: 256 * 1024 * 1024,
+            cache_memory: 128 * 1024 * 1024,
             memory_config: MemoryConfig::default(),
         }
     }

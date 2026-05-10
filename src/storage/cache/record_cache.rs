@@ -139,11 +139,11 @@ impl RecordCache {
     fn calculate_memory_allocation(config: &RecordCacheConfig) -> CacheMemoryAllocation {
         let max_memory = config.max_memory as u64;
         let total_ratio =
-            config.memory_ratio.0 + config.memory_ratio.1 + config.memory_ratio.2 + config.memory_ratio.3;
+            config.memory_ratio.0 + config.memory_ratio.1 + config.memory_ratio.2;
 
         let base_vertex_memory = max_memory * config.memory_ratio.0 as u64 / total_ratio as u64;
-        let base_edge_query_memory = max_memory * config.memory_ratio.2 as u64 / total_ratio as u64;
-        let base_id_index_memory = max_memory * config.memory_ratio.3 as u64 / total_ratio as u64;
+        let base_edge_query_memory = max_memory * config.memory_ratio.1 as u64 / total_ratio as u64;
+        let base_id_index_memory = max_memory * config.memory_ratio.2 as u64 / total_ratio as u64;
 
         let high_priority_extra = if config.high_priority_ratio > 0.0 {
             (max_memory as f64 * config.high_priority_ratio as f64) as u64

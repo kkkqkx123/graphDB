@@ -554,7 +554,6 @@ impl EdgeStorage {
             let graph = self.graph.read();
             graph
                 .edge_tables()
-                .iter()
                 .map(|(key, table)| (*key, table.label(), table.label_name().to_string()))
                 .collect()
         };

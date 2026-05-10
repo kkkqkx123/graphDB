@@ -773,6 +773,26 @@ pub struct WalStats {
     pub total_bytes_written: u64,
     /// Total entries written
     pub total_entries_written: u64,
+    /// Total checkpoints performed
+    pub total_checkpoints: u64,
+    /// Last checkpoint duration in microseconds
+    pub last_checkpoint_duration_us: u64,
+    /// Total full page writes
+    pub total_full_page_writes: u64,
+    /// Total sync operations
+    pub total_syncs: u64,
+    /// Total write latency in microseconds
+    pub total_write_latency_us: u64,
+    /// Number of write operations (for average calculation)
+    pub write_ops: u64,
+    /// Peak dirty page count
+    pub peak_dirty_pages: usize,
+    /// Current dirty page count
+    pub current_dirty_pages: usize,
+    /// Total bytes compressed
+    pub total_bytes_compressed: u64,
+    /// Total bytes after compression
+    pub total_bytes_after_compression: u64,
 }
 
 impl WalStats {
@@ -801,6 +821,53 @@ impl WalStats {
     pub fn record_write(&mut self, bytes: u64) {
         self.total_bytes_written += bytes;
         self.total_entries_written += 1;
+    }
+
+    pub fn record_write_with_latency(&mut self, bytes: u64, latency_us: u64) {
+        self.record_write(bytes);
+        self.total_write_latency_us += latency_us;
+        self.write_ops += 1;
+    }
+
+    pub fn record_checkpoint(&mut self, duration_us: u64) {
+        self.total_checkpoints += 1;
+        self.last_checkpoint_duration_us = duration_us;
+    }
+
+    pub fn record_full_page_write(&mut self) {
+        self.total_full_page_writes += 1;
+    }
+
+    pub fn record_sync(&mut self) {
+        self.total_syncs += 1;
+    }
+
+    pub fn update_dirty_pages(&mut self, count: usize) {
+        self.current_dirty_pages = count;
+        if count > self.peak_dirty_pages {
+            self.peak_dirty_pages = count;
+        }
+    }
+
+    pub fn record_compression(&mut self, original: u64, compressed: u64) {
+        self.total_bytes_compressed += original;
+        self.total_bytes_after_compression += compressed;
+    }
+
+    pub fn average_write_latency_us(&self) -> u64 {
+        if self.write_ops == 0 {
+            0
+        } else {
+            self.total_write_latency_us / self.write_ops
+        }
+    }
+
+    pub fn compression_ratio(&self) -> f64 {
+        if self.total_bytes_compressed == 0 {
+            0.0
+        } else {
+            self.total_bytes_after_compression as f64 / self.total_bytes_compressed as f64
+        }
     }
 }
 
