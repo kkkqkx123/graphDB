@@ -1,127 +1,117 @@
 //! Edge Iterator - provides lazy iteration over edge records
 //!
 //! Offers:
-//! - EdgeTableIterator: Lazy iterator over edges in an EdgeTable
-//! - PropertyGraphEdgeIterator: Iterator over all edges in a PropertyGraph
+//! - EdgeScanIterator: Lazy iterator over all edges in an EdgeTable
+//! - EdgeRangeIterator: Iterator over edges of specified vertices
+//! - EdgeFilterIterator: Iterator with predicate pushdown support
 
-use crate::storage::edge::{
-    EdgeRecord, EdgeTable, Nbr, Timestamp, VertexId,
-};
+use crate::storage::edge::{EdgeRecord, EdgeTable, EdgeTableScanIterator, EdgeVertexIterator, Timestamp, VertexId};
+use crate::storage::iterator::predicate::PredicateEnum;
 
-pub struct EdgeTableIterator<'a> {
-    table: &'a EdgeTable,
-    ts: Timestamp,
-    current_vertex: usize,
-    current_nbr_idx: usize,
-    current_nbrs: Vec<Nbr>,
+pub type EdgeScanIterator<'a> = EdgeTableScanIterator<'a>;
+pub type EdgeVertexScanIterator<'a> = EdgeVertexIterator<'a>;
+
+pub struct EdgeRangeIterator<'a> {
+    iter: EdgeRangeIteratorInner<'a>,
 }
 
-impl<'a> EdgeTableIterator<'a> {
-    pub fn new(table: &'a EdgeTable, ts: Timestamp) -> Self {
-        let _vertex_capacity = table.vertex_capacity();
-        Self {
-            table,
-            ts,
-            current_vertex: 0,
-            current_nbr_idx: 0,
-            current_nbrs: Vec::new(),
-        }
-    }
+enum EdgeRangeIteratorInner<'a> {
+    Single {
+        iter: EdgeVertexIterator<'a>,
+    },
+    Multi {
+        table: &'a EdgeTable,
+        ts: Timestamp,
+        src_vertices: Vec<VertexId>,
+        current_idx: usize,
+        current_iter: Option<EdgeVertexIterator<'a>>,
+    },
 }
 
-impl<'a> Iterator for EdgeTableIterator<'a> {
-    type Item = EdgeRecord;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.current_nbr_idx < self.current_nbrs.len() {
-                let nbr = &self.current_nbrs[self.current_nbr_idx];
-                self.current_nbr_idx += 1;
-
-                let properties = if nbr.prop_offset > 0 {
-                    self.table
-                        .get_properties(nbr.prop_offset)
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
-
-                return Some(EdgeRecord {
-                    edge_id: nbr.edge_id,
-                    src_vid: self.current_vertex as VertexId - 1,
-                    dst_vid: nbr.neighbor,
-                    properties,
-                });
-            }
-
-            if self.current_vertex >= self.table.vertex_capacity() {
-                return None;
-            }
-
-            let src = self.current_vertex as VertexId;
-            self.current_vertex += 1;
-            self.current_nbrs = self.table.edges_of(src, self.ts);
-            self.current_nbr_idx = 0;
-        }
-    }
-}
-
-pub struct EdgeTableRangeIterator<'a> {
-    table: &'a EdgeTable,
-    ts: Timestamp,
-    src_vertices: Vec<VertexId>,
-    current_vertex_idx: usize,
-    current_nbr_idx: usize,
-    current_nbrs: Vec<Nbr>,
-}
-
-impl<'a> EdgeTableRangeIterator<'a> {
+impl<'a> EdgeRangeIterator<'a> {
     pub fn new(table: &'a EdgeTable, src_vertices: Vec<VertexId>, ts: Timestamp) -> Self {
-        Self {
-            table,
-            ts,
-            src_vertices,
-            current_vertex_idx: 0,
-            current_nbr_idx: 0,
-            current_nbrs: Vec::new(),
+        if src_vertices.len() == 1 {
+            Self {
+                iter: EdgeRangeIteratorInner::Single {
+                    iter: table.iter_edges(src_vertices[0], ts),
+                },
+            }
+        } else {
+            Self {
+                iter: EdgeRangeIteratorInner::Multi {
+                    table,
+                    ts,
+                    src_vertices,
+                    current_idx: 0,
+                    current_iter: None,
+                },
+            }
         }
     }
 }
 
-impl<'a> Iterator for EdgeTableRangeIterator<'a> {
+impl<'a> Iterator for EdgeRangeIterator<'a> {
+    type Item = EdgeRecord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.iter {
+            EdgeRangeIteratorInner::Single { iter } => iter.next(),
+            EdgeRangeIteratorInner::Multi {
+                table,
+                ts,
+                src_vertices,
+                current_idx,
+                current_iter,
+            } => {
+                loop {
+                    if let Some(ref mut iter) = current_iter {
+                        if let Some(record) = iter.next() {
+                            return Some(record);
+                        }
+                    }
+
+                    if *current_idx >= src_vertices.len() {
+                        return None;
+                    }
+
+                    let src = src_vertices[*current_idx];
+                    *current_idx += 1;
+                    *current_iter = Some(table.iter_edges(src, *ts));
+                }
+            }
+        }
+    }
+}
+
+pub struct EdgeFilterIterator<'a> {
+    iter: EdgeTableScanIterator<'a>,
+    predicate: PredicateEnum,
+}
+
+impl<'a> EdgeFilterIterator<'a> {
+    pub fn new(table: &'a EdgeTable, ts: Timestamp, predicate: PredicateEnum) -> Self {
+        Self {
+            iter: table.iter(ts),
+            predicate,
+        }
+    }
+}
+
+impl<'a> Iterator for EdgeFilterIterator<'a> {
     type Item = EdgeRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if self.current_nbr_idx < self.current_nbrs.len() {
-                let nbr = &self.current_nbrs[self.current_nbr_idx];
-                self.current_nbr_idx += 1;
+            let record = self.iter.next()?;
+            let row: Vec<crate::core::Value> = record
+                .properties
+                .iter()
+                .map(|(_, v)| v.clone())
+                .collect();
 
-                let properties = if nbr.prop_offset > 0 {
-                    self.table
-                        .get_properties(nbr.prop_offset)
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
-
-                let src_vid = self.src_vertices[self.current_vertex_idx - 1];
-                return Some(EdgeRecord {
-                    edge_id: nbr.edge_id,
-                    src_vid,
-                    dst_vid: nbr.neighbor,
-                    properties,
-                });
+            if self.predicate.evaluate(&row) {
+                return Some(record);
             }
-
-            if self.current_vertex_idx >= self.src_vertices.len() {
-                return None;
-            }
-
-            let src = self.src_vertices[self.current_vertex_idx];
-            self.current_vertex_idx += 1;
-            self.current_nbrs = self.table.edges_of(src, self.ts);
-            self.current_nbr_idx = 0;
         }
     }
 }
@@ -130,7 +120,8 @@ impl<'a> Iterator for EdgeTableRangeIterator<'a> {
 mod tests {
     use super::*;
     use crate::core::DataType;
-    use crate::storage::edge::{EdgeSchema, PropertyDef};
+    use crate::core::Value;
+    use crate::storage::edge::{EdgeSchema, EdgeStrategy, PropertyDef};
 
     fn create_test_schema() -> EdgeSchema {
         EdgeSchema {
@@ -139,8 +130,8 @@ mod tests {
             src_label: 1,
             dst_label: 2,
             properties: vec![PropertyDef::new("weight".to_string(), DataType::Double)],
-            oe_strategy: crate::storage::edge::EdgeStrategy::Multiple,
-            ie_strategy: crate::storage::edge::EdgeStrategy::Multiple,
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
         }
     }
 
@@ -149,28 +140,46 @@ mod tests {
         let mut table = EdgeTable::new(schema);
 
         let ts = 100u32;
-        table.insert_edge(1, 2, &[], ts).unwrap();
-        table.insert_edge(1, 3, &[], ts).unwrap();
-        table.insert_edge(2, 3, &[], ts).unwrap();
+        table.insert_edge(1, 2, &[("weight".to_string(), Value::Double(1.0))], ts).unwrap();
+        table.insert_edge(1, 3, &[("weight".to_string(), Value::Double(2.0))], ts).unwrap();
+        table.insert_edge(2, 3, &[("weight".to_string(), Value::Double(3.0))], ts).unwrap();
 
         table
     }
 
     #[test]
-    fn test_edge_table_iterator() {
+    fn test_edge_scan_iterator() {
         let table = create_test_table();
-        let iter = EdgeTableIterator::new(&table, 100);
+        let iter = table.iter(100);
         let edges: Vec<_> = iter.collect();
 
         assert_eq!(edges.len(), 3);
     }
 
     #[test]
-    fn test_edge_table_range_iterator() {
+    fn test_edge_range_iterator() {
         let table = create_test_table();
-        let iter = EdgeTableRangeIterator::new(&table, vec![1, 2], 100);
+        let iter = EdgeRangeIterator::new(&table, vec![1, 2], 100);
         let edges: Vec<_> = iter.collect();
 
         assert_eq!(edges.len(), 3);
+    }
+
+    #[test]
+    fn test_edge_filter_iterator() {
+        use crate::storage::iterator::predicate::CompareOp;
+
+        let table = create_test_table();
+        
+        // Debug: print all edges and their properties
+        for edge in table.iter(100) {
+            println!("Edge {} -> {}: {:?}", edge.src_vid, edge.dst_vid, edge.properties);
+        }
+
+        let predicate = PredicateEnum::simple("0", CompareOp::Greater, Value::Double(1.5));
+        let iter = EdgeFilterIterator::new(&table, 100, predicate);
+        let edges: Vec<_> = iter.collect();
+
+        assert_eq!(edges.len(), 2);
     }
 }

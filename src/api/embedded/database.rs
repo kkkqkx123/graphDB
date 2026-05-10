@@ -128,7 +128,9 @@ impl GraphDatabase<GraphStorage> {
             let mut sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             if vector_config.enabled {
-                let rt = tokio::runtime::Handle::current();
+                let rt = tokio::runtime::Handle::try_current().map_err(|_| {
+                    CoreError::Internal("No tokio runtime available for vector manager".to_string())
+                })?;
                 let vector_manager = Arc::new(
                     rt.block_on(VectorManager::new(vector_config.clone()))
                         .map_err(|e| {
@@ -147,7 +149,9 @@ impl GraphDatabase<GraphStorage> {
             let sync = Arc::new(sync);
             (Some(manager), Some(sync))
         } else if vector_config.enabled {
-            let rt = tokio::runtime::Handle::current();
+            let rt = tokio::runtime::Handle::try_current().map_err(|_| {
+                CoreError::Internal("No tokio runtime available for vector manager".to_string())
+            })?;
             let vector_manager = Arc::new(
                 rt.block_on(VectorManager::new(vector_config.clone()))
                     .map_err(|e| {
@@ -160,7 +164,11 @@ impl GraphDatabase<GraphStorage> {
 
             let sync_config = SyncConfig::default();
             let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
-            let manager = Arc::new(FulltextIndexManager::new(FulltextConfig::default()).unwrap());
+            let manager = Arc::new(
+                FulltextIndexManager::new(FulltextConfig::default()).map_err(|e| {
+                    CoreError::Internal(format!("Failed to initialize fulltext manager: {}", e))
+                })?,
+            );
             let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
                 manager.clone(),
                 batch_config,

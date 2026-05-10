@@ -34,8 +34,8 @@ impl OverflowHeader {
         let mut bytes = [0u8; OVERFLOW_HEADER_SIZE];
         bytes[0..8].copy_from_slice(&self.record_id.to_le_bytes());
         bytes[8..12].copy_from_slice(&self.sequence.to_le_bytes());
-        bytes[12..16].copy_from_slice(&self.next_page_id.to_le_bytes());
-        bytes[16..18].copy_from_slice(&self.data_size.to_le_bytes());
+        bytes[12..20].copy_from_slice(&self.next_page_id.to_le_bytes());
+        bytes[20..22].copy_from_slice(&self.data_size.to_le_bytes());
         bytes
     }
 
@@ -46,8 +46,8 @@ impl OverflowHeader {
 
         let record_id = u64::from_le_bytes(bytes[0..8].try_into().ok()?);
         let sequence = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
-        let next_page_id = u64::from_le_bytes(bytes[12..16].try_into().ok()?);
-        let data_size = u16::from_le_bytes(bytes[16..18].try_into().ok()?);
+        let next_page_id = u64::from_le_bytes(bytes[12..20].try_into().ok()?);
+        let data_size = u16::from_le_bytes(bytes[20..22].try_into().ok()?);
 
         Some(Self {
             record_id,
@@ -95,11 +95,11 @@ impl OverflowPage {
             )));
         }
 
+        self.header.data_size = data.len() as u16;
         let header_bytes = self.header.to_bytes();
         self.page.write_record(0, &header_bytes)?;
         self.page.write_record(OVERFLOW_HEADER_SIZE, data)?;
 
-        self.header.data_size = data.len() as u16;
         self.page.header_mut().record_count = 1;
 
         Ok(())

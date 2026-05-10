@@ -91,7 +91,7 @@ impl PageHeader {
     }
 
     pub fn deserialize(data: &[u8]) -> StorageResult<Self> {
-        if data.len() < 48 {
+        if data.len() < Self::size() {
             return Err(StorageError::DeserializeError("PageHeader too small".to_string()));
         }
 
@@ -141,7 +141,7 @@ impl PageHeader {
     }
 
     pub fn size() -> usize {
-        48
+        4 + 4 + 1 + 2 + 8 + 4 + 4 + 8 + 8
     }
 }
 

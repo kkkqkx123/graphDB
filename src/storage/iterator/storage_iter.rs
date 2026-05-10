@@ -1,21 +1,11 @@
-//! Storage Iterator - provides an iterative interface for interacting with the storage engine
+//! Storage Iterator - provides configuration and utilities for storage iteration
 //!
 //! Offer:
-//! - StorageIterator: Storage Engine Iterator Interface
-//! - VecPairIterator: Simple KV Pair Iterator
-//! - IterStats: Iterator statistics
-//! - IterConfig: Iterator Configuration
+//! - IterStats: Iterator statistics (records to metrics crate)
+//! - IterConfig: Iterator configuration
+//! - IterError: Iterator error types
 
 use crate::core::StorageError;
-
-/// Storage Engine Iterator Interface
-/// Iterative operations for the underlying KV store
-pub trait StorageIterator: Send {
-    fn key(&self) -> Option<&[u8]>;
-    fn value(&self) -> Option<&[u8]>;
-    fn next(&mut self) -> bool;
-    fn estimate_remaining(&self) -> Option<usize>;
-}
 
 /// Iterator error types
 #[derive(Debug, Clone, PartialEq)]
@@ -98,53 +88,6 @@ impl Default for IterConfig {
     }
 }
 
-#[derive(Debug)]
-pub struct VecPairIterator {
-    pub keys: Vec<Vec<u8>>,
-    pub values: Vec<Vec<u8>>,
-    pub index: usize,
-    pub current_index: Option<usize>,
-}
-
-impl VecPairIterator {
-    pub fn new(keys: Vec<Vec<u8>>, values: Vec<Vec<u8>>) -> Self {
-        Self {
-            keys,
-            values,
-            index: 0,
-            current_index: None,
-        }
-    }
-}
-
-impl StorageIterator for VecPairIterator {
-    fn key(&self) -> Option<&[u8]> {
-        self.current_index
-            .and_then(|i| self.keys.get(i).map(|v| v.as_slice()))
-    }
-
-    fn value(&self) -> Option<&[u8]> {
-        self.current_index
-            .and_then(|i| self.values.get(i).map(|v| v.as_slice()))
-    }
-
-    fn next(&mut self) -> bool {
-        if self.index < self.keys.len() {
-            let current_index = self.index;
-            self.index += 1;
-            self.current_index = Some(current_index);
-            true
-        } else {
-            self.current_index = None;
-            false
-        }
-    }
-
-    fn estimate_remaining(&self) -> Option<usize> {
-        Some(self.keys.len().saturating_sub(self.index))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,8 +95,6 @@ mod tests {
     #[test]
     fn test_iter_stats() {
         let stats = IterStats::new();
-        // IterStats is now a unit struct that records directly to metrics crate
-        // Verify no panic when recording
         stats.record_scan();
         stats.record_scan();
         stats.record_return();

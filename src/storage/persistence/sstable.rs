@@ -290,7 +290,7 @@ struct Footer {
 
 impl Footer {
     fn size() -> usize {
-        4 + 8 + 8 + 8 + 8 + 4
+        4 + 4 + 8 + 8 + 8 + 8 + 4
     }
 
     fn write_to<W: Write>(&self, writer: &mut W) -> StorageResult<()> {

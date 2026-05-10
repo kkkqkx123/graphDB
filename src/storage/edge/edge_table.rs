@@ -590,6 +590,14 @@ impl EdgeTable {
         self.out_csr.edges_of(src, ts)
     }
 
+    pub fn iter(&self, ts: Timestamp) -> EdgeTableScanIterator<'_> {
+        EdgeTableScanIterator::new(self, ts)
+    }
+
+    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> EdgeVertexIterator<'_> {
+        EdgeVertexIterator::new(self, src, ts)
+    }
+
     pub fn get_properties(&self, prop_offset: u32) -> Option<Vec<(String, Value)>> {
         self.properties.get(prop_offset).map(|props| {
             props
@@ -752,6 +760,95 @@ impl EdgeTable {
         self.properties.load(&data);
 
         Ok(())
+    }
+}
+
+pub struct EdgeTableScanIterator<'a> {
+    table: &'a EdgeTable,
+    csr_iter: super::mutable_csr::MutableCsrIterator<'a>,
+}
+
+impl<'a> EdgeTableScanIterator<'a> {
+    pub fn new(table: &'a EdgeTable, ts: Timestamp) -> Self {
+        let csr_iter = table.out_csr.iter(ts);
+        Self { table, csr_iter }
+    }
+}
+
+impl<'a> Iterator for EdgeTableScanIterator<'a> {
+    type Item = EdgeRecord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.csr_iter.next().map(|(src_vid, nbr)| {
+            let properties = if nbr.prop_offset > 0 {
+                self.table
+                    .properties
+                    .get(nbr.prop_offset)
+                    .map(|props| {
+                        props
+                            .into_iter()
+                            .filter_map(|(k, v)| v.map(|v| (k, v)))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+
+            EdgeRecord {
+                edge_id: nbr.edge_id,
+                src_vid,
+                dst_vid: nbr.neighbor,
+                properties,
+            }
+        })
+    }
+}
+
+pub struct EdgeVertexIterator<'a> {
+    table: &'a EdgeTable,
+    csr_iter: super::mutable_csr::MutableCsrEdgeIterator<'a>,
+    src_vid: VertexId,
+}
+
+impl<'a> EdgeVertexIterator<'a> {
+    pub fn new(table: &'a EdgeTable, src: VertexId, ts: Timestamp) -> Self {
+        let csr_iter = table.out_csr.iter_edges(src, ts);
+        Self {
+            table,
+            csr_iter,
+            src_vid: src,
+        }
+    }
+}
+
+impl<'a> Iterator for EdgeVertexIterator<'a> {
+    type Item = EdgeRecord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.csr_iter.next().map(|nbr| {
+            let properties = if nbr.prop_offset > 0 {
+                self.table
+                    .properties
+                    .get(nbr.prop_offset)
+                    .map(|props| {
+                        props
+                            .into_iter()
+                            .filter_map(|(k, v)| v.map(|v| (k, v)))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+
+            EdgeRecord {
+                edge_id: nbr.edge_id,
+                src_vid: self.src_vid,
+                dst_vid: nbr.neighbor,
+                properties,
+            }
+        })
     }
 }
 

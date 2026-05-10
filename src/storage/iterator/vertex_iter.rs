@@ -1,21 +1,25 @@
 //! Vertex Iterator - provides lazy iteration over vertex records
 //!
 //! Offers:
-//! - PropertyGraphVertexIterator: Iterator over all vertices in a PropertyGraph
-//! - VertexTableRangeIterator: Iterator over a range of vertices
+//! - VertexScanIterator: Iterator over all vertices in a PropertyGraph
+//! - VertexRangeIterator: Iterator over a range of vertices
+//! - VertexFilterIterator: Iterator with predicate pushdown support
 
+use crate::storage::iterator::predicate::PredicateEnum;
 use crate::storage::vertex::{Timestamp, VertexId, VertexRecord, VertexTable};
 use std::collections::HashMap;
 
-pub struct PropertyGraphVertexIterator<'a> {
+pub type VertexTableScanIterator<'a> = crate::storage::vertex::vertex_table::VertexIterator<'a>;
+
+pub struct VertexScanIterator<'a> {
     tables: Vec<(&'a u16, &'a VertexTable)>,
     current_table_idx: usize,
-    current_iter: Option<crate::storage::vertex::vertex_table::VertexIterator<'a>>,
+    current_iter: Option<VertexTableScanIterator<'a>>,
     current_label: u16,
     ts: Timestamp,
 }
 
-impl<'a> PropertyGraphVertexIterator<'a> {
+impl<'a> VertexScanIterator<'a> {
     pub fn new(tables: &'a HashMap<u16, VertexTable>, ts: Timestamp) -> Self {
         let tables: Vec<_> = tables.iter().collect();
         let (current_label, current_iter) = if let Some((label, table)) = tables.first() {
@@ -34,7 +38,7 @@ impl<'a> PropertyGraphVertexIterator<'a> {
     }
 }
 
-impl<'a> Iterator for PropertyGraphVertexIterator<'a> {
+impl<'a> Iterator for VertexScanIterator<'a> {
     type Item = (u16, VertexRecord);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -57,14 +61,14 @@ impl<'a> Iterator for PropertyGraphVertexIterator<'a> {
     }
 }
 
-pub struct VertexTableRangeIterator<'a> {
+pub struct VertexRangeIterator<'a> {
     table: &'a VertexTable,
     ts: Timestamp,
     vids: Vec<VertexId>,
     current_idx: usize,
 }
 
-impl<'a> VertexTableRangeIterator<'a> {
+impl<'a> VertexRangeIterator<'a> {
     pub fn new(table: &'a VertexTable, vids: Vec<VertexId>, ts: Timestamp) -> Self {
         Self {
             table,
@@ -75,7 +79,7 @@ impl<'a> VertexTableRangeIterator<'a> {
     }
 }
 
-impl<'a> Iterator for VertexTableRangeIterator<'a> {
+impl<'a> Iterator for VertexRangeIterator<'a> {
     type Item = VertexRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -93,17 +97,54 @@ impl<'a> Iterator for VertexTableRangeIterator<'a> {
     }
 }
 
+pub struct VertexFilterIterator<'a> {
+    iter: VertexTableScanIterator<'a>,
+    predicate: PredicateEnum,
+}
+
+impl<'a> VertexFilterIterator<'a> {
+    pub fn new(table: &'a VertexTable, ts: Timestamp, predicate: PredicateEnum) -> Self {
+        Self {
+            iter: table.scan(ts),
+            predicate,
+        }
+    }
+}
+
+impl<'a> Iterator for VertexFilterIterator<'a> {
+    type Item = VertexRecord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let record = self.iter.next()?;
+            let row: Vec<crate::core::Value> = record
+                .properties
+                .iter()
+                .map(|(_, v)| v.clone())
+                .collect();
+
+            if self.predicate.evaluate(&row) {
+                return Some(record);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::DataType;
+    use crate::core::Value;
     use crate::storage::vertex::{PropertyDef, VertexSchema};
 
     fn create_test_table() -> VertexTable {
         let schema = VertexSchema {
             label_id: 0,
             label_name: "person".to_string(),
-            properties: vec![PropertyDef::new("name".to_string(), DataType::String)],
+            properties: vec![
+                PropertyDef::new("name".to_string(), DataType::String),
+                PropertyDef::new("age".to_string(), DataType::Int),
+            ],
             primary_key_index: 0,
         };
 
@@ -113,20 +154,30 @@ mod tests {
         table
             .insert(
                 "1",
-                &[(
-                    "name".to_string(),
-                    crate::core::Value::String("Alice".to_string()),
-                )],
+                &[
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(25)),
+                ],
                 ts,
             )
             .unwrap();
         table
             .insert(
                 "2",
-                &[(
-                    "name".to_string(),
-                    crate::core::Value::String("Bob".to_string()),
-                )],
+                &[
+                    ("name".to_string(), Value::String("Bob".to_string())),
+                    ("age".to_string(), Value::Int(30)),
+                ],
+                ts,
+            )
+            .unwrap();
+        table
+            .insert(
+                "3",
+                &[
+                    ("name".to_string(), Value::String("Charlie".to_string())),
+                    ("age".to_string(), Value::Int(35)),
+                ],
                 ts,
             )
             .unwrap();
@@ -135,11 +186,35 @@ mod tests {
     }
 
     #[test]
-    fn test_vertex_table_range_iterator() {
+    fn test_vertex_range_iterator() {
         let table = create_test_table();
-        let iter = VertexTableRangeIterator::new(&table, vec![1, 2], 100);
+        let iter = VertexRangeIterator::new(&table, vec![1, 2], 100);
         let vertices: Vec<_> = iter.collect();
 
         assert_eq!(vertices.len(), 2);
+    }
+
+    #[test]
+    fn test_vertex_filter_iterator() {
+        use crate::storage::iterator::predicate::CompareOp;
+
+        let table = create_test_table();
+        let predicate = PredicateEnum::simple("1", CompareOp::Greater, Value::Int(28));
+        let iter = VertexFilterIterator::new(&table, 100, predicate);
+        let vertices: Vec<_> = iter.collect();
+
+        assert_eq!(vertices.len(), 2);
+    }
+
+    #[test]
+    fn test_vertex_scan_iterator() {
+        let table = create_test_table();
+        let mut tables = HashMap::new();
+        tables.insert(0u16, table);
+
+        let iter = VertexScanIterator::new(&tables, 100);
+        let vertices: Vec<_> = iter.collect();
+
+        assert_eq!(vertices.len(), 3);
     }
 }

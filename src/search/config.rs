@@ -31,7 +31,7 @@ pub struct FulltextConfig {
 impl Default for FulltextConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             default_engine: EngineType::Bm25,
             index_path: PathBuf::from("data/fulltext"),
             sync: SyncConfig::default(),

@@ -375,6 +375,10 @@ impl FileSharedMmap {
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         self.inner.as_mut_slice()
     }
+
+    pub fn write_at(&mut self, offset: usize, data: &[u8]) -> ContainerResult<()> {
+        self.inner.write_at(offset, data)
+    }
 }
 
 impl IDataContainer for FileSharedMmap {
@@ -484,7 +488,7 @@ mod tests {
         {
             let mut container =
                 FileSharedMmap::create(&path, 1024).expect("Failed to create container");
-            container.as_mut_slice()[..5].copy_from_slice(b"world");
+            container.write_at(0, b"world").expect("Failed to write");
             container.sync().expect("Failed to sync");
         }
 

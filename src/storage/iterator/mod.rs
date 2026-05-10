@@ -1,30 +1,46 @@
-//! Storage Iterator Module - provides the underlying iterative interface to the storage engine.
+//! Storage Iterator Module - provides iterative interfaces for the storage engine.
 //!
-//! Offer:
-//! - StorageIterator: Storage Engine Iterator Interface
-//! - VecPairIterator: Simple KV Pair Iterator
-//! - Predicate: Predicate down-propagation optimization
-//! - Row: Row data type alias (Vec<Value>)
-//! - EdgeTableIterator: Lazy iterator over edges in an EdgeTable
-//! - PropertyGraphVertexIterator: Iterator over all vertices in a PropertyGraph
+//! ## Components
 //!
-//! Attention:
-//! - Use the core::result::iterator module for query result iterators.
-//! - Combined iterator operations (filter, map, take, skip) should use the Rust standard iterator
-//! - or the implementation in the core::result::combinators module
+//! ### Edge Iterators
+//! - `EdgeScanIterator`: Lazy iterator over all edges in an EdgeTable
+//! - `EdgeRangeIterator`: Iterator over edges of specified vertices
+//! - `EdgeFilterIterator`: Iterator with predicate pushdown support
+//!
+//! ### Vertex Iterators
+//! - `VertexScanIterator`: Iterator over all vertices in a PropertyGraph
+//! - `VertexRangeIterator`: Iterator over a range of vertices
+//! - `VertexFilterIterator`: Iterator with predicate pushdown support
+//!
+//! ### Predicate System
+//! - `PredicateEnum`: Static predicate type (avoids dynamic dispatch)
+//! - `SimplePredicate`: Single condition predicate
+//! - `CompoundPredicate`: Combined predicates (AND/OR/NOT)
+//! - `PredicateOptimizer`: Predicate pushdown optimizer
+//!
+//! ### Utilities
+//! - `IterStats`: Iterator statistics (records to metrics crate)
+//! - `IterConfig`: Iterator configuration
+//! - `IterError`: Iterator error types
+//!
+//! ## Usage Notes
+//!
+//! - Use the core::result::iterator module for query result iterators
+//! - Combined iterator operations (filter, map, take, skip) should use Rust standard iterators
+//!   or the implementation in the core::result::combinators module
 
 pub mod edge_iter;
 pub mod predicate;
 pub mod storage_iter;
 pub mod vertex_iter;
 
-pub use edge_iter::{EdgeTableIterator, EdgeTableRangeIterator};
+pub use edge_iter::{EdgeFilterIterator, EdgeRangeIterator, EdgeScanIterator, EdgeVertexScanIterator};
 pub use predicate::{
     CompareOp, CompoundPredicate, Expression, LogicalOp, PredicateEnum, PredicateOptimizer,
     PushdownResult, SimplePredicate,
 };
-pub use storage_iter::{StorageIterator, VecPairIterator};
-pub use vertex_iter::{PropertyGraphVertexIterator, VertexTableRangeIterator};
+pub use storage_iter::{IterConfig, IterError, IterStats};
+pub use vertex_iter::{VertexFilterIterator, VertexRangeIterator, VertexScanIterator, VertexTableScanIterator};
 
 use crate::core::Value;
 

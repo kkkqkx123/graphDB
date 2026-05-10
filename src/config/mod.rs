@@ -382,7 +382,7 @@ max_files = 10
 
 [storage]
 engine = "propertygraph"
-compression = "lz4"
+compression = "zstd"
 compression_level = 5
 
 [query_resource]
@@ -404,7 +404,7 @@ max_memory_per_query = 1073741824
         assert_eq!(config.common.log.level, "debug");
         assert_eq!(
             config.common.storage.compression,
-            CompressionAlgorithm::None
+            CompressionAlgorithm::Zstd
         );
         assert_eq!(config.common.storage.compression_level, 5);
         assert_eq!(config.common.query_resource.max_concurrent_queries, 50);

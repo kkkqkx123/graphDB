@@ -114,9 +114,9 @@ mod tests {
     #[test]
     fn test_zstd_compression() {
         let compressor = Compressor::new(CompressionType::Zstd { level: 3 });
-        let data = b"hello world, this is a test for zstd compression";
+        let data: Vec<u8> = vec![0xAB; 1000];
 
-        let compressed = compressor.compress(data).expect("Compress failed");
+        let compressed = compressor.compress(&data).expect("Compress failed");
         assert!(compressed.len() < data.len(), "Zstd should compress data");
 
         let decompressed = compressor
