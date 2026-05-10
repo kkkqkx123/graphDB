@@ -93,7 +93,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
             ExecutionResult::Empty
             | ExecutionResult::Success
             | ExecutionResult::SpaceSwitched(_) => Ok(input),
-            ExecutionResult::Error(msg) => Err(crate::query::QueryError::ExecutionError(msg)),
+            ExecutionResult::Error(msg) => Err(crate::query::QueryError::execution(msg)),
         }
     }
 
@@ -273,7 +273,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
 
                 // Check the memory limitations.
                 if self.current_memory_usage + memory_usage > self.memory_limit {
-                    return Err(crate::query::QueryError::ExecutionError(
+                    return Err(crate::query::QueryError::execution(
                         "Memory limit exceeded".to_string(),
                     ));
                 }
@@ -307,7 +307,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 memory_usage += row_size;
 
                 if self.current_memory_usage + memory_usage > self.memory_limit {
-                    return Err(crate::query::QueryError::ExecutionError(
+                    return Err(crate::query::QueryError::execution(
                         "Memory limit exceeded".to_string(),
                     ));
                 }

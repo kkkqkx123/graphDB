@@ -128,7 +128,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
     /// An optimized implementation of the Cartesian product (using iterators to avoid intermediate result sets)
     fn execute_optimized_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
-            return Err(QueryError::ExecutionError(
+            return Err(QueryError::execution(
                 "The Cartesian product requires at least two inputs".to_string(),
             ));
         }
@@ -142,7 +142,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 .context
                 .get_result(var)
                 .ok_or_else(|| {
-                    QueryError::ExecutionError(format!("Input variable not found: {}", var))
+                    QueryError::execution(format!("Input variable not found: {}", var))
                 })?;
 
             let dataset = match result {
@@ -151,7 +151,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 | ExecutionResult::Success
                 | ExecutionResult::SpaceSwitched(_) => DataSet::new(),
                 ExecutionResult::Error(msg) => {
-                    return Err(QueryError::ExecutionError(msg));
+                    return Err(QueryError::execution(msg));
                 }
             };
 

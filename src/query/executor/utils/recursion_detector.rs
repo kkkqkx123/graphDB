@@ -284,7 +284,7 @@ impl PlanValidator {
                     .and_then(|s| usize::try_from(s).ok())
                     .unwrap_or(10);
                 if step_limit > 1000 {
-                    return Err(QueryError::ExecutionError(format!(
+                    return Err(QueryError::execution(format!(
                         "Expand executor step limit {} exceeds safety threshold 1000",
                         step_limit
                     ))
@@ -292,7 +292,7 @@ impl PlanValidator {
                 }
             }
             PlanNodeEnum::Loop(_) => {
-                return Err(QueryError::ExecutionError(
+                return Err(QueryError::execution(
                     "Loop executor needs to be built manually, automatic creation through factory is not supported".to_string(),
                 ).into());
             }

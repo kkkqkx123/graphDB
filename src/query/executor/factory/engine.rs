@@ -99,7 +99,7 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                 let mut left_executor =
                     self.build_executor_chain(children[0], storage.clone(), context)?;
                 let left_result = left_executor.execute().map_err(|e| {
-                    QueryError::ExecutionError(format!("Left child execution failed: {}", e))
+                    QueryError::execution(format!("Left child execution failed: {}", e))
                 })?;
 
                 // Get left variable name from left child's output_var
@@ -122,7 +122,7 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                 let mut right_executor =
                     self.build_executor_chain(children[1], storage.clone(), context)?;
                 let right_result = right_executor.execute().map_err(|e| {
-                    QueryError::ExecutionError(format!("Right child execution failed: {}", e))
+                    QueryError::execution(format!("Right child execution failed: {}", e))
                 })?;
 
                 // Get right variable name from node's output_var or use default
@@ -137,7 +137,7 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
                     let mut child_executor =
                         self.build_executor_chain(child, storage.clone(), context)?;
                     let child_result = child_executor.execute().map_err(|e| {
-                        QueryError::ExecutionError(format!("Child {} execution failed: {}", i, e))
+                        QueryError::execution(format!("Child {} execution failed: {}", i, e))
                     })?;
 
                     let child_var = child
@@ -181,14 +181,14 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
 
         // Build the executor chain from the plan root
         let root_node = plan.root().as_ref().ok_or_else(|| {
-            QueryError::ExecutionError("Execution plan has no root node".to_string())
+            QueryError::execution("Execution plan has no root node".to_string())
         })?;
         let mut root_executor = self.build_executor_chain(root_node, storage.clone(), &context)?;
 
         // Execute the root executor
         root_executor
             .execute()
-            .map_err(|e| QueryError::ExecutionError(e.to_string()))
+            .map_err(|e| QueryError::execution(e.to_string()))
     }
 
     /// Get the executor factory.

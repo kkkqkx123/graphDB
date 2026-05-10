@@ -142,7 +142,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         let probe_keys = self.base_executor.get_probe_keys().clone();
 
         if hash_keys.is_empty() || probe_keys.is_empty() {
-            return Err(QueryError::ExecutionError(
+            return Err(QueryError::execution(
                 "Hash key or probe key is empty".to_string(),
             ));
         }
@@ -191,7 +191,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         for row in &build_dataset.rows {
             let mut context = RowExpressionContext::from_dataset(row, &build_col_names);
             let key = ExpressionEvaluator::evaluate(&hash_key, &mut context)
-                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
+                .map_err(|e| QueryError::execution(format!("Key evaluation failed: {}", e)))?;
 
             hash_table.entry(key).or_default().push(row.to_vec());
         }
@@ -203,7 +203,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         for probe_row in &probe_dataset.rows {
             let mut probe_context = RowExpressionContext::from_dataset(probe_row, &probe_col_names);
             let probe_key_val = ExpressionEvaluator::evaluate(&probe_key, &mut probe_context)
-                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
+                .map_err(|e| QueryError::execution(format!("Key evaluation failed: {}", e)))?;
 
             if let Some(matching_rows) = hash_table.get(&probe_key_val) {
                 for build_row in matching_rows {
@@ -306,7 +306,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         let probe_keys = self.base_executor.get_probe_keys().clone();
 
         if hash_keys.is_empty() || probe_keys.is_empty() {
-            return Err(QueryError::ExecutionError(
+            return Err(QueryError::execution(
                 "Hash or probe key is empty".to_string(),
             ));
         }
@@ -341,7 +341,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
             for hash_key in &hash_keys {
                 let key = ExpressionEvaluator::evaluate(hash_key, &mut context).map_err(|e| {
-                    QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
+                    QueryError::execution(format!("Key evaluation failed: {}", e))
                 })?;
                 key_values.push(key);
             }
@@ -359,7 +359,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
             for probe_key in &probe_keys {
                 let key = ExpressionEvaluator::evaluate(probe_key, &mut context).map_err(|e| {
-                    QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
+                    QueryError::execution(format!("Key evaluation failed: {}", e))
                 })?;
                 key_values.push(key);
             }

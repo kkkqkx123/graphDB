@@ -59,12 +59,12 @@ impl<S: StorageClient> SetExecutor<S> {
             Some(ExecutionResult::DataSet(dataset)) => Ok(dataset.clone()),
             Some(_result) => {
                 // Results of other types need to be converted into a DataSet.
-                Err(QueryError::ExecutionError(format!(
+                Err(QueryError::execution(format!(
                     "Left input variable {} is not a valid data set",
                     self.left_input_var
                 )))
             }
-            None => Err(QueryError::ExecutionError(format!(
+            None => Err(QueryError::execution(format!(
                 "Left input variable {} does not exist",
                 self.left_input_var
             ))),
@@ -77,12 +77,12 @@ impl<S: StorageClient> SetExecutor<S> {
             Some(ExecutionResult::DataSet(dataset)) => Ok(dataset.clone()),
             Some(_result) => {
                 // Results of other types need to be converted into a DataSet.
-                Err(QueryError::ExecutionError(format!(
+                Err(QueryError::execution(format!(
                     "Right input variable {} is not a valid data set",
                     self.right_input_var
                 )))
             }
-            None => Err(QueryError::ExecutionError(format!(
+            None => Err(QueryError::execution(format!(
                 "Right input variable {} does not exist",
                 self.right_input_var
             ))),
@@ -100,7 +100,7 @@ impl<S: StorageClient> SetExecutor<S> {
         if left.col_names != right.col_names {
             let left_cols = left.col_names.join(",");
             let right_cols = right.col_names.join(",");
-            return Err(QueryError::ExecutionError(format!(
+            return Err(QueryError::execution(format!(
                 "Dataset column name mismatch: <{}> vs <{}>",
                 left_cols, right_cols
             )));

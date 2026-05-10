@@ -56,7 +56,7 @@ impl From<ValidationErrorType> for QueryError {
     fn from(e: ValidationErrorType) -> Self {
         match e {
             ValidationErrorType::SyntaxError => QueryError::parse_error(e.to_string()),
-            _ => QueryError::InvalidQuery(e.to_string()),
+            _ => QueryError::invalid_query(e.to_string()),
         }
     }
 }

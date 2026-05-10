@@ -92,7 +92,7 @@ impl<S: StorageClient + Send + 'static> ExplainExecutor<S> {
                 .create_executor(root, self.get_storage().clone(), &context)
                 .map_err(|e| {
                     crate::core::error::DBError::from(
-                        crate::core::error::QueryError::ExecutionError(e.to_string()),
+                        crate::core::error::QueryError::execution(e.to_string()),
                     )
                 })?;
 
@@ -160,7 +160,7 @@ impl<S: StorageClient + Send + 'static> ExplainExecutor<S> {
                 // Use output module's table formatter
                 format_plan_with_output_table(plan_desc).map_err(|e| {
                     crate::core::error::DBError::from(
-                        crate::core::error::QueryError::ExecutionError(e.to_string()),
+                        crate::core::error::QueryError::execution(e.to_string()),
                     )
                 })
             }

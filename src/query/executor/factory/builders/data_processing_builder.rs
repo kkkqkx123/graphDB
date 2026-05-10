@@ -113,7 +113,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
             None, // limit
             SortConfig::default(),
         )
-        .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+        .map_err(|e| QueryError::execution(e.to_string()))?;
 
         Ok(ExecutorEnum::Sort(executor))
     }

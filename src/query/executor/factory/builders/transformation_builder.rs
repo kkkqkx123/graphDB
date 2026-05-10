@@ -46,7 +46,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
             .expression()
             .map(|meta| meta.inner().clone())
             .ok_or_else(|| {
-                QueryError::ExecutionError("Expression does not exist in context".to_string())
+                QueryError::execution("Expression does not exist in context".to_string())
             })?;
 
         let input_var = node
@@ -79,7 +79,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
                 .expression()
                 .map(|meta| meta.inner().clone())
                 .ok_or_else(|| {
-                    QueryError::ExecutionError("Expression does not exist in context".to_string())
+                    QueryError::execution("Expression does not exist in context".to_string())
                 })?;
             parsed_assignments.push((var_name.clone(), expression));
         }

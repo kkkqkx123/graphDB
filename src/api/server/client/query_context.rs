@@ -65,7 +65,7 @@ impl QueryContext {
 
         if !self.find_query(query_id) {
             warn!("Query {} not found in session {}", query_id, session_id);
-            return Err(QueryError::ExecutionError(format!(
+            return Err(QueryError::execution(format!(
                 "Query not found: {}",
                 query_id
             )));

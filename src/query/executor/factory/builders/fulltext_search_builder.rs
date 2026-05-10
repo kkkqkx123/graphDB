@@ -49,7 +49,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let space_id = context.current_space_id().unwrap_or(0);
@@ -82,7 +82,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let space_id = context.current_space_id().unwrap_or(0);
@@ -109,7 +109,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let executor = AlterFulltextIndexExecutor::new(
@@ -133,7 +133,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let executor = ShowFulltextIndexExecutor::new(
@@ -155,7 +155,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let space_id = context.current_space_id().unwrap_or(0);
@@ -193,11 +193,11 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
 
         let search_engine = context
             .search_engine()
-            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Search engine not available".to_string()))?
             .clone();
 
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let executor = if !node.tag_name.is_empty() && !node.field_name.is_empty() {
@@ -236,11 +236,11 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let search_engine = context
             .search_engine()
-            .ok_or_else(|| QueryError::ExecutionError("Search engine not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Search engine not available".to_string()))?
             .clone();
 
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let executor = FulltextScanExecutor::new(
@@ -270,7 +270,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let fulltext_manager = sync_manager
-            .ok_or_else(|| QueryError::ExecutionError("Sync manager not available".to_string()))?
+            .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
         let executor = MatchFulltextExecutor::new(

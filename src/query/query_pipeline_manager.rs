@@ -507,7 +507,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> DBResult<ValidationInfo> {
         let mut validator =
             crate::query::validator::Validator::create_from_ast(&ast).ok_or_else(|| {
-                DBError::from(QueryError::InvalidQuery(format!(
+                DBError::from(QueryError::invalid_query(format!(
                     "Unsupported statement type: {:?}",
                     ast.stmt
                 )))
@@ -531,7 +531,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
-            Err(DBError::from(QueryError::InvalidQuery(error_msg)))
+            Err(DBError::from(QueryError::invalid_query(error_msg)))
         }
     }
 
@@ -606,13 +606,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                         context.set_index_metadata(search.index_name.clone(), index_metadata);
                     }
                     Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Vector index not found: {}",
                             msg
                         ))));
                     }
                     Err(e) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Failed to get index metadata: {}",
                             e
                         ))));
@@ -627,13 +627,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                         context.set_index_metadata(index_name.clone(), index_metadata);
                     }
                     Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Vector index not found: {}",
                             msg
                         ))));
                     }
                     Err(e) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Failed to get index metadata: {}",
                             e
                         ))));
@@ -652,13 +652,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                         context.set_index_metadata(search.index_name.clone(), index_metadata);
                     }
                     Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Fulltext index not found: {}",
                             msg
                         ))));
                     }
                     Err(e) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Failed to get fulltext index metadata: {}",
                             e
                         ))));
@@ -672,13 +672,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                         context.set_index_metadata(lookup.index_name.clone(), index_metadata);
                     }
                     Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Fulltext index not found: {}",
                             msg
                         ))));
                     }
                     Err(e) => {
-                        return Err(DBError::from(QueryError::InvalidQuery(format!(
+                        return Err(DBError::from(QueryError::invalid_query(format!(
                             "Failed to get fulltext index metadata: {}",
                             e
                         ))));
@@ -693,13 +693,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                             context.set_index_metadata(index_name.clone(), index_metadata);
                         }
                         Err(MetadataProviderError::NotFound(msg)) => {
-                            return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            return Err(DBError::from(QueryError::invalid_query(format!(
                                 "Fulltext index not found: {}",
                                 msg
                             ))));
                         }
                         Err(e) => {
-                            return Err(DBError::from(QueryError::InvalidQuery(format!(
+                            return Err(DBError::from(QueryError::invalid_query(format!(
                                 "Failed to get fulltext index metadata: {}",
                                 e
                             ))));
@@ -785,7 +785,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::ExecutionError(
+            DBError::from(QueryError::execution(
                 "Storage not available".to_string(),
             ))
         })?;
@@ -823,7 +823,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ExplainExecutor
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::ExecutionError(
+            DBError::from(QueryError::execution(
                 "Storage not available".to_string(),
             ))
         })?;
@@ -845,7 +845,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         // 3. Execute Explain
         explain_executor
             .execute()
-            .map_err(|e| DBError::from(QueryError::ExecutionError(e.to_string())))
+            .map_err(|e| DBError::from(QueryError::execution(e.to_string())))
     }
 
     /// Execute EXPLAIN ANALYZE statement
@@ -876,7 +876,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ExplainExecutor with Analyze mode
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::ExecutionError(
+            DBError::from(QueryError::execution(
                 "Storage not available".to_string(),
             ))
         })?;
@@ -898,7 +898,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         // 3. Execute Explain Analyze
         explain_executor
             .execute()
-            .map_err(|e| DBError::from(QueryError::ExecutionError(e.to_string())))
+            .map_err(|e| DBError::from(QueryError::execution(e.to_string())))
     }
 
     /// Execute PROFILE statement
@@ -929,7 +929,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ProfileExecutor
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::ExecutionError(
+            DBError::from(QueryError::execution(
                 "Storage not available".to_string(),
             ))
         })?;
@@ -947,6 +947,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         // 3. Execute Profile
         profile_executor
             .execute()
-            .map_err(|e| DBError::from(QueryError::ExecutionError(e.to_string())))
+            .map_err(|e| DBError::from(QueryError::execution(e.to_string())))
     }
 }

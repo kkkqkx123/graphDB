@@ -108,7 +108,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             .context
             .get_result(&self.left_var)
             .ok_or_else(|| {
-                QueryError::ExecutionError(format!(
+                QueryError::execution(format!(
                     "Left input variable not found: {}",
                     self.left_var
                 ))
@@ -119,7 +119,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             .context
             .get_result(&self.right_var)
             .ok_or_else(|| {
-                QueryError::ExecutionError(format!(
+                QueryError::execution(format!(
                     "Right input variable not found: {}",
                     self.right_var
                 ))
@@ -128,7 +128,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         let left_dataset = match left_result {
             ExecutionResult::DataSet(dataset) => dataset.clone(),
             _ => {
-                return Err(QueryError::ExecutionError(
+                return Err(QueryError::execution(
                     "Left input must be a DataSet".to_string(),
                 ))
             }
@@ -137,7 +137,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         let right_dataset = match right_result {
             ExecutionResult::DataSet(dataset) => dataset.clone(),
             _ => {
-                return Err(QueryError::ExecutionError(
+                return Err(QueryError::execution(
                     "Right input must be a DataSet".to_string(),
                 ))
             }
@@ -158,7 +158,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         for row in &dataset.rows {
             let key = JoinKeyEvaluator::evaluate_key(hash_key_expression, context)
-                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
+                .map_err(|e| QueryError::execution(format!("Key evaluation failed: {}", e)))?;
 
             hash_table
                 .entry(key)
@@ -181,7 +181,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         for row in &dataset.rows {
             let key_values = JoinKeyEvaluator::evaluate_keys(hash_key_exprs, context)
-                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
+                .map_err(|e| QueryError::execution(format!("Key evaluation failed: {}", e)))?;
 
             let join_key = JoinKey::new(key_values);
             hash_table
@@ -207,7 +207,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         for probe_row in &probe_dataset.rows {
             let key =
                 JoinKeyEvaluator::evaluate_key(probe_key_expression, context).map_err(|e| {
-                    QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e))
+                    QueryError::execution(format!("Probe key evaluation failed: {}", e))
                 })?;
 
             if let Some(matching_rows) = hash_table.get(&key) {
@@ -232,7 +232,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         for probe_row in &probe_dataset.rows {
             let key_values =
                 JoinKeyEvaluator::evaluate_keys(probe_key_exprs, context).map_err(|e| {
-                    QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e))
+                    QueryError::execution(format!("Probe key evaluation failed: {}", e))
                 })?;
 
             let join_key = JoinKey::new(key_values);
@@ -254,7 +254,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         for row in &dataset.rows {
             let key_idx = hash_key
                 .parse::<usize>()
-                .map_err(|_| QueryError::ExecutionError("Invalid key index".to_string()))?;
+                .map_err(|_| QueryError::execution("Invalid key index".to_string()))?;
 
             if key_idx < row.len() {
                 let key = row[key_idx].clone();
@@ -275,12 +275,12 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             for hash_key in hash_keys {
                 let key_idx = hash_key
                     .parse::<usize>()
-                    .map_err(|_| QueryError::ExecutionError("Invalid key index".to_string()))?;
+                    .map_err(|_| QueryError::execution("Invalid key index".to_string()))?;
 
                 if key_idx < row.len() {
                     key_values.push(row[key_idx].clone());
                 } else {
-                    return Err(QueryError::ExecutionError(
+                    return Err(QueryError::execution(
                         "Key index out of range".to_string(),
                     ));
                 }

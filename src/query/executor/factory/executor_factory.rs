@@ -101,7 +101,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         // Verify whether the execution of the executor will lead to recursion.
         self.recursion_detector
             .validate_executor(node_id, node_name)
-            .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+            .map_err(|e| QueryError::execution(e.to_string()))?;
 
         // Verify the security of the plan nodes.
         self.validate_plan_node(node)?;
@@ -120,7 +120,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     /// Verify the security of the plan nodes.
     fn validate_plan_node(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
         let validator = PlanValidator::new();
-        validator.validate(plan_node).map_err(|e| QueryError::ExecutionError(e.to_string()))
+        validator.validate(plan_node).map_err(|e| QueryError::execution(e.to_string()))
     }
 
     /// Create an executor based on the planned node.
@@ -135,7 +135,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         if self.config.enable_recursion_detection {
             self.recursion_detector
                 .validate_executor(plan_node.id(), plan_node.name())
-                .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+                .map_err(|e| QueryError::execution(e.to_string()))?;
         }
 
         match plan_node {
@@ -560,13 +560,13 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         if self.config.enable_recursion_detection {
             self.recursion_detector
                 .validate_executor(node.id(), "LoopExecutor")
-                .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+                .map_err(|e| QueryError::execution(e.to_string()))?;
         }
 
         let body = node
             .body()
             .as_ref()
-            .ok_or_else(|| QueryError::ExecutionError("Loop node missing body".to_string()))?;
+            .ok_or_else(|| QueryError::execution("Loop node missing body".to_string()))?;
 
         // Temporarily release the borrowing of the `self` object to construct the `bodyExecutor`.
         let body_executor = {
@@ -611,7 +611,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         if self.config.enable_recursion_detection {
             self.recursion_detector
                 .validate_executor(node.id(), "SelectExecutor")
-                .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+                .map_err(|e| QueryError::execution(e.to_string()))?;
         }
 
         let condition = node
@@ -623,7 +623,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         // Construct the `if_branch`.
         let if_branch = {
             let if_node = node.if_branch().as_ref().ok_or_else(|| {
-                QueryError::ExecutionError("Select node missing if_branch".to_string())
+                QueryError::execution("Select node missing if_branch".to_string())
             })?;
 
             let config = self.config.clone();
