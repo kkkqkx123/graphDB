@@ -39,7 +39,7 @@ impl UserInfo {
     /// Create a new user (using plaintext passwords, internal autohashing)
     pub fn new(username: String, password: String) -> Result<Self, crate::core::StorageError> {
         let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).map_err(|e| {
-            crate::core::StorageError::DbError(format!("Password encryption failed: {}", e))
+            crate::core::StorageError::db_error(format!("Password encryption failed: {}", e))
         })?;
 
         let now = chrono::Utc::now().timestamp_millis();
@@ -69,7 +69,7 @@ impl UserInfo {
         new_password: String,
     ) -> Result<(), crate::core::StorageError> {
         self.password_hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST).map_err(|e| {
-            crate::core::StorageError::DbError(format!("Password encryption failed: {}", e))
+            crate::core::StorageError::db_error(format!("Password encryption failed: {}", e))
         })?;
         self.password_changed_at = chrono::Utc::now().timestamp_millis();
         Ok(())

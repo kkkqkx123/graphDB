@@ -328,7 +328,7 @@ fn test_transaction_context_can_execute_expired() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        TransactionError::TransactionExpired
+        TransactionError::transaction_expired()
     ));
 }
 
@@ -430,7 +430,7 @@ fn test_rollback_to_nonexistent_savepoint() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        TransactionError::SavepointNotFound(_)
+        TransactionError::savepoint_not_found(_)
     ));
 }
 
@@ -463,7 +463,7 @@ fn test_release_nonexistent_savepoint() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        TransactionError::SavepointNotFound(_)
+        TransactionError::savepoint_not_found(_)
     ));
 }
 

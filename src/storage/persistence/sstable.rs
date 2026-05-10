@@ -104,7 +104,7 @@ impl SsTableBuilder {
         }
 
         let first_key = self.current_block.first_key().ok_or_else(|| {
-            StorageError::InvalidOperation("Cannot flush empty block".to_string())
+            StorageError::invalid_operation("Cannot flush empty block".to_string())
         })?;
 
         let block_data = self.current_block.finish();
@@ -307,7 +307,7 @@ impl Footer {
     fn read_from<R: Read>(reader: &mut R) -> StorageResult<Self> {
         let magic = reader.read_u32_le()?;
         if magic != SSTABLE_MAGIC_NUMBER {
-            return Err(StorageError::DeserializeError(
+            return Err(StorageError::deserialize_error(
                 "Invalid SSTable magic number".to_string(),
             ));
         }
@@ -320,7 +320,7 @@ impl Footer {
 
         let magic_end = reader.read_u32_le()?;
         if magic_end != SSTABLE_MAGIC_NUMBER {
-            return Err(StorageError::DeserializeError(
+            return Err(StorageError::deserialize_error(
                 "Invalid SSTable magic number at end".to_string(),
             ));
         }

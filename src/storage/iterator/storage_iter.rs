@@ -31,7 +31,7 @@ impl std::error::Error for IterError {}
 
 impl From<IterError> for StorageError {
     fn from(err: IterError) -> Self {
-        StorageError::DbError(err.to_string())
+        StorageError::db_error(err.to_string())
     }
 }
 

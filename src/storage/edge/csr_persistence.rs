@@ -99,10 +99,10 @@ impl CsrPersistence {
 
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| StorageError::IOError(e.to_string()))?;
+            std::fs::create_dir_all(parent).map_err(|e| StorageError::io_error(e.to_string()))?;
         }
 
-        let file = File::create(path).map_err(|e| StorageError::IOError(e.to_string()))?;
+        let file = File::create(path).map_err(|e| StorageError::io_error(e.to_string()))?;
         let mut writer = BufWriter::new(file);
 
         let vertex_capacity = csr.vertex_capacity() as u64;
@@ -112,44 +112,44 @@ impl CsrPersistence {
         let header = CsrFileHeader::new(vertex_capacity, edge_count, total_edge_capacity);
         writer
             .write_all(&header.as_bytes())
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         for &offset in csr.adj_offsets() {
             writer
                 .write_all(&(offset as u64).to_le_bytes())
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
         }
 
         for &degree in csr.degrees() {
             writer
                 .write_all(&degree.to_le_bytes())
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
         }
 
         for &capacity in csr.capacities() {
             writer
                 .write_all(&capacity.to_le_bytes())
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
         }
 
         for nbr in csr.nbr_slice() {
             writer
                 .write_all(&nbr.neighbor.to_le_bytes())
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             writer
                 .write_all(&nbr.edge_id.to_le_bytes())
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             writer
                 .write_all(&nbr.prop_offset.to_le_bytes())
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             writer
                 .write_all(&nbr.timestamp.to_le_bytes())
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
         }
 
         writer
             .flush()
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         Ok(())
     }
@@ -160,16 +160,16 @@ impl CsrPersistence {
         use std::io::{BufReader, Read};
 
         let path = path.as_ref();
-        let file = File::open(path).map_err(|e| StorageError::IOError(e.to_string()))?;
+        let file = File::open(path).map_err(|e| StorageError::io_error(e.to_string()))?;
         let mut reader = BufReader::new(file);
 
         let mut header_bytes = [0u8; HEADER_SIZE];
         reader
             .read_exact(&mut header_bytes)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         let header = CsrFileHeader::from_bytes(&header_bytes)
-            .ok_or_else(|| StorageError::DeserializeError("Invalid CSR file header".to_string()))?;
+            .ok_or_else(|| StorageError::deserialize_error("Invalid CSR file header".to_string()))?;
 
         let vertex_capacity = header.vertex_capacity as usize;
         let edge_count = header.edge_count;
@@ -180,7 +180,7 @@ impl CsrPersistence {
             let mut bytes = [0u8; 8];
             reader
                 .read_exact(&mut bytes)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             adj_offsets.push(u64::from_le_bytes(bytes) as usize);
         }
 
@@ -189,7 +189,7 @@ impl CsrPersistence {
             let mut bytes = [0u8; 4];
             reader
                 .read_exact(&mut bytes)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             degrees.push(u32::from_le_bytes(bytes));
         }
 
@@ -198,7 +198,7 @@ impl CsrPersistence {
             let mut bytes = [0u8; 4];
             reader
                 .read_exact(&mut bytes)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             capacities.push(u32::from_le_bytes(bytes));
         }
 
@@ -211,16 +211,16 @@ impl CsrPersistence {
 
             reader
                 .read_exact(&mut neighbor_bytes)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             reader
                 .read_exact(&mut edge_id_bytes)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             reader
                 .read_exact(&mut prop_offset_bytes)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             reader
                 .read_exact(&mut timestamp_bytes)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
 
             nbr_list.push(super::Nbr {
                 neighbor: u64::from_le_bytes(neighbor_bytes),
@@ -251,20 +251,20 @@ impl CsrPersistence {
 
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| StorageError::IOError(e.to_string()))?;
+            std::fs::create_dir_all(parent).map_err(|e| StorageError::io_error(e.to_string()))?;
         }
 
-        let file = File::create(path).map_err(|e| StorageError::IOError(e.to_string()))?;
+        let file = File::create(path).map_err(|e| StorageError::io_error(e.to_string()))?;
         let mut writer = BufWriter::new(file);
 
         let data = csr.dump();
         writer
             .write_all(&data)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         writer
             .flush()
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         Ok(())
     }
@@ -275,11 +275,11 @@ impl CsrPersistence {
         use std::io::Read;
 
         let path = path.as_ref();
-        let mut file = File::open(path).map_err(|e| StorageError::IOError(e.to_string()))?;
+        let mut file = File::open(path).map_err(|e| StorageError::io_error(e.to_string()))?;
 
         let mut data = Vec::new();
         file.read_to_end(&mut data)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         let mut csr = super::Csr::new();
         csr.load(&data);

@@ -248,7 +248,7 @@ impl PropertyGraph {
         primary_key: &str,
     ) -> StorageResult<LabelId> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.schema_ops.create_vertex_type(name, properties, primary_key)
     }
@@ -263,7 +263,7 @@ impl PropertyGraph {
         ie_strategy: EdgeStrategy,
     ) -> StorageResult<LabelId> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.edge_ops.create_edge_type(
             name,
@@ -278,14 +278,14 @@ impl PropertyGraph {
 
     pub fn drop_vertex_type(&mut self, name: &str) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         let label_id = self
             .schema_ops
             .vertex_label_names
             .get(name)
             .copied()
-            .ok_or_else(|| StorageError::LabelNotFound(name.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(name.to_string()))?;
         self.schema_ops.drop_vertex_type(name)?;
         self.edge_ops.drop_edges_for_vertex_label(label_id);
         Ok(())
@@ -293,7 +293,7 @@ impl PropertyGraph {
 
     pub fn drop_edge_type(&mut self, name: &str) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.edge_ops.drop_edge_type(name)
     }
@@ -306,7 +306,7 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<u32> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.schema_ops.insert_vertex(label, external_id, properties, ts)
     }
@@ -386,7 +386,7 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.schema_ops.delete_vertex(label, external_id, ts)
     }
@@ -400,7 +400,7 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.schema_ops
             .update_vertex_property(label, external_id, property_name, value, ts)
@@ -417,7 +417,7 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<EdgeId> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.edge_ops.insert_edge(
             edge_label,
@@ -464,7 +464,7 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.edge_ops.delete_edge(
             edge_label,
@@ -489,7 +489,7 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
         self.edge_ops.update_edge_property(
             edge_label,
@@ -616,9 +616,9 @@ impl PropertyGraph {
 
         let version_file = data_dir.join("version");
         let mut file = fs::File::create(&version_file)
-            .map_err(|e| StorageError::IOError(format!("Failed to create version file: {}", e)))?;
+            .map_err(|e| StorageError::io_error(format!("Failed to create version file: {}", e)))?;
         writeln!(file, "{}", DATA_FORMAT_VERSION)
-            .map_err(|e| StorageError::IOError(format!("Failed to write version file: {}", e)))?;
+            .map_err(|e| StorageError::io_error(format!("Failed to write version file: {}", e)))?;
 
         let vertex_dir = data_dir.join("vertices");
         fs::create_dir_all(&vertex_dir)?;
@@ -725,15 +725,15 @@ impl PropertyGraph {
         let version_file = data_dir.join("version");
         if version_file.exists() {
             let mut file = fs::File::open(&version_file)
-                .map_err(|e| StorageError::IOError(format!("Failed to open version file: {}", e)))?;
+                .map_err(|e| StorageError::io_error(format!("Failed to open version file: {}", e)))?;
             let mut content = String::new();
             file.read_to_string(&mut content)
-                .map_err(|e| StorageError::IOError(format!("Failed to read version file: {}", e)))?;
+                .map_err(|e| StorageError::io_error(format!("Failed to read version file: {}", e)))?;
             let version: u32 = content.trim().parse().map_err(|e| {
-                StorageError::DeserializeError(format!("Invalid version format: {}", e))
+                StorageError::deserialize_error(format!("Invalid version format: {}", e))
             })?;
             if version > DATA_FORMAT_VERSION {
-                return Err(StorageError::DeserializeError(format!(
+                return Err(StorageError::deserialize_error(format!(
                     "Data format version {} is newer than supported version {}",
                     version, DATA_FORMAT_VERSION
                 )));

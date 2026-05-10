@@ -32,7 +32,7 @@ impl WalManager {
             let mut writer = wal_writer.write();
             writer
                 .append(data)
-                .map_err(|e| StorageError::WalError(format!("Failed to write WAL: {:?}", e)))?;
+                .map_err(|e| StorageError::wal_error(format!("Failed to write WAL: {:?}", e)))?;
         }
         Ok(())
     }
@@ -42,7 +42,7 @@ impl WalManager {
             let writer = wal_writer.write();
             writer
                 .sync()
-                .map_err(|e| StorageError::WalError(format!("Failed to sync WAL: {:?}", e)))?;
+                .map_err(|e| StorageError::wal_error(format!("Failed to sync WAL: {:?}", e)))?;
         }
         Ok(())
     }

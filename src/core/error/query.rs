@@ -9,16 +9,14 @@
 
 use std::error::Error;
 
+use super::BoxedError;
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
-use crate::core::error::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::error::manager::ManagerError;
-use crate::core::error::permission::PermissionError;
-use crate::core::error::session::SessionError;
 use crate::core::error::storage::StorageError;
 use crate::core::error::DBError;
-
-/// Thread-safe boxed error type
-pub type BoxedError = Box<dyn Error + Send + Sync>;
+use crate::api::server::permission::PermissionError;
+use crate::api::server::session::SessionError;
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 /// Query processing phase enumeration
 ///
@@ -677,7 +675,7 @@ mod tests {
 
     #[test]
     fn test_queryerror_with_source() {
-        let storage_err = StorageError::NodeNotFound(crate::core::Value::Int(42));
+        let storage_err = StorageError::node_not_found(crate::core::Value::Int(42));
         let query_err = QueryError::from(storage_err);
         assert_eq!(query_err.kind(), QueryErrorKind::Storage);
     }

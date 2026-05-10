@@ -248,7 +248,7 @@ impl AlpColumn {
                     .collect();
                 Ok(Self::analyze_f64(&doubles))
             }
-            _ => Err(StorageError::InvalidInput(format!(
+            _ => Err(StorageError::invalid_input(format!(
                 "ALP compression not supported for {:?}",
                 data_type
             ))),
@@ -277,7 +277,7 @@ impl AlpColumn {
 
     pub fn set(&mut self, row_idx: usize, value: Option<f64>) -> StorageResult<()> {
         if row_idx >= self.row_count {
-            return Err(StorageError::InvalidInput(format!(
+            return Err(StorageError::invalid_input(format!(
                 "Index {} out of bounds (len: {})",
                 row_idx, self.row_count
             )));

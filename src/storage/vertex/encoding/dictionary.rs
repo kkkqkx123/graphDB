@@ -212,10 +212,8 @@ impl DictionaryColumn {
                 }
             }
             Some(v) => {
-                return Err(StorageError::TypeMismatch {
-                    expected: crate::core::DataType::String,
-                    actual: v.data_type(),
-                });
+                return Err(StorageError::type_mismatch(crate::core::DataType::String, v.data_type(),
+                ));
             }
             None => {
                 if row_idx < self.encoder.indices.len() {

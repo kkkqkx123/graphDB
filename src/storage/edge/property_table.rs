@@ -123,7 +123,7 @@ impl PropertyTable {
     pub fn update(&mut self, offset: u32, values: &[(String, Value)]) -> StorageResult<()> {
         let offset_idx = offset as usize;
         if offset_idx == 0 || offset_idx > self.rows.len() {
-            return Err(StorageError::InvalidOffset(offset));
+            return Err(StorageError::invalid_offset(offset));
         }
 
         let row = &mut self.rows[offset_idx - 1];
@@ -172,11 +172,11 @@ impl PropertyTable {
         let col_idx = *self
             .name_to_index
             .get(name)
-            .ok_or_else(|| StorageError::ColumnNotFound(name.to_string()))?;
+            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
 
         let offset_idx = offset as usize;
         if offset_idx == 0 || offset_idx > self.rows.len() {
-            return Err(StorageError::InvalidOffset(offset));
+            return Err(StorageError::invalid_offset(offset));
         }
 
         self.rows[offset_idx - 1].set(col_idx, value);
@@ -192,11 +192,11 @@ impl PropertyTable {
         let col_idx = prop_id as usize;
         let offset_idx = offset as usize;
         if offset_idx == 0 || offset_idx > self.rows.len() {
-            return Err(StorageError::InvalidOffset(offset));
+            return Err(StorageError::invalid_offset(offset));
         }
 
         if col_idx >= self.schema.len() {
-            return Err(StorageError::ColumnNotFound(format!("prop_id={}", prop_id)));
+            return Err(StorageError::column_not_found(format!("prop_id={}", prop_id)));
         }
 
         self.rows[offset_idx - 1].set(col_idx, value);

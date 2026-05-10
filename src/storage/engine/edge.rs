@@ -41,20 +41,20 @@ impl EdgeOps {
         vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
     ) -> StorageResult<LabelId> {
         if !vertex_tables.contains_key(&src_label) {
-            return Err(StorageError::LabelNotFound(format!(
+            return Err(StorageError::label_not_found(format!(
                 "source label {}",
                 src_label
             )));
         }
         if !vertex_tables.contains_key(&dst_label) {
-            return Err(StorageError::LabelNotFound(format!(
+            return Err(StorageError::label_not_found(format!(
                 "destination label {}",
                 dst_label
             )));
         }
 
         if self.edge_label_names.contains_key(name) {
-            return Err(StorageError::LabelAlreadyExists(name.to_string()));
+            return Err(StorageError::label_already_exists(name.to_string()));
         }
 
         let label_id = self.edge_label_counter;
@@ -82,7 +82,7 @@ impl EdgeOps {
         let label_id = self
             .edge_label_names
             .remove(name)
-            .ok_or_else(|| StorageError::LabelNotFound(name.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(name.to_string()))?;
 
         let keys_to_remove: Vec<_> = self
             .edge_tables
@@ -148,24 +148,24 @@ impl EdgeOps {
         vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
     ) -> StorageResult<EdgeId> {
         let src_table = vertex_tables.get(&src_label).ok_or_else(|| {
-            StorageError::LabelNotFound(format!("source vertex label {}", src_label))
+            StorageError::label_not_found(format!("source vertex label {}", src_label))
         })?;
         let dst_table = vertex_tables.get(&dst_label).ok_or_else(|| {
-            StorageError::LabelNotFound(format!("destination vertex label {}", dst_label))
+            StorageError::label_not_found(format!("destination vertex label {}", dst_label))
         })?;
 
         let src_internal = src_table
             .get_internal_id(src_id, ts)
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
         let dst_internal = dst_table
             .get_internal_id(dst_id, ts)
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
 
         let key = (src_label, dst_label, edge_label);
         let edge_table = self
             .edge_tables
             .get_mut(&key)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
+            .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", edge_label)))?;
 
         edge_table.insert_edge(
             src_internal as VertexId,
@@ -208,24 +208,24 @@ impl EdgeOps {
         vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
     ) -> StorageResult<bool> {
         let src_table = vertex_tables.get(&src_label).ok_or_else(|| {
-            StorageError::LabelNotFound(format!("source vertex label {}", src_label))
+            StorageError::label_not_found(format!("source vertex label {}", src_label))
         })?;
         let dst_table = vertex_tables.get(&dst_label).ok_or_else(|| {
-            StorageError::LabelNotFound(format!("destination vertex label {}", dst_label))
+            StorageError::label_not_found(format!("destination vertex label {}", dst_label))
         })?;
 
         let src_internal = src_table
             .get_internal_id(src_id, ts)
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
         let dst_internal = dst_table
             .get_internal_id(dst_id, ts)
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
 
         let key = (src_label, dst_label, edge_label);
         let edge_table = self
             .edge_tables
             .get_mut(&key)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
+            .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", edge_label)))?;
 
         edge_table.delete_edge(src_internal as VertexId, dst_internal as VertexId, ts)
     }
@@ -243,24 +243,24 @@ impl EdgeOps {
         vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
     ) -> StorageResult<bool> {
         let src_table = vertex_tables.get(&src_label).ok_or_else(|| {
-            StorageError::LabelNotFound(format!("source vertex label {}", src_label))
+            StorageError::label_not_found(format!("source vertex label {}", src_label))
         })?;
         let dst_table = vertex_tables.get(&dst_label).ok_or_else(|| {
-            StorageError::LabelNotFound(format!("destination vertex label {}", dst_label))
+            StorageError::label_not_found(format!("destination vertex label {}", dst_label))
         })?;
 
         let src_internal = src_table
             .get_internal_id(src_id, ts)
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
         let dst_internal = dst_table
             .get_internal_id(dst_id, ts)
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
 
         let key = (src_label, dst_label, edge_label);
         let edge_table = self
             .edge_tables
             .get_mut(&key)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("edge label {}", edge_label)))?;
+            .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", edge_label)))?;
 
         edge_table.update_edge_property(
             src_internal as VertexId,
@@ -332,23 +332,23 @@ impl EdgeOps {
             .vertex_label_names
             .get(src_label)
             .copied()
-            .ok_or_else(|| StorageError::LabelNotFound(src_label.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(src_label.to_string()))?;
         let dst_label_id = schema_ops
             .vertex_label_names
             .get(dst_label)
             .copied()
-            .ok_or_else(|| StorageError::LabelNotFound(dst_label.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(dst_label.to_string()))?;
         let edge_label_id = self
             .edge_label_names
             .get(edge_label)
             .copied()
-            .ok_or_else(|| StorageError::LabelNotFound(edge_label.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(edge_label.to_string()))?;
 
         let key = (src_label_id, dst_label_id, edge_label_id);
         let table = self
             .edge_tables
             .get_mut(&key)
-            .ok_or_else(|| StorageError::LabelNotFound(edge_label.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(edge_label.to_string()))?;
 
         for prop_name in prop_names {
             if table.schema().properties.iter().any(|p| p.name == *prop_name) {

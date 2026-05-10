@@ -124,7 +124,7 @@ impl PrefixCompressor {
                 Ok(result)
             }
             0x00 => Ok(compressed[1..].to_vec()),
-            _ => Err(StorageError::InvalidInput(
+            _ => Err(StorageError::invalid_input(
                 "Invalid compression flag".to_string(),
             )),
         }
@@ -202,7 +202,7 @@ impl DictionaryCompressor {
         match compressed[0] {
             0x01 => {
                 if compressed.len() < 5 {
-                    return Err(StorageError::InvalidInput(
+                    return Err(StorageError::invalid_input(
                         "Invalid dictionary compressed data".to_string(),
                     ));
                 }
@@ -213,24 +213,24 @@ impl DictionaryCompressor {
                     compressed[4],
                 ]);
                 self.reverse_dict.get(id as usize).cloned().ok_or_else(|| {
-                    StorageError::InvalidInput("Dictionary ID not found".to_string())
+                    StorageError::invalid_input("Dictionary ID not found".to_string())
                 })
             }
             0x00 => {
                 if compressed.len() < 3 {
-                    return Err(StorageError::InvalidInput(
+                    return Err(StorageError::invalid_input(
                         "Invalid literal compressed data".to_string(),
                     ));
                 }
                 let len = u16::from_le_bytes([compressed[1], compressed[2]]) as usize;
                 if compressed.len() < 3 + len {
-                    return Err(StorageError::InvalidInput(
+                    return Err(StorageError::invalid_input(
                         "Compressed data truncated".to_string(),
                     ));
                 }
                 Ok(compressed[3..3 + len].to_vec())
             }
-            _ => Err(StorageError::InvalidInput(
+            _ => Err(StorageError::invalid_input(
                 "Invalid compression flag".to_string(),
             )),
         }
@@ -305,7 +305,7 @@ impl DeltaCompressor {
         match compressed[0] {
             0x01 => {
                 if compressed.len() < 3 {
-                    return Err(StorageError::InvalidInput(
+                    return Err(StorageError::invalid_input(
                         "Invalid delta compressed data".to_string(),
                     ));
                 }
@@ -313,7 +313,7 @@ impl DeltaCompressor {
                 let suffix_len = compressed[2] as usize;
 
                 if compressed.len() < 3 + suffix_len {
-                    return Err(StorageError::InvalidInput(
+                    return Err(StorageError::invalid_input(
                         "Delta data truncated".to_string(),
                     ));
                 }
@@ -328,19 +328,19 @@ impl DeltaCompressor {
             }
             0x00 => {
                 if compressed.len() < 3 {
-                    return Err(StorageError::InvalidInput(
+                    return Err(StorageError::invalid_input(
                         "Invalid literal data".to_string(),
                     ));
                 }
                 let len = u16::from_le_bytes([compressed[1], compressed[2]]) as usize;
                 if compressed.len() < 3 + len {
-                    return Err(StorageError::InvalidInput(
+                    return Err(StorageError::invalid_input(
                         "Compressed data truncated".to_string(),
                     ));
                 }
                 Ok(compressed[3..3 + len].to_vec())
             }
-            _ => Err(StorageError::InvalidInput(
+            _ => Err(StorageError::invalid_input(
                 "Invalid compression flag".to_string(),
             )),
         }

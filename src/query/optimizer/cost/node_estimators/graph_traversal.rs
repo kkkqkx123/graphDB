@@ -10,7 +10,7 @@
 //! - GetEdges
 
 use super::{get_input_rows, NodeEstimator};
-use crate::core::error::optimize::CostError;
+use crate::query::optimizer::error::CostError;
 use crate::core::types::EdgeDirection;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;

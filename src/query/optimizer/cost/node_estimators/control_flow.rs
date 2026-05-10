@@ -7,7 +7,7 @@
 //! - Argument
 
 use super::{get_input_rows, NodeEstimator};
-use crate::core::error::optimize::CostError;
+use crate::query::optimizer::error::CostError;
 use crate::query::optimizer::cost::config::CostModelConfig;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::expression_parser::ExpressionParser;

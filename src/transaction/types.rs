@@ -7,7 +7,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 /// Transaction ID
 pub type TransactionId = u64;
@@ -199,79 +198,6 @@ impl fmt::Display for TransactionState {
             TransactionState::Aborted => write!(f, "Aborted"),
         }
     }
-}
-
-/// Transaction Error Type
-#[derive(Error, Debug, Clone)]
-pub enum TransactionError {
-    #[error("Transaction begin failed: {0}")]
-    BeginFailed(String),
-
-    #[error("Transaction commit failed: {0}")]
-    CommitFailed(String),
-
-    #[error("Transaction abort failed: {0}")]
-    AbortFailed(String),
-
-    #[error("Transaction not found: {0}")]
-    TransactionNotFound(TransactionId),
-
-    #[error("Savepoint creation failed: {0}")]
-    SavepointFailed(String),
-
-    #[error("Savepoint not found: {0}")]
-    SavepointNotFound(TransactionId),
-
-    #[error("Savepoint not active: {0}")]
-    SavepointNotActive(TransactionId),
-
-    #[error("No savepoints in transaction")]
-    NoSavepointsInTransaction,
-
-    #[error("Invalid state transition: from {from} to {to}")]
-    InvalidStateTransition {
-        from: TransactionState,
-        to: TransactionState,
-    },
-
-    #[error("Invalid state for commit: {0}")]
-    InvalidStateForCommit(TransactionState),
-
-    #[error("Invalid state for abort: {0}")]
-    InvalidStateForAbort(TransactionState),
-
-    #[error("Transaction timeout")]
-    TransactionTimeout,
-
-    #[error("Transaction expired")]
-    TransactionExpired,
-
-    #[error("Rollback failed: {0}")]
-    RollbackFailed(String),
-
-    #[error("Too many concurrent transactions")]
-    TooManyTransactions,
-
-    #[error("Read-only transaction")]
-    ReadOnlyTransaction,
-
-    #[error("Write transaction conflict")]
-    WriteTransactionConflict,
-
-    #[error("Recovery failed: {0}")]
-    RecoveryFailed(String),
-
-    #[error("Persistence failed: {0}")]
-    PersistenceFailed(String),
-
-    #[error("Serialization failed: {0}")]
-    SerializationFailed(String),
-
-    #[error("Index sync failed: {0}")]
-    SyncFailed(String),
-
-    #[error("Internal error: {0}")]
-    Internal(String),
 }
 
 /// Transaction Options

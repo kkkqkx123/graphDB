@@ -255,7 +255,7 @@ impl SeekStrategy for VariablePropIndexSeek {
     ) -> Result<SeekResult, StorageError> {
         // Check whether the variable has been bound.
         if !self.all_variables_bound() {
-            return Err(StorageError::InvalidInput(
+            return Err(StorageError::invalid_input(
                 "Variable property lookups require all variables to be bound".to_string(),
             ));
         }

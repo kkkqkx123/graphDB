@@ -1,3 +1,4 @@
+pub mod error;
 pub mod evaluation_context;
 pub mod evaluator;
 pub mod functions;
@@ -8,8 +9,8 @@ pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, Unary
 // Export the type tool from the core again.
 pub use crate::core::TypeUtils;
 
-// Error in re-exporting the error types from the core.
-pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+// Re-export error types from local error module
+pub use error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
 
 // Re-export the ExpressionContext trait and the evaluator from the evaluator module.
 pub use evaluator::{ExpressionContext, ExpressionEvaluator};

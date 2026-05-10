@@ -25,7 +25,7 @@
 //! let decision = optimizer.should_materialize(&cte_node, &plan_root);
 //! ```
 
-use crate::core::error::optimize::OptimizeResult;
+use crate::query::optimizer::error::OptimizeResult;
 use crate::query::optimizer::analysis::BatchPlanAnalysis;
 use crate::query::optimizer::context::OptimizationContext;
 use crate::query::optimizer::cost::StrategyThresholds;

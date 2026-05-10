@@ -47,14 +47,14 @@ impl VertexStorage {
         let graph = self.graph.read();
         graph
             .get_vertex_label_id(tag)
-            .ok_or_else(|| StorageError::DbError(format!("Label '{}' not found", tag)))
+            .ok_or_else(|| StorageError::db_error(format!("Label '{}' not found", tag)))
     }
 
     fn value_to_string_id(&self, id: &Value) -> Result<String, StorageError> {
         match id {
             Value::BigInt(v) => Ok(v.to_string()),
             Value::String(v) => Ok(v.clone()),
-            _ => Err(StorageError::DbError(format!(
+            _ => Err(StorageError::db_error(format!(
                 "Unsupported vertex ID type: {:?}",
                 id
             ))),
@@ -231,7 +231,7 @@ impl VertexStorage {
         let tag = vertex
             .tags
             .first()
-            .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
+            .ok_or_else(|| StorageError::db_error("Vertex has no tags".to_string()))?;
 
         let label_id = self.get_label_id(space, &tag.name)?;
         let properties: Vec<(String, Value)> = tag
@@ -285,7 +285,7 @@ impl VertexStorage {
         let tag = vertex
             .tags
             .first()
-            .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
+            .ok_or_else(|| StorageError::db_error("Vertex has no tags".to_string()))?;
 
         let label_id = self.get_label_id(space, &tag.name)?;
         let properties: Vec<(String, Value)> = tag
@@ -382,7 +382,7 @@ impl VertexStorage {
                 let tag = vertex
                     .tags
                     .first()
-                    .ok_or_else(|| StorageError::DbError("Vertex has no tags".to_string()))?;
+                    .ok_or_else(|| StorageError::db_error("Vertex has no tags".to_string()))?;
 
                 let label_id = self.get_label_id(space, &tag.name)?;
                 let properties: Vec<(String, Value)> = tag
@@ -457,7 +457,7 @@ impl VertexStorage {
             .schema_manager
             .get_tag(space, &tag_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag_name, space))
+                StorageError::db_error(format!("Tag '{}' not found in space '{}'", tag_name, space))
             })?;
 
         let external_id = self.value_to_string_id(&info.vertex_id)?;
@@ -575,7 +575,7 @@ impl VertexStorage {
                 .tags
                 .iter()
                 .find(|t| t.name == tag)
-                .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found", tag)))?;
+                .ok_or_else(|| StorageError::db_error(format!("Tag '{}' not found", tag)))?;
 
             let new_value = tag_data.properties.get(prop).cloned();
 
@@ -649,7 +649,7 @@ impl VertexStorage {
 
         if let Some(vertex) = self.get_vertex(space, id)? {
             let tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
-                StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+                StorageError::db_error(format!("Tag '{}' not found in space '{}'", tag, space))
             })?;
             let schema = self.build_vertex_schema(&tag_info)?;
             let vertex_data = encode_to_vec(&vertex)?;
@@ -667,7 +667,7 @@ impl VertexStorage {
 
         let mut results = Vec::new();
         let tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
-            StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+            StorageError::db_error(format!("Tag '{}' not found in space '{}'", tag, space))
         })?;
         let schema = self.build_vertex_schema(&tag_info)?;
 

@@ -170,7 +170,7 @@ impl BitPackedColumn {
 
     pub fn set(&mut self, row_idx: usize, value: Option<i64>) -> StorageResult<()> {
         if row_idx >= self.row_count {
-            return Err(StorageError::InvalidInput(format!(
+            return Err(StorageError::invalid_input(format!(
                 "Index {} out of bounds (len: {})",
                 row_idx, self.row_count
             )));
@@ -201,7 +201,7 @@ impl BitPackedColumn {
                         bitmap.set(row_idx, true);
                     }
                 } else {
-                    return Err(StorageError::NullValueNotAllowed(
+                    return Err(StorageError::null_value_not_allowed(
                         "bitpacked_column".to_string(),
                     ));
                 }

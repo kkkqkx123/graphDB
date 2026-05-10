@@ -11,6 +11,7 @@ use dashmap::DashMap;
 
 use super::cleaner::TransactionCleaner;
 use super::context::TransactionContext;
+use super::error::TransactionError;
 use super::monitor::TransactionMonitor;
 use super::types::*;
 use super::undo_log::UndoTarget;
@@ -92,7 +93,7 @@ impl TransactionManager {
         options: TransactionOptions,
     ) -> Result<TransactionId, TransactionError> {
         if self.shutdown_flag.load(Ordering::SeqCst) != 0 {
-            return Err(TransactionError::Internal(
+            return Err(TransactionError::internal(
                 "Transaction manager is shutdown".to_string(),
             ));
         }
@@ -101,7 +102,7 @@ impl TransactionManager {
 
         let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
-            return Err(TransactionError::TooManyTransactions);
+            return Err(TransactionError::too_many_transactions());
         }
 
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
@@ -133,7 +134,7 @@ impl TransactionManager {
         options: TransactionOptions,
     ) -> Result<TransactionId, TransactionError> {
         if self.shutdown_flag.load(Ordering::SeqCst) != 0 {
-            return Err(TransactionError::Internal(
+            return Err(TransactionError::internal(
                 "Transaction manager is shutdown".to_string(),
             ));
         }
@@ -142,7 +143,7 @@ impl TransactionManager {
 
         let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
-            return Err(TransactionError::TooManyTransactions);
+            return Err(TransactionError::too_many_transactions());
         }
 
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
@@ -177,7 +178,7 @@ impl TransactionManager {
         options: TransactionOptions,
     ) -> Result<TransactionId, TransactionError> {
         if self.shutdown_flag.load(Ordering::SeqCst) != 0 {
-            return Err(TransactionError::Internal(
+            return Err(TransactionError::internal(
                 "Transaction manager is shutdown".to_string(),
             ));
         }
@@ -186,7 +187,7 @@ impl TransactionManager {
         let timestamp = self
             .version_manager
             .acquire_update_timestamp()
-            .map_err(|e| TransactionError::Internal(e.to_string()))?;
+            .map_err(|e| TransactionError::internal(e.to_string()))?;
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
         let config = TransactionConfig {
@@ -228,7 +229,7 @@ impl TransactionManager {
         self.active_transactions
             .get(&txn_id)
             .map(|entry| entry.value().clone())
-            .ok_or(TransactionError::TransactionNotFound(txn_id))
+            .ok_or(TransactionError::transaction_not_found(txn_id))
     }
 
     /// Check if transaction exists and is active
@@ -245,19 +246,19 @@ impl TransactionManager {
             let entry = self
                 .active_transactions
                 .get(&txn_id)
-                .ok_or(TransactionError::TransactionNotFound(txn_id))?;
+                .ok_or(TransactionError::transaction_not_found(txn_id))?;
 
             let ctx = entry.value().clone();
             drop(entry);
 
             if !ctx.state().can_commit() {
-                return Err(TransactionError::InvalidStateForCommit(ctx.state()));
+                return Err(TransactionError::invalid_state_for_commit(ctx.state()));
             }
 
             if ctx.is_expired() {
                 self.active_transactions.remove(&txn_id);
                 self.stats.increment_timeout();
-                return Err(TransactionError::TransactionTimeout);
+                return Err(TransactionError::transaction_timeout());
             }
 
             self.active_transactions.remove(&txn_id);
@@ -296,12 +297,12 @@ impl TransactionManager {
             let entry = self
                 .active_transactions
                 .get(&txn_id)
-                .ok_or(TransactionError::TransactionNotFound(txn_id))?;
+                .ok_or(TransactionError::transaction_not_found(txn_id))?;
             let ctx = entry.value().clone();
             drop(entry);
 
             if !ctx.state().can_abort() {
-                return Err(TransactionError::InvalidStateForAbort(ctx.state()));
+                return Err(TransactionError::invalid_state_for_abort(ctx.state()));
             }
 
             self.active_transactions.remove(&txn_id);
@@ -321,12 +322,12 @@ impl TransactionManager {
             let entry = self
                 .active_transactions
                 .get(&txn_id)
-                .ok_or(TransactionError::TransactionNotFound(txn_id))?;
+                .ok_or(TransactionError::transaction_not_found(txn_id))?;
             let ctx = entry.value().clone();
             drop(entry);
 
             if !ctx.state().can_abort() {
-                return Err(TransactionError::InvalidStateForAbort(ctx.state()));
+                return Err(TransactionError::invalid_state_for_abort(ctx.state()));
             }
 
             self.active_transactions.remove(&txn_id);

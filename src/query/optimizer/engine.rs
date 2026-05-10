@@ -397,21 +397,7 @@ impl OptimizerEngine {
     }
 }
 
-/// Optimization result type
-pub type OptimizeResult<T> = Result<T, OptimizeError>;
-
-/// Optimization error type
-#[derive(Debug, Clone, thiserror::Error)]
-pub enum OptimizeError {
-    #[error("Heuristic optimization failed: {0}")]
-    HeuristicFailed(String),
-
-    #[error("Cost-based optimization failed: {0}")]
-    CostBasedFailed(String),
-
-    #[error("Pipeline configuration error: {0}")]
-    ConfigurationError(String),
-}
+use crate::query::optimizer::error::{OptimizeError, OptimizeResult};
 
 impl Default for OptimizerEngine {
     fn default() -> Self {

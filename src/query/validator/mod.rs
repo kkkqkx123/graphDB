@@ -8,6 +8,9 @@
 //! Implementation of static distribution using enumeration
 //! The Factory Pattern is used to create validators.
 
+// Error types
+pub mod error;
+
 // Context module
 pub mod context;
 

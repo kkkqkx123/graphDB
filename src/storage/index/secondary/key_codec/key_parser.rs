@@ -17,14 +17,14 @@ impl KeyParser {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError("Invalid key: too short".to_string()));
+            return Err(StorageError::db_error("Invalid key: too short".to_string()));
         }
         let index_name_len =
             u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4 + index_name_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid key: missing prop_value_len".to_string(),
             ));
         }
@@ -33,7 +33,7 @@ impl KeyParser {
         pos += 4 + prop_value_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid key: missing vertex_id_len".to_string(),
             ));
         }
@@ -42,7 +42,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + vertex_id_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid key: vertex_id exceeds key length".to_string(),
             ));
         }
@@ -54,14 +54,14 @@ impl KeyParser {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError("Invalid key: too short".to_string()));
+            return Err(StorageError::db_error("Invalid key: too short".to_string()));
         }
         let index_name_len =
             u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4 + index_name_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid key: missing prop_value_len".to_string(),
             ));
         }
@@ -70,7 +70,7 @@ impl KeyParser {
         pos += 4 + prop_value_len;
 
         if key_bytes.len() < pos + 8 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid key: vertex_id exceeds key length".to_string(),
             ));
         }
@@ -85,7 +85,7 @@ impl KeyParser {
 
     pub fn parse_vertex_reverse_key(key_bytes: &[u8]) -> Result<(String, Vec<u8>), StorageError> {
         if key_bytes.len() < 9 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key: too short".to_string(),
             ));
         }
@@ -93,7 +93,7 @@ impl KeyParser {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key: missing index_name_len".to_string(),
             ));
         }
@@ -102,16 +102,16 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key: index_name exceeds key length".to_string(),
             ));
         }
         let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
-            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+            .map_err(|e| StorageError::db_error(format!("Invalid index_name encoding: {}", e)))?;
         pos += index_name_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key: missing vertex_id_len".to_string(),
             ));
         }
@@ -120,7 +120,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + vertex_id_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key: vertex_id exceeds key length".to_string(),
             ));
         }
@@ -133,7 +133,7 @@ impl KeyParser {
         key_bytes: &[u8],
     ) -> Result<(Vec<u8>, String), StorageError> {
         if key_bytes.len() < 9 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key v2: too short".to_string(),
             ));
         }
@@ -141,7 +141,7 @@ impl KeyParser {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key v2: missing vertex_id_len".to_string(),
             ));
         }
@@ -150,7 +150,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + vertex_id_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key v2: vertex_id exceeds key length".to_string(),
             ));
         }
@@ -158,7 +158,7 @@ impl KeyParser {
         pos += vertex_id_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key v2: missing index_name_len".to_string(),
             ));
         }
@@ -167,12 +167,12 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key v2: index_name exceeds key length".to_string(),
             ));
         }
         let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
-            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+            .map_err(|e| StorageError::db_error(format!("Invalid index_name encoding: {}", e)))?;
 
         Ok((vertex_id_bytes, index_name))
     }
@@ -181,7 +181,7 @@ impl KeyParser {
         key_bytes: &[u8],
     ) -> Result<(u64, String), StorageError> {
         if key_bytes.len() < 17 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key native: too short".to_string(),
             ));
         }
@@ -191,7 +191,7 @@ impl KeyParser {
         let mut pos = 17;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key native: missing index_name_len".to_string(),
             ));
         }
@@ -200,12 +200,12 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid reverse key native: index_name exceeds key length".to_string(),
             ));
         }
         let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
-            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+            .map_err(|e| StorageError::db_error(format!("Invalid index_name encoding: {}", e)))?;
 
         Ok((vertex_id, index_name))
     }
@@ -218,7 +218,7 @@ impl KeyParser {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge key: too short".to_string(),
             ));
         }
@@ -227,7 +227,7 @@ impl KeyParser {
         pos += 4 + index_name_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge key: missing prop_value_len".to_string(),
             ));
         }
@@ -236,7 +236,7 @@ impl KeyParser {
         pos += 4 + prop_value_len;
 
         if key_bytes.len() < pos + 16 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge key: src/dst exceeds key length".to_string(),
             ));
         }
@@ -252,7 +252,7 @@ impl KeyParser {
 
     pub fn parse_edge_reverse_key(key_bytes: &[u8]) -> Result<(String, Vec<u8>), StorageError> {
         if key_bytes.len() < 9 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key: too short".to_string(),
             ));
         }
@@ -260,7 +260,7 @@ impl KeyParser {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key: missing index_name_len".to_string(),
             ));
         }
@@ -269,16 +269,16 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key: index_name exceeds key length".to_string(),
             ));
         }
         let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
-            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+            .map_err(|e| StorageError::db_error(format!("Invalid index_name encoding: {}", e)))?;
         pos += index_name_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key: missing src_len".to_string(),
             ));
         }
@@ -287,7 +287,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + src_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key: src exceeds key length".to_string(),
             ));
         }
@@ -300,7 +300,7 @@ impl KeyParser {
         key_bytes: &[u8],
     ) -> Result<(Vec<u8>, Vec<u8>, String), StorageError> {
         if key_bytes.len() < 9 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key v2: too short".to_string(),
             ));
         }
@@ -308,7 +308,7 @@ impl KeyParser {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key v2: missing src_len".to_string(),
             ));
         }
@@ -317,7 +317,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + src_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key v2: src exceeds key length".to_string(),
             ));
         }
@@ -325,7 +325,7 @@ impl KeyParser {
         pos += src_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key v2: missing dst_len".to_string(),
             ));
         }
@@ -334,7 +334,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + dst_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key v2: dst exceeds key length".to_string(),
             ));
         }
@@ -342,7 +342,7 @@ impl KeyParser {
         pos += dst_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key v2: missing index_name_len".to_string(),
             ));
         }
@@ -351,12 +351,12 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key v2: index_name exceeds key length".to_string(),
             ));
         }
         let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
-            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+            .map_err(|e| StorageError::db_error(format!("Invalid index_name encoding: {}", e)))?;
 
         Ok((src_bytes, dst_bytes, index_name))
     }
@@ -365,7 +365,7 @@ impl KeyParser {
         key_bytes: &[u8],
     ) -> Result<(u64, u64, String), StorageError> {
         if key_bytes.len() < 25 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key native: too short".to_string(),
             ));
         }
@@ -376,7 +376,7 @@ impl KeyParser {
         let mut pos = 25;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key native: missing index_name_len".to_string(),
             ));
         }
@@ -385,12 +385,12 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid edge reverse key native: index_name exceeds key length".to_string(),
             ));
         }
         let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
-            .map_err(|e| StorageError::DbError(format!("Invalid index_name encoding: {}", e)))?;
+            .map_err(|e| StorageError::db_error(format!("Invalid index_name encoding: {}", e)))?;
 
         Ok((src, dst, index_name))
     }
@@ -403,7 +403,7 @@ impl KeyParser {
         key_bytes: &[u8],
     ) -> Result<(Vec<Value>, Value), StorageError> {
         if key_bytes.len() < 9 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite vertex key: too short".to_string(),
             ));
         }
@@ -415,7 +415,7 @@ impl KeyParser {
         pos += 4 + index_name_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite vertex key: missing field_count".to_string(),
             ));
         }
@@ -426,7 +426,7 @@ impl KeyParser {
         let mut field_values = Vec::with_capacity(field_count);
         for _ in 0..field_count {
             if key_bytes.len() < pos + 4 {
-                return Err(StorageError::DbError(
+                return Err(StorageError::db_error(
                     "Invalid composite vertex key: missing field_len".to_string(),
                 ));
             }
@@ -435,7 +435,7 @@ impl KeyParser {
             pos += 4;
 
             if key_bytes.len() < pos + field_len {
-                return Err(StorageError::DbError(
+                return Err(StorageError::db_error(
                     "Invalid composite vertex key: field exceeds key length".to_string(),
                 ));
             }
@@ -446,7 +446,7 @@ impl KeyParser {
         }
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite vertex key: missing vertex_id_len".to_string(),
             ));
         }
@@ -455,7 +455,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + vertex_id_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite vertex key: vertex_id exceeds key length".to_string(),
             ));
         }
@@ -469,7 +469,7 @@ impl KeyParser {
         key_bytes: &[u8],
     ) -> Result<(Vec<Value>, Value, Value), StorageError> {
         if key_bytes.len() < 9 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite edge key: too short".to_string(),
             ));
         }
@@ -481,7 +481,7 @@ impl KeyParser {
         pos += 4 + index_name_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite edge key: missing field_count".to_string(),
             ));
         }
@@ -492,7 +492,7 @@ impl KeyParser {
         let mut field_values = Vec::with_capacity(field_count);
         for _ in 0..field_count {
             if key_bytes.len() < pos + 4 {
-                return Err(StorageError::DbError(
+                return Err(StorageError::db_error(
                     "Invalid composite edge key: missing field_len".to_string(),
                 ));
             }
@@ -501,7 +501,7 @@ impl KeyParser {
             pos += 4;
 
             if key_bytes.len() < pos + field_len {
-                return Err(StorageError::DbError(
+                return Err(StorageError::db_error(
                     "Invalid composite edge key: field exceeds key length".to_string(),
                 ));
             }
@@ -512,7 +512,7 @@ impl KeyParser {
         }
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite edge key: missing src_len".to_string(),
             ));
         }
@@ -521,7 +521,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + src_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite edge key: src exceeds key length".to_string(),
             ));
         }
@@ -530,7 +530,7 @@ impl KeyParser {
         pos += src_len;
 
         if key_bytes.len() < pos + 4 {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite edge key: missing dst_len".to_string(),
             ));
         }
@@ -539,7 +539,7 @@ impl KeyParser {
         pos += 4;
 
         if key_bytes.len() < pos + dst_len {
-            return Err(StorageError::DbError(
+            return Err(StorageError::db_error(
                 "Invalid composite edge key: dst exceeds key length".to_string(),
             ));
         }

@@ -35,7 +35,7 @@ impl SchemaOps {
         primary_key: &str,
     ) -> StorageResult<LabelId> {
         if self.vertex_label_names.contains_key(name) {
-            return Err(StorageError::LabelAlreadyExists(name.to_string()));
+            return Err(StorageError::label_already_exists(name.to_string()));
         }
 
         let label_id = self.vertex_label_counter;
@@ -44,7 +44,7 @@ impl SchemaOps {
         let primary_key_index = properties
             .iter()
             .position(|p| p.name == primary_key)
-            .ok_or_else(|| StorageError::PropertyNotFound(primary_key.to_string()))?;
+            .ok_or_else(|| StorageError::property_not_found(primary_key.to_string()))?;
 
         let schema = VertexSchema {
             label_id,
@@ -64,7 +64,7 @@ impl SchemaOps {
         let label_id = self
             .vertex_label_names
             .remove(name)
-            .ok_or_else(|| StorageError::LabelNotFound(name.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(name.to_string()))?;
 
         self.vertex_tables.remove(&label_id);
 
@@ -101,7 +101,7 @@ impl SchemaOps {
         let table = self
             .vertex_tables
             .get_mut(&label)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
+            .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
 
         table.insert(external_id, properties, ts)
     }
@@ -161,7 +161,7 @@ impl SchemaOps {
         let table = self
             .vertex_tables
             .get_mut(&label)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
+            .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
 
         table.delete(external_id, ts)
     }
@@ -177,11 +177,11 @@ impl SchemaOps {
         let table = self
             .vertex_tables
             .get_mut(&label)
-            .ok_or_else(|| StorageError::LabelNotFound(format!("vertex label {}", label)))?;
+            .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
 
         let internal_id = table
             .get_internal_id(external_id, ts)
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
 
         table.update_property(internal_id, property_name, value, ts)
     }
@@ -195,12 +195,12 @@ impl SchemaOps {
             .vertex_label_names
             .get(label_name)
             .copied()
-            .ok_or_else(|| StorageError::LabelNotFound(label_name.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(label_name.to_string()))?;
 
         let table = self
             .vertex_tables
             .get_mut(&label_id)
-            .ok_or_else(|| StorageError::LabelNotFound(label_name.to_string()))?;
+            .ok_or_else(|| StorageError::label_not_found(label_name.to_string()))?;
 
         for prop_name in prop_names {
             if table.schema().properties.iter().any(|p| p.name == *prop_name) {

@@ -451,7 +451,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let current_session = self
             .session_manager
             .find_session(session_id)
-            .ok_or(SessionError::SessionNotFound(session_id))?;
+            .ok_or(SessionError::session_not_found(session_id))?;
 
         let is_admin = current_session.is_admin();
 
@@ -465,14 +465,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let session = self
             .session_manager
             .find_session(session_id)
-            .ok_or(SessionError::SessionNotFound(session_id))?;
+            .ok_or(SessionError::session_not_found(session_id))?;
 
         match session.kill_query(query_id) {
             Ok(()) => {
                 self.stats_manager.dec_value(MetricType::NumActiveQueries);
                 Ok(())
             }
-            Err(e) => Err(SessionError::ManagerError(e.to_string())),
+            Err(e) => Err(SessionError::manager_error(e.to_string())),
         }
     }
 
@@ -533,8 +533,8 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 // and retry once. This handles the case where a stale transaction
                 // is blocking new write transactions.
                 if matches!(
-                    e,
-                    crate::transaction::TransactionError::WriteTransactionConflict
+                    e.kind(),
+                    crate::transaction::TransactionErrorKind::WriteTransactionConflict
                 ) {
                     txn_manager.cleanup_expired_transactions();
                     let options = session.transaction_options();

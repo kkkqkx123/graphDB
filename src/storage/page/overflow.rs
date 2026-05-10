@@ -78,17 +78,17 @@ impl OverflowPage {
 
     pub fn from_page(page: Page) -> StorageResult<Self> {
         let header_bytes = page.read_record(0, OVERFLOW_HEADER_SIZE)
-            .ok_or_else(|| StorageError::DeserializeError("Failed to read overflow header".to_string()))?;
+            .ok_or_else(|| StorageError::deserialize_error("Failed to read overflow header".to_string()))?;
 
         let header = OverflowHeader::from_bytes(header_bytes)
-            .ok_or_else(|| StorageError::DeserializeError("Invalid overflow header".to_string()))?;
+            .ok_or_else(|| StorageError::deserialize_error("Invalid overflow header".to_string()))?;
 
         Ok(Self { page, header })
     }
 
     pub fn write_data(&mut self, data: &[u8]) -> StorageResult<()> {
         if data.len() > OVERFLOW_DATA_SIZE {
-            return Err(StorageError::InvalidOperation(format!(
+            return Err(StorageError::invalid_operation(format!(
                 "Data size {} exceeds overflow page capacity {}",
                 data.len(),
                 OVERFLOW_DATA_SIZE
@@ -205,7 +205,7 @@ impl OverflowManager {
         }
 
         page_ids.first().copied().ok_or_else(|| {
-            StorageError::InvalidOperation("Failed to create overflow pages".to_string())
+            StorageError::invalid_operation("Failed to create overflow pages".to_string())
         })
     }
 
@@ -215,7 +215,7 @@ impl OverflowManager {
 
         loop {
             let page = self.pages.get(&current_page_id)
-                .ok_or_else(|| StorageError::InvalidOperation(format!(
+                .ok_or_else(|| StorageError::invalid_operation(format!(
                     "Overflow page {} not found",
                     current_page_id
                 )))?;
@@ -242,7 +242,7 @@ impl OverflowManager {
 
         loop {
             let page = self.pages.get(&current_page_id)
-                .ok_or_else(|| StorageError::InvalidOperation(format!(
+                .ok_or_else(|| StorageError::invalid_operation(format!(
                     "Overflow page {} not found",
                     current_page_id
                 )))?;
@@ -309,7 +309,7 @@ impl OverflowManager {
 
     pub fn get_overflow_page(&self, page_id: u64) -> StorageResult<OverflowPage> {
         let page = self.pages.get(&page_id)
-            .ok_or_else(|| StorageError::InvalidOperation(format!(
+            .ok_or_else(|| StorageError::invalid_operation(format!(
                 "Page {} not found",
                 page_id
             )))?;

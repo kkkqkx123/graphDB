@@ -102,7 +102,7 @@ impl Column {
                 }
                 None => {
                     if !self.nullable {
-                        return Err(StorageError::NullValueNotAllowed(self.name.clone()));
+                        return Err(StorageError::null_value_not_allowed(self.name.clone()));
                     }
                     self.offsets[row_idx] = usize::MAX;
 
@@ -130,7 +130,7 @@ impl Column {
                 }
                 None => {
                     if !self.nullable {
-                        return Err(StorageError::NullValueNotAllowed(self.name.clone()));
+                        return Err(StorageError::null_value_not_allowed(self.name.clone()));
                     }
                     if let Some(ref mut bitmap) = self.null_bitmap {
                         Self::ensure_bitmap_len(bitmap, row_idx + 1);
@@ -209,10 +209,8 @@ impl Column {
                 self.data[offset + 8..offset + 12].copy_from_slice(&d.day.to_le_bytes());
             }
             _ => {
-                return Err(StorageError::TypeMismatch {
-                    expected: self.data_type.clone(),
-                    actual: value.data_type(),
-                });
+                return Err(StorageError::type_mismatch(self.data_type.clone(), value.data_type(),
+                ));
             }
         }
         Ok(())
@@ -227,10 +225,8 @@ impl Column {
                 self.data.extend_from_slice(bytes);
             }
             _ => {
-                return Err(StorageError::TypeMismatch {
-                    expected: self.data_type.clone(),
-                    actual: value.data_type(),
-                });
+                return Err(StorageError::type_mismatch(self.data_type.clone(), value.data_type(),
+                ));
             }
         }
         Ok(())
@@ -388,7 +384,7 @@ impl Column {
 
     pub fn apply_fsst_encoding(&mut self, max_symbols: usize) -> StorageResult<()> {
         if self.data_type != DataType::String {
-            return Err(StorageError::NotSupported(
+            return Err(StorageError::not_supported(
                 "FSST encoding only supports String type".to_string(),
             ));
         }
@@ -545,7 +541,7 @@ impl Column {
 
     pub fn append_fsst_value(&mut self, value: Option<&str>) -> StorageResult<()> {
         if self.data_type != DataType::String {
-            return Err(StorageError::NotSupported(
+            return Err(StorageError::not_supported(
                 "FSST encoding only supports String type".to_string(),
             ));
         }
@@ -556,7 +552,7 @@ impl Column {
                 self.row_count = fsst_col.len();
             }
             None => {
-                return Err(StorageError::InvalidOperation(
+                return Err(StorageError::invalid_operation(
                     "FSST encoding not initialized. Call apply_fsst_encoding first.".to_string(),
                 ));
             }
@@ -655,7 +651,7 @@ impl ColumnStore {
     ) -> StorageResult<()> {
         let col = self
             .get_column_mut(col_name)
-            .ok_or_else(|| StorageError::ColumnNotFound(col_name.to_string()))?;
+            .ok_or_else(|| StorageError::column_not_found(col_name.to_string()))?;
         col.set(row_idx, value)
     }
 
@@ -697,7 +693,7 @@ impl ColumnStore {
             col.load_data(data, null_bitmap);
             Ok(())
         } else {
-            Err(StorageError::ColumnNotFound(name.to_string()))
+            Err(StorageError::column_not_found(name.to_string()))
         }
     }
 
@@ -712,7 +708,7 @@ impl ColumnStore {
             col.load_data_from_raw(data, null_bitmap_raw, bitmap_bit_len);
             Ok(())
         } else {
-            Err(StorageError::ColumnNotFound(name.to_string()))
+            Err(StorageError::column_not_found(name.to_string()))
         }
     }
 

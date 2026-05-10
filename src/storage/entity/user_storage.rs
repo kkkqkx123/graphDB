@@ -40,12 +40,12 @@ impl UserStorage {
         let username = info
             .username
             .clone()
-            .ok_or_else(|| StorageError::DbError("Username cannot be empty".to_string()))?;
+            .ok_or_else(|| StorageError::db_error("Username cannot be empty".to_string()))?;
         if let Some(user) = users.get_mut(&username) {
             user.change_password(info.new_password.clone())?;
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!(
+            Err(StorageError::db_error(format!(
                 "User {} does not exist",
                 username
             )))
@@ -56,7 +56,7 @@ impl UserStorage {
     pub fn create_user(&self, info: &UserInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         if users.contains_key(&info.username) {
-            return Err(StorageError::DbError(format!(
+            return Err(StorageError::db_error(format!(
                 "User {} already exists",
                 info.username
             )));
@@ -88,7 +88,7 @@ impl UserStorage {
             }
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!(
+            Err(StorageError::db_error(format!(
                 "User {} does not exist",
                 info.username
             )))
@@ -123,7 +123,7 @@ impl UserStorage {
         if users.contains_key(username) {
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!(
+            Err(StorageError::db_error(format!(
                 "User {} not found",
                 username
             )))
@@ -136,7 +136,7 @@ impl UserStorage {
         if users.contains_key(username) {
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!(
+            Err(StorageError::db_error(format!(
                 "User {} not found",
                 username
             )))

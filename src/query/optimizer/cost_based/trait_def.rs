@@ -3,7 +3,7 @@
 //! Defines a unified interface for all optimization strategies, enabling
 //! strategy composition and decoupling from implementation details.
 
-use crate::core::error::optimize::OptimizeResult;
+use crate::query::optimizer::error::OptimizeResult;
 use crate::query::optimizer::context::OptimizationContext;
 use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 

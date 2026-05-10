@@ -50,6 +50,18 @@ pub enum OptimizeError {
     /// Internal optimization error
     #[error("Internal optimization error: {0}")]
     InternalError(String),
+
+    /// Heuristic optimization failed
+    #[error("Heuristic optimization failed: {0}")]
+    HeuristicFailed(String),
+
+    /// Cost-based optimization failed
+    #[error("Cost-based optimization failed: {0}")]
+    CostBasedFailed(String),
+
+    /// Pipeline configuration error
+    #[error("Pipeline configuration error: {0}")]
+    ConfigurationError(String),
 }
 
 /// Optimizer result type

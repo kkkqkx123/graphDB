@@ -290,7 +290,7 @@ impl GraphSessionManager {
         // Find the target conversation.
         let target_session = self
             .find_session(session_id)
-            .ok_or(SessionError::SessionNotFound(session_id))?;
+            .ok_or(SessionError::session_not_found(session_id))?;
 
         let target_user = target_session.user();
 
@@ -300,7 +300,7 @@ impl GraphSessionManager {
                 "User {} attempted to kill session {} without permission (target user: {})",
                 current_user, session_id, target_user
             );
-            return Err(SessionError::InsufficientPermission);
+            return Err(SessionError::insufficient_permission());
         }
 
         info!(

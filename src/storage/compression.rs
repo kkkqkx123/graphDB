@@ -48,7 +48,7 @@ impl Compressor {
         match self.compression {
             CompressionType::None => Ok(data.to_vec()),
             CompressionType::Zstd { level } => zstd::encode_all(data, level)
-                .map_err(|e| StorageError::CompressError(e.to_string())),
+                .map_err(|e| StorageError::compress_error(e.to_string())),
         }
     }
 
@@ -56,7 +56,7 @@ impl Compressor {
         match self.compression {
             CompressionType::None => Ok(data.to_vec()),
             CompressionType::Zstd { .. } => {
-                zstd::decode_all(data).map_err(|e| StorageError::DecompressError(e.to_string()))
+                zstd::decode_all(data).map_err(|e| StorageError::decompress_error(e.to_string()))
             }
         }
     }

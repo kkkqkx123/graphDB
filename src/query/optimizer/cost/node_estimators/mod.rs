@@ -2,7 +2,7 @@
 //!
 //! Provide a cost estimation function for different types of plan nodes.
 
-use crate::core::error::optimize::CostError;
+use crate::query::optimizer::error::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::planning::plan::PlanNodeEnum;
 

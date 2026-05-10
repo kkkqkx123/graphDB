@@ -88,12 +88,12 @@ impl RecoveryManager {
 
             parser
                 .parse_parallel(&self.config.wal_dir)
-                .map_err(|e| StorageError::DbError(format!("WAL parse error: {}", e)))
+                .map_err(|e| StorageError::db_error(format!("WAL parse error: {}", e)))
         } else {
             let mut parser = LocalWalParser::new();
             parser
                 .open(&self.config.wal_dir.to_string_lossy())
-                .map_err(|e| StorageError::DbError(format!("WAL open error: {}", e)))?;
+                .map_err(|e| StorageError::db_error(format!("WAL open error: {}", e)))?;
 
             let insert_wal_list = parser.insert_wal_list().to_vec();
             let update_wal_list = parser.get_update_wals().to_vec();

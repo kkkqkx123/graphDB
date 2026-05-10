@@ -215,7 +215,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn clear_space(&self, space_name: &str) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let space_id = space_info.space_id;
@@ -280,7 +280,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let existing_tags = self.list_tags(space_name)?;
@@ -300,7 +300,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn drop_tag(&self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut tags = self.tags.write();
@@ -319,7 +319,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let tags = self.tags.read();
@@ -331,7 +331,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn list_tags(&self, space_name: &str) -> Result<Vec<TagInfo>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let tags = self.tags.read();
@@ -344,7 +344,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn update_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut tags = self.tags.write();
@@ -368,7 +368,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         edge_type: &EdgeTypeInfo,
     ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let existing = self.list_edge_types(space_name)?;
@@ -394,7 +394,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn drop_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut edge_types = self.edge_types.write();
@@ -417,7 +417,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         edge_type_name: &str,
     ) -> Result<Option<EdgeTypeInfo>, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let edge_types = self.edge_types.read();
@@ -429,7 +429,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn list_edge_types(&self, space_name: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let edge_types = self.edge_types.read();
@@ -446,7 +446,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         edge_type: &EdgeTypeInfo,
     ) -> Result<bool, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut edge_types = self.edge_types.write();
@@ -466,7 +466,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn get_tag_schema(&self, space_name: &str, tag_name: &str) -> Result<Schema, StorageError> {
         let tag = self.get_tag(space_name, tag_name)?.ok_or_else(|| {
-            StorageError::DbError(format!(
+            StorageError::db_error(format!(
                 "Tag \"{}\" does not exist in space \"{}\"",
                 tag_name, space_name
             ))
@@ -482,7 +482,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         let edge_type = self
             .get_edge_type(space_name, edge_type_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!(
+                StorageError::db_error(format!(
                     "Edge type \"{}\" does not exist in space \"{}\"",
                     edge_type_name, space_name
                 ))
@@ -492,7 +492,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn list_tag_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let indexes = self.tag_indexes.read();
@@ -505,7 +505,7 @@ impl super::SchemaManager for InMemorySchemaManager {
 
     fn list_edge_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let indexes = self.edge_indexes.read();
@@ -521,7 +521,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         use std::io::Write;
 
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| StorageError::IOError(e.to_string()))?;
+            fs::create_dir_all(parent).map_err(|e| StorageError::io_error(e.to_string()))?;
         }
 
         let spaces: Vec<SpaceInfo> = self
@@ -590,12 +590,12 @@ impl super::SchemaManager for InMemorySchemaManager {
         };
 
         let json = serde_json::to_string_pretty(&snapshot)
-            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            .map_err(|e| StorageError::serialize_error(e.to_string()))?;
 
-        let mut file = File::create(path).map_err(|e| StorageError::IOError(e.to_string()))?;
+        let mut file = File::create(path).map_err(|e| StorageError::io_error(e.to_string()))?;
 
         file.write_all(json.as_bytes())
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         Ok(())
     }
@@ -608,17 +608,17 @@ impl super::SchemaManager for InMemorySchemaManager {
             return Ok(());
         }
 
-        let mut file = File::open(path).map_err(|e| StorageError::IOError(e.to_string()))?;
+        let mut file = File::open(path).map_err(|e| StorageError::io_error(e.to_string()))?;
 
         let mut json = String::new();
         file.read_to_string(&mut json)
-            .map_err(|e| StorageError::IOError(e.to_string()))?;
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
 
         let snapshot: SchemaSnapshot = serde_json::from_str(&json)
-            .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
         if snapshot.version > SCHEMA_FORMAT_VERSION {
-            return Err(StorageError::DeserializeError(format!(
+            return Err(StorageError::deserialize_error(format!(
                 "Schema version {} is newer than supported version {}",
                 snapshot.version, SCHEMA_FORMAT_VERSION
             )));
@@ -703,7 +703,7 @@ impl InMemorySchemaManager {
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut tags = self.tags.write();
@@ -736,7 +736,7 @@ impl InMemorySchemaManager {
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut edge_types = self.edge_types.write();
@@ -763,7 +763,7 @@ impl InMemorySchemaManager {
 
     pub fn create_tag_index(&self, space_name: &str, index: &Index) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut indexes = self.tag_indexes.write();
@@ -782,7 +782,7 @@ impl InMemorySchemaManager {
 
     pub fn drop_tag_index(&self, space_name: &str, index_name: &str) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut indexes = self.tag_indexes.write();
@@ -796,7 +796,7 @@ impl InMemorySchemaManager {
         index_name: &str,
     ) -> Result<Option<Index>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let indexes = self.tag_indexes.read();
@@ -807,7 +807,7 @@ impl InMemorySchemaManager {
 
     pub fn create_edge_index(&self, space_name: &str, index: &Index) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut indexes = self.edge_indexes.write();
@@ -830,7 +830,7 @@ impl InMemorySchemaManager {
         index_name: &str,
     ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut indexes = self.edge_indexes.write();
@@ -844,7 +844,7 @@ impl InMemorySchemaManager {
         index_name: &str,
     ) -> Result<Option<Index>, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let indexes = self.edge_indexes.read();
@@ -871,7 +871,7 @@ impl InMemorySchemaManager {
         self.get_space(space_name)?
             .map(|s| s.space_id)
             .ok_or_else(|| {
-                StorageError::DbError(format!("Space \"{}\" does not exist", space_name))
+                StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
             })
     }
 }

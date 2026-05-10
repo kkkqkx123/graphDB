@@ -80,7 +80,7 @@ impl LargeObjectStore {
             *old_data = data;
             Ok(())
         } else {
-            Err(crate::core::StorageError::InvalidOperation(format!(
+            Err(crate::core::StorageError::invalid_operation(format!(
                 "Large object {} not found",
                 id
             )))

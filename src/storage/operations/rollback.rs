@@ -72,7 +72,7 @@ impl UndoLogContext for crate::transaction::context::TransactionContext {
 
     fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), StorageError> {
         self.execute_undo_logs(target)
-            .map_err(|e| StorageError::DbError(e.to_string()))
+            .map_err(|e| StorageError::db_error(e.to_string()))
     }
 
     fn clear_undo_logs(&self) {
@@ -115,7 +115,7 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
         let current_len = self.ctx.operation_log_len();
 
         if index > current_len {
-            return Err(StorageError::DbError(format!(
+            return Err(StorageError::db_error(format!(
                 "Invalid rollback index: {}, operation log length: {}",
                 index, current_len
             )));
@@ -134,7 +134,7 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
         let current_len = self.ctx.operation_log_len();
 
         if index > current_len {
-            return Err(StorageError::DbError(format!(
+            return Err(StorageError::db_error(format!(
                 "Invalid rollback index: {}, operation log length: {}",
                 index, current_len
             )));
@@ -222,7 +222,7 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
         let current_len = self.ctx.operation_log_len();
 
         if index > current_len {
-            return Err(StorageError::DbError(format!(
+            return Err(StorageError::db_error(format!(
                 "Invalid rollback index: {}, operation log length: {}",
                 index, current_len
             )));

@@ -155,7 +155,7 @@ fn test_get_transaction_not_found() {
     let result = manager.get_context(9999);
     assert!(matches!(
         result,
-        Err(TransactionError::TransactionNotFound(9999))
+        Err(TransactionError::transaction_not_found(9999))
     ));
 }
 
@@ -166,7 +166,7 @@ fn test_commit_transaction_not_found() {
     let result = manager.commit_transaction(9999);
     assert!(matches!(
         result,
-        Err(TransactionError::TransactionNotFound(_))
+        Err(TransactionError::transaction_not_found(_))
     ));
 }
 
@@ -177,7 +177,7 @@ fn test_abort_transaction_not_found() {
     let result = manager.abort_transaction(9999);
     assert!(matches!(
         result,
-        Err(TransactionError::TransactionNotFound(_))
+        Err(TransactionError::transaction_not_found(_))
     ));
 }
 
@@ -196,7 +196,7 @@ fn test_commit_already_committed_transaction() {
     let result = manager.commit_transaction(txn_id);
     assert!(matches!(
         result,
-        Err(TransactionError::TransactionNotFound(_))
+        Err(TransactionError::transaction_not_found(_))
     ));
 }
 
@@ -215,7 +215,7 @@ fn test_abort_already_aborted_transaction() {
     let result = manager.abort_transaction(txn_id);
     assert!(matches!(
         result,
-        Err(TransactionError::TransactionNotFound(_))
+        Err(TransactionError::transaction_not_found(_))
     ));
 }
 
@@ -303,7 +303,7 @@ fn test_transaction_timeout() {
     std::thread::sleep(Duration::from_millis(100));
 
     let result = manager.commit_transaction(txn_id);
-    assert!(matches!(result, Err(TransactionError::TransactionTimeout)));
+    assert!(matches!(result, Err(TransactionError::transaction_timeout())));
 
     let stats = manager.stats();
     assert_eq!(
@@ -380,7 +380,7 @@ fn test_max_concurrent_transactions() {
         .expect("Failed to begin second transaction");
 
     let result = manager.begin_transaction(TransactionOptions::new().read_only());
-    assert!(matches!(result, Err(TransactionError::TooManyTransactions)));
+    assert!(matches!(result, Err(TransactionError::too_many_transactions())));
 
     manager
         .commit_transaction(txn1)
@@ -503,7 +503,7 @@ fn test_shutdown_manager() {
     assert!(!manager.is_transaction_active(txn2));
 
     let result = manager.begin_transaction(TransactionOptions::default());
-    assert!(matches!(result, Err(TransactionError::Internal(_))));
+    assert!(matches!(result, Err(TransactionError::internal(_))));
 }
 
 #[test]

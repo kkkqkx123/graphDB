@@ -53,7 +53,7 @@ impl FulltextStorage {
         self.manager
             .create_index(space_id, tag_name, field_name, engine_type)
             .await
-            .map_err(|e| StorageError::DbError(format!("Failed to create fulltext index: {}", e)))
+            .map_err(|e| StorageError::db_error(format!("Failed to create fulltext index: {}", e)))
     }
 
     /// Drop a full-text index
@@ -66,7 +66,7 @@ impl FulltextStorage {
         self.manager
             .drop_index(space_id, tag_name, field_name)
             .await
-            .map_err(|e| StorageError::DbError(format!("Failed to drop fulltext index: {}", e)))
+            .map_err(|e| StorageError::db_error(format!("Failed to drop fulltext index: {}", e)))
     }
 
     /// Check if an index exists
@@ -89,7 +89,7 @@ impl FulltextStorage {
         self.manager
             .get_stats(space_id, tag_name, field_name)
             .await
-            .map_err(|e| StorageError::DbError(format!("Failed to get index stats: {}", e)))
+            .map_err(|e| StorageError::db_error(format!("Failed to get index stats: {}", e)))
     }
 
     // ==================== Vertex Indexing ====================
@@ -108,7 +108,7 @@ impl FulltextStorage {
                             self.manager.get_engine(space_id, &tag.name, field_name)
                         {
                             engine.index(&doc_id, text).await.map_err(|e| {
-                                StorageError::DbError(format!(
+                                StorageError::db_error(format!(
                                     "Failed to index vertex document: {}",
                                     e
                                 ))
@@ -129,7 +129,7 @@ impl FulltextStorage {
         vertex_id: &Value,
     ) -> Result<(), StorageError> {
         let doc_id = vertex_id.to_string().map_err(|e| {
-            StorageError::DbError(format!("Failed to convert vertex_id to string: {}", e))
+            StorageError::db_error(format!("Failed to convert vertex_id to string: {}", e))
         })?;
         let indexes = self.manager.get_space_indexes(space_id);
 
@@ -166,7 +166,7 @@ impl FulltextStorage {
                         engine.delete(&doc_id).await.ok();
                         // Index new content
                         engine.index(&doc_id, text).await.map_err(|e| {
-                            StorageError::DbError(format!(
+                            StorageError::db_error(format!(
                                 "Failed to update vertex document: {}",
                                 e
                             ))
@@ -192,7 +192,7 @@ impl FulltextStorage {
         if self.manager.has_index(space_id, edge_type, field_name) {
             if let Some(engine) = self.manager.get_engine(space_id, edge_type, field_name) {
                 engine.index(doc_id, text).await.map_err(|e| {
-                    StorageError::DbError(format!("Failed to index edge document: {}", e))
+                    StorageError::db_error(format!("Failed to index edge document: {}", e))
                 })?;
             }
         }
@@ -238,7 +238,7 @@ impl FulltextStorage {
         self.manager
             .search(space_id, tag_name, field_name, query, limit)
             .await
-            .map_err(|e| StorageError::DbError(format!("Fulltext search failed: {}", e)))
+            .map_err(|e| StorageError::db_error(format!("Fulltext search failed: {}", e)))
     }
 
     // ==================== Transaction Support ====================
@@ -248,7 +248,7 @@ impl FulltextStorage {
         self.manager
             .commit_all()
             .await
-            .map_err(|e| StorageError::DbError(format!("Failed to commit fulltext changes: {}", e)))
+            .map_err(|e| StorageError::db_error(format!("Failed to commit fulltext changes: {}", e)))
     }
 
     /// Close all indexes
@@ -256,7 +256,7 @@ impl FulltextStorage {
         self.manager
             .close_all()
             .await
-            .map_err(|e| StorageError::DbError(format!("Failed to close fulltext indexes: {}", e)))
+            .map_err(|e| StorageError::db_error(format!("Failed to close fulltext indexes: {}", e)))
     }
 }
 

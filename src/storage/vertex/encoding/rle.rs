@@ -121,10 +121,8 @@ impl RleIntColumn {
                 self.encoder.encode(*v);
             }
             Some(v) => {
-                return Err(StorageError::TypeMismatch {
-                    expected: DataType::BigInt,
-                    actual: v.data_type(),
-                });
+                return Err(StorageError::type_mismatch(DataType::BigInt, v.data_type(),
+                ));
             }
             None => {
                 self.null_bitmap.push(true);
@@ -198,10 +196,8 @@ impl RleBoolColumn {
                 self.encoder.encode(*v);
             }
             Some(v) => {
-                return Err(StorageError::TypeMismatch {
-                    expected: DataType::Bool,
-                    actual: v.data_type(),
-                });
+                return Err(StorageError::type_mismatch(DataType::Bool, v.data_type(),
+                ));
             }
             None => {
                 self.null_bitmap.push(true);

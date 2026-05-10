@@ -80,8 +80,8 @@ impl EdgeStorage {
             Value::BigInt(v) => Ok(*v as VertexId),
             Value::String(v) => v
                 .parse::<VertexId>()
-                .map_err(|e| StorageError::DbError(format!("Invalid vertex ID: {}", e))),
-            _ => Err(StorageError::DbError(format!(
+                .map_err(|e| StorageError::db_error(format!("Invalid vertex ID: {}", e))),
+            _ => Err(StorageError::db_error(format!(
                 "Unsupported vertex ID type: {:?}",
                 id
             ))),
@@ -307,7 +307,7 @@ impl EdgeStorage {
             .schema_manager
             .get_edge_type(space, &edge.edge_type)?
             .ok_or_else(|| {
-                StorageError::DbError(format!(
+                StorageError::db_error(format!(
                     "Edge type '{}' not found in space '{}'",
                     edge.edge_type, space
                 ))
@@ -321,7 +321,7 @@ impl EdgeStorage {
                     .get_edge_table_by_label(label_id)
                     .map(|table| (table.src_label(), table.dst_label()))
                     .ok_or_else(|| {
-                        StorageError::DbError(format!(
+                        StorageError::db_error(format!(
                             "Edge table not found for edge type '{}'",
                             edge.edge_type
                         ))
@@ -395,7 +395,7 @@ impl EdgeStorage {
             .schema_manager
             .get_edge_type(space, edge_type)?
             .ok_or_else(|| {
-                StorageError::DbError(format!(
+                StorageError::db_error(format!(
                     "Edge type '{}' not found in space '{}'",
                     edge_type, space
                 ))
@@ -409,7 +409,7 @@ impl EdgeStorage {
                     .get_edge_table_by_label(label_id)
                     .map(|table| (table.src_label(), table.dst_label()))
                     .ok_or_else(|| {
-                        StorageError::DbError(format!(
+                        StorageError::db_error(format!(
                             "Edge table not found for edge type '{}'",
                             edge_type
                         ))
@@ -470,7 +470,7 @@ impl EdgeStorage {
                         .schema_manager
                         .get_edge_type(space, &edge.edge_type)?
                         .ok_or_else(|| {
-                            StorageError::DbError(format!(
+                            StorageError::db_error(format!(
                                 "Edge type '{}' not found in space '{}'",
                                 edge.edge_type, space
                             ))
@@ -480,7 +480,7 @@ impl EdgeStorage {
                         .get_edge_table_by_label(label_id)
                         .map(|table| (table.src_label(), table.dst_label()))
                         .ok_or_else(|| {
-                            StorageError::DbError(format!(
+                            StorageError::db_error(format!(
                                 "Edge table not found for edge type '{}'",
                                 edge.edge_type
                             ))
@@ -658,7 +658,7 @@ impl EdgeStorage {
             .schema_manager
             .get_edge_type(space, &edge_name)?
             .ok_or_else(|| {
-                StorageError::DbError(format!(
+                StorageError::db_error(format!(
                     "Edge type '{}' not found in space '{}'",
                     edge_name, space
                 ))
@@ -679,7 +679,7 @@ impl EdgeStorage {
                     .get_edge_table_by_label(label_id)
                     .map(|table| (table.src_label(), table.dst_label()))
                     .ok_or_else(|| {
-                        StorageError::DbError(format!(
+                        StorageError::db_error(format!(
                             "Edge table not found for edge type '{}'",
                             edge_name
                         ))
@@ -741,7 +741,7 @@ impl EdgeStorage {
                     .schema_manager
                     .get_edge_type(space, &edge.edge_type)?
                     .ok_or_else(|| {
-                        StorageError::DbError(format!(
+                        StorageError::db_error(format!(
                             "Edge type '{}' not found in space '{}'",
                             edge.edge_type, space
                         ))
@@ -755,7 +755,7 @@ impl EdgeStorage {
                             .get_edge_table_by_label(label_id)
                             .map(|table| (table.src_label(), table.dst_label()))
                             .ok_or_else(|| {
-                                StorageError::DbError(format!(
+                                StorageError::db_error(format!(
                                     "Edge table not found for edge type '{}'",
                                     edge.edge_type
                                 ))
@@ -847,7 +847,7 @@ impl EdgeStorage {
                 .schema_manager
                 .get_edge_type(space, &edge.edge_type)?
                 .ok_or_else(|| {
-                    StorageError::DbError(format!(
+                    StorageError::db_error(format!(
                         "Edge type '{}' not found in space '{}'",
                         edge.edge_type, space
                     ))
@@ -861,7 +861,7 @@ impl EdgeStorage {
                         .get_edge_table_by_label(label_id)
                         .map(|table| (table.src_label(), table.dst_label()))
                         .ok_or_else(|| {
-                            StorageError::DbError(format!(
+                            StorageError::db_error(format!(
                                 "Edge table not found for edge type '{}'",
                                 edge.edge_type
                             ))
@@ -927,7 +927,7 @@ impl EdgeStorage {
             .schema_manager
             .get_edge_type(space, edge_type)?
             .ok_or_else(|| {
-                StorageError::DbError(format!(
+                StorageError::db_error(format!(
                     "Edge type '{}' not found in space '{}'",
                     edge_type, space
                 ))
@@ -941,7 +941,7 @@ impl EdgeStorage {
                     .get_edge_table_by_label(label_id)
                     .map(|table| (table.src_label(), table.dst_label()))
                     .ok_or_else(|| {
-                        StorageError::DbError(format!(
+                        StorageError::db_error(format!(
                             "Edge table not found for edge type '{}'",
                             edge_type
                         ))
@@ -1018,7 +1018,7 @@ impl EdgeStorage {
                 .schema_manager
                 .get_edge_type(space, edge_type)?
                 .ok_or_else(|| {
-                    StorageError::DbError(format!(
+                    StorageError::db_error(format!(
                         "Edge type '{}' not found in space '{}'",
                         edge_type, space
                     ))
@@ -1042,7 +1042,7 @@ impl EdgeStorage {
             .schema_manager
             .get_edge_type(space, edge_type)?
             .ok_or_else(|| {
-                StorageError::DbError(format!(
+                StorageError::db_error(format!(
                     "Edge type '{}' not found in space '{}'",
                     edge_type, space
                 ))

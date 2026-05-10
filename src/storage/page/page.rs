@@ -21,13 +21,13 @@ impl Page {
 
     pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> StorageResult<Self> {
         let header = PageHeader::from_bytes(&bytes)
-            .map_err(crate::core::StorageError::DeserializeError)?;
+            .map_err(crate::core::StorageError::deserialize_error)?;
 
         let mut data = [0u8; PAGE_DATA_SIZE];
         data.copy_from_slice(&bytes[PAGE_SIZE - PAGE_DATA_SIZE..]);
 
         if !header.verify_checksum(&data) {
-            return Err(crate::core::StorageError::DbError(format!(
+            return Err(crate::core::StorageError::db_error(format!(
                 "Checksum mismatch for page {}",
                 header.page_id
             )));
@@ -78,7 +78,7 @@ impl Page {
 
     pub fn write_record(&mut self, offset: usize, record_data: &[u8]) -> StorageResult<()> {
         if offset + record_data.len() > PAGE_DATA_SIZE {
-            return Err(crate::core::StorageError::InvalidOperation(
+            return Err(crate::core::StorageError::invalid_operation(
                 "Record exceeds page bounds".to_string(),
             ));
         }

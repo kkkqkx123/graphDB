@@ -35,6 +35,7 @@ pub mod cleaner;
 pub mod codec;
 pub mod compact_transaction;
 pub mod context;
+pub mod error;
 pub mod index_buffer;
 pub mod insert_transaction;
 pub mod manager;
@@ -67,6 +68,7 @@ pub use read_transaction::{
     INVALID_TIMESTAMP,
 };
 pub use types::*;
+pub use error::{TransactionError, TransactionErrorKind, TransactionResult};
 pub use undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
     DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,

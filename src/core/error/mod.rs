@@ -16,36 +16,30 @@ use std::sync::Arc;
 use thiserror::Error;
 
 // submodule
-pub mod auth;
 pub mod codes;
-pub mod expression;
-pub mod fulltext;
 pub mod manager;
-pub mod optimize;
-pub mod permission;
 pub mod query;
-pub mod session;
 pub mod storage;
-pub mod validation;
-pub mod vector;
 
 // Re-export the error code
 pub use codes::{ErrorCategory as CodeErrorCategory, ErrorCode, PublicError, ToPublicError};
 
 // Re-export all error types
-pub use auth::{AuthError, AuthResult};
-pub use expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
-pub use fulltext::{CoordinatorError, CoordinatorResult, FulltextError, FulltextResult};
 pub use manager::{ErrorCategory, ManagerError, ManagerResult};
-pub use optimize::{CostError, CostResult, OptimizeError, OptimizeResult};
-pub use permission::{PermissionError, PermissionResult};
 pub use query::{PlanNodeVisitError, QueryError, QueryPhase, QueryResult};
-pub use session::{SessionError, SessionResult};
-pub use storage::{StorageError, StorageResult};
-pub use validation::{
-    SchemaValidationError, SchemaValidationResult, ValidationError, ValidationErrorType,
+pub use storage::{StorageError, StorageErrorKind, StorageResult};
+
+// Re-export error types from their new locations for backward compatibility
+pub use crate::api::server::auth::{AuthError, AuthResult};
+pub use crate::api::server::permission::{PermissionError, PermissionResult};
+pub use crate::api::server::session::{SessionError, SessionResult};
+pub use crate::query::executor::expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+pub use crate::query::optimizer::{CostError, CostResult, OptimizeError, OptimizeResult};
+pub use crate::query::validator::error::{SchemaValidationError, SchemaValidationResult, ValidationError, ValidationErrorType};
+pub use crate::sync::external_index::{
+    CoordinatorError, CoordinatorResult, FulltextError, FulltextResult,
+    VectorCoordinatorError, VectorCoordinatorResult, VectorError, VectorResult,
 };
-pub use vector::{VectorCoordinatorError, VectorCoordinatorResult, VectorError, VectorResult};
 
 pub use crate::core::types::DataType;
 
@@ -441,14 +435,14 @@ impl From<crate::query::parser::lexing::LexError> for DBError {
     }
 }
 
-impl From<validation::SchemaValidationError> for DBError {
-    fn from(err: validation::SchemaValidationError) -> Self {
+impl From<crate::query::validator::error::SchemaValidationError> for DBError {
+    fn from(err: crate::query::validator::error::SchemaValidationError) -> Self {
         DBError::validation(err.to_string())
     }
 }
 
-impl From<validation::ValidationError> for DBError {
-    fn from(err: validation::ValidationError) -> Self {
+impl From<crate::query::validator::error::ValidationError> for DBError {
+    fn from(err: crate::query::validator::error::ValidationError) -> Self {
         DBError::validation(err.to_string())
     }
 }
@@ -552,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_dberror_creation() {
-        let storage_err = StorageError::NodeNotFound(crate::core::Value::Int(42));
+        let storage_err = StorageError::node_not_found(crate::core::Value::Int(42));
         let db_err: DBError = storage_err.into();
         assert_eq!(db_err.kind(), ErrorKind::Storage);
         assert!(!db_err.is_retryable());
@@ -575,7 +569,7 @@ mod tests {
 
     #[test]
     fn test_retryable_error() {
-        let storage_err = StorageError::LockTimeout("test".to_string());
+        let storage_err = StorageError::lock_timeout("test".to_string());
         let db_err: DBError = storage_err.into();
         assert!(db_err.is_retryable());
     }

@@ -8,8 +8,9 @@ use dashmap::DashMap;
 
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
+use crate::transaction::error::TransactionError;
 use crate::transaction::types::{
-    TransactionError, TransactionId, TransactionState, TransactionStats,
+    TransactionId, TransactionState, TransactionStats,
 };
 
 /// Transaction Cleaner
@@ -78,7 +79,7 @@ impl TransactionCleaner {
         context: Arc<TransactionContext>,
     ) -> Result<(), TransactionError> {
         if !context.state().can_abort() {
-            return Err(TransactionError::InvalidStateForAbort(context.state()));
+            return Err(TransactionError::invalid_state_for_abort(context.state()));
         }
 
         context.transition_to(TransactionState::Aborting)?;
@@ -109,7 +110,7 @@ impl TransactionCleaner {
         let context = active_transactions
             .get(&txn_id)
             .map(|entry| entry.value().clone())
-            .ok_or(TransactionError::TransactionNotFound(txn_id))?;
+            .ok_or(TransactionError::transaction_not_found(txn_id))?;
 
         self.abort_transaction_internal(context, active_transactions)
     }
@@ -121,7 +122,7 @@ impl TransactionCleaner {
         active_transactions: &DashMap<TransactionId, Arc<TransactionContext>>,
     ) -> Result<(), TransactionError> {
         if !context.state().can_abort() {
-            return Err(TransactionError::InvalidStateForAbort(context.state()));
+            return Err(TransactionError::invalid_state_for_abort(context.state()));
         }
 
         context.transition_to(TransactionState::Aborting)?;

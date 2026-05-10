@@ -92,11 +92,11 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<EdgeId> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if self.schema.oe_strategy == EdgeStrategy::None {
-            return Err(StorageError::InvalidOperation(
+            return Err(StorageError::invalid_operation(
                 "Edge strategy is None".to_string(),
             ));
         }
@@ -112,7 +112,7 @@ impl EdgeTable {
         if self.schema.oe_strategy == EdgeStrategy::Single
             && self.out_csr.has_edge(src, dst, ts) {
                 self.properties.delete(prop_offset);
-                return Err(StorageError::EdgeAlreadyExists(format!(
+                return Err(StorageError::edge_already_exists(format!(
                     "{} -> {}",
                     src, dst
                 )));
@@ -120,7 +120,7 @@ impl EdgeTable {
 
         if !self.out_csr.insert_edge(src, dst, edge_id, prop_offset, ts) {
             self.properties.delete(prop_offset);
-            return Err(StorageError::EdgeAlreadyExists(format!(
+            return Err(StorageError::edge_already_exists(format!(
                 "{} -> {}",
                 src, dst
             )));
@@ -140,7 +140,7 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
@@ -172,7 +172,7 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
@@ -203,7 +203,7 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset, ts);
@@ -217,7 +217,7 @@ impl EdgeTable {
 
     pub fn delete_edge_by_id(&mut self, edge_id: EdgeId, ts: Timestamp) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         let mut found = false;
@@ -326,7 +326,7 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
@@ -468,11 +468,11 @@ impl EdgeTable {
         nullable: bool,
     ) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if self.properties.has_property(&name) {
-            return Err(StorageError::ColumnAlreadyExists(name));
+            return Err(StorageError::column_already_exists(name));
         }
 
         self.properties.add_property(name, data_type, nullable);
@@ -488,7 +488,7 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
@@ -511,7 +511,7 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
@@ -537,7 +537,7 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         let edge_id = self.out_csr.find_deleted_edge(src, dst);
@@ -706,7 +706,7 @@ impl EdgeTable {
         let mut label_name_bytes = vec![0u8; label_name_len];
         meta_file.read_exact(&mut label_name_bytes)?;
         self.label_name = String::from_utf8(label_name_bytes)
-            .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
         let mut edge_id_bytes = [0u8; 8];
         meta_file.read_exact(&mut edge_id_bytes)?;

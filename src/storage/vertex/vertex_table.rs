@@ -98,17 +98,17 @@ impl VertexTable {
         ts: Timestamp,
     ) -> StorageResult<u32> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if self.id_indexer.contains(&external_id.to_string()) {
             let internal_id = self
                 .id_indexer
                 .get_index(&external_id.to_string())
-                .ok_or(StorageError::VertexNotFound)?;
+                .ok_or(StorageError::vertex_not_found())?;
 
             if self.timestamps.is_valid(internal_id, ts) {
-                return Err(StorageError::VertexAlreadyExists(external_id.to_string()));
+                return Err(StorageError::vertex_already_exists(external_id.to_string()));
             }
 
             self.timestamps.revert_remove(internal_id, ts);
@@ -185,11 +185,11 @@ impl VertexTable {
         ts: Timestamp,
     ) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if !self.timestamps.is_valid(internal_id, ts) {
-            return Err(StorageError::VertexNotFound);
+            return Err(StorageError::vertex_not_found());
         }
 
         self.columns
@@ -204,29 +204,29 @@ impl VertexTable {
         ts: Timestamp,
     ) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if !self.timestamps.is_valid(internal_id, ts) {
-            return Err(StorageError::VertexNotFound);
+            return Err(StorageError::vertex_not_found());
         }
 
         let col = self
             .columns
             .get_column_by_id_mut(col_id)
-            .ok_or_else(|| StorageError::ColumnNotFound(format!("col_id={}", col_id)))?;
+            .ok_or_else(|| StorageError::column_not_found(format!("col_id={}", col_id)))?;
         col.set(internal_id as usize, Some(value))
     }
 
     pub fn delete(&mut self, external_id: &str, ts: Timestamp) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         let internal_id = self
             .id_indexer
             .get_index(&external_id.to_string())
-            .ok_or(StorageError::VertexNotFound)?;
+            .ok_or(StorageError::vertex_not_found())?;
 
         self.timestamps.remove(internal_id, ts);
         Ok(())
@@ -234,7 +234,7 @@ impl VertexTable {
 
     pub fn delete_by_internal_id(&mut self, internal_id: u32, ts: Timestamp) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         self.timestamps.remove(internal_id, ts);
@@ -247,7 +247,7 @@ impl VertexTable {
         ts: Timestamp,
     ) -> StorageResult<Vec<u32>> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         let count = vertices.len();
@@ -269,7 +269,7 @@ impl VertexTable {
         ts: Timestamp,
     ) -> StorageResult<usize> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         let mut deleted_count = 0;
@@ -305,7 +305,7 @@ impl VertexTable {
         ts: Timestamp,
     ) -> StorageResult<usize> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         let mut updated_count = 0;
@@ -330,7 +330,7 @@ impl VertexTable {
 
     pub fn revert_delete(&mut self, internal_id: u32, ts: Timestamp) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         self.timestamps.revert_remove(internal_id, ts);
@@ -379,11 +379,11 @@ impl VertexTable {
 
     pub fn add_property(&mut self, prop: PropertyDef) -> StorageResult<()> {
         if !self.is_open {
-            return Err(StorageError::StorageNotOpen);
+            return Err(StorageError::storage_not_open());
         }
 
         if self.columns.get_column(&prop.name).is_some() {
-            return Err(StorageError::ColumnAlreadyExists(prop.name.clone()));
+            return Err(StorageError::column_already_exists(prop.name.clone()));
         }
 
         self.schema.properties.push(prop.clone());
@@ -514,7 +514,7 @@ impl VertexTable {
         meta_file.write_all(label_name_bytes)?;
 
         let schema_json = serde_json::to_string(&self.schema)
-            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            .map_err(|e| StorageError::serialize_error(e.to_string()))?;
         let schema_bytes = schema_json.as_bytes();
         meta_file.write_all(&(schema_bytes.len() as u32).to_le_bytes())?;
         meta_file.write_all(schema_bytes)?;
@@ -620,7 +620,7 @@ impl VertexTable {
         let mut label_name_bytes = vec![0u8; label_name_len];
         meta_file.read_exact(&mut label_name_bytes)?;
         self.label_name = String::from_utf8(label_name_bytes)
-            .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
         let mut schema_len_bytes = [0u8; 4];
         meta_file.read_exact(&mut schema_len_bytes)?;
@@ -629,9 +629,9 @@ impl VertexTable {
         let mut schema_bytes = vec![0u8; schema_len];
         meta_file.read_exact(&mut schema_bytes)?;
         let schema_json = String::from_utf8(schema_bytes)
-            .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
         self.schema = serde_json::from_str(&schema_json)
-            .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
         let id_indexer_path = path.join("id_indexer.bin");
         self.load_id_indexer(&id_indexer_path)?;
@@ -666,7 +666,7 @@ impl VertexTable {
             let mut key_bytes = vec![0u8; key_len];
             file.read_exact(&mut key_bytes)?;
             let key = String::from_utf8(key_bytes)
-                .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+                .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
             self.id_indexer.insert(key)?;
         }
@@ -694,7 +694,7 @@ impl VertexTable {
             let mut name_bytes = vec![0u8; name_len];
             file.read_exact(&mut name_bytes)?;
             let name = String::from_utf8(name_bytes)
-                .map_err(|e| StorageError::DeserializeError(e.to_string()))?;
+                .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
             let mut data_len_bytes = [0u8; 4];
             file.read_exact(&mut data_len_bytes)?;

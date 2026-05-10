@@ -95,13 +95,13 @@ where
 
     pub fn insert(&mut self, key: K) -> StorageResult<u32> {
         if self.key_to_index.contains_key(&key) {
-            return Err(StorageError::VertexAlreadyExists(
+            return Err(StorageError::vertex_already_exists(
                 format!("{:?}", key).trim_matches('"').to_string(),
             ));
         }
 
         if self.len() >= self.config.max_capacity {
-            return Err(StorageError::CapacityExceeded);
+            return Err(StorageError::capacity_exceeded());
         }
 
         if let Some(reused_id) = self.free_list.pop_front() {
@@ -123,7 +123,7 @@ where
     fn grow(&mut self) -> StorageResult<()> {
         let current_capacity = self.keys.capacity();
         if current_capacity >= self.config.max_capacity {
-            return Err(StorageError::CapacityExceeded);
+            return Err(StorageError::capacity_exceeded());
         }
 
         let new_capacity = ((current_capacity as f64 * self.config.growth_factor) as usize)

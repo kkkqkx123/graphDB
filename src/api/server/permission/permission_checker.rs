@@ -103,7 +103,7 @@ impl PermissionChecker {
 
             // Space-related operations: CREATE SPACE, DROP SPACE, etc.
             // Only the God character can perform this action.
-            OperationType::WriteSpace => Err(PermissionError::OnlyGodCanManageSpaces),
+            OperationType::WriteSpace => Err(PermissionError::only_god_can_manage_spaces()),
 
             // Schema reading operation
             OperationType::ReadSchema => self.check_read_schema(&username, target_space),
@@ -121,7 +121,7 @@ impl PermissionChecker {
             OperationType::ReadUser => self.check_read_user(&username, target_user, session),
 
             // User-written operations
-            OperationType::WriteUser => Err(PermissionError::OnlyGodCanManageUsers),
+            OperationType::WriteUser => Err(PermissionError::only_god_can_manage_users()),
 
             // Role management operations: GRANT, REVOKE
             OperationType::WriteRole => {
@@ -147,7 +147,7 @@ impl PermissionChecker {
     fn check_read_space(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or(PermissionError::SpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::space_id_required())?;
 
         // Basic checks using PermissionManager
         self.permission_manager
@@ -158,7 +158,7 @@ impl PermissionChecker {
     fn check_read_schema(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or(PermissionError::SchemaSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::schema_space_id_required())?;
 
         self.permission_manager
             .check_permission(username, space_id, Permission::Read)
@@ -173,14 +173,11 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or(PermissionError::SchemaWriteSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::schema_write_space_id_required())?;
 
         // Check whether the user is an administrator.
         if !self.permission_manager.is_admin(username) {
-            return Err(PermissionError::SchemaWritePermissionDenied {
-                space_id,
-                user: username.to_string(),
-            });
+            return Err(PermissionError::schema_write_permission_denied(space_id, username.to_string()));
         }
 
         // The administrator needs the “Write” permission.
@@ -192,7 +189,7 @@ impl PermissionChecker {
     fn check_read_data(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or(PermissionError::DataReadSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::data_read_space_id_required())?;
 
         self.permission_manager
             .check_permission(username, space_id, Permission::Read)
@@ -208,12 +205,12 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or(PermissionError::DataWriteSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::data_write_space_id_required())?;
 
         // Guest roles cannot write data
         if let Some(role) = session.role_with_space(space_id) {
             if role == RoleType::Guest {
-                return Err(PermissionError::GuestCannotWriteData);
+                return Err(PermissionError::guest_cannot_write_data());
             }
         }
 
@@ -243,7 +240,7 @@ impl PermissionChecker {
             return Ok(());
         }
 
-        Err(PermissionError::CannotReadUserInfo)
+        Err(PermissionError::cannot_read_user_info())
     }
 
     /// Checking role write permissions
@@ -257,8 +254,8 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or(PermissionError::RoleOperationSpaceIdRequired)?;
-        let role = target_role.ok_or(PermissionError::RoleOperationTargetRoleRequired)?;
+        let space_id = target_space.ok_or(PermissionError::role_operation_space_id_required())?;
+        let role = target_role.ok_or(PermissionError::role_operation_target_role_required())?;
 
         // Get the operator's role in the space
         let operator_role = self
@@ -273,25 +270,23 @@ impl PermissionChecker {
         );
 
         if !can_manage {
-            return Err(PermissionError::OnlyAdminOrGodCanManageRoles);
+            return Err(PermissionError::only_admin_or_god_can_manage_roles());
         }
 
         // Can't modify your role
         if let Some(target) = target_user {
             if username == target {
-                return Err(PermissionError::CannotModifyOwnRole);
+                return Err(PermissionError::cannot_modify_own_role());
             }
         }
 
         // Check if the target role can be granted
         if let Some(op_role) = operator_role {
             if !op_role.can_grant(role) {
-                return Err(PermissionError::CannotGrantRole {
-                    role: format!("{:?}", role),
-                });
+                return Err(PermissionError::cannot_grant_role(format!("{:?}", role)));
             }
         } else {
-            return Err(PermissionError::OnlyAdminOrGodCanManageRoles);
+            return Err(PermissionError::only_admin_or_god_can_manage_roles());
         }
 
         Ok(())
@@ -307,7 +302,7 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let target = target_user.ok_or(PermissionError::ChangePasswordTargetUserRequired)?;
+        let target = target_user.ok_or(PermissionError::change_password_target_user_required())?;
 
         // Users can change their passwords
         if username == target {
@@ -319,7 +314,7 @@ impl PermissionChecker {
             return Ok(());
         }
 
-        Err(PermissionError::CanOnlyChangeOwnPassword)
+        Err(PermissionError::can_only_change_own_password())
     }
 
     // ==================== Convenience methods (for external calls) ====================

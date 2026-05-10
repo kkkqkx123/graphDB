@@ -92,12 +92,12 @@ impl PageHeader {
 
     pub fn deserialize(data: &[u8]) -> StorageResult<Self> {
         if data.len() < Self::size() {
-            return Err(StorageError::DeserializeError("PageHeader too small".to_string()));
+            return Err(StorageError::deserialize_error("PageHeader too small".to_string()));
         }
 
         let magic = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
         if magic != PAGE_FILE_MAGIC {
-            return Err(StorageError::DeserializeError("Invalid page magic".to_string()));
+            return Err(StorageError::deserialize_error("Invalid page magic".to_string()));
         }
 
         let version = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
@@ -107,7 +107,7 @@ impl PageHeader {
             2 => TableType::Edge,
             3 => TableType::Property,
             4 => TableType::Schema,
-            _ => return Err(StorageError::DeserializeError("Invalid table type".to_string())),
+            _ => return Err(StorageError::deserialize_error("Invalid table type".to_string())),
         };
         let label_id = u16::from_le_bytes([data[9], data[10]]);
         let block_number = u64::from_le_bytes([
@@ -392,12 +392,12 @@ impl FlushPageWriter for FilePageWriter {
                 file.read_to_end(&mut data)?;
 
                 if data.len() < PageHeader::size() {
-                    return Err(StorageError::DeserializeError("Page file too small".to_string()));
+                    return Err(StorageError::deserialize_error("Page file too small".to_string()));
                 }
 
                 let header = PageHeader::deserialize(&data[..PageHeader::size()])?;
                 if !header.verify_checksum() {
-                    return Err(StorageError::DataCorruption(
+                    return Err(StorageError::data_corruption(
                         "Page checksum verification failed".to_string(),
                     ));
                 }
@@ -420,12 +420,12 @@ impl FlushPageWriter for FilePageWriter {
         file.read_exact(&mut data)?;
 
         if data.len() < PageHeader::size() {
-            return Err(StorageError::DeserializeError("Page file too small".to_string()));
+            return Err(StorageError::deserialize_error("Page file too small".to_string()));
         }
 
         let header = PageHeader::deserialize(&data[..PageHeader::size()])?;
         if !header.verify_checksum() {
-            return Err(StorageError::DataCorruption(
+            return Err(StorageError::data_corruption(
                 "Page checksum verification failed".to_string(),
             ));
         }

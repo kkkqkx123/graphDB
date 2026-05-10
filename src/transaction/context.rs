@@ -10,6 +10,7 @@ use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
 use super::types::*;
+use super::error::TransactionError;
 use super::undo_log::{UndoLogEntry, UndoLogManager, UndoTarget};
 use super::wal::types::Timestamp;
 
@@ -207,15 +208,15 @@ impl TransactionContext {
     /// Check if any timeout has been exceeded
     pub fn check_timeouts(&self) -> Result<(), TransactionError> {
         if self.is_expired() {
-            return Err(TransactionError::TransactionTimeout);
+            return Err(TransactionError::transaction_timeout());
         }
 
         if self.is_query_timeout() {
-            return Err(TransactionError::TransactionTimeout);
+            return Err(TransactionError::transaction_timeout());
         }
 
         if self.is_idle_timeout() {
-            return Err(TransactionError::TransactionTimeout);
+            return Err(TransactionError::transaction_timeout());
         }
 
         Ok(())
@@ -260,10 +261,8 @@ impl TransactionContext {
         );
 
         if !valid_transition {
-            return Err(TransactionError::InvalidStateTransition {
-                from: current,
-                to: new_state,
-            });
+            return Err(TransactionError::invalid_state_transition(current, new_state,
+            ));
         }
 
         self.state.store(new_state);
@@ -280,11 +279,11 @@ impl TransactionContext {
         let state = self.state.load();
 
         if !state.can_execute() {
-            return Err(TransactionError::InvalidStateForCommit(state));
+            return Err(TransactionError::invalid_state_for_commit(state));
         }
 
         if self.is_expired() {
-            return Err(TransactionError::TransactionExpired);
+            return Err(TransactionError::transaction_expired());
         }
 
         Ok(())
@@ -411,7 +410,7 @@ impl TransactionContext {
         manager
             .remove_savepoint(id)
             .map(|_| ())
-            .ok_or(TransactionError::SavepointNotFound(id))
+            .ok_or(TransactionError::savepoint_not_found(id))
     }
 
     /// Rollback to savepoint
@@ -422,11 +421,11 @@ impl TransactionContext {
     ) -> Result<(), TransactionError> {
         let state = self.state.load();
         if !state.can_execute() {
-            return Err(TransactionError::InvalidStateForAbort(state));
+            return Err(TransactionError::invalid_state_for_abort(state));
         }
 
         if self.is_expired() {
-            return Err(TransactionError::TransactionExpired);
+            return Err(TransactionError::transaction_expired());
         }
 
         let savepoint_info = {
@@ -434,7 +433,7 @@ impl TransactionContext {
             manager
                 .get_savepoint(id)
                 .cloned()
-                .ok_or(TransactionError::SavepointNotFound(id))?
+                .ok_or(TransactionError::savepoint_not_found(id))?
         };
 
         self.truncate_operation_log(savepoint_info.operation_log_index);
@@ -484,7 +483,7 @@ impl TransactionContext {
         let mut undo_logs = self.undo_logs.write();
         undo_logs
             .execute_undo(target, self.start_timestamp)
-            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))
+            .map_err(|e| TransactionError::rollback_failed(e.to_string()))
     }
 
     /// Clear all state

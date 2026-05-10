@@ -205,7 +205,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                                 ChangeType::Insert,
                             )
                             .map_err(|e| {
-                                StorageError::DbError(format!(
+                                StorageError::db_error(format!(
                                     "Failed to sync vertex insert: {}",
                                     e
                                 ))
@@ -222,7 +222,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let old_vertex = self
             .inner
             .get_vertex(space, &vertex.vid)?
-            .ok_or_else(|| StorageError::NodeNotFound(*vertex.vid.clone()))?;
+            .ok_or_else(|| StorageError::node_not_found(*vertex.vid.clone()))?;
 
         self.inner.update_vertex(space, vertex.clone())?;
 
@@ -248,7 +248,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                                 ChangeType::Update,
                             )
                             .map_err(|e| {
-                                StorageError::DbError(format!(
+                                StorageError::db_error(format!(
                                     "Failed to sync vertex update: {}",
                                     e
                                 ))
@@ -265,7 +265,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let vertex = self
             .inner
             .get_vertex(space, id)?
-            .ok_or_else(|| StorageError::NodeNotFound(id.clone()))?;
+            .ok_or_else(|| StorageError::node_not_found(id.clone()))?;
 
         self.inner.delete_vertex(space, id)?;
 
@@ -288,7 +288,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                             ChangeType::Delete,
                         )
                         .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
+                            StorageError::db_error(format!("Failed to sync vertex delete: {}", e))
                         })?;
                 }
             }
@@ -301,7 +301,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         let vertex = self
             .inner
             .get_vertex(space, id)?
-            .ok_or_else(|| StorageError::NodeNotFound(id.clone()))?;
+            .ok_or_else(|| StorageError::node_not_found(id.clone()))?;
 
         self.inner.delete_vertex_with_edges(space, id)?;
 
@@ -324,7 +324,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                             ChangeType::Delete,
                         )
                         .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync vertex delete: {}", e))
+                            StorageError::db_error(format!("Failed to sync vertex delete: {}", e))
                         })?;
                 }
             }
@@ -365,7 +365,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                                     ChangeType::Insert,
                                 )
                                 .map_err(|e| {
-                                    StorageError::DbError(format!(
+                                    StorageError::db_error(format!(
                                         "Failed to sync vertex insert: {}",
                                         e
                                     ))
@@ -399,7 +399,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                     sync_manager
                         .on_edge_insert(txn_id, space_id, &edge)
                         .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync edge insert: {}", e))
+                            StorageError::db_error(format!("Failed to sync edge insert: {}", e))
                         })?;
                 }
             }
@@ -426,7 +426,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                     sync_manager
                         .on_edge_delete(txn_id, space_id, src, dst, edge_type)
                         .map_err(|e| {
-                            StorageError::DbError(format!("Failed to sync edge delete: {}", e))
+                            StorageError::db_error(format!("Failed to sync edge delete: {}", e))
                         })?;
                 }
             }
@@ -447,7 +447,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                         sync_manager
                             .on_edge_insert(txn_id, space_id, edge)
                             .map_err(|e| {
-                                StorageError::DbError(format!("Failed to sync edge insert: {}", e))
+                                StorageError::db_error(format!("Failed to sync edge insert: {}", e))
                             })?;
                     }
                 }

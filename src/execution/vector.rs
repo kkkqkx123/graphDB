@@ -86,7 +86,7 @@ impl VectorBatch {
 
     pub fn append_row(&mut self, values: Vec<Value>) -> StorageResult<()> {
         if values.len() != self.columns.len() {
-            return Err(StorageError::InvalidOperation(format!(
+            return Err(StorageError::invalid_operation(format!(
                 "Expected {} values, got {}",
                 self.columns.len(),
                 values.len()
@@ -111,7 +111,7 @@ impl VectorBatch {
 
     pub fn slice(&self, start: usize, count: usize) -> StorageResult<Self> {
         if start + count > self.row_count {
-            return Err(StorageError::InvalidOperation(
+            return Err(StorageError::invalid_operation(
                 "Slice out of bounds".to_string(),
             ));
         }
@@ -214,7 +214,7 @@ impl VectorColumn {
 
     pub fn set(&mut self, idx: usize, value: Value) -> StorageResult<()> {
         if idx >= self.values.len() {
-            return Err(StorageError::InvalidOperation("Index out of bounds".to_string()));
+            return Err(StorageError::invalid_operation("Index out of bounds".to_string()));
         }
 
         self.values[idx] = value.clone();
@@ -354,7 +354,7 @@ impl VectorProcessor {
         op: VectorOperation,
     ) -> StorageResult<VectorColumn> {
         if left.len() != right.len() {
-            return Err(StorageError::InvalidOperation(
+            return Err(StorageError::invalid_operation(
                 "Column length mismatch".to_string(),
             ));
         }
@@ -409,7 +409,7 @@ impl VectorProcessor {
         if op == VectorOperation::Not {
             Self::not_values(value)
         } else {
-            Err(StorageError::InvalidOperation(format!(
+            Err(StorageError::invalid_operation(format!(
                 "Invalid unary operation: {:?}",
                 op
             )))
@@ -422,7 +422,7 @@ impl VectorProcessor {
             (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a + b)),
             (Value::Double(a), Value::Double(b)) => Ok(Value::Double(a + b)),
             (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
-            _ => Err(StorageError::InvalidOperation(format!(
+            _ => Err(StorageError::invalid_operation(format!(
                 "Cannot add {:?} and {:?}",
                 left.get_type(),
                 right.get_type()
@@ -435,7 +435,7 @@ impl VectorProcessor {
             (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
             (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a - b)),
             (Value::Double(a), Value::Double(b)) => Ok(Value::Double(a - b)),
-            _ => Err(StorageError::InvalidOperation(format!(
+            _ => Err(StorageError::invalid_operation(format!(
                 "Cannot subtract {:?} and {:?}",
                 left.get_type(),
                 right.get_type()
@@ -448,7 +448,7 @@ impl VectorProcessor {
             (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a * b)),
             (Value::BigInt(a), Value::BigInt(b)) => Ok(Value::BigInt(a * b)),
             (Value::Double(a), Value::Double(b)) => Ok(Value::Double(a * b)),
-            _ => Err(StorageError::InvalidOperation(format!(
+            _ => Err(StorageError::invalid_operation(format!(
                 "Cannot multiply {:?} and {:?}",
                 left.get_type(),
                 right.get_type()
@@ -460,23 +460,23 @@ impl VectorProcessor {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    return Err(StorageError::InvalidOperation("Division by zero".to_string()));
+                    return Err(StorageError::invalid_operation("Division by zero".to_string()));
                 }
                 Ok(Value::Int(a / b))
             }
             (Value::BigInt(a), Value::BigInt(b)) => {
                 if *b == 0 {
-                    return Err(StorageError::InvalidOperation("Division by zero".to_string()));
+                    return Err(StorageError::invalid_operation("Division by zero".to_string()));
                 }
                 Ok(Value::BigInt(a / b))
             }
             (Value::Double(a), Value::Double(b)) => {
                 if *b == 0.0 {
-                    return Err(StorageError::InvalidOperation("Division by zero".to_string()));
+                    return Err(StorageError::invalid_operation("Division by zero".to_string()));
                 }
                 Ok(Value::Double(a / b))
             }
-            _ => Err(StorageError::InvalidOperation(format!(
+            _ => Err(StorageError::invalid_operation(format!(
                 "Cannot divide {:?} and {:?}",
                 left.get_type(),
                 right.get_type()
@@ -488,17 +488,17 @@ impl VectorProcessor {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    return Err(StorageError::InvalidOperation("Modulo by zero".to_string()));
+                    return Err(StorageError::invalid_operation("Modulo by zero".to_string()));
                 }
                 Ok(Value::Int(a % b))
             }
             (Value::BigInt(a), Value::BigInt(b)) => {
                 if *b == 0 {
-                    return Err(StorageError::InvalidOperation("Modulo by zero".to_string()));
+                    return Err(StorageError::invalid_operation("Modulo by zero".to_string()));
                 }
                 Ok(Value::BigInt(a % b))
             }
-            _ => Err(StorageError::InvalidOperation(format!(
+            _ => Err(StorageError::invalid_operation(format!(
                 "Cannot modulo {:?} and {:?}",
                 left.get_type(),
                 right.get_type()
@@ -509,7 +509,7 @@ impl VectorProcessor {
     fn and_values(left: &Value, right: &Value) -> StorageResult<Value> {
         match (left, right) {
             (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(*a && *b)),
-            _ => Err(StorageError::InvalidOperation(
+            _ => Err(StorageError::invalid_operation(
                 "AND operation requires boolean values".to_string(),
             )),
         }
@@ -518,7 +518,7 @@ impl VectorProcessor {
     fn or_values(left: &Value, right: &Value) -> StorageResult<Value> {
         match (left, right) {
             (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(*a || *b)),
-            _ => Err(StorageError::InvalidOperation(
+            _ => Err(StorageError::invalid_operation(
                 "OR operation requires boolean values".to_string(),
             )),
         }
@@ -527,7 +527,7 @@ impl VectorProcessor {
     fn not_values(value: &Value) -> StorageResult<Value> {
         match value {
             Value::Bool(b) => Ok(Value::Bool(!b)),
-            _ => Err(StorageError::InvalidOperation(
+            _ => Err(StorageError::invalid_operation(
                 "NOT operation requires boolean value".to_string(),
             )),
         }

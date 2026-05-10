@@ -14,7 +14,7 @@
 //! Limit: Simple memory operations; the cost is proportional to the sum of the offset and the limit value.
 
 use super::{get_input_rows, NodeEstimator};
-use crate::core::error::optimize::CostError;
+use crate::query::optimizer::error::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planning::plan::PlanNodeEnum;

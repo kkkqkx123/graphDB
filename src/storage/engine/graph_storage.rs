@@ -173,7 +173,7 @@ impl Default for GraphStorage {
 impl StorageClient for GraphStorage {
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
         
         let tags = self.list_tags(space)?;
         if tags.is_empty() {
@@ -218,7 +218,7 @@ impl StorageClient for GraphStorage {
 
     fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
         let tag_info = self.get_tag(space, tag)?
-            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -243,7 +243,7 @@ impl StorageClient for GraphStorage {
         value: &Value,
     ) -> Result<Vec<Vertex>, StorageError> {
         let tag_info = self.get_tag(space, tag)?
-            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -271,7 +271,7 @@ impl StorageClient for GraphStorage {
         _rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
         let edge_info = self.get_edge_type(space, edge_type)?
-            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -427,7 +427,7 @@ impl StorageClient for GraphStorage {
         edge_type: &str,
     ) -> Result<Vec<Edge>, StorageError> {
         let edge_info = self.get_edge_type(space, edge_type)?
-            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -455,7 +455,7 @@ impl StorageClient for GraphStorage {
 
     fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
         let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let mut edges = Vec::new();
         let edge_types = self.list_edge_types(space)?;
@@ -470,7 +470,7 @@ impl StorageClient for GraphStorage {
 
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
@@ -493,7 +493,7 @@ impl StorageClient for GraphStorage {
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
@@ -517,7 +517,7 @@ impl StorageClient for GraphStorage {
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let tags = self.list_tags(space)?;
         let ts = self.get_write_timestamp();
@@ -560,7 +560,7 @@ impl StorageClient for GraphStorage {
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
@@ -614,7 +614,7 @@ impl StorageClient for GraphStorage {
         _rank: i64,
     ) -> Result<(), StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
@@ -777,18 +777,18 @@ impl StorageClient for GraphStorage {
         edge_type: &EdgeTypeInfo,
     ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         if edge_type.edge_type_id as u64 != 0 && space_info.space_id != edge_type.edge_type_id as u64 {
-            return Err(StorageError::DbError("Edge type ID mismatch".to_string()));
+            return Err(StorageError::db_error("Edge type ID mismatch".to_string()));
         }
 
         let mut graph = self.graph.write();
 
         let src_label_id = graph.get_vertex_label_id(&edge_type.src_tag_name)
-            .ok_or_else(|| StorageError::NotFound(format!("Source tag {} not found", edge_type.src_tag_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name)))?;
         let dst_label_id = graph.get_vertex_label_id(&edge_type.dst_tag_name)
-            .ok_or_else(|| StorageError::NotFound(format!("Destination tag {} not found", edge_type.dst_tag_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Destination tag {} not found", edge_type.dst_tag_name)))?;
 
         let properties: Vec<crate::storage::edge::PropertyDef> = edge_type.properties.iter()
             .map(|p| crate::storage::edge::PropertyDef {
@@ -848,7 +848,7 @@ impl StorageClient for GraphStorage {
         let space_id = self
             .schema_manager
             .get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?
             .space_id;
         self.index_metadata_manager
             .create_tag_index(space_id, index)?;
@@ -874,7 +874,7 @@ impl StorageClient for GraphStorage {
         let space_id = self
             .schema_manager
             .get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?
             .space_id;
         self.index_metadata_manager
             .create_edge_index(space_id, index)?;
@@ -936,7 +936,7 @@ impl StorageClient for GraphStorage {
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
@@ -959,7 +959,7 @@ impl StorageClient for GraphStorage {
     fn rebuild_tag_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
         let space_id = self.schema_manager.get_space_id(space)?;
         let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
-            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
         let vertices = self.scan_vertices_by_tag(space, &index.schema_name)?;
         
@@ -984,7 +984,7 @@ impl StorageClient for GraphStorage {
     fn rebuild_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
         let space_id = self.schema_manager.get_space_id(space)?;
         let index = self.index_metadata_manager.get_edge_index(space_id, index_name)?
-            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
         let edges = self.scan_edges_by_type(space, &index.schema_name)?;
         
@@ -1013,13 +1013,13 @@ impl StorageClient for GraphStorage {
         info: &InsertVertexInfo,
     ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let _tag = self.get_tag(space, &info.tag_name)?
-            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found", info.tag_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Tag {} not found", info.tag_name)))?;
 
         if info.space_id != space_info.space_id {
-            return Err(StorageError::DbError("Space ID mismatch".to_string()));
+            return Err(StorageError::db_error("Space ID mismatch".to_string()));
         }
 
         let ts = self.get_write_timestamp();
@@ -1034,11 +1034,11 @@ impl StorageClient for GraphStorage {
                     self.update_vertex_indexes(space_info.space_id, &info.vertex_id, &info.tag_name, &info.props, ts)?;
                     Ok(true)
                 }
-                Err(StorageError::VertexAlreadyExists(_)) => Ok(false),
+                Err(ref e) if e.kind() == crate::core::error::storage::StorageErrorKind::VertexAlreadyExists => Ok(false),
                 Err(e) => Err(e),
             }
         } else {
-            Err(StorageError::NotFound(format!("Tag {} not found in graph", info.tag_name)))
+            Err(StorageError::not_found(format!("Tag {} not found in graph", info.tag_name)))
         }
     }
 
@@ -1048,13 +1048,13 @@ impl StorageClient for GraphStorage {
         info: &InsertEdgeInfo,
     ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let _edge_type = self.get_edge_type(space, &info.edge_name)?
-            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found", info.edge_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Edge type {} not found", info.edge_name)))?;
 
         if info.space_id != space_info.space_id {
-            return Err(StorageError::DbError("Space ID mismatch".to_string()));
+            return Err(StorageError::db_error("Space ID mismatch".to_string()));
         }
 
         let ts = self.get_write_timestamp();
@@ -1090,7 +1090,7 @@ impl StorageClient for GraphStorage {
                                     )?;
                                     return Ok(true);
                                 }
-                                Err(StorageError::EdgeAlreadyExists(_)) => return Ok(false),
+                                Err(ref e) if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists => return Ok(false),
                                 Err(e) => return Err(e),
                             }
                         }
@@ -1099,12 +1099,12 @@ impl StorageClient for GraphStorage {
             }
         }
 
-        Err(StorageError::NotFound(format!("Edge type {} not found in graph", info.edge_name)))
+        Err(StorageError::not_found(format!("Edge type {} not found in graph", info.edge_name)))
     }
 
     fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let tags = self.list_tags(space)?;
         let ts = self.get_write_timestamp();
@@ -1131,7 +1131,7 @@ impl StorageClient for GraphStorage {
         _rank: i64,
     ) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let edge_types = self.list_edge_types(space)?;
         let ts = self.get_write_timestamp();
@@ -1161,10 +1161,10 @@ impl StorageClient for GraphStorage {
 
     fn update_data(&mut self, space: &str, space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError> {
         let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         if space_info.space_id != space_id {
-            return Err(StorageError::DbError("Space ID mismatch".to_string()));
+            return Err(StorageError::db_error("Space ID mismatch".to_string()));
         }
 
         let ts = self.get_write_timestamp();
@@ -1173,7 +1173,7 @@ impl StorageClient for GraphStorage {
         let UpdateTarget { space_name, label, id, prop } = &info.update_target;
         
         if space_name != space {
-            return Err(StorageError::DbError("Space name mismatch in update target".to_string()));
+            return Err(StorageError::db_error("Space name mismatch in update target".to_string()));
         }
 
         if let Some(label_id) = graph.get_vertex_label_id(label) {
@@ -1219,7 +1219,7 @@ impl StorageClient for GraphStorage {
             self.update_vertex_indexes(space_info.space_id, id, label, &props, ts)?;
             Ok(true)
         } else {
-            Err(StorageError::NotFound(format!("Label {} not found", label)))
+            Err(StorageError::not_found(format!("Label {} not found", label)))
         }
     }
 
@@ -1236,7 +1236,7 @@ impl StorageClient for GraphStorage {
         let space_id = self.schema_manager.get_space_id(space)?;
         
         let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
-            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
         
         let index_data_manager = self.index_data_manager.read();
         let results = index_data_manager.lookup_tag_index(space_id, &index, value)?;
@@ -1252,7 +1252,7 @@ impl StorageClient for GraphStorage {
         let space_id = self.schema_manager.get_space_id(space)?;
         
         let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
-            .ok_or_else(|| StorageError::NotFound(format!("Index {} not found", index_name)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
         
         let index_data_manager = self.index_data_manager.read();
         let results = index_data_manager.lookup_tag_index(space_id, &index, value)?;
@@ -1266,7 +1266,7 @@ impl StorageClient for GraphStorage {
         id: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
         let tag_info = self.get_tag(space, tag)?
-            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -1290,7 +1290,7 @@ impl StorageClient for GraphStorage {
         dst: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
         let edge_info = self.get_edge_type(space, edge_type)?
-            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -1324,7 +1324,7 @@ impl StorageClient for GraphStorage {
         tag: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
         let tag_info = self.get_tag(space, tag)?
-            .ok_or_else(|| StorageError::NotFound(format!("Tag {} not found in space {}", tag, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -1348,7 +1348,7 @@ impl StorageClient for GraphStorage {
         edge_type: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
         let edge_info = self.get_edge_type(space, edge_type)?
-            .ok_or_else(|| StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Edge type {} not found in space {}", edge_type, space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();
@@ -1391,11 +1391,11 @@ impl StorageClient for GraphStorage {
     fn save_to_disk(&self) -> Result<(), StorageError> {
         if let Some(ref path) = self.work_dir {
             std::fs::create_dir_all(path)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             
             let schema_path = path.join("schema");
             std::fs::create_dir_all(&schema_path)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             self.schema_manager.save_schema(&schema_path)?;
             
             {
@@ -1405,7 +1405,7 @@ impl StorageClient for GraphStorage {
             
             let index_path = path.join("indexes");
             std::fs::create_dir_all(&index_path)
-                .map_err(|e| StorageError::IOError(e.to_string()))?;
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             let index_data_manager = self.index_data_manager.read();
             index_data_manager.flush(&index_path)?;
         }
@@ -1446,7 +1446,7 @@ impl StorageClient for GraphStorage {
 
     fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
         let _space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::NotFound(format!("Space {} not found", space)))?;
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.get_read_timestamp();
         let graph = self.graph.read();

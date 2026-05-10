@@ -48,6 +48,7 @@ pub mod context;
 pub mod cost;
 pub mod decision;
 pub mod engine;
+pub mod error;
 pub mod stats;
 
 // Optimization phases
@@ -56,7 +57,8 @@ pub mod heuristic; // Heuristic rewrite rules
 
 // Re-export the main types
 pub use builder::OptimizerEngineBuilder;
-pub use engine::{OptimizeError, OptimizeResult, OptimizerEngine};
+pub use engine::OptimizerEngine;
+pub use error::{CostError, CostResult, OptimizeError, OptimizeResult};
 
 pub use stats::{
     EdgeTypeStatistics, ExecutionFeedbackCollector, FeedbackDrivenSelectivity, OperatorFeedback,
@@ -64,7 +66,6 @@ pub use stats::{
     StatisticsManager, TagStatistics,
 };
 
-pub use crate::core::error::optimize::CostError;
 pub use cost::{CostAssigner, CostCalculator, CostModelConfig, SelectivityEstimator};
 
 // Reexport the analysis module type.
