@@ -26,8 +26,8 @@ use crate::transaction::wal::types::{
     ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
 use crate::transaction::wal::writer::WalWriter;
-use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, FlushManager, RecoveryApplier, TableType};
-use crate::storage::page::{PageLockId, PageLockManager, PageManager, LockMode, LockResult};
+use crate::transaction::wal::RecoveryApplier;
+use crate::storage::metadata::{TableId, TableTracker, TableTrackerConfig, TableType};
 
 use super::cache::CacheManager;
 use super::config::PropertyGraphConfig;
@@ -47,10 +47,7 @@ pub struct PropertyGraph {
     edge_ops: EdgeOps,
     cache_manager: CacheManager,
     wal_manager: WalManager,
-    page_manager: Arc<PageManager>,
-    dirty_tracker: Arc<DirtyPageTracker>,
-    flush_manager: Option<FlushManager>,
-    lock_manager: PageLockManager,
+    table_tracker: Arc<TableTracker>,
     memory_tracker: SharedMemoryTracker,
     config: PropertyGraphConfig,
     is_open: bool,
@@ -67,7 +64,7 @@ impl std::fmt::Debug for PropertyGraph {
             .field("edge_label_counter", &self.edge_ops.edge_label_counter)
             .field("config", &self.config)
             .field("is_open", &self.is_open)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -114,40 +111,19 @@ impl PropertyGraph {
             memory_tracker.clone(),
         );
 
-        let page_manager = Arc::new(PageManager::with_config(
-            crate::storage::page::PageManagerConfig {
-                base_path: config.work_dir.clone(),
-                max_pages: (config.cache_memory / 4096) as u64,
-            },
-        ));
-
-        let dirty_tracker = Arc::new(DirtyPageTracker::with_config(
-            crate::storage::persistence::DirtyTrackerConfig {
+        let table_tracker = Arc::new(TableTracker::with_config(
+            TableTrackerConfig {
                 flush_threshold: config.flush_config.flush_threshold,
                 flush_interval: config.flush_config.flush_interval,
             },
         ));
-
-        let flush_manager = if config.enable_background_flush {
-            Some(
-                FlushManager::new(config.flush_config.clone())
-                    .with_page_manager(page_manager.clone()),
-            )
-        } else {
-            None
-        };
-
-        let lock_manager = PageLockManager::new();
 
         Self {
             schema_ops: SchemaOps::new(),
             edge_ops: EdgeOps::new(),
             cache_manager,
             wal_manager: WalManager::new(),
-            page_manager,
-            dirty_tracker,
-            flush_manager,
-            lock_manager,
+            table_tracker,
             memory_tracker,
             config,
             is_open: true,
@@ -171,49 +147,21 @@ impl PropertyGraph {
         &self.memory_tracker
     }
 
-    pub fn dirty_tracker(&self) -> &Arc<DirtyPageTracker> {
-        &self.dirty_tracker
-    }
-
-    pub fn page_manager(&self) -> &Arc<PageManager> {
-        &self.page_manager
-    }
-
-    pub fn lock_manager(&self) -> &PageLockManager {
-        &self.lock_manager
-    }
-
-    pub fn acquire_page_lock(
-        &self,
-        page_id: PageLockId,
-        txn_id: u64,
-        mode: LockMode,
-    ) -> LockResult {
-        self.lock_manager.acquire_lock(page_id, txn_id, mode)
-    }
-
-    pub fn release_page_lock(&self, page_id: PageLockId, txn_id: u64) -> bool {
-        self.lock_manager.release_lock(page_id, txn_id)
-    }
-
-    pub fn release_all_page_locks(&self, txn_id: u64) -> usize {
-        self.lock_manager.release_all_locks(txn_id)
+    pub fn table_tracker(&self) -> &Arc<TableTracker> {
+        &self.table_tracker
     }
 
     pub fn should_flush(&self) -> bool {
-        self.dirty_tracker.should_flush()
+        self.table_tracker.should_flush()
     }
 
-    pub fn get_dirty_page_count(&self) -> usize {
-        self.dirty_tracker.get_dirty_page_count()
+    pub fn get_modified_table_count(&self) -> usize {
+        self.table_tracker.get_modified_count()
     }
 
-    pub fn mark_page_dirty(&self, table_type: TableType, label_id: u16, block_number: u64) {
-        let page_id = DirtyPageId::new(table_type, label_id, block_number);
-        self.dirty_tracker.mark_dirty(page_id);
-        if let Some(ref flush_manager) = self.flush_manager {
-            flush_manager.mark_dirty(page_id);
-        }
+    pub fn mark_table_modified(&self, table_type: TableType, label_id: u16) {
+        let table_id = TableId::new(table_type, label_id);
+        self.table_tracker.mark_modified(table_id);
     }
 
     pub fn record_cache(&self) -> Option<&crate::storage::cache::SharedRecordCache> {
@@ -242,25 +190,7 @@ impl PropertyGraph {
         Ok(graph)
     }
 
-    pub fn start_background_flush(&self) -> StorageResult<()> {
-        if let Some(ref flush_manager) = self.flush_manager {
-            flush_manager.start_background_flush()?;
-        }
-        Ok(())
-    }
-
-    pub fn stop_background_flush(&self) {
-        if let Some(ref flush_manager) = self.flush_manager {
-            flush_manager.stop_background_flush();
-        }
-    }
-
-    pub fn flush_manager(&self) -> Option<&FlushManager> {
-        self.flush_manager.as_ref()
-    }
-
     pub fn close(&mut self) {
-        self.stop_background_flush();
         self.is_open = false;
         for table in self.schema_ops.vertex_tables.values_mut() {
             table.close();
@@ -637,16 +567,16 @@ impl PropertyGraph {
 
         self.wal_manager.sync()?;
 
-        self.dirty_tracker.clear();
+        self.table_tracker.clear();
 
         Ok(())
     }
 
-    pub fn flush_incremental(&self) -> StorageResult<Vec<DirtyPageId>> {
-        let dirty_pages = self.dirty_tracker.flush_and_reset();
+    pub fn flush_incremental(&self) -> StorageResult<Vec<TableId>> {
+        let modified_tables = self.table_tracker.flush_and_reset();
 
-        if dirty_pages.is_empty() {
-            return Ok(dirty_pages);
+        if modified_tables.is_empty() {
+            return Ok(modified_tables);
         }
 
         use std::fs;
@@ -655,21 +585,21 @@ impl PropertyGraph {
 
         let mut flushed_labels = std::collections::HashSet::new();
 
-        for page_id in &dirty_pages {
-            match page_id.table_type {
-                crate::storage::persistence::TableType::Vertex => {
-                    if flushed_labels.insert(("vertex", page_id.label_id)) {
-                        if let Some(table) = self.schema_ops.vertex_tables.get(&page_id.label_id) {
+        for table_id in &modified_tables {
+            match table_id.table_type {
+                TableType::Vertex => {
+                    if flushed_labels.insert(("vertex", table_id.label_id)) {
+                        if let Some(table) = self.schema_ops.vertex_tables.get(&table_id.label_id) {
                             let vertex_dir = data_dir.join("vertices");
-                            let table_dir = vertex_dir.join(format!("label_{}", page_id.label_id));
+                            let table_dir = vertex_dir.join(format!("label_{}", table_id.label_id));
                             table.flush(&table_dir)?;
                         }
                     }
                 }
-                crate::storage::persistence::TableType::Edge => {
-                    if flushed_labels.insert(("edge", page_id.label_id)) {
+                TableType::Edge => {
+                    if flushed_labels.insert(("edge", table_id.label_id)) {
                         for ((src, dst, label), table) in &self.edge_ops.edge_tables {
-                            if *label == page_id.label_id {
+                            if *label == table_id.label_id {
                                 let edge_dir = data_dir.join("edges");
                                 let table_dir = edge_dir.join(format!("{}_{}_{}", src, dst, label));
                                 table.flush(&table_dir)?;
@@ -677,14 +607,14 @@ impl PropertyGraph {
                         }
                     }
                 }
-                crate::storage::persistence::TableType::Schema => {}
-                crate::storage::persistence::TableType::Property => {}
+                TableType::Schema => {}
+                TableType::Property => {}
             }
         }
 
         self.wal_manager.sync()?;
 
-        Ok(dirty_pages)
+        Ok(modified_tables)
     }
 
     pub fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
@@ -856,10 +786,10 @@ impl InsertTarget for PropertyGraph {
         ts: Timestamp,
     ) -> InsertTransactionResult<TxnVertexId> {
         let result = TransactionOps::add_vertex(&mut self.schema_ops, label, oid, properties, ts)?;
-        
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
-        self.dirty_tracker.mark_modified_since_checkpoint(DirtyPageId::vertex(label, 0));
-        
+
+        self.table_tracker.mark_modified(TableId::vertex(label));
+        self.table_tracker.mark_modified_since_checkpoint(TableId::vertex(label));
+
         Ok(result)
     }
 
@@ -881,10 +811,10 @@ impl InsertTarget for PropertyGraph {
             param.properties,
             param.ts,
         )?;
-        
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(param.edge_label, 0));
-        self.dirty_tracker.mark_modified_since_checkpoint(DirtyPageId::edge(param.edge_label, 0));
-        
+
+        self.table_tracker.mark_modified(TableId::edge(param.edge_label));
+        self.table_tracker.mark_modified_since_checkpoint(TableId::edge(param.edge_label));
+
         Ok(result)
     }
 
@@ -923,7 +853,7 @@ impl InsertTarget for PropertyGraph {
 impl UndoTarget for PropertyGraph {
     fn delete_vertex_type(&mut self, label: TxnLabelId) -> UndoLogResult<()> {
         TransactionOps::delete_vertex_type(&mut self.schema_ops, &mut self.edge_ops, label)?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        self.table_tracker.mark_modified(TableId::vertex(label));
         Ok(())
     }
 
@@ -937,13 +867,13 @@ impl UndoTarget for PropertyGraph {
             &mut self.edge_ops,
             params,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_key.edge_label, 0));
+        self.table_tracker.mark_modified(TableId::edge(edge_key.edge_label));
         Ok(())
     }
 
     fn delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
         TransactionOps::delete_vertex(&mut self.schema_ops, vertex.label, vertex.vid, ts)?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(vertex.label, 0));
+        self.table_tracker.mark_modified(TableId::vertex(vertex.label));
         Ok(())
     }
 
@@ -962,7 +892,7 @@ impl UndoTarget for PropertyGraph {
             edge_ctx.ie_offset,
             edge_ctx.timestamp,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_ctx.edge_id.edge_label, 0));
+        self.table_tracker.mark_modified(TableId::edge(edge_ctx.edge_id.edge_label));
         Ok(())
     }
 
@@ -981,7 +911,7 @@ impl UndoTarget for PropertyGraph {
             value,
             ts,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(vertex.label, 0));
+        self.table_tracker.mark_modified(TableId::vertex(vertex.label));
         Ok(())
     }
 
@@ -1010,7 +940,7 @@ impl UndoTarget for PropertyGraph {
             value,
             ts,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_id.edge_label, 0));
+        self.table_tracker.mark_modified(TableId::edge(edge_id.edge_label));
         Ok(())
     }
 
@@ -1029,7 +959,7 @@ impl UndoTarget for PropertyGraph {
             0,
             ts,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(vertex.label, 0));
+        self.table_tracker.mark_modified(TableId::vertex(vertex.label));
         Ok(())
     }
 
@@ -1048,7 +978,7 @@ impl UndoTarget for PropertyGraph {
             edge_ctx.ie_offset,
             edge_ctx.timestamp,
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_ctx.edge_id.edge_label, 0));
+        self.table_tracker.mark_modified(TableId::edge(edge_ctx.edge_id.edge_label));
         Ok(())
     }
 
@@ -1059,7 +989,7 @@ impl UndoTarget for PropertyGraph {
     ) -> UndoLogResult<()> {
         TransactionOps::revert_delete_vertex_properties(&mut self.schema_ops, label_name, prop_names)?;
         if let Some(label) = self.schema_ops.vertex_label_names.get(label_name) {
-            self.dirty_tracker.mark_dirty(DirtyPageId::vertex(*label, 0));
+            self.table_tracker.mark_modified(TableId::vertex(*label));
         }
         Ok(())
     }
@@ -1080,7 +1010,7 @@ impl UndoTarget for PropertyGraph {
             prop_names,
         )?;
         if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
-            self.dirty_tracker.mark_dirty(DirtyPageId::edge(*label, 0));
+            self.table_tracker.mark_modified(TableId::edge(*label));
         }
         Ok(())
     }
@@ -1088,7 +1018,7 @@ impl UndoTarget for PropertyGraph {
     fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()> {
         let label = self.schema_ops.vertex_label_counter;
         TransactionOps::create_vertex_type_undo(&mut self.schema_ops, label_name, label)?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        self.table_tracker.mark_modified(TableId::vertex(label));
         Ok(())
     }
 
@@ -1127,7 +1057,7 @@ impl UndoTarget for PropertyGraph {
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
 
         if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
-            self.dirty_tracker.mark_dirty(DirtyPageId::edge(*label, 0));
+            self.table_tracker.mark_modified(TableId::edge(*label));
         }
 
         Ok(())
@@ -1146,7 +1076,7 @@ impl UndoTarget for PropertyGraph {
             original_names,
         )?;
         if let Some(label_id) = self.schema_ops.vertex_label_names.get(label) {
-            self.dirty_tracker.mark_dirty(DirtyPageId::vertex(*label_id, 0));
+            self.table_tracker.mark_modified(TableId::vertex(*label_id));
         }
         Ok(())
     }
@@ -1169,7 +1099,7 @@ impl UndoTarget for PropertyGraph {
             original_names,
         )?;
         if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
-            self.dirty_tracker.mark_dirty(DirtyPageId::edge(*label, 0));
+            self.table_tracker.mark_modified(TableId::edge(*label));
         }
         Ok(())
     }
@@ -1191,7 +1121,7 @@ impl RecoveryApplier for PropertyGraph {
             ts,
         )?;
 
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        self.table_tracker.mark_modified(TableId::vertex(label));
         Ok(())
     }
 
@@ -1235,7 +1165,7 @@ impl RecoveryApplier for PropertyGraph {
         )
         .map_err(|e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)))?;
 
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        self.table_tracker.mark_modified(TableId::edge(edge_label));
         Ok(())
     }
 
@@ -1259,7 +1189,7 @@ impl RecoveryApplier for PropertyGraph {
             ts,
         )?;
 
-        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        self.table_tracker.mark_modified(TableId::vertex(label));
         Ok(())
     }
 
@@ -1295,7 +1225,7 @@ impl RecoveryApplier for PropertyGraph {
             ts,
             self.schema_ops.vertex_tables(),
         )?;
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        self.table_tracker.mark_modified(TableId::edge(edge_label));
 
         Ok(())
     }
@@ -1311,7 +1241,7 @@ impl RecoveryApplier for PropertyGraph {
                 ts,
             )
             .map_err(|e| StorageError::db_error(format!("Failed to replay delete vertex: {}", e)))?;
-            self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+            self.table_tracker.mark_modified(TableId::vertex(label));
         }
 
         Ok(())
@@ -1349,7 +1279,7 @@ impl RecoveryApplier for PropertyGraph {
                 ts,
             )
             .map_err(|e| StorageError::db_error(format!("Failed to replay delete edge: {}", e)))?;
-            self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+            self.table_tracker.mark_modified(TableId::edge(edge_label));
         }
 
         Ok(())

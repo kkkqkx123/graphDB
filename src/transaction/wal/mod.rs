@@ -46,11 +46,13 @@
 
 pub mod checkpoint;
 pub mod parser;
+pub mod recovery;
 pub mod types;
 pub mod writer;
 
 pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointResult};
-pub use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, DirtyTrackerConfig, TableType};
+pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};
+pub use crate::storage::metadata::{TableId as DirtyPageId, TableTracker as DirtyPageTracker, TableTrackerConfig as DirtyTrackerConfig, TableType};
 pub use parser::{
     FullPageWriteEntry, LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
     WalEntry, WalEntryIter, WalParser, WalParserFactory,

@@ -20,10 +20,7 @@ pub mod iterator;
 pub mod lob;
 pub mod memory;
 pub mod metadata;
-pub mod operations;
-pub mod page;
 pub mod params;
-pub mod persistence;
 pub mod stats;
 pub mod vertex;
 
@@ -44,9 +41,7 @@ pub use extend::FulltextStorage;
 pub use index::*;
 pub use iterator::*;
 pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryStats, MemoryTracker};
-pub use page::NullBitmap;
 pub use metadata::*;
-pub use operations::*;
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
@@ -58,6 +53,8 @@ pub use container::{
     ContainerConfig, ContainerError, ContainerResult, ContainerStats, FileHeader, FileMmap,
     HugePageMmap, IDataContainer, MemoryLevel, DEFAULT_HUGE_PAGE_SIZE,
 };
+
+pub use engine::config::FlushConfig;
 
 pub use vertex::{
     Column, ColumnStore, IdIndexer, LabelId, PropertyDef as VertexPropertyDef, Timestamp, VertexId,

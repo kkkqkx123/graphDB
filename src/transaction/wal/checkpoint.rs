@@ -1,9 +1,7 @@
 //! Unified Checkpoint Manager
 //!
 //! Provides checkpoint functionality for faster recovery, WAL file management,
-//! and dirty page tracking. This unified manager combines:
-//! - WAL-based checkpoint (LSN tracking, WAL cleanup, checkpoint modes)
-//! - Page-based checkpoint (DirtyPageTracker integration, page flushing)
+//! and table modification tracking.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,7 +11,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::types::{
     Lsn, PageId, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
 };
-use crate::storage::persistence::{DirtyPageId, DirtyPageTracker};
+use crate::storage::metadata::{TableId, TableTracker};
 
 /// Checkpoint information
 #[derive(Debug, Clone)]
@@ -63,7 +61,7 @@ pub struct CheckpointResult {
     pub success: bool,
 }
 
-/// Checkpoint manager - unified version combining WAL and page-based checkpoint
+/// Checkpoint manager
 pub struct CheckpointManager {
     /// WAL directory path
     wal_dir: PathBuf,
@@ -77,10 +75,10 @@ pub struct CheckpointManager {
     checkpoint_file: PathBuf,
     /// Active transactions
     active_transactions: Vec<TransactionId>,
-    /// Dirty pages
-    dirty_pages: Vec<PageId>,
-    /// Dirty page tracker for page-level tracking
-    dirty_tracker: Option<Arc<DirtyPageTracker>>,
+    /// Modified tables
+    modified_tables: Vec<TableId>,
+    /// Table tracker for modification tracking
+    table_tracker: Option<Arc<TableTracker>>,
     /// Checkpoint count
     checkpoint_count: AtomicU64,
     /// Work directory for checkpoint metadata
@@ -88,8 +86,8 @@ pub struct CheckpointManager {
 }
 
 impl CheckpointManager {
-    /// Create a new checkpoint manager with optional dirty page tracker
-    pub fn new(wal_dir: &Path, work_dir: &Path, dirty_tracker: Option<Arc<DirtyPageTracker>>) -> Self {
+    /// Create a new checkpoint manager with optional table tracker
+    pub fn new(wal_dir: &Path, work_dir: &Path, table_tracker: Option<Arc<TableTracker>>) -> Self {
         let checkpoint_file = wal_dir.join("checkpoint.meta");
         Self {
             wal_dir: wal_dir.to_path_buf(),
@@ -99,8 +97,8 @@ impl CheckpointManager {
             last_checkpoint_lsn: Lsn::ZERO,
             checkpoint_file,
             active_transactions: Vec::new(),
-            dirty_pages: Vec::new(),
-            dirty_tracker,
+            modified_tables: Vec::new(),
+            table_tracker,
             checkpoint_count: AtomicU64::new(0),
         }
     }
@@ -174,16 +172,16 @@ impl CheckpointManager {
         self.active_transactions.retain(|&id| id != tx_id);
     }
 
-    /// Mark a page as dirty
-    pub fn mark_page_dirty(&mut self, page_id: PageId) {
-        if !self.dirty_pages.contains(&page_id) {
-            self.dirty_pages.push(page_id);
+    /// Mark a table as modified
+    pub fn mark_table_modified(&mut self, table_id: TableId) {
+        if !self.modified_tables.contains(&table_id) {
+            self.modified_tables.push(table_id);
         }
     }
 
-    /// Mark a page as clean
-    pub fn mark_page_clean(&mut self, page_id: PageId) {
-        self.dirty_pages.retain(|&id| id != page_id);
+    /// Mark a table as clean
+    pub fn mark_table_clean(&mut self, table_id: TableId) {
+        self.modified_tables.retain(|&id| id != table_id);
     }
 
     /// Get active transactions
@@ -191,9 +189,9 @@ impl CheckpointManager {
         &self.active_transactions
     }
 
-    /// Get dirty pages
-    pub fn dirty_pages(&self) -> &[PageId] {
-        &self.dirty_pages
+    /// Get modified tables
+    pub fn modified_tables(&self) -> &[TableId] {
+        &self.modified_tables
     }
 
     /// Create a new checkpoint
@@ -212,7 +210,7 @@ impl CheckpointManager {
             lsn,
             wal_files,
             active_transactions: self.active_transactions.clone(),
-            dirty_pages: self.dirty_pages.clone(),
+            dirty_pages: Vec::new(), // Kept for compatibility
             redo_lsn,
         };
 
@@ -230,14 +228,14 @@ impl CheckpointManager {
         }
     }
 
-    /// Create a checkpoint with full page writes
-    pub fn create_checkpoint_with_full_pages(
+    /// Create a checkpoint with modified tables
+    pub fn create_checkpoint_with_tables(
         &mut self,
         timestamp: Timestamp,
         lsn: Lsn,
-        dirty_pages: Vec<PageId>,
+        modified_tables: Vec<TableId>,
     ) -> WalResult<Checkpoint> {
-        self.dirty_pages = dirty_pages;
+        self.modified_tables = modified_tables;
         self.create_checkpoint(timestamp, lsn)
     }
 
@@ -258,9 +256,9 @@ impl CheckpointManager {
         };
 
         let duration_us = start_time.elapsed().as_micros() as u64;
-        
+
         Ok(CheckpointResult {
-            pages_written: checkpoint.dirty_pages.len(),
+            pages_written: self.modified_tables.len(),
             wal_files_processed: checkpoint.wal_files.len(),
             duration_us,
             mode,
@@ -276,7 +274,7 @@ impl CheckpointManager {
     /// Restart checkpoint: full checkpoint and reset log
     fn checkpoint_restart(&mut self, timestamp: Timestamp, lsn: Lsn) -> WalResult<Checkpoint> {
         let checkpoint = self.create_checkpoint(timestamp, lsn)?;
-        self.dirty_pages.clear();
+        self.modified_tables.clear();
         Ok(checkpoint)
     }
 
@@ -373,73 +371,36 @@ impl CheckpointManager {
             lsn: self.last_checkpoint_lsn,
             wal_files: Vec::new(),
             active_transactions: self.active_transactions.clone(),
-            dirty_pages: self.dirty_pages.clone(),
+            dirty_pages: Vec::new(),
             redo_lsn: self.calculate_redo_lsn(),
         })
     }
 
-    /// Mark a dirty page using DirtyPageId
-    pub fn mark_dirty_page(&mut self, page_id: &DirtyPageId) {
-        let raw_id = page_id.to_u64();
-        self.mark_page_dirty(raw_id);
-    }
-
-    /// Mark a dirty page as clean using DirtyPageId
-    pub fn mark_clean_page(&mut self, page_id: &DirtyPageId) {
-        let raw_id = page_id.to_u64();
-        self.mark_page_clean(raw_id);
-    }
-
-    /// Get dirty pages as DirtyPageId vector
-    pub fn dirty_pages_as_dirty_page_ids(&self) -> Vec<DirtyPageId> {
-        self.dirty_pages
-            .iter()
-            .filter_map(|&raw_id| DirtyPageId::try_from_u64(raw_id))
-            .collect()
-    }
-
-    /// Create checkpoint with DirtyPageId list
-    pub fn create_checkpoint_with_dirty_page_ids(
-        &mut self,
-        timestamp: Timestamp,
-        lsn: Lsn,
-        dirty_page_ids: &[DirtyPageId],
-    ) -> WalResult<Checkpoint> {
-        let raw_ids: Vec<PageId> = dirty_page_ids.iter().map(|id| id.to_u64()).collect();
-        self.create_checkpoint_with_full_pages(timestamp, lsn, raw_ids)
-    }
-
-    /// Create checkpoint using dirty page tracker
+    /// Create checkpoint using table tracker
     pub fn create_checkpoint_with_tracker(
         &mut self,
         timestamp: Timestamp,
         lsn: Lsn,
         mode: CheckpointMode,
     ) -> WalResult<CheckpointResult> {
-        let dirty_pages: Vec<DirtyPageId> = if let Some(ref tracker) = self.dirty_tracker {
-            tracker.get_dirty_pages()
+        let modified_tables: Vec<TableId> = if let Some(ref tracker) = self.table_tracker {
+            tracker.get_modified_tables()
         } else {
-            self.dirty_pages
-                .iter()
-                .filter_map(|raw_id| DirtyPageId::try_from_u64(*raw_id))
-                .collect()
+            self.modified_tables.clone()
         };
 
-        let _dirty_count = dirty_pages.len();
-        let raw_ids: Vec<PageId> = dirty_pages.iter().map(|id| id.to_u64()).collect();
-        
-        self.dirty_pages = raw_ids;
-        
+        self.modified_tables = modified_tables;
+
         let result = self.checkpoint(timestamp, lsn, mode)?;
-        
+
         if mode == CheckpointMode::Restart || mode == CheckpointMode::Truncate {
-            if let Some(ref tracker) = self.dirty_tracker {
+            if let Some(ref tracker) = self.table_tracker {
                 tracker.clear();
             }
         }
-        
+
         self.checkpoint_count.fetch_add(1, Ordering::Relaxed);
-        
+
         Ok(result)
     }
 
@@ -448,19 +409,18 @@ impl CheckpointManager {
         self.checkpoint_count.load(Ordering::Relaxed)
     }
 
-    /// Get dirty page tracker reference
-    pub fn dirty_tracker(&self) -> Option<&Arc<DirtyPageTracker>> {
-        self.dirty_tracker.as_ref()
+    /// Get table tracker reference
+    pub fn table_tracker(&self) -> Option<&Arc<TableTracker>> {
+        self.table_tracker.as_ref()
     }
 
-    /// Sync dirty pages from tracker
-    pub fn sync_dirty_pages_from_tracker(&mut self) {
-        if let Some(ref tracker) = self.dirty_tracker {
-            let tracked_pages = tracker.get_dirty_pages();
-            for page_id in tracked_pages {
-                let raw_id = page_id.to_u64();
-                if !self.dirty_pages.contains(&raw_id) {
-                    self.dirty_pages.push(raw_id);
+    /// Sync modified tables from tracker
+    pub fn sync_modified_tables_from_tracker(&mut self) {
+        if let Some(ref tracker) = self.table_tracker {
+            let tracked_tables = tracker.get_modified_tables();
+            for table_id in tracked_tables {
+                if !self.modified_tables.contains(&table_id) {
+                    self.modified_tables.push(table_id);
                 }
             }
         }
@@ -574,7 +534,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dirty_pages() {
+    fn test_modified_tables() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
         let work_path = temp_dir.path();
@@ -582,21 +542,18 @@ mod tests {
         let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
-        manager.mark_page_dirty(100);
-        manager.mark_page_dirty(200);
-        manager.mark_page_dirty(100);
+        manager.mark_table_modified(TableId::vertex(1));
+        manager.mark_table_modified(TableId::vertex(2));
+        manager.mark_table_modified(TableId::vertex(1));
 
-        assert_eq!(manager.dirty_pages().len(), 2);
-        assert!(manager.dirty_pages().contains(&100));
-        assert!(manager.dirty_pages().contains(&200));
+        assert_eq!(manager.modified_tables().len(), 2);
 
-        manager.mark_page_clean(100);
-        assert_eq!(manager.dirty_pages().len(), 1);
-        assert!(!manager.dirty_pages().contains(&100));
+        manager.mark_table_clean(TableId::vertex(1));
+        assert_eq!(manager.modified_tables().len(), 1);
     }
 
     #[test]
-    fn test_checkpoint_with_full_pages() {
+    fn test_checkpoint_with_tables() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
         let work_path = temp_dir.path();
@@ -604,30 +561,28 @@ mod tests {
         let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
-        let dirty_pages = vec![100, 200, 300];
-        let checkpoint = manager
-            .create_checkpoint_with_full_pages(100, Lsn::new(1000), dirty_pages.clone())
+        let modified_tables = vec![TableId::vertex(1), TableId::edge(2)];
+        let _checkpoint = manager
+            .create_checkpoint_with_tables(100, Lsn::new(1000), modified_tables.clone())
             .expect("Failed to create checkpoint");
 
-        assert_eq!(checkpoint.dirty_pages, dirty_pages);
-        assert_eq!(manager.dirty_pages().len(), 3);
+        assert_eq!(manager.modified_tables().len(), 2);
     }
 
     #[test]
-    fn test_checkpoint_with_dirty_tracker() {
+    fn test_checkpoint_with_table_tracker() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
         let work_path = temp_dir.path();
 
-        let dirty_tracker = Arc::new(DirtyPageTracker::new(1000, std::time::Duration::from_secs(60)));
-        let mut manager = CheckpointManager::new(wal_path, work_path, Some(dirty_tracker.clone()));
+        let table_tracker = Arc::new(TableTracker::new(1000, std::time::Duration::from_secs(60)));
+        let mut manager = CheckpointManager::new(wal_path, work_path, Some(table_tracker.clone()));
         manager.init().expect("Failed to init");
 
-        let page_id = DirtyPageId::vertex(1, 0);
-        dirty_tracker.mark_dirty(page_id);
+        table_tracker.mark_modified(TableId::vertex(1));
 
-        manager.sync_dirty_pages_from_tracker();
-        assert_eq!(manager.dirty_pages().len(), 1);
+        manager.sync_modified_tables_from_tracker();
+        assert_eq!(manager.modified_tables().len(), 1);
 
         let result = manager
             .create_checkpoint_with_tracker(100, Lsn::new(1000), CheckpointMode::Full)

@@ -4,8 +4,29 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::storage::memory::MemoryConfig;
-use crate::storage::persistence::FlushConfig;
 use crate::storage::compression::CompressionType;
+
+/// Configuration for flush operations
+#[derive(Debug, Clone)]
+pub struct FlushConfig {
+    pub flush_threshold: usize,
+    pub flush_interval: Duration,
+    pub compression: CompressionType,
+    pub background_flush_enabled: bool,
+    pub work_dir: PathBuf,
+}
+
+impl Default for FlushConfig {
+    fn default() -> Self {
+        Self {
+            flush_threshold: 1000,
+            flush_interval: Duration::from_secs(60),
+            compression: CompressionType::Zstd { level: 3 },
+            background_flush_enabled: true,
+            work_dir: PathBuf::from("./data"),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PropertyGraphConfig {

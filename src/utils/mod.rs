@@ -13,3 +13,7 @@ pub mod logging;
 pub use logging::{
     init as init_logging, is_initialized as is_logging_initialized, shutdown as shutdown_logging,
 };
+
+// Null bitmap module
+pub mod null_bitmap;
+pub use null_bitmap::NullBitmap;

@@ -1,13 +1,11 @@
 //! Recovery Manager
 //!
-//! Provides crash recovery functionality combining WAL replay and page restoration.
+//! Provides crash recovery functionality using WAL replay.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use oxicode::decode_from_slice;
 
-use super::dirty_tracker::{DirtyPageId, DirtyPageTracker, TableType};
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::{
     DeleteEdgeRedo, DeleteVertexRedo, InsertEdgeRedo, InsertVertexRedo, LocalWalParser,
@@ -121,7 +119,6 @@ impl RecoveryManager {
     pub fn recover_with_applier(
         &mut self,
         applier: &mut dyn RecoveryApplier,
-        dirty_tracker: Option<Arc<DirtyPageTracker>>,
     ) -> StorageResult<RecoveryStats> {
         let start = std::time::Instant::now();
 
@@ -133,20 +130,13 @@ impl RecoveryManager {
 
         self.replay_wal_entries(&wal_result, applier)?;
 
-        if let Some(tracker) = dirty_tracker {
-            self.restore_dirty_tracking(&wal_result, tracker)?;
-        }
-
         self.stats.recovery_time_ms = start.elapsed().as_millis() as u64;
 
         Ok(self.stats.clone())
     }
 
     /// Perform crash recovery (legacy, without applier)
-    pub fn recover(
-        &mut self,
-        dirty_tracker: Option<Arc<DirtyPageTracker>>,
-    ) -> StorageResult<RecoveryStats> {
+    pub fn recover(&mut self) -> StorageResult<RecoveryStats> {
         let start = std::time::Instant::now();
 
         self.stats = RecoveryStats::default();
@@ -154,10 +144,6 @@ impl RecoveryManager {
         let wal_result = self.parse_wal_files()?;
 
         self.restore_from_checkpoint(&wal_result)?;
-
-        if let Some(tracker) = dirty_tracker {
-            self.restore_dirty_tracking(&wal_result, tracker)?;
-        }
 
         self.stats.recovery_time_ms = start.elapsed().as_millis() as u64;
 
@@ -425,36 +411,6 @@ impl RecoveryManager {
         Ok(())
     }
 
-    /// Restore dirty page tracking
-    fn restore_dirty_tracking(
-        &self,
-        wal_result: &RecoveryResult,
-        dirty_tracker: Arc<DirtyPageTracker>,
-    ) -> StorageResult<()> {
-        for entry in &wal_result.full_page_writes {
-            let page_id = Self::parse_page_id(entry.page_id);
-            dirty_tracker.mark_dirty(page_id);
-        }
-
-        Ok(())
-    }
-
-    /// Parse page ID from WAL format
-    fn parse_page_id(page_id: u64) -> DirtyPageId {
-        let table_type = ((page_id >> 56) & 0xFF) as u8;
-        let label_id = ((page_id >> 40) & 0xFFFF) as u16;
-        let block_number = page_id & 0xFFFFFFFFFF;
-
-        let table = match table_type {
-            1 => TableType::Vertex,
-            2 => TableType::Edge,
-            3 => TableType::Property,
-            _ => TableType::Schema,
-        };
-
-        DirtyPageId::new(table, label_id, block_number)
-    }
-
     /// Get recovery statistics
     pub fn stats(&self) -> &RecoveryStats {
         &self.stats
@@ -496,110 +452,13 @@ impl Default for RecoveryManager {
 mod tests {
     use super::*;
 
-    struct MockApplier {
-        inserted_vertices: std::sync::Mutex<Vec<(u16, Vec<u8>)>>,
-        inserted_edges: std::sync::Mutex<Vec<(u16, u16, u16)>>,
-    }
-
-    impl MockApplier {
-        fn new() -> Self {
-            Self {
-                inserted_vertices: std::sync::Mutex::new(Vec::new()),
-                inserted_edges: std::sync::Mutex::new(Vec::new()),
-            }
-        }
-    }
-
-    impl RecoveryApplier for MockApplier {
-        fn replay_insert_vertex(
-            &mut self,
-            label: u16,
-            oid: &[u8],
-            _properties: &[(String, Vec<u8>)],
-            _ts: u32,
-        ) -> StorageResult<()> {
-            self.inserted_vertices
-                .lock()
-                .unwrap()
-                .push((label, oid.to_vec()));
-            Ok(())
-        }
-
-        fn replay_insert_edge(
-            &mut self,
-            src_label: u16,
-            _src_oid: &[u8],
-            dst_label: u16,
-            _dst_oid: &[u8],
-            edge_label: u16,
-            _properties: &[(String, Vec<u8>)],
-            _ts: u32,
-        ) -> StorageResult<()> {
-            self.inserted_edges
-                .lock()
-                .unwrap()
-                .push((src_label, dst_label, edge_label));
-            Ok(())
-        }
-
-        fn replay_update_vertex_prop(
-            &mut self,
-            _label: u16,
-            _oid: &[u8],
-            _prop_name: &str,
-            _value: &[u8],
-            _ts: u32,
-        ) -> StorageResult<()> {
-            Ok(())
-        }
-
-        fn replay_update_edge_prop(
-            &mut self,
-            _src_label: u16,
-            _src_oid: &[u8],
-            _dst_label: u16,
-            _dst_oid: &[u8],
-            _edge_label: u16,
-            _prop_name: &str,
-            _value: &[u8],
-            _ts: u32,
-        ) -> StorageResult<()> {
-            Ok(())
-        }
-
-        fn replay_delete_vertex(
-            &mut self,
-            _label: u16,
-            _oid: &[u8],
-            _ts: u32,
-        ) -> StorageResult<()> {
-            Ok(())
-        }
-
-        fn replay_delete_edge(
-            &mut self,
-            _src_label: u16,
-            _src_oid: &[u8],
-            _dst_label: u16,
-            _dst_oid: &[u8],
-            _edge_label: u16,
-            _ts: u32,
-        ) -> StorageResult<()> {
-            Ok(())
-        }
-    }
-
     #[test]
     fn test_recovery_config_default() {
         let config = RecoveryConfig::default();
-        assert!(config.wal_dir.ends_with("wal"));
+        assert_eq!(config.wal_dir, PathBuf::from("./data/wal"));
+        assert_eq!(config.data_dir, PathBuf::from("./data"));
         assert!(config.parallel_recovery);
-    }
-
-    #[test]
-    fn test_recovery_manager_creation() {
-        let manager = RecoveryManager::new(RecoveryConfig::default());
-        assert!(!manager.needs_recovery());
+        assert!(config.verify_checksum);
     }
 
     #[test]
@@ -607,31 +466,15 @@ mod tests {
         let stats = RecoveryStats::default();
         assert_eq!(stats.wal_entries_replayed, 0);
         assert_eq!(stats.pages_restored, 0);
+        assert_eq!(stats.checkpoints_processed, 0);
+        assert_eq!(stats.recovery_time_ms, 0);
+        assert_eq!(stats.errors_encountered, 0);
     }
 
     #[test]
-    fn test_parse_page_id() {
-        let page_id: u64 = (1u64 << 56) | (42u64 << 40) | 100u64;
-        let parsed = RecoveryManager::parse_page_id(page_id);
-
-        assert_eq!(parsed.table_type, TableType::Vertex);
-        assert_eq!(parsed.label_id, 42);
-        assert_eq!(parsed.block_number, 100);
-    }
-
-    #[test]
-    fn test_mock_applier_insert_vertex() {
-        let mut applier = MockApplier::new();
-        let result = applier.replay_insert_vertex(1, b"test_oid", &[], 0);
-        assert!(result.is_ok());
-        assert_eq!(applier.inserted_vertices.lock().unwrap().len(), 1);
-    }
-
-    #[test]
-    fn test_mock_applier_insert_edge() {
-        let mut applier = MockApplier::new();
-        let result = applier.replay_insert_edge(1, b"src", 2, b"dst", 3, &[], 0);
-        assert!(result.is_ok());
-        assert_eq!(applier.inserted_edges.lock().unwrap().len(), 1);
+    fn test_recovery_manager_new() {
+        let config = RecoveryConfig::default();
+        let manager = RecoveryManager::new(config);
+        assert_eq!(manager.stats().wal_entries_replayed, 0);
     }
 }
