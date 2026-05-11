@@ -23,7 +23,7 @@ pub use mutable_csr::{MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator, Lo
 pub use property_table::PropertyTable;
 
 pub type EdgeId = u64;
-pub type LabelId = u16;
+pub type LabelId = u32;
 pub type VertexId = u64;
 pub type Timestamp = u32;
 
@@ -63,6 +63,26 @@ pub struct EdgeSchema {
     pub ie_strategy: EdgeStrategy,
 }
 
+impl EdgeSchema {
+    pub fn from_edge_type_info(
+        edge_type: &crate::core::types::EdgeTypeInfo,
+        label_id: LabelId,
+        src_label: LabelId,
+        dst_label: LabelId,
+    ) -> Self {
+        let properties: Vec<PropertyDef> = edge_type.properties.iter().map(|p| p.into()).collect();
+        Self {
+            label_id,
+            label_name: edge_type.edge_type_name.clone(),
+            src_label,
+            dst_label,
+            properties,
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PropertyDef {
     pub name: String,
@@ -78,6 +98,28 @@ impl PropertyDef {
             data_type,
             nullable: false,
             default_value: None,
+        }
+    }
+}
+
+impl From<crate::core::types::PropertyDef> for PropertyDef {
+    fn from(prop: crate::core::types::PropertyDef) -> Self {
+        Self {
+            name: prop.name,
+            data_type: prop.data_type,
+            nullable: prop.nullable,
+            default_value: prop.default,
+        }
+    }
+}
+
+impl From<&crate::core::types::PropertyDef> for PropertyDef {
+    fn from(prop: &crate::core::types::PropertyDef) -> Self {
+        Self {
+            name: prop.name.clone(),
+            data_type: prop.data_type.clone(),
+            nullable: prop.nullable,
+            default_value: prop.default.clone(),
         }
     }
 }

@@ -118,8 +118,8 @@ impl<S: StorageClient> SchemaApi<S> {
             .create_tag(&space_name, &tag_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        if result {
-            log::info!("Created tag successfully: {} in space {}", name, space_id);
+        if result >= 0 {
+            log::info!("Created tag successfully: {} in space {} with id {}", name, space_id, result);
             Ok(())
         } else {
             Err(CoreError::SchemaOperationFailed(format!(
@@ -218,11 +218,12 @@ impl<S: StorageClient> SchemaApi<S> {
             .create_edge_type(&space_name, &edge_type_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        if result {
+        if result >= 0 {
             log::info!(
-                "Created edge type successfully: {} in space {}",
+                "Created edge type successfully: {} in space {} with id {}",
                 name,
-                space_id
+                space_id,
+                result
             );
             Ok(())
         } else {

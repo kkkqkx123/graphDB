@@ -60,6 +60,44 @@ impl SchemaOps {
         Ok(label_id)
     }
 
+    pub fn create_vertex_type_with_id(
+        &mut self,
+        name: &str,
+        label_id: LabelId,
+        properties: Vec<VertexPropertyDef>,
+        primary_key: &str,
+    ) -> StorageResult<LabelId> {
+        if self.vertex_label_names.contains_key(name) {
+            return Err(StorageError::label_already_exists(name.to_string()));
+        }
+
+        if self.vertex_tables.contains_key(&label_id) {
+            return Err(StorageError::label_already_exists(format!("label_id {}", label_id)));
+        }
+
+        if label_id >= self.vertex_label_counter {
+            self.vertex_label_counter = label_id + 1;
+        }
+
+        let primary_key_index = properties
+            .iter()
+            .position(|p| p.name == primary_key)
+            .ok_or_else(|| StorageError::property_not_found(primary_key.to_string()))?;
+
+        let schema = VertexSchema {
+            label_id,
+            label_name: name.to_string(),
+            properties,
+            primary_key_index,
+        };
+
+        let table = VertexTable::new(label_id, name.to_string(), schema);
+        self.vertex_tables.insert(label_id, table);
+        self.vertex_label_names.insert(name.to_string(), label_id);
+
+        Ok(label_id)
+    }
+
     pub fn drop_vertex_type(&mut self, name: &str) -> StorageResult<()> {
         let label_id = self
             .vertex_label_names

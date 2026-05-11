@@ -22,5 +22,5 @@ pub enum CacheKeyRef<'a> {
     /// Vertex cache key
     Vertex(VertexCacheKey),
     /// ID index cache key: (label_id, external_id)
-    IdIndex(u16, &'a str),
+    IdIndex(u32, &'a str),
 }

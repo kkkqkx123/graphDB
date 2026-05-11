@@ -121,8 +121,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
             storage_guard.create_edge_type(&self.edge_info.space_name, &metadata_edge_info);
 
         match result {
-            Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => {
+            Ok(id) if id >= 0 => Ok(ExecutionResult::Success),
+            Ok(_) => {
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {

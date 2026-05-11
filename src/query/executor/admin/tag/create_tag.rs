@@ -114,8 +114,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
         let result = storage_guard.create_tag(&self.tag_info.space_name, &metadata_tag_info);
 
         match result {
-            Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => {
+            Ok(id) if id >= 0 => Ok(ExecutionResult::Success),
+            Ok(_) => {
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {

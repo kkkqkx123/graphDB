@@ -228,7 +228,7 @@ impl RecordCache {
 
     // ==================== ID Index Operations ====================
 
-    pub fn get_id_index(&self, label_id: u16, external_id: &str) -> Option<u32> {
+    pub fn get_id_index(&self, label_id: u32, external_id: &str) -> Option<u32> {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         match self.id_index_cache.get(&key) {
             Some(internal_id) => {
@@ -242,7 +242,7 @@ impl RecordCache {
         }
     }
 
-    pub fn insert_id_index(&self, label_id: u16, external_id: &str, internal_id: u32) {
+    pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32) {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         self.id_index_cache.insert(key, internal_id);
 
@@ -251,7 +251,7 @@ impl RecordCache {
         }
     }
 
-    pub fn remove_id_index(&self, label_id: u16, external_id: &str) {
+    pub fn remove_id_index(&self, label_id: u32, external_id: &str) {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         if self.id_index_cache.remove(&key).is_some() {
             self.notify_eviction("id_index", EvictionCause::Explicit);
@@ -297,12 +297,12 @@ impl RecordCache {
 
     // ==================== Invalidation ====================
 
-    pub fn invalidate_vertices_by_label(&self, label_id: u16) {
+    pub fn invalidate_vertices_by_label(&self, label_id: u32) {
         let _ = self.vertex_cache.invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.vertex_cache.run_pending_tasks();
     }
 
-    pub fn invalidate_id_indexes_by_label(&self, label_id: u16) {
+    pub fn invalidate_id_indexes_by_label(&self, label_id: u32) {
         let _ = self.id_index_cache.invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.id_index_cache.run_pending_tasks();
     }

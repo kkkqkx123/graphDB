@@ -50,7 +50,7 @@ pub struct RecoveryStats {
 pub trait RecoveryApplier {
     fn replay_insert_vertex(
         &mut self,
-        label: u16,
+        label: u32,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
         ts: u32,
@@ -58,18 +58,18 @@ pub trait RecoveryApplier {
 
     fn replay_insert_edge(
         &mut self,
-        src_label: u16,
+        src_label: u32,
         src_oid: &[u8],
-        dst_label: u16,
+        dst_label: u32,
         dst_oid: &[u8],
-        edge_label: u16,
+        edge_label: u32,
         properties: &[(String, Vec<u8>)],
         ts: u32,
     ) -> StorageResult<()>;
 
     fn replay_update_vertex_prop(
         &mut self,
-        label: u16,
+        label: u32,
         oid: &[u8],
         prop_name: &str,
         value: &[u8],
@@ -78,25 +78,25 @@ pub trait RecoveryApplier {
 
     fn replay_update_edge_prop(
         &mut self,
-        src_label: u16,
+        src_label: u32,
         src_oid: &[u8],
-        dst_label: u16,
+        dst_label: u32,
         dst_oid: &[u8],
-        edge_label: u16,
+        edge_label: u32,
         prop_name: &str,
         value: &[u8],
         ts: u32,
     ) -> StorageResult<()>;
 
-    fn replay_delete_vertex(&mut self, label: u16, oid: &[u8], ts: u32) -> StorageResult<()>;
+    fn replay_delete_vertex(&mut self, label: u32, oid: &[u8], ts: u32) -> StorageResult<()>;
 
     fn replay_delete_edge(
         &mut self,
-        src_label: u16,
+        src_label: u32,
         src_oid: &[u8],
-        dst_label: u16,
+        dst_label: u32,
         dst_oid: &[u8],
-        edge_label: u16,
+        edge_label: u32,
         ts: u32,
     ) -> StorageResult<()>;
 }

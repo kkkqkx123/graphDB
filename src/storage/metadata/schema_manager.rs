@@ -13,13 +13,13 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;
     fn update_space(&self, space: &SpaceInfo) -> Result<bool, StorageError>;
 
-    fn create_tag(&self, space: &str, tag: &TagInfo) -> Result<bool, StorageError>;
+    fn create_tag(&self, space: &str, tag: &TagInfo) -> Result<i32, StorageError>;
     fn get_tag(&self, space: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError>;
     fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError>;
     fn drop_tag(&self, space: &str, tag_name: &str) -> Result<bool, StorageError>;
     fn update_tag(&self, space: &str, tag: &TagInfo) -> Result<bool, StorageError>;
 
-    fn create_edge_type(&self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError>;
+    fn create_edge_type(&self, space: &str, edge: &EdgeTypeInfo) -> Result<i32, StorageError>;
     fn get_edge_type(
         &self,
         space: &str,

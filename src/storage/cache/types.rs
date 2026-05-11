@@ -59,12 +59,12 @@ pub type EvictionCallback = Arc<dyn Fn(&str, EvictionCause) + Send + Sync>;
 /// Key for vertex cache: (label_id, internal_id)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct VertexCacheKey {
-    pub label_id: u16,
+    pub label_id: u32,
     pub internal_id: u32,
 }
 
 impl VertexCacheKey {
-    pub fn new(label_id: u16, internal_id: u32) -> Self {
+    pub fn new(label_id: u32, internal_id: u32) -> Self {
         Self {
             label_id,
             internal_id,
@@ -75,12 +75,12 @@ impl VertexCacheKey {
 /// Key for ID index cache: (label_id, external_id)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdIndexCacheKey {
-    pub label_id: u16,
+    pub label_id: u32,
     pub external_id: String,
 }
 
 impl IdIndexCacheKey {
-    pub fn new(label_id: u16, external_id: String) -> Self {
+    pub fn new(label_id: u32, external_id: String) -> Self {
         Self {
             label_id,
             external_id,

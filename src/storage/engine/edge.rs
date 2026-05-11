@@ -99,6 +99,51 @@ impl EdgeOps {
         Ok(label_id)
     }
 
+    pub fn create_edge_type_with_id(
+        &mut self,
+        params: CreateEdgeTypeParams,
+        label_id: LabelId,
+        vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
+    ) -> StorageResult<LabelId> {
+        if !vertex_tables.contains_key(&params.src_label) {
+            return Err(StorageError::label_not_found(format!(
+                "source label {}",
+                params.src_label
+            )));
+        }
+        if !vertex_tables.contains_key(&params.dst_label) {
+            return Err(StorageError::label_not_found(format!(
+                "destination label {}",
+                params.dst_label
+            )));
+        }
+
+        if self.edge_label_names.contains_key(params.name) {
+            return Err(StorageError::label_already_exists(params.name.to_string()));
+        }
+
+        if label_id >= self.edge_label_counter {
+            self.edge_label_counter = label_id + 1;
+        }
+
+        let schema = EdgeSchema {
+            label_id,
+            label_name: params.name.to_string(),
+            src_label: params.src_label,
+            dst_label: params.dst_label,
+            properties: params.properties,
+            oe_strategy: params.oe_strategy,
+            ie_strategy: params.ie_strategy,
+        };
+
+        let table = EdgeTable::new(schema);
+        let key = (params.src_label, params.dst_label, label_id);
+        self.edge_tables.insert(key, table);
+        self.edge_label_names.insert(params.name.to_string(), label_id);
+
+        Ok(label_id)
+    }
+
     pub fn drop_edge_type(&mut self, name: &str) -> StorageResult<()> {
         let label_id = self
             .edge_label_names

@@ -116,7 +116,7 @@ impl From<Lsn> for u64 {
 }
 
 /// Label ID type
-pub type LabelId = u16;
+pub type LabelId = u32;
 
 /// Vertex ID type
 pub type VertexId = u64;

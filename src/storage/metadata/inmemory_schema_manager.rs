@@ -278,14 +278,14 @@ impl super::SchemaManager for InMemorySchemaManager {
         }
     }
 
-    fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
+    fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<i32, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let existing_tags = self.list_tags(space_name)?;
         if existing_tags.iter().any(|t| t.tag_name == tag.tag_name) {
-            return Ok(false);
+            return Err(StorageError::label_already_exists(tag.tag_name.clone()));
         }
 
         let tag_id = self.get_next_tag_id(space_info.space_id);
@@ -295,7 +295,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         let mut tags = self.tags.write();
         tags.insert((space_info.space_id, tag_id), TagData { info: tag_with_id });
 
-        Ok(true)
+        Ok(tag_id)
     }
 
     fn drop_tag(&self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
@@ -366,7 +366,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         &self,
         space_name: &str,
         edge_type: &EdgeTypeInfo,
-    ) -> Result<bool, StorageError> {
+    ) -> Result<i32, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
@@ -376,7 +376,7 @@ impl super::SchemaManager for InMemorySchemaManager {
             .iter()
             .any(|e| e.edge_type_name == edge_type.edge_type_name)
         {
-            return Ok(false);
+            return Err(StorageError::label_already_exists(edge_type.edge_type_name.clone()));
         }
 
         let edge_type_id = self.get_next_edge_type_id(space_info.space_id);
@@ -389,7 +389,7 @@ impl super::SchemaManager for InMemorySchemaManager {
             EdgeTypeData { info: edge_with_id },
         );
 
-        Ok(true)
+        Ok(edge_type_id)
     }
 
     fn drop_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {

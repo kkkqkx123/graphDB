@@ -321,7 +321,7 @@ fn test_batch_id_indexes() {
     cache.insert_id_index(1, "user_002", 200);
     cache.insert_id_index(2, "product_001", 300);
 
-    let keys: Vec<(u16, &str)> = vec![
+    let keys: Vec<(u32, &str)> = vec![
         (1, "user_001"),
         (1, "user_002"),
         (2, "product_001"),

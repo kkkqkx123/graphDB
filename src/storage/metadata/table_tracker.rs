@@ -40,26 +40,26 @@ pub struct TableId {
     /// Table type (Vertex, Edge, Schema)
     pub table_type: TableType,
     /// Label ID for the table
-    pub label_id: u16,
+    pub label_id: u32,
 }
 
 impl TableId {
-    pub fn new(table_type: TableType, label_id: u16) -> Self {
+    pub fn new(table_type: TableType, label_id: u32) -> Self {
         Self {
             table_type,
             label_id,
         }
     }
 
-    pub fn vertex(label_id: u16) -> Self {
+    pub fn vertex(label_id: u32) -> Self {
         Self::new(TableType::Vertex, label_id)
     }
 
-    pub fn edge(label_id: u16) -> Self {
+    pub fn edge(label_id: u32) -> Self {
         Self::new(TableType::Edge, label_id)
     }
 
-    pub fn property(label_id: u16) -> Self {
+    pub fn property(label_id: u32) -> Self {
         Self::new(TableType::Property, label_id)
     }
 

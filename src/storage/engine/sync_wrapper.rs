@@ -499,7 +499,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         &mut self,
         space: &str,
         tag: &crate::core::types::TagInfo,
-    ) -> Result<bool, StorageError> {
+    ) -> Result<i32, StorageError> {
         self.inner.create_tag(space, tag)
     }
 
@@ -533,7 +533,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         &mut self,
         space: &str,
         edge: &crate::core::types::EdgeTypeInfo,
-    ) -> Result<bool, StorageError> {
+    ) -> Result<i32, StorageError> {
         self.inner.create_edge_type(space, edge)
     }
 

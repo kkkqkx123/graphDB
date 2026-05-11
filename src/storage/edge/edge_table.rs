@@ -689,17 +689,17 @@ impl EdgeTable {
         let meta_path = path.join("meta.bin");
         let mut meta_file = File::open(&meta_path)?;
 
-        let mut label_bytes = [0u8; 2];
+        let mut label_bytes = [0u8; 4];
         meta_file.read_exact(&mut label_bytes)?;
-        self.label = u16::from_le_bytes(label_bytes);
+        self.label = u32::from_le_bytes(label_bytes);
 
-        let mut src_label_bytes = [0u8; 2];
+        let mut src_label_bytes = [0u8; 4];
         meta_file.read_exact(&mut src_label_bytes)?;
-        self.src_label = u16::from_le_bytes(src_label_bytes);
+        self.src_label = u32::from_le_bytes(src_label_bytes);
 
-        let mut dst_label_bytes = [0u8; 2];
+        let mut dst_label_bytes = [0u8; 4];
         meta_file.read_exact(&mut dst_label_bytes)?;
-        self.dst_label = u16::from_le_bytes(dst_label_bytes);
+        self.dst_label = u32::from_le_bytes(dst_label_bytes);
 
         let mut label_name_len_bytes = [0u8; 4];
         meta_file.read_exact(&mut label_name_len_bytes)?;

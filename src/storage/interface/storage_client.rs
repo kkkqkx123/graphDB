@@ -94,7 +94,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn alter_space_comment(&mut self, space_id: u64, comment: String)
         -> Result<bool, StorageError>;
 
-    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError>;
+    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<i32, StorageError>;
     fn alter_tag(
         &mut self,
         space: &str,
@@ -106,7 +106,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError>;
     fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError>;
 
-    fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError>;
+    fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<i32, StorageError>;
     fn alter_edge_type(
         &mut self,
         space: &str,

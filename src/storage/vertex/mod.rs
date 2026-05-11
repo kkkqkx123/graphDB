@@ -22,7 +22,7 @@ pub use id_indexer::IdIndexer;
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
 
-pub type LabelId = u16;
+pub type LabelId = u32;
 pub type VertexId = u64;
 pub type Timestamp = u32;
 
@@ -48,6 +48,19 @@ pub struct VertexSchema {
     pub label_name: String,
     pub properties: Vec<PropertyDef>,
     pub primary_key_index: usize,
+}
+
+impl VertexSchema {
+    pub fn from_tag_info(tag: &crate::core::types::TagInfo, label_id: LabelId) -> Self {
+        let properties: Vec<PropertyDef> = tag.properties.iter().map(|p| p.into()).collect();
+        let primary_key_index = 0;
+        Self {
+            label_id,
+            label_name: tag.tag_name.clone(),
+            properties,
+            primary_key_index,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -76,5 +89,27 @@ impl PropertyDef {
     pub fn default(mut self, value: crate::core::Value) -> Self {
         self.default_value = Some(value);
         self
+    }
+}
+
+impl From<crate::core::types::PropertyDef> for PropertyDef {
+    fn from(prop: crate::core::types::PropertyDef) -> Self {
+        Self {
+            name: prop.name,
+            data_type: prop.data_type,
+            nullable: prop.nullable,
+            default_value: prop.default,
+        }
+    }
+}
+
+impl From<&crate::core::types::PropertyDef> for PropertyDef {
+    fn from(prop: &crate::core::types::PropertyDef) -> Self {
+        Self {
+            name: prop.name.clone(),
+            data_type: prop.data_type.clone(),
+            nullable: prop.nullable,
+            default_value: prop.default.clone(),
+        }
     }
 }

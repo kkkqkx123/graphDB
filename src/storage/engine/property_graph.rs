@@ -159,7 +159,7 @@ impl PropertyGraph {
         self.table_tracker.get_modified_count()
     }
 
-    pub fn mark_table_modified(&self, table_type: TableType, label_id: u16) {
+    pub fn mark_table_modified(&self, table_type: TableType, label_id: u32) {
         let table_id = TableId::new(table_type, label_id);
         self.table_tracker.mark_modified(table_id);
     }
@@ -212,6 +212,19 @@ impl PropertyGraph {
         self.schema_ops.create_vertex_type(name, properties, primary_key)
     }
 
+    pub fn create_vertex_type_with_id(
+        &mut self,
+        name: &str,
+        label_id: LabelId,
+        properties: Vec<VertexPropertyDef>,
+        primary_key: &str,
+    ) -> StorageResult<LabelId> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+        self.schema_ops.create_vertex_type_with_id(name, label_id, properties, primary_key)
+    }
+
     pub fn create_edge_type(
         &mut self,
         name: &str,
@@ -233,6 +246,30 @@ impl PropertyGraph {
             ie_strategy,
         };
         self.edge_ops.create_edge_type(params, &self.schema_ops.vertex_tables)
+    }
+
+    pub fn create_edge_type_with_id(
+        &mut self,
+        name: &str,
+        label_id: LabelId,
+        src_label: LabelId,
+        dst_label: LabelId,
+        properties: Vec<EdgePropertyDef>,
+        oe_strategy: EdgeStrategy,
+        ie_strategy: EdgeStrategy,
+    ) -> StorageResult<LabelId> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+        let params = CreateEdgeTypeParams {
+            name,
+            src_label,
+            dst_label,
+            properties,
+            oe_strategy,
+            ie_strategy,
+        };
+        self.edge_ops.create_edge_type_with_id(params, label_id, &self.schema_ops.vertex_tables)
     }
 
     pub fn drop_vertex_type(&mut self, name: &str) -> StorageResult<()> {
@@ -1108,7 +1145,7 @@ impl UndoTarget for PropertyGraph {
 impl RecoveryApplier for PropertyGraph {
     fn replay_insert_vertex(
         &mut self,
-        label: u16,
+        label: u32,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
         ts: u32,
@@ -1127,11 +1164,11 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_insert_edge(
         &mut self,
-        src_label: u16,
+        src_label: u32,
         src_oid: &[u8],
-        dst_label: u16,
+        dst_label: u32,
         dst_oid: &[u8],
-        edge_label: u16,
+        edge_label: u32,
         properties: &[(String, Vec<u8>)],
         ts: u32,
     ) -> StorageResult<()> {
@@ -1171,7 +1208,7 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_update_vertex_prop(
         &mut self,
-        label: u16,
+        label: u32,
         oid: &[u8],
         prop_name: &str,
         value: &[u8],
@@ -1195,11 +1232,11 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_update_edge_prop(
         &mut self,
-        src_label: u16,
+        src_label: u32,
         src_oid: &[u8],
-        dst_label: u16,
+        dst_label: u32,
         dst_oid: &[u8],
-        edge_label: u16,
+        edge_label: u32,
         prop_name: &str,
         value: &[u8],
         ts: u32,
@@ -1230,7 +1267,7 @@ impl RecoveryApplier for PropertyGraph {
         Ok(())
     }
 
-    fn replay_delete_vertex(&mut self, label: u16, oid: &[u8], ts: u32) -> StorageResult<()> {
+    fn replay_delete_vertex(&mut self, label: u32, oid: &[u8], ts: u32) -> StorageResult<()> {
         let oid_str = String::from_utf8_lossy(oid).to_string();
 
         if let Some(vertex) = self.get_vertex(label, &oid_str, ts) {
@@ -1249,11 +1286,11 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_delete_edge(
         &mut self,
-        src_label: u16,
+        src_label: u32,
         src_oid: &[u8],
-        dst_label: u16,
+        dst_label: u32,
         dst_oid: &[u8],
-        edge_label: u16,
+        edge_label: u32,
         ts: u32,
     ) -> StorageResult<()> {
         let src_oid_str = String::from_utf8_lossy(src_oid).to_string();

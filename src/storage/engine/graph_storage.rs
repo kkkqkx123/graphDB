@@ -20,8 +20,8 @@ use crate::core::{
 };
 use crate::storage::interface::{StorageClient, StorageStats};
 use crate::storage::metadata::{
-    InMemoryIndexMetadataManager, InMemorySchemaManager, IndexMetadataManager, Schema,
-    SchemaManager,
+    InMemoryExtendedSchemaManager, InMemoryIndexMetadataManager, InMemorySchemaManager,
+    IndexMetadataManager, SchemaManager, ExtendedSchemaManager, Schema,
 };
 use crate::storage::engine::PropertyGraph;
 use crate::storage::engine::property_graph::InsertEdgeParams;
@@ -36,6 +36,7 @@ use crate::transaction::version_manager::VersionManager;
 pub struct GraphStorage {
     graph: Arc<RwLock<PropertyGraph>>,
     schema_manager: Arc<InMemorySchemaManager>,
+    extended_schema_manager: Arc<InMemoryExtendedSchemaManager>,
     index_metadata_manager: Arc<InMemoryIndexMetadataManager>,
     index_data_manager: Arc<RwLock<InMemoryIndexDataManager>>,
     version_manager: Arc<VersionManager>,
@@ -58,6 +59,7 @@ impl GraphStorage {
     pub fn new() -> StorageResult<Self> {
         let graph = Arc::new(RwLock::new(PropertyGraph::new()));
         let schema_manager = Arc::new(InMemorySchemaManager::new());
+        let extended_schema_manager = Arc::new(InMemoryExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
         let index_data_manager = Arc::new(RwLock::new(InMemoryIndexDataManager::new()));
         let version_manager = Arc::new(VersionManager::new());
@@ -66,6 +68,7 @@ impl GraphStorage {
         Ok(Self {
             graph,
             schema_manager,
+            extended_schema_manager,
             index_metadata_manager,
             index_data_manager,
             version_manager,
@@ -79,6 +82,7 @@ impl GraphStorage {
     pub fn new_with_path(path: PathBuf) -> StorageResult<Self> {
         let graph = Arc::new(RwLock::new(PropertyGraph::new()));
         let schema_manager = Arc::new(InMemorySchemaManager::new());
+        let extended_schema_manager = Arc::new(InMemoryExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
         let index_data_manager = Arc::new(RwLock::new(InMemoryIndexDataManager::new()));
         let version_manager = Arc::new(VersionManager::new());
@@ -87,6 +91,7 @@ impl GraphStorage {
         Ok(Self {
             graph,
             schema_manager,
+            extended_schema_manager,
             index_metadata_manager,
             index_data_manager,
             version_manager,
@@ -103,6 +108,10 @@ impl GraphStorage {
 
     pub fn get_schema_manager(&self) -> Arc<InMemorySchemaManager> {
         self.schema_manager.clone()
+    }
+
+    pub fn get_extended_schema_manager(&self) -> Arc<InMemoryExtendedSchemaManager> {
+        self.extended_schema_manager.clone()
     }
 
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
@@ -724,24 +733,20 @@ impl StorageClient for GraphStorage {
         self.schema_manager.alter_space_comment(space_id, comment)
     }
 
-    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
-        let mut graph = self.graph.write();
-        let properties: Vec<crate::storage::vertex::PropertyDef> = tag.properties.iter()
-            .map(|p| crate::storage::vertex::PropertyDef {
-                name: p.name.clone(),
-                data_type: p.data_type.clone(),
-                nullable: p.nullable,
-                default_value: p.default.clone(),
-            })
-            .collect();
+    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<i32, StorageError> {
+        let tag_id = self.schema_manager.create_tag(space, tag)?;
+
+        let properties: Vec<crate::storage::vertex::PropertyDef> = 
+            tag.properties.iter().map(|p| p.into()).collect();
 
         let primary_key = tag.properties.first()
             .map(|p| p.name.as_str())
             .unwrap_or("id");
 
-        graph.create_vertex_type(&tag.tag_name, properties, primary_key)?;
+        let mut graph = self.graph.write();
+        graph.create_vertex_type_with_id(&tag.tag_name, tag_id as u32, properties, primary_key)?;
 
-        self.schema_manager.create_tag(space, tag)
+        Ok(tag_id)
     }
 
     fn drop_tag(&mut self, space: &str, tag_name: &str) -> Result<bool, StorageError> {
@@ -776,13 +781,8 @@ impl StorageClient for GraphStorage {
         &mut self,
         space: &str,
         edge_type: &EdgeTypeInfo,
-    ) -> Result<bool, StorageError> {
-        let space_info = self.get_space(space)?
-            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
-
-        if edge_type.edge_type_id as u64 != 0 && space_info.space_id != edge_type.edge_type_id as u64 {
-            return Err(StorageError::db_error("Edge type ID mismatch".to_string()));
-        }
+    ) -> Result<i32, StorageError> {
+        let edge_type_id = self.schema_manager.create_edge_type(space, edge_type)?;
 
         let mut graph = self.graph.write();
 
@@ -791,18 +791,13 @@ impl StorageClient for GraphStorage {
         let dst_label_id = graph.get_vertex_label_id(&edge_type.dst_tag_name)
             .ok_or_else(|| StorageError::not_found(format!("Destination tag {} not found", edge_type.dst_tag_name)))?;
 
-        let properties: Vec<crate::storage::edge::PropertyDef> = edge_type.properties.iter()
-            .map(|p| crate::storage::edge::PropertyDef {
-                name: p.name.clone(),
-                data_type: p.data_type.clone(),
-                nullable: p.nullable,
-                default_value: p.default.clone(),
-            })
-            .collect();
+        let properties: Vec<crate::storage::edge::PropertyDef> = 
+            edge_type.properties.iter().map(|p| p.into()).collect();
 
         use crate::storage::edge::EdgeStrategy;
-        graph.create_edge_type(
+        graph.create_edge_type_with_id(
             &edge_type.edge_type_name,
+            edge_type_id as u32,
             src_label_id,
             dst_label_id,
             properties,
@@ -810,7 +805,7 @@ impl StorageClient for GraphStorage {
             EdgeStrategy::Multiple,
         )?;
 
-        self.schema_manager.create_edge_type(space, edge_type)
+        Ok(edge_type_id)
     }
 
     fn drop_edge_type(&mut self, space: &str, edge_type_name: &str) -> Result<bool, StorageError> {

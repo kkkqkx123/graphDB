@@ -198,8 +198,8 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<bool, StorageError> {
-        Ok(true)
+    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<i32, StorageError> {
+        Ok(1)
     }
 
     fn alter_tag(
@@ -228,8 +228,8 @@ impl StorageClient for MockStorage {
         &mut self,
         _space: &str,
         _info: &EdgeTypeSchema,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
+    ) -> Result<i32, StorageError> {
+        Ok(1)
     }
 
     fn alter_edge_type(
