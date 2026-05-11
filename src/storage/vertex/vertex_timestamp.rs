@@ -182,6 +182,23 @@ impl VertexTimestamp {
             self.deleted.push(data[i * 3 + 2] == 1);
         }
     }
+
+    pub fn memory_size(&self) -> usize {
+        self.start_ts.len() * std::mem::size_of::<Timestamp>()
+            + self.end_ts.len() * std::mem::size_of::<Timestamp>()
+            + self.deleted.len() * std::mem::size_of::<bool>()
+            + std::mem::size_of::<Self>()
+    }
+
+    pub fn iter_deleted(&self, ts: Timestamp) -> impl Iterator<Item = u32> + '_ {
+        self.deleted
+            .iter()
+            .enumerate()
+            .filter(move |(id, &deleted)| {
+                deleted && self.end_ts[*id] <= ts
+            })
+            .map(|(id, _)| id as u32)
+    }
 }
 
 impl Default for VertexTimestamp {

@@ -751,6 +751,51 @@ impl VertexTable {
 
         Ok(())
     }
+
+    pub fn compact_with_ts(&mut self, ts: Timestamp) -> usize {
+        let deleted_ids: Vec<u32> = self.timestamps
+            .iter_deleted(ts)
+            .collect();
+
+        let removed_count = deleted_ids.len();
+
+        for id in &deleted_ids {
+            if let Some(key) = self.id_indexer.get_key(*id).cloned() {
+                self.id_indexer.remove(&key);
+            }
+        }
+
+        self.compact();
+
+        removed_count
+    }
+
+    pub fn memory_size(&self) -> usize {
+        let mut total = 0;
+
+        total += self.id_indexer.memory_size();
+
+        total += self.columns.memory_size();
+
+        total += self.timestamps.memory_size();
+
+        total += std::mem::size_of::<Self>();
+
+        total
+    }
+
+    pub fn used_memory_size(&self) -> usize {
+        let mut total = 0;
+
+        let active_count = self.id_indexer.len();
+        total += active_count * std::mem::size_of::<(String, u32)>();
+
+        total += self.columns.used_memory_size();
+
+        total += self.timestamps.valid_count(super::MAX_TIMESTAMP - 1) * std::mem::size_of::<Timestamp>();
+
+        total
+    }
 }
 
 pub struct VertexIterator<'a> {

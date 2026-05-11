@@ -5,11 +5,13 @@ pub mod cache;
 pub mod config;
 pub mod edge;
 pub mod graph_storage;
+pub mod persistence_coordinator;
 pub mod property_graph;
 #[cfg(test)]
 pub mod property_graph_tests;
 pub mod query;
 pub mod schema;
+pub mod snapshot_manager;
 pub mod sync_wrapper;
 pub mod transaction;
 pub mod wal_manager;
@@ -20,6 +22,13 @@ pub use batch::{
 };
 pub use cache::CacheManager;
 pub use config::PropertyGraphConfig;
+pub use persistence_coordinator::{
+    CheckpointData, CheckpointInfo, CheckpointStats, PersistenceConfig, PersistenceCoordinator,
+    PersistenceStats,
+};
 pub use property_graph::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
+pub use snapshot_manager::{
+    RetentionPolicy, SnapshotInfo, SnapshotManager, SnapshotOptions,
+};
 pub use sync_wrapper::SyncWrapper;
 pub use wal_manager::WalManager;

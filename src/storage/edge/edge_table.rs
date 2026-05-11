@@ -763,6 +763,48 @@ impl EdgeTable {
 
         Ok(())
     }
+
+    pub fn compact_csr(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+        let mut removed_count = 0;
+
+        removed_count += self.out_csr.compact_with_ts(ts, reserve_ratio);
+        removed_count += self.in_csr.compact_with_ts(ts, reserve_ratio);
+
+        removed_count
+    }
+
+    pub fn compact_properties(&mut self, ts: Timestamp) {
+        let mut valid_offsets = std::collections::HashSet::new();
+
+        for (_, nbr) in self.out_csr.iter(ts) {
+            if nbr.prop_offset > 0 {
+                valid_offsets.insert(nbr.prop_offset);
+            }
+        }
+
+        self.properties.compact(&valid_offsets);
+    }
+
+    pub fn memory_size(&self) -> usize {
+        let mut total = 0;
+
+        total += self.out_csr.memory_size();
+        total += self.in_csr.memory_size();
+        total += self.properties.memory_size();
+        total += std::mem::size_of::<Self>();
+
+        total
+    }
+
+    pub fn used_memory_size(&self) -> usize {
+        let mut total = 0;
+
+        total += self.out_csr.used_memory_size();
+        total += self.in_csr.used_memory_size();
+        total += self.properties.used_memory_size();
+
+        total
+    }
 }
 
 pub struct EdgeTableScanIterator<'a> {

@@ -13,6 +13,7 @@
 
 use super::bitpacking::BitPackedColumn;
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::utils::NullBitmap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[derive(Default)]
@@ -169,7 +170,7 @@ impl Default for AlpEncoder {
 pub struct AlpColumn {
     encoder: AlpEncoder,
     row_count: usize,
-    null_bitmap: Vec<bool>,
+    null_bitmap: NullBitmap,
 }
 
 impl AlpColumn {
@@ -177,7 +178,7 @@ impl AlpColumn {
         Self {
             encoder: AlpEncoder::new(),
             row_count: 0,
-            null_bitmap: Vec::new(),
+            null_bitmap: NullBitmap::new(),
         }
     }
 
@@ -187,7 +188,7 @@ impl AlpColumn {
         if non_null.is_empty() {
             return Self {
                 row_count: values.len(),
-                null_bitmap: values.iter().map(|v| v.is_none()).collect(),
+                null_bitmap: Self::build_bitmap(values),
                 ..Default::default()
             };
         }
@@ -207,8 +208,16 @@ impl AlpColumn {
                 ..encoder
             },
             row_count: values.len(),
-            null_bitmap: values.iter().map(|v| v.is_none()).collect(),
+            null_bitmap: Self::build_bitmap(values),
         }
+    }
+
+    fn build_bitmap(values: &[Option<f64>]) -> NullBitmap {
+        let mut bitmap = NullBitmap::with_capacity(values.len());
+        for v in values {
+            bitmap.push(v.is_none());
+        }
+        bitmap
     }
 
     pub fn analyze_f32(values: &[Option<f32>]) -> Self {
@@ -256,7 +265,7 @@ impl AlpColumn {
     }
 
     pub fn get(&self, row_idx: usize) -> Option<f64> {
-        if row_idx >= self.row_count || self.null_bitmap[row_idx] {
+        if row_idx >= self.row_count || self.null_bitmap.is_null(row_idx) {
             return None;
         }
 
@@ -287,10 +296,10 @@ impl AlpColumn {
             Some(v) => {
                 let int_val = self.encoder.compress(v);
                 self.encoder.bit_packed.set(row_idx, Some(int_val))?;
-                self.null_bitmap[row_idx] = false;
+                self.null_bitmap.set(row_idx, false);
             }
             None => {
-                self.null_bitmap[row_idx] = true;
+                self.null_bitmap.set(row_idx, true);
             }
         }
 
@@ -306,11 +315,11 @@ impl AlpColumn {
     }
 
     pub fn is_null(&self, row_idx: usize) -> bool {
-        row_idx < self.null_bitmap.len() && self.null_bitmap[row_idx]
+        row_idx < self.null_bitmap.len() && self.null_bitmap.is_null(row_idx)
     }
 
     pub fn memory_usage(&self) -> usize {
-        self.encoder.memory_usage() + self.null_bitmap.len()
+        self.encoder.memory_usage() + self.null_bitmap.memory_usage()
     }
 
     pub fn compression_ratio(&self) -> f64 {

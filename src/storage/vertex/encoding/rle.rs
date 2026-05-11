@@ -3,6 +3,7 @@
 //! Compresses columns with repeated values by storing (value, count) pairs.
 
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::utils::NullBitmap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RleRun<T> {
@@ -95,14 +96,14 @@ impl<T: Clone + PartialEq + Default> Default for RleEncoder<T> {
 #[derive(Debug, Clone)]
 pub struct RleIntColumn {
     encoder: RleEncoder<i64>,
-    null_bitmap: Vec<bool>,
+    null_bitmap: NullBitmap,
 }
 
 impl RleIntColumn {
     pub fn new() -> Self {
         Self {
             encoder: RleEncoder::new(),
-            null_bitmap: Vec::new(),
+            null_bitmap: NullBitmap::new(),
         }
     }
 
@@ -137,14 +138,14 @@ impl RleIntColumn {
         if row_idx >= self.encoder.len() {
             return None;
         }
-        if self.null_bitmap.get(row_idx).copied().unwrap_or(true) {
+        if self.null_bitmap.is_null(row_idx) {
             return None;
         }
         self.encoder.decode(row_idx).map(|&v| Value::BigInt(v))
     }
 
     pub fn is_null(&self, row_idx: usize) -> bool {
-        self.null_bitmap.get(row_idx).copied().unwrap_or(true)
+        self.null_bitmap.is_null(row_idx)
     }
 
     pub fn len(&self) -> usize {
@@ -160,7 +161,7 @@ impl RleIntColumn {
     }
 
     pub fn memory_usage(&self) -> usize {
-        self.encoder.memory_usage() + self.null_bitmap.len() * std::mem::size_of::<bool>()
+        self.encoder.memory_usage() + self.null_bitmap.memory_usage()
     }
 
     pub fn clear(&mut self) {
@@ -178,14 +179,14 @@ impl Default for RleIntColumn {
 #[derive(Debug, Clone)]
 pub struct RleBoolColumn {
     encoder: RleEncoder<bool>,
-    null_bitmap: Vec<bool>,
+    null_bitmap: NullBitmap,
 }
 
 impl RleBoolColumn {
     pub fn new() -> Self {
         Self {
             encoder: RleEncoder::new(),
-            null_bitmap: Vec::new(),
+            null_bitmap: NullBitmap::new(),
         }
     }
 
@@ -212,14 +213,14 @@ impl RleBoolColumn {
         if row_idx >= self.encoder.len() {
             return None;
         }
-        if self.null_bitmap.get(row_idx).copied().unwrap_or(true) {
+        if self.null_bitmap.is_null(row_idx) {
             return None;
         }
         self.encoder.decode(row_idx).map(|&v| Value::Bool(v))
     }
 
     pub fn is_null(&self, row_idx: usize) -> bool {
-        self.null_bitmap.get(row_idx).copied().unwrap_or(true)
+        self.null_bitmap.is_null(row_idx)
     }
 
     pub fn len(&self) -> usize {

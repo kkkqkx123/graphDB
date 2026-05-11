@@ -7,6 +7,7 @@ use bitvec::prelude::*;
 use crate::core::value::DateValue;
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use super::encoding::{EncodingType, FsstColumn, FsstEncoder};
+use crate::utils::NullBitmap;
 
 #[derive(Debug, Clone)]
 pub struct Column {
@@ -411,7 +412,7 @@ impl Column {
         let encoder = FsstEncoder::train(&non_null, max_symbols);
 
         let mut encoded_data = Vec::with_capacity(self.row_count);
-        let mut null_bitmap = Vec::with_capacity(self.row_count);
+        let mut null_bitmap = NullBitmap::with_capacity(self.row_count);
 
         for s in &string_refs {
             match s {
@@ -498,7 +499,7 @@ impl Column {
     pub fn load_fsst_from_data(
         &mut self,
         encoded_data: Vec<Vec<u8>>,
-        null_bitmap: Vec<bool>,
+        null_bitmap: NullBitmap,
         symbol_table_bytes: &[u8],
     ) -> StorageResult<()> {
         let mut table = super::encoding::FsstSymbolTable::new();
@@ -571,6 +572,16 @@ impl Column {
 
     pub fn fsst_compression_ratio(&self) -> Option<f64> {
         self.fsst_column.as_ref().map(|c| c.fast_compression_ratio())
+    }
+
+    pub fn memory_size(&self) -> usize {
+        self.memory_usage() + std::mem::size_of::<Self>()
+    }
+
+    pub fn used_memory_size(&self) -> usize {
+        let non_null_count = self.row_count - self.null_count();
+        let element_size = Self::element_size(&self.data_type);
+        non_null_count * element_size + std::mem::size_of::<Self>()
     }
 }
 
@@ -725,6 +736,28 @@ impl ColumnStore {
             }
         }
         Ok(())
+    }
+
+    pub fn memory_size(&self) -> usize {
+        let mut total = std::mem::size_of::<Self>();
+
+        for col in &self.columns {
+            total += col.memory_size();
+        }
+
+        total += self.name_to_index.len() * (std::mem::size_of::<String>() + std::mem::size_of::<usize>());
+
+        total
+    }
+
+    pub fn used_memory_size(&self) -> usize {
+        let mut total = std::mem::size_of::<Self>();
+
+        for col in &self.columns {
+            total += col.used_memory_size();
+        }
+
+        total
     }
 }
 

@@ -796,6 +796,78 @@ impl MutableCsr {
         self.locks = (0..params.vertex_capacity).map(|_| SpinLock::new()).collect();
         self.edge_count.store(params.edge_count, Ordering::Relaxed);
     }
+
+    /// Compact CSR by removing deleted edges and reclaiming space
+    pub fn compact_with_ts(&mut self, ts: u32, reserve_ratio: f32) -> usize {
+        let mut removed_count = 0;
+
+        for vid in 0..self.vertex_capacity {
+            let mut lock = self.locks[vid].lock();
+            let start = self.adj_offsets[vid];
+            let degree = self.degrees[vid] as usize;
+            let capacity = self.capacities[vid] as usize;
+
+            if degree == 0 {
+                continue;
+            }
+
+            let mut write_idx = 0usize;
+            for read_idx in 0..degree {
+                let nbr = &self.nbr_list[start + read_idx];
+                if nbr.timestamp <= ts {
+                    if write_idx != read_idx {
+                        self.nbr_list[start + write_idx] = self.nbr_list[start + read_idx].clone();
+                    }
+                    write_idx += 1;
+                } else {
+                    removed_count += 1;
+                }
+            }
+
+            self.degrees[vid] = write_idx as u32;
+
+            let new_capacity = ((write_idx as f32 / (1.0 - reserve_ratio)).ceil() as u32).max(1);
+            self.capacities[vid] = new_capacity;
+        }
+
+        let mut new_nbr_list = Vec::new();
+        let mut new_adj_offsets = Vec::with_capacity(self.vertex_capacity);
+        let mut offset = 0usize;
+
+        for vid in 0..self.vertex_capacity {
+            new_adj_offsets.push(offset);
+            let start = self.adj_offsets[vid];
+            let degree = self.degrees[vid] as usize;
+            new_nbr_list.extend_from_slice(&self.nbr_list[start..start + degree]);
+            offset += degree;
+        }
+
+        self.nbr_list = new_nbr_list;
+        self.adj_offsets = new_adj_offsets;
+        self.total_edge_capacity = self.nbr_list.len();
+
+        removed_count
+    }
+
+    /// Get memory size
+    pub fn memory_size(&self) -> usize {
+        let mut total = 0;
+
+        total += self.nbr_list.len() * std::mem::size_of::<Nbr>();
+        total += self.adj_offsets.len() * std::mem::size_of::<usize>();
+        total += self.degrees.len() * std::mem::size_of::<u32>();
+        total += self.capacities.len() * std::mem::size_of::<u32>();
+        total += self.locks.len() * std::mem::size_of::<SpinLock>();
+        total += std::mem::size_of::<Self>();
+
+        total
+    }
+
+    /// Get used memory size (active edges only)
+    pub fn used_memory_size(&self) -> usize {
+        let active_edges = self.edge_count.load(Ordering::Relaxed) as usize;
+        active_edges * std::mem::size_of::<Nbr>() + std::mem::size_of::<Self>()
+    }
 }
 
 impl Default for MutableCsr {

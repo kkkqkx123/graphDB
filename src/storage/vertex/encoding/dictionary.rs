@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::{StorageError, StorageResult, Value};
+use crate::utils::NullBitmap;
 
 #[derive(Debug, Clone)]
 pub struct StringDictionary {
@@ -88,7 +89,7 @@ impl Default for StringDictionary {
 pub struct DictionaryEncoder {
     dictionary: StringDictionary,
     indices: Vec<u32>,
-    null_bitmap: Vec<bool>,
+    null_bitmap: NullBitmap,
 }
 
 impl DictionaryEncoder {
@@ -96,7 +97,7 @@ impl DictionaryEncoder {
         Self {
             dictionary: StringDictionary::new(),
             indices: Vec::new(),
-            null_bitmap: Vec::new(),
+            null_bitmap: NullBitmap::new(),
         }
     }
 
@@ -104,7 +105,7 @@ impl DictionaryEncoder {
         Self {
             dictionary: StringDictionary::with_capacity(dict_capacity),
             indices: Vec::with_capacity(row_capacity),
-            null_bitmap: Vec::with_capacity(row_capacity),
+            null_bitmap: NullBitmap::with_capacity(row_capacity),
         }
     }
 
@@ -126,7 +127,7 @@ impl DictionaryEncoder {
         if row_idx >= self.indices.len() {
             return None;
         }
-        if self.null_bitmap.get(row_idx).copied().unwrap_or(false) {
+        if row_idx < self.null_bitmap.len() && self.null_bitmap.is_null(row_idx) {
             return None;
         }
         self.dictionary.get(self.indices[row_idx])
@@ -147,7 +148,7 @@ impl DictionaryEncoder {
     pub fn memory_usage(&self) -> usize {
         self.dictionary.memory_usage()
             + self.indices.len() * std::mem::size_of::<u32>()
-            + self.null_bitmap.len() * std::mem::size_of::<bool>()
+            + self.null_bitmap.memory_usage()
     }
 
     pub fn compression_stats(&self, original_total_len: usize) -> super::EncodingStats {
@@ -170,10 +171,6 @@ impl DictionaryEncoder {
 
     pub fn indices(&self) -> &[u32] {
         &self.indices
-    }
-
-    pub fn null_bitmap(&self) -> &[bool] {
-        &self.null_bitmap
     }
 }
 
@@ -205,7 +202,7 @@ impl DictionaryColumn {
                 let idx = self.encoder.dictionary.insert(s);
                 if row_idx < self.encoder.indices.len() {
                     self.encoder.indices[row_idx] = idx;
-                    self.encoder.null_bitmap[row_idx] = false;
+                    self.encoder.null_bitmap.set(row_idx, false);
                 } else {
                     self.encoder.indices.push(idx);
                     self.encoder.null_bitmap.push(false);
@@ -218,7 +215,7 @@ impl DictionaryColumn {
             None => {
                 if row_idx < self.encoder.indices.len() {
                     self.encoder.indices[row_idx] = 0;
-                    self.encoder.null_bitmap[row_idx] = true;
+                    self.encoder.null_bitmap.set(row_idx, true);
                 } else {
                     self.encoder.indices.push(0);
                     self.encoder.null_bitmap.push(true);
@@ -234,7 +231,7 @@ impl DictionaryColumn {
     }
 
     pub fn is_null(&self, row_idx: usize) -> bool {
-        self.encoder.null_bitmap.get(row_idx).copied().unwrap_or(true)
+        self.encoder.null_bitmap.is_null(row_idx)
     }
 
     pub fn len(&self) -> usize {

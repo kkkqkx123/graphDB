@@ -19,6 +19,8 @@
 
 use std::collections::HashMap;
 
+use crate::utils::NullBitmap;
+
 const MAX_SYMBOL_LEN: usize = 8;
 const MIN_SYMBOL_LEN: usize = 2;
 const SYMBOL_TABLE_SIZE: usize = 255;
@@ -259,7 +261,7 @@ impl Default for FsstEncoder {
 pub struct FsstColumn {
     pub encoder: FsstEncoder,
     pub encoded_data: Vec<Vec<u8>>,
-    pub null_bitmap: Vec<bool>,
+    pub null_bitmap: NullBitmap,
 }
 
 impl FsstColumn {
@@ -267,7 +269,7 @@ impl FsstColumn {
         Self {
             encoder: FsstEncoder::new(),
             encoded_data: Vec::new(),
-            null_bitmap: Vec::new(),
+            null_bitmap: NullBitmap::new(),
         }
     }
 
@@ -283,7 +285,7 @@ impl FsstColumn {
         let mut column = Self {
             encoder,
             encoded_data: Vec::with_capacity(strings.len()),
-            null_bitmap: Vec::with_capacity(strings.len()),
+            null_bitmap: NullBitmap::with_capacity(strings.len()),
         };
 
         for s in strings {
@@ -322,7 +324,7 @@ impl FsstColumn {
     }
 
     pub fn get(&self, row_idx: usize) -> Option<String> {
-        if row_idx >= self.encoded_data.len() || self.null_bitmap[row_idx] {
+        if row_idx >= self.encoded_data.len() || self.null_bitmap.is_null(row_idx) {
             return None;
         }
 
@@ -337,11 +339,11 @@ impl FsstColumn {
         match value {
             Some(s) => {
                 self.encoded_data[row_idx] = self.encoder.encode(s);
-                self.null_bitmap[row_idx] = false;
+                self.null_bitmap.set(row_idx, false);
             }
             None => {
                 self.encoded_data[row_idx].clear();
-                self.null_bitmap[row_idx] = true;
+                self.null_bitmap.set(row_idx, true);
             }
         }
     }
@@ -355,12 +357,12 @@ impl FsstColumn {
     }
 
     pub fn is_null(&self, row_idx: usize) -> bool {
-        row_idx < self.null_bitmap.len() && self.null_bitmap[row_idx]
+        row_idx < self.null_bitmap.len() && self.null_bitmap.is_null(row_idx)
     }
 
     pub fn memory_usage(&self) -> usize {
         let data_size: usize = self.encoded_data.iter().map(|v| v.len()).sum();
-        let null_size = self.null_bitmap.len();
+        let null_size = self.null_bitmap.memory_usage();
         let table_size = self.encoder.table().memory_usage();
 
         data_size + null_size + table_size
@@ -375,7 +377,7 @@ impl FsstColumn {
         let mut compressed_size = 0usize;
 
         for (i, data) in self.encoded_data.iter().enumerate() {
-            if !self.null_bitmap[i] {
+            if !self.null_bitmap.is_null(i) {
                 original_size += self.encoder.decode(data).len();
                 compressed_size += data.len();
             }

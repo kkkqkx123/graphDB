@@ -245,6 +245,10 @@ where
         let free_list_size = self.free_list.capacity() * std::mem::size_of::<u32>();
         keys_size + map_size + free_list_size
     }
+
+    pub fn memory_size(&self) -> usize {
+        self.memory_usage() + std::mem::size_of::<Self>()
+    }
 }
 
 impl<K> Default for IdIndexer<K>

@@ -387,6 +387,46 @@ impl PropertyTable {
                 u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
         }
     }
+
+    pub fn compact(&mut self, valid_offsets: &std::collections::HashSet<u32>) {
+        let mut new_rows = Vec::new();
+        let mut offset_mapping = std::collections::HashMap::new();
+        let mut new_offset = 1u32;
+
+        for (idx, row) in self.rows.iter().enumerate() {
+            let old_offset = (idx + 1) as u32;
+            if valid_offsets.contains(&old_offset) {
+                offset_mapping.insert(old_offset, new_offset);
+                new_rows.push(row.clone());
+                new_offset += 1;
+            }
+        }
+
+        self.rows = new_rows;
+        self.free_list.clear();
+        self.next_offset = new_offset;
+    }
+
+    pub fn memory_size(&self) -> usize {
+        let mut total = 0;
+
+        total += self.schema.len() * std::mem::size_of::<PropertySchema>();
+        total += self.rows.len() * std::mem::size_of::<PropertyRow>();
+        total += self.free_list.len() * std::mem::size_of::<u32>();
+        total += std::mem::size_of::<Self>();
+
+        for row in &self.rows {
+            total += row.values.len() * std::mem::size_of::<Option<Value>>();
+        }
+
+        total
+    }
+
+    pub fn used_memory_size(&self) -> usize {
+        let active_count = self.rows.len() - self.free_list.len();
+        let avg_row_size = self.schema.len() * std::mem::size_of::<Option<Value>>();
+        active_count * avg_row_size + std::mem::size_of::<Self>()
+    }
 }
 
 impl Default for PropertyTable {

@@ -90,8 +90,16 @@ impl NullBitmap {
         if idx >= self.len {
             return true;
         }
+        unsafe { self.is_null_unchecked(idx) }
+    }
+
+    /// Check if an element is null without bounds checking
+    ///
+    /// # Safety
+    /// Caller must ensure `idx < self.len`.
+    pub unsafe fn is_null_unchecked(&self, idx: usize) -> bool {
         let (word_idx, bit_idx) = Self::get_position(idx);
-        (self.data[word_idx] >> bit_idx) & 1 == 1
+        (self.data.get_unchecked(word_idx) >> bit_idx) & 1 == 1
     }
 
     /// Check if an element is valid (not null)
@@ -120,6 +128,42 @@ impl NullBitmap {
     /// Set an element as valid (non-null)
     pub fn set_valid(&mut self, idx: usize) {
         self.set(idx, false);
+    }
+
+    /// Set a range of elements as null
+    ///
+    /// All indices in `[start, end)` are marked as null.
+    ///
+    /// # Panics
+    /// Panics if `end > self.len` or `start > end`.
+    pub fn set_null_range(&mut self, start: usize, end: usize) {
+        assert!(end <= self.len && start <= end);
+        if start == end {
+            return;
+        }
+        let (start_word, start_bit) = Self::get_position(start);
+        let (end_word, end_bit) = Self::get_position(end);
+
+        if start_word == end_word {
+            // Range within a single word
+            let len = end_bit - start_bit;
+            let mask = ((1u64 << len) - 1) << start_bit;
+            self.data[start_word] |= mask;
+        } else {
+            // First partial word
+            self.data[start_word] |= !0u64 << start_bit;
+
+            // Full words in between
+            for word in &mut self.data[start_word + 1..end_word] {
+                *word = u64::MAX;
+            }
+
+            // Last partial word
+            if end_bit > 0 {
+                let mask = (1u64 << end_bit) - 1;
+                self.data[end_word] |= mask;
+            }
+        }
     }
 
     /// Get the number of elements
@@ -171,9 +215,20 @@ impl NullBitmap {
         &self.data
     }
 
-    /// Get mutable access to underlying bit data
-    pub fn as_bits_mut(&mut self) -> &mut Vec<u64> {
-        &mut self.data
+
+
+    /// Append a null (true) or non-null (false) element to the end
+    pub fn push(&mut self, is_null: bool) {
+        let idx = self.len;
+        self.len += 1;
+        let needed_words = Self::word_count(self.len);
+        if needed_words > self.data.len() {
+            self.data.push(0);
+        }
+        if is_null {
+            let (word_idx, bit_idx) = Self::get_position(idx);
+            self.data[word_idx] |= 1u64 << bit_idx;
+        }
     }
 
     /// Clear all elements
@@ -276,8 +331,10 @@ impl BitAnd for &NullBitmap {
     fn bitand(self, rhs: Self) -> Self::Output {
         let len = self.len.min(rhs.len);
         let mut result = NullBitmap::with_len(len);
-        for i in 0..self.data.len().min(rhs.data.len()) {
-            result.data[i] = self.data[i] & rhs.data[i];
+        for i in 0..result.data.len() {
+            let left = self.data.get(i).copied().unwrap_or(0);
+            let right = rhs.data.get(i).copied().unwrap_or(0);
+            result.data[i] = left & right;
         }
         result
     }
@@ -289,8 +346,10 @@ impl BitOr for &NullBitmap {
     fn bitor(self, rhs: Self) -> Self::Output {
         let len = self.len.max(rhs.len);
         let mut result = NullBitmap::with_len(len);
-        for i in 0..self.data.len().min(rhs.data.len()) {
-            result.data[i] = self.data[i] | rhs.data[i];
+        for i in 0..result.data.len() {
+            let left = self.data.get(i).copied().unwrap_or(0);
+            let right = rhs.data.get(i).copied().unwrap_or(0);
+            result.data[i] = left | right;
         }
         result
     }
@@ -440,5 +499,124 @@ mod tests {
                 assert!(!bitmap.is_null(i));
             }
         }
+    }
+
+    #[test]
+    fn test_is_null_unchecked() {
+        let mut bitmap = NullBitmap::with_len(100);
+        bitmap.set_null(42);
+
+        unsafe {
+            assert!(bitmap.is_null_unchecked(42));
+            assert!(!bitmap.is_null_unchecked(0));
+            assert!(!bitmap.is_null_unchecked(99));
+        }
+    }
+
+    #[test]
+    fn test_set_null_range_single_word() {
+        let mut bitmap = NullBitmap::with_len(64);
+        bitmap.set_null_range(10, 20);
+
+        for i in 0..64 {
+            if (10..20).contains(&i) {
+                assert!(bitmap.is_null(i), "bit {} should be null", i);
+            } else {
+                assert!(!bitmap.is_null(i), "bit {} should not be null", i);
+            }
+        }
+        assert_eq!(bitmap.null_count(), 10);
+    }
+
+    #[test]
+    fn test_set_null_range_multi_word() {
+        let mut bitmap = NullBitmap::with_len(200);
+        bitmap.set_null_range(60, 130);
+
+        for i in 0..200 {
+            if (60..130).contains(&i) {
+                assert!(bitmap.is_null(i), "bit {} should be null", i);
+            } else {
+                assert!(!bitmap.is_null(i), "bit {} should not be null", i);
+            }
+        }
+        assert_eq!(bitmap.null_count(), 70);
+    }
+
+    #[test]
+    fn test_set_null_range_empty() {
+        let mut bitmap = NullBitmap::with_len(100);
+        bitmap.set_null_range(30, 30);
+        assert_eq!(bitmap.null_count(), 0);
+    }
+
+    #[test]
+    fn test_set_null_range_full() {
+        let mut bitmap = NullBitmap::with_len(200);
+        bitmap.set_null_range(0, 200);
+        assert!(bitmap.is_all_null());
+        assert_eq!(bitmap.null_count(), 200);
+    }
+
+    #[test]
+    fn test_bitand_different_lengths() {
+        let mut a = NullBitmap::with_len(10);
+        a.set_null(5);
+        a.set_null(8);
+
+        let mut b = NullBitmap::with_len(20);
+        b.set_null(8);
+        b.set_null(15);
+
+        let result = &a & &b;
+        assert_eq!(result.len(), 10);
+        assert!(result.is_null(8));
+        assert!(!result.is_null(5));
+        assert!(!result.is_null(9));
+    }
+
+    #[test]
+    fn test_bitor_different_lengths() {
+        let mut a = NullBitmap::with_len(10);
+        a.set_null(5);
+        a.set_null(8);
+
+        let mut b = NullBitmap::with_len(20);
+        b.set_null(8);
+        b.set_null(15);
+
+        let result = &a | &b;
+        assert_eq!(result.len(), 20);
+        assert!(result.is_null(5));
+        assert!(result.is_null(8));
+        assert!(result.is_null(15));
+        assert!(!result.is_null(0));
+        assert!(!result.is_null(16));
+    }
+
+    #[test]
+    #[should_panic(expected = "end <= self.len")]
+    fn test_set_null_range_panic() {
+        let mut bitmap = NullBitmap::with_len(10);
+        bitmap.set_null_range(5, 15);
+    }
+
+    #[test]
+    fn test_push() {
+        let mut bitmap = NullBitmap::new();
+        bitmap.push(false);
+        bitmap.push(true);
+        bitmap.push(false);
+        bitmap.push(true);
+        bitmap.push(true);
+
+        assert_eq!(bitmap.len(), 5);
+        assert!(!bitmap.is_null(0));
+        assert!(bitmap.is_null(1));
+        assert!(!bitmap.is_null(2));
+        assert!(bitmap.is_null(3));
+        assert!(bitmap.is_null(4));
+        assert_eq!(bitmap.null_count(), 3);
+        assert_eq!(bitmap.valid_count(), 2);
     }
 }
