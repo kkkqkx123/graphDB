@@ -25,7 +25,7 @@ use crate::storage::metadata::{
 };
 use crate::storage::engine::PropertyGraph;
 use crate::storage::engine::property_graph::InsertEdgeParams;
-use crate::storage::entity::UserStorage;
+use crate::api::server::auth::UserStorage;
 use crate::storage::index::secondary::{IndexDataManager, InMemoryIndexDataManager};
 use crate::storage::vertex::{LabelId, VertexRecord};
 use crate::storage::edge::EdgeRecord;

@@ -13,7 +13,6 @@ pub mod compression;
 pub mod container;
 pub mod edge;
 pub mod engine;
-pub mod entity;
 pub mod extend;
 pub mod index;
 pub mod interface;
@@ -36,10 +35,9 @@ pub use interface::{
     StorageClient, StorageStats, UpdateInfo, UpdateOp, UpdateTarget,
 };
 pub use engine::graph_storage::GraphStorage;
+pub use engine::sync_wrapper::SyncWrapper;
 
 pub use cache::{RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache};
-
-pub use entity::{EdgeStorage, SyncStorage, UserStorage, VertexStorage};
 
 pub use extend::FulltextStorage;
 

@@ -31,7 +31,7 @@ pub use embedded::GraphDatabase;
 use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::storage::entity::SyncStorage;
+use crate::storage::engine::sync_wrapper::SyncWrapper;
 use crate::storage::GraphStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
@@ -161,12 +161,12 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
 
         info!("SyncManager initialized");
 
-        let sync_storage = SyncStorage::with_sync_manager((*inner_storage).clone(), sync_manager);
+        let sync_storage = SyncWrapper::with_sync_manager((*inner_storage).clone(), sync_manager);
         info!("Sync enabled for fulltext and vector indexes");
 
         Arc::new(sync_storage)
     } else {
-        let sync_storage = SyncStorage::new((*inner_storage).clone());
+        let sync_storage = SyncWrapper::new((*inner_storage).clone());
         Arc::new(sync_storage)
     };
 
@@ -212,7 +212,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         None
     };
 
-    let graph_service = GraphService::<SyncStorage<GraphStorage>>::new_with_transaction_manager(
+    let graph_service = GraphService::<SyncWrapper<GraphStorage>>::new_with_transaction_manager(
         config.clone(),
         storage.clone(),
         transaction_manager.clone(),
@@ -253,12 +253,11 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     let config = crate::config::Config::default();
     let inner_storage = Arc::new(GraphStorage::new()?);
 
-    // Initialize storage (simplified version without fulltext index)
-    let sync_storage = SyncStorage::new((*inner_storage).clone());
+    let sync_storage = SyncWrapper::new((*inner_storage).clone());
     let storage = Arc::new(sync_storage);
 
     let graph_service =
-        GraphService::<SyncStorage<GraphStorage>>::new_for_test(config, storage).await;
+        GraphService::<SyncWrapper<GraphStorage>>::new_for_test(config, storage).await;
 
     let session = match graph_service
         .get_session_manager()

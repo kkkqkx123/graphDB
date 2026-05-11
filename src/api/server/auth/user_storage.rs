@@ -1,12 +1,15 @@
+//! User Storage Manager
+//!
+//! Manages user account creation, modification, deletion, and role authorization.
+//! This is a pure in-memory storage for user metadata, separate from graph data storage.
+
 use crate::core::types::{PasswordInfo, UserAlterInfo, UserInfo};
 use crate::core::{RoleType, StorageError};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// User Storage Manager
-///
-/// Responsible for managing the creation, modification, and deletion of user accounts, as well as the authorization of user roles.
+/// Manages user accounts and role assignments in memory.
 #[derive(Clone)]
 pub struct UserStorage {
     users: Arc<Mutex<HashMap<String, UserInfo>>>,
@@ -34,7 +37,7 @@ impl UserStorage {
         }
     }
 
-    /// Change the user password
+    /// Change the user password.
     pub fn change_password(&self, info: &PasswordInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         let username = info
@@ -65,15 +68,13 @@ impl UserStorage {
         Ok(true)
     }
 
-    /// Modify user information
+    /// Modify user information.
     pub fn alter_user(&self, info: &UserAlterInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         if let Some(user) = users.get_mut(&info.username) {
-            // Change the lock status
             if let Some(is_locked) = info.is_locked {
                 user.is_locked = is_locked;
             }
-            // Modify the resource restrictions
             if let Some(limit) = info.max_queries_per_hour {
                 user.max_queries_per_hour = limit;
             }
@@ -95,14 +96,14 @@ impl UserStorage {
         }
     }
 
-    /// Delete the user
+    /// Delete the user.
     pub fn drop_user(&self, username: &str) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         users.remove(username);
         Ok(true)
     }
 
-    /// Obtaining user information
+    /// Get user information.
     pub fn get_user(&self, username: &str) -> Option<UserInfo> {
         self.users.lock().get(username).cloned()
     }
@@ -112,7 +113,7 @@ impl UserStorage {
         self.users.lock().contains_key(username)
     }
 
-    /// Granting roles (only for user presence verification; the actual authorization is handled by the PermissionManager)
+    /// Grant roles to user (only verifies user existence; actual authorization is handled by PermissionManager).
     pub fn grant_role(
         &self,
         username: &str,
@@ -130,7 +131,7 @@ impl UserStorage {
         }
     }
 
-    /// Revoke the role (this is only for checking the user's existence; the actual revocation is handled by the PermissionManager).
+    /// Revoke roles from user (only verifies user existence; actual revocation is handled by PermissionManager).
     pub fn revoke_role(&self, username: &str, _space_id: u64) -> Result<bool, StorageError> {
         let users = self.users.lock();
         if users.contains_key(username) {

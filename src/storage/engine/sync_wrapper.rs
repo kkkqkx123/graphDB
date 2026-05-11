@@ -1,6 +1,7 @@
-//! Storage layer synchronous wrapper
+//! Storage Layer Synchronous Wrapper
 //!
-//! Package the Storage Client to automatically synchronize to the index during storage operations
+//! Decorator pattern implementation that wraps any StorageClient to automatically
+//! synchronize storage operations with external index systems (fulltext, vector).
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::interface::StorageClient;
@@ -9,42 +10,37 @@ use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-/// Storage layer synchronous wrapper
+/// Decorator that wraps a StorageClient to provide automatic index synchronization.
 #[derive(Clone, Debug)]
-pub struct SyncStorage<S: StorageClient + Debug> {
+pub struct SyncWrapper<S: StorageClient + Debug> {
     inner: S,
     sync_manager: Option<Arc<crate::sync::SyncManager>>,
     enabled: bool,
 }
 
-impl<S: StorageClient> SyncStorage<S> {
-    /// Detect changed properties between two vertices (static helper method)
+impl<S: StorageClient> SyncWrapper<S> {
+    /// Detect changed properties between two vertices.
     fn detect_changed_properties(old_vertex: &Vertex, new_vertex: &Vertex) -> Vec<(String, Value)> {
         let mut changed_props = Vec::new();
 
-        // Compare properties in each tag
         for new_tag in &new_vertex.tags {
             if let Some(old_tag) = old_vertex.tags.iter().find(|t| t.name == new_tag.name) {
-                // Compare properties within the tag
                 for (prop_name, new_value) in &new_tag.properties {
                     if let Some(old_value) = old_tag.properties.get(prop_name) {
                         if old_value != new_value {
                             changed_props.push((prop_name.clone(), new_value.clone()));
                         }
                     } else {
-                        // New property added
                         changed_props.push((prop_name.clone(), new_value.clone()));
                     }
                 }
 
-                // Check deleted properties
                 for (prop_name, old_value) in &old_tag.properties {
                     if !new_tag.properties.contains_key(prop_name) {
                         changed_props.push((prop_name.clone(), old_value.clone()));
                     }
                 }
             } else {
-                // New tag, all properties are changed
                 for (prop_name, value) in &new_tag.properties {
                     changed_props.push((prop_name.clone(), value.clone()));
                 }
@@ -54,7 +50,7 @@ impl<S: StorageClient> SyncStorage<S> {
         changed_props
     }
 
-    /// Get the current transaction ID from storage context
+    /// Get the current transaction ID from storage context.
     fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
         if let Some(ctx) = self.inner.get_transaction_context() {
             return ctx.id;
@@ -62,7 +58,7 @@ impl<S: StorageClient> SyncStorage<S> {
         0
     }
 
-    /// Create a new synchronous storage without a SyncManager
+    /// Create a new wrapper without synchronization.
     pub fn new(storage: S) -> Self {
         Self {
             inner: storage,
@@ -71,7 +67,7 @@ impl<S: StorageClient> SyncStorage<S> {
         }
     }
 
-    /// Create a new synchronous storage with a SyncManager
+    /// Create a new wrapper with a SyncManager for index synchronization.
     pub fn with_sync_manager(storage: S, sync_manager: Arc<crate::sync::SyncManager>) -> Self {
         Self {
             inner: storage,
@@ -80,33 +76,33 @@ impl<S: StorageClient> SyncStorage<S> {
         }
     }
 
-    /// Enable/disable synchronization
+    /// Enable or disable synchronization.
     pub fn enable_sync(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 
-    /// Check if synchronization is enabled
+    /// Check if synchronization is enabled.
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    /// Get sync manager reference
+    /// Get reference to the sync manager.
     pub fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
         self.sync_manager.clone()
     }
 
-    /// Get reference to the inner storage client
+    /// Get reference to the inner storage client.
     pub fn inner(&self) -> &S {
         &self.inner
     }
 
-    /// Get mutable reference to the inner storage client
+    /// Get mutable reference to the inner storage client.
     pub fn inner_mut(&mut self) -> &mut S {
         &mut self.inner
     }
 }
 
-impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
+impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
     fn get_schema_manager(&self) -> Option<Arc<InMemorySchemaManager>> {
         self.inner.get_schema_manager()
     }
@@ -181,11 +177,8 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         if self.enabled {
             if let Some(sync_manager) = self.get_sync_manager() {
                 let space_id = self.inner.get_space_id(space)?;
-
-                // Get the current transaction ID from storage context
                 let txn_id = self.get_current_txn_id();
 
-                // Process each tag separately
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
                     let props: Vec<(String, crate::core::Value)> = tag
@@ -233,8 +226,6 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
 
                 if let Some(first_tag) = vertex.tags.first() {
                     let tag_name = &first_tag.name;
-
-                    // Detecting changed properties
                     let changed_props = Self::detect_changed_properties(&old_vertex, &vertex);
 
                     if !changed_props.is_empty() {
@@ -274,7 +265,6 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                 let space_id = self.inner.get_space_id(space)?;
                 let txn_id = self.get_current_txn_id();
 
-                // Call SyncManager for each tag
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
 
@@ -284,7 +274,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                             space_id,
                             tag_name,
                             id,
-                            &[], // Delete without attributes
+                            &[],
                             ChangeType::Delete,
                         )
                         .map_err(|e| {
@@ -310,7 +300,6 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
                 let space_id = self.inner.get_space_id(space)?;
                 let txn_id = self.get_current_txn_id();
 
-                // Call SyncManager for each tag
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
 
@@ -640,80 +629,6 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self.inner.rebuild_edge_index(space, index)
     }
 
-    fn insert_vertex_data(
-        &mut self,
-        space: &str,
-        info: &crate::core::types::InsertVertexInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.insert_vertex_data(space, info)
-    }
-
-    fn insert_edge_data(
-        &mut self,
-        space: &str,
-        info: &crate::core::types::InsertEdgeInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.insert_edge_data(space, info)
-    }
-
-    fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError> {
-        self.inner.delete_vertex_data(space, vertex_id)
-    }
-
-    fn delete_edge_data(
-        &mut self,
-        space: &str,
-        src: &str,
-        dst: &str,
-        rank: i64,
-    ) -> Result<bool, StorageError> {
-        self.inner.delete_edge_data(space, src, dst, rank)
-    }
-
-    fn update_data(
-        &mut self,
-        space: &str,
-        space_id: u64,
-        info: &crate::core::types::UpdateInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.update_data(space, space_id, info)
-    }
-
-    fn change_password(
-        &mut self,
-        info: &crate::core::types::PasswordInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.change_password(info)
-    }
-
-    fn create_user(&mut self, info: &crate::core::types::UserInfo) -> Result<bool, StorageError> {
-        self.inner.create_user(info)
-    }
-
-    fn alter_user(
-        &mut self,
-        info: &crate::core::types::UserAlterInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.alter_user(info)
-    }
-
-    fn drop_user(&mut self, username: &str) -> Result<bool, StorageError> {
-        self.inner.drop_user(username)
-    }
-
-    fn grant_role(
-        &mut self,
-        username: &str,
-        space_id: u64,
-        role: crate::core::RoleType,
-    ) -> Result<bool, StorageError> {
-        self.inner.grant_role(username, space_id, role)
-    }
-
-    fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError> {
-        self.inner.revoke_role(username, space_id)
-    }
-
     fn lookup_index(
         &self,
         space: &str,
@@ -795,11 +710,85 @@ impl<S: StorageClient + 'static> StorageClient for SyncStorage<S> {
         self.sync_manager.clone()
     }
 
-    fn get_transaction_context(&self) -> Option<std::sync::Arc<crate::transaction::context::TransactionContext>> {
-        self.inner.get_transaction_context()
+    fn update_data(
+        &mut self,
+        space: &str,
+        space_id: u64,
+        info: &crate::core::types::UpdateInfo,
+    ) -> Result<bool, StorageError> {
+        self.inner.update_data(space, space_id, info)
     }
 
-    fn set_transaction_context(&self, context: Option<std::sync::Arc<crate::transaction::context::TransactionContext>>) {
-        self.inner.set_transaction_context(context);
+    fn change_password(
+        &mut self,
+        info: &crate::core::types::PasswordInfo,
+    ) -> Result<bool, StorageError> {
+        self.inner.change_password(info)
+    }
+
+    fn create_user(&mut self, info: &crate::core::types::UserInfo) -> Result<bool, StorageError> {
+        self.inner.create_user(info)
+    }
+
+    fn alter_user(
+        &mut self,
+        info: &crate::core::types::UserAlterInfo,
+    ) -> Result<bool, StorageError> {
+        self.inner.alter_user(info)
+    }
+
+    fn drop_user(&mut self, username: &str) -> Result<bool, StorageError> {
+        self.inner.drop_user(username)
+    }
+
+    fn grant_role(
+        &mut self,
+        username: &str,
+        space_id: u64,
+        role: crate::core::RoleType,
+    ) -> Result<bool, StorageError> {
+        self.inner.grant_role(username, space_id, role)
+    }
+
+    fn revoke_role(
+        &mut self,
+        username: &str,
+        space_id: u64,
+    ) -> Result<bool, StorageError> {
+        self.inner.revoke_role(username, space_id)
+    }
+
+    fn insert_vertex_data(
+        &mut self,
+        space: &str,
+        info: &crate::core::types::InsertVertexInfo,
+    ) -> Result<bool, StorageError> {
+        self.inner.insert_vertex_data(space, info)
+    }
+
+    fn delete_vertex_data(
+        &mut self,
+        space: &str,
+        vertex_id: &str,
+    ) -> Result<bool, StorageError> {
+        self.inner.delete_vertex_data(space, vertex_id)
+    }
+
+    fn insert_edge_data(
+        &mut self,
+        space: &str,
+        info: &crate::core::types::InsertEdgeInfo,
+    ) -> Result<bool, StorageError> {
+        self.inner.insert_edge_data(space, info)
+    }
+
+    fn delete_edge_data(
+        &mut self,
+        space: &str,
+        src: &str,
+        dst: &str,
+        rank: i64,
+    ) -> Result<bool, StorageError> {
+        self.inner.delete_edge_data(space, src, dst, rank)
     }
 }

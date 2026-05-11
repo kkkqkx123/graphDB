@@ -16,20 +16,19 @@ use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use graphdb::storage::interface::StorageClient;
-use graphdb::storage::entity::event_storage::SyncStorage;
+use graphdb::storage::engine::sync_wrapper::SyncWrapper;
 use graphdb::storage::GraphStorage;
 use std::sync::Arc;
 use vector_client::VectorClientConfig;
 
-/// Test that GraphService can be created with SyncStorage<GraphStorage>
+/// Test that GraphService can be created with SyncWrapper<GraphStorage>
 #[tokio::test]
 async fn test_graph_service_creation_with_sync_storage() {
     let config = Config::default();
 
-    // Create SyncStorage<GraphStorage>
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
-    let storage = Arc::new(SyncStorage::new(
+    let storage = Arc::new(SyncWrapper::new(
         GraphStorage::new_with_path(db_path).expect("Failed to create storage"),
     ));
 
@@ -115,39 +114,32 @@ fn test_vector_config_default_is_disabled() {
     );
 }
 
-/// Test SyncStorage can provide access to inner storage
+/// Test SyncWrapper can provide access to inner storage
 #[test]
 fn test_sync_storage_inner_access() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
     let storage = GraphStorage::new_with_path(db_path).expect("Failed to create storage");
 
-    // Create SyncStorage
-    let sync_storage = SyncStorage::new(storage);
+    let sync_storage = SyncWrapper::new(storage);
 
-    // Access inner storage
     let _inner = sync_storage.inner();
-    // If we get here without panic, the access works
 }
 
 /// Test StorageClient trait method get_schema_manager
 #[test]
 fn test_storage_client_get_schema_manager() {
-    // Test with GraphStorage
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
     let storage = GraphStorage::new_with_path(db_path).expect("Failed to create storage");
 
-    // get_schema_manager should return Arc<InMemorySchemaManager>
     let _schema_manager = storage.get_schema_manager();
-    // If we get here without panic, the access works
 
-    // Test with SyncStorage<GraphStorage>
-    let sync_storage = SyncStorage::new(storage);
+    let sync_storage = SyncWrapper::new(storage);
     let schema_manager = sync_storage.get_schema_manager();
     assert!(
         schema_manager.is_some(),
-        "SyncStorage<GraphStorage> should return Some schema_manager"
+        "SyncWrapper<GraphStorage> should return Some schema_manager"
     );
 }
 

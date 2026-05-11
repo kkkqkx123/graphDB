@@ -10,6 +10,7 @@ pub mod property_graph;
 pub mod property_graph_tests;
 pub mod query;
 pub mod schema;
+pub mod sync_wrapper;
 pub mod transaction;
 pub mod wal_manager;
 
@@ -20,4 +21,5 @@ pub use batch::{
 pub use cache::CacheManager;
 pub use config::PropertyGraphConfig;
 pub use property_graph::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
+pub use sync_wrapper::SyncWrapper;
 pub use wal_manager::WalManager;
