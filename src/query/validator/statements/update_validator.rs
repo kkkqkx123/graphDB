@@ -25,7 +25,7 @@ use crate::storage::metadata::InMemorySchemaManager;
 pub struct ValidatedUpdate {
     pub space_id: u64,
     pub target_type: UpdateTargetType,
-    pub tag_or_edge_id: Option<i32>,
+    pub tag_or_edge_id: Option<u32>,
     pub tag_or_edge_name: Option<String>,
     pub assignments: Vec<ValidatedAssignment>,
     pub where_clause: Option<ContextualExpression>,

@@ -198,7 +198,7 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<i32, StorageError> {
+    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<u32, StorageError> {
         Ok(1)
     }
 
@@ -228,7 +228,7 @@ impl StorageClient for MockStorage {
         &mut self,
         _space: &str,
         _info: &EdgeTypeSchema,
-    ) -> Result<i32, StorageError> {
+    ) -> Result<u32, StorageError> {
         Ok(1)
     }
 

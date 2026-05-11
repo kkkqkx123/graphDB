@@ -121,17 +121,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
             storage_guard.create_edge_type(&self.edge_info.space_name, &metadata_edge_info);
 
         match result {
-            Ok(id) if id >= 0 => Ok(ExecutionResult::Success),
-            Ok(_) => {
-                if self.if_not_exists {
-                    Ok(ExecutionResult::Success)
-                } else {
-                    Ok(ExecutionResult::Error(format!(
-                        "Edge type '{}' already exists in space '{}'",
-                        self.edge_info.edge_name, self.edge_info.space_name
-                    )))
-                }
-            }
+            Ok(_id) => Ok(ExecutionResult::Success),
             Err(e) => Ok(ExecutionResult::Error(format!(
                 "Failed to create edge type: {}",
                 e

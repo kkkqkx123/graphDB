@@ -118,15 +118,8 @@ impl<S: StorageClient> SchemaApi<S> {
             .create_tag(&space_name, &tag_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        if result >= 0 {
-            log::info!("Created tag successfully: {} in space {} with id {}", name, space_id, result);
-            Ok(())
-        } else {
-            Err(CoreError::SchemaOperationFailed(format!(
-                "Tag '{}' already exists",
-                name
-            )))
-        }
+        log::info!("Created tag successfully: {} in space {} with id {}", name, space_id, result);
+        Ok(())
     }
 
     /// Delete Tags
@@ -218,20 +211,13 @@ impl<S: StorageClient> SchemaApi<S> {
             .create_edge_type(&space_name, &edge_type_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        if result >= 0 {
-            log::info!(
-                "Created edge type successfully: {} in space {} with id {}",
-                name,
-                space_id,
-                result
-            );
-            Ok(())
-        } else {
-            Err(CoreError::SchemaOperationFailed(format!(
-                "Edge type '{}' already exists",
-                name
-            )))
-        }
+        log::info!(
+            "Created edge type successfully: {} in space {} with id {}",
+            name,
+            space_id,
+            result
+        );
+        Ok(())
     }
 
     /// Delete Edge Type

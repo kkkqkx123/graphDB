@@ -84,7 +84,7 @@ impl TransactionOps {
             .collect();
 
         let internal_id = schema_ops
-            .insert_vertex(label as LabelId, external_id, &props, ts)
+            .insert_vertex(label, external_id, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
         Ok(internal_id as TxnVertexId)
@@ -97,8 +97,8 @@ impl TransactionOps {
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<EdgeId> {
-        let src_label_id = params.src_label as LabelId;
-        let dst_label_id = params.dst_label as LabelId;
+        let src_label_id = params.src_label;
+        let dst_label_id = params.dst_label;
         let src_table = schema_ops
             .get_vertex_table(src_label_id)
             .ok_or(InsertTransactionError::LabelNotFound(params.src_label))?;
@@ -119,10 +119,10 @@ impl TransactionOps {
             .collect();
 
         let edge_op_params = EdgeOperationParams {
-            edge_label: params.edge_label as LabelId,
-            src_label: params.src_label as LabelId,
+            edge_label: params.edge_label,
+            src_label: params.src_label,
             src_id: &src_external,
-            dst_label: params.dst_label as LabelId,
+            dst_label: params.dst_label,
             dst_id: &dst_external,
         };
 
@@ -140,9 +140,8 @@ impl TransactionOps {
         ts: Timestamp,
     ) -> Option<TxnVertexId> {
         let external_id = std::str::from_utf8(oid).ok()?;
-        let label_id = label as LabelId;
         schema_ops
-            .get_vertex_internal_id(label_id, external_id, ts)
+            .get_vertex_internal_id(label, external_id, ts)
             .map(|id| id as TxnVertexId)
     }
 
@@ -152,17 +151,15 @@ impl TransactionOps {
         vid: TxnVertexId,
         _ts: Timestamp,
     ) -> Option<Vec<u8>> {
-        let label_id = label as LabelId;
         schema_ops
-            .get_vertex_table(label_id)?
+            .get_vertex_table(label)?
             .get_external_id(vid as u32)
             .map(|s| s.into_bytes())
     }
 
     pub fn get_vertex_property_types(schema_ops: &SchemaOps, label: TxnLabelId) -> Vec<String> {
-        let label_id = label as LabelId;
         schema_ops
-            .get_vertex_table(label_id)
+            .get_vertex_table(label)
             .map(|t| {
                 t.schema()
                     .properties
@@ -179,9 +176,8 @@ impl TransactionOps {
         _dst_label: TxnLabelId,
         edge_label: TxnLabelId,
     ) -> Vec<String> {
-        let edge_label_id = edge_label as LabelId;
         edge_ops
-            .get_edge_table_by_label(edge_label_id)
+            .get_edge_table_by_label(edge_label)
             .map(|t| {
                 t.schema()
                     .properties
@@ -197,9 +193,8 @@ impl TransactionOps {
     }
 
     pub fn lid_num(schema_ops: &SchemaOps, label: TxnLabelId) -> usize {
-        let label_id = label as LabelId;
         schema_ops
-            .get_vertex_table(label_id)
+            .get_vertex_table(label)
             .map(|t| t.total_count())
             .unwrap_or(0)
     }
@@ -209,17 +204,16 @@ impl TransactionOps {
         edge_ops: &mut EdgeOps,
         label: TxnLabelId,
     ) -> UndoLogResult<()> {
-        let label_id = label as LabelId;
         let label_name = schema_ops
-            .get_vertex_table(label_id)
+            .get_vertex_table(label)
             .map(|t| t.label_name().to_string());
 
         if let Some(name) = label_name {
             schema_ops.vertex_label_names.remove(&name);
         }
 
-        schema_ops.vertex_tables.remove(&label_id);
-        edge_ops.drop_edges_for_vertex_label(label_id);
+        schema_ops.vertex_tables.remove(&label);
+        edge_ops.drop_edges_for_vertex_label(label);
 
         Ok(())
     }
@@ -229,9 +223,9 @@ impl TransactionOps {
         params: DeleteEdgeTypeParams,
     ) -> UndoLogResult<()> {
         let key = (
-            params.src_label as LabelId,
-            params.dst_label as LabelId,
-            params.edge_label as LabelId,
+            params.src_label,
+            params.dst_label,
+            params.edge_label,
         );
         edge_ops.edge_tables.remove(&key);
         Ok(())
@@ -243,8 +237,7 @@ impl TransactionOps {
         vid: TxnVertexId,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let label_id = label as LabelId;
-        if let Some(table) = schema_ops.vertex_tables.get_mut(&label_id) {
+        if let Some(table) = schema_ops.vertex_tables.get_mut(&label) {
             table
                 .delete_by_internal_id(vid as u32, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
@@ -260,9 +253,9 @@ impl TransactionOps {
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         let key = (
-            params.src_label as LabelId,
-            params.dst_label as LabelId,
-            params.edge_label as LabelId,
+            params.src_label,
+            params.dst_label,
+            params.edge_label,
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
@@ -280,9 +273,9 @@ impl TransactionOps {
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         let key = (
-            params.src_label as LabelId,
-            params.dst_label as LabelId,
-            params.edge_label as LabelId,
+            params.src_label,
+            params.dst_label,
+            params.edge_label,
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
@@ -305,7 +298,7 @@ impl TransactionOps {
             .collect();
 
         schema_ops
-            .insert_vertex(label as LabelId, external_id, &props, ts)
+            .insert_vertex(label, external_id, &props, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }
@@ -322,14 +315,14 @@ impl TransactionOps {
             .collect();
 
         let key = (
-            params.src_label as LabelId,
-            params.dst_label as LabelId,
-            params.edge_label as LabelId,
+            params.src_label,
+            params.dst_label,
+            params.edge_label,
         );
         let table = edge_ops
             .edge_tables
             .get_mut(&key)
-            .ok_or(UndoLogError::LabelNotFound(params.edge_label as LabelId))?;
+            .ok_or(UndoLogError::LabelNotFound(params.edge_label))?;
 
         table
             .insert_edge(params.src_vid, params.dst_vid, &props, ts)
@@ -345,10 +338,9 @@ impl TransactionOps {
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let label_id = label as LabelId;
         let table = schema_ops
             .vertex_tables
-            .get_mut(&label_id)
+            .get_mut(&label)
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let value = property_value_to_value(old_value);
@@ -368,9 +360,9 @@ impl TransactionOps {
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         let key = (
-            params.src_label as LabelId,
-            params.dst_label as LabelId,
-            params.edge_label as LabelId,
+            params.src_label,
+            params.dst_label,
+            params.edge_label,
         );
         let table = edge_ops
             .edge_tables

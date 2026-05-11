@@ -234,7 +234,7 @@ impl StorageClient for GraphStorage {
         let graph = self.graph.read();
         let mut vertices = Vec::new();
 
-        let label_id = tag_info.tag_id as LabelId;
+        let label_id = tag_info.tag_id;
         if let Some(iterator) = graph.scan_vertices(label_id, ts) {
             for record in iterator {
                 let vertex = Self::vertex_record_to_vertex(&record, tag);
@@ -259,7 +259,7 @@ impl StorageClient for GraphStorage {
         let graph = self.graph.read();
         let mut vertices = Vec::new();
 
-        let label_id = tag_info.tag_id as LabelId;
+        let label_id = tag_info.tag_id;
         if let Some(iterator) = graph.scan_vertices(label_id, ts) {
             for record in iterator {
                 if record.properties.iter().any(|(k, v)| k == prop && v == value) {
@@ -289,7 +289,7 @@ impl StorageClient for GraphStorage {
         let src_str = Self::value_to_string(src);
         let dst_str = Self::value_to_string(dst);
 
-        let edge_label_id = edge_info.edge_type_id as LabelId;
+        let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                 if let Some(record) = graph.get_edge(
@@ -326,7 +326,7 @@ impl StorageClient for GraphStorage {
         let mut edges = Vec::new();
 
         for edge_info in &edge_types {
-            let edge_label_id = edge_info.edge_type_id as LabelId;
+            let edge_label_id = edge_info.edge_type_id;
             let edge_type_name = &edge_info.edge_type_name;
             
             if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
@@ -443,7 +443,7 @@ impl StorageClient for GraphStorage {
         let graph = self.graph.read();
         let mut edges = Vec::new();
 
-        let edge_label_id = edge_info.edge_type_id as LabelId;
+        let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                 if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
@@ -733,7 +733,7 @@ impl StorageClient for GraphStorage {
         self.schema_manager.alter_space_comment(space_id, comment)
     }
 
-    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<i32, StorageError> {
+    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<u32, StorageError> {
         let tag_id = self.schema_manager.create_tag(space, tag)?;
 
         let properties: Vec<crate::storage::vertex::PropertyDef> = 
@@ -744,7 +744,7 @@ impl StorageClient for GraphStorage {
             .unwrap_or("id");
 
         let mut graph = self.graph.write();
-        graph.create_vertex_type_with_id(&tag.tag_name, tag_id as u32, properties, primary_key)?;
+        graph.create_vertex_type_with_id(&tag.tag_name, tag_id, properties, primary_key)?;
 
         Ok(tag_id)
     }
@@ -781,7 +781,7 @@ impl StorageClient for GraphStorage {
         &mut self,
         space: &str,
         edge_type: &EdgeTypeInfo,
-    ) -> Result<i32, StorageError> {
+    ) -> Result<u32, StorageError> {
         let edge_type_id = self.schema_manager.create_edge_type(space, edge_type)?;
 
         let mut graph = self.graph.write();
@@ -797,7 +797,7 @@ impl StorageClient for GraphStorage {
         use crate::storage::edge::EdgeStrategy;
         graph.create_edge_type_with_id(
             &edge_type.edge_type_name,
-            edge_type_id as u32,
+            edge_type_id,
             src_label_id,
             dst_label_id,
             properties,
@@ -1270,7 +1270,7 @@ impl StorageClient for GraphStorage {
         let graph = self.graph.read();
         let id_str = Self::value_to_string(id);
 
-        let label_id = tag_info.tag_id as LabelId;
+        let label_id = tag_info.tag_id;
         if let Some(record) = graph.get_vertex(label_id, &id_str, ts) {
             let schema = self.schema_manager.get_tag_schema(space, tag)?;
             let data = Self::serialize_properties(&record.properties);
@@ -1295,7 +1295,7 @@ impl StorageClient for GraphStorage {
         let src_str = Self::value_to_string(src);
         let dst_str = Self::value_to_string(dst);
 
-        let edge_label_id = edge_info.edge_type_id as LabelId;
+        let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                 if let Some(record) = graph.get_edge(
@@ -1328,7 +1328,7 @@ impl StorageClient for GraphStorage {
         let graph = self.graph.read();
         let mut results = Vec::new();
 
-        let label_id = tag_info.tag_id as LabelId;
+        let label_id = tag_info.tag_id;
         if let Some(iterator) = graph.scan_vertices(label_id, ts) {
             let schema = self.schema_manager.get_tag_schema(space, tag)?;
             for record in iterator {
@@ -1352,7 +1352,7 @@ impl StorageClient for GraphStorage {
         let graph = self.graph.read();
         let mut results = Vec::new();
 
-        let edge_label_id = edge_info.edge_type_id as LabelId;
+        let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                 if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {

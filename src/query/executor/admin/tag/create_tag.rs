@@ -114,17 +114,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
         let result = storage_guard.create_tag(&self.tag_info.space_name, &metadata_tag_info);
 
         match result {
-            Ok(id) if id >= 0 => Ok(ExecutionResult::Success),
-            Ok(_) => {
-                if self.if_not_exists {
-                    Ok(ExecutionResult::Success)
-                } else {
-                    Ok(ExecutionResult::Error(format!(
-                        "Tag '{}' already exists in space '{}'",
-                        self.tag_info.tag_name, self.tag_info.space_name
-                    )))
-                }
-            }
+            Ok(_id) => Ok(ExecutionResult::Success),
             Err(e) => Ok(ExecutionResult::Error(format!(
                 "Failed to create tag: {}",
                 e

@@ -9,7 +9,7 @@ use super::property::PropertyDef;
 /// Define a common interface for TagInfo and EdgeTypeInfo.
 pub trait SchemaInfo: Clone + PartialEq + Eq + std::hash::Hash + Send + Sync {
     /// Get Schema ID
-    fn schema_id(&self) -> i32;
+    fn schema_id(&self) -> u32;
 
     /// Get Schema Name
     fn schema_name(&self) -> &str;
@@ -27,7 +27,7 @@ pub trait SchemaInfo: Clone + PartialEq + Eq + std::hash::Hash + Send + Sync {
     fn ttl_col(&self) -> Option<&str>;
 
     /// Setting the Schema ID
-    fn set_schema_id(&mut self, id: i32);
+    fn set_schema_id(&mut self, id: u32);
 
     /// Setting the property list
     fn set_properties(&mut self, properties: Vec<PropertyDef>);

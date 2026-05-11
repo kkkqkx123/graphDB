@@ -80,8 +80,8 @@ struct IndexData {
 pub struct InMemorySchemaManager {
     spaces: Arc<RwLock<HashMap<u64, SpaceData>>>,
     space_name_index: Arc<RwLock<HashMap<String, u64>>>,
-    tags: Arc<RwLock<HashMap<(u64, i32), TagData>>>,
-    edge_types: Arc<RwLock<HashMap<(u64, i32), EdgeTypeData>>>,
+    tags: Arc<RwLock<HashMap<(u64, u32), TagData>>>,
+    edge_types: Arc<RwLock<HashMap<(u64, u32), EdgeTypeData>>>,
     tag_indexes: Arc<RwLock<HashMap<(u64, String), IndexData>>>,
     edge_indexes: Arc<RwLock<HashMap<(u64, String), IndexData>>>,
     space_id_counter: Arc<AtomicU64>,
@@ -132,10 +132,10 @@ impl InMemorySchemaManager {
         self.space_id_counter.fetch_add(1, Ordering::SeqCst) + 1
     }
 
-    fn get_next_tag_id(&self, space_id: u64) -> i32 {
+    fn get_next_tag_id(&self, space_id: u64) -> u32 {
         let counters = self.tag_id_counter.read();
         if let Some(counter) = counters.get(&space_id) {
-            (counter.fetch_add(1, Ordering::SeqCst) + 1) as i32
+            counter.fetch_add(1, Ordering::SeqCst) + 1
         } else {
             drop(counters);
             let mut counters = self.tag_id_counter.write();
@@ -144,10 +144,10 @@ impl InMemorySchemaManager {
         }
     }
 
-    fn get_next_edge_type_id(&self, space_id: u64) -> i32 {
+    fn get_next_edge_type_id(&self, space_id: u64) -> u32 {
         let counters = self.edge_type_id_counter.read();
         if let Some(counter) = counters.get(&space_id) {
-            (counter.fetch_add(1, Ordering::SeqCst) + 1) as i32
+            counter.fetch_add(1, Ordering::SeqCst) + 1
         } else {
             drop(counters);
             let mut counters = self.edge_type_id_counter.write();
@@ -278,7 +278,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         }
     }
 
-    fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<i32, StorageError> {
+    fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<u32, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
@@ -366,7 +366,7 @@ impl super::SchemaManager for InMemorySchemaManager {
         &self,
         space_name: &str,
         edge_type: &EdgeTypeInfo,
-    ) -> Result<i32, StorageError> {
+    ) -> Result<u32, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;

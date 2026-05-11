@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct EdgeTypeInfo {
-    pub edge_type_id: i32,
+    pub edge_type_id: u32,
     pub edge_type_name: String,
     pub src_tag_name: String,
     pub dst_tag_name: String,
@@ -18,7 +18,7 @@ pub struct EdgeTypeInfo {
 }
 
 impl SchemaInfo for EdgeTypeInfo {
-    fn schema_id(&self) -> i32 {
+    fn schema_id(&self) -> u32 {
         self.edge_type_id
     }
 
@@ -42,7 +42,7 @@ impl SchemaInfo for EdgeTypeInfo {
         self.ttl_col.as_deref()
     }
 
-    fn set_schema_id(&mut self, id: i32) {
+    fn set_schema_id(&mut self, id: u32) {
         self.edge_type_id = id;
     }
 

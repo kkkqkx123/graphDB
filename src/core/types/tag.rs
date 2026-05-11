@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct TagInfo {
-    pub tag_id: i32,
+    pub tag_id: u32,
     pub tag_name: String,
     pub properties: Vec<PropertyDef>,
     pub comment: Option<String>,
@@ -16,7 +16,7 @@ pub struct TagInfo {
 }
 
 impl SchemaInfo for TagInfo {
-    fn schema_id(&self) -> i32 {
+    fn schema_id(&self) -> u32 {
         self.tag_id
     }
 
@@ -40,7 +40,7 @@ impl SchemaInfo for TagInfo {
         self.ttl_col.as_deref()
     }
 
-    fn set_schema_id(&mut self, id: i32) {
+    fn set_schema_id(&mut self, id: u32) {
         self.tag_id = id;
     }
 
