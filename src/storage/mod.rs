@@ -71,7 +71,7 @@ pub use edge::{
 };
 
 pub use params::{
-    EdgeDeletionContext, EdgeIdentifier, EdgeKey, EdgeLocation, EdgeOperationContext,
+    EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, EdgeLocation, EdgeOperationContext,
     EdgePropertyUpdateContext, VertexIdentifier,
 };
 

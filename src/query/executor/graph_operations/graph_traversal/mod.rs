@@ -25,7 +25,7 @@ pub mod traverse;
 // Re-export the main types
 pub use all_paths::AllPathsExecutor;
 pub use expand::ExpandExecutor;
-pub use expand_all::ExpandAllExecutor;
+pub use expand_all::{ExpandAllExecutor, ExpandAllExecutorParams};
 pub use shortest_path::ShortestPathExecutor;
 pub use traverse::TraverseExecutor;
 

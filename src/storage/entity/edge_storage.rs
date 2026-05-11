@@ -13,6 +13,7 @@ use crate::storage::index::{DegreeIndex, EdgeIdIndex};
 use crate::storage::index::{InMemoryIndexDataManager, IndexDataManager};
 use crate::storage::metadata::{InMemorySchemaManager, Schema, SchemaManager};
 use crate::storage::engine::PropertyGraph;
+use crate::storage::engine::property_graph::{InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams};
 use crate::storage::vertex::VertexId;
 use crate::transaction::version_manager::VersionManager;
 
@@ -30,6 +31,18 @@ impl std::fmt::Debug for EdgeStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EdgeStorage").finish()
     }
+}
+
+/// Parameters for update_edge_property operation
+pub struct UpdateEdgePropertyParams {
+    pub space: String,
+    pub space_id: u64,
+    pub src: Value,
+    pub dst: Value,
+    pub edge_type: String,
+    pub rank: i64,
+    pub prop_name: String,
+    pub value: Value,
 }
 
 impl EdgeStorage {
@@ -335,15 +348,15 @@ impl EdgeStorage {
                     Value::String(s) => s.as_str(),
                     _ => &dst_vid.to_string(),
                 };
-                let edge_id = graph.insert_edge(
-                    label_id,
-                    src_label_id,
-                    src_id_str,
-                    dst_label_id,
-                    dst_id_str,
-                    &properties,
+                let edge_id = graph.insert_edge(InsertEdgeParams {
+                    edge_label: label_id,
+                    src_label: src_label_id,
+                    src_id: src_id_str,
+                    dst_label: dst_label_id,
+                    dst_id: dst_id_str,
+                    properties: &properties,
                     ts,
-                )?;
+                })?;
 
                 self.edge_id_index.insert(edge_id, src_vid, dst_vid, 0);
                 self.degree_index.insert_edge(src_vid, dst_vid);
@@ -494,15 +507,15 @@ impl EdgeStorage {
                         Value::String(s) => s.as_str(),
                         _ => &dst_vid.to_string(),
                     };
-                    let edge_id = graph.insert_edge(
-                        label_id,
-                        src_label_id,
-                        src_id_str,
-                        dst_label_id,
-                        dst_id_str,
-                        &properties,
+                    let edge_id = graph.insert_edge(InsertEdgeParams {
+                        edge_label: label_id,
+                        src_label: src_label_id,
+                        src_id: src_id_str,
+                        dst_label: dst_label_id,
+                        dst_id: dst_id_str,
+                        properties: &properties,
                         ts,
-                    )?;
+                    })?;
 
                     self.edge_id_index.insert(edge_id, src_vid, dst_vid, 0);
                     self.degree_index.insert_edge(src_vid, dst_vid);
@@ -693,15 +706,15 @@ impl EdgeStorage {
                     Value::String(s) => s.as_str(),
                     _ => &dst_vid.to_string(),
                 };
-                let edge_id = graph.insert_edge(
-                    label_id,
-                    src_label_id,
-                    src_id_str,
-                    dst_label_id,
-                    dst_id_str,
-                    &properties,
+                let edge_id = graph.insert_edge(InsertEdgeParams {
+                    edge_label: label_id,
+                    src_label: src_label_id,
+                    src_id: src_id_str,
+                    dst_label: dst_label_id,
+                    dst_id: dst_id_str,
+                    properties: &properties,
                     ts,
-                )?;
+                })?;
 
                 self.edge_id_index.insert(edge_id, src_vid, dst_vid, 0);
                 self.degree_index.insert_edge(src_vid, dst_vid);
@@ -904,79 +917,67 @@ impl EdgeStorage {
         Ok(count)
     }
 
-    pub fn update_edge_property(
-        &self,
-        space: &str,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        edge_type: &str,
-        rank: i64,
-        prop_name: &str,
-        value: &Value,
-    ) -> Result<(), StorageError> {
-        // Note: rank parameter is reserved for future multi-edge support.
-        // Current implementation uses (src, dst, edge_type) as unique identifier.
-        let _ = rank;
+    pub fn update_edge_property(&self, params: UpdateEdgePropertyParams) -> Result<(), StorageError> {
+        let _ = params.rank;
 
-        let src_vid = self.value_to_vertex_id(src)?;
-        let dst_vid = self.value_to_vertex_id(dst)?;
+        let src_vid = self.value_to_vertex_id(&params.src)?;
+        let dst_vid = self.value_to_vertex_id(&params.dst)?;
         let ts = self.get_write_timestamp();
 
         let _edge_type_info = self
             .schema_manager
-            .get_edge_type(space, edge_type)?
+            .get_edge_type(&params.space, &params.edge_type)?
             .ok_or_else(|| {
                 StorageError::db_error(format!(
                     "Edge type '{}' not found in space '{}'",
-                    edge_type, space
+                    params.edge_type, params.space
                 ))
             })?;
 
         {
             let mut graph = self.graph.write();
 
-            if let Some(label_id) = graph.get_edge_label_id(edge_type) {
+            if let Some(label_id) = graph.get_edge_label_id(&params.edge_type) {
                 let (src_label_id, dst_label_id) = graph
                     .get_edge_table_by_label(label_id)
                     .map(|table| (table.src_label(), table.dst_label()))
                     .ok_or_else(|| {
                         StorageError::db_error(format!(
                             "Edge table not found for edge type '{}'",
-                            edge_type
+                            params.edge_type
                         ))
                     })?;
 
-                let src_id_str = match src {
+                let src_id_str = match &params.src {
                     Value::String(s) => s.as_str(),
                     _ => &src_vid.to_string(),
                 };
-                let dst_id_str = match dst {
+                let dst_id_str = match &params.dst {
                     Value::String(s) => s.as_str(),
                     _ => &dst_vid.to_string(),
                 };
-                graph.update_edge_property(
-                    label_id,
-                    src_label_id,
-                    src_id_str,
-                    dst_label_id,
-                    dst_id_str,
-                    prop_name,
-                    value,
+                graph.update_edge_property(PropertyGraphUpdateEdgePropertyParams {
+                    edge_label: label_id,
+                    src_label: src_label_id,
+                    src_id: src_id_str,
+                    dst_label: dst_label_id,
+                    dst_id: dst_id_str,
+                    prop_name: &params.prop_name,
+                    value: &params.value,
                     ts,
-                )?;
+                })?;
             }
         }
 
-        let indexes = self.schema_manager.list_edge_indexes(space)?;
+        let indexes = self.schema_manager.list_edge_indexes(&params.space)?;
         for index in indexes {
-            if index.schema_name == edge_type && index.fields.iter().any(|f| f.name == prop_name) {
+            if index.schema_name == params.edge_type && index.fields.iter().any(|f| f.name == params.prop_name) {
                 self.index_data_manager.update_edge_indexes_mvcc(
-                    space_id,
-                    src,
-                    dst,
+                    params.space_id,
+                    &params.src,
+                    &params.dst,
                     &index.name,
-                    &[(prop_name.to_string(), value.clone())],
+                    &[(params.prop_name.to_string(), params.value.clone())],
                     ts,
                 )?;
             }

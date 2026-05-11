@@ -18,8 +18,8 @@ pub mod property_table;
 
 pub use csr::Csr;
 pub use csr_persistence::CsrPersistence;
-pub use edge_table::{EdgeTable, EdgeTableScanIterator, EdgeVertexIterator};
-pub use mutable_csr::{MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator};
+pub use edge_table::{EdgeTable, EdgeTableScanIterator, EdgeVertexIterator, UpdateEdgePropertyByOffsetParams};
+pub use mutable_csr::{MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator, LoadFromPartsParams};
 pub use property_table::PropertyTable;
 
 pub type EdgeId = u64;

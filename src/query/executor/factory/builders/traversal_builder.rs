@@ -11,7 +11,7 @@ use crate::query::executor::base::{
 use crate::query::executor::graph_operations::graph_traversal::algorithms::bfs_shortest::BfsShortestPathConfig;
 use crate::query::executor::graph_operations::graph_traversal::algorithms::MultiShortestPathExecutor;
 use crate::query::executor::graph_operations::graph_traversal::{
-    AllPathsExecutor, ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
+    AllPathsExecutor, ExpandAllExecutor, ExpandAllExecutorParams, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
 };
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, PlanNode,
@@ -76,16 +76,20 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             }
         };
 
-        let mut executor = ExpandAllExecutor::with_context(
-            node.id(),
-            storage,
+        let params = ExpandAllExecutorParams {
+            id: node.id(),
+            storage: storage.clone(),
             edge_direction,
-            Some(node.edge_types().to_vec()),
-            false, // any_edge_type
-            node.step_limit().map(|s| s as usize),
-            context.clone(),
-            node.space_id(),
+            edge_types: Some(node.edge_types().to_vec()),
+            any_edge_type: false,
+            max_depth: node.step_limit().map(|s| s as usize),
+            expr_context: context.expression_context().clone(),
+            space_id: node.space_id(),
             space_name,
+        };
+        let mut executor = ExpandAllExecutor::with_context(
+            params,
+            context.clone(),
         )
         .with_src_vids(node.src_vids().to_vec())
         .with_include_empty_paths(node.include_empty_paths())

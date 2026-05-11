@@ -915,37 +915,40 @@ define_binary_input_node! {
     input: BinaryInputNode
 }
 
+/// Parameters for creating BiTraverseNode
+pub struct BiTraverseNodeParams {
+    pub left_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    pub right_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    pub space_id: u64,
+    pub left_src_var: String,
+    pub right_src_var: String,
+    pub edge_types: Vec<String>,
+    pub left_direction: EdgeDirection,
+    pub right_direction: EdgeDirection,
+    pub min_hops: usize,
+    pub max_hops: usize,
+    pub path_var: String,
+}
+
 impl BiTraverseNode {
-    pub fn new(
-        left_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-        right_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-        space_id: u64,
-        left_src_var: String,
-        right_src_var: String,
-        edge_types: Vec<String>,
-        left_direction: EdgeDirection,
-        right_direction: EdgeDirection,
-        min_hops: usize,
-        max_hops: usize,
-        path_var: String,
-    ) -> Self {
+    pub fn new(params: BiTraverseNodeParams) -> Self {
         Self {
             id: next_node_id(),
-            left: Box::new(left_input),
-            right: Box::new(right_input),
+            left: Box::new(params.left_input),
+            right: Box::new(params.right_input),
             deps: Vec::new(),
-            space_id,
-            left_src_var,
-            right_src_var,
-            edge_types,
-            left_direction,
-            right_direction,
-            min_hops,
-            max_hops,
-            path_var: path_var.clone(),
+            space_id: params.space_id,
+            left_src_var: params.left_src_var,
+            right_src_var: params.right_src_var,
+            edge_types: params.edge_types,
+            left_direction: params.left_direction,
+            right_direction: params.right_direction,
+            min_hops: params.min_hops,
+            max_hops: params.max_hops,
+            path_var: params.path_var.clone(),
             edge_alias: None,
             vertex_alias: None,
-            output_var: Some(path_var),
+            output_var: Some(params.path_var),
             col_names: vec![],
         }
     }

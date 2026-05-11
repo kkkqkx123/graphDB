@@ -19,5 +19,5 @@ pub use batch::{
 };
 pub use cache::CacheManager;
 pub use config::PropertyGraphConfig;
-pub use property_graph::PropertyGraph;
+pub use property_graph::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
 pub use wal_manager::WalManager;

@@ -8,7 +8,6 @@ use crate::transaction::manager::TransactionManager;
 use crate::transaction::types::{
     DurabilityLevel, TransactionManagerConfig, TransactionOptions, TransactionState,
 };
-use crate::transaction::TransactionError;
 use crate::transaction::TransactionErrorKind;
 
 fn create_test_manager() -> TransactionManager {

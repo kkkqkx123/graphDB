@@ -67,24 +67,27 @@ impl<S: StorageClient> std::fmt::Debug for ExpandAllExecutor<S> {
     }
 }
 
+/// Parameters for creating ExpandAllExecutor
+pub struct ExpandAllExecutorParams<S: StorageClient + Send> {
+    pub id: i64,
+    pub storage: Arc<Mutex<S>>,
+    pub edge_direction: EdgeDirection,
+    pub edge_types: Option<Vec<String>>,
+    pub any_edge_type: bool,
+    pub max_depth: Option<usize>,
+    pub expr_context: Arc<ExpressionAnalysisContext>,
+    pub space_id: u64,
+    pub space_name: String,
+}
+
 impl<S: StorageClient + Send> ExpandAllExecutor<S> {
-    pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        edge_direction: EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        any_edge_type: bool,
-        max_depth: Option<usize>,
-        expr_context: Arc<ExpressionAnalysisContext>,
-        space_id: u64,
-        space_name: String,
-    ) -> Self {
+    pub fn new(params: ExpandAllExecutorParams<S>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ExpandAllExecutor".to_string(), storage, expr_context),
-            edge_direction,
-            edge_types,
-            any_edge_type,
-            max_depth,
+            base: BaseExecutor::new(params.id, "ExpandAllExecutor".to_string(), params.storage, params.expr_context),
+            edge_direction: params.edge_direction,
+            edge_types: params.edge_types,
+            any_edge_type: params.any_edge_type,
+            max_depth: params.max_depth,
             input_executor: None,
             npath_cache: Vec::new(),
             path_cache: Vec::new(),
@@ -93,31 +96,21 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             include_empty_paths: true, // Default to true for backward compatibility
             input_var: None,
             col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
-            space_id,
-            space_name,
+            space_id: params.space_id,
+            space_name: params.space_name,
             filter: None,
             input_dataset: None,
             input_vertex_to_row: std::collections::HashMap::new(),
         }
     }
 
-    pub fn with_context(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        edge_direction: EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        any_edge_type: bool,
-        max_depth: Option<usize>,
-        context: crate::query::executor::base::ExecutionContext,
-        space_id: u64,
-        space_name: String,
-    ) -> Self {
+    pub fn with_context(params: ExpandAllExecutorParams<S>, context: crate::query::executor::base::ExecutionContext) -> Self {
         Self {
-            base: BaseExecutor::with_context(id, "ExpandAllExecutor".to_string(), storage, context),
-            edge_direction,
-            edge_types,
-            any_edge_type,
-            max_depth,
+            base: BaseExecutor::with_context(params.id, "ExpandAllExecutor".to_string(), params.storage, context),
+            edge_direction: params.edge_direction,
+            edge_types: params.edge_types,
+            any_edge_type: params.any_edge_type,
+            max_depth: params.max_depth,
             input_executor: None,
             npath_cache: Vec::new(),
             path_cache: Vec::new(),
@@ -126,8 +119,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             include_empty_paths: true,
             input_var: None,
             col_names: vec!["src".to_string(), "edge".to_string(), "dst".to_string()],
-            space_id,
-            space_name,
+            space_id: params.space_id,
+            space_name: params.space_name,
             filter: None,
             input_dataset: None,
             input_vertex_to_row: std::collections::HashMap::new(),

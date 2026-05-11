@@ -159,6 +159,30 @@ pub struct UpdateTransaction<'a, T: UpdateTarget + ?Sized> {
     schema_changed: bool,
 }
 
+/// Parameters for updating vertex property
+pub struct UpdateVertexPropertyParams {
+    pub label: LabelId,
+    pub vid: VertexId,
+}
+
+/// Parameters for updating edge property
+pub struct UpdateEdgePropertyParams {
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
+}
+
+/// Parameters for deleting edge
+pub struct DeleteEdgeParam {
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
+}
+
 /// Target for update operations (will be PropertyGraph in phase 2)
 pub trait UpdateTarget: Send + Sync + UndoTarget {
     fn create_vertex_type(
@@ -195,8 +219,7 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
 
     fn update_vertex_property(
         &mut self,
-        label: LabelId,
-        vid: VertexId,
+        param: UpdateVertexPropertyParams,
         prop_name: &str,
         value: &[u8],
         ts: Timestamp,
@@ -204,11 +227,7 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
 
     fn update_edge_property(
         &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
+        param: UpdateEdgePropertyParams,
         prop_name: &str,
         value: &[u8],
         ts: Timestamp,
@@ -222,11 +241,7 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
     ) -> UpdateTransactionResult<Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>>;
     fn delete_edge(
         &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
+        param: DeleteEdgeParam,
         ts: Timestamp,
     ) -> UpdateTransactionResult<()>;
 
@@ -500,8 +515,9 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         value: &[u8],
         old_value: PropertyValue,
     ) -> UpdateTransactionResult<()> {
+        let param = UpdateVertexPropertyParams { label, vid };
         self.graph
-            .update_vertex_property(label, vid, prop_name, value, self.timestamp)?;
+            .update_vertex_property(param, prop_name, value, self.timestamp)?;
 
         self.undo_logs.add(UndoLogEntry::UpdateVertexProp(UpdateVertexPropUndo {
             v_label: label,
@@ -525,12 +541,15 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         value: &[u8],
         old_value: PropertyValue,
     ) -> UpdateTransactionResult<()> {
-        self.graph.update_edge_property(
+        let param = UpdateEdgePropertyParams {
             src_label,
             src_vid,
             dst_label,
             dst_vid,
             edge_label,
+        };
+        self.graph.update_edge_property(
+            param,
             prop_name,
             value,
             self.timestamp,
@@ -580,13 +599,16 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         dst_vid: VertexId,
         edge_label: LabelId,
     ) -> UpdateTransactionResult<()> {
-        UpdateTarget::delete_edge(
-            self.graph,
+        let param = DeleteEdgeParam {
             src_label,
             src_vid,
             dst_label,
             dst_vid,
             edge_label,
+        };
+        UpdateTarget::delete_edge(
+            self.graph,
+            param,
             self.timestamp,
         )?;
 
@@ -865,8 +887,7 @@ mod tests {
 
         fn update_vertex_property(
             &mut self,
-            _label: LabelId,
-            _vid: VertexId,
+            _param: UpdateVertexPropertyParams,
             _prop_name: &str,
             _value: &[u8],
             _ts: Timestamp,
@@ -876,11 +897,7 @@ mod tests {
 
         fn update_edge_property(
             &mut self,
-            _src_label: LabelId,
-            _src_vid: VertexId,
-            _dst_label: LabelId,
-            _dst_vid: VertexId,
-            _edge_label: LabelId,
+            _param: UpdateEdgePropertyParams,
             _prop_name: &str,
             _value: &[u8],
             _ts: Timestamp,
@@ -900,11 +917,7 @@ mod tests {
 
         fn delete_edge(
             &mut self,
-            _src_label: LabelId,
-            _src_vid: VertexId,
-            _dst_label: LabelId,
-            _dst_vid: VertexId,
-            _edge_label: LabelId,
+            _param: DeleteEdgeParam,
             _ts: Timestamp,
         ) -> UpdateTransactionResult<()> {
             Ok(())

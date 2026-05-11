@@ -31,10 +31,13 @@ use crate::storage::page::{PageLockId, PageLockManager, PageManager, LockMode, L
 
 use super::cache::CacheManager;
 use super::config::PropertyGraphConfig;
-use super::edge::EdgeOps;
+use super::edge::{CreateEdgeTypeParams, EdgeOperationParams, EdgeTraversalParams, EdgeOps};
 use super::query::QueryOps;
 use super::schema::SchemaOps;
-use super::transaction::TransactionOps;
+use super::transaction::{
+    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, 
+    RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
+};
 use super::wal_manager::WalManager;
 
 const DATA_FORMAT_VERSION: u32 = 1;
@@ -71,6 +74,29 @@ impl Default for PropertyGraph {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Parameters for insert_edge operation
+pub struct InsertEdgeParams<'a> {
+    pub edge_label: LabelId,
+    pub src_label: LabelId,
+    pub src_id: &'a str,
+    pub dst_label: LabelId,
+    pub dst_id: &'a str,
+    pub properties: &'a [(String, Value)],
+    pub ts: Timestamp,
+}
+
+/// Parameters for update_edge_property operation in PropertyGraph
+pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
+    pub edge_label: LabelId,
+    pub src_label: LabelId,
+    pub src_id: &'a str,
+    pub dst_label: LabelId,
+    pub dst_id: &'a str,
+    pub prop_name: &'a str,
+    pub value: &'a Value,
+    pub ts: Timestamp,
 }
 
 impl PropertyGraph {
@@ -266,15 +292,15 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
-        self.edge_ops.create_edge_type(
+        let params = CreateEdgeTypeParams {
             name,
             src_label,
             dst_label,
             properties,
             oe_strategy,
             ie_strategy,
-            &self.schema_ops.vertex_tables,
-        )
+        };
+        self.edge_ops.create_edge_type(params, &self.schema_ops.vertex_tables)
     }
 
     pub fn drop_vertex_type(&mut self, name: &str) -> StorageResult<()> {
@@ -407,29 +433,18 @@ impl PropertyGraph {
             .update_vertex_property(label, external_id, property_name, value, ts)
     }
 
-    pub fn insert_edge(
-        &mut self,
-        edge_label: LabelId,
-        src_label: LabelId,
-        src_id: &str,
-        dst_label: LabelId,
-        dst_id: &str,
-        properties: &[(String, Value)],
-        ts: Timestamp,
-    ) -> StorageResult<EdgeId> {
+    pub fn insert_edge(&mut self, params: InsertEdgeParams) -> StorageResult<EdgeId> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
-        self.edge_ops.insert_edge(
-            edge_label,
-            src_label,
-            src_id,
-            dst_label,
-            dst_id,
-            properties,
-            ts,
-            &self.schema_ops.vertex_tables,
-        )
+        let op_params = EdgeOperationParams {
+            edge_label: params.edge_label,
+            src_label: params.src_label,
+            src_id: params.src_id,
+            dst_label: params.dst_label,
+            dst_id: params.dst_id,
+        };
+        self.edge_ops.insert_edge(op_params, params.properties, params.ts, &self.schema_ops.vertex_tables)
     }
 
     pub fn get_edge(
@@ -444,15 +459,14 @@ impl PropertyGraph {
         if !self.is_open {
             return None;
         }
-        self.edge_ops.get_edge(
+        let params = EdgeOperationParams {
             edge_label,
             src_label,
             src_id,
             dst_label,
             dst_id,
-            ts,
-            &self.schema_ops.vertex_tables,
-        )
+        };
+        self.edge_ops.get_edge(params, ts, &self.schema_ops.vertex_tables)
     }
 
     pub fn delete_edge(
@@ -467,42 +481,28 @@ impl PropertyGraph {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
-        self.edge_ops.delete_edge(
+        let params = EdgeOperationParams {
             edge_label,
             src_label,
             src_id,
             dst_label,
             dst_id,
-            ts,
-            &self.schema_ops.vertex_tables,
-        )
+        };
+        self.edge_ops.delete_edge(params, ts, &self.schema_ops.vertex_tables)
     }
 
-    pub fn update_edge_property(
-        &mut self,
-        edge_label: LabelId,
-        src_label: LabelId,
-        src_id: &str,
-        dst_label: LabelId,
-        dst_id: &str,
-        prop_name: &str,
-        value: &Value,
-        ts: Timestamp,
-    ) -> StorageResult<bool> {
+    pub fn update_edge_property(&mut self, params: PropertyGraphUpdateEdgePropertyParams) -> StorageResult<bool> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
-        self.edge_ops.update_edge_property(
-            edge_label,
-            src_label,
-            src_id,
-            dst_label,
-            dst_id,
-            prop_name,
-            value,
-            ts,
-            &self.schema_ops.vertex_tables,
-        )
+        let op_params = EdgeOperationParams {
+            edge_label: params.edge_label,
+            src_label: params.src_label,
+            src_id: params.src_id,
+            dst_label: params.dst_label,
+            dst_id: params.dst_id,
+        };
+        self.edge_ops.update_edge_property(op_params, params.prop_name, params.value, params.ts, &self.schema_ops.vertex_tables)
     }
 
     pub fn out_edges(
@@ -516,14 +516,12 @@ impl PropertyGraph {
         if !self.is_open {
             return None;
         }
-        self.edge_ops.out_edges(
+        let params = EdgeTraversalParams {
             edge_label,
             src_label,
             dst_label,
-            src_id,
-            ts,
-            &self.schema_ops.vertex_tables,
-        )
+        };
+        self.edge_ops.out_edges(params, src_id, ts, &self.schema_ops.vertex_tables)
     }
 
     pub fn in_edges(
@@ -537,14 +535,12 @@ impl PropertyGraph {
         if !self.is_open {
             return None;
         }
-        self.edge_ops.in_edges(
+        let params = EdgeTraversalParams {
             edge_label,
             src_label,
             dst_label,
-            dst_id,
-            ts,
-            &self.schema_ops.vertex_tables,
-        )
+        };
+        self.edge_ops.in_edges(params, dst_id, ts, &self.schema_ops.vertex_tables)
     }
 
     pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<VertexIterator<'_>> {
@@ -875,14 +871,17 @@ impl InsertTarget for PropertyGraph {
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<EdgeId> {
-        let result = TransactionOps::add_edge(
-            &mut self.edge_ops,
-            &self.schema_ops,
+        let params = AddEdgeParams {
             src_label,
             src_vid,
             dst_label,
             dst_vid,
             edge_label,
+        };
+        let result = TransactionOps::add_edge(
+            &mut self.edge_ops,
+            &self.schema_ops,
+            params,
             properties,
             ts,
         )?;
@@ -933,11 +932,14 @@ impl UndoTarget for PropertyGraph {
     }
 
     fn delete_edge_type(&mut self, edge_key: EdgeKey) -> UndoLogResult<()> {
+        let params = DeleteEdgeTypeParams {
+            src_label: edge_key.src_label,
+            dst_label: edge_key.dst_label,
+            edge_label: edge_key.edge_label,
+        };
         TransactionOps::delete_edge_type(
             &mut self.edge_ops,
-            edge_key.src_label,
-            edge_key.dst_label,
-            edge_key.edge_label,
+            params,
         )?;
         self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_key.edge_label, 0));
         Ok(())
@@ -950,13 +952,16 @@ impl UndoTarget for PropertyGraph {
     }
 
     fn delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+        let params = DeleteEdgeParams {
+            src_label: edge_ctx.edge_id.src_label,
+            src_vid: edge_ctx.edge_id.src_vid,
+            dst_label: edge_ctx.edge_id.dst_label,
+            dst_vid: edge_ctx.edge_id.dst_vid,
+            edge_label: edge_ctx.edge_id.edge_label,
+        };
         TransactionOps::delete_edge(
             &mut self.edge_ops,
-            edge_ctx.edge_id.src_label,
-            edge_ctx.edge_id.src_vid,
-            edge_ctx.edge_id.dst_label,
-            edge_ctx.edge_id.dst_vid,
-            edge_ctx.edge_id.edge_label,
+            params,
             edge_ctx.oe_offset,
             edge_ctx.ie_offset,
             edge_ctx.timestamp,
@@ -993,13 +998,16 @@ impl UndoTarget for PropertyGraph {
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
+        let params = UpdateEdgePropertyUndoParams {
+            src_label: edge_id.src_label,
+            src_vid: edge_id.src_vid,
+            dst_label: edge_id.dst_label,
+            dst_vid: edge_id.dst_vid,
+            edge_label: edge_id.edge_label,
+        };
         TransactionOps::update_edge_property_undo(
             &mut self.edge_ops,
-            edge_id.src_label,
-            edge_id.src_vid,
-            edge_id.dst_label,
-            edge_id.dst_vid,
-            edge_id.edge_label,
+            params,
             oe_offset,
             ie_offset,
             col_id,
@@ -1011,13 +1019,16 @@ impl UndoTarget for PropertyGraph {
     }
 
     fn revert_delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
+        let params = RevertDeleteEdgeParams {
+            src_label: vertex.label,
+            src_vid: vertex.vid,
+            dst_label: vertex.label,
+            dst_vid: vertex.vid,
+            edge_label: vertex.label,
+        };
         TransactionOps::revert_delete_edge(
             &mut self.edge_ops,
-            vertex.label,
-            vertex.vid,
-            vertex.label,
-            vertex.vid,
-            vertex.label,
+            params,
             0,
             0,
             ts,
@@ -1027,13 +1038,16 @@ impl UndoTarget for PropertyGraph {
     }
 
     fn revert_delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+        let params = RevertDeleteEdgeParams {
+            src_label: edge_ctx.edge_id.src_label,
+            src_vid: edge_ctx.edge_id.src_vid,
+            dst_label: edge_ctx.edge_id.dst_label,
+            dst_vid: edge_ctx.edge_id.dst_vid,
+            edge_label: edge_ctx.edge_id.edge_label,
+        };
         TransactionOps::revert_delete_edge(
             &mut self.edge_ops,
-            edge_ctx.edge_id.src_label,
-            edge_ctx.edge_id.src_vid,
-            edge_ctx.edge_id.dst_label,
-            edge_ctx.edge_id.dst_vid,
-            edge_ctx.edge_id.edge_label,
+            params,
             edge_ctx.oe_offset,
             edge_ctx.ie_offset,
             edge_ctx.timestamp,
@@ -1101,14 +1115,17 @@ impl UndoTarget for PropertyGraph {
             .copied()
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
+        let params = CreateEdgeTypeParams {
+            name: edge_label,
+            src_label: src_label_id,
+            dst_label: dst_label_id,
+            properties: Vec::new(),
+            oe_strategy: EdgeStrategy::None,
+            ie_strategy: EdgeStrategy::None,
+        };
         self.edge_ops
             .create_edge_type(
-                edge_label,
-                src_label_id,
-                dst_label_id,
-                Vec::new(),
-                EdgeStrategy::None,
-                EdgeStrategy::None,
+                params,
                 self.schema_ops.vertex_tables(),
             )
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;

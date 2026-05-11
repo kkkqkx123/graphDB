@@ -3,6 +3,7 @@
 //! Mutable CSR with contiguous storage for memory efficiency and cache locality.
 //! Uses per-vertex spin locks for fine-grained concurrency.
 
+use std::fmt;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use super::{EdgeId, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP};
@@ -72,15 +73,18 @@ impl<'a> Drop for SpinLockGuard<'a> {
     }
 }
 
-/// Mutable CSR with contiguous storage
-///
-/// Memory layout (inspired by neug/GraphScope):
-/// - `nbr_list`: Contiguous array of all neighbors
-/// - `adj_offsets`: Offset into nbr_list for each vertex
-/// - `degrees`: Current edge count per vertex
-/// - `capacities`: Allocated capacity per vertex
-/// - `locks`: Per-vertex spin lock for concurrency
-#[derive(Debug)]
+/// Parameters for load_from_parts operation
+pub struct LoadFromPartsParams {
+    pub nbr_list: Vec<Nbr>,
+    pub adj_offsets: Vec<usize>,
+    pub degrees: Vec<u32>,
+    pub capacities: Vec<u32>,
+    pub vertex_capacity: usize,
+    pub total_edge_capacity: usize,
+    pub edge_count: u64,
+}
+
+/// Mutable CSR graph structure
 pub struct MutableCsr {
     nbr_list: Vec<Nbr>,
     adj_offsets: Vec<usize>,
@@ -104,6 +108,16 @@ impl Clone for MutableCsr {
             vertex_capacity: self.vertex_capacity,
             total_edge_capacity: self.total_edge_capacity,
         }
+    }
+}
+
+impl fmt::Debug for MutableCsr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MutableCsr")
+            .field("vertex_capacity", &self.vertex_capacity)
+            .field("total_edge_capacity", &self.total_edge_capacity)
+            .field("edge_count", &self.edge_count.load(Ordering::Relaxed))
+            .finish_non_exhaustive()
     }
 }
 
@@ -772,24 +786,15 @@ impl MutableCsr {
     }
 
     /// Load from parts (for persistence module)
-    pub fn load_from_parts(
-        &mut self,
-        nbr_list: Vec<Nbr>,
-        adj_offsets: Vec<usize>,
-        degrees: Vec<u32>,
-        capacities: Vec<u32>,
-        vertex_capacity: usize,
-        total_edge_capacity: usize,
-        edge_count: u64,
-    ) {
-        self.nbr_list = nbr_list;
-        self.adj_offsets = adj_offsets;
-        self.degrees = degrees;
-        self.capacities = capacities;
-        self.vertex_capacity = vertex_capacity;
-        self.total_edge_capacity = total_edge_capacity;
-        self.locks = (0..vertex_capacity).map(|_| SpinLock::new()).collect();
-        self.edge_count.store(edge_count, Ordering::Relaxed);
+    pub fn load_from_parts(&mut self, params: LoadFromPartsParams) {
+        self.nbr_list = params.nbr_list;
+        self.adj_offsets = params.adj_offsets;
+        self.degrees = params.degrees;
+        self.capacities = params.capacities;
+        self.vertex_capacity = params.vertex_capacity;
+        self.total_edge_capacity = params.total_edge_capacity;
+        self.locks = (0..params.vertex_capacity).map(|_| SpinLock::new()).collect();
+        self.edge_count.store(params.edge_count, Ordering::Relaxed);
     }
 }
 

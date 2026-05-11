@@ -9,6 +9,12 @@ use crate::storage::vertex::{VertexRecord, VertexTable};
 
 pub const DEFAULT_BATCH_SIZE: usize = 1024;
 
+/// Type alias for vertex data with properties
+pub type VertexData = (String, Vec<(String, Value)>);
+
+/// Type alias for edge data with properties
+pub type EdgeData = (VertexId, VertexId, Vec<(String, Value)>);
+
 pub struct VertexBatchReader<'a> {
     table: &'a VertexTable,
     ts: Timestamp,
@@ -189,7 +195,7 @@ impl<'a> Iterator for EdgeBatchReader<'a> {
 
 pub struct EdgeBatchWriter<'a> {
     table: &'a mut EdgeTable,
-    buffer: Vec<(VertexId, VertexId, Vec<(String, Value)>)>,
+    buffer: Vec<EdgeData>,
     buffer_size: usize,
     ts: Timestamp,
 }
@@ -253,7 +259,7 @@ impl BatchImportStats {
 
 pub fn batch_import_vertices(
     table: &mut VertexTable,
-    vertices: &[(String, Vec<(String, Value)>)],
+    vertices: &[VertexData],
     ts: Timestamp,
     batch_size: usize,
 ) -> BatchImportStats {
@@ -282,7 +288,7 @@ pub fn batch_import_vertices(
 
 pub fn batch_import_edges(
     table: &mut EdgeTable,
-    edges: &[(VertexId, VertexId, Vec<(String, Value)>)],
+    edges: &[EdgeData],
     ts: Timestamp,
     batch_size: usize,
 ) -> BatchImportStats {

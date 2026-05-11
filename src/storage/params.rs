@@ -155,22 +155,31 @@ pub struct EdgeDeletionContext {
     pub timestamp: Timestamp,
 }
 
+/// Parameters for creating EdgeDeletionContext
+pub struct EdgeDeletionContextParams {
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
+    pub oe_offset: i32,
+    pub ie_offset: i32,
+    pub timestamp: Timestamp,
+}
+
 impl EdgeDeletionContext {
-    pub fn new(
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-        timestamp: Timestamp,
-    ) -> Self {
+    pub fn new(params: EdgeDeletionContextParams) -> Self {
         Self {
-            edge_id: EdgeIdentifier::new(src_label, src_vid, dst_label, dst_vid, edge_label),
-            oe_offset,
-            ie_offset,
-            timestamp,
+            edge_id: EdgeIdentifier::new(
+                params.src_label,
+                params.src_vid,
+                params.dst_label,
+                params.dst_vid,
+                params.edge_label,
+            ),
+            oe_offset: params.oe_offset,
+            ie_offset: params.ie_offset,
+            timestamp: params.timestamp,
         }
     }
 }

@@ -3,7 +3,7 @@
 //! Provides transaction rollback support through undo log entries.
 //! Each undo log entry can reverse a specific operation during transaction abort.
 
-use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
+use crate::storage::{EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, VertexIdentifier};
 use super::wal::types::{ColumnId, EdgeId, LabelId, Timestamp, VertexId};
 
 /// Undo log error
@@ -175,16 +175,16 @@ pub struct InsertEdgeUndo {
 
 impl InsertEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.delete_edge(EdgeDeletionContext::new(
-            self.src_label,
-            self.src_vid,
-            self.dst_label,
-            self.dst_vid,
-            self.edge_label,
-            self.oe_offset,
-            self.ie_offset,
-            ts,
-        ))
+        graph.delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
+            src_label: self.src_label,
+            src_vid: self.src_vid,
+            dst_label: self.dst_label,
+            dst_vid: self.dst_vid,
+            edge_label: self.edge_label,
+            oe_offset: self.oe_offset,
+            ie_offset: self.ie_offset,
+            timestamp: ts,
+        }))
     }
 
     pub fn description(&self) -> String {
@@ -285,16 +285,16 @@ impl RemoveVertexUndo {
 
         for (src_label, dst_label, edge_label, edges) in &self.related_edges {
             for edge in edges {
-                graph.revert_delete_edge(EdgeDeletionContext::new(
-                    *src_label,
-                    edge.src_vid,
-                    *dst_label,
-                    edge.dst_vid,
-                    *edge_label,
-                    edge.oe_offset,
-                    edge.ie_offset,
-                    ts,
-                ))?;
+                graph.revert_delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
+                    src_label: *src_label,
+                    src_vid: edge.src_vid,
+                    dst_label: *dst_label,
+                    dst_vid: edge.dst_vid,
+                    edge_label: *edge_label,
+                    oe_offset: edge.oe_offset,
+                    ie_offset: edge.ie_offset,
+                    timestamp: ts,
+                }))?;
             }
         }
 
@@ -325,16 +325,16 @@ pub struct RemoveEdgeUndo {
 
 impl RemoveEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.revert_delete_edge(EdgeDeletionContext::new(
-            self.src_label,
-            self.src_vid,
-            self.dst_label,
-            self.dst_vid,
-            self.edge_label,
-            self.oe_offset,
-            self.ie_offset,
-            ts,
-        ))
+        graph.revert_delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
+            src_label: self.src_label,
+            src_vid: self.src_vid,
+            dst_label: self.dst_label,
+            dst_vid: self.dst_vid,
+            edge_label: self.edge_label,
+            oe_offset: self.oe_offset,
+            ie_offset: self.ie_offset,
+            timestamp: ts,
+        }))
     }
 
     pub fn description(&self) -> String {
@@ -626,6 +626,30 @@ pub struct UndoLogManager {
     logs: Vec<UndoLogEntry>,
 }
 
+/// Parameters for add_insert_edge operation
+pub struct AddInsertEdgeParams {
+    pub src_label: LabelId,
+    pub dst_label: LabelId,
+    pub edge_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_vid: VertexId,
+    pub oe_offset: i32,
+    pub ie_offset: i32,
+}
+
+/// Parameters for add_update_edge_prop operation
+pub struct AddUpdateEdgePropParams {
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
+    pub oe_offset: i32,
+    pub ie_offset: i32,
+    pub col_id: ColumnId,
+    pub old_value: PropertyValue,
+}
+
 impl UndoLogManager {
     pub fn new() -> Self {
         Self { logs: Vec::new() }
@@ -642,24 +666,15 @@ impl UndoLogManager {
         }));
     }
 
-    pub fn add_insert_edge(
-        &mut self,
-        src_label: LabelId,
-        dst_label: LabelId,
-        edge_label: LabelId,
-        src_vid: VertexId,
-        dst_vid: VertexId,
-        oe_offset: i32,
-        ie_offset: i32,
-    ) {
+    pub fn add_insert_edge(&mut self, params: AddInsertEdgeParams) {
         self.add(UndoLogEntry::InsertEdge(InsertEdgeUndo {
-            src_label,
-            dst_label,
-            edge_label,
-            src_vid,
-            dst_vid,
-            oe_offset,
-            ie_offset,
+            src_label: params.src_label,
+            dst_label: params.dst_label,
+            edge_label: params.edge_label,
+            src_vid: params.src_vid,
+            dst_vid: params.dst_vid,
+            oe_offset: params.oe_offset,
+            ie_offset: params.ie_offset,
         }));
     }
 
@@ -678,28 +693,17 @@ impl UndoLogManager {
         }));
     }
 
-    pub fn add_update_edge_prop(
-        &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-        col_id: ColumnId,
-        old_value: PropertyValue,
-    ) {
+    pub fn add_update_edge_prop(&mut self, params: AddUpdateEdgePropParams) {
         self.add(UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
-            oe_offset,
-            ie_offset,
-            col_id,
-            old_value,
+            src_label: params.src_label,
+            src_vid: params.src_vid,
+            dst_label: params.dst_label,
+            dst_vid: params.dst_vid,
+            edge_label: params.edge_label,
+            oe_offset: params.oe_offset,
+            ie_offset: params.ie_offset,
+            col_id: params.col_id,
+            old_value: params.old_value,
         }));
     }
 
@@ -847,7 +851,15 @@ mod tests {
         let mut manager = UndoLogManager::new();
 
         manager.add_insert_vertex(1, 100);
-        manager.add_insert_edge(1, 2, 3, 100, 200, 0, 0);
+        manager.add_insert_edge(AddInsertEdgeParams {
+            src_label: 1,
+            dst_label: 2,
+            edge_label: 3,
+            src_vid: 100,
+            dst_vid: 200,
+            oe_offset: 0,
+            ie_offset: 0,
+        });
 
         assert_eq!(manager.len(), 2);
 
@@ -1071,7 +1083,15 @@ mod tests {
         let mut manager = UndoLogManager::new();
 
         manager.add_insert_vertex(1, 100);
-        manager.add_insert_edge(1, 2, 3, 100, 200, 0, 0);
+        manager.add_insert_edge(AddInsertEdgeParams {
+            src_label: 1,
+            dst_label: 2,
+            edge_label: 3,
+            src_vid: 100,
+            dst_vid: 200,
+            oe_offset: 0,
+            ie_offset: 0,
+        });
 
         assert_eq!(manager.len(), 2);
 

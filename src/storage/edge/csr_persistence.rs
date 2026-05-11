@@ -6,6 +6,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::core::{StorageError, StorageResult};
+use super::LoadFromPartsParams;
 
 const MAGIC_NUMBER: u32 = 0x43535231; // "CSR1"
 const HEADER_SIZE: usize = 32;
@@ -231,7 +232,7 @@ impl CsrPersistence {
         }
 
         let mut csr = super::MutableCsr::new();
-        csr.load_from_parts(
+        csr.load_from_parts(LoadFromPartsParams {
             nbr_list,
             adj_offsets,
             degrees,
@@ -239,7 +240,7 @@ impl CsrPersistence {
             vertex_capacity,
             total_edge_capacity,
             edge_count,
-        );
+        });
 
         Ok(csr)
     }

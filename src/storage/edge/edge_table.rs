@@ -26,6 +26,17 @@ impl Default for EdgeTableConfig {
     }
 }
 
+/// Parameters for update_edge_property_by_offset operation
+pub struct UpdateEdgePropertyByOffsetParams {
+    pub src: VertexId,
+    pub dst: VertexId,
+    pub oe_offset: i32,
+    pub ie_offset: i32,
+    pub col_id: i32,
+    pub value: Value,
+    pub ts: Timestamp,
+}
+
 #[derive(Debug)]
 pub struct EdgeTable {
     label: LabelId,
@@ -500,28 +511,19 @@ impl EdgeTable {
         Ok(false)
     }
 
-    pub fn update_edge_property_by_offset(
-        &mut self,
-        src: VertexId,
-        dst: VertexId,
-        _oe_offset: i32,
-        _ie_offset: i32,
-        col_id: i32,
-        value: &Value,
-        ts: Timestamp,
-    ) -> StorageResult<bool> {
+    pub fn update_edge_property_by_offset(&mut self, params: UpdateEdgePropertyByOffsetParams) -> StorageResult<bool> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
 
-        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
+        if let Some(nbr) = self.out_csr.get_edge(params.src, params.dst, params.ts) {
             self.properties
-                .set_property_by_id(nbr.prop_offset, col_id, Some(value.clone()))?;
+                .set_property_by_id(nbr.prop_offset, params.col_id, Some(params.value.clone()))?;
 
             if self.schema.ie_strategy != EdgeStrategy::None {
-                if let Some(_ie_nbr) = self.in_csr.get_edge(dst, src, ts) {
+                if let Some(_ie_nbr) = self.in_csr.get_edge(params.dst, params.src, params.ts) {
                     self.properties
-                        .set_property_by_id(_ie_nbr.prop_offset, col_id, Some(value.clone()))?;
+                        .set_property_by_id(_ie_nbr.prop_offset, params.col_id, Some(params.value.clone()))?;
                 }
             }
             return Ok(true);

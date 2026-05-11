@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::query::executor::base::{ExecutorConfig, ShortestPathConfig};
 use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::graph_operations::graph_traversal::expand::ExpandExecutor;
-use crate::query::executor::graph_operations::graph_traversal::expand_all::ExpandAllExecutor;
+use crate::query::executor::graph_operations::graph_traversal::expand_all::{ExpandAllExecutor, ExpandAllExecutorParams};
 use crate::query::executor::graph_operations::graph_traversal::shortest_path::ShortestPathExecutor;
 use crate::query::executor::graph_operations::graph_traversal::traverse::TraverseExecutor;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -44,7 +44,7 @@ impl GraphTraversalExecutorFactory {
         space_id: u64,
         space_name: String,
     ) -> ExpandAllExecutor<S> {
-        ExpandAllExecutor::new(
+        let params = ExpandAllExecutorParams::<S> {
             id,
             storage,
             edge_direction,
@@ -54,7 +54,8 @@ impl GraphTraversalExecutorFactory {
             expr_context,
             space_id,
             space_name,
-        )
+        };
+        ExpandAllExecutor::new(params)
     }
 
     /// Create a TraverseExecutor

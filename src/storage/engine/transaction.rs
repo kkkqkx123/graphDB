@@ -1,5 +1,5 @@
 use crate::core::Value;
-use crate::storage::edge::EdgeId;
+use crate::storage::edge::{EdgeId, UpdateEdgePropertyByOffsetParams};
 use crate::storage::vertex::{LabelId, Timestamp};
 use crate::transaction::insert_transaction::{
     InsertTransactionError, InsertTransactionResult,
@@ -11,7 +11,59 @@ use crate::transaction::wal::types::{
 };
 
 use super::schema::SchemaOps;
-use super::edge::EdgeOps;
+use super::edge::{EdgeOps, EdgeOperationParams};
+
+/// Parameters for add_edge operation
+pub struct AddEdgeParams {
+    pub src_label: TxnLabelId,
+    pub src_vid: TxnVertexId,
+    pub dst_label: TxnLabelId,
+    pub dst_vid: TxnVertexId,
+    pub edge_label: TxnLabelId,
+}
+
+/// Parameters for delete_edge operation
+pub struct DeleteEdgeParams {
+    pub src_label: TxnLabelId,
+    pub src_vid: TxnVertexId,
+    pub dst_label: TxnLabelId,
+    pub dst_vid: TxnVertexId,
+    pub edge_label: TxnLabelId,
+}
+
+/// Parameters for update_edge_property_undo operation
+pub struct UpdateEdgePropertyUndoParams {
+    pub src_label: TxnLabelId,
+    pub src_vid: TxnVertexId,
+    pub dst_label: TxnLabelId,
+    pub dst_vid: TxnVertexId,
+    pub edge_label: TxnLabelId,
+}
+
+/// Parameters for insert_edge_undo operation
+pub struct InsertEdgeUndoParams {
+    pub src_label: TxnLabelId,
+    pub src_vid: TxnVertexId,
+    pub dst_label: TxnLabelId,
+    pub dst_vid: TxnVertexId,
+    pub edge_label: TxnLabelId,
+}
+
+/// Parameters for revert_delete_edge operation
+pub struct RevertDeleteEdgeParams {
+    pub src_label: TxnLabelId,
+    pub src_vid: TxnVertexId,
+    pub dst_label: TxnLabelId,
+    pub dst_vid: TxnVertexId,
+    pub edge_label: TxnLabelId,
+}
+
+/// Parameters for delete_edge_type operation
+pub struct DeleteEdgeTypeParams {
+    pub src_label: TxnLabelId,
+    pub dst_label: TxnLabelId,
+    pub edge_label: TxnLabelId,
+}
 
 pub struct TransactionOps;
 
@@ -41,46 +93,41 @@ impl TransactionOps {
     pub fn add_edge(
         edge_ops: &mut EdgeOps,
         schema_ops: &SchemaOps,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
+        params: AddEdgeParams,
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<EdgeId> {
-        let src_label_id = src_label as LabelId;
-        let dst_label_id = dst_label as LabelId;
+        let src_label_id = params.src_label as LabelId;
+        let dst_label_id = params.dst_label as LabelId;
         let src_table = schema_ops
             .get_vertex_table(src_label_id)
-            .ok_or(InsertTransactionError::LabelNotFound(src_label))?;
+            .ok_or(InsertTransactionError::LabelNotFound(params.src_label))?;
         let dst_table = schema_ops
             .get_vertex_table(dst_label_id)
-            .ok_or(InsertTransactionError::LabelNotFound(dst_label))?;
+            .ok_or(InsertTransactionError::LabelNotFound(params.dst_label))?;
 
         let src_external = src_table
-            .get_external_id(src_vid as u32)
-            .ok_or(InsertTransactionError::VertexNotFound(src_vid))?;
+            .get_external_id(params.src_vid as u32)
+            .ok_or(InsertTransactionError::VertexNotFound(params.src_vid))?;
         let dst_external = dst_table
-            .get_external_id(dst_vid as u32)
-            .ok_or(InsertTransactionError::VertexNotFound(dst_vid))?;
+            .get_external_id(params.dst_vid as u32)
+            .ok_or(InsertTransactionError::VertexNotFound(params.dst_vid))?;
 
         let props: Vec<(String, Value)> = properties
             .iter()
             .filter_map(|(k, v)| bytes_to_value(v).map(|val| (k.clone(), val)))
             .collect();
 
+        let edge_op_params = EdgeOperationParams {
+            edge_label: params.edge_label as LabelId,
+            src_label: params.src_label as LabelId,
+            src_id: &src_external,
+            dst_label: params.dst_label as LabelId,
+            dst_id: &dst_external,
+        };
+
         let edge_id = edge_ops
-            .insert_edge(
-                edge_label as LabelId,
-                src_label as LabelId,
-                &src_external,
-                dst_label as LabelId,
-                &dst_external,
-                &props,
-                ts,
-                schema_ops.vertex_tables(),
-            )
+            .insert_edge(edge_op_params, &props, ts, schema_ops.vertex_tables())
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
         Ok(edge_id)
@@ -179,14 +226,12 @@ impl TransactionOps {
 
     pub fn delete_edge_type(
         edge_ops: &mut EdgeOps,
-        src_label: TxnLabelId,
-        dst_label: TxnLabelId,
-        edge_label: TxnLabelId,
+        params: DeleteEdgeTypeParams,
     ) -> UndoLogResult<()> {
         let key = (
-            src_label as LabelId,
-            dst_label as LabelId,
-            edge_label as LabelId,
+            params.src_label as LabelId,
+            params.dst_label as LabelId,
+            params.edge_label as LabelId,
         );
         edge_ops.edge_tables.remove(&key);
         Ok(())
@@ -209,23 +254,19 @@ impl TransactionOps {
 
     pub fn delete_edge(
         edge_ops: &mut EdgeOps,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
+        params: DeleteEdgeParams,
         oe_offset: i32,
         ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         let key = (
-            src_label as LabelId,
-            dst_label as LabelId,
-            edge_label as LabelId,
+            params.src_label as LabelId,
+            params.dst_label as LabelId,
+            params.edge_label as LabelId,
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
-                .delete_edge_by_offset(src_vid, dst_vid, oe_offset, ie_offset, ts)
+                .delete_edge_by_offset(params.src_vid, params.dst_vid, oe_offset, ie_offset, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -233,23 +274,19 @@ impl TransactionOps {
 
     pub fn revert_delete_edge(
         edge_ops: &mut EdgeOps,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
+        params: RevertDeleteEdgeParams,
         oe_offset: i32,
         ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         let key = (
-            src_label as LabelId,
-            dst_label as LabelId,
-            edge_label as LabelId,
+            params.src_label as LabelId,
+            params.dst_label as LabelId,
+            params.edge_label as LabelId,
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
-                .revert_delete_edge_by_offset(src_vid, dst_vid, oe_offset, ie_offset, ts)
+                .revert_delete_edge_by_offset(params.src_vid, params.dst_vid, oe_offset, ie_offset, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -275,14 +312,9 @@ impl TransactionOps {
 
     pub fn insert_edge_undo(
         edge_ops: &mut EdgeOps,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
+        params: InsertEdgeUndoParams,
         properties: &[(String, PropertyValue)],
         ts: Timestamp,
-        _vertex_tables: &std::collections::HashMap<LabelId, crate::storage::vertex::VertexTable>,
     ) -> UndoLogResult<()> {
         let props: Vec<(String, Value)> = properties
             .iter()
@@ -290,17 +322,17 @@ impl TransactionOps {
             .collect();
 
         let key = (
-            src_label as LabelId,
-            dst_label as LabelId,
-            edge_label as LabelId,
+            params.src_label as LabelId,
+            params.dst_label as LabelId,
+            params.edge_label as LabelId,
         );
         let table = edge_ops
             .edge_tables
             .get_mut(&key)
-            .ok_or(UndoLogError::LabelNotFound(edge_label as LabelId))?;
+            .ok_or(UndoLogError::LabelNotFound(params.edge_label as LabelId))?;
 
         table
-            .insert_edge(src_vid, dst_vid, &props, ts)
+            .insert_edge(params.src_vid, params.dst_vid, &props, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }
@@ -328,11 +360,7 @@ impl TransactionOps {
 
     pub fn update_edge_property_undo(
         edge_ops: &mut EdgeOps,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
+        params: UpdateEdgePropertyUndoParams,
         oe_offset: i32,
         ie_offset: i32,
         col_id: i32,
@@ -340,9 +368,9 @@ impl TransactionOps {
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         let key = (
-            src_label as LabelId,
-            dst_label as LabelId,
-            edge_label as LabelId,
+            params.src_label as LabelId,
+            params.dst_label as LabelId,
+            params.edge_label as LabelId,
         );
         let table = edge_ops
             .edge_tables
@@ -351,15 +379,15 @@ impl TransactionOps {
 
         let value = property_value_to_value(old_value);
         table
-            .update_edge_property_by_offset(
-                src_vid,
-                dst_vid,
+            .update_edge_property_by_offset(UpdateEdgePropertyByOffsetParams {
+                src: params.src_vid,
+                dst: params.dst_vid,
                 oe_offset,
                 ie_offset,
                 col_id,
-                &value,
+                value,
                 ts,
-            )
+            })
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }

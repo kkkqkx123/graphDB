@@ -22,6 +22,20 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Parameters for creating FulltextSearchExecutor with metadata
+pub struct FulltextSearchExecutorParams<S: StorageClient> {
+    pub id: i64,
+    pub statement: SearchStatement,
+    pub engine: Arc<dyn SearchEngine>,
+    pub context: ExecutionContext,
+    pub storage: Arc<Mutex<S>>,
+    pub expr_context: Arc<ExpressionAnalysisContext>,
+    pub fulltext_manager: Arc<FulltextIndexManager>,
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+}
+
 /// Full-text search executor for SEARCH statements
 pub struct FulltextSearchExecutor<S: StorageClient> {
     /// Base executor
@@ -75,32 +89,21 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
     }
 
     /// Create a new full-text search executor with pre-resolved metadata
-    pub fn with_metadata(
-        id: i64,
-        statement: SearchStatement,
-        engine: Arc<dyn SearchEngine>,
-        context: ExecutionContext,
-        storage: Arc<Mutex<S>>,
-        expr_context: Arc<ExpressionAnalysisContext>,
-        fulltext_manager: Arc<FulltextIndexManager>,
-        space_id: u64,
-        tag_name: String,
-        field_name: String,
-    ) -> Self {
+    pub fn with_metadata(params: FulltextSearchExecutorParams<S>) -> Self {
         Self {
             base: BaseExecutor::new(
-                id,
+                params.id,
                 "FulltextSearchExecutor".to_string(),
-                storage,
-                expr_context,
+                params.storage,
+                params.expr_context,
             ),
-            statement,
-            engine,
-            context,
-            fulltext_manager,
-            space_id,
-            tag_name,
-            field_name,
+            statement: params.statement,
+            engine: params.engine,
+            context: params.context,
+            fulltext_manager: params.fulltext_manager,
+            space_id: params.space_id,
+            tag_name: params.tag_name,
+            field_name: params.field_name,
             _phantom: std::marker::PhantomData,
         }
     }

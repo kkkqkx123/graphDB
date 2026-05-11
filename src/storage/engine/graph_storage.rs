@@ -24,6 +24,7 @@ use crate::storage::metadata::{
     SchemaManager,
 };
 use crate::storage::engine::PropertyGraph;
+use crate::storage::engine::property_graph::{InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams};
 use crate::storage::entity::UserStorage;
 use crate::storage::index::secondary::{IndexDataManager, InMemoryIndexDataManager};
 use crate::storage::vertex::{LabelId, VertexRecord};
@@ -577,15 +578,15 @@ impl StorageClient for GraphStorage {
                                 .map(|(k, v)| (k.clone(), v.clone()))
                                 .collect();
 
-                            graph.insert_edge(
-                                edge_label_id,
-                                src_label_id,
-                                &src_str,
-                                dst_label_id,
-                                &dst_str,
-                                &props,
+                            graph.insert_edge(InsertEdgeParams {
+                                edge_label: edge_label_id,
+                                src_label: src_label_id,
+                                src_id: &src_str,
+                                dst_label: dst_label_id,
+                                dst_id: &dst_str,
+                                properties: &props,
                                 ts,
-                            )?;
+                            })?;
 
                             self.update_edge_indexes(
                                 space_info.space_id,
@@ -1070,13 +1071,15 @@ impl StorageClient for GraphStorage {
                     if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
                         if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
                             let result = graph.insert_edge(
-                                edge_label_id,
-                                src_label_id,
-                                &src_id,
-                                dst_label_id,
-                                &dst_id,
-                                &info.props,
-                                ts,
+                                InsertEdgeParams {
+                                    edge_label: edge_label_id,
+                                    src_label: src_label_id,
+                                    src_id: &src_id,
+                                    dst_label: dst_label_id,
+                                    dst_id: &dst_id,
+                                    properties: &info.props,
+                                    ts,
+                                },
                             );
                             match result {
                                 Ok(_) => {

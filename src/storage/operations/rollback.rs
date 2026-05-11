@@ -249,6 +249,37 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
 /// Rollback helper functions
 pub struct RollbackHelper;
 
+/// Parameters for create_update_edge_prop_undo operation
+pub struct CreateUpdateEdgePropUndoParams {
+    pub src_label: LabelId,
+    pub src_vid: u64,
+    pub dst_label: LabelId,
+    pub dst_vid: u64,
+    pub edge_label: LabelId,
+    pub oe_offset: i32,
+    pub ie_offset: i32,
+    pub col_id: i32,
+    pub old_value: PropertyValue,
+}
+
+/// Parameters for create_remove_vertex_undo operation
+pub struct CreateRemoveVertexUndoParams {
+    pub label: LabelId,
+    pub vid: u64,
+    pub related_edges: Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>,
+}
+
+/// Parameters for create_remove_edge_undo operation
+pub struct CreateRemoveEdgeUndoParams {
+    pub src_label: LabelId,
+    pub src_vid: u64,
+    pub dst_label: LabelId,
+    pub dst_vid: u64,
+    pub edge_label: LabelId,
+    pub oe_offset: i32,
+    pub ie_offset: i32,
+}
+
 impl RollbackHelper {
     pub fn create_insert_vertex_undo(label: LabelId, vid: u64) -> UndoLogEntry {
         UndoLogEntry::InsertVertex(InsertVertexUndo {
@@ -291,59 +322,37 @@ impl RollbackHelper {
         })
     }
 
-    pub fn create_update_edge_prop_undo(
-        src_label: LabelId,
-        src_vid: u64,
-        dst_label: LabelId,
-        dst_vid: u64,
-        edge_label: LabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-        col_id: i32,
-        old_value: PropertyValue,
-    ) -> UndoLogEntry {
+    pub fn create_update_edge_prop_undo(params: CreateUpdateEdgePropUndoParams) -> UndoLogEntry {
         UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
-            oe_offset,
-            ie_offset,
-            col_id,
-            old_value,
+            src_label: params.src_label,
+            src_vid: params.src_vid,
+            dst_label: params.dst_label,
+            dst_vid: params.dst_vid,
+            edge_label: params.edge_label,
+            oe_offset: params.oe_offset,
+            ie_offset: params.ie_offset,
+            col_id: params.col_id,
+            old_value: params.old_value,
         })
     }
 
-    pub fn create_remove_vertex_undo(
-        label: LabelId,
-        vid: u64,
-        related_edges: Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>,
-    ) -> UndoLogEntry {
+    pub fn create_remove_vertex_undo(params: CreateRemoveVertexUndoParams) -> UndoLogEntry {
         UndoLogEntry::RemoveVertex(RemoveVertexUndo {
-            v_label: label,
-            vid,
-            related_edges,
+            v_label: params.label,
+            vid: params.vid,
+            related_edges: params.related_edges,
         })
     }
 
-    pub fn create_remove_edge_undo(
-        src_label: LabelId,
-        src_vid: u64,
-        dst_label: LabelId,
-        dst_vid: u64,
-        edge_label: LabelId,
-        oe_offset: i32,
-        ie_offset: i32,
-    ) -> UndoLogEntry {
+    pub fn create_remove_edge_undo(params: CreateRemoveEdgeUndoParams) -> UndoLogEntry {
         UndoLogEntry::RemoveEdge(RemoveEdgeUndo {
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
-            oe_offset,
-            ie_offset,
+            src_label: params.src_label,
+            src_vid: params.src_vid,
+            dst_label: params.dst_label,
+            dst_vid: params.dst_vid,
+            edge_label: params.edge_label,
+            oe_offset: params.oe_offset,
+            ie_offset: params.ie_offset,
         })
     }
 

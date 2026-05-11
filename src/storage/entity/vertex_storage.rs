@@ -14,6 +14,17 @@ use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::transaction::version_manager::VersionManager;
 
+/// Parameters for update_vertex_property operation
+pub struct UpdateVertexPropertyParams {
+    pub space: String,
+    pub space_id: u64,
+    pub vertex_id: Value,
+    pub tag: String,
+    pub prop: String,
+    pub op: UpdateOp,
+    pub value: Value,
+}
+
 #[derive(Clone)]
 pub struct VertexStorage {
     graph: Arc<RwLock<PropertyGraph>>,
@@ -510,57 +521,49 @@ impl VertexStorage {
     }
 
     pub fn update_data(&self, space: &str, space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError> {
-        self.update_vertex_property(
-            space,
+        let params = UpdateVertexPropertyParams {
+            space: space.to_string(),
             space_id,
-            &info.update_target.id,
-            &info.update_target.label,
-            &info.update_target.prop,
-            &info.update_op,
-            &info.value,
-        )?;
+            vertex_id: info.update_target.id.clone(),
+            tag: info.update_target.label.clone(),
+            prop: info.update_target.prop.clone(),
+            op: info.update_op.clone(),
+            value: info.value.clone(),
+        };
+        self.update_vertex_property(params)?;
         Ok(true)
     }
 
-    fn update_vertex_property(
-        &self,
-        space: &str,
-        space_id: u64,
-        vertex_id: &Value,
-        tag: &str,
-        prop: &str,
-        op: &UpdateOp,
-        value: &Value,
-    ) -> Result<(), StorageError> {
-        if let Some(mut vertex) = self.get_vertex(space, vertex_id)? {
+    fn update_vertex_property(&self, params: UpdateVertexPropertyParams) -> Result<(), StorageError> {
+        if let Some(mut vertex) = self.get_vertex(&params.space, &params.vertex_id)? {
             let old_value = vertex
                 .tags
                 .iter()
-                .find(|t| t.name == tag)
-                .and_then(|t| t.properties.get(prop))
+                .find(|t| t.name == params.tag)
+                .and_then(|t| t.properties.get(&params.prop))
                 .cloned();
 
             for tag_data in &mut vertex.tags {
-                if tag_data.name == tag {
-                    match op {
+                if tag_data.name == params.tag {
+                    match params.op {
                         UpdateOp::Set => {
-                            tag_data.properties.insert(prop.to_string(), value.clone());
+                            tag_data.properties.insert(params.prop.to_string(), params.value.clone());
                         }
                         UpdateOp::Add => {
-                            if let Some(existing) = tag_data.properties.get(prop) {
-                                if let (Value::Int(a), Value::Int(b)) = (existing, value) {
+                            if let Some(existing) = tag_data.properties.get(&params.prop) {
+                                if let (Value::Int(a), Value::Int(b)) = (existing, &params.value) {
                                     tag_data
                                         .properties
-                                        .insert(prop.to_string(), Value::Int(a + b));
+                                        .insert(params.prop.to_string(), Value::Int(a + b));
                                 }
                             }
                         }
                         UpdateOp::Subtract => {
-                            if let Some(existing) = tag_data.properties.get(prop) {
-                                if let (Value::Int(a), Value::Int(b)) = (existing, value) {
+                            if let Some(existing) = tag_data.properties.get(&params.prop) {
+                                if let (Value::Int(a), Value::Int(b)) = (existing, &params.value) {
                                     tag_data
                                         .properties
-                                        .insert(prop.to_string(), Value::Int(a - b));
+                                        .insert(params.prop.to_string(), Value::Int(a - b));
                                 }
                             }
                         }
@@ -570,16 +573,16 @@ impl VertexStorage {
                 }
             }
 
-            let external_id = self.value_to_string_id(vertex_id)?;
+            let external_id = self.value_to_string_id(&params.vertex_id)?;
             let tag_data = vertex
                 .tags
                 .iter()
-                .find(|t| t.name == tag)
-                .ok_or_else(|| StorageError::db_error(format!("Tag '{}' not found", tag)))?;
+                .find(|t| t.name == params.tag)
+                .ok_or_else(|| StorageError::db_error(format!("Tag '{}' not found", params.tag)))?;
 
-            let new_value = tag_data.properties.get(prop).cloned();
+            let new_value = tag_data.properties.get(&params.prop).cloned();
 
-            let label_id = self.get_label_id(space, tag)?;
+            let label_id = self.get_label_id(&params.space, &params.tag)?;
             let ts = self.get_write_timestamp();
 
             {
@@ -588,28 +591,28 @@ impl VertexStorage {
                     graph.update_vertex_property(
                         label_id,
                         &external_id,
-                        prop,
+                        &params.prop,
                         prop_value,
                         ts,
                     )?;
                 }
             }
 
-            let indexes = self.schema_manager.list_tag_indexes(space)?;
+            let indexes = self.schema_manager.list_tag_indexes(&params.space)?;
             for index in indexes {
-                if index.schema_name == tag && index.fields.iter().any(|f| f.name == prop) {
+                if index.schema_name == params.tag && index.fields.iter().any(|f| f.name == params.prop) {
                     if let Some(ref prop_value) = new_value {
                         self.index_data_manager.update_vertex_indexes_mvcc(
-                            space_id,
-                            vertex_id,
+                            params.space_id,
+                            &params.vertex_id,
                             &index.name,
-                            &[(prop.to_string(), prop_value.clone())],
+                            &[(params.prop.to_string(), prop_value.clone())],
                             ts,
                         )?;
                     } else if old_value.is_some() {
                         self.index_data_manager.delete_vertex_indexes_mvcc(
-                            space_id,
-                            vertex_id,
+                            params.space_id,
+                            &params.vertex_id,
                             ts,
                         )?;
                     }

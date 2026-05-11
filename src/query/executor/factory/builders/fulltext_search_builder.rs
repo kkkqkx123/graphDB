@@ -14,7 +14,7 @@ use crate::query::executor::admin::{
 };
 use crate::query::executor::base::{ExecutionContext, ExecutorEnum, FulltextManageExecutor};
 use crate::query::executor::data_access::{
-    FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, MatchFulltextExecutor,
+    FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, FulltextSearchExecutorParams, MatchFulltextExecutor,
 };
 use crate::query::parser::ast::SearchStatement;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
@@ -201,18 +201,19 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             .fulltext_manager();
 
         let executor = if !node.tag_name.is_empty() && !node.field_name.is_empty() {
-            FulltextSearchExecutor::with_metadata(
-                node.id(),
+            let params = FulltextSearchExecutorParams {
+                id: node.id(),
                 statement,
-                search_engine,
-                context.clone(),
+                engine: search_engine,
+                context: context.clone(),
                 storage,
-                context.expression_context().clone(),
+                expr_context: context.expression_context().clone(),
                 fulltext_manager,
-                node.space_id,
-                node.tag_name.clone(),
-                node.field_name.clone(),
-            )
+                space_id: node.space_id,
+                tag_name: node.tag_name.clone(),
+                field_name: node.field_name.clone(),
+            };
+            FulltextSearchExecutor::with_metadata(params)
         } else {
             FulltextSearchExecutor::new(
                 node.id(),
