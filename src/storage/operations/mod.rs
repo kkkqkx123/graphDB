@@ -1,12 +1,13 @@
-pub mod rollback;
+//! Storage Operations Module
+//!
+//! Re-exports rollback functionality from the transaction module.
+//! Rollback is a transaction-level concern, not a storage concern.
 
-#[allow(deprecated)]
-pub use rollback::{OperationLogContext, OperationLogRollback, RollbackExecutor};
-
-pub use rollback::{
+pub use crate::transaction::rollback::{
     AddEdgePropUndo, AddVertexPropUndo, CombinedRollback, CreateEdgeTypeUndo, CreateVertexTypeUndo,
     DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
-    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
-    RemoveVertexUndo, RenameEdgePropUndo, RenameVertexPropUndo, RollbackHelper, UndoLogContext,
-    UndoLogRollback, UpdateEdgePropUndo, UpdateVertexPropUndo,
+    InsertEdgeUndo, InsertVertexUndo, OperationLogContext, PropertyValue, RelatedEdgeInfo,
+    RemoveEdgeUndo, RemoveVertexUndo, RenameEdgePropUndo, RenameVertexPropUndo, RollbackHelper,
+    UndoLogContext, UndoLogRollback, UpdateEdgePropUndo, UpdateVertexPropUndo,
+    CreateUpdateEdgePropUndoParams, CreateRemoveVertexUndoParams, CreateRemoveEdgeUndoParams,
 };

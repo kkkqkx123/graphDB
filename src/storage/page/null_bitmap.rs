@@ -344,10 +344,7 @@ mod tests {
     #[test]
     fn test_memory_efficiency() {
         let bitmap = NullBitmap::with_len(1000);
-        // Should use 1000 bits = 125 bytes (rounded up to 128 for u64 alignment)
         assert!(bitmap.memory_usage() <= 128);
-        // Due to u64 alignment, bits_per_element may be slightly more than 1.0
-        // For 1000 elements with 128 bytes (1024 bits), it's 1.024 bits per element
         assert!(bitmap.bits_per_element() <= 1.1);
     }
 
@@ -357,7 +354,6 @@ mod tests {
         let bitmap = NullBitmap::with_len(n);
         let vec_bool: Vec<bool> = vec![false; n];
 
-        // NullBitmap should use ~8x less memory
         let bitmap_size = bitmap.memory_usage();
         let vec_size = vec_bool.len() * std::mem::size_of::<bool>();
         assert!(bitmap_size < vec_size / 7);
@@ -405,19 +401,16 @@ mod tests {
         b.set_null(2);
         b.set_null(3);
 
-        // AND: only index 2 is null in both
         let and_result = &a & &b;
         assert!(and_result.is_null(2));
         assert!(!and_result.is_null(1));
         assert!(!and_result.is_null(3));
 
-        // OR: indices 1, 2, 3 are null in either
         let or_result = &a | &b;
         assert!(or_result.is_null(1));
         assert!(or_result.is_null(2));
         assert!(or_result.is_null(3));
 
-        // NOT: invert
         let not_result = !&a;
         assert!(!not_result.is_null(1));
         assert!(!not_result.is_null(2));
@@ -427,7 +420,6 @@ mod tests {
     #[test]
     fn test_out_of_bounds() {
         let bitmap = NullBitmap::with_len(10);
-        // Out of bounds should return true (null)
         assert!(bitmap.is_null(100));
     }
 
@@ -435,14 +427,12 @@ mod tests {
     fn test_large_bitmap() {
         let mut bitmap = NullBitmap::with_len(10000);
 
-        // Set every 100th element as null
         for i in (0..10000).step_by(100) {
             bitmap.set_null(i);
         }
 
         assert_eq!(bitmap.null_count(), 100);
 
-        // Verify all nulls are correct
         for i in 0..10000 {
             if i % 100 == 0 {
                 assert!(bitmap.is_null(i));

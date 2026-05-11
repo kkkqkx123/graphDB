@@ -4,6 +4,7 @@
 //! cache locality and memory management.
 
 mod flat_csr;
+mod null_bitmap;
 mod overflow;
 #[allow(clippy::module_inception)]
 mod page;
@@ -13,6 +14,7 @@ mod page_manager;
 mod record;
 
 pub use flat_csr::{FlatCsr, FlatCsrEdgeIterator, FlatCsrIterator};
+pub use null_bitmap::NullBitmap;
 pub use overflow::{
     OverflowHeader, OverflowManager, OverflowPage, OverflowStats, OVERFLOW_DATA_SIZE,
     OVERFLOW_HEADER_SIZE,
@@ -23,8 +25,6 @@ pub use page_lock::{
     LockMode, LockResult, LockStats, PageLockConfig, PageLockId, PageLockManager,
 };
 pub use page_manager::{PageManager, PageManagerConfig, PageManagerStats, PageId};
-#[allow(deprecated)]
-pub use page_manager::StoragePageId;
 pub use record::{
     EdgeRecord, VertexRecord, DELETED_TIMESTAMP, EDGE_RECORD_SIZE, INVALID_TIMESTAMP,
     VERTEX_RECORD_SIZE,

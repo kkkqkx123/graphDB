@@ -51,6 +51,7 @@ pub struct PropertyGraph {
     dirty_tracker: Arc<DirtyPageTracker>,
     flush_manager: Option<FlushManager>,
     lock_manager: PageLockManager,
+    memory_tracker: SharedMemoryTracker,
     config: PropertyGraphConfig,
     is_open: bool,
 }
@@ -147,6 +148,7 @@ impl PropertyGraph {
             dirty_tracker,
             flush_manager,
             lock_manager,
+            memory_tracker,
             config,
             is_open: true,
         }
@@ -163,6 +165,10 @@ impl PropertyGraph {
 
     pub fn wal_enabled(&self) -> bool {
         self.wal_manager.is_enabled()
+    }
+
+    pub fn memory_tracker(&self) -> &SharedMemoryTracker {
+        &self.memory_tracker
     }
 
     pub fn dirty_tracker(&self) -> &Arc<DirtyPageTracker> {
@@ -214,16 +220,12 @@ impl PropertyGraph {
         self.cache_manager.record_cache()
     }
 
-    pub fn memory_tracker(&self) -> Option<&SharedMemoryTracker> {
-        self.cache_manager.memory_tracker()
-    }
-
     pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
         self.cache_manager.record_cache_stats()
     }
 
     pub fn memory_stats(&self) -> Option<crate::storage::memory::MemoryStats> {
-        self.cache_manager.memory_stats()
+        Some(self.memory_tracker.stats())
     }
 
     pub fn clear_cache(&self) {

@@ -43,7 +43,8 @@ pub use extend::FulltextStorage;
 
 pub use index::*;
 pub use iterator::*;
-pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryStats, MemoryTracker, NullBitmap};
+pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryStats, MemoryTracker};
+pub use page::NullBitmap;
 pub use metadata::*;
 pub use operations::*;
 

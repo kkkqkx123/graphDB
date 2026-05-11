@@ -18,39 +18,6 @@ const MAX_PAGES_IN_MEMORY: u64 = 1024;
 /// Uses DirtyPageId as the unified page identifier.
 pub type PageId = DirtyPageId;
 
-/// Legacy page ID structure for backward compatibility.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[deprecated(since = "0.1.0", note = "Use PageId (DirtyPageId) instead")]
-pub struct StoragePageId {
-    pub file_id: u32,
-    pub page_number: u32,
-}
-
-#[allow(deprecated)]
-impl StoragePageId {
-    pub fn new(file_id: u32, page_number: u32) -> Self {
-        Self {
-            file_id,
-            page_number,
-        }
-    }
-
-    pub fn to_u64(&self) -> u64 {
-        ((self.file_id as u64) << 32) | (self.page_number as u64)
-    }
-
-    pub fn from_u64(value: u64) -> Self {
-        Self {
-            file_id: (value >> 32) as u32,
-            page_number: value as u32,
-        }
-    }
-
-    pub fn to_page_id(&self) -> PageId {
-        PageId::new(TableType::Schema, self.file_id as u16, self.page_number as u64)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct PageManagerConfig {
     pub max_pages: u64,

@@ -41,6 +41,7 @@ pub mod insert_transaction;
 pub mod manager;
 pub mod monitor;
 pub mod read_transaction;
+pub mod rollback;
 pub mod types;
 pub mod undo_log;
 pub mod update_transaction;
@@ -75,6 +76,11 @@ pub use undo_log::{
     InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
     RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
     UpdateEdgePropUndo, UpdateVertexPropUndo,
+};
+pub use rollback::{
+    CombinedRollback, CreateRemoveEdgeUndoParams, CreateRemoveVertexUndoParams,
+    CreateUpdateEdgePropUndoParams, OperationLogContext,
+    RollbackHelper, UndoLogContext, UndoLogRollback,
 };
 pub use update_transaction::{
     AddEdgePropertiesParam, AddVertexPropertiesParam, CreateEdgeTypeParam, CreateVertexTypeParam,
