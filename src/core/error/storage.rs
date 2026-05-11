@@ -149,6 +149,7 @@ impl StorageError {
         Self::new(StorageErrorKind::DbError, message)
     }
 
+    #[allow(clippy::self_named_constructors)]
     pub fn storage_error(message: impl Into<String>) -> Self {
         Self::new(StorageErrorKind::StorageError, message)
     }

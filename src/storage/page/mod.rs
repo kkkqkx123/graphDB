@@ -5,6 +5,7 @@
 
 mod flat_csr;
 mod overflow;
+#[allow(clippy::module_inception)]
 mod page;
 mod page_header;
 mod page_lock;

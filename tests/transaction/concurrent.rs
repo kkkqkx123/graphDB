@@ -12,7 +12,7 @@ use super::common;
 use common::test_scenario::TestScenario;
 use graphdb::core::Value;
 use graphdb::transaction::{
-    TransactionError, TransactionErrorKind, TransactionManager, TransactionManagerConfig,
+    TransactionErrorKind, TransactionManager, TransactionManagerConfig,
     TransactionOptions,
 };
 use std::collections::HashMap;

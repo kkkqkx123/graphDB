@@ -76,6 +76,17 @@ pub struct InsertTransaction<'a, T: InsertTarget + ?Sized> {
     vertex_nums: HashMap<LabelId, u64>,
 }
 
+/// Parameters for adding an edge in insert transaction
+pub struct AddEdgeInsertParam<'a> {
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
+    pub properties: &'a [(String, Vec<u8>)],
+    pub ts: Timestamp,
+}
+
 /// Target for insert operations (will be PropertyGraph in phase 2)
 pub trait InsertTarget: Send + Sync {
     fn add_vertex(
@@ -86,16 +97,7 @@ pub trait InsertTarget: Send + Sync {
         ts: Timestamp,
     ) -> InsertTransactionResult<VertexId>;
 
-    fn add_edge(
-        &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        properties: &[(String, Vec<u8>)],
-        ts: Timestamp,
-    ) -> InsertTransactionResult<EdgeId>;
+    fn add_edge(&mut self, param: AddEdgeInsertParam) -> InsertTransactionResult<EdgeId>;
 
     fn get_vertex_id(&self, label: LabelId, oid: &[u8], ts: Timestamp) -> Option<VertexId>;
 
@@ -214,47 +216,34 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
     /// Add a new edge
     ///
     /// # Arguments
-    /// * `src_label` - Source vertex label ID
-    /// * `src_vid` - Source vertex internal ID
-    /// * `dst_label` - Destination vertex label ID
-    /// * `dst_vid` - Destination vertex internal ID
-    /// * `edge_label` - Edge label ID
-    /// * `properties` - Edge properties as (name, value) pairs
-    pub fn add_edge(
-        &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        properties: &[(String, Vec<u8>)],
-    ) -> InsertTransactionResult<()> {
+    /// * `param` - Edge insertion parameters
+    pub fn add_edge(&mut self, param: AddEdgeInsertParam) -> InsertTransactionResult<()> {
         let expected_types = self
             .graph
-            .get_edge_property_types(src_label, dst_label, edge_label);
-        if expected_types.len() != properties.len() {
+            .get_edge_property_types(param.src_label, param.dst_label, param.edge_label);
+        if expected_types.len() != param.properties.len() {
             return Err(InsertTransactionError::PropertyCountMismatch {
                 expected: expected_types.len(),
-                actual: properties.len(),
+                actual: param.properties.len(),
             });
         }
 
         let src_oid = self
             .graph
-            .get_vertex_oid(src_label, src_vid, self.timestamp)
-            .ok_or(InsertTransactionError::VertexNotFound(src_vid))?;
+            .get_vertex_oid(param.src_label, param.src_vid, self.timestamp)
+            .ok_or(InsertTransactionError::VertexNotFound(param.src_vid))?;
         let dst_oid = self
             .graph
-            .get_vertex_oid(dst_label, dst_vid, self.timestamp)
-            .ok_or(InsertTransactionError::VertexNotFound(dst_vid))?;
+            .get_vertex_oid(param.dst_label, param.dst_vid, self.timestamp)
+            .ok_or(InsertTransactionError::VertexNotFound(param.dst_vid))?;
 
         let redo = InsertEdgeRedo {
-            src_label,
+            src_label: param.src_label,
             src_oid,
-            dst_label,
+            dst_label: param.dst_label,
             dst_oid,
-            edge_label,
-            properties: properties.to_vec(),
+            edge_label: param.edge_label,
+            properties: param.properties.to_vec(),
         };
         self.serialize_redo(WalOpType::InsertEdge, &redo)?;
 
@@ -374,15 +363,16 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
                         .graph
                         .get_vertex_id(redo.dst_label, &redo.dst_oid, self.timestamp)
                         .ok_or(InsertTransactionError::VertexNotFound(0))?;
-                    self.graph.add_edge(
-                        redo.src_label,
+                    let edge_param = AddEdgeInsertParam {
+                        src_label: redo.src_label,
                         src_vid,
-                        redo.dst_label,
+                        dst_label: redo.dst_label,
                         dst_vid,
-                        redo.edge_label,
-                        &redo.properties,
-                        self.timestamp,
-                    )?;
+                        edge_label: redo.edge_label,
+                        properties: &redo.properties,
+                        ts: self.timestamp,
+                    };
+                    self.graph.add_edge(edge_param)?;
                 }
                 _ => {
                     return Err(InsertTransactionError::WalError(format!(
@@ -435,13 +425,7 @@ mod tests {
 
         fn add_edge(
             &mut self,
-            _src_label: LabelId,
-            _src_vid: VertexId,
-            _dst_label: LabelId,
-            _dst_vid: VertexId,
-            _edge_label: LabelId,
-            _properties: &[(String, Vec<u8>)],
-            _ts: Timestamp,
+            _param: AddEdgeInsertParam,
         ) -> InsertTransactionResult<EdgeId> {
             Ok(1)
         }

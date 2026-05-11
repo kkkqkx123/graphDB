@@ -23,6 +23,9 @@ use super::wal::types::{
 };
 use super::wal::writer::WalWriter;
 
+/// Result type for vertex deletion including related edge information
+type DeleteVertexResult = Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>;
+
 /// Update transaction error
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum UpdateTransactionError {
@@ -183,6 +186,18 @@ pub struct DeleteEdgeParam {
     pub edge_label: LabelId,
 }
 
+/// Parameters for updating edge property with old value for undo
+pub struct UpdateEdgePropertyWithUndoParam<'a> {
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
+    pub prop_name: &'a str,
+    pub value: &'a [u8],
+    pub old_value: PropertyValue,
+}
+
 /// Target for update operations (will be PropertyGraph in phase 2)
 pub trait UpdateTarget: Send + Sync + UndoTarget {
     fn create_vertex_type(
@@ -238,7 +253,7 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
         label: LabelId,
         vid: VertexId,
         ts: Timestamp,
-    ) -> UpdateTransactionResult<Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>>;
+    ) -> UpdateTransactionResult<DeleteVertexResult>;
     fn delete_edge(
         &mut self,
         param: DeleteEdgeParam,
@@ -532,39 +547,32 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
     /// Update an edge property
     pub fn update_edge_property(
         &mut self,
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        prop_name: &str,
-        value: &[u8],
-        old_value: PropertyValue,
+        param: UpdateEdgePropertyWithUndoParam,
     ) -> UpdateTransactionResult<()> {
-        let param = UpdateEdgePropertyParams {
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
+        let edge_param = UpdateEdgePropertyParams {
+            src_label: param.src_label,
+            src_vid: param.src_vid,
+            dst_label: param.dst_label,
+            dst_vid: param.dst_vid,
+            edge_label: param.edge_label,
         };
         self.graph.update_edge_property(
-            param,
-            prop_name,
-            value,
+            edge_param,
+            param.prop_name,
+            param.value,
             self.timestamp,
         )?;
 
         self.undo_logs.add(UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
+            src_label: param.src_label,
+            src_vid: param.src_vid,
+            dst_label: param.dst_label,
+            dst_vid: param.dst_vid,
+            edge_label: param.edge_label,
             oe_offset: 0,
             ie_offset: 0,
             col_id: 0,
-            old_value,
+            old_value: param.old_value,
         }));
 
         Ok(())

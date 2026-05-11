@@ -47,6 +47,7 @@ macro_rules! define_manage_executor_enum {
         }
     ) => {
         $(#[$meta])*
+        #[allow(clippy::large_enum_variant)]
         pub enum $name<S: StorageClient + Send + 'static> {
             $( $variant($executor_type), )*
         }

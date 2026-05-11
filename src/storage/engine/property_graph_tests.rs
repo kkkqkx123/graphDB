@@ -2,7 +2,7 @@
 
 use crate::core::{DataType, Value};
 use crate::storage::edge::{EdgeStrategy, PropertyDef as EdgePropertyDef};
-use crate::storage::engine::property_graph::PropertyGraph;
+use crate::storage::engine::property_graph::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
 use crate::storage::vertex::PropertyDef;
 
 #[test]
@@ -78,15 +78,15 @@ fn test_create_edge() {
         .unwrap();
 
     let edge_id = graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            &[("weight".to_string(), Value::Double(1.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            properties: &[("weight".to_string(), Value::Double(1.0))],
+            ts: 100,
+        })
         .unwrap();
 
     let edge = graph
@@ -213,26 +213,26 @@ fn test_out_edges() {
         .unwrap();
 
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            &[("weight".to_string(), Value::Double(1.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            properties: &[("weight".to_string(), Value::Double(1.0))],
+            ts: 100,
+        })
         .unwrap();
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "charlie",
-            &[("weight".to_string(), Value::Double(2.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "charlie",
+            properties: &[("weight".to_string(), Value::Double(2.0))],
+            ts: 100,
+        })
         .unwrap();
 
     let edges = graph
@@ -292,26 +292,26 @@ fn test_in_edges() {
         .unwrap();
 
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            &[("weight".to_string(), Value::Double(1.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            properties: &[("weight".to_string(), Value::Double(1.0))],
+            ts: 100,
+        })
         .unwrap();
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "charlie",
-            person_label,
-            "bob",
-            &[("weight".to_string(), Value::Double(2.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "charlie",
+            dst_label: person_label,
+            dst_id: "bob",
+            properties: &[("weight".to_string(), Value::Double(2.0))],
+            ts: 100,
+        })
         .unwrap();
 
     let edges = graph
@@ -398,28 +398,28 @@ fn test_update_edge_property() {
         .unwrap();
 
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            &[("weight".to_string(), Value::Double(1.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            properties: &[("weight".to_string(), Value::Double(1.0))],
+            ts: 100,
+        })
         .unwrap();
 
     graph
-        .update_edge_property(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            "weight",
-            &Value::Double(2.0),
-            100,
-        )
+        .update_edge_property(PropertyGraphUpdateEdgePropertyParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            prop_name: "weight",
+            value: &Value::Double(2.0),
+            ts: 100,
+        })
         .unwrap();
 
     let edge = graph
@@ -472,15 +472,15 @@ fn test_delete_edge() {
         .unwrap();
 
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            &[("weight".to_string(), Value::Double(1.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            properties: &[("weight".to_string(), Value::Double(1.0))],
+            ts: 100,
+        })
         .unwrap();
 
     let deleted = graph
@@ -557,26 +557,26 @@ fn test_edge_count() {
         .unwrap();
 
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            &[("weight".to_string(), Value::Double(1.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            properties: &[("weight".to_string(), Value::Double(1.0))],
+            ts: 100,
+        })
         .unwrap();
     graph
-        .insert_edge(
-            knows_label,
-            person_label,
-            "bob",
-            person_label,
-            "charlie",
-            &[("weight".to_string(), Value::Double(2.0))],
-            100,
-        )
+        .insert_edge(InsertEdgeParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "bob",
+            dst_label: person_label,
+            dst_id: "charlie",
+            properties: &[("weight".to_string(), Value::Double(2.0))],
+            ts: 100,
+        })
         .unwrap();
 
     assert_eq!(graph.edge_count(knows_label), 2);

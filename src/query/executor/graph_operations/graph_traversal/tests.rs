@@ -7,8 +7,11 @@ mod tests {
     use crate::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType,
     };
+    use crate::query::executor::graph_operations::graph_traversal::expand::ExpandExecutorParams;
+    use crate::query::executor::graph_operations::graph_traversal::expand_all::ExpandAllExecutorParams;
     use crate::query::executor::graph_operations::graph_traversal::factory::GraphTraversalExecutorFactory;
     use crate::query::executor::graph_operations::graph_traversal::traits::GraphTraversalExecutor;
+    use crate::query::executor::graph_operations::graph_traversal::traverse::TraverseExecutorParams;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::{MockStorage, StorageClient};
     use parking_lot::Mutex;
@@ -85,12 +88,14 @@ mod tests {
         let storage = create_test_graph("expand");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GraphTraversalExecutorFactory::create_expand_executor(
-            1,
-            storage,
-            EdgeDirection::Out,
-            Some(vec!["connect".to_string()]),
-            Some(1),
-            expr_context,
+            ExpandExecutorParams {
+                id: 1,
+                storage,
+                edge_direction: EdgeDirection::Out,
+                edge_types: Some(vec!["connect".to_string()]),
+                max_depth: Some(1),
+                expr_context,
+            }
         );
 
         // Testing the basic functions
@@ -106,15 +111,17 @@ mod tests {
         let storage = create_test_graph("expand_all");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GraphTraversalExecutorFactory::create_expand_all_executor(
-            2,
-            storage,
-            EdgeDirection::Both,
-            None,
-            false,
-            Some(2),
-            expr_context,
-            1,
-            "default".to_string(),
+            ExpandAllExecutorParams {
+                id: 2,
+                storage,
+                edge_direction: EdgeDirection::Both,
+                edge_types: None,
+                any_edge_type: false,
+                max_depth: Some(2),
+                expr_context,
+                space_id: 1,
+                space_name: "default".to_string(),
+            }
         );
 
         assert_eq!(executor.name(), "ExpandAllExecutor");
@@ -129,13 +136,15 @@ mod tests {
         let storage = create_test_graph("traverse");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GraphTraversalExecutorFactory::create_traverse_executor(
-            3,
-            storage,
-            EdgeDirection::Out,
-            Some(vec!["connect".to_string()]),
-            Some(3),
-            Some("true".to_string()),
-            expr_context,
+            TraverseExecutorParams {
+                id: 3,
+                storage,
+                edge_direction: EdgeDirection::Out,
+                edge_types: Some(vec!["connect".to_string()]),
+                max_depth: Some(3),
+                conditions: Some("true".to_string()),
+                expr_context,
+            }
         );
 
         assert_eq!(executor.name(), "TraverseExecutor");

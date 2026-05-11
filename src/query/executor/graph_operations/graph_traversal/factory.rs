@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::query::executor::base::{ExecutorConfig, ShortestPathConfig};
 use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
-use crate::query::executor::graph_operations::graph_traversal::expand::ExpandExecutor;
+use crate::query::executor::graph_operations::graph_traversal::expand::{ExpandExecutor, ExpandExecutorParams};
 use crate::query::executor::graph_operations::graph_traversal::expand_all::{ExpandAllExecutor, ExpandAllExecutorParams};
 use crate::query::executor::graph_operations::graph_traversal::shortest_path::ShortestPathExecutor;
-use crate::query::executor::graph_operations::graph_traversal::traverse::TraverseExecutor;
+use crate::query::executor::graph_operations::graph_traversal::traverse::{TraverseExecutor, TraverseExecutorParams};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use parking_lot::Mutex;
 
@@ -15,67 +15,37 @@ pub struct GraphTraversalExecutorFactory;
 impl GraphTraversalExecutorFactory {
     /// Create an ExpandExecutor
     pub fn create_expand_executor<S: crate::storage::StorageClient>(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        edge_direction: crate::query::executor::base::EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        max_depth: Option<usize>,
-        expr_context: Arc<ExpressionAnalysisContext>,
+        params: ExpandExecutorParams<S>,
     ) -> ExpandExecutor<S> {
         ExpandExecutor::new(
-            id,
-            storage,
-            edge_direction,
-            edge_types,
-            max_depth,
-            expr_context,
+            params.id,
+            params.storage,
+            params.edge_direction,
+            params.edge_types,
+            params.max_depth,
+            params.expr_context,
         )
     }
 
     /// Create the ExpandAllExecutor
     pub fn create_expand_all_executor<S: crate::storage::StorageClient + std::marker::Send>(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        edge_direction: crate::query::executor::base::EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        any_edge_type: bool,
-        max_depth: Option<usize>,
-        expr_context: Arc<ExpressionAnalysisContext>,
-        space_id: u64,
-        space_name: String,
+        params: ExpandAllExecutorParams<S>,
     ) -> ExpandAllExecutor<S> {
-        let params = ExpandAllExecutorParams::<S> {
-            id,
-            storage,
-            edge_direction,
-            edge_types,
-            any_edge_type,
-            max_depth,
-            expr_context,
-            space_id,
-            space_name,
-        };
         ExpandAllExecutor::new(params)
     }
 
     /// Create a TraverseExecutor
     pub fn create_traverse_executor<S: crate::storage::StorageClient>(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        edge_direction: crate::query::executor::base::EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        max_depth: Option<usize>,
-        conditions: Option<String>,
-        expr_context: Arc<ExpressionAnalysisContext>,
+        params: TraverseExecutorParams<S>,
     ) -> TraverseExecutor<S> {
         TraverseExecutor::new(
-            id,
-            storage,
-            edge_direction,
-            edge_types,
-            max_depth,
-            conditions,
-            expr_context,
+            params.id,
+            params.storage,
+            params.edge_direction,
+            params.edge_types,
+            params.max_depth,
+            params.conditions,
+            params.expr_context,
         )
     }
 

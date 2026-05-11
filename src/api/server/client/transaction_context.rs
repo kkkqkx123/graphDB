@@ -11,6 +11,12 @@ pub struct TransactionContext {
     auto_commit: Arc<RwLock<bool>>,
 }
 
+impl Default for TransactionContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransactionContext {
     pub fn new() -> Self {
         Self {

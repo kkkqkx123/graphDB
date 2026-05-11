@@ -20,7 +20,7 @@ use crate::storage::vertex::{
     LabelId, PropertyDef as VertexPropertyDef, VertexRecord, VertexTable,
 };
 use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
-use crate::transaction::insert_transaction::{InsertTarget, InsertTransactionResult};
+use crate::transaction::insert_transaction::{AddEdgeInsertParam, InsertTarget, InsertTransactionResult};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 use crate::transaction::wal::types::{
     ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
@@ -863,31 +863,25 @@ impl InsertTarget for PropertyGraph {
 
     fn add_edge(
         &mut self,
-        src_label: TxnLabelId,
-        src_vid: TxnVertexId,
-        dst_label: TxnLabelId,
-        dst_vid: TxnVertexId,
-        edge_label: TxnLabelId,
-        properties: &[(String, Vec<u8>)],
-        ts: Timestamp,
+        param: AddEdgeInsertParam,
     ) -> InsertTransactionResult<EdgeId> {
         let params = AddEdgeParams {
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
+            src_label: param.src_label,
+            src_vid: param.src_vid,
+            dst_label: param.dst_label,
+            dst_vid: param.dst_vid,
+            edge_label: param.edge_label,
         };
         let result = TransactionOps::add_edge(
             &mut self.edge_ops,
             &self.schema_ops,
             params,
-            properties,
-            ts,
+            param.properties,
+            param.ts,
         )?;
         
-        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
-        self.dirty_tracker.mark_modified_since_checkpoint(DirtyPageId::edge(edge_label, 0));
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(param.edge_label, 0));
+        self.dirty_tracker.mark_modified_since_checkpoint(DirtyPageId::edge(param.edge_label, 0));
         
         Ok(result)
     }

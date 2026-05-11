@@ -52,6 +52,7 @@ macro_rules! define_manage_node_enum {
     ) => {
         $(#[$meta])*
         #[derive(Debug, Clone)]
+        #[allow(clippy::large_enum_variant)]
         pub enum $name {
             $( $variant($node_type), )*
         }

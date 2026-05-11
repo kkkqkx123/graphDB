@@ -189,9 +189,12 @@ fn expression_contains_aggregate(expr: &crate::core::Expression) -> bool {
     }
 }
 
+/// Aggregate extraction result containing group keys, aggregate functions, and their aliases
+type AggregateExtractionResult = (Vec<String>, Vec<AggregateFunction>, Vec<String>);
+
 fn extract_aggregate_info(
     columns: &[YieldColumn],
-) -> Result<(Vec<String>, Vec<AggregateFunction>, Vec<String>), PlannerError> {
+) -> Result<AggregateExtractionResult, PlannerError> {
     let mut group_keys = Vec::new();
     let mut agg_functions = Vec::new();
     let mut agg_aliases = Vec::new();

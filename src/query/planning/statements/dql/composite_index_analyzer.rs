@@ -177,9 +177,10 @@ pub struct SingleColumnSelection {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum IndexSelectionResult {
     Composite(CompositeIndexSelection),
-    SingleColumn(SingleColumnSelection),
+    SingleColumn(Box<SingleColumnSelection>),
     FullScan,
 }
 
@@ -248,11 +249,11 @@ impl CompositeIndexAnalyzer {
                 if composite.selectivity <= single.selectivity {
                     IndexSelectionResult::Composite(composite)
                 } else {
-                    IndexSelectionResult::SingleColumn(single)
+                    IndexSelectionResult::SingleColumn(Box::new(single))
                 }
             }
             (Some(composite), None) => IndexSelectionResult::Composite(composite),
-            (None, Some(single)) => IndexSelectionResult::SingleColumn(single),
+            (None, Some(single)) => IndexSelectionResult::SingleColumn(Box::new(single)),
             (None, None) => IndexSelectionResult::FullScan,
         }
     }

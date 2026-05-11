@@ -25,6 +25,9 @@ use crate::query::validator::validator_trait::ValueType;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::storage::metadata::InMemorySchemaManager;
 
+/// Edge type definition for auto-creation with source, destination and properties
+type EdgeTypeAutoCreateDef = (String, String, String, Vec<(String, Value)>);
+
 /// Schema Validator
 /// Encapsulate all the validation logic related to the Schema.
 ///
@@ -33,6 +36,21 @@ use crate::storage::metadata::InMemorySchemaManager;
 #[derive(Debug, Clone)]
 pub struct SchemaValidator {
     schema_manager: Arc<InMemorySchemaManager>,
+}
+
+/// Edge type creation parameters for auto-creation
+pub struct AutoCreateEdgeTypeParams<'a> {
+    pub space_name: &'a str,
+    pub edge_type_name: &'a str,
+    pub src_tag_name: &'a str,
+    pub dst_tag_name: &'a str,
+    pub properties: &'a [(String, Value)],
+}
+
+/// Automated creation of missing Edge Types in batches
+pub struct AutoCreateMissingEdgeTypesParam<'a> {
+    pub space_name: &'a str,
+    pub edge_types: &'a [AutoCreateEdgeTypeParams<'a>],
 }
 
 impl SchemaValidator {
@@ -668,7 +686,7 @@ impl SchemaValidator {
     pub fn auto_create_missing_edge_types(
         &self,
         space_name: &str,
-        edge_types: &[(String, String, String, Vec<(String, Value)>)],
+        edge_types: &[EdgeTypeAutoCreateDef],
     ) -> Result<Vec<EdgeTypeInfo>, CoreValidationError> {
         let mut created = Vec::new();
         for (edge_type_name, src_tag_name, dst_tag_name, properties) in edge_types {

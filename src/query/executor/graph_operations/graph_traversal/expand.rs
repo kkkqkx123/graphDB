@@ -13,6 +13,16 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
+/// Parameters for creating an ExpandExecutor
+pub struct ExpandExecutorParams<S: StorageClient + Send + 'static> {
+    pub id: i64,
+    pub storage: Arc<Mutex<S>>,
+    pub edge_direction: EdgeDirection,
+    pub edge_types: Option<Vec<String>>,
+    pub max_depth: Option<usize>,
+    pub expr_context: Arc<ExpressionAnalysisContext>,
+}
+
 /// ExpandExecutor – An executor for path expansion (i.e., the process of extending or modifying paths in a given context)
 ///
 /// Expand from the current node in the specified direction along the given edge type to obtain the adjacent nodes.
