@@ -335,6 +335,18 @@ impl From<oxicode::Error> for StorageError {
     }
 }
 
+impl From<crate::transaction::insert_transaction::InsertTransactionError> for StorageError {
+    fn from(e: crate::transaction::insert_transaction::InsertTransactionError) -> Self {
+        Self::db_error(e.to_string())
+    }
+}
+
+impl From<crate::transaction::undo_log::UndoLogError> for StorageError {
+    fn from(e: crate::transaction::undo_log::UndoLogError) -> Self {
+        Self::db_error(e.to_string())
+    }
+}
+
 impl ToPublicError for StorageError {
     fn to_public_error(&self) -> PublicError {
         PublicError::new(self.to_error_code(), self.to_public_message())

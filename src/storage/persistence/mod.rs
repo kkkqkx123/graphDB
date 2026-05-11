@@ -11,5 +11,5 @@ pub use sstable::{
     SsTableBuilder, SsTableConfig, SsTableMetadata, SsTableReader, SSTABLE_BLOCK_SIZE,
     SSTABLE_MAGIC_NUMBER, SSTABLE_VERSION,
 };
-pub use page_writer::{FilePageWriter, CheckpointManager, CheckpointInfo, PageHeader};
-pub use recovery::{RecoveryConfig, RecoveryManager, RecoveryStats};
+pub use page_writer::{FilePageWriter, PageHeader};
+pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};

@@ -26,7 +26,7 @@ use crate::transaction::wal::types::{
     ColumnId, LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
 use crate::transaction::wal::writer::WalWriter;
-use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, FlushManager, TableType};
+use crate::storage::persistence::{DirtyPageId, DirtyPageTracker, FlushManager, RecoveryApplier, TableType};
 use crate::storage::page::{PageLockId, PageLockManager, PageManager, LockMode, LockResult};
 
 use super::cache::CacheManager;
@@ -1171,6 +1171,187 @@ impl UndoTarget for PropertyGraph {
         if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
             self.dirty_tracker.mark_dirty(DirtyPageId::edge(*label, 0));
         }
+        Ok(())
+    }
+}
+
+impl RecoveryApplier for PropertyGraph {
+    fn replay_insert_vertex(
+        &mut self,
+        label: u16,
+        oid: &[u8],
+        properties: &[(String, Vec<u8>)],
+        ts: u32,
+    ) -> StorageResult<()> {
+        TransactionOps::add_vertex(
+            &mut self.schema_ops,
+            label,
+            oid,
+            properties,
+            ts,
+        )?;
+
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        Ok(())
+    }
+
+    fn replay_insert_edge(
+        &mut self,
+        src_label: u16,
+        src_oid: &[u8],
+        dst_label: u16,
+        dst_oid: &[u8],
+        edge_label: u16,
+        properties: &[(String, Vec<u8>)],
+        ts: u32,
+    ) -> StorageResult<()> {
+        let src_oid_str = String::from_utf8_lossy(src_oid).to_string();
+        let dst_oid_str = String::from_utf8_lossy(dst_oid).to_string();
+
+        let src_vid = self
+            .get_vertex(src_label, &src_oid_str, ts)
+            .map(|v| v.internal_id as u64)
+            .ok_or_else(|| StorageError::db_error("Source vertex not found during recovery".to_string()))?;
+
+        let dst_vid = self
+            .get_vertex(dst_label, &dst_oid_str, ts)
+            .map(|v| v.internal_id as u64)
+            .ok_or_else(|| StorageError::db_error("Destination vertex not found during recovery".to_string()))?;
+
+        let params = AddEdgeParams {
+            src_label,
+            src_vid,
+            dst_label,
+            dst_vid,
+            edge_label,
+        };
+
+        TransactionOps::add_edge(
+            &mut self.edge_ops,
+            &self.schema_ops,
+            params,
+            properties,
+            ts,
+        )
+        .map_err(|e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)))?;
+
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        Ok(())
+    }
+
+    fn replay_update_vertex_prop(
+        &mut self,
+        label: u16,
+        oid: &[u8],
+        prop_name: &str,
+        value: &[u8],
+        ts: u32,
+    ) -> StorageResult<()> {
+        let oid_str = String::from_utf8_lossy(oid).to_string();
+        let prop_value: Value = serde_json::from_slice(value)
+            .unwrap_or_else(|_| Value::Empty);
+
+        self.schema_ops.update_vertex_property(
+            label,
+            &oid_str,
+            prop_name,
+            &prop_value,
+            ts,
+        )?;
+
+        self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        Ok(())
+    }
+
+    fn replay_update_edge_prop(
+        &mut self,
+        src_label: u16,
+        src_oid: &[u8],
+        dst_label: u16,
+        dst_oid: &[u8],
+        edge_label: u16,
+        prop_name: &str,
+        value: &[u8],
+        ts: u32,
+    ) -> StorageResult<()> {
+        let src_oid_str = String::from_utf8_lossy(src_oid).to_string();
+        let dst_oid_str = String::from_utf8_lossy(dst_oid).to_string();
+
+        let prop_value: Value = serde_json::from_slice(value)
+            .unwrap_or_else(|_| Value::Empty);
+
+        let params = EdgeOperationParams {
+            src_label,
+            src_id: &src_oid_str,
+            dst_label,
+            dst_id: &dst_oid_str,
+            edge_label,
+        };
+
+        self.edge_ops.update_edge_property(
+            params,
+            prop_name,
+            &prop_value,
+            ts,
+            self.schema_ops.vertex_tables(),
+        )?;
+        self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+
+        Ok(())
+    }
+
+    fn replay_delete_vertex(&mut self, label: u16, oid: &[u8], ts: u32) -> StorageResult<()> {
+        let oid_str = String::from_utf8_lossy(oid).to_string();
+
+        if let Some(vertex) = self.get_vertex(label, &oid_str, ts) {
+            TransactionOps::delete_vertex(
+                &mut self.schema_ops,
+                label,
+                vertex.internal_id as u64,
+                ts,
+            )
+            .map_err(|e| StorageError::db_error(format!("Failed to replay delete vertex: {}", e)))?;
+            self.dirty_tracker.mark_dirty(DirtyPageId::vertex(label, 0));
+        }
+
+        Ok(())
+    }
+
+    fn replay_delete_edge(
+        &mut self,
+        src_label: u16,
+        src_oid: &[u8],
+        dst_label: u16,
+        dst_oid: &[u8],
+        edge_label: u16,
+        ts: u32,
+    ) -> StorageResult<()> {
+        let src_oid_str = String::from_utf8_lossy(src_oid).to_string();
+        let dst_oid_str = String::from_utf8_lossy(dst_oid).to_string();
+
+        if let (Some(src), Some(dst)) = (
+            self.get_vertex(src_label, &src_oid_str, ts),
+            self.get_vertex(dst_label, &dst_oid_str, ts),
+        ) {
+            let params = DeleteEdgeParams {
+                src_label,
+                src_vid: src.internal_id as u64,
+                dst_label,
+                dst_vid: dst.internal_id as u64,
+                edge_label,
+            };
+
+            TransactionOps::delete_edge(
+                &mut self.edge_ops,
+                params,
+                0,
+                0,
+                ts,
+            )
+            .map_err(|e| StorageError::db_error(format!("Failed to replay delete edge: {}", e)))?;
+            self.dirty_tracker.mark_dirty(DirtyPageId::edge(edge_label, 0));
+        }
+
         Ok(())
     }
 }

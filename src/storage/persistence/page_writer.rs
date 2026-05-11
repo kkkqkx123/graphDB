@@ -16,11 +16,10 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use super::dirty_tracker::{DirtyPageId, DirtyPageTracker, TableType};
+use super::dirty_tracker::{DirtyPageId, TableType};
 use super::flush_manager::PageWriter as FlushPageWriter;
 use crate::storage::compression::{CompressionType, Compressor};
 use crate::core::{StorageError, StorageResult};
@@ -438,141 +437,6 @@ impl FlushPageWriter for FilePageWriter {
     }
 }
 
-pub struct CheckpointManager {
-    work_dir: PathBuf,
-    dirty_tracker: Arc<DirtyPageTracker>,
-    last_checkpoint: RwLock<CheckpointInfo>,
-    checkpoint_count: AtomicU64,
-}
-
-#[derive(Debug, Clone)]
-pub struct CheckpointInfo {
-    pub timestamp: u64,
-    pub dirty_page_count: usize,
-    pub checkpoint_id: u64,
-}
-
-impl CheckpointManager {
-    pub fn new(work_dir: PathBuf, dirty_tracker: Arc<DirtyPageTracker>) -> Self {
-        let last_checkpoint = Self::load_last_checkpoint(&work_dir);
-
-        Self {
-            work_dir,
-            dirty_tracker,
-            last_checkpoint: RwLock::new(last_checkpoint),
-            checkpoint_count: AtomicU64::new(0),
-        }
-    }
-
-    fn load_last_checkpoint(work_dir: &Path) -> CheckpointInfo {
-        let checkpoint_path = work_dir.join("last_checkpoint.bin");
-        if checkpoint_path.exists() {
-            if let Ok(mut file) = File::open(&checkpoint_path) {
-                let mut data = [0u8; 24];
-                if file.read_exact(&mut data).is_ok() {
-                    let timestamp = u64::from_le_bytes([
-                        data[0], data[1], data[2], data[3],
-                        data[4], data[5], data[6], data[7],
-                    ]);
-                    let dirty_page_count = u64::from_le_bytes([
-                        data[8], data[9], data[10], data[11],
-                        data[12], data[13], data[14], data[15],
-                    ]) as usize;
-                    let checkpoint_id = u64::from_le_bytes([
-                        data[16], data[17], data[18], data[19],
-                        data[20], data[21], data[22], data[23],
-                    ]);
-
-                    return CheckpointInfo {
-                        timestamp,
-                        dirty_page_count,
-                        checkpoint_id,
-                    };
-                }
-            }
-        }
-
-        CheckpointInfo {
-            timestamp: 0,
-            dirty_page_count: 0,
-            checkpoint_id: 0,
-        }
-    }
-
-    fn save_checkpoint_info(&self, info: &CheckpointInfo) -> StorageResult<()> {
-        let checkpoint_path = self.work_dir.join("last_checkpoint.bin");
-        let temp_path = checkpoint_path.with_extension("tmp");
-
-        let mut data = Vec::with_capacity(24);
-        data.extend_from_slice(&info.timestamp.to_le_bytes());
-        data.extend_from_slice(&(info.dirty_page_count as u64).to_le_bytes());
-        data.extend_from_slice(&info.checkpoint_id.to_le_bytes());
-
-        let mut file = File::create(&temp_path)?;
-        file.write_all(&data)?;
-        file.sync_all()?;
-        drop(file);
-
-        fs::rename(&temp_path, &checkpoint_path)?;
-
-        Ok(())
-    }
-
-    pub fn create_checkpoint(&self) -> StorageResult<CheckpointInfo> {
-        let dirty_pages = self.dirty_tracker.get_dirty_pages();
-        let dirty_count = dirty_pages.len();
-
-        let last_checkpoint = self.last_checkpoint.read();
-        let checkpoint_id = last_checkpoint.checkpoint_id + 1;
-        drop(last_checkpoint);
-
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        let info = CheckpointInfo {
-            timestamp,
-            dirty_page_count: dirty_count,
-            checkpoint_id,
-        };
-
-        self.save_checkpoint_info(&info)?;
-
-        *self.last_checkpoint.write() = info.clone();
-        self.checkpoint_count.fetch_add(1, Ordering::Relaxed);
-
-        Ok(info)
-    }
-
-    pub fn get_last_checkpoint(&self) -> CheckpointInfo {
-        self.last_checkpoint.read().clone()
-    }
-
-    pub fn checkpoint_count(&self) -> u64 {
-        self.checkpoint_count.load(Ordering::Relaxed)
-    }
-
-    pub fn needs_checkpoint(&self, max_dirty_pages: usize, max_interval_secs: u64) -> bool {
-        let dirty_count = self.dirty_tracker.get_dirty_page_count();
-        if dirty_count >= max_dirty_pages {
-            return true;
-        }
-
-        let last_checkpoint = self.last_checkpoint.read();
-        if last_checkpoint.timestamp == 0 {
-            return true;
-        }
-
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        (now - last_checkpoint.timestamp) >= max_interval_secs
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -642,29 +506,5 @@ mod tests {
         let read_data = writer.read_page(&page_id).expect("Read failed");
         assert!(read_data.is_some());
         assert_eq!(read_data.unwrap(), data);
-    }
-
-    #[test]
-    fn test_checkpoint_manager() {
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        let work_dir = temp_dir.path().to_path_buf();
-
-        let dirty_tracker = Arc::new(DirtyPageTracker::new(1000, std::time::Duration::from_secs(60)));
-
-        let manager = CheckpointManager::new(work_dir, dirty_tracker.clone());
-
-        let page_id = PageId {
-            table_type: TableType::Vertex,
-            label_id: 1,
-            block_number: 0,
-        };
-        dirty_tracker.mark_dirty(page_id);
-
-        let info = manager.create_checkpoint().expect("Checkpoint failed");
-        assert_eq!(info.checkpoint_id, 1);
-        assert_eq!(info.dirty_page_count, 1);
-
-        let last = manager.get_last_checkpoint();
-        assert_eq!(last.checkpoint_id, 1);
     }
 }

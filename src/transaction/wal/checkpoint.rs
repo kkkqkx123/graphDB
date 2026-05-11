@@ -1,14 +1,19 @@
-//! WAL Checkpoint Mechanism
+//! Unified Checkpoint Manager
 //!
-//! Provides checkpoint functionality for faster recovery and WAL file management.
+//! Provides checkpoint functionality for faster recovery, WAL file management,
+//! and dirty page tracking. This unified manager combines:
+//! - WAL-based checkpoint (LSN tracking, WAL cleanup, checkpoint modes)
+//! - Page-based checkpoint (DirtyPageTracker integration, page flushing)
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{
     Lsn, PageId, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
 };
-use crate::storage::persistence::DirtyPageId;
+use crate::storage::persistence::{DirtyPageId, DirtyPageTracker};
 
 /// Checkpoint information
 #[derive(Debug, Clone)]
@@ -58,7 +63,7 @@ pub struct CheckpointResult {
     pub success: bool,
 }
 
-/// Checkpoint manager for WAL
+/// Checkpoint manager - unified version combining WAL and page-based checkpoint
 pub struct CheckpointManager {
     /// WAL directory path
     wal_dir: PathBuf,
@@ -74,20 +79,29 @@ pub struct CheckpointManager {
     active_transactions: Vec<TransactionId>,
     /// Dirty pages
     dirty_pages: Vec<PageId>,
+    /// Dirty page tracker for page-level tracking
+    dirty_tracker: Option<Arc<DirtyPageTracker>>,
+    /// Checkpoint count
+    checkpoint_count: AtomicU64,
+    /// Work directory for checkpoint metadata
+    work_dir: PathBuf,
 }
 
 impl CheckpointManager {
-    /// Create a new checkpoint manager
-    pub fn new(wal_dir: &Path) -> Self {
+    /// Create a new checkpoint manager with optional dirty page tracker
+    pub fn new(wal_dir: &Path, work_dir: &Path, dirty_tracker: Option<Arc<DirtyPageTracker>>) -> Self {
         let checkpoint_file = wal_dir.join("checkpoint.meta");
         Self {
             wal_dir: wal_dir.to_path_buf(),
+            work_dir: work_dir.to_path_buf(),
             current_seq: 0,
             last_checkpoint_ts: 0,
             last_checkpoint_lsn: Lsn::ZERO,
             checkpoint_file,
             active_transactions: Vec::new(),
             dirty_pages: Vec::new(),
+            dirty_tracker,
+            checkpoint_count: AtomicU64::new(0),
         }
     }
 
@@ -95,6 +109,10 @@ impl CheckpointManager {
     pub fn init(&mut self) -> WalResult<()> {
         if !self.wal_dir.exists() {
             fs::create_dir_all(&self.wal_dir).map_err(|e| WalError::IoError(e.to_string()))?;
+        }
+
+        if !self.work_dir.exists() {
+            fs::create_dir_all(&self.work_dir).map_err(|e| WalError::IoError(e.to_string()))?;
         }
 
         self.load_checkpoint_meta()?;
@@ -390,6 +408,63 @@ impl CheckpointManager {
         let raw_ids: Vec<PageId> = dirty_page_ids.iter().map(|id| id.to_u64()).collect();
         self.create_checkpoint_with_full_pages(timestamp, lsn, raw_ids)
     }
+
+    /// Create checkpoint using dirty page tracker
+    pub fn create_checkpoint_with_tracker(
+        &mut self,
+        timestamp: Timestamp,
+        lsn: Lsn,
+        mode: CheckpointMode,
+    ) -> WalResult<CheckpointResult> {
+        let dirty_pages: Vec<DirtyPageId> = if let Some(ref tracker) = self.dirty_tracker {
+            tracker.get_dirty_pages()
+        } else {
+            self.dirty_pages
+                .iter()
+                .filter_map(|raw_id| DirtyPageId::try_from_u64(*raw_id))
+                .collect()
+        };
+
+        let _dirty_count = dirty_pages.len();
+        let raw_ids: Vec<PageId> = dirty_pages.iter().map(|id| id.to_u64()).collect();
+        
+        self.dirty_pages = raw_ids;
+        
+        let result = self.checkpoint(timestamp, lsn, mode)?;
+        
+        if mode == CheckpointMode::Restart || mode == CheckpointMode::Truncate {
+            if let Some(ref tracker) = self.dirty_tracker {
+                tracker.clear();
+            }
+        }
+        
+        self.checkpoint_count.fetch_add(1, Ordering::Relaxed);
+        
+        Ok(result)
+    }
+
+    /// Get checkpoint count
+    pub fn checkpoint_count(&self) -> u64 {
+        self.checkpoint_count.load(Ordering::Relaxed)
+    }
+
+    /// Get dirty page tracker reference
+    pub fn dirty_tracker(&self) -> Option<&Arc<DirtyPageTracker>> {
+        self.dirty_tracker.as_ref()
+    }
+
+    /// Sync dirty pages from tracker
+    pub fn sync_dirty_pages_from_tracker(&mut self) {
+        if let Some(ref tracker) = self.dirty_tracker {
+            let tracked_pages = tracker.get_dirty_pages();
+            for page_id in tracked_pages {
+                let raw_id = page_id.to_u64();
+                if !self.dirty_pages.contains(&raw_id) {
+                    self.dirty_pages.push(raw_id);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -401,8 +476,9 @@ mod tests {
     fn test_checkpoint_manager() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
 
-        let mut manager = CheckpointManager::new(wal_path);
+        let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
         assert_eq!(manager.current_seq(), 0);
@@ -414,8 +490,9 @@ mod tests {
     fn test_create_checkpoint() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
 
-        let mut manager = CheckpointManager::new(wal_path);
+        let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
         let checkpoint = manager
@@ -434,9 +511,10 @@ mod tests {
     fn test_checkpoint_persistence() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
 
         {
-            let mut manager = CheckpointManager::new(wal_path);
+            let mut manager = CheckpointManager::new(wal_path, work_path, None);
             manager.init().expect("Failed to init");
             manager
                 .create_checkpoint(100, Lsn::new(1000))
@@ -444,7 +522,7 @@ mod tests {
         }
 
         {
-            let mut manager = CheckpointManager::new(wal_path);
+            let mut manager = CheckpointManager::new(wal_path, work_path, None);
             manager.init().expect("Failed to init");
             assert_eq!(manager.current_seq(), 1);
             assert_eq!(manager.last_checkpoint_ts(), 100);
@@ -456,8 +534,9 @@ mod tests {
     fn test_get_latest_checkpoint() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
 
-        let mut manager = CheckpointManager::new(wal_path);
+        let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
         assert!(manager.get_latest_checkpoint().is_none());
@@ -476,8 +555,9 @@ mod tests {
     fn test_active_transactions() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
 
-        let mut manager = CheckpointManager::new(wal_path);
+        let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
         manager.register_transaction(1);
@@ -497,8 +577,9 @@ mod tests {
     fn test_dirty_pages() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
 
-        let mut manager = CheckpointManager::new(wal_path);
+        let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
         manager.mark_page_dirty(100);
@@ -518,8 +599,9 @@ mod tests {
     fn test_checkpoint_with_full_pages() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
 
-        let mut manager = CheckpointManager::new(wal_path);
+        let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
         let dirty_pages = vec![100, 200, 300];
@@ -529,5 +611,29 @@ mod tests {
 
         assert_eq!(checkpoint.dirty_pages, dirty_pages);
         assert_eq!(manager.dirty_pages().len(), 3);
+    }
+
+    #[test]
+    fn test_checkpoint_with_dirty_tracker() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path();
+        let work_path = temp_dir.path();
+
+        let dirty_tracker = Arc::new(DirtyPageTracker::new(1000, std::time::Duration::from_secs(60)));
+        let mut manager = CheckpointManager::new(wal_path, work_path, Some(dirty_tracker.clone()));
+        manager.init().expect("Failed to init");
+
+        let page_id = DirtyPageId::vertex(1, 0);
+        dirty_tracker.mark_dirty(page_id);
+
+        manager.sync_dirty_pages_from_tracker();
+        assert_eq!(manager.dirty_pages().len(), 1);
+
+        let result = manager
+            .create_checkpoint_with_tracker(100, Lsn::new(1000), CheckpointMode::Full)
+            .expect("Failed to create checkpoint");
+
+        assert!(result.success);
+        assert_eq!(manager.checkpoint_count(), 1);
     }
 }
