@@ -6,7 +6,7 @@
 use std::fmt;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use super::{EdgeId, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP};
+use super::{CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP};
 
 const DEFAULT_VERTEX_CAPACITY: usize = 1024;
 const DEFAULT_EDGE_CAPACITY: usize = 4096;
@@ -25,7 +25,6 @@ impl SpinLock {
         }
     }
 
-    #[inline]
     pub fn lock(&self) {
         while self
             .locked
@@ -36,12 +35,10 @@ impl SpinLock {
         }
     }
 
-    #[inline]
     pub fn unlock(&self) {
         self.locked.store(false, Ordering::Release);
     }
 
-    #[inline]
     pub fn is_locked(&self) -> bool {
         self.locked.load(Ordering::Acquire)
     }
@@ -59,7 +56,6 @@ pub struct SpinLockGuard<'a> {
 }
 
 impl<'a> SpinLockGuard<'a> {
-    #[inline]
     pub fn new(lock: &'a SpinLock) -> Self {
         lock.lock();
         Self { lock }
@@ -67,7 +63,6 @@ impl<'a> SpinLockGuard<'a> {
 }
 
 impl<'a> Drop for SpinLockGuard<'a> {
-    #[inline]
     fn drop(&mut self) {
         self.lock.unlock();
     }
@@ -155,17 +150,14 @@ impl MutableCsr {
         }
     }
 
-    #[inline]
     pub fn vertex_capacity(&self) -> usize {
         self.vertex_capacity
     }
 
-    #[inline]
     pub fn edge_count(&self) -> u64 {
         self.edge_count.load(Ordering::Relaxed)
     }
 
-    #[inline]
     pub fn is_empty(&self) -> bool {
         self.edge_count.load(Ordering::Relaxed) == 0
     }
@@ -960,6 +952,100 @@ impl<'a> Iterator for MutableCsrEdgeIterator<'a> {
             }
         }
         None
+    }
+}
+
+impl CsrBase for MutableCsr {
+    fn vertex_capacity(&self) -> usize {
+        self.vertex_capacity
+    }
+
+    fn edge_count(&self) -> u64 {
+        self.edge_count.load(Ordering::Relaxed)
+    }
+
+    fn csr_type(&self) -> CsrType {
+        CsrType::Mutable
+    }
+
+    fn resize(&mut self, new_vertex_capacity: usize) {
+        MutableCsr::resize(self, new_vertex_capacity);
+    }
+
+    fn clear(&mut self) {
+        MutableCsr::clear(self);
+    }
+
+    fn dump(&self) -> Vec<u8> {
+        MutableCsr::dump(self)
+    }
+
+    fn load(&mut self, data: &[u8]) {
+        MutableCsr::load(self, data);
+    }
+}
+
+impl MutableCsrTrait for MutableCsr {
+    fn insert_edge(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        edge_id: EdgeId,
+        prop_offset: u32,
+        ts: Timestamp,
+    ) -> bool {
+        MutableCsr::insert_edge(self, src, dst, edge_id, prop_offset, ts)
+    }
+
+    fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
+        MutableCsr::delete_edge(self, src, edge_id, ts)
+    }
+
+    fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
+        MutableCsr::delete_edge_by_dst(self, src, dst, ts)
+    }
+
+    fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
+        MutableCsr::delete_edge_by_offset(self, src, offset, ts)
+    }
+
+    fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
+        MutableCsr::revert_delete(self, src, edge_id, ts)
+    }
+
+    fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
+        MutableCsr::revert_delete_by_offset(self, src, offset, ts)
+    }
+
+    fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
+        MutableCsr::get_edge(self, src, dst, ts)
+    }
+
+    fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
+        MutableCsr::edges_of(self, src, ts)
+    }
+
+    fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
+        MutableCsr::degree(self, src, ts)
+    }
+
+    fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
+        MutableCsr::has_edge(self, src, dst, ts)
+    }
+
+    fn compact(&mut self) {
+        MutableCsr::compact(self);
+    }
+
+    fn batch_put_edges(
+        &mut self,
+        src_list: &[VertexId],
+        dst_list: &[VertexId],
+        edge_ids: &[EdgeId],
+        prop_offsets: &[u32],
+        ts: Timestamp,
+    ) {
+        MutableCsr::batch_put_edges(self, src_list, dst_list, edge_ids, prop_offsets, ts);
     }
 }
 

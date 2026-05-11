@@ -114,7 +114,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
         let result = storage_guard.create_tag(&self.tag_info.space_name, &metadata_tag_info);
 
         match result {
-            Ok(_id) => Ok(ExecutionResult::Success),
+            Ok(_) => Ok(ExecutionResult::Success),
             Err(e) => Ok(ExecutionResult::Error(format!(
                 "Failed to create tag: {}",
                 e

@@ -55,7 +55,6 @@ impl FsstSymbolTable {
         }
     }
 
-    #[inline]
     pub fn get_by_bytes(&self, bytes: &[u8]) -> Option<u8> {
         self.byte_to_code.get(bytes).copied()
     }

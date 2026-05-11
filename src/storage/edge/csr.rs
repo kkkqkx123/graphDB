@@ -5,7 +5,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{EdgeId, ImmutableNbr, Timestamp, VertexId};
+use super::{CsrBase, CsrType, EdgeId, ImmutableCsrTrait, ImmutableNbr, Timestamp, VertexId};
 
 /// Immutable CSR with contiguous storage
 ///
@@ -51,17 +51,14 @@ impl Csr {
         }
     }
 
-    #[inline]
     pub fn vertex_capacity(&self) -> usize {
         self.vertex_capacity
     }
 
-    #[inline]
     pub fn edge_count(&self) -> u64 {
         self.edge_count.load(Ordering::Relaxed)
     }
 
-    #[inline]
     pub fn is_empty(&self) -> bool {
         self.edges.is_empty()
     }
@@ -141,7 +138,6 @@ impl Csr {
     }
 
     /// Get edges of a vertex
-    #[inline]
     pub fn edges_of(&self, vid: VertexId) -> &[ImmutableNbr] {
         let vid_idx = vid as usize;
         if vid_idx >= self.vertex_capacity {
@@ -159,7 +155,6 @@ impl Csr {
     }
 
     /// Get degree of a vertex
-    #[inline]
     pub fn degree(&self, vid: VertexId) -> usize {
         let vid_idx = vid as usize;
         if vid_idx >= self.vertex_capacity {
@@ -396,6 +391,64 @@ impl<'a> Iterator for CsrEdgeIterator<'a> {
         } else {
             None
         }
+    }
+}
+
+impl CsrBase for Csr {
+    fn vertex_capacity(&self) -> usize {
+        self.vertex_capacity
+    }
+
+    fn edge_count(&self) -> u64 {
+        self.edge_count.load(Ordering::Relaxed)
+    }
+
+    fn csr_type(&self) -> CsrType {
+        CsrType::Immutable
+    }
+
+    fn resize(&mut self, new_vertex_capacity: usize) {
+        Csr::resize(self, new_vertex_capacity);
+    }
+
+    fn clear(&mut self) {
+        Csr::clear(self);
+    }
+
+    fn dump(&self) -> Vec<u8> {
+        Csr::dump(self)
+    }
+
+    fn load(&mut self, data: &[u8]) {
+        Csr::load(self, data);
+    }
+}
+
+impl ImmutableCsrTrait for Csr {
+    fn get_edge(&self, src: VertexId, dst: VertexId) -> Option<&ImmutableNbr> {
+        Csr::get_edge(self, src, dst)
+    }
+
+    fn edges_of(&self, src: VertexId) -> &[ImmutableNbr] {
+        Csr::edges_of(self, src)
+    }
+
+    fn degree(&self, src: VertexId) -> usize {
+        Csr::degree(self, src)
+    }
+
+    fn has_edge(&self, src: VertexId, dst: VertexId) -> bool {
+        Csr::has_edge(self, src, dst)
+    }
+
+    fn batch_put_edges(
+        &mut self,
+        src_list: &[VertexId],
+        dst_list: &[VertexId],
+        edge_ids: &[EdgeId],
+        prop_offsets: &[u32],
+    ) {
+        Csr::batch_put_edges(self, src_list, dst_list, edge_ids, prop_offsets, 0);
     }
 }
 

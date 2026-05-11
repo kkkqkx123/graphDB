@@ -6,8 +6,8 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::{
-    EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsr, PropertyTable, Timestamp,
-    VertexId,
+    CsrBase, CsrEdgeIterator, CsrIterator, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId,
+    MutableCsr, MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 
@@ -44,8 +44,8 @@ pub struct EdgeTable {
     src_label: LabelId,
     dst_label: LabelId,
     schema: EdgeSchema,
-    out_csr: MutableCsr,
-    in_csr: MutableCsr,
+    out_csr: MutableCsrVariant,
+    in_csr: MutableCsrVariant,
     properties: PropertyTable,
     edge_id_counter: AtomicU64,
     is_open: bool,
@@ -57,10 +57,16 @@ impl EdgeTable {
     }
 
     pub fn with_config(schema: EdgeSchema, config: EdgeTableConfig) -> Self {
-        let out_csr =
-            MutableCsr::with_capacity(config.initial_vertex_capacity, config.initial_edge_capacity);
-        let in_csr =
-            MutableCsr::with_capacity(config.initial_vertex_capacity, config.initial_edge_capacity);
+        let out_csr = MutableCsrVariant::from_strategy(
+            schema.oe_strategy,
+            config.initial_vertex_capacity,
+            config.initial_edge_capacity,
+        );
+        let in_csr = MutableCsrVariant::from_strategy(
+            schema.ie_strategy,
+            config.initial_vertex_capacity,
+            config.initial_edge_capacity,
+        );
 
         let mut properties = PropertyTable::with_capacity(config.initial_edge_capacity);
         for prop in &schema.properties {
@@ -654,7 +660,7 @@ impl EdgeTable {
         Ok(())
     }
 
-    fn flush_csr(&self, csr: &MutableCsr, path: &Path) -> StorageResult<()> {
+    fn flush_csr(&self, csr: &MutableCsrVariant, path: &Path) -> StorageResult<()> {
         use std::fs::File;
         use std::io::Write;
 
@@ -728,7 +734,7 @@ impl EdgeTable {
         Ok(())
     }
 
-    fn load_csr_static(csr: &mut MutableCsr, path: &Path) -> StorageResult<()> {
+    fn load_csr_static(csr: &mut MutableCsrVariant, path: &Path) -> StorageResult<()> {
         use std::fs::File;
         use std::io::Read;
 
@@ -786,14 +792,7 @@ impl EdgeTable {
     }
 
     pub fn memory_size(&self) -> usize {
-        let mut total = 0;
-
-        total += self.out_csr.memory_size();
-        total += self.in_csr.memory_size();
-        total += self.properties.memory_size();
-        total += std::mem::size_of::<Self>();
-
-        total
+        self.used_memory_size()
     }
 
     pub fn used_memory_size(&self) -> usize {
@@ -809,7 +808,7 @@ impl EdgeTable {
 
 pub struct EdgeTableScanIterator<'a> {
     table: &'a EdgeTable,
-    csr_iter: super::mutable_csr::MutableCsrIterator<'a>,
+    csr_iter: CsrIterator<'a>,
 }
 
 impl<'a> EdgeTableScanIterator<'a> {
@@ -851,7 +850,7 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
 
 pub struct EdgeVertexIterator<'a> {
     table: &'a EdgeTable,
-    csr_iter: super::mutable_csr::MutableCsrEdgeIterator<'a>,
+    csr_iter: CsrEdgeIterator<'a>,
     src_vid: VertexId,
 }
 

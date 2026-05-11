@@ -121,7 +121,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
             storage_guard.create_edge_type(&self.edge_info.space_name, &metadata_edge_info);
 
         match result {
-            Ok(_id) => Ok(ExecutionResult::Success),
+            Ok(_) => Ok(ExecutionResult::Success),
             Err(e) => Ok(ExecutionResult::Error(format!(
                 "Failed to create edge type: {}",
                 e
