@@ -39,6 +39,7 @@ use super::transaction::{
     RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
 };
 use super::wal_manager::WalManager;
+use crate::storage::index::secondary::{InMemoryIndexDataManager, IndexDataManager, GcStats};
 
 const DATA_FORMAT_VERSION: u32 = 1;
 
@@ -52,6 +53,7 @@ pub struct PropertyGraph {
     config: PropertyGraphConfig,
     is_open: bool,
     last_compacted_vertices: Vec<(LabelId, Vec<String>)>,
+    index_data_manager: InMemoryIndexDataManager,
 }
 
 impl std::fmt::Debug for PropertyGraph {
@@ -129,6 +131,7 @@ impl PropertyGraph {
             config,
             is_open: true,
             last_compacted_vertices: Vec::new(),
+            index_data_manager: InMemoryIndexDataManager::new(),
         }
     }
 
@@ -712,6 +715,10 @@ impl PropertyGraph {
             table.flush(&table_dir)?;
         }
 
+        let index_dir = data_dir.join("indexes");
+        fs::create_dir_all(&index_dir)?;
+        self.index_data_manager.flush(&index_dir)?;
+
         self.wal_manager.sync()?;
 
         Ok(())
@@ -849,7 +856,88 @@ impl PropertyGraph {
             }
         }
 
+        let index_dir = data_dir.join("indexes");
+        if index_dir.exists() {
+            self.index_data_manager.load(&index_dir)?;
+        }
+
         Ok(())
+    }
+
+    pub fn index_data_manager(&self) -> &InMemoryIndexDataManager {
+        &self.index_data_manager
+    }
+
+    pub fn index_data_manager_mut(&mut self) -> &mut InMemoryIndexDataManager {
+        &mut self.index_data_manager
+    }
+
+    pub fn update_vertex_indexes_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        index_name: &str,
+        props: &[(String, Value)],
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        self.index_data_manager.update_vertex_indexes_mvcc(
+            space_id,
+            vertex_id,
+            index_name,
+            props,
+            ts,
+        )
+    }
+
+    pub fn delete_vertex_indexes_mvcc(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        self.index_data_manager.delete_vertex_indexes_mvcc(space_id, vertex_id, ts)
+    }
+
+    pub fn update_edge_indexes_mvcc(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_name: &str,
+        props: &[(String, Value)],
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        self.index_data_manager.update_edge_indexes_mvcc(
+            space_id,
+            src,
+            dst,
+            index_name,
+            props,
+            ts,
+        )
+    }
+
+    pub fn delete_edge_indexes_mvcc(
+        &self,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        index_names: &[String],
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        self.index_data_manager.delete_edge_indexes_mvcc(space_id, src, dst, index_names, ts)
+    }
+
+    pub fn gc_index_tombstones(&mut self, ts: Timestamp) -> StorageResult<GcStats> {
+        self.index_data_manager.gc_tombstones(ts)
+    }
+
+    pub fn gc_index_tombstones_incremental(
+        &self,
+        ts: Timestamp,
+        batch_size: usize,
+    ) -> StorageResult<GcStats> {
+        self.index_data_manager.gc_tombstones_incremental(ts, batch_size)
     }
 }
 
@@ -1407,6 +1495,15 @@ impl crate::transaction::compact_transaction::CompactTarget for PropertyGraph {
         for ((_, _, edge_label), table) in &mut self.edge_ops.edge_tables {
             table.compact_properties(ts);
             self.table_tracker.mark_modified(TableId::edge(*edge_label));
+        }
+
+        let index_gc_stats = self.gc_index_tombstones(ts).unwrap_or_default();
+        if index_gc_stats.total_removed() > 0 {
+            log::info!(
+                "Index GC during compaction: removed {} vertex entries, {} edge entries",
+                index_gc_stats.vertex_entries_removed,
+                index_gc_stats.edge_entries_removed
+            );
         }
 
         self.cache_manager.clear_cache();

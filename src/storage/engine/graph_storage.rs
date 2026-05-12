@@ -26,7 +26,7 @@ use crate::storage::metadata::{
 use crate::storage::engine::PropertyGraph;
 use crate::storage::engine::property_graph::InsertEdgeParams;
 use crate::api::server::auth::UserStorage;
-use crate::storage::index::secondary::{IndexDataManager, InMemoryIndexDataManager};
+use crate::storage::index::secondary::IndexDataManager;
 use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::storage::edge::EdgeRecord;
 use crate::transaction::context::TransactionContext;
@@ -38,7 +38,6 @@ pub struct GraphStorage {
     schema_manager: Arc<InMemorySchemaManager>,
     extended_schema_manager: Arc<InMemoryExtendedSchemaManager>,
     index_metadata_manager: Arc<InMemoryIndexMetadataManager>,
-    index_data_manager: Arc<RwLock<InMemoryIndexDataManager>>,
     version_manager: Arc<VersionManager>,
     user_storage: Arc<UserStorage>,
     current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
@@ -61,7 +60,6 @@ impl GraphStorage {
         let schema_manager = Arc::new(InMemorySchemaManager::new());
         let extended_schema_manager = Arc::new(InMemoryExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
-        let index_data_manager = Arc::new(RwLock::new(InMemoryIndexDataManager::new()));
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
 
@@ -70,7 +68,6 @@ impl GraphStorage {
             schema_manager,
             extended_schema_manager,
             index_metadata_manager,
-            index_data_manager,
             version_manager,
             user_storage,
             current_txn_context: Arc::new(Mutex::new(None)),
@@ -84,7 +81,6 @@ impl GraphStorage {
         let schema_manager = Arc::new(InMemorySchemaManager::new());
         let extended_schema_manager = Arc::new(InMemoryExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
-        let index_data_manager = Arc::new(RwLock::new(InMemoryIndexDataManager::new()));
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
 
@@ -93,7 +89,6 @@ impl GraphStorage {
             schema_manager,
             extended_schema_manager,
             index_metadata_manager,
-            index_data_manager,
             version_manager,
             user_storage,
             current_txn_context: Arc::new(Mutex::new(None)),
@@ -138,10 +133,7 @@ impl GraphStorage {
             }
         }
 
-        drop(graph);
-
-        let index_manager = self.index_data_manager.read();
-        let stats = index_manager.gc_tombstones(ts)?;
+        let stats = graph.gc_index_tombstones(ts)?;
         if stats.total_removed() > 0 {
             log::info!(
                 "Index GC: removed {} vertex entries, {} edge entries",
@@ -532,7 +524,7 @@ impl StorageClient for GraphStorage {
                     return Err(StorageError::vertex_already_exists(id_str));
                 }
 
-                if let Err(e) = self.update_vertex_indexes(space_info.space_id, &vertex.vid, &tag.name, &props, ts) {
+                if let Err(e) = Self::update_vertex_indexes(&graph, &self.index_metadata_manager, space_info.space_id, &vertex.vid, &tag.name, &props, ts) {
                     for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
                         let _ = graph.delete_vertex(*rollback_label, rollback_id, ts);
                     }
@@ -564,7 +556,7 @@ impl StorageClient for GraphStorage {
                 let props: Vec<(String, Value)> = tag.properties.iter()
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
-                self.update_vertex_indexes(space_info.space_id, &vertex.vid, &tag.name, &props, ts)?;
+                Self::update_vertex_indexes(&graph, &self.index_metadata_manager, space_info.space_id, &vertex.vid, &tag.name, &props, ts)?;
             }
         }
 
@@ -584,7 +576,7 @@ impl StorageClient for GraphStorage {
             if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
                 let _ = graph.delete_vertex(label_id, &id_str, ts);
                 
-                self.delete_vertex_indexes(space_info.space_id, id, &tag.tag_name)?;
+                Self::delete_vertex_indexes(&graph, &self.index_metadata_manager, space_info.space_id, id, &tag.tag_name, ts)?;
             }
         }
 
@@ -643,7 +635,9 @@ impl StorageClient for GraphStorage {
                                 ts,
                             })?;
 
-                            self.update_edge_indexes(
+                            Self::update_edge_indexes(
+                                &graph,
+                                &self.index_metadata_manager,
                                 space_info.space_id,
                                 &edge.src,
                                 &edge.dst,
@@ -693,7 +687,7 @@ impl StorageClient for GraphStorage {
                                 ts,
                             )?;
 
-                            self.delete_edge_indexes(space_info.space_id, src, dst, edge_type)?;
+                            Self::delete_edge_indexes(&graph, &self.index_metadata_manager, space_info.space_id, src, dst, edge_type, ts)?;
                         }
                     }
                     break;
@@ -989,7 +983,7 @@ impl StorageClient for GraphStorage {
         for tag_name in tag_names {
             if let Some(label_id) = graph.get_vertex_label_id(tag_name) {
                 if graph.delete_vertex(label_id, &id_str, ts).is_ok() {
-                    self.delete_vertex_indexes(space_info.space_id, vertex_id, tag_name)?;
+                    Self::delete_vertex_indexes(&graph, &self.index_metadata_manager, space_info.space_id, vertex_id, tag_name, ts)?;
                     deleted_count += 1;
                 }
             }
@@ -1006,12 +1000,12 @@ impl StorageClient for GraphStorage {
         let vertices = self.scan_vertices_by_tag(space, &index.schema_name)?;
         
         let ts = self.get_write_timestamp();
-        let index_data_manager = self.index_data_manager.read();
+        let graph = self.graph.read();
         for vertex in vertices {
             let props: Vec<(String, Value)> = vertex.properties.iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            index_data_manager.update_vertex_indexes_mvcc(
+            graph.update_vertex_indexes_mvcc(
                 space_id,
                 &vertex.vid,
                 &index.name,
@@ -1031,12 +1025,12 @@ impl StorageClient for GraphStorage {
         let edges = self.scan_edges_by_type(space, &index.schema_name)?;
         
         let ts = self.get_write_timestamp();
-        let index_data_manager = self.index_data_manager.read();
+        let graph = self.graph.read();
         for edge in edges {
             let props: Vec<(String, Value)> = edge.props.iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            index_data_manager.update_edge_indexes_mvcc(
+            graph.update_edge_indexes_mvcc(
                 space_id,
                 &edge.src,
                 &edge.dst,
@@ -1073,7 +1067,7 @@ impl StorageClient for GraphStorage {
             let result = graph.insert_vertex(label_id, &id_str, &info.props, ts);
             match result {
                 Ok(_) => {
-                    self.update_vertex_indexes(space_info.space_id, &info.vertex_id, &info.tag_name, &info.props, ts)?;
+                    Self::update_vertex_indexes(&graph, &self.index_metadata_manager, space_info.space_id, &info.vertex_id, &info.tag_name, &info.props, ts)?;
                     Ok(true)
                 }
                 Err(ref e) if e.kind() == crate::core::error::storage::StorageErrorKind::VertexAlreadyExists => Ok(false),
@@ -1124,7 +1118,9 @@ impl StorageClient for GraphStorage {
                             );
                             match result {
                                 Ok(_) => {
-                                    self.update_edge_indexes(
+                                    Self::update_edge_indexes(
+                                        &graph,
+                                        &self.index_metadata_manager,
                                         space_info.space_id,
                                         &info.src_vertex_id,
                                         &info.dst_vertex_id,
@@ -1158,7 +1154,7 @@ impl StorageClient for GraphStorage {
         for tag in tags {
             if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
                 if graph.delete_vertex(label_id, vertex_id, ts).is_ok() {
-                    self.delete_vertex_indexes(space_info.space_id, &Value::String(vertex_id.to_string()), &tag.tag_name)?;
+                    Self::delete_vertex_indexes(&graph, &self.index_metadata_manager, space_info.space_id, &Value::String(vertex_id.to_string()), &tag.tag_name, ts)?;
                     deleted = true;
                 }
             }
@@ -1187,11 +1183,14 @@ impl StorageClient for GraphStorage {
                 if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
                     if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
                         if graph.delete_edge(edge_label_id, src_label_id, src, dst_label_id, dst, ts).is_ok() {
-                            self.delete_edge_indexes(
+                            Self::delete_edge_indexes(
+                                &graph,
+                                &self.index_metadata_manager,
                                 space_info.space_id,
                                 &Value::String(src.to_string()),
                                 &Value::String(dst.to_string()),
                                 &et.edge_type_name,
+                                ts,
                             )?;
                             deleted = true;
                         }
@@ -1260,7 +1259,7 @@ impl StorageClient for GraphStorage {
             graph.update_vertex_property(label_id, &id_str, prop, &value, ts)?;
             
             let props = vec![(prop.clone(), value)];
-            self.update_vertex_indexes(space_info.space_id, id, label, &props, ts)?;
+            Self::update_vertex_indexes(&graph, &self.index_metadata_manager, space_info.space_id, id, label, &props, ts)?;
             Ok(true)
         } else {
             Err(StorageError::not_found(format!("Label {} not found", label)))
@@ -1282,8 +1281,8 @@ impl StorageClient for GraphStorage {
         let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
         
-        let index_data_manager = self.index_data_manager.read();
-        let results = index_data_manager.lookup_tag_index(space_id, &index, value)?;
+        let graph = self.graph.read();
+        let results = graph.index_data_manager().lookup_tag_index(space_id, &index, value)?;
         Ok(results)
     }
 
@@ -1298,8 +1297,8 @@ impl StorageClient for GraphStorage {
         let index = self.index_metadata_manager.get_tag_index(space_id, index_name)?
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
         
-        let index_data_manager = self.index_data_manager.read();
-        let results = index_data_manager.lookup_tag_index(space_id, &index, value)?;
+        let graph = self.graph.read();
+        let results = graph.index_data_manager().lookup_tag_index(space_id, &index, value)?;
         Ok(results.into_iter().map(|v| (v, 1.0)).collect())
     }
 
@@ -1423,11 +1422,10 @@ impl StorageClient for GraphStorage {
             {
                 let mut graph = self.graph.write();
                 graph.load()?;
+                
+                let index_path = path.join("indexes");
+                graph.index_data_manager_mut().load(&index_path)?;
             }
-            
-            let index_path = path.join("indexes");
-            let mut index_data_manager = self.index_data_manager.write();
-            index_data_manager.load(&index_path)?;
         }
         Ok(())
     }
@@ -1445,13 +1443,12 @@ impl StorageClient for GraphStorage {
             {
                 let graph = self.graph.read();
                 graph.flush()?;
+                
+                let index_path = path.join("indexes");
+                std::fs::create_dir_all(&index_path)
+                    .map_err(|e| StorageError::io_error(e.to_string()))?;
+                graph.index_data_manager().flush(&index_path)?;
             }
-            
-            let index_path = path.join("indexes");
-            std::fs::create_dir_all(&index_path)
-                .map_err(|e| StorageError::io_error(e.to_string()))?;
-            let index_data_manager = self.index_data_manager.read();
-            index_data_manager.flush(&index_path)?;
         }
         Ok(())
     }
@@ -1553,18 +1550,18 @@ impl StorageClient for GraphStorage {
 
 impl GraphStorage {
     fn update_vertex_indexes(
-        &self,
+        graph: &PropertyGraph,
+        index_metadata_manager: &InMemoryIndexMetadataManager,
         space_id: u64,
         vertex_id: &Value,
         tag_name: &str,
         props: &[(String, Value)],
         ts: u32,
     ) -> Result<(), StorageError> {
-        let indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
-        let index_data_manager = self.index_data_manager.read();
+        let indexes = index_metadata_manager.list_tag_indexes(space_id)?;
         for index in indexes {
             if index.schema_name == tag_name {
-                index_data_manager.update_vertex_indexes_mvcc(
+                graph.update_vertex_indexes_mvcc(
                     space_id,
                     vertex_id,
                     &index.name,
@@ -1577,7 +1574,8 @@ impl GraphStorage {
     }
 
     fn update_edge_indexes(
-        &self,
+        graph: &PropertyGraph,
+        index_metadata_manager: &InMemoryIndexMetadataManager,
         space_id: u64,
         src: &Value,
         dst: &Value,
@@ -1585,11 +1583,10 @@ impl GraphStorage {
         props: &[(String, Value)],
         ts: u32,
     ) -> Result<(), StorageError> {
-        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
-        let index_data_manager = self.index_data_manager.read();
+        let indexes = index_metadata_manager.list_edge_indexes(space_id)?;
         for index in indexes {
             if index.schema_name == edge_type {
-                index_data_manager.update_edge_indexes_mvcc(
+                graph.update_edge_indexes_mvcc(
                     space_id,
                     src,
                     dst,
@@ -1603,17 +1600,17 @@ impl GraphStorage {
     }
 
     fn delete_vertex_indexes(
-        &self,
+        graph: &PropertyGraph,
+        index_metadata_manager: &InMemoryIndexMetadataManager,
         space_id: u64,
         vertex_id: &Value,
         tag_name: &str,
+        ts: u32,
     ) -> Result<(), StorageError> {
-        let indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
-        let ts = self.get_write_timestamp();
-        let index_data_manager = self.index_data_manager.read();
+        let indexes = index_metadata_manager.list_tag_indexes(space_id)?;
         for index in indexes {
             if index.schema_name == tag_name {
-                index_data_manager.delete_vertex_indexes_mvcc(
+                graph.delete_vertex_indexes_mvcc(
                     space_id,
                     vertex_id,
                     ts,
@@ -1624,22 +1621,22 @@ impl GraphStorage {
     }
 
     fn delete_edge_indexes(
-        &self,
+        graph: &PropertyGraph,
+        index_metadata_manager: &InMemoryIndexMetadataManager,
         space_id: u64,
         src: &Value,
         dst: &Value,
         edge_type: &str,
+        ts: u32,
     ) -> Result<(), StorageError> {
-        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        let indexes = index_metadata_manager.list_edge_indexes(space_id)?;
         let index_names: Vec<String> = indexes.iter()
             .filter(|index| index.schema_name == edge_type)
             .map(|index| index.name.clone())
             .collect();
         
         if !index_names.is_empty() {
-            let ts = self.get_write_timestamp();
-            let index_data_manager = self.index_data_manager.read();
-            index_data_manager.delete_edge_indexes_mvcc(
+            graph.delete_edge_indexes_mvcc(
                 space_id,
                 src,
                 dst,
