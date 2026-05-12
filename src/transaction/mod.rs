@@ -96,7 +96,7 @@ pub use wal::{
     ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
     DummyWalWriter, EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, LocalWalParser,
     LocalWalWriter, Timestamp, UpdateEdgePropRedo, UpdateVertexPropRedo, UpdateWalUnit, VertexId,
-    WalConfig, WalContentUnit, WalEntry, WalEntryIter, WalError, WalHeader, WalOpType, WalParser,
+    WalConfig, WalContentUnit, WalEntryIter, WalError, WalHeader, WalOpType, WalParser,
     WalParserFactory, WalResult, WalWriter, WalWriterFactory,
 };
 

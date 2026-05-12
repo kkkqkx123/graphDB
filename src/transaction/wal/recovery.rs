@@ -166,14 +166,12 @@ impl RecoveryManager {
                 .open(&self.config.wal_dir.to_string_lossy())
                 .map_err(|e| StorageError::db_error(format!("WAL open error: {}", e)))?;
 
-            let insert_wal_list = parser.insert_wal_list().clone();
-            let update_wal_list = parser.get_update_wals().to_vec();
-
             Ok(RecoveryResult {
-                insert_wal_list,
-                update_wal_list,
+                all_entries: parser.parse_all_entries(),
                 last_timestamp: parser.last_timestamp(),
-                ..Default::default()
+                last_lsn: parser.last_lsn(),
+                corrupted_count: parser.corrupted_count(),
+                skipped_count: parser.skipped_count(),
             })
         }
     }
@@ -191,28 +189,12 @@ impl RecoveryManager {
     }
 
     /// Replay WAL entries using a RecoveryApplier
-    /// 
-    /// This method uses `all_entries` from the RecoveryResult, which contains
-    /// properly parsed entries with header information (op_type, timestamp, lsn).
     fn replay_wal_entries(
         &mut self,
         wal_result: &RecoveryResult,
         applier: &mut dyn RecoveryApplier,
     ) -> StorageResult<()> {
-        if !wal_result.all_entries.is_empty() {
-            self.replay_parsed_entries(&wal_result.all_entries, applier)?;
-        } else {
-            for content in wal_result.insert_wal_list.values() {
-                self.replay_insert_entries_legacy(content, applier)?;
-            }
-
-            for update in &wal_result.update_wal_list {
-                self.replay_update_entry_legacy(update, applier)?;
-                self.stats.wal_entries_replayed += 1;
-            }
-        }
-
-        Ok(())
+        self.replay_parsed_entries(&wal_result.all_entries, applier)
     }
 
     /// Replay parsed WAL entries (new format)
@@ -385,87 +367,6 @@ impl RecoveryManager {
         decode_from_slice(payload)
             .map(|(v, _)| v)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))
-    }
-
-    /// Replay insert WAL entries (legacy format for backward compatibility)
-    fn replay_insert_entries_legacy(
-        &mut self,
-        content: &crate::transaction::wal::WalContentUnit,
-        applier: &mut dyn RecoveryApplier,
-    ) -> StorageResult<()> {
-        let data = content.as_slice();
-        if data.is_empty() {
-            return Ok(());
-        }
-
-        match self.deserialize_insert_vertex(data) {
-            Ok(redo) => {
-                applier.replay_insert_vertex(redo.label, &redo.oid, &redo.properties, 0)?;
-                self.stats.wal_entries_replayed += 1;
-            }
-            Err(_) => {
-                if let Ok(redo) = self.deserialize_insert_edge(data) {
-                    applier.replay_insert_edge(
-                        redo.src_label,
-                        &redo.src_oid,
-                        redo.dst_label,
-                        &redo.dst_oid,
-                        redo.edge_label,
-                        &redo.properties,
-                        0,
-                    )?;
-                    self.stats.wal_entries_replayed += 1;
-                } else {
-                    self.stats.errors_encountered += 1;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Replay an update WAL entry (legacy format)
-    fn replay_update_entry_legacy(
-        &mut self,
-        update: &crate::transaction::wal::UpdateWalUnit,
-        applier: &mut dyn RecoveryApplier,
-    ) -> StorageResult<()> {
-        let data = update.content.as_slice();
-        if data.is_empty() {
-            return Ok(());
-        }
-
-        let ts = update.timestamp;
-
-        if let Ok(redo) = self.deserialize_update_vertex_prop(data) {
-            applier.replay_update_vertex_prop(redo.label, &redo.oid, &redo.prop_name, &redo.value, ts)?;
-        } else if let Ok(redo) = self.deserialize_update_edge_prop(data) {
-            applier.replay_update_edge_prop(
-                redo.src_label,
-                &redo.src_oid,
-                redo.dst_label,
-                &redo.dst_oid,
-                redo.edge_label,
-                &redo.prop_name,
-                &redo.value,
-                ts,
-            )?;
-        } else if let Ok(redo) = self.deserialize_delete_vertex(data) {
-            applier.replay_delete_vertex(redo.label, &redo.oid, ts)?;
-        } else if let Ok(redo) = self.deserialize_delete_edge(data) {
-            applier.replay_delete_edge(
-                redo.src_label,
-                &redo.src_oid,
-                redo.dst_label,
-                &redo.dst_oid,
-                redo.edge_label,
-                ts,
-            )?;
-        } else {
-            self.stats.errors_encountered += 1;
-        }
-
-        Ok(())
     }
 
     /// Get recovery statistics

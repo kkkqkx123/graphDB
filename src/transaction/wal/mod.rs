@@ -55,7 +55,7 @@ pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoverySta
 pub use crate::storage::metadata::{TableId as DirtyPageId, TableTracker as DirtyPageTracker, TableTrackerConfig as DirtyTrackerConfig, TableType};
 pub use parser::{
     LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
-    WalEntry, WalEntryIter, WalParser, WalParserFactory,
+    WalEntryIter, WalParser, WalParserFactory,
 };
 pub use types::{
     align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ArchiveMode, ColumnId,
@@ -92,8 +92,8 @@ mod tests {
         let mut parser = LocalWalParser::new();
         parser.open(&wal_path).expect("Failed to parse WAL");
 
-        let content = parser.get_insert_wal(1).expect("WAL entry not found");
-        assert_eq!(content.as_slice(), b"test_data");
+        assert_eq!(parser.all_entries.len(), 1);
+        assert_eq!(parser.all_entries[0].payload, b"test_data");
     }
 
     #[test]
@@ -122,7 +122,7 @@ mod tests {
         let mut parser = LocalWalParser::new();
         parser.open(&wal_path).expect("Failed to parse WAL");
 
-        let content = parser.get_insert_wal(1).expect("WAL entry not found");
-        assert_eq!(content.as_slice(), large_payload.as_slice());
+        assert_eq!(parser.all_entries.len(), 1);
+        assert_eq!(parser.all_entries[0].payload, large_payload);
     }
 }

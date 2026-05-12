@@ -2,7 +2,6 @@
 //!
 //! Provides Write-Ahead Log parsing functionality for recovery
 
-use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -24,9 +23,6 @@ pub trait WalParser: Send + Sync {
     /// Get the last timestamp
     fn last_timestamp(&self) -> Timestamp;
 
-    /// Get insert WAL content for a timestamp
-    fn get_insert_wal(&self, ts: Timestamp) -> Option<&WalContentUnit>;
-
     /// Get all update WAL units
     fn get_update_wals(&self) -> &[UpdateWalUnit];
 }
@@ -34,10 +30,8 @@ pub trait WalParser: Send + Sync {
 /// Recovery result from parsing WAL files
 #[derive(Debug, Default, Clone)]
 pub struct RecoveryResult {
-    /// Insert WAL entries indexed by timestamp (HashMap for sparse timestamp support)
-    pub insert_wal_list: HashMap<Timestamp, WalContentUnit>,
-    /// Update WAL entries sorted by timestamp
-    pub update_wal_list: Vec<UpdateWalUnit>,
+    /// All parsed entries with LSN info (primary recovery path)
+    pub all_entries: Vec<ParsedWalEntry>,
     /// Last seen timestamp
     pub last_timestamp: Timestamp,
     /// Last seen LSN
@@ -46,8 +40,6 @@ pub struct RecoveryResult {
     pub corrupted_count: usize,
     /// Number of skipped entries
     pub skipped_count: usize,
-    /// All parsed entries with LSN info (primary recovery path)
-    pub all_entries: Vec<ParsedWalEntry>,
 }
 
 /// Parallel WAL parser for faster recovery
@@ -298,38 +290,18 @@ impl ParallelWalParser {
             };
 
             let record_type = header.record_type;
+            let entry_lsn = header.lsn();
 
             if record_type == RecordType::Full {
-                let content = WalContentUnit::new(final_payload.clone());
-                let entry_lsn = header.lsn();
-                let entry_prev_lsn = header.prev_lsn();
-
                 result.all_entries.push(ParsedWalEntry {
                     header,
-                    payload: final_payload.clone(),
+                    payload: final_payload,
                     checksum_valid: true,
                     offset,
                     lsn: entry_lsn,
-                    prev_lsn: entry_prev_lsn,
+                    prev_lsn: header.prev_lsn(),
                     file_start_lsn,
                 });
-
-                let op_type = match WalOpType::try_from(header.op_type) {
-                    Ok(t) => t,
-                    Err(_) => {
-                        result.corrupted_count += 1;
-                        offset = payload_end;
-                        continue;
-                    }
-                };
-
-                if header.is_update {
-                    result
-                        .update_wal_list
-                        .push(UpdateWalUnit::new(header.timestamp, content.data));
-                } else {
-                    result.insert_wal_list.insert(header.timestamp, content);
-                }
 
                 result.last_timestamp = result.last_timestamp.max(header.timestamp);
                 if entry_lsn > result.last_lsn {
@@ -346,31 +318,21 @@ impl ParallelWalParser {
                         .unwrap_or(header);
                     fragment_buffer.reset();
 
-                    let content = WalContentUnit::new(assembled.clone());
-                    let entry_lsn = first_header.lsn();
-                    let entry_prev_lsn = first_header.prev_lsn();
+                    let first_entry_lsn = first_header.lsn();
 
                     result.all_entries.push(ParsedWalEntry {
                         header: first_header,
                         payload: assembled,
                         checksum_valid: true,
                         offset,
-                        lsn: entry_lsn,
-                        prev_lsn: entry_prev_lsn,
+                        lsn: first_entry_lsn,
+                        prev_lsn: first_header.prev_lsn(),
                         file_start_lsn,
                     });
 
-                    if first_header.is_update {
-                        result
-                            .update_wal_list
-                            .push(UpdateWalUnit::new(first_header.timestamp, content.data));
-                    } else {
-                        result.insert_wal_list.insert(first_header.timestamp, content);
-                    }
-
                     result.last_timestamp = result.last_timestamp.max(first_header.timestamp);
-                    if entry_lsn > result.last_lsn {
-                        result.last_lsn = entry_lsn;
+                    if first_entry_lsn > result.last_lsn {
+                        result.last_lsn = first_entry_lsn;
                     }
                 }
             }
@@ -425,18 +387,9 @@ impl ParallelWalParser {
             }
             merged.corrupted_count += result.corrupted_count;
             merged.skipped_count += result.skipped_count;
-
-            for (ts, content) in result.insert_wal_list.into_iter() {
-                if content.size > 0 {
-                    merged.insert_wal_list.insert(ts, content);
-                }
-            }
-
-            merged.update_wal_list.extend(result.update_wal_list);
             merged.all_entries.extend(result.all_entries);
         }
 
-        merged.update_wal_list.sort_by_key(|u| u.timestamp);
         merged.all_entries.sort_by_key(|e| e.lsn);
 
         merged
@@ -465,10 +418,8 @@ pub struct ParsedWalEntry {
 pub struct LocalWalParser {
     /// WAL directory path
     wal_dir: Option<PathBuf>,
-    /// Insert WAL entries indexed by timestamp (HashMap for sparse timestamp support)
-    insert_wal_list: HashMap<Timestamp, WalContentUnit>,
-    /// Update WAL entries sorted by timestamp
-    update_wal_list: Vec<UpdateWalUnit>,
+    /// All parsed entries with LSN info
+    all_entries: Vec<ParsedWalEntry>,
     /// Last seen timestamp
     last_timestamp: Timestamp,
     /// Last seen LSN
@@ -485,8 +436,6 @@ pub struct LocalWalParser {
     corrupted_count: usize,
     /// Number of skipped entries
     skipped_count: usize,
-    /// All parsed entries with LSN info
-    all_entries: Vec<ParsedWalEntry>,
     /// Fragment buffer for reassembling large records
     fragment_buffer: FragmentBuffer,
 }
@@ -577,8 +526,7 @@ impl LocalWalParser {
     pub fn new() -> Self {
         Self {
             wal_dir: None,
-            insert_wal_list: HashMap::new(),
-            update_wal_list: Vec::new(),
+            all_entries: Vec::new(),
             last_timestamp: 0,
             last_lsn: Lsn::ZERO,
             files: Vec::new(),
@@ -587,7 +535,6 @@ impl LocalWalParser {
             verify_checksum: true,
             corrupted_count: 0,
             skipped_count: 0,
-            all_entries: Vec::new(),
             fragment_buffer: FragmentBuffer::new(),
         }
     }
@@ -671,7 +618,7 @@ impl LocalWalParser {
             }
         }
 
-        self.update_wal_list.sort_by_key(|u| u.timestamp);
+        self.all_entries.sort_by_key(|e| e.lsn);
 
         Ok(())
     }
@@ -780,28 +727,18 @@ impl LocalWalParser {
             };
 
             let record_type = header.record_type;
+            let entry_lsn = header.lsn();
 
             if record_type == RecordType::Full {
-                let content = WalContentUnit::new(final_payload.clone());
-                let entry_lsn = header.lsn();
-                let entry_prev_lsn = header.prev_lsn();
-
                 self.all_entries.push(ParsedWalEntry {
                     header,
                     payload: final_payload,
                     checksum_valid: true,
                     offset,
                     lsn: entry_lsn,
-                    prev_lsn: entry_prev_lsn,
+                    prev_lsn: header.prev_lsn(),
                     file_start_lsn,
                 });
-
-                if header.is_update {
-                    self.update_wal_list
-                        .push(UpdateWalUnit::new(header.timestamp, content.data));
-                } else {
-                    self.insert_wal_list.insert(header.timestamp, content);
-                }
 
                 self.last_timestamp = self.last_timestamp.max(header.timestamp);
                 if entry_lsn > self.last_lsn {
@@ -819,30 +756,21 @@ impl LocalWalParser {
                         .unwrap_or(header);
                     self.fragment_buffer.reset();
 
-                    let content = WalContentUnit::new(assembled.clone());
-                    let entry_lsn = first_header.lsn();
-                    let entry_prev_lsn = first_header.prev_lsn();
+                    let first_entry_lsn = first_header.lsn();
 
                     self.all_entries.push(ParsedWalEntry {
                         header: first_header,
                         payload: assembled,
                         checksum_valid: true,
                         offset,
-                        lsn: entry_lsn,
-                        prev_lsn: entry_prev_lsn,
+                        lsn: first_entry_lsn,
+                        prev_lsn: first_header.prev_lsn(),
                         file_start_lsn,
                     });
 
-                    if first_header.is_update {
-                        self.update_wal_list
-                            .push(UpdateWalUnit::new(first_header.timestamp, content.data));
-                    } else {
-                        self.insert_wal_list.insert(first_header.timestamp, content);
-                    }
-
                     self.last_timestamp = self.last_timestamp.max(first_header.timestamp);
-                    if entry_lsn > self.last_lsn {
-                        self.last_lsn = entry_lsn;
+                    if first_entry_lsn > self.last_lsn {
+                        self.last_lsn = first_entry_lsn;
                     }
                 }
             }
@@ -915,11 +843,6 @@ impl LocalWalParser {
         entries.sort_by_key(|e| e.lsn);
         entries
     }
-
-    /// Get insert WAL list
-    pub fn insert_wal_list(&self) -> &HashMap<Timestamp, WalContentUnit> {
-        &self.insert_wal_list
-    }
 }
 
 impl Default for LocalWalParser {
@@ -936,79 +859,43 @@ impl WalParser for LocalWalParser {
     }
 
     fn close(&mut self) {
-        self.insert_wal_list.clear();
-        self.update_wal_list.clear();
+        self.all_entries.clear();
         self.files.clear();
         self.file_headers.clear();
         self.last_timestamp = 0;
         self.last_lsn = Lsn::ZERO;
         self.corrupted_count = 0;
         self.skipped_count = 0;
-        self.all_entries.clear();
     }
 
     fn last_timestamp(&self) -> Timestamp {
         self.last_timestamp
     }
 
-    fn get_insert_wal(&self, ts: Timestamp) -> Option<&WalContentUnit> {
-        self.insert_wal_list.get(&ts)
-    }
-
     fn get_update_wals(&self) -> &[UpdateWalUnit] {
-        &self.update_wal_list
+        &[]
     }
 }
 
 /// Iterator over WAL entries
 pub struct WalEntryIter<'a> {
-    parser: &'a LocalWalParser,
-    insert_entries: Vec<(Timestamp, &'a WalContentUnit)>,
-    insert_index: usize,
-    update_index: usize,
+    entries: std::slice::Iter<'a, ParsedWalEntry>,
 }
 
 impl<'a> WalEntryIter<'a> {
     fn new(parser: &'a LocalWalParser) -> Self {
-        let mut insert_entries: Vec<_> = parser.insert_wal_list.iter().map(|(&ts, content)| (ts, content)).collect();
-        insert_entries.sort_by_key(|(ts, _)| *ts);
         Self {
-            parser,
-            insert_entries,
-            insert_index: 0,
-            update_index: 0,
+            entries: parser.all_entries.iter(),
         }
     }
 }
 
 impl<'a> Iterator for WalEntryIter<'a> {
-    type Item = WalEntry;
+    type Item = &'a ParsedWalEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.insert_index < self.insert_entries.len() {
-            let (ts, content) = &self.insert_entries[self.insert_index];
-            self.insert_index += 1;
-
-            if content.size > 0 {
-                return Some(WalEntry::Insert(*ts, (*content).clone()));
-            }
-        }
-
-        if self.update_index < self.parser.update_wal_list.len() {
-            let unit = &self.parser.update_wal_list[self.update_index];
-            self.update_index += 1;
-            return Some(WalEntry::Update(unit.clone()));
-        }
-
-        None
+        self.entries.next()
     }
-}
-
-/// WAL entry
-#[derive(Debug, Clone)]
-pub enum WalEntry {
-    Insert(Timestamp, WalContentUnit),
-    Update(UpdateWalUnit),
 }
 
 /// WAL parser factory
@@ -1072,12 +959,7 @@ mod tests {
 
         assert_eq!(parser.last_timestamp(), 3);
         assert_eq!(parser.corrupted_count(), 0);
-
-        let insert_wal = parser.get_insert_wal(1);
-        assert!(insert_wal.is_some());
-
-        let update_wals = parser.get_update_wals();
-        assert_eq!(update_wals.len(), 1);
+        assert_eq!(parser.all_entries.len(), 3);
 
         assert!(!parser.file_headers().is_empty());
         assert!(parser.file_headers()[0].is_valid());
@@ -1108,7 +990,7 @@ mod tests {
         parser.open(&wal_path).expect("Failed to parse WAL");
 
         let entries: Vec<_> = parser.iter_entries().collect();
-        assert!(!entries.is_empty());
+        assert_eq!(entries.len(), 2);
     }
 
     #[test]
@@ -1149,8 +1031,7 @@ mod tests {
         parser.open(&wal_path).expect("Failed to parse WAL");
 
         assert_eq!(parser.corrupted_count(), 0);
-        let insert_wal = parser.get_insert_wal(1);
-        assert!(insert_wal.is_some());
+        assert_eq!(parser.all_entries.len(), 1);
     }
 
     #[test]
@@ -1196,5 +1077,6 @@ mod tests {
 
         assert_eq!(result.corrupted_count, 0);
         assert!(result.last_lsn > Lsn::ZERO);
+        assert_eq!(result.all_entries.len(), 2);
     }
 }
