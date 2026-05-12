@@ -606,6 +606,16 @@ impl VertexIndexManager {
         Ok(())
     }
 
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+        let path = path.as_ref();
+        std::fs::create_dir_all(path)?;
+
+        self.flush_forward_index(&path.join("forward_index.bin"))?;
+        self.flush_reverse_index(&path.join("reverse_index.bin"))?;
+
+        Ok(())
+    }
+
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
         let path = path.as_ref();
 

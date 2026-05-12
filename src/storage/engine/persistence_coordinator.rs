@@ -419,6 +419,14 @@ impl PersistenceCoordinator {
         }
     }
 
+    pub fn reset_flush_timer(&mut self) {
+        *self.last_flush_time.write() = Instant::now();
+    }
+
+    pub fn reset_checkpoint_timer(&mut self) {
+        *self.last_checkpoint_time.write() = Instant::now();
+    }
+
     pub fn register_transaction(&self, tx_id: u64) {
         self.checkpoint_manager.write().register_transaction(tx_id);
     }

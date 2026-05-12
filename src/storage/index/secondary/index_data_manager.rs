@@ -380,6 +380,14 @@ impl InMemoryIndexDataManager {
         Ok(())
     }
 
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+        let path = path.as_ref();
+        std::fs::create_dir_all(path)?;
+        self.vertex_manager.save(path.join("vertex_index"))?;
+        self.edge_manager.save(path.join("edge_index"))?;
+        Ok(())
+    }
+
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
         let path = path.as_ref();
         self.vertex_manager.load(path.join("vertex_index"))?;
