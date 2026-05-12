@@ -46,7 +46,6 @@ pub mod mutable_csr_variant;
 pub mod property_table;
 pub mod single_immutable_csr;
 pub mod single_mutable_csr;
-pub mod weighted_csr;
 
 pub use cache_optimized_csr::{CacheOptimizedCsr, CacheOptimizedCsrEdgeIterator, CacheOptimizedCsrIterator};
 pub use csr::Csr;
@@ -60,7 +59,6 @@ pub use mutable_csr_variant::{CsrEdgeIterator, CsrIterator, MutableCsrVariant};
 pub use property_table::PropertyTable;
 pub use single_immutable_csr::SingleImmutableCsr;
 pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
-pub use weighted_csr::WeightedCsr;
 
 pub type EdgeId = u64;
 pub type LabelId = u32;

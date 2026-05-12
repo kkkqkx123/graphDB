@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::{
     CsrBase, CsrEdgeIterator, CsrIterator, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId,
-    MutableCsr, MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
+    MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 

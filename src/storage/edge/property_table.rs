@@ -203,6 +203,25 @@ impl PropertyTable {
         Ok(())
     }
 
+    pub fn get_property_by_id(&self, offset: u32, prop_id: i32) -> Option<Value> {
+        let col_idx = prop_id as usize;
+        let offset_idx = offset as usize;
+
+        if offset_idx == 0 || offset_idx > self.rows.len() {
+            return None;
+        }
+
+        if col_idx >= self.schema.len() {
+            return None;
+        }
+
+        self.rows[offset_idx - 1].get(col_idx).cloned()
+    }
+
+    pub fn get_property_type(&self, prop_id: i32) -> Option<DataType> {
+        self.schema.get(prop_id as usize).map(|s| s.data_type.clone())
+    }
+
     pub fn delete(&mut self, offset: u32) -> bool {
         let offset_idx = offset as usize;
         if offset_idx == 0 || offset_idx > self.rows.len() {
