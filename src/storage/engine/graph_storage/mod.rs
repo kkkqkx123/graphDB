@@ -31,7 +31,7 @@ use crate::storage::engine::persistence_coordinator::{CheckpointInfo, Checkpoint
 use crate::storage::engine::{PersistenceConfig, PropertyGraph};
 use crate::storage::index::secondary::IndexGcManager;
 use crate::storage::interface::{StorageClient, StorageStats};
-use crate::storage::metadata::{InMemorySchemaManager, Schema};
+use crate::storage::metadata::{SchemaManager, Schema};
 use crate::transaction::context::TransactionContext;
 
 #[derive(Clone)]
@@ -107,11 +107,11 @@ impl GraphStorage {
         self.ctx.graph.clone()
     }
 
-    pub fn get_schema_manager(&self) -> Arc<InMemorySchemaManager> {
+    pub fn get_schema_manager(&self) -> Arc<SchemaManager> {
         self.ctx.schema_manager.clone()
     }
 
-    pub fn get_extended_schema_manager(&self) -> Arc<crate::storage::metadata::InMemoryExtendedSchemaManager> {
+    pub fn get_extended_schema_manager(&self) -> Arc<crate::storage::metadata::ExtendedSchemaManager> {
         self.ctx.extended_schema_manager.clone()
     }
 
@@ -591,7 +591,7 @@ impl StorageClient for GraphStorage {
         self.ctx.set_transaction_context(context);
     }
 
-    fn get_schema_manager(&self) -> Option<Arc<InMemorySchemaManager>> {
+    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
         Some(self.ctx.schema_manager.clone())
     }
 

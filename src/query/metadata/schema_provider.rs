@@ -9,18 +9,18 @@ use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
-use crate::storage::metadata::{InMemorySchemaManager, SchemaManager};
+use crate::storage::metadata::SchemaManager;
 
 /// Schema metadata provider
 ///
 /// Provides metadata for tags, edge types, and native indexes from the schema manager.
 pub struct SchemaMetadataProvider {
-    schema_manager: Arc<InMemorySchemaManager>,
+    schema_manager: Arc<SchemaManager>,
 }
 
 impl SchemaMetadataProvider {
     /// Create a new schema metadata provider
-    pub fn new(schema_manager: Arc<InMemorySchemaManager>) -> Self {
+    pub fn new(schema_manager: Arc<SchemaManager>) -> Self {
         Self { schema_manager }
     }
 
@@ -311,8 +311,8 @@ mod tests {
     use crate::core::types::{DataType, EngineType, PropertyDef, SpaceStatus};
     use crate::storage::metadata::SchemaManager;
 
-    fn create_test_schema_manager() -> Arc<InMemorySchemaManager> {
-        let manager = InMemorySchemaManager::new();
+    fn create_test_schema_manager() -> Arc<SchemaManager> {
+        let manager = SchemaManager::new();
         
         let mut space = SpaceInfo {
             space_id: 0,

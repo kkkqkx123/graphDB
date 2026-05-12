@@ -16,11 +16,11 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
+use crate::storage::metadata::SchemaManager;
 
 /// Parameters for vector dimension validation
 struct VectorValidationContext<'a> {
-    schema_manager: &'a Arc<InMemorySchemaManager>,
+    schema_manager: &'a Arc<SchemaManager>,
     space_name: &'a str,
     tag_name: &'a str,
     prop_names: &'a [String],
@@ -60,7 +60,7 @@ pub struct InsertVerticesValidator {
     expression_props: ExpressionProps,
     user_defined_vars: Vec<String>,
     validated_result: Option<ValidatedInsertVertices>,
-    schema_manager: Option<Arc<InMemorySchemaManager>>,
+    schema_manager: Option<Arc<SchemaManager>>,
 }
 
 impl InsertVerticesValidator {
@@ -75,12 +75,12 @@ impl InsertVerticesValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<SchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
 
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_manager = Some(schema_manager);
     }
 
@@ -114,7 +114,7 @@ impl InsertVerticesValidator {
         &self,
         tags: &[TagInsertSpec],
         rows: &[VertexRow],
-        schema_manager: Option<&Arc<InMemorySchemaManager>>,
+        schema_manager: Option<&Arc<SchemaManager>>,
         space_name: &str,
     ) -> Result<(), ValidationError> {
         for (row_idx, row) in rows.iter().enumerate() {

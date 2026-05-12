@@ -22,8 +22,7 @@ use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::query::validator::validator_trait::ValueType;
-use crate::storage::metadata::schema_manager::SchemaManager;
-use crate::storage::metadata::InMemorySchemaManager;
+use crate::storage::metadata::SchemaManager;
 
 /// Edge type definition for auto-creation with source, destination and properties
 type EdgeTypeAutoCreateDef = (String, String, String, Vec<(String, Value)>);
@@ -35,7 +34,7 @@ type EdgeTypeAutoCreateDef = (String, String, String, Vec<(String, Value)>);
 /// It is used by other statement validators (such as InsertVerticesValidator, UpdateValidator, etc.).
 #[derive(Debug, Clone)]
 pub struct SchemaValidator {
-    schema_manager: Arc<InMemorySchemaManager>,
+    schema_manager: Arc<SchemaManager>,
 }
 
 /// Edge type creation parameters for auto-creation
@@ -55,17 +54,17 @@ pub struct AutoCreateMissingEdgeTypesParam<'a> {
 
 impl SchemaValidator {
     /// Create a new Schema validator.
-    pub fn new(schema_manager: Arc<InMemorySchemaManager>) -> Self {
+    pub fn new(schema_manager: Arc<SchemaManager>) -> Self {
         Self { schema_manager }
     }
 
     /// Obtaining the underlying SchemaManager
-    pub fn get_schema_manager(&self) -> &InMemorySchemaManager {
+    pub fn get_schema_manager(&self) -> &SchemaManager {
         self.schema_manager.as_ref()
     }
 
     /// Obtain Arc<SchemaManager>
-    pub fn schema_manager_arc(&self) -> Arc<InMemorySchemaManager> {
+    pub fn schema_manager_arc(&self) -> Arc<SchemaManager> {
         self.schema_manager.clone()
     }
 
@@ -1042,7 +1041,7 @@ mod tests {
     use std::sync::Arc;
 
     fn create_test_validator() -> SchemaValidator {
-        let schema_manager = Arc::new(InMemorySchemaManager::new());
+        let schema_manager = Arc::new(SchemaManager::new());
         SchemaValidator::new(schema_manager)
     }
 

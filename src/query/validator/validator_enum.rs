@@ -9,7 +9,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
+use crate::storage::metadata::SchemaManager;
 
 // Import the specific validator.
 use crate::query::validator::assignment_validator::AssignmentValidator;
@@ -566,7 +566,7 @@ impl Validator {
     }
 
     /// Set schema manager for validators that need it
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         match self {
             Validator::Create(v) => v.set_schema_manager(schema_manager),
             Validator::Lookup(v) => v.set_schema_manager(schema_manager),

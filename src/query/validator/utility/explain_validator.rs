@@ -17,7 +17,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
+use crate::storage::metadata::SchemaManager;
 
 /// Verified EXPLAIN information
 #[derive(Debug, Clone)]
@@ -31,7 +31,7 @@ pub struct ValidatedExplain {
 pub struct ExplainValidator {
     format: ExplainFormat,
     inner_validator: Option<Box<Validator>>,
-    schema_manager: Option<Arc<InMemorySchemaManager>>,
+    schema_manager: Option<Arc<SchemaManager>>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
@@ -72,7 +72,7 @@ impl ExplainValidator {
         }
     }
 
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_manager = Some(schema_manager);
     }
 
@@ -205,7 +205,7 @@ impl Default for ExplainValidator {
 pub struct ProfileValidator {
     format: ExplainFormat,
     inner_validator: Option<Box<Validator>>,
-    schema_manager: Option<Arc<InMemorySchemaManager>>,
+    schema_manager: Option<Arc<SchemaManager>>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
@@ -246,7 +246,7 @@ impl ProfileValidator {
         }
     }
 
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_manager = Some(schema_manager);
     }
 

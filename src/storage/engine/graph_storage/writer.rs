@@ -572,7 +572,7 @@ impl<'a> GraphStorageWriter<'a> {
 
     fn update_vertex_indexes(
         graph: &crate::storage::engine::PropertyGraph,
-        index_metadata_manager: &crate::storage::metadata::InMemoryIndexMetadataManager,
+        index_metadata_manager: &crate::storage::metadata::IndexManager,
         space_id: u64,
         vertex_id: &Value,
         tag_name: &str,
@@ -590,7 +590,7 @@ impl<'a> GraphStorageWriter<'a> {
 
     fn update_edge_indexes(
         graph: &crate::storage::engine::PropertyGraph,
-        index_metadata_manager: &crate::storage::metadata::InMemoryIndexMetadataManager,
+        index_metadata_manager: &crate::storage::metadata::IndexManager,
         space_id: u64,
         src: &Value,
         dst: &Value,
@@ -609,7 +609,7 @@ impl<'a> GraphStorageWriter<'a> {
 
     fn delete_vertex_indexes(
         graph: &crate::storage::engine::PropertyGraph,
-        index_metadata_manager: &crate::storage::metadata::InMemoryIndexMetadataManager,
+        index_metadata_manager: &crate::storage::metadata::IndexManager,
         space_id: u64,
         vertex_id: &Value,
         tag_name: &str,
@@ -626,7 +626,7 @@ impl<'a> GraphStorageWriter<'a> {
 
     fn delete_edge_indexes(
         graph: &crate::storage::engine::PropertyGraph,
-        index_metadata_manager: &crate::storage::metadata::InMemoryIndexMetadataManager,
+        index_metadata_manager: &crate::storage::metadata::IndexManager,
         space_id: u64,
         src: &Value,
         dst: &Value,

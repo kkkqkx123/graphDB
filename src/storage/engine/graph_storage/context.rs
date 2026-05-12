@@ -14,7 +14,7 @@ use crate::storage::engine::PropertyGraph;
 use crate::storage::extend::FulltextStorage;
 use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
 use crate::storage::metadata::{
-    InMemoryExtendedSchemaManager, InMemoryIndexMetadataManager, InMemorySchemaManager,
+    ExtendedSchemaManager, IndexManager, SchemaManager,
 };
 use crate::transaction::context::TransactionContext;
 use crate::transaction::version_manager::VersionManager;
@@ -22,9 +22,9 @@ use crate::transaction::version_manager::VersionManager;
 #[derive(Clone)]
 pub struct GraphStorageContext {
     pub graph: Arc<RwLock<PropertyGraph>>,
-    pub schema_manager: Arc<InMemorySchemaManager>,
-    pub extended_schema_manager: Arc<InMemoryExtendedSchemaManager>,
-    pub index_metadata_manager: Arc<InMemoryIndexMetadataManager>,
+    pub schema_manager: Arc<SchemaManager>,
+    pub extended_schema_manager: Arc<ExtendedSchemaManager>,
+    pub index_metadata_manager: Arc<IndexManager>,
     pub version_manager: Arc<VersionManager>,
     pub user_storage: Arc<UserStorage>,
     pub current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
@@ -38,9 +38,9 @@ pub struct GraphStorageContext {
 impl GraphStorageContext {
     pub fn new() -> Self {
         let graph = Arc::new(RwLock::new(PropertyGraph::new()));
-        let schema_manager = Arc::new(InMemorySchemaManager::new());
-        let extended_schema_manager = Arc::new(InMemoryExtendedSchemaManager::new());
-        let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
+        let schema_manager = Arc::new(SchemaManager::new());
+        let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
+        let index_metadata_manager = Arc::new(IndexManager::new());
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
 
@@ -64,9 +64,9 @@ impl GraphStorageContext {
         use crate::storage::engine::PersistenceConfig;
 
         let graph = Arc::new(RwLock::new(PropertyGraph::new()));
-        let schema_manager = Arc::new(InMemorySchemaManager::new());
-        let extended_schema_manager = Arc::new(InMemoryExtendedSchemaManager::new());
-        let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
+        let schema_manager = Arc::new(SchemaManager::new());
+        let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
+        let index_metadata_manager = Arc::new(IndexManager::new());
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
 
@@ -103,9 +103,9 @@ impl GraphStorageContext {
         config: crate::storage::engine::PersistenceConfig,
     ) -> crate::core::StorageResult<Self> {
         let graph = Arc::new(RwLock::new(PropertyGraph::new()));
-        let schema_manager = Arc::new(InMemorySchemaManager::new());
-        let extended_schema_manager = Arc::new(InMemoryExtendedSchemaManager::new());
-        let index_metadata_manager = Arc::new(InMemoryIndexMetadataManager::new());
+        let schema_manager = Arc::new(SchemaManager::new());
+        let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
+        let index_metadata_manager = Arc::new(IndexManager::new());
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
 

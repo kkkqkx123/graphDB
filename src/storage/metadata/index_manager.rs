@@ -1,25 +1,44 @@
 use crate::core::types::Index;
 use crate::core::StorageError;
-use crate::storage::metadata::IndexMetadataManager;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub struct InMemoryIndexMetadataManager {
+pub trait IndexMetadataManager: Send + Sync + std::fmt::Debug {
+    fn create_tag_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError>;
+    fn drop_tag_index(&self, space_id: u64, index_name: &str) -> Result<bool, StorageError>;
+    fn get_tag_index(&self, space_id: u64, index_name: &str)
+        -> Result<Option<Index>, StorageError>;
+    fn list_tag_indexes(&self, space_id: u64) -> Result<Vec<Index>, StorageError>;
+    fn drop_tag_indexes_by_tag(&self, space_id: u64, tag_name: &str) -> Result<(), StorageError>;
+
+    fn create_edge_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError>;
+    fn drop_edge_index(&self, space_id: u64, index_name: &str) -> Result<bool, StorageError>;
+    fn get_edge_index(
+        &self,
+        space_id: u64,
+        index_name: &str,
+    ) -> Result<Option<Index>, StorageError>;
+    fn list_edge_indexes(&self, space_id: u64) -> Result<Vec<Index>, StorageError>;
+    fn drop_edge_indexes_by_type(&self, space_id: u64, edge_type: &str)
+        -> Result<(), StorageError>;
+}
+
+pub struct IndexManager {
     tag_indexes: Arc<RwLock<HashMap<(u64, String), Index>>>,
     edge_indexes: Arc<RwLock<HashMap<(u64, String), Index>>>,
 }
 
-impl std::fmt::Debug for InMemoryIndexMetadataManager {
+impl std::fmt::Debug for IndexManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InMemoryIndexMetadataManager")
+        f.debug_struct("IndexManager")
             .field("tag_indexes_count", &self.tag_indexes.read().len())
             .field("edge_indexes_count", &self.edge_indexes.read().len())
             .finish()
     }
 }
 
-impl InMemoryIndexMetadataManager {
+impl IndexManager {
     pub fn new() -> Self {
         Self {
             tag_indexes: Arc::new(RwLock::new(HashMap::new())),
@@ -28,13 +47,13 @@ impl InMemoryIndexMetadataManager {
     }
 }
 
-impl Default for InMemoryIndexMetadataManager {
+impl Default for IndexManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl IndexMetadataManager for InMemoryIndexMetadataManager {
+impl IndexMetadataManager for IndexManager {
     fn create_tag_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError> {
         let mut indexes = self.tag_indexes.write();
         let key = (space_id, index.name.clone());

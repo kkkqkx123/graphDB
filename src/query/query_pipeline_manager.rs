@@ -36,7 +36,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
 use crate::query::QueryRequestContext;
-use crate::storage::metadata::InMemorySchemaManager;
+use crate::storage::metadata::SchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 use parking_lot::Mutex;
@@ -57,7 +57,7 @@ pub struct QueryPipelineManager<S: StorageClient + 'static> {
     /// Parameterized Query Processor
     param_handler: ParameterizedQueryHandler,
     /// Schema manager for validation
-    schema_manager: Option<Arc<InMemorySchemaManager>>,
+    schema_manager: Option<Arc<SchemaManager>>,
     /// Metadata provider for pre-resolving metadata during planning
     metadata_provider: Option<Arc<dyn MetadataProvider>>,
 }
@@ -135,7 +135,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
 
     /// Set schema manager for validation
-    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<SchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }

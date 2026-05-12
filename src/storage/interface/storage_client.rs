@@ -3,7 +3,7 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::metadata::{InMemorySchemaManager, Schema};
+use crate::storage::metadata::{SchemaManager, Schema};
 use crate::transaction::context::TransactionContext;
 use std::sync::Arc;
 
@@ -223,7 +223,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
 
     /// Get schema manager (if available)
     /// Default implementation returns None for storage clients that don't have schema manager
-    fn get_schema_manager(&self) -> Option<Arc<InMemorySchemaManager>> {
+    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
         None
     }
 

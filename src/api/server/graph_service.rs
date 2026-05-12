@@ -8,7 +8,7 @@ use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::{InMemorySchemaManager, StorageClient};
+use crate::storage::{SchemaManager, StorageClient};
 use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -89,7 +89,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             session_manager.start_cleanup_task().await;
         }
 
-        let schema_manager: Option<Arc<InMemorySchemaManager>> = storage.get_schema_manager();
+        let schema_manager: Option<Arc<SchemaManager>> = storage.get_schema_manager();
 
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(
