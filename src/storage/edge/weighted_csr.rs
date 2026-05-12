@@ -3,6 +3,30 @@
 //! This module provides a CSR implementation with edge weight support.
 //! Weights are stored in a separate columnar array for efficient access
 //! and SIMD optimization potential.
+//!
+//! ## Design Note
+//!
+//! `WeightedCsr` is designed as a specialized CSR for graphs with edge weights
+//! (e.g., social networks with relationship strength, road networks with distances).
+//! It wraps a `MutableCsr` and maintains a parallel weight array.
+//!
+//! ## When to Use
+//!
+//! - Edge weights are frequently accessed or updated
+//! - Weight-based graph algorithms (shortest path, PageRank, etc.)
+//! - Need O(1) weight access without property table lookup
+//!
+//! ## Integration with EdgeTable
+//!
+//! Currently, `WeightedCsr` is not integrated into `EdgeTable`. To use weighted edges:
+//!
+//! Option 1: Store weights as edge properties in `PropertyTable` (simpler, works with all CSR types)
+//! Option 2: Extend `EdgeSchema` with `has_weight: bool` flag and use `WeightedCsr` (faster weight access)
+//!
+//! ## Limitations
+//!
+//! - Fixed to `MutableCsr`, cannot combine with `SingleMutableCsr` or `CacheOptimizedCsr`
+//! - Not selectable via `EdgeStrategy` enum
 
 use std::sync::atomic::{AtomicU64, Ordering};
 

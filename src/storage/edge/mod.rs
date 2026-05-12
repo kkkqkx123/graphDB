@@ -18,8 +18,18 @@
 //!
 //! The `EdgeStrategy` enum determines which CSR type to use:
 //! - `Multiple`: Use `MutableCsr` (supports multiple edges per vertex)
-//! - `Single`: Use `SingleMutableCsr` (one edge per vertex, optimized)
+//! - `Single`: Use `SingleMutableCsr` (one edge per vertex, O(1) access)
+//! - `CacheOptimized`: Use `CacheOptimizedCsr` (SoA layout, SIMD optimization)
 //! - `None`: No edges stored
+//!
+//! ## Use Cases
+//!
+//! | Strategy | CSR Type | Use Case | Time Complexity |
+//! |----------|----------|----------|-----------------|
+//! | `Multiple` | `MutableCsr` | General multi-edge relationships | O(degree) |
+//! | `Single` | `SingleMutableCsr` | One-to-one relationships (spouse, current_employer) | O(1) |
+//! | `CacheOptimized` | `CacheOptimizedCsr` | High-performance traversal, SIMD-friendly | O(degree) |
+//! | `None` | - | No edges stored | - |
 //!
 //! ## Optimized CSR Variants
 //!
@@ -38,7 +48,7 @@ pub mod single_immutable_csr;
 pub mod single_mutable_csr;
 pub mod weighted_csr;
 
-pub use cache_optimized_csr::CacheOptimizedCsr;
+pub use cache_optimized_csr::{CacheOptimizedCsr, CacheOptimizedCsrEdgeIterator, CacheOptimizedCsrIterator};
 pub use csr::Csr;
 pub use csr_persistence::CsrPersistence;
 pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
@@ -66,6 +76,7 @@ pub enum EdgeStrategy {
     None,
     Single,
     Multiple,
+    CacheOptimized,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

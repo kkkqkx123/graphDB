@@ -43,6 +43,24 @@ pub struct CacheOptimizedCsr {
     total_edge_capacity: usize,
 }
 
+impl Clone for CacheOptimizedCsr {
+    fn clone(&self) -> Self {
+        Self {
+            neighbors: self.neighbors.clone(),
+            edge_ids: self.edge_ids.clone(),
+            prop_offsets: self.prop_offsets.clone(),
+            timestamps: self.timestamps.clone(),
+            adj_offsets: self.adj_offsets.clone(),
+            degrees: self.degrees.clone(),
+            capacities: self.capacities.clone(),
+            locks: (0..self.vertex_capacity).map(|_| SpinLock::new()).collect(),
+            edge_count: AtomicU64::new(self.edge_count.load(Ordering::Relaxed)),
+            vertex_capacity: self.vertex_capacity,
+            total_edge_capacity: self.total_edge_capacity,
+        }
+    }
+}
+
 impl std::fmt::Debug for CacheOptimizedCsr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CacheOptimizedCsr")
@@ -807,6 +825,185 @@ impl MutableCsrTrait for CacheOptimizedCsr {
                 self.edge_count.fetch_add(1, Ordering::Relaxed);
             }
         }
+    }
+}
+
+impl CacheOptimizedCsr {
+    pub fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
+        let src_idx = src as usize;
+        if src_idx >= self.vertex_capacity {
+            return None;
+        }
+
+        let degree = self.degrees[src_idx] as usize;
+        let offset = self.adj_offsets[src_idx];
+
+        for i in 0..degree {
+            if self.neighbors[offset + i] == dst && self.timestamps[offset + i] == INVALID_TIMESTAMP {
+                return Some(self.edge_ids[offset + i]);
+            }
+        }
+        None
+    }
+
+    pub fn used_memory_size(&self) -> usize {
+        self.neighbors.len() * std::mem::size_of::<VertexId>()
+            + self.edge_ids.len() * std::mem::size_of::<EdgeId>()
+            + self.prop_offsets.len() * std::mem::size_of::<u32>()
+            + self.timestamps.len() * std::mem::size_of::<Timestamp>()
+            + self.adj_offsets.len() * std::mem::size_of::<usize>()
+            + self.degrees.len() * std::mem::size_of::<u32>()
+            + self.capacities.len() * std::mem::size_of::<u32>()
+            + std::mem::size_of::<Self>()
+    }
+
+    pub fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+        let mut total_removed = 0usize;
+
+        for src_idx in 0..self.vertex_capacity {
+            let degree = self.degrees[src_idx] as usize;
+            let offset = self.adj_offsets[src_idx];
+
+            if degree == 0 {
+                continue;
+            }
+
+            let mut write_idx = 0;
+            for read_idx in 0..degree {
+                let timestamp = self.timestamps[offset + read_idx];
+                if timestamp != INVALID_TIMESTAMP && timestamp <= ts {
+                    if write_idx != read_idx {
+                        self.neighbors[offset + write_idx] = self.neighbors[offset + read_idx];
+                        self.edge_ids[offset + write_idx] = self.edge_ids[offset + read_idx];
+                        self.prop_offsets[offset + write_idx] = self.prop_offsets[offset + read_idx];
+                        self.timestamps[offset + write_idx] = timestamp;
+                    }
+                    write_idx += 1;
+                }
+            }
+
+            let removed = degree - write_idx;
+            if removed > 0 {
+                self.degrees[src_idx] = write_idx as u32;
+                let new_capacity = (write_idx as f32 * (1.0 + reserve_ratio)).max(4.0) as usize;
+                self.capacities[src_idx] = new_capacity as u32;
+                total_removed += removed;
+            }
+        }
+
+        if total_removed > 0 {
+            self.edge_count.fetch_sub(total_removed as u64, Ordering::Relaxed);
+        }
+        total_removed
+    }
+
+    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> CacheOptimizedCsrEdgeIterator<'_> {
+        CacheOptimizedCsrEdgeIterator::new(self, src, ts)
+    }
+
+    pub fn iter(&self, ts: Timestamp) -> CacheOptimizedCsrIterator<'_> {
+        CacheOptimizedCsrIterator::new(self, ts)
+    }
+}
+
+pub struct CacheOptimizedCsrEdgeIterator<'a> {
+    csr: &'a CacheOptimizedCsr,
+    src: VertexId,
+    ts: Timestamp,
+    current_idx: usize,
+    degree: usize,
+}
+
+impl<'a> CacheOptimizedCsrEdgeIterator<'a> {
+    pub fn new(csr: &'a CacheOptimizedCsr, src: VertexId, ts: Timestamp) -> Self {
+        let src_idx = src as usize;
+        let degree = if src_idx < csr.vertex_capacity {
+            csr.degrees[src_idx] as usize
+        } else {
+            0
+        };
+        Self {
+            csr,
+            src,
+            ts,
+            current_idx: 0,
+            degree,
+        }
+    }
+}
+
+impl<'a> Iterator for CacheOptimizedCsrEdgeIterator<'a> {
+    type Item = Nbr;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let src_idx = self.src as usize;
+        if src_idx >= self.csr.vertex_capacity {
+            return None;
+        }
+
+        let offset = self.csr.adj_offsets[src_idx];
+
+        while self.current_idx < self.degree {
+            let idx = offset + self.current_idx;
+            self.current_idx += 1;
+
+            let timestamp = self.csr.timestamps[idx];
+            if timestamp <= self.ts && timestamp != INVALID_TIMESTAMP {
+                return Some(Nbr {
+                    neighbor: self.csr.neighbors[idx],
+                    edge_id: self.csr.edge_ids[idx],
+                    prop_offset: self.csr.prop_offsets[idx],
+                    timestamp,
+                });
+            }
+        }
+        None
+    }
+}
+
+pub struct CacheOptimizedCsrIterator<'a> {
+    csr: &'a CacheOptimizedCsr,
+    current_vertex: usize,
+    ts: Timestamp,
+}
+
+impl<'a> CacheOptimizedCsrIterator<'a> {
+    pub fn new(csr: &'a CacheOptimizedCsr, ts: Timestamp) -> Self {
+        Self {
+            csr,
+            current_vertex: 0,
+            ts,
+        }
+    }
+}
+
+impl<'a> Iterator for CacheOptimizedCsrIterator<'a> {
+    type Item = (VertexId, Nbr);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.current_vertex < self.csr.vertex_capacity {
+            let src = self.current_vertex as VertexId;
+            let degree = self.csr.degrees[self.current_vertex] as usize;
+            let offset = self.csr.adj_offsets[self.current_vertex];
+            self.current_vertex += 1;
+
+            for i in 0..degree {
+                let idx = offset + i;
+                let timestamp = self.csr.timestamps[idx];
+                if timestamp <= self.ts && timestamp != INVALID_TIMESTAMP {
+                    return Some((
+                        src,
+                        Nbr {
+                            neighbor: self.csr.neighbors[idx],
+                            edge_id: self.csr.edge_ids[idx],
+                            prop_offset: self.csr.prop_offsets[idx],
+                            timestamp,
+                        },
+                    ));
+                }
+            }
+        }
+        None
     }
 }
 

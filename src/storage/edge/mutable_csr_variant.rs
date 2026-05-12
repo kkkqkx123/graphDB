@@ -2,11 +2,17 @@
 //!
 //! Enum wrapper for different mutable CSR implementations.
 //! Provides runtime polymorphism without dynamic dispatch (dyn).
-
-use std::sync::atomic::Ordering;
+//!
+//! # CSR Type Selection
+//!
+//! The `EdgeStrategy` enum determines which CSR implementation to use:
+//! - `Multiple`: Standard `MutableCsr` for general multi-edge scenarios
+//! - `Single`: `SingleMutableCsr` for one-edge-per-vertex (O(1) access)
+//! - `CacheOptimized`: `CacheOptimizedCsr` with SoA layout for SIMD optimization
+//! - `None`: No edges stored
 
 use super::{
-    CsrBase, CsrType, EdgeId, EdgeStrategy, MutableCsr, MutableCsrEdgeIterator,
+    CacheOptimizedCsr, CsrBase, CsrType, EdgeId, EdgeStrategy, MutableCsr, MutableCsrEdgeIterator,
     MutableCsrIterator, MutableCsrTrait, Nbr, SingleCsrEdgeIterator, SingleMutableCsr,
     SingleMutableCsrIterator, Timestamp, VertexId,
 };
@@ -15,6 +21,7 @@ use super::{
 pub enum MutableCsrVariant {
     Multiple(MutableCsr),
     Single(SingleMutableCsr),
+    CacheOptimized(CacheOptimizedCsr),
 }
 
 impl MutableCsrVariant {
@@ -25,6 +32,9 @@ impl MutableCsrVariant {
             }
             EdgeStrategy::Single => {
                 MutableCsrVariant::Single(SingleMutableCsr::with_capacity(vertex_capacity))
+            }
+            EdgeStrategy::CacheOptimized => {
+                MutableCsrVariant::CacheOptimized(CacheOptimizedCsr::with_capacity(vertex_capacity, edge_capacity))
             }
             EdgeStrategy::None => {
                 panic!("Cannot create MutableCsrVariant with EdgeStrategy::None")
@@ -41,6 +51,11 @@ impl MutableCsrVariant {
     pub fn is_multiple(&self) -> bool {
         matches!(self, MutableCsrVariant::Multiple(_))
     }
+
+    #[inline]
+    pub fn is_cache_optimized(&self) -> bool {
+        matches!(self, MutableCsrVariant::CacheOptimized(_))
+    }
 }
 
 impl CsrBase for MutableCsrVariant {
@@ -48,6 +63,7 @@ impl CsrBase for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.vertex_capacity(),
             MutableCsrVariant::Single(csr) => csr.vertex_capacity(),
+            MutableCsrVariant::CacheOptimized(csr) => csr.vertex_capacity(),
         }
     }
 
@@ -55,6 +71,7 @@ impl CsrBase for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.edge_count(),
             MutableCsrVariant::Single(csr) => csr.edge_count(),
+            MutableCsrVariant::CacheOptimized(csr) => csr.edge_count(),
         }
     }
 
@@ -62,6 +79,7 @@ impl CsrBase for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(_) => CsrType::Mutable,
             MutableCsrVariant::Single(_) => CsrType::SingleMutable,
+            MutableCsrVariant::CacheOptimized(_) => CsrType::CacheOptimized,
         }
     }
 
@@ -69,6 +87,7 @@ impl CsrBase for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.resize(new_vertex_capacity),
             MutableCsrVariant::Single(csr) => csr.resize(new_vertex_capacity),
+            MutableCsrVariant::CacheOptimized(csr) => csr.resize(new_vertex_capacity),
         }
     }
 
@@ -76,6 +95,7 @@ impl CsrBase for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.clear(),
             MutableCsrVariant::Single(csr) => csr.clear(),
+            MutableCsrVariant::CacheOptimized(csr) => csr.clear(),
         }
     }
 
@@ -83,6 +103,7 @@ impl CsrBase for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.dump(),
             MutableCsrVariant::Single(csr) => csr.dump(),
+            MutableCsrVariant::CacheOptimized(csr) => csr.dump(),
         }
     }
 
@@ -90,6 +111,7 @@ impl CsrBase for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.load(data),
             MutableCsrVariant::Single(csr) => csr.load(data),
+            MutableCsrVariant::CacheOptimized(csr) => csr.load(data),
         }
     }
 }
@@ -106,6 +128,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.insert_edge(src, dst, edge_id, prop_offset, ts),
             MutableCsrVariant::Single(csr) => csr.insert_edge(src, dst, edge_id, prop_offset, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.insert_edge(src, dst, edge_id, prop_offset, ts),
         }
     }
 
@@ -113,6 +136,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.delete_edge(src, edge_id, ts),
             MutableCsrVariant::Single(csr) => csr.delete_edge_by_id(src, edge_id, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.delete_edge(src, edge_id, ts),
         }
     }
 
@@ -120,6 +144,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.delete_edge_by_dst(src, dst, ts),
             MutableCsrVariant::Single(csr) => csr.delete_edge_by_dst(src, dst, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.delete_edge_by_dst(src, dst, ts),
         }
     }
 
@@ -127,6 +152,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.delete_edge_by_offset(src, offset, ts),
             MutableCsrVariant::Single(csr) => csr.delete_edge_by_offset(src, offset, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.delete_edge_by_offset(src, offset, ts),
         }
     }
 
@@ -134,6 +160,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.revert_delete(src, edge_id, ts),
             MutableCsrVariant::Single(csr) => csr.revert_delete(src, edge_id, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.revert_delete(src, edge_id, ts),
         }
     }
 
@@ -141,6 +168,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.revert_delete_by_offset(src, offset, ts),
             MutableCsrVariant::Single(csr) => csr.revert_delete_by_offset(src, offset, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.revert_delete_by_offset(src, offset, ts),
         }
     }
 
@@ -148,6 +176,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.get_edge(src, dst, ts),
             MutableCsrVariant::Single(csr) => csr.get_edge_by_dst(src, dst, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.get_edge(src, dst, ts),
         }
     }
 
@@ -155,6 +184,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.edges_of(src, ts),
             MutableCsrVariant::Single(csr) => csr.edges_of(src, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.edges_of(src, ts),
         }
     }
 
@@ -162,6 +192,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.degree(src, ts),
             MutableCsrVariant::Single(csr) => csr.degree(src, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.degree(src, ts),
         }
     }
 
@@ -169,6 +200,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.has_edge(src, dst, ts),
             MutableCsrVariant::Single(csr) => csr.has_edge(src, dst, ts),
+            MutableCsrVariant::CacheOptimized(csr) => csr.has_edge(src, dst, ts),
         }
     }
 
@@ -176,6 +208,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.compact(),
             MutableCsrVariant::Single(csr) => csr.compact(),
+            MutableCsrVariant::CacheOptimized(csr) => csr.compact(),
         }
     }
 
@@ -194,6 +227,9 @@ impl MutableCsrTrait for MutableCsrVariant {
             MutableCsrVariant::Single(csr) => {
                 csr.batch_put_edges(src_list, dst_list, edge_ids, prop_offsets, ts)
             }
+            MutableCsrVariant::CacheOptimized(csr) => {
+                csr.batch_put_edges(src_list, dst_list, edge_ids, prop_offsets, ts)
+            }
         }
     }
 }
@@ -203,6 +239,7 @@ impl MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.find_deleted_edge(src, dst),
             MutableCsrVariant::Single(csr) => csr.find_deleted_edge(src, dst),
+            MutableCsrVariant::CacheOptimized(csr) => csr.find_deleted_edge(src, dst),
         }
     }
 
@@ -210,6 +247,7 @@ impl MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.used_memory_size(),
             MutableCsrVariant::Single(csr) => csr.used_memory_size(),
+            MutableCsrVariant::CacheOptimized(csr) => csr.used_memory_size(),
         }
     }
 
@@ -217,6 +255,7 @@ impl MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.compact_with_ts(ts, reserve_ratio),
             MutableCsrVariant::Single(csr) => csr.compact_with_ts(ts, reserve_ratio),
+            MutableCsrVariant::CacheOptimized(csr) => csr.compact_with_ts(ts, reserve_ratio),
         }
     }
 
@@ -228,6 +267,9 @@ impl MutableCsrVariant {
             MutableCsrVariant::Single(csr) => {
                 CsrEdgeIterator::Single(csr.iter_edges(src, ts))
             }
+            MutableCsrVariant::CacheOptimized(csr) => {
+                CsrEdgeIterator::CacheOptimized(csr.iter_edges(src, ts))
+            }
         }
     }
 
@@ -235,6 +277,7 @@ impl MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => CsrIterator::Multiple(csr.iter(ts)),
             MutableCsrVariant::Single(csr) => CsrIterator::Single(csr.iter(ts)),
+            MutableCsrVariant::CacheOptimized(csr) => CsrIterator::CacheOptimized(csr.iter(ts)),
         }
     }
 }
@@ -242,6 +285,7 @@ impl MutableCsrVariant {
 pub enum CsrEdgeIterator<'a> {
     Multiple(MutableCsrEdgeIterator<'a>),
     Single(SingleCsrEdgeIterator<'a>),
+    CacheOptimized(super::CacheOptimizedCsrEdgeIterator<'a>),
 }
 
 impl<'a> Iterator for CsrEdgeIterator<'a> {
@@ -251,6 +295,7 @@ impl<'a> Iterator for CsrEdgeIterator<'a> {
         match self {
             CsrEdgeIterator::Multiple(iter) => iter.next(),
             CsrEdgeIterator::Single(iter) => iter.next(),
+            CsrEdgeIterator::CacheOptimized(iter) => iter.next(),
         }
     }
 }
@@ -258,6 +303,7 @@ impl<'a> Iterator for CsrEdgeIterator<'a> {
 pub enum CsrIterator<'a> {
     Multiple(MutableCsrIterator<'a>),
     Single(SingleMutableCsrIterator<'a>),
+    CacheOptimized(super::CacheOptimizedCsrIterator<'a>),
 }
 
 impl<'a> Iterator for CsrIterator<'a> {
@@ -267,6 +313,7 @@ impl<'a> Iterator for CsrIterator<'a> {
         match self {
             CsrIterator::Multiple(iter) => iter.next(),
             CsrIterator::Single(iter) => iter.next(),
+            CsrIterator::CacheOptimized(iter) => iter.next(),
         }
     }
 }
@@ -281,6 +328,7 @@ mod tests {
 
         assert!(csr.is_multiple());
         assert!(!csr.is_single());
+        assert!(!csr.is_cache_optimized());
         assert_eq!(csr.csr_type(), CsrType::Mutable);
 
         assert!(csr.insert_edge(0, 1, 100, 0, 1));
@@ -294,7 +342,22 @@ mod tests {
 
         assert!(csr.is_single());
         assert!(!csr.is_multiple());
+        assert!(!csr.is_cache_optimized());
         assert_eq!(csr.csr_type(), CsrType::SingleMutable);
+
+        assert!(csr.insert_edge(0, 1, 100, 0, 1));
+        assert!(csr.has_edge(0, 1, 1));
+        assert_eq!(csr.edge_count(), 1);
+    }
+
+    #[test]
+    fn test_cache_optimized_csr_variant() {
+        let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::CacheOptimized, 10, 100);
+
+        assert!(csr.is_cache_optimized());
+        assert!(!csr.is_multiple());
+        assert!(!csr.is_single());
+        assert_eq!(csr.csr_type(), CsrType::CacheOptimized);
 
         assert!(csr.insert_edge(0, 1, 100, 0, 1));
         assert!(csr.has_edge(0, 1, 1));
