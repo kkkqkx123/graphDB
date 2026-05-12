@@ -257,6 +257,28 @@ impl Default for DictionaryColumn {
     }
 }
 
+impl super::EncodedColumn for DictionaryColumn {
+    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
+        DictionaryColumn::get(self, row_idx)
+    }
+
+    fn len(&self) -> usize {
+        DictionaryColumn::len(self)
+    }
+
+    fn is_null(&self, row_idx: usize) -> bool {
+        DictionaryColumn::is_null(self, row_idx)
+    }
+
+    fn memory_usage(&self) -> usize {
+        DictionaryColumn::memory_usage(self)
+    }
+
+    fn encoding_type(&self) -> super::EncodingType {
+        super::EncodingType::Dictionary
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -388,6 +388,11 @@ impl FsstColumn {
 
         (original_size - compressed_size) as f64 / original_size as f64
     }
+    
+    pub fn clear(&mut self) {
+        self.encoded_data.clear();
+        self.null_bitmap.clear();
+    }
 
     pub fn encoder(&self) -> &FsstEncoder {
         &self.encoder
@@ -420,6 +425,32 @@ pub fn select_fsst(strings: &[&str]) -> bool {
     let cardinality_ratio = unique_count as f64 / strings.len() as f64;
 
     avg_len >= 20 && cardinality_ratio > 0.5
+}
+
+impl super::EncodedColumn for FsstColumn {
+    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
+        self.get(row_idx).map(crate::core::Value::String)
+    }
+
+    fn len(&self) -> usize {
+        FsstColumn::len(self)
+    }
+
+    fn is_null(&self, row_idx: usize) -> bool {
+        FsstColumn::is_null(self, row_idx)
+    }
+
+    fn memory_usage(&self) -> usize {
+        FsstColumn::memory_usage(self)
+    }
+
+    fn encoding_type(&self) -> super::EncodingType {
+        super::EncodingType::Fsst
+    }
+
+    fn compression_ratio(&self) -> f64 {
+        FsstColumn::compression_ratio(self)
+    }
 }
 
 #[cfg(test)]

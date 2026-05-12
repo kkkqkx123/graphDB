@@ -325,6 +325,12 @@ impl AlpColumn {
     pub fn compression_ratio(&self) -> f64 {
         self.encoder.compression_ratio()
     }
+    
+    pub fn clear(&mut self) {
+        self.encoder.bit_packed.clear();
+        self.null_bitmap.clear();
+        self.row_count = 0;
+    }
 
     pub fn encoder(&self) -> &AlpEncoder {
         &self.encoder
@@ -362,6 +368,32 @@ pub fn select_alp(values: &[f64]) -> bool {
 pub fn select_alp_f32(values: &[f32]) -> bool {
     let f64_values: Vec<f64> = values.iter().map(|&v| v as f64).collect();
     select_alp(&f64_values)
+}
+
+impl super::EncodedColumn for AlpColumn {
+    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
+        self.get_value(row_idx)
+    }
+
+    fn len(&self) -> usize {
+        AlpColumn::len(self)
+    }
+
+    fn is_null(&self, row_idx: usize) -> bool {
+        AlpColumn::is_null(self, row_idx)
+    }
+
+    fn memory_usage(&self) -> usize {
+        AlpColumn::memory_usage(self)
+    }
+
+    fn encoding_type(&self) -> super::EncodingType {
+        super::EncodingType::Alp
+    }
+
+    fn compression_ratio(&self) -> f64 {
+        AlpColumn::compression_ratio(self)
+    }
 }
 
 #[cfg(test)]

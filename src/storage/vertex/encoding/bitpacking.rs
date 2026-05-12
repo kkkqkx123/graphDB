@@ -384,6 +384,10 @@ impl BitPackedIntColumn {
     pub fn compression_ratio(&self) -> f64 {
         self.packed.compression_ratio()
     }
+    
+    pub fn clear(&mut self) {
+        self.packed.clear();
+    }
 }
 
 pub fn select_bitpacking(values: &[i64]) -> bool {
@@ -398,6 +402,32 @@ pub fn select_bitpacking(values: &[i64]) -> bool {
     let bit_width = if range == 0 { 1 } else { (64 - range.leading_zeros()) as u8 };
 
     bit_width < 32
+}
+
+impl super::EncodedColumn for BitPackedIntColumn {
+    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
+        BitPackedIntColumn::get(self, row_idx)
+    }
+
+    fn len(&self) -> usize {
+        BitPackedIntColumn::len(self)
+    }
+
+    fn is_null(&self, row_idx: usize) -> bool {
+        BitPackedIntColumn::is_null(self, row_idx)
+    }
+
+    fn memory_usage(&self) -> usize {
+        BitPackedIntColumn::memory_usage(self)
+    }
+
+    fn encoding_type(&self) -> super::EncodingType {
+        super::EncodingType::BitPacking
+    }
+
+    fn compression_ratio(&self) -> f64 {
+        BitPackedIntColumn::compression_ratio(self)
+    }
 }
 
 #[cfg(test)]

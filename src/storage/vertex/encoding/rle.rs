@@ -247,6 +247,50 @@ impl Default for RleBoolColumn {
     }
 }
 
+impl super::EncodedColumn for RleIntColumn {
+    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
+        RleIntColumn::get(self, row_idx)
+    }
+
+    fn len(&self) -> usize {
+        RleIntColumn::len(self)
+    }
+
+    fn is_null(&self, row_idx: usize) -> bool {
+        RleIntColumn::is_null(self, row_idx)
+    }
+
+    fn memory_usage(&self) -> usize {
+        RleIntColumn::memory_usage(self)
+    }
+
+    fn encoding_type(&self) -> super::EncodingType {
+        super::EncodingType::Rle
+    }
+}
+
+impl super::EncodedColumn for RleBoolColumn {
+    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
+        RleBoolColumn::get(self, row_idx)
+    }
+
+    fn len(&self) -> usize {
+        RleBoolColumn::len(self)
+    }
+
+    fn is_null(&self, row_idx: usize) -> bool {
+        RleBoolColumn::is_null(self, row_idx)
+    }
+
+    fn memory_usage(&self) -> usize {
+        RleBoolColumn::memory_usage(self)
+    }
+
+    fn encoding_type(&self) -> super::EncodingType {
+        super::EncodingType::Rle
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
