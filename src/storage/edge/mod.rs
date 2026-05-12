@@ -6,6 +6,7 @@
 //!
 //! - `Csr`: Immutable CSR for read-optimized edge storage
 //! - `MutableCsr`: Mutable CSR supporting dynamic edge operations
+//! - `CacheOptimizedCsr`: Cache-optimized CSR with SoA layout and SIMD support
 //! - `SingleMutableCsr`: Optimized mutable CSR for single-edge scenarios
 //! - `SingleImmutableCsr`: Optimized immutable CSR for single-edge scenarios
 //! - `MutableCsrVariant`: Enum wrapper for runtime CSR selection
@@ -19,7 +20,13 @@
 //! - `Multiple`: Use `MutableCsr` (supports multiple edges per vertex)
 //! - `Single`: Use `SingleMutableCsr` (one edge per vertex, optimized)
 //! - `None`: No edges stored
+//!
+//! ## Optimized CSR Variants
+//!
+//! - `CacheOptimizedCsr`: Uses Structure of Arrays (SoA) layout for better cache locality
+//!   and SIMD optimization. Recommended for performance-critical scenarios.
 
+pub mod cache_optimized_csr;
 pub mod csr;
 pub mod csr_persistence;
 pub mod csr_trait;
@@ -29,7 +36,9 @@ pub mod mutable_csr_variant;
 pub mod property_table;
 pub mod single_immutable_csr;
 pub mod single_mutable_csr;
+pub mod weighted_csr;
 
+pub use cache_optimized_csr::CacheOptimizedCsr;
 pub use csr::Csr;
 pub use csr_persistence::CsrPersistence;
 pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
@@ -41,6 +50,7 @@ pub use mutable_csr_variant::{CsrEdgeIterator, CsrIterator, MutableCsrVariant};
 pub use property_table::PropertyTable;
 pub use single_immutable_csr::SingleImmutableCsr;
 pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
+pub use weighted_csr::WeightedCsr;
 
 pub type EdgeId = u64;
 pub type LabelId = u32;
