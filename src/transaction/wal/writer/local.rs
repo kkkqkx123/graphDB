@@ -1,226 +1,52 @@
-//! WAL Writer
-//!
-//! Provides Write-Ahead Log writing functionality
+//! Local file-based WAL writer
 
-use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use super::types::{
-    ArchiveMode, Lsn, RecordType, SyncPolicy, WalCompression, WalConfig, WalError, WalFileHeader,
-    WalHeader, WalOpType, WalResult, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAX_RECORD_SIZE,
+use super::compression::{self as compression_mod, create_compressor, Compressor};
+use super::group_commit::GroupCommitManager;
+use super::sync::{elapsed_since, should_sync};
+use super::traits::WalWriter;
+use crate::transaction::wal::types::{
+    ArchiveMode, Lsn, RecordType, WalCompression, WalConfig, WalError, WalFileHeader, WalHeader,
+    WalOpType, WalResult, WalStats, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAX_RECORD_SIZE,
 };
-
-/// WAL writer trait
-pub trait WalWriter: Send + Sync {
-    /// Open the WAL
-    fn open(&mut self) -> WalResult<()>;
-
-    /// Close the WAL
-    fn close(&mut self);
-
-    /// Append data to the WAL
-    fn append(&mut self, data: &[u8]) -> WalResult<bool>;
-
-    /// Sync the WAL to disk
-    fn sync(&self) -> WalResult<()>;
-}
-
-/// Pending write for group commit
-pub(crate) struct PendingWrite {
-    op_type: WalOpType,
-    timestamp: u32,
-    data: Vec<u8>,
-    result: Arc<Mutex<WalResult<bool>>>,
-    notified: Arc<Condvar>,
-}
-
-/// Group commit manager for batching multiple writes
-pub struct GroupCommitManager {
-    pending_writes: Mutex<VecDeque<PendingWrite>>,
-    batch_size_limit: usize,
-    commit_delay_us: u64,
-    is_leader: AtomicBool,
-}
-
-impl GroupCommitManager {
-    pub fn new(batch_size_limit: usize, commit_delay_us: u64) -> Self {
-        Self {
-            pending_writes: Mutex::new(VecDeque::new()),
-            batch_size_limit,
-            commit_delay_us,
-            is_leader: AtomicBool::new(false),
-        }
-    }
-
-    pub fn submit(&self, op_type: WalOpType, timestamp: u32, data: &[u8]) -> WalResult<bool> {
-        let result = Arc::new(Mutex::new(Ok(false)));
-        let notified = Arc::new(Condvar::new());
-
-        let pending = PendingWrite {
-            op_type,
-            timestamp,
-            data: data.to_vec(),
-            result: result.clone(),
-            notified: notified.clone(),
-        };
-
-        {
-            let mut queue = self
-                .pending_writes
-                .lock()
-                .map_err(|_| WalError::IoError("Failed to lock pending writes".to_string()))?;
-            queue.push_back(pending);
-        }
-
-        let mut result_guard = result
-            .lock()
-            .map_err(|_| WalError::IoError("Failed to lock result".to_string()))?;
-
-        loop {
-            if let Ok(true) = *result_guard {
-                return Ok(true);
-            }
-            if let Err(ref e) = *result_guard {
-                return Err(e.clone());
-            }
-
-            result_guard = notified
-                .wait_timeout(
-                    result_guard,
-                    std::time::Duration::from_micros(self.commit_delay_us),
-                )
-                .map_err(|_| WalError::IoError("Wait timeout error".to_string()))?
-                .0;
-        }
-    }
-
-    pub fn process_batch(&self, writer: &mut LocalWalWriter) -> WalResult<()> {
-        if let Some(batch) = self.collect_batch() {
-            if batch.is_empty() {
-                return Ok(());
-            }
-
-            let entries: Vec<(WalOpType, u32, &[u8])> = batch
-                .iter()
-                .map(|p| (p.op_type, p.timestamp, p.data.as_slice()))
-                .collect();
-
-            let success = writer.append_batch(&entries);
-
-            match success {
-                Ok(_) => Self::notify_results(batch, true),
-                Err(e) => Self::notify_error(batch, e),
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn collect_batch(&self) -> Option<Vec<PendingWrite>> {
-        let mut queue = self.pending_writes.lock().ok()?;
-
-        if queue.is_empty() {
-            return None;
-        }
-
-        let batch_size = queue.len().min(self.batch_size_limit);
-        let batch: Vec<PendingWrite> = queue.drain(..batch_size).collect();
-        Some(batch)
-    }
-
-    pub fn is_leader(&self) -> bool {
-        self.is_leader.load(Ordering::SeqCst)
-    }
-
-    pub fn set_leader(&self, is_leader: bool) {
-        self.is_leader.store(is_leader, Ordering::SeqCst);
-    }
-
-    pub fn has_pending(&self) -> bool {
-        self.pending_writes
-            .lock()
-            .map(|q| !q.is_empty())
-            .unwrap_or(false)
-    }
-
-    pub(crate) fn notify_results(batch: Vec<PendingWrite>, success: bool) {
-        for pending in batch {
-            if let Ok(mut result) = pending.result.lock() {
-                *result = Ok(success);
-            }
-            pending.notified.notify_all();
-        }
-    }
-
-    pub(crate) fn notify_error(batch: Vec<PendingWrite>, error: WalError) {
-        for pending in batch {
-            if let Ok(mut result) = pending.result.lock() {
-                *result = Err(error.clone());
-            }
-            pending.notified.notify_all();
-        }
-    }
-}
-
-impl Default for GroupCommitManager {
-    fn default() -> Self {
-        Self::new(1024, 100)
-    }
-}
 
 /// Local file-based WAL writer
 pub struct LocalWalWriter {
-    /// WAL URI/path
     wal_uri: String,
-    /// Thread ID for this writer
     thread_id: u32,
-    /// File handle
     file: Option<File>,
-    /// File path
     file_path: Option<PathBuf>,
-    /// Current file size
     file_size: usize,
-    /// Current file used bytes
     file_used: usize,
-    /// WAL version counter (file sequence number)
     version: u32,
-    /// Checkpoint sequence number
     checkpoint_seq: u64,
-    /// Current LSN (Log Sequence Number)
     current_lsn: AtomicU64,
-    /// Last synced LSN
     last_synced_lsn: AtomicU64,
-    /// Starting LSN for current file
     file_start_lsn: Lsn,
-    /// LSN delta since last checkpoint
     lsn_since_checkpoint: u64,
-    /// Last cleanup time
     last_cleanup_time: Option<Instant>,
-    /// Write count since last cleanup (for cleanup frequency control)
     writes_since_cleanup: u64,
-    /// WAL statistics
-    stats: super::types::WalStats,
-    /// Configuration
+    stats: WalStats,
     config: WalConfig,
-    /// Is open flag
     is_open: AtomicBool,
-    /// WAL file header
     file_header: Option<WalFileHeader>,
-    /// Group commit manager
+    compressor: Box<dyn Compressor>,
     group_commit: Option<Arc<GroupCommitManager>>,
-    /// Write count since last sync (for batch sync policy)
     write_count: AtomicU64,
-    /// Last sync time (for periodic sync policy)
     last_sync_time: Mutex<Option<Instant>>,
 }
 
 impl LocalWalWriter {
     /// Create a new local WAL writer
     pub fn new(wal_uri: &str, thread_id: u32) -> Self {
+        let config = WalConfig::default();
+        let compressor = create_compressor(&config);
         Self {
             wal_uri: wal_uri.to_string(),
             thread_id,
@@ -236,10 +62,11 @@ impl LocalWalWriter {
             lsn_since_checkpoint: 0,
             last_cleanup_time: None,
             writes_since_cleanup: 0,
-            stats: super::types::WalStats::new(),
-            config: WalConfig::default(),
+            stats: WalStats::new(),
+            config,
             is_open: AtomicBool::new(false),
             file_header: None,
+            compressor,
             group_commit: None,
             write_count: AtomicU64::new(0),
             last_sync_time: Mutex::new(None),
@@ -248,6 +75,7 @@ impl LocalWalWriter {
 
     /// Create with custom configuration
     pub fn with_config(wal_uri: &str, thread_id: u32, config: WalConfig) -> Self {
+        let compressor = create_compressor(&config);
         let group_commit = if config.group_commit_enabled {
             Some(Arc::new(GroupCommitManager::new(
                 config.group_commit_batch_size,
@@ -272,10 +100,11 @@ impl LocalWalWriter {
             lsn_since_checkpoint: 0,
             last_cleanup_time: None,
             writes_since_cleanup: 0,
-            stats: super::types::WalStats::new(),
+            stats: WalStats::new(),
             config,
             is_open: AtomicBool::new(false),
             file_header: None,
+            compressor,
             group_commit,
             write_count: AtomicU64::new(0),
             last_sync_time: Mutex::new(None),
@@ -593,7 +422,7 @@ impl LocalWalWriter {
             return Err(WalError::Closed);
         }
 
-        let (final_payload, compression) = self.compress_payload(payload)?;
+        let (final_payload, compression) = self.compressor.compress(payload)?;
 
         if final_payload.len() > WAL_MAX_RECORD_SIZE {
             return self.append_fragmented_entry(op_type, timestamp, &final_payload, compression);
@@ -723,85 +552,20 @@ impl LocalWalWriter {
         self.current_lsn.store(new_lsn.as_u64(), Ordering::SeqCst);
 
         let write_count = self.write_count.fetch_add(1, Ordering::SeqCst) + 1;
-        let should_sync = match &self.config.sync_policy {
-            SyncPolicy::Never => false,
-            SyncPolicy::EveryWrite => true,
-            SyncPolicy::Periodic { interval_ms } => {
-                let last_sync = self
-                    .last_sync_time
-                    .lock()
-                    .map(|guard| *guard)
-                    .unwrap_or(None);
-                if let Some(last) = last_sync {
-                    last.elapsed().as_millis() as u64 >= *interval_ms
-                } else {
-                    true
-                }
-            }
-            SyncPolicy::Batch { batch_size } => write_count as usize >= *batch_size,
-            SyncPolicy::GroupCommit => false,
-        };
+        let elapsed = elapsed_since(*self.last_sync_time.lock().unwrap());
+        let should_sync = should_sync(&self.config.sync_policy, write_count, elapsed);
 
         if should_sync {
-            Self::do_sync_internal(
-                file,
-                &self.current_lsn,
-                &self.last_synced_lsn,
-                &self.write_count,
-                &self.last_sync_time,
-            )?;
+            file.sync_data()?;
+            let lsn = self.current_lsn.load(Ordering::SeqCst);
+            self.last_synced_lsn.store(lsn, Ordering::SeqCst);
+            self.write_count.store(0, Ordering::SeqCst);
+            if let Ok(mut guard) = self.last_sync_time.lock() {
+                *guard = Some(Instant::now());
+            }
         }
 
         Ok(true)
-    }
-
-    /// Perform sync operation (internal helper)
-    fn do_sync_internal(
-        file: &File,
-        current_lsn: &AtomicU64,
-        last_synced_lsn: &AtomicU64,
-        write_count: &AtomicU64,
-        last_sync_time: &Mutex<Option<Instant>>,
-    ) -> WalResult<()> {
-        file.sync_data()?;
-        let lsn = current_lsn.load(Ordering::SeqCst);
-        last_synced_lsn.store(lsn, Ordering::SeqCst);
-        write_count.store(0, Ordering::SeqCst);
-        if let Ok(mut guard) = last_sync_time.lock() {
-            *guard = Some(Instant::now());
-        }
-        Ok(())
-    }
-
-    /// Compress payload if compression is enabled
-    fn compress_payload(&self, payload: &[u8]) -> WalResult<(Vec<u8>, WalCompression)> {
-        if payload.len() < 64 {
-            return Ok((payload.to_vec(), WalCompression::None));
-        }
-
-        match self.config.compression {
-            WalCompression::Zstd => {
-                let level = self.config.compression_level.level as i32;
-                let compressed = zstd::encode_all(payload, level)
-                    .map_err(|e| WalError::SerializationError(e.to_string()))?;
-
-                if compressed.len() < payload.len() {
-                    return Ok((compressed, WalCompression::Zstd));
-                }
-                Ok((payload.to_vec(), WalCompression::None))
-            }
-            WalCompression::None => Ok((payload.to_vec(), WalCompression::None)),
-        }
-    }
-
-    /// Decompress payload
-    pub fn decompress_payload(payload: &[u8], compression: WalCompression) -> WalResult<Vec<u8>> {
-        match compression {
-            WalCompression::Zstd => {
-                zstd::decode_all(payload).map_err(|e| WalError::DeserializationError(e.to_string()))
-            }
-            WalCompression::None => Ok(payload.to_vec()),
-        }
     }
 
     /// Append multiple entries as a batch (for group commit)
@@ -814,7 +578,7 @@ impl LocalWalWriter {
         let mut compressed_entries = Vec::with_capacity(entries.len());
 
         for (op_type, timestamp, payload) in entries {
-            let (final_payload, compression) = self.compress_payload(payload)?;
+            let (final_payload, compression) = self.compressor.compress(payload)?;
 
             let prev_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst) + total_len as u64);
             let entry_size = WAL_HEADER_SIZE + final_payload.len();
@@ -863,62 +627,57 @@ impl LocalWalWriter {
         Ok(true)
     }
 
-    /// Get current LSN
+    /// Decompress payload (public helper)
+    pub fn decompress_payload(payload: &[u8], compression: WalCompression) -> WalResult<Vec<u8>> {
+        compression_mod::decompress_payload(payload, compression)
+    }
+
+    // ── Getters and Setters ──
+
     pub fn current_lsn(&self) -> Lsn {
         Lsn::new(self.current_lsn.load(Ordering::SeqCst))
     }
 
-    /// Get last synced LSN
     pub fn last_synced_lsn(&self) -> Lsn {
         Lsn::new(self.last_synced_lsn.load(Ordering::SeqCst))
     }
 
-    /// Get file start LSN
     pub fn file_start_lsn(&self) -> Lsn {
         self.file_start_lsn
     }
 
-    /// Set current LSN (for recovery)
     pub fn set_current_lsn(&self, lsn: Lsn) {
         self.current_lsn.store(lsn.as_u64(), Ordering::SeqCst);
     }
 
-    /// Get current file size
     pub fn file_size(&self) -> usize {
         self.file_size
     }
 
-    /// Get current file used bytes
     pub fn file_used(&self) -> usize {
         self.file_used
     }
 
-    /// Get checkpoint sequence number
     pub fn checkpoint_seq(&self) -> u64 {
         self.checkpoint_seq
     }
 
-    /// Set checkpoint sequence number
     pub fn set_checkpoint_seq(&mut self, seq: u64) {
         self.checkpoint_seq = seq;
     }
 
-    /// Get the file header
     pub fn file_header(&self) -> Option<&WalFileHeader> {
         self.file_header.as_ref()
     }
 
-    /// Get WAL statistics
-    pub fn get_stats(&self) -> &super::types::WalStats {
+    pub fn get_stats(&self) -> &WalStats {
         &self.stats
     }
 
-    /// Reset WAL statistics
     pub fn reset_stats(&mut self) {
-        self.stats = super::types::WalStats::new();
+        self.stats = WalStats::new();
     }
 
-    /// Get group commit manager reference
     pub fn group_commit_manager(&self) -> Option<&Arc<GroupCommitManager>> {
         self.group_commit.as_ref()
     }
@@ -926,7 +685,7 @@ impl LocalWalWriter {
     /// Process pending group commit batch
     pub fn process_group_commit(&mut self) -> WalResult<()> {
         if let Some(manager) = self.group_commit.clone() {
-            manager.process_batch(self)?;
+            manager.process_batch(|entries| self.append_batch(entries))?;
         }
         Ok(())
     }
@@ -1012,38 +771,21 @@ impl WalWriter for LocalWalWriter {
         self.current_lsn.store(new_lsn, Ordering::SeqCst);
 
         let write_count = self.write_count.fetch_add(1, Ordering::SeqCst) + 1;
-        let should_sync = match &self.config.sync_policy {
-            SyncPolicy::Never => false,
-            SyncPolicy::EveryWrite => true,
-            SyncPolicy::Periodic { interval_ms } => {
-                let last_sync = self
-                    .last_sync_time
-                    .lock()
-                    .map(|guard| *guard)
-                    .unwrap_or(None);
-                if let Some(last) = last_sync {
-                    last.elapsed().as_millis() as u64 >= *interval_ms
-                } else {
-                    true
-                }
-            }
-            SyncPolicy::Batch { batch_size } => write_count as usize >= *batch_size,
-            SyncPolicy::GroupCommit => false,
-        };
+        let elapsed = elapsed_since(*self.last_sync_time.lock().unwrap());
+        let should_sync = should_sync(&self.config.sync_policy, write_count, elapsed);
 
         if should_sync {
-            Self::do_sync_internal(
-                file,
-                &self.current_lsn,
-                &self.last_synced_lsn,
-                &self.write_count,
-                &self.last_sync_time,
-            )?;
+            file.sync_data()?;
+            let lsn = self.current_lsn.load(Ordering::SeqCst);
+            self.last_synced_lsn.store(lsn, Ordering::SeqCst);
+            self.write_count.store(0, Ordering::SeqCst);
+            if let Ok(mut guard) = self.last_sync_time.lock() {
+                *guard = Some(Instant::now());
+            }
         }
 
         self.writes_since_cleanup += 1;
 
-        // Trigger cleanup based on frequency control
         if self.config.max_total_size > 0 || self.config.ttl_seconds > 0 {
             self.cleanup_old_wal_files()?;
         }
@@ -1075,79 +817,10 @@ impl Drop for LocalWalWriter {
     }
 }
 
-/// Dummy WAL writer (no-op, for read-only mode)
-pub struct DummyWalWriter {
-    is_open: AtomicBool,
-}
-
-impl DummyWalWriter {
-    pub fn new() -> Self {
-        Self {
-            is_open: AtomicBool::new(false),
-        }
-    }
-}
-
-impl Default for DummyWalWriter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl WalWriter for DummyWalWriter {
-    fn open(&mut self) -> WalResult<()> {
-        self.is_open.store(true, Ordering::SeqCst);
-        Ok(())
-    }
-
-    fn close(&mut self) {
-        self.is_open.store(false, Ordering::SeqCst);
-    }
-
-    fn append(&mut self, _data: &[u8]) -> WalResult<bool> {
-        Ok(true)
-    }
-
-    fn sync(&self) -> WalResult<()> {
-        Ok(())
-    }
-}
-
-/// WAL writer factory
-pub struct WalWriterFactory;
-
-impl WalWriterFactory {
-    /// Create a WAL writer based on the URI scheme
-    pub fn create_wal_writer(wal_uri: &str, thread_id: u32) -> WalResult<Box<dyn WalWriter>> {
-        let scheme = Self::get_scheme(wal_uri);
-
-        match scheme.as_str() {
-            "file" | "" => Ok(Box::new(LocalWalWriter::new(wal_uri, thread_id))),
-            "dummy" => Ok(Box::new(DummyWalWriter::new())),
-            _ => Err(WalError::IoError(format!(
-                "Unknown WAL writer scheme: {}",
-                scheme
-            ))),
-        }
-    }
-
-    /// Create a dummy WAL writer
-    pub fn create_dummy_wal_writer() -> Box<dyn WalWriter> {
-        Box::new(DummyWalWriter::new())
-    }
-
-    fn get_scheme(uri: &str) -> String {
-        if let Some(pos) = uri.find("://") {
-            uri[..pos].to_string()
-        } else {
-            "file".to_string()
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transaction::wal::SyncPolicy;
     use tempfile::TempDir;
 
     #[test]
@@ -1168,15 +841,6 @@ mod tests {
 
         writer.append(&data).expect("Failed to append");
 
-        writer.sync().expect("Failed to sync");
-        writer.close();
-    }
-
-    #[test]
-    fn test_dummy_wal_writer() {
-        let mut writer = DummyWalWriter::new();
-        writer.open().expect("Failed to open");
-        writer.append(b"test").expect("Failed to append");
         writer.sync().expect("Failed to sync");
         writer.close();
     }
@@ -1216,12 +880,6 @@ mod tests {
             .append_batch(&entries)
             .expect("Failed to append batch");
         writer.close();
-    }
-
-    #[test]
-    fn test_group_commit_manager() {
-        let manager = GroupCommitManager::new(10, 100);
-        assert!(!manager.has_pending());
     }
 
     #[test]
@@ -1328,8 +986,6 @@ mod tests {
 
     #[test]
     fn test_fragmented_entry() {
-        use super::WAL_MAX_RECORD_SIZE;
-
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path().to_string_lossy().to_string();
 
