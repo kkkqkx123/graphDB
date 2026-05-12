@@ -59,9 +59,6 @@ pub type Timestamp = u32;
 /// Transaction ID type
 pub type TransactionId = u64;
 
-/// Page ID type for full page writes
-pub type PageId = u64;
-
 /// LSN (Log Sequence Number) - monotonically increasing byte offset
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode,
@@ -147,7 +144,6 @@ pub enum WalOpType {
     DeleteEdgeProp = 13,
     RenameVertexProp = 14,
     RenameEdgeProp = 15,
-    FullPageWrite = 16,
 }
 
 impl TryFrom<u8> for WalOpType {
@@ -171,7 +167,6 @@ impl TryFrom<u8> for WalOpType {
             13 => Ok(WalOpType::DeleteEdgeProp),
             14 => Ok(WalOpType::RenameVertexProp),
             15 => Ok(WalOpType::RenameEdgeProp),
-            16 => Ok(WalOpType::FullPageWrite),
             _ => Err(WalError::InvalidOpType(value)),
         }
     }
@@ -196,7 +191,6 @@ impl fmt::Display for WalOpType {
             WalOpType::DeleteEdgeProp => write!(f, "DeleteEdgeProp"),
             WalOpType::RenameVertexProp => write!(f, "RenameVertexProp"),
             WalOpType::RenameEdgeProp => write!(f, "RenameEdgeProp"),
-            WalOpType::FullPageWrite => write!(f, "FullPageWrite"),
         }
     }
 }
@@ -642,49 +636,6 @@ impl UpdateWalUnit {
     }
 }
 
-/// Full page write header for torn page protection
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
-pub struct FullPageWriteHeader {
-    /// Page ID being written
-    pub page_id: PageId,
-    /// LSN of the page before modification
-    pub page_lsn: Lsn,
-    /// LSN of this full page write record
-    pub record_lsn: Lsn,
-    /// Size of the page data
-    pub page_size: u32,
-    /// Checksum of the page data
-    pub page_checksum: u32,
-    /// Flags for future use
-    pub flags: u16,
-}
-
-impl FullPageWriteHeader {
-    pub fn new(page_id: PageId, page_lsn: Lsn, record_lsn: Lsn, page_size: u32) -> Self {
-        Self {
-            page_id,
-            page_lsn,
-            record_lsn,
-            page_size,
-            page_checksum: 0,
-            flags: 0,
-        }
-    }
-
-    pub fn with_checksum(mut self, checksum: u32) -> Self {
-        self.page_checksum = checksum;
-        self
-    }
-
-    pub fn serialize(&self) -> Vec<u8> {
-        oxicode::encode_to_vec(self).unwrap_or_default()
-    }
-
-    pub fn deserialize(data: &[u8]) -> Option<Self> {
-        oxicode::decode_from_slice(data).ok().map(|(v, _)| v)
-    }
-}
-
 /// Insert vertex redo log
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct InsertVertexRedo {
@@ -705,7 +656,7 @@ pub struct InsertEdgeRedo {
 }
 
 /// Update vertex property redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct UpdateVertexPropRedo {
     pub label: LabelId,
     pub oid: Vec<u8>,
@@ -714,7 +665,7 @@ pub struct UpdateVertexPropRedo {
 }
 
 /// Update edge property redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct UpdateEdgePropRedo {
     pub src_label: LabelId,
     pub src_oid: Vec<u8>,
@@ -742,14 +693,14 @@ pub struct CreateEdgeTypeRedo {
 }
 
 /// Delete vertex redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct DeleteVertexRedo {
     pub label: LabelId,
     pub oid: Vec<u8>,
 }
 
 /// Delete edge redo log
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct DeleteEdgeRedo {
     pub src_label: LabelId,
     pub src_oid: Vec<u8>,
@@ -777,8 +728,6 @@ pub struct WalStats {
     pub total_checkpoints: u64,
     /// Last checkpoint duration in microseconds
     pub last_checkpoint_duration_us: u64,
-    /// Total full page writes
-    pub total_full_page_writes: u64,
     /// Total sync operations
     pub total_syncs: u64,
     /// Total write latency in microseconds
@@ -832,10 +781,6 @@ impl WalStats {
     pub fn record_checkpoint(&mut self, duration_us: u64) {
         self.total_checkpoints += 1;
         self.last_checkpoint_duration_us = duration_us;
-    }
-
-    pub fn record_full_page_write(&mut self) {
-        self.total_full_page_writes += 1;
     }
 
     pub fn record_sync(&mut self) {
@@ -948,8 +893,6 @@ pub struct WalConfig {
     pub checksum_enabled: bool,
     /// Maximum parallel threads for recovery
     pub max_parallel_recovery_threads: usize,
-    /// Enable full page writes for crash recovery
-    pub full_page_writes: bool,
     /// Enable circular buffer mode
     pub circular_buffer: bool,
     /// Circular buffer size in bytes (only used when circular_buffer is true)
@@ -989,7 +932,6 @@ impl Default for WalConfig {
             max_parallel_recovery_threads: 4,
             
             // Advanced features - disabled by default
-            full_page_writes: false,
             circular_buffer: false,
             circular_buffer_size: 16 * 1024 * 1024, // 16MB - reduced memory footprint
         }
@@ -1059,11 +1001,6 @@ impl WalConfig {
 
     pub fn with_parallel_recovery(mut self, threads: usize) -> Self {
         self.max_parallel_recovery_threads = threads;
-        self
-    }
-
-    pub fn with_full_page_writes(mut self, enabled: bool) -> Self {
-        self.full_page_writes = enabled;
         self
     }
 

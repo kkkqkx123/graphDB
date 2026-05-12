@@ -107,7 +107,7 @@ impl SingleMutableCsr {
 
         let nbr = &mut self.nbr_list[src_idx];
 
-        if nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
+        if nbr.timestamp != INVALID_TIMESTAMP && ts <= nbr.timestamp {
             return false;
         }
 
@@ -383,7 +383,7 @@ impl SingleMutableCsr {
         let edge_count = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
         offset += 8;
 
-        let expected_len = 16 + vertex_capacity * 28;
+        let expected_len = 16 + vertex_capacity * 24;
         if data.len() < expected_len {
             return;
         }

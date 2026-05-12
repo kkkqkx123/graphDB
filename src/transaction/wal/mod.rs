@@ -54,13 +54,13 @@ pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointRe
 pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};
 pub use crate::storage::metadata::{TableId as DirtyPageId, TableTracker as DirtyPageTracker, TableTrackerConfig as DirtyTrackerConfig, TableType};
 pub use parser::{
-    FullPageWriteEntry, LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
+    LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
     WalEntry, WalEntryIter, WalParser, WalParserFactory,
 };
 pub use types::{
     align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ArchiveMode, ColumnId,
     CompressionLevel, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
-    EdgeId, FullPageWriteHeader, InsertEdgeRedo, InsertVertexRedo, LabelId, Lsn, PageId,
+    EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, Lsn,
     RecordType, SyncPolicy, Timestamp, TransactionId, UpdateEdgePropRedo, UpdateVertexPropRedo,
     UpdateWalUnit, VertexId, WalCompression, WalConfig, WalContentUnit, WalError, WalFileHeader,
     WalHeader, WalOpType, WalRecoveryMode, WalResult, WalStats, WAL_BLOCK_SIZE,

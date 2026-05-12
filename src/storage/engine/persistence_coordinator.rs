@@ -1,3 +1,8 @@
+//! Persistence Coordinator
+//!
+//! Coordinates WAL, checkpoint, and snapshot operations for data persistence.
+//! This module integrates CheckpointManager for unified checkpoint management.
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
@@ -7,7 +12,7 @@ use parking_lot::RwLock;
 use crate::core::error::StorageResult;
 use crate::storage::engine::snapshot_manager::{SnapshotManager, SnapshotOptions};
 use crate::storage::engine::WalManager;
-use crate::transaction::wal::{Lsn, Timestamp};
+use crate::transaction::wal::{CheckpointManager, CheckpointMode, Lsn, Timestamp};
 
 #[derive(Debug, Clone)]
 pub struct CheckpointInfo {
@@ -71,11 +76,11 @@ impl Default for PersistenceConfig {
 pub struct PersistenceCoordinator {
     config: PersistenceConfig,
     wal_manager: Arc<RwLock<WalManager>>,
+    checkpoint_manager: RwLock<CheckpointManager>,
     snapshot_manager: Option<Arc<SnapshotManager>>,
     last_checkpoint_time: RwLock<Instant>,
     last_flush_time: RwLock<Instant>,
     last_snapshot_time: RwLock<Option<SystemTime>>,
-    checkpoint_counter: RwLock<u64>,
     pending_wal_entries: RwLock<u64>,
 }
 
@@ -86,6 +91,14 @@ impl PersistenceCoordinator {
         std::fs::create_dir_all(&config.checkpoint_dir)?;
 
         let wal_manager = WalManager::new();
+
+        let mut checkpoint_manager = CheckpointManager::new(
+            &config.wal_dir,
+            &config.checkpoint_dir,
+            None,
+        );
+        checkpoint_manager.init()
+            .map_err(|e| crate::core::StorageError::db_error(format!("Failed to init checkpoint manager: {}", e)))?;
 
         let snapshot_manager = if config.enable_snapshots {
             std::fs::create_dir_all(&config.snapshot_dir)?;
@@ -100,17 +113,21 @@ impl PersistenceCoordinator {
         Ok(Self {
             config,
             wal_manager: Arc::new(RwLock::new(wal_manager)),
+            checkpoint_manager: RwLock::new(checkpoint_manager),
             snapshot_manager,
             last_checkpoint_time: RwLock::new(Instant::now()),
             last_flush_time: RwLock::new(Instant::now()),
             last_snapshot_time: RwLock::new(None),
-            checkpoint_counter: RwLock::new(0),
             pending_wal_entries: RwLock::new(0),
         })
     }
 
     pub fn wal_manager(&self) -> Arc<RwLock<WalManager>> {
         self.wal_manager.clone()
+    }
+
+    pub fn checkpoint_manager(&self) -> &RwLock<CheckpointManager> {
+        &self.checkpoint_manager
     }
 
     pub fn snapshot_manager(&self) -> Option<Arc<SnapshotManager>> {
@@ -158,32 +175,33 @@ impl PersistenceCoordinator {
         timestamp: Timestamp,
     ) -> StorageResult<CheckpointStats> {
         let start = Instant::now();
-        let checkpoint_id = {
-            let mut counter = self.checkpoint_counter.write();
-            *counter += 1;
-            *counter
-        };
-
-        log::info!(
-            "Creating checkpoint {} at timestamp {}",
-            checkpoint_id,
-            timestamp
-        );
-
-        let checkpoint_dir = self.config.checkpoint_dir.join(format!("checkpoint_{}", checkpoint_id));
-        std::fs::create_dir_all(&checkpoint_dir)?;
-
-        let data = flush_data(&checkpoint_dir, timestamp)?;
 
         let wal_lsn = {
             let wal = self.wal_manager.read();
             wal.current_lsn()
         };
 
-        self.save_checkpoint_metadata(&checkpoint_dir, checkpoint_id, timestamp, wal_lsn, &data)?;
+        log::info!(
+            "Creating checkpoint at timestamp {}, LSN {}",
+            timestamp,
+            wal_lsn
+        );
+
+        let checkpoint = {
+            let mut cm = self.checkpoint_manager.write();
+            cm.create_checkpoint(timestamp, wal_lsn)
+                .map_err(|e| crate::core::StorageError::db_error(format!("Failed to create checkpoint: {}", e)))?
+        };
+
+        let checkpoint_dir = self.config.checkpoint_dir.join(format!("checkpoint_{}", checkpoint.seq));
+        std::fs::create_dir_all(&checkpoint_dir)?;
+
+        let data = flush_data(&checkpoint_dir, timestamp)?;
+
+        self.save_checkpoint_metadata(&checkpoint_dir, &checkpoint, &data)?;
 
         {
-            let mut wal = self.wal_manager.write();
+            let wal = self.wal_manager.read();
             wal.truncate(wal_lsn)?;
         }
 
@@ -195,10 +213,10 @@ impl PersistenceCoordinator {
                 let snapshot_options = SnapshotOptions::default();
                 match snapshot_manager.create_snapshot(
                     &self.config.data_dir,
-                    checkpoint_id,
+                    checkpoint.seq,
                     data.vertex_count,
                     data.edge_count,
-                    checkpoint_id,
+                    checkpoint.seq,
                     wal_lsn.into(),
                     snapshot_options,
                 ) {
@@ -219,14 +237,14 @@ impl PersistenceCoordinator {
         };
 
         let stats = CheckpointStats {
-            checkpoint_id,
+            checkpoint_id: checkpoint.seq,
             data_flushed: data.data_size,
             wal_truncated: wal_lsn.into(),
             duration: start.elapsed(),
             snapshot_created,
         };
 
-        log::info!("Checkpoint {} completed in {:?}", checkpoint_id, stats.duration);
+        log::info!("Checkpoint {} completed in {:?}", checkpoint.seq, stats.duration);
 
         Ok(stats)
     }
@@ -234,9 +252,7 @@ impl PersistenceCoordinator {
     fn save_checkpoint_metadata(
         &self,
         dir: &Path,
-        checkpoint_id: u64,
-        timestamp: Timestamp,
-        wal_lsn: Lsn,
+        checkpoint: &crate::transaction::wal::Checkpoint,
         data: &CheckpointData,
     ) -> StorageResult<()> {
         use std::fs::File;
@@ -245,9 +261,9 @@ impl PersistenceCoordinator {
         let metadata_path = dir.join("checkpoint.meta");
         let mut file = File::create(metadata_path)?;
 
-        writeln!(file, "checkpoint_id={}", checkpoint_id)?;
-        writeln!(file, "timestamp={}", timestamp)?;
-        writeln!(file, "wal_lsn={}", wal_lsn)?;
+        writeln!(file, "checkpoint_id={}", checkpoint.seq)?;
+        writeln!(file, "timestamp={}", checkpoint.timestamp)?;
+        writeln!(file, "wal_lsn={}", checkpoint.lsn)?;
         writeln!(file, "vertex_count={}", data.vertex_count)?;
         writeln!(file, "edge_count={}", data.edge_count)?;
         writeln!(file, "data_size={}", data.data_size)?;
@@ -286,14 +302,14 @@ impl PersistenceCoordinator {
 
         checkpoints.sort_by_key(|(id, _)| std::cmp::Reverse(*id));
 
-        if let Some((checkpoint_id, checkpoint_path)) = checkpoints.first() {
+        if let Some((_, checkpoint_path)) = checkpoints.first() {
             let info = self.load_checkpoint_metadata(checkpoint_path)?;
 
             load_data(checkpoint_path)?;
 
             {
-                let mut wal = self.wal_manager.write();
-                wal.replay_from_lsn(info.lsn)?;
+                let wal = self.wal_manager.read();
+                wal.truncate(info.lsn)?;
             }
 
             return Ok(Some(info));
@@ -398,10 +414,17 @@ impl PersistenceCoordinator {
     pub fn get_stats(&self) -> PersistenceStats {
         PersistenceStats {
             pending_wal_entries: *self.pending_wal_entries.read(),
-            checkpoint_count: *self.checkpoint_counter.read(),
             last_checkpoint_elapsed: self.last_checkpoint_time.read().elapsed(),
             last_flush_elapsed: self.last_flush_time.read().elapsed(),
         }
+    }
+
+    pub fn register_transaction(&self, tx_id: u64) {
+        self.checkpoint_manager.write().register_transaction(tx_id);
+    }
+
+    pub fn unregister_transaction(&self, tx_id: u64) {
+        self.checkpoint_manager.write().unregister_transaction(tx_id);
     }
 }
 
@@ -415,7 +438,6 @@ pub struct CheckpointData {
 #[derive(Debug, Clone)]
 pub struct PersistenceStats {
     pub pending_wal_entries: u64,
-    pub checkpoint_count: u64,
     pub last_checkpoint_elapsed: Duration,
     pub last_flush_elapsed: Duration,
 }

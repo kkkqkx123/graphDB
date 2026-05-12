@@ -753,21 +753,26 @@ impl VertexTable {
     }
 
     pub fn compact_with_ts(&mut self, ts: Timestamp) -> usize {
+        self.compact_with_ts_collect(ts).len()
+    }
+
+    pub fn compact_with_ts_collect(&mut self, ts: Timestamp) -> Vec<String> {
         let deleted_ids: Vec<u32> = self.timestamps
             .iter_deleted(ts)
             .collect();
 
-        let removed_count = deleted_ids.len();
+        let mut removed_keys = Vec::with_capacity(deleted_ids.len());
 
         for id in &deleted_ids {
             if let Some(key) = self.id_indexer.get_key(*id).cloned() {
                 self.id_indexer.remove(&key);
+                removed_keys.push(key);
             }
         }
 
         self.compact();
 
-        removed_count
+        removed_keys
     }
 
     pub fn memory_size(&self) -> usize {

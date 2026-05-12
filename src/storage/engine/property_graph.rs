@@ -51,6 +51,7 @@ pub struct PropertyGraph {
     memory_tracker: SharedMemoryTracker,
     config: PropertyGraphConfig,
     is_open: bool,
+    last_compacted_vertices: Vec<(LabelId, Vec<String>)>,
 }
 
 impl std::fmt::Debug for PropertyGraph {
@@ -127,6 +128,7 @@ impl PropertyGraph {
             memory_tracker,
             config,
             is_open: true,
+            last_compacted_vertices: Vec::new(),
         }
     }
 
@@ -162,6 +164,10 @@ impl PropertyGraph {
     pub fn mark_table_modified(&self, table_type: TableType, label_id: u32) {
         let table_id = TableId::new(table_type, label_id);
         self.table_tracker.mark_modified(table_id);
+    }
+
+    pub fn take_last_compacted_vertices(&mut self) -> Vec<(LabelId, Vec<String>)> {
+        std::mem::take(&mut self.last_compacted_vertices)
     }
 
     pub fn record_cache(&self) -> Option<&crate::storage::cache::SharedRecordCache> {
@@ -400,6 +406,39 @@ impl PropertyGraph {
         }
         self.schema_ops
             .update_vertex_property(label, external_id, property_name, value, ts)
+    }
+
+    pub fn vertex_label_ids(&self) -> Vec<LabelId> {
+        self.schema_ops.vertex_tables.keys().copied().collect()
+    }
+
+    pub fn compact_vertex_table(&mut self, label: LabelId) -> StorageResult<()> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        if let Some(table) = self.schema_ops.vertex_tables.get_mut(&label) {
+            table.compact();
+            self.cache_manager.invalidate_vertices_by_label(label);
+        }
+
+        Ok(())
+    }
+
+    pub fn compact_vertex_table_with_ts(&mut self, label: LabelId, ts: Timestamp) -> Vec<String> {
+        let removed = self
+            .schema_ops
+            .vertex_tables
+            .get_mut(&label)
+            .map(|table| table.compact_with_ts_collect(ts))
+            .unwrap_or_default();
+        if !removed.is_empty() {
+            self.last_compacted_vertices
+                .push((label, removed.clone()));
+        }
+        self.cache_manager
+            .invalidate_vertices_by_label(label);
+        removed
     }
 
     pub fn insert_edge(&mut self, params: InsertEdgeParams) -> StorageResult<EdgeId> {
@@ -1342,9 +1381,14 @@ impl crate::transaction::compact_transaction::CompactTarget for PropertyGraph {
         let mut total_vertices_removed = 0usize;
         let mut total_edges_removed = 0usize;
 
+        self.last_compacted_vertices.clear();
+
         for (label_id, table) in &mut self.schema_ops.vertex_tables {
-            let removed = table.compact_with_ts(ts);
-            total_vertices_removed += removed;
+            let removed = table.compact_with_ts_collect(ts);
+            total_vertices_removed += removed.len();
+            if !removed.is_empty() {
+                self.last_compacted_vertices.push((*label_id, removed));
+            }
             self.table_tracker.mark_modified(TableId::vertex(*label_id));
         }
 

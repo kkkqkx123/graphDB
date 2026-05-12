@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{
-    Lsn, PageId, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
+    Lsn, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
 };
 use crate::storage::metadata::{TableId, TableTracker};
 
@@ -26,8 +26,6 @@ pub struct Checkpoint {
     pub wal_files: Vec<PathBuf>,
     /// Active transactions at checkpoint time
     pub active_transactions: Vec<TransactionId>,
-    /// Dirty pages that need to be flushed
-    pub dirty_pages: Vec<PageId>,
     /// Redo LSN (where recovery should start)
     pub redo_lsn: Lsn,
 }
@@ -210,7 +208,6 @@ impl CheckpointManager {
             lsn,
             wal_files,
             active_transactions: self.active_transactions.clone(),
-            dirty_pages: Vec::new(), // Kept for compatibility
             redo_lsn,
         };
 
@@ -371,7 +368,6 @@ impl CheckpointManager {
             lsn: self.last_checkpoint_lsn,
             wal_files: Vec::new(),
             active_transactions: self.active_transactions.clone(),
-            dirty_pages: Vec::new(),
             redo_lsn: self.calculate_redo_lsn(),
         })
     }

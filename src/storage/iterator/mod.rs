@@ -12,6 +12,10 @@
 //! - `VertexRangeIterator`: Iterator over a range of vertices
 //! - `VertexFilterIterator`: Iterator with predicate pushdown support
 //!
+//! ### Index Iterators
+//! - `IndexScanIterator`: Iterator using secondary indexes for efficient retrieval
+//! - `IndexScanConfig`: Configuration for index scan operations
+//!
 //! ### Predicate System
 //! - `PredicateEnum`: Static predicate type (avoids dynamic dispatch)
 //! - `SimplePredicate`: Single condition predicate
@@ -30,11 +34,13 @@
 //!   or the implementation in the core::result::combinators module
 
 pub mod edge_iter;
+pub mod index_scan_iter;
 pub mod predicate;
 pub mod storage_iter;
 pub mod vertex_iter;
 
 pub use edge_iter::{EdgeFilterIterator, EdgeRangeIterator, EdgeScanIterator, EdgeVertexScanIterator};
+pub use index_scan_iter::{IndexScanConfig, IndexScanIterator};
 pub use predicate::{
     CompareOp, CompoundPredicate, Expression, LogicalOp, PredicateEnum, PredicateOptimizer,
     PushdownResult, SimplePredicate,

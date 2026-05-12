@@ -27,7 +27,7 @@ use crate::storage::engine::PropertyGraph;
 use crate::storage::engine::property_graph::InsertEdgeParams;
 use crate::api::server::auth::UserStorage;
 use crate::storage::index::secondary::{IndexDataManager, InMemoryIndexDataManager};
-use crate::storage::vertex::{LabelId, VertexRecord};
+use crate::storage::vertex::{LabelId, Timestamp, VertexRecord};
 use crate::storage::edge::EdgeRecord;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::version_manager::VersionManager;
@@ -120,6 +120,37 @@ impl GraphStorage {
 
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
         *self.current_txn_context.lock() = context;
+    }
+
+    pub fn compact_all(&self, ts: Timestamp) -> StorageResult<()> {
+        let mut graph = self.graph.write();
+
+        let label_ids = graph.vertex_label_ids();
+
+        for label_id in label_ids {
+            let removed = graph.compact_vertex_table_with_ts(label_id, ts);
+            if !removed.is_empty() {
+                log::info!(
+                    "Compacted label {}: removed {} vertices",
+                    label_id,
+                    removed.len()
+                );
+            }
+        }
+
+        drop(graph);
+
+        let index_manager = self.index_data_manager.read();
+        let stats = index_manager.gc_tombstones(ts)?;
+        if stats.total_removed() > 0 {
+            log::info!(
+                "Index GC: removed {} vertex entries, {} edge entries",
+                stats.vertex_entries_removed,
+                stats.edge_entries_removed
+            );
+        }
+
+        Ok(())
     }
 
     fn get_read_timestamp(&self) -> u32 {
@@ -485,16 +516,31 @@ impl StorageClient for GraphStorage {
         let ts = self.get_write_timestamp();
         let mut graph = self.graph.write();
 
+        let mut inserted_tags: Vec<(LabelId, String)> = Vec::new();
+
         for tag in &vertex.tags {
             if let Some(label_id) = graph.get_vertex_label_id(&tag.name) {
                 let id_str = Self::value_to_string(&vertex.vid);
                 let props: Vec<(String, Value)> = tag.properties.iter()
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
-                
-                graph.insert_vertex(label_id, &id_str, &props, ts)?;
 
-                self.update_vertex_indexes(space_info.space_id, &vertex.vid, &tag.name, &props, ts)?;
+                if graph.insert_vertex(label_id, &id_str, &props, ts).is_err() {
+                    for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
+                        let _ = graph.delete_vertex(*rollback_label, rollback_id, ts);
+                    }
+                    return Err(StorageError::vertex_already_exists(id_str));
+                }
+
+                if let Err(e) = self.update_vertex_indexes(space_info.space_id, &vertex.vid, &tag.name, &props, ts) {
+                    for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
+                        let _ = graph.delete_vertex(*rollback_label, rollback_id, ts);
+                    }
+                    let _ = graph.delete_vertex(label_id, &id_str, ts);
+                    return Err(e);
+                }
+
+                inserted_tags.push((label_id, id_str));
             }
         }
 

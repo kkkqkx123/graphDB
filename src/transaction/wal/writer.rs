@@ -908,45 +908,6 @@ impl LocalWalWriter {
         self.file_header.as_ref()
     }
 
-    /// Append a full page write record for torn page protection
-    pub fn append_full_page_write(
-        &mut self,
-        page_id: super::types::PageId,
-        page_lsn: Lsn,
-        page_data: &[u8],
-        timestamp: u32,
-    ) -> WalResult<bool> {
-        if !self.is_open.load(Ordering::SeqCst) {
-            return Err(WalError::Closed);
-        }
-
-        if !self.config.full_page_writes {
-            return Err(WalError::InvalidOperation(
-                "Full page writes not enabled".to_string(),
-            ));
-        }
-
-        use super::types::FullPageWriteHeader;
-        use crc32fast::Hasher;
-
-        let record_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
-        let page_checksum = {
-            let mut hasher = Hasher::new();
-            hasher.update(page_data);
-            hasher.finalize()
-        };
-
-        let fpw_header =
-            FullPageWriteHeader::new(page_id, page_lsn, record_lsn, page_data.len() as u32)
-                .with_checksum(page_checksum);
-
-        let fpw_data = fpw_header.serialize();
-        let mut payload = fpw_data;
-        payload.extend_from_slice(page_data);
-
-        self.append_entry(WalOpType::FullPageWrite, timestamp, &payload)
-    }
-
     /// Get WAL statistics
     pub fn get_stats(&self) -> &super::types::WalStats {
         &self.stats

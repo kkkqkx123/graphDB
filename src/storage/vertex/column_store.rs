@@ -82,6 +82,14 @@ impl Column {
     }
 
     pub fn set(&mut self, row_idx: usize, value: Option<&Value>) -> StorageResult<()> {
+        if self.encoding.is_encoded() {
+            self.encoding.set(row_idx, value)?;
+            if row_idx >= self.row_count {
+                self.row_count = row_idx + 1;
+            }
+            return Ok(());
+        }
+        
         if self.is_variable_length() {
             while self.offsets.len() <= row_idx {
                 self.offsets.push(self.data.len());
@@ -311,7 +319,8 @@ impl Column {
         let data_size = self.data.len();
         let offsets_size = self.offsets.len() * std::mem::size_of::<usize>();
         let bitmap_size = self.null_bitmap.as_ref().map(|b| b.as_raw_slice().len()).unwrap_or(0);
-        data_size + offsets_size + bitmap_size
+        let encoding_size = self.encoding.memory_usage();
+        data_size + offsets_size + bitmap_size + encoding_size
     }
 
     pub fn len(&self) -> usize {
