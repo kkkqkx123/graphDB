@@ -166,7 +166,7 @@ impl RecoveryManager {
                 .open(&self.config.wal_dir.to_string_lossy())
                 .map_err(|e| StorageError::db_error(format!("WAL open error: {}", e)))?;
 
-            let insert_wal_list = parser.insert_wal_list().to_vec();
+            let insert_wal_list = parser.insert_wal_list().clone();
             let update_wal_list = parser.get_update_wals().to_vec();
 
             Ok(RecoveryResult {
@@ -202,7 +202,7 @@ impl RecoveryManager {
         if !wal_result.all_entries.is_empty() {
             self.replay_parsed_entries(&wal_result.all_entries, applier)?;
         } else {
-            for content in &wal_result.insert_wal_list {
+            for content in wal_result.insert_wal_list.values() {
                 self.replay_insert_entries_legacy(content, applier)?;
             }
 
