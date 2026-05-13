@@ -1,7 +1,3 @@
-//! UndoTarget Implementation
-//!
-//! Implements the UndoTarget trait for PropertyGraph.
-
 use crate::storage::edge::EdgeStrategy;
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
@@ -146,10 +142,10 @@ impl UndoTarget for PropertyGraph {
     fn revert_delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         let params = RevertDeleteEdgeParams {
             src_label: edge_ctx.edge_id.src_label,
-            src_vid: edge_ctx.edge_id.src_vid,
             dst_label: edge_ctx.edge_id.dst_label,
-            dst_vid: edge_ctx.edge_id.dst_vid,
             edge_label: edge_ctx.edge_id.edge_label,
+            src_vid: edge_ctx.edge_id.src_vid,
+            dst_vid: edge_ctx.edge_id.dst_vid,
         };
         TransactionOps::revert_delete_edge(
             &mut self.edge_ops,

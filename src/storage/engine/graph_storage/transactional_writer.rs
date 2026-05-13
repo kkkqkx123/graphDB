@@ -1,15 +1,7 @@
-//! Transactional Writer
-//!
-//! Provides transactional write operations using InsertTransaction.
-//! This module integrates InsertTarget trait for atomic batch inserts.
-
 use crate::core::{StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::PropertyGraph;
 use crate::storage::vertex::LabelId;
-use crate::transaction::insert_transaction::{InsertTarget, InsertTransaction};
-use crate::transaction::version_manager::VersionManager;
 use crate::transaction::wal::types::Timestamp;
-use crate::transaction::wal::writer::WalWriter;
 
 use super::context::GraphStorageContext;
 use super::type_utils::value_to_string;
@@ -131,25 +123,4 @@ impl<'a> TransactionalWriter<'a> {
 
         operation(&mut graph, ts)
     }
-}
-
-/// Execute an insert transaction using InsertTarget trait
-///
-/// This function demonstrates the integration of InsertTarget trait
-/// for atomic batch inserts with WAL logging.
-#[allow(dead_code)]
-pub fn execute_insert_transaction<T: InsertTarget + ?Sized>(
-    graph: &mut T,
-    version_manager: &VersionManager,
-    wal_writer: &mut dyn WalWriter,
-    operations: impl FnOnce(&mut InsertTransaction<'_, T>) -> crate::transaction::insert_transaction::InsertTransactionResult<()>,
-) -> crate::transaction::insert_transaction::InsertTransactionResult<Timestamp> {
-    let mut txn = InsertTransaction::new(graph, version_manager, wal_writer)?;
-
-    operations(&mut txn)?;
-
-    let ts = txn.timestamp();
-    txn.commit()?;
-
-    Ok(ts)
 }

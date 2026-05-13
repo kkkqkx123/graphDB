@@ -6,7 +6,7 @@
 mod core_ops;
 mod flush;
 mod index_mvcc;
-mod traits;
+mod transaction_targets;
 mod type_ops;
 
 use std::collections::HashMap;

@@ -1,7 +1,3 @@
-//! RecoveryApplier Implementation
-//!
-//! Implements the RecoveryApplier trait for PropertyGraph.
-
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::codec::bytes_to_value;
 use crate::transaction::wal::{InsertEdgeRedo, RecoveryApplier, UpdateEdgePropRedo};

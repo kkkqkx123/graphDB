@@ -1,7 +1,3 @@
-//! CompactTarget Implementation
-//!
-//! Implements the CompactTarget trait for PropertyGraph.
-
 use crate::storage::vertex::LabelId;
 use crate::transaction::compact_transaction::{CompactTarget, CompactTransactionResult};
 use crate::transaction::wal::types::Timestamp;
