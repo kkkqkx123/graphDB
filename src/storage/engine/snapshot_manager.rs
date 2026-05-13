@@ -31,7 +31,6 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use parking_lot::RwLock;
@@ -46,6 +45,7 @@ const SNAPSHOT_FORMAT_VERSION: u32 = 1;
 const SNAPSHOT_META_FILE: &str = "meta.json";
 
 /// Schema file name
+#[allow(dead_code)]
 const SCHEMA_FILE: &str = "schema.json";
 
 /// Version file name
@@ -153,6 +153,25 @@ pub struct SnapshotManager {
     last_snapshot_time: RwLock<Option<SystemTime>>,
 }
 
+/// Parameters for creating a snapshot
+#[allow(dead_code)]
+pub struct CreateSnapshotParams {
+    /// Data directory to snapshot
+    pub data_dir: PathBuf,
+    /// Unique snapshot ID
+    pub snapshot_id: u64,
+    /// Number of vertices
+    pub vertex_count: u64,
+    /// Number of edges
+    pub edge_count: u64,
+    /// Checkpoint sequence number
+    pub checkpoint_seq: u64,
+    /// WAL LSN at snapshot time
+    pub wal_lsn: u64,
+    /// Snapshot options
+    pub options: SnapshotOptions,
+}
+
 impl SnapshotManager {
     /// Create a new snapshot manager
     pub fn new<P: AsRef<Path>>(snapshots_dir: P, work_dir: P) -> StorageResult<Self> {
@@ -242,13 +261,7 @@ impl SnapshotManager {
     /// This copies all data files to a new snapshot directory.
     pub fn create_snapshot(
         &self,
-        data_dir: &Path,
-        snapshot_id: u64,
-        vertex_count: u64,
-        edge_count: u64,
-        checkpoint_seq: u64,
-        wal_lsn: u64,
-        options: SnapshotOptions,
+        params: CreateSnapshotParams,
     ) -> StorageResult<SnapshotInfo> {
         let now = SystemTime::now();
 
@@ -264,32 +277,26 @@ impl SnapshotManager {
             }
         }
 
-        let snapshot_dir = self.get_snapshot_dir(snapshot_id);
+        let snapshot_dir = self.get_snapshot_dir(params.snapshot_id);
 
         if snapshot_dir.exists() {
             return Err(StorageError::already_exists(format!(
                 "Snapshot {} already exists",
-                snapshot_id
+                params.snapshot_id
             )));
         }
 
         fs::create_dir_all(&snapshot_dir)
             .map_err(|e| StorageError::io_error(format!("Failed to create snapshot dir: {}", e)))?;
 
-        let temp_dir = self.work_dir.join(format!("snapshot_temp_{}", snapshot_id));
+        let temp_dir = self.work_dir.join(format!("snapshot_temp_{}", params.snapshot_id));
         fs::create_dir_all(&temp_dir)
             .map_err(|e| StorageError::io_error(format!("Failed to create temp dir: {}", e)))?;
 
         let result = self.create_snapshot_internal(
-            data_dir,
+            &params,
             &snapshot_dir,
             &temp_dir,
-            snapshot_id,
-            vertex_count,
-            edge_count,
-            checkpoint_seq,
-            wal_lsn,
-            &options,
         );
 
         let _ = fs::remove_dir_all(&temp_dir);
@@ -308,33 +315,27 @@ impl SnapshotManager {
 
     fn create_snapshot_internal(
         &self,
-        data_dir: &Path,
+        params: &CreateSnapshotParams,
         snapshot_dir: &Path,
         _temp_dir: &Path,
-        snapshot_id: u64,
-        vertex_count: u64,
-        edge_count: u64,
-        checkpoint_seq: u64,
-        wal_lsn: u64,
-        options: &SnapshotOptions,
     ) -> StorageResult<SnapshotInfo> {
         let mut size_bytes = 0u64;
 
-        self.copy_directory(data_dir, snapshot_dir, &mut size_bytes)?;
+        self.copy_directory(&params.data_dir, snapshot_dir, &mut size_bytes)?;
 
         let info = SnapshotInfo {
-            id: snapshot_id,
+            id: params.snapshot_id,
             created_at: SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
-            name: options.name.clone(),
-            description: options.description.clone(),
+            name: params.options.name.clone(),
+            description: params.options.description.clone(),
             size_bytes,
-            vertex_count,
-            edge_count,
-            checkpoint_seq,
-            wal_lsn,
+            vertex_count: params.vertex_count,
+            edge_count: params.edge_count,
+            checkpoint_seq: params.checkpoint_seq,
+            wal_lsn: params.wal_lsn,
             is_incremental: false,
             parent_id: None,
         };
@@ -347,14 +348,14 @@ impl SnapshotManager {
 
         {
             let mut index = self.metadata_index.write();
-            index.snapshots.insert(snapshot_id, info.clone());
-            index.current_id = snapshot_id;
+            index.snapshots.insert(params.snapshot_id, info.clone());
+            index.current_id = params.snapshot_id;
             index.version = SNAPSHOT_FORMAT_VERSION;
         }
 
         self.save_metadata_index()?;
 
-        if options.sync {
+        if params.options.sync {
             self.sync_directory(snapshot_dir)?;
         }
 
@@ -636,15 +637,15 @@ mod tests {
         let manager = SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
 
         let info = manager
-            .create_snapshot(
-                &data_dir,
-                1,
-                100,
-                50,
-                1,
-                1000,
-                SnapshotOptions::default(),
-            )
+            .create_snapshot(CreateSnapshotParams {
+                data_dir: data_dir.to_path_buf(),
+                snapshot_id: 1,
+                vertex_count: 100,
+                edge_count: 50,
+                checkpoint_seq: 1,
+                wal_lsn: 1000,
+                options: SnapshotOptions::default(),
+            })
             .expect("Failed to create snapshot");
 
         assert_eq!(info.id, 1);
@@ -669,15 +670,15 @@ mod tests {
         let manager = SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
 
         manager
-            .create_snapshot(
-                &data_dir,
-                1,
-                100,
-                50,
-                1,
-                1000,
-                SnapshotOptions::default(),
-            )
+            .create_snapshot(CreateSnapshotParams {
+                data_dir: data_dir.to_path_buf(),
+                snapshot_id: 1,
+                vertex_count: 100,
+                edge_count: 50,
+                checkpoint_seq: 1,
+                wal_lsn: 1000,
+                options: SnapshotOptions::default(),
+            })
             .expect("Failed to create snapshot");
 
         let info = manager
@@ -700,15 +701,15 @@ mod tests {
         let manager = SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
 
         manager
-            .create_snapshot(
-                &data_dir,
-                1,
-                100,
-                50,
-                1,
-                1000,
-                SnapshotOptions::default(),
-            )
+            .create_snapshot(CreateSnapshotParams {
+                data_dir: data_dir.to_path_buf(),
+                snapshot_id: 1,
+                vertex_count: 100,
+                edge_count: 50,
+                checkpoint_seq: 1,
+                wal_lsn: 1000,
+                options: SnapshotOptions::default(),
+            })
             .expect("Failed to create snapshot");
 
         assert_eq!(manager.snapshot_count(), 1);
@@ -736,15 +737,15 @@ mod tests {
 
         for i in 1..=3 {
             manager
-                .create_snapshot(
-                    &data_dir,
-                    i,
-                    100,
-                    50,
-                    i,
-                    i * 1000,
-                    SnapshotOptions::default(),
-                )
+                .create_snapshot(CreateSnapshotParams {
+                    data_dir: data_dir.to_path_buf(),
+                    snapshot_id: i,
+                    vertex_count: 100,
+                    edge_count: 50,
+                    checkpoint_seq: i,
+                    wal_lsn: i * 1000,
+                    options: SnapshotOptions::default(),
+                })
                 .expect("Failed to create snapshot");
         }
 

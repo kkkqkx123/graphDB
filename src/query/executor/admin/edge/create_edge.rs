@@ -78,6 +78,7 @@ impl ExecutorEdgeInfo {
 pub struct CreateEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     edge_info: ExecutorEdgeInfo,
+    #[allow(dead_code)]
     if_not_exists: bool,
 }
 

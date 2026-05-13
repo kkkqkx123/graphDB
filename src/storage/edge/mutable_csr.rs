@@ -736,7 +736,7 @@ impl MutableCsr {
         for i in 0..src_list.len() {
             groups
                 .entry(src_list[i])
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((dst_list[i], edge_ids[i], prop_offsets[i]));
         }
         
@@ -970,10 +970,10 @@ impl MutableCsr {
         let mut removed_count = 0;
 
         for vid in 0..self.vertex_capacity {
-            let mut lock = self.locks[vid].lock();
+            self.locks[vid].lock();
             let start = self.adj_offsets[vid];
             let degree = self.degrees[vid] as usize;
-            let capacity = self.capacities[vid] as usize;
+            let _capacity = self.capacities[vid] as usize;
 
             if degree == 0 {
                 continue;
@@ -984,7 +984,7 @@ impl MutableCsr {
                 let nbr = &self.nbr_list[start + read_idx];
                 if nbr.timestamp <= ts {
                     if write_idx != read_idx {
-                        self.nbr_list[start + write_idx] = self.nbr_list[start + read_idx].clone();
+                        self.nbr_list[start + write_idx] = self.nbr_list[start + read_idx];
                     }
                     write_idx += 1;
                 } else {

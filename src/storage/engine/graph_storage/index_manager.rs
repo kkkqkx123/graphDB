@@ -5,9 +5,8 @@
 
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::secondary::{IndexDataManager, InMemoryIndexDataManager};
+use crate::storage::index::secondary::IndexDataManager;
 use crate::storage::metadata::index_manager::IndexMetadataManager;
-use crate::storage::metadata::schema_manager::SchemaManager;
 
 use super::context::GraphStorageContext;
 

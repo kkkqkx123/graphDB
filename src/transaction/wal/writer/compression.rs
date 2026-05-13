@@ -5,6 +5,7 @@ use crate::transaction::wal::types::{WalCompression, WalConfig, WalError, WalRes
 /// Compression strategy trait
 pub(crate) trait Compressor: Send + Sync {
     fn compress(&self, data: &[u8]) -> WalResult<(Vec<u8>, WalCompression)>;
+    #[allow(dead_code)]
     fn decompress(&self, data: &[u8], compression: WalCompression) -> WalResult<Vec<u8>>;
 }
 

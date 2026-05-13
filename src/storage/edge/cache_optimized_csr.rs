@@ -148,7 +148,7 @@ impl CacheOptimizedCsr {
         self.timestamps.resize(self.timestamps.len() + additional_edges, INVALID_TIMESTAMP);
 
         // Extend degrees and locks
-        self.degrees.extend(std::iter::repeat(0).take(additional));
+        self.degrees.extend(std::iter::repeat_n(0, additional));
         self.locks.extend((0..additional).map(|_| SpinLock::new()));
 
         self.vertex_capacity = new_capacity;
@@ -170,10 +170,10 @@ impl CacheOptimizedCsr {
         let insert_pos = self.adj_offsets[src_idx] + old_capacity;
 
         // Insert space in all arrays
-        self.neighbors.splice(insert_pos..insert_pos, std::iter::repeat(0).take(additional));
-        self.edge_ids.splice(insert_pos..insert_pos, std::iter::repeat(0).take(additional));
-        self.prop_offsets.splice(insert_pos..insert_pos, std::iter::repeat(0).take(additional));
-        self.timestamps.splice(insert_pos..insert_pos, std::iter::repeat(INVALID_TIMESTAMP).take(additional));
+        self.neighbors.splice(insert_pos..insert_pos, std::iter::repeat_n(0, additional));
+        self.edge_ids.splice(insert_pos..insert_pos, std::iter::repeat_n(0, additional));
+        self.prop_offsets.splice(insert_pos..insert_pos, std::iter::repeat_n(0, additional));
+        self.timestamps.splice(insert_pos..insert_pos, std::iter::repeat_n(INVALID_TIMESTAMP, additional));
 
         // Update capacities and offsets for subsequent vertices
         self.capacities[src_idx] = new_capacity as u32;
@@ -309,7 +309,7 @@ impl CacheOptimizedCsr {
         let invalid_vec = _mm256_set1_epi32(INVALID_TIMESTAMP as i32);
 
         let chunks = degree / 8;
-        let remainder = degree % 8;
+        let _remainder = degree % 8;
 
         // Process chunks of 8
         for chunk_idx in 0..chunks {
@@ -582,7 +582,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
         self.insert_edge(src, dst, edge_id, prop_offset, ts)
     }
 
-    fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
+    fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, _ts: Timestamp) -> bool {
         let src_idx = src as usize;
         if src_idx >= self.vertex_capacity {
             return false;
@@ -603,7 +603,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
         false
     }
 
-    fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
+    fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, _ts: Timestamp) -> bool {
         let src_idx = src as usize;
         if src_idx >= self.vertex_capacity {
             return false;
@@ -624,7 +624,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
         false
     }
 
-    fn delete_edge_by_offset(&mut self, src: VertexId, offset_pos: i32, ts: Timestamp) -> bool {
+    fn delete_edge_by_offset(&mut self, src: VertexId, offset_pos: i32, _ts: Timestamp) -> bool {
         let src_idx = src as usize;
         if src_idx >= self.vertex_capacity {
             return false;
@@ -1038,7 +1038,7 @@ mod tests {
 
         // Insert many edges for one vertex
         for i in 0..100 {
-            csr.insert_edge(0, i, i as u64, 0, 10);
+            csr.insert_edge(0, i, i, 0, 10);
         }
 
         // Test SIMD version

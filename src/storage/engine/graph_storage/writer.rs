@@ -6,7 +6,6 @@ use crate::core::types::{InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp,
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::property_graph::InsertEdgeParams;
 use crate::storage::metadata::index_manager::IndexMetadataManager;
-use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::storage::vertex::LabelId;
 
 use super::context::GraphStorageContext;
@@ -218,16 +217,16 @@ impl<'a> GraphStorageWriter<'a> {
                                 ts,
                             })?;
 
-                            Self::update_edge_indexes(
-                                &graph,
-                                &self.ctx.index_metadata_manager,
-                                space_info.space_id,
-                                &edge.src,
-                                &edge.dst,
-                                &edge.edge_type,
-                                &props,
+                            Self::update_edge_indexes(EdgeIndexUpdateParams {
+                                graph: &graph,
+                                index_metadata_manager: &self.ctx.index_metadata_manager,
+                                space_id: space_info.space_id,
+                                src: &edge.src,
+                                dst: &edge.dst,
+                                edge_type: &edge.edge_type,
+                                props: &props,
                                 ts,
-                            )?;
+                            })?;
                         }
                     }
                     break;
@@ -379,16 +378,16 @@ impl<'a> GraphStorageWriter<'a> {
                             });
                             match result {
                                 Ok(_) => {
-                                    Self::update_edge_indexes(
-                                        &graph,
-                                        &self.ctx.index_metadata_manager,
-                                        space_info.space_id,
-                                        &info.src_vertex_id,
-                                        &info.dst_vertex_id,
-                                        &info.edge_name,
-                                        &info.props,
+                                    Self::update_edge_indexes(EdgeIndexUpdateParams {
+                                        graph: &graph,
+                                        index_metadata_manager: &self.ctx.index_metadata_manager,
+                                        space_id: space_info.space_id,
+                                        src: &info.src_vertex_id,
+                                        dst: &info.dst_vertex_id,
+                                        edge_type: &info.edge_name,
+                                        props: &info.props,
                                         ts,
-                                    )?;
+                                    })?;
                                     return Ok(true);
                                 }
                                 Err(ref e)
@@ -587,21 +586,36 @@ impl<'a> GraphStorageWriter<'a> {
         }
         Ok(())
     }
+}
 
+struct EdgeIndexUpdateParams<'a> {
+    graph: &'a crate::storage::engine::PropertyGraph,
+    index_metadata_manager: &'a crate::storage::metadata::IndexManager,
+    space_id: u64,
+    src: &'a Value,
+    dst: &'a Value,
+    edge_type: &'a str,
+    props: &'a [(String, Value)],
+    ts: u32,
+}
+
+impl<'a> GraphStorageWriter<'a> {
     fn update_edge_indexes(
-        graph: &crate::storage::engine::PropertyGraph,
-        index_metadata_manager: &crate::storage::metadata::IndexManager,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        edge_type: &str,
-        props: &[(String, Value)],
-        ts: u32,
+        params: EdgeIndexUpdateParams,
     ) -> StorageResult<()> {
-        let indexes = index_metadata_manager.list_edge_indexes(space_id)?;
+        let indexes = params
+            .index_metadata_manager
+            .list_edge_indexes(params.space_id)?;
         for index in indexes {
-            if index.schema_name == edge_type {
-                graph.update_edge_indexes_mvcc(space_id, src, dst, &index.name, props, ts)?;
+            if index.schema_name == params.edge_type {
+                params.graph.update_edge_indexes_mvcc(
+                    params.space_id,
+                    params.src,
+                    params.dst,
+                    &index.name,
+                    params.props,
+                    params.ts,
+                )?;
             }
         }
         Ok(())

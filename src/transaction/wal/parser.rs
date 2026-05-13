@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::types::{
-    Lsn, RecordType, Timestamp, UpdateWalUnit, WalCompression, WalContentUnit, WalError,
-    WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
+    Lsn, RecordType, Timestamp, UpdateWalUnit, WalCompression, WalError,
+    WalFileHeader, WalHeader, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
     WAL_HEADER_SIZE,
 };
 

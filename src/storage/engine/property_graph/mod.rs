@@ -3,14 +3,11 @@
 //! Main entry point for property graph storage combining vertex and edge tables.
 //! This module acts as a facade that delegates to specialized sub-modules.
 
-mod compact_target;
 mod core_ops;
 mod flush;
 mod index_mvcc;
-mod insert_target;
-mod recovery;
+mod traits;
 mod type_ops;
-mod undo_target;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -23,6 +20,7 @@ use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{
     EdgeId, EdgeRecord, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef,
 };
+use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::vertex::vertex_table::VertexIterator;
 use crate::storage::vertex::{
@@ -168,6 +166,22 @@ impl PropertyGraph {
         self.table_tracker.mark_modified(table_id);
     }
 
+    pub fn mark_vertex_modified(&self, label: LabelId) {
+        self.table_tracker.mark_modified(TableId::vertex(label));
+    }
+
+    pub fn mark_edge_modified(&self, label: LabelId) {
+        self.table_tracker.mark_modified(TableId::edge(label));
+    }
+
+    pub fn mark_vertex_modified_since_checkpoint(&self, label: LabelId) {
+        self.table_tracker.mark_modified_since_checkpoint(TableId::vertex(label));
+    }
+
+    pub fn mark_edge_modified_since_checkpoint(&self, label: LabelId) {
+        self.table_tracker.mark_modified_since_checkpoint(TableId::edge(label));
+    }
+
     pub fn take_last_compacted_vertices(&mut self) -> Vec<(LabelId, Vec<String>)> {
         std::mem::take(&mut self.last_compacted_vertices)
     }
@@ -251,24 +265,10 @@ impl PropertyGraph {
 
     pub fn create_edge_type_with_id(
         &mut self,
-        name: &str,
+        params: CreateEdgeTypeParams,
         label_id: LabelId,
-        src_label: LabelId,
-        dst_label: LabelId,
-        properties: Vec<EdgePropertyDef>,
-        oe_strategy: EdgeStrategy,
-        ie_strategy: EdgeStrategy,
     ) -> StorageResult<LabelId> {
-        type_ops::create_edge_type_with_id(
-            self,
-            name,
-            label_id,
-            src_label,
-            dst_label,
-            properties,
-            oe_strategy,
-            ie_strategy,
-        )
+        type_ops::create_edge_type_with_id(self, params, label_id)
     }
 
     pub fn drop_vertex_type(&mut self, name: &str) -> StorageResult<()> {

@@ -10,14 +10,20 @@ mod maintenance;
 mod persistence;
 mod reader;
 mod schema_adapter;
+mod transaction_config;
+mod transaction_support;
+mod transactional_writer;
 mod type_utils;
 mod user_ops;
 mod writer;
 
 pub use context::GraphStorageContext;
 pub use persistence::PersistenceOps;
+pub use transaction_config::{DurabilityLevel, IsolationLevel, TransactionConfig, WalSyncMode};
+pub use transaction_support::{TransactionSupport, execute_in_transaction, with_rollback};
+pub use transactional_writer::TransactionalWriter;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use parking_lot::RwLock;
@@ -135,7 +141,7 @@ impl GraphStorage {
         PersistenceOps::new(&self.ctx).save_data()
     }
 
-    pub fn save_data_to_dir(&self, dir: &PathBuf) -> StorageResult<()> {
+    pub fn save_data_to_dir(&self, dir: &Path) -> StorageResult<()> {
         PersistenceOps::new(&self.ctx).save_data_to_dir(dir)
     }
 
@@ -169,6 +175,50 @@ impl GraphStorage {
 
     pub fn compact_all(&self, ts: crate::storage::vertex::Timestamp) -> StorageResult<()> {
         PersistenceOps::new(&self.ctx).compact_all(ts)
+    }
+
+    /// Recover from WAL using RecoveryApplier trait
+    ///
+    /// This method performs crash recovery by replaying WAL entries.
+    /// It uses the RecoveryApplier implementation on PropertyGraph.
+    ///
+    /// # Returns
+    ///
+    /// Recovery statistics including entries replayed and recovery time.
+    pub fn recover_from_wal(&self) -> StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        PersistenceOps::new(&self.ctx).recover_from_wal()
+    }
+
+    /// Recover from WAL with custom configuration
+    pub fn recover_from_wal_with_config(
+        &self,
+        config: crate::transaction::wal::recovery::RecoveryConfig,
+    ) -> StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        PersistenceOps::new(&self.ctx).recover_from_wal_with_config(config)
+    }
+
+    /// Check if WAL recovery is needed
+    pub fn needs_recovery(&self) -> bool {
+        PersistenceOps::new(&self.ctx).needs_recovery()
+    }
+
+    /// Initialize with recovery
+    ///
+    /// This method should be called during startup to recover from
+    /// any uncommitted transactions from a previous crash.
+    pub fn init_with_recovery(&self) -> StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
+        if self.needs_recovery() {
+            log::info!("WAL recovery needed, starting recovery...");
+            let stats = self.recover_from_wal()?;
+            log::info!(
+                "WAL recovery completed: {} entries replayed in {}ms",
+                stats.wal_entries_replayed,
+                stats.recovery_time_ms
+            );
+            Ok(Some(stats))
+        } else {
+            Ok(None)
+        }
     }
 }
 

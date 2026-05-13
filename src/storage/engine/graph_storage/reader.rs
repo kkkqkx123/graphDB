@@ -4,7 +4,6 @@
 
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::metadata::Schema;
-use crate::storage::metadata::SchemaManager;
 
 use super::context::GraphStorageContext;
 use super::type_utils::{

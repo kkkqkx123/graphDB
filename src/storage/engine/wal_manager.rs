@@ -5,7 +5,7 @@
 
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::writer::WalWriter;
-use crate::transaction::wal::{Lsn, LocalWalWriter, WalConfig, WalOpType, WalResult};
+use crate::transaction::wal::{Lsn, LocalWalWriter, WalConfig, WalOpType};
 use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;

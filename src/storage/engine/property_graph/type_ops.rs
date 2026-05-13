@@ -64,25 +64,12 @@ pub fn create_edge_type(
 
 pub fn create_edge_type_with_id(
     graph: &mut PropertyGraph,
-    name: &str,
+    params: CreateEdgeTypeParams,
     label_id: LabelId,
-    src_label: LabelId,
-    dst_label: LabelId,
-    properties: Vec<EdgePropertyDef>,
-    oe_strategy: EdgeStrategy,
-    ie_strategy: EdgeStrategy,
 ) -> StorageResult<LabelId> {
     if !graph.is_open {
         return Err(StorageError::storage_not_open());
     }
-    let params = CreateEdgeTypeParams {
-        name,
-        src_label,
-        dst_label,
-        properties,
-        oe_strategy,
-        ie_strategy,
-    };
     graph
         .edge_ops
         .create_edge_type_with_id(params, label_id, &graph.schema_ops.vertex_tables)

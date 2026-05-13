@@ -12,7 +12,7 @@ use parking_lot::RwLock;
 use crate::core::error::StorageResult;
 use crate::storage::engine::snapshot_manager::{SnapshotManager, SnapshotOptions};
 use crate::storage::engine::WalManager;
-use crate::transaction::wal::{CheckpointManager, CheckpointMode, Lsn, Timestamp};
+use crate::transaction::wal::{CheckpointManager, Lsn, Timestamp};
 
 #[derive(Debug, Clone)]
 pub struct CheckpointInfo {
@@ -212,13 +212,15 @@ impl PersistenceCoordinator {
             if let Some(ref snapshot_manager) = self.snapshot_manager {
                 let snapshot_options = SnapshotOptions::default();
                 match snapshot_manager.create_snapshot(
-                    &self.config.data_dir,
-                    checkpoint.seq,
-                    data.vertex_count,
-                    data.edge_count,
-                    checkpoint.seq,
-                    wal_lsn.into(),
-                    snapshot_options,
+                    crate::storage::engine::snapshot_manager::CreateSnapshotParams {
+                        data_dir: self.config.data_dir.clone(),
+                        snapshot_id: checkpoint.seq,
+                        vertex_count: data.vertex_count,
+                        edge_count: data.edge_count,
+                        checkpoint_seq: checkpoint.seq,
+                        wal_lsn: wal_lsn.into(),
+                        options: snapshot_options,
+                    },
                 ) {
                     Ok(_) => {
                         *self.last_snapshot_time.write() = Some(SystemTime::now());

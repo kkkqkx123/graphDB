@@ -3,7 +3,6 @@
 //! Implements the InsertTarget trait for PropertyGraph.
 
 use crate::storage::edge::EdgeId;
-use crate::storage::metadata::TableId;
 use crate::transaction::insert_transaction::{
     AddEdgeInsertParam, InsertTarget, InsertTransactionResult,
 };
@@ -11,8 +10,8 @@ use crate::transaction::wal::types::{
     LabelId as TxnLabelId, Timestamp, VertexId as TxnVertexId,
 };
 
-use super::super::transaction::{AddEdgeParams, TransactionOps};
-use super::PropertyGraph;
+use crate::storage::engine::transaction::{AddEdgeParams, TransactionOps};
+use super::super::PropertyGraph;
 
 impl InsertTarget for PropertyGraph {
     fn add_vertex(
@@ -30,9 +29,8 @@ impl InsertTarget for PropertyGraph {
                 ts,
             )?;
 
-        self.table_tracker.mark_modified(TableId::vertex(label));
-        self.table_tracker
-            .mark_modified_since_checkpoint(TableId::vertex(label));
+        self.mark_vertex_modified(label);
+        self.mark_vertex_modified_since_checkpoint(label);
 
         Ok(result)
     }
@@ -56,10 +54,8 @@ impl InsertTarget for PropertyGraph {
             param.ts,
         )?;
 
-        self.table_tracker
-            .mark_modified(TableId::edge(param.edge_label));
-        self.table_tracker
-            .mark_modified_since_checkpoint(TableId::edge(param.edge_label));
+        self.mark_edge_modified(param.edge_label);
+        self.mark_edge_modified_since_checkpoint(param.edge_label);
 
         Ok(result)
     }

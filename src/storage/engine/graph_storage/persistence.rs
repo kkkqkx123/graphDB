@@ -3,11 +3,14 @@
 //! Provides persistence, checkpoint, and compaction operations.
 //! This module delegates to PropertyGraph's flush operations for data persistence.
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::persistence_coordinator::{CheckpointData, CheckpointInfo, CheckpointStats};
 use crate::storage::vertex::Timestamp;
+use crate::transaction::compact_transaction::{CompactTarget, CompactTransaction};
+use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryManager, RecoveryStats};
+use crate::transaction::wal::writer::WalWriter;
 
 use super::context::GraphStorageContext;
 
@@ -30,7 +33,7 @@ impl<'a> PersistenceOps<'a> {
         self.save_data_to_dir(work_dir)
     }
 
-    pub fn save_data_to_dir(&self, dir: &PathBuf) -> StorageResult<()> {
+    pub fn save_data_to_dir(&self, dir: &Path) -> StorageResult<()> {
         use std::fs::{self, File};
         use std::io::Write;
 
@@ -72,12 +75,12 @@ impl<'a> PersistenceOps<'a> {
 
                 graph.flush_tables_to_dir(&data_dir)?;
 
-                for (_, table) in graph.vertex_tables() {
+                for table in graph.vertex_tables().values() {
                     vertex_count += table.total_count() as u64;
                 }
 
                 for (_, table) in graph.edge_tables() {
-                    edge_count += table.edge_count() as u64;
+                    edge_count += table.edge_count();
                 }
 
                 let data_size = std::fs::metadata(&data_dir)
@@ -176,6 +179,49 @@ impl<'a> PersistenceOps<'a> {
         Ok(())
     }
 
+    /// Compact using CompactTransaction for transactional compaction
+    ///
+    /// This method uses CompactTarget trait for transactional storage compaction.
+    /// It provides ACID guarantees for the compaction operation.
+    pub fn compact_transactional(
+        &self,
+        compact_csr: bool,
+        reserve_ratio: f32,
+        wal_writer: &mut dyn WalWriter,
+    ) -> StorageResult<()> {
+        let mut graph = self.ctx.graph.write();
+        let version_manager = &self.ctx.version_manager;
+
+        let txn = CompactTransaction::new(
+            &mut *graph,
+            version_manager,
+            wal_writer,
+            compact_csr,
+            reserve_ratio,
+        ).map_err(|e| StorageError::db_error(format!("Failed to create compact transaction: {}", e)))?;
+
+        let (before_size, before_used) = txn.storage_stats();
+        log::info!(
+            "Starting transactional compaction: compact_csr={}, reserve_ratio={:.2}, size={}/{}",
+            compact_csr,
+            reserve_ratio,
+            before_used,
+            before_size
+        );
+
+        txn.commit().map_err(|e| StorageError::db_error(format!("Compact transaction failed: {}", e)))?;
+
+        let (after_size, after_used) = (graph.storage_size(), graph.used_storage_size());
+        log::info!(
+            "Compaction completed: size={}/{} (freed {} bytes)",
+            after_used,
+            after_size,
+            before_used.saturating_sub(after_used)
+        );
+
+        Ok(())
+    }
+
     pub fn load_from_disk(&self) -> StorageResult<()> {
         if let Some(ref path) = self.ctx.work_dir {
             let schema_path = path.join("schema");
@@ -211,5 +257,51 @@ impl<'a> PersistenceOps<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Recover from WAL using RecoveryApplier trait
+    ///
+    /// This method performs crash recovery by replaying WAL entries
+    /// using the RecoveryApplier implementation on PropertyGraph.
+    pub fn recover_from_wal(&self) -> StorageResult<RecoveryStats> {
+        let work_dir = self
+            .ctx
+            .work_dir
+            .as_ref()
+            .ok_or_else(|| StorageError::db_error("No work directory configured".to_string()))?;
+
+        let config = RecoveryConfig {
+            wal_dir: work_dir.join("wal"),
+            data_dir: work_dir.join("data"),
+            ..Default::default()
+        };
+
+        let mut manager = RecoveryManager::new(config);
+        let mut graph = self.ctx.graph.write();
+
+        manager.recover_with_applier(&mut *graph)
+    }
+
+    /// Recover from WAL with custom configuration
+    pub fn recover_from_wal_with_config(&self, config: RecoveryConfig) -> StorageResult<RecoveryStats> {
+        let mut manager = RecoveryManager::new(config);
+        let mut graph = self.ctx.graph.write();
+
+        manager.recover_with_applier(&mut *graph)
+    }
+
+    /// Check if WAL recovery is needed
+    ///
+    /// Returns true if there are unflushed WAL entries that need recovery.
+    pub fn needs_recovery(&self) -> bool {
+        if let Some(ref work_dir) = self.ctx.work_dir {
+            let wal_dir = work_dir.join("wal");
+            if wal_dir.exists() {
+                if let Ok(entries) = std::fs::read_dir(&wal_dir) {
+                    return entries.count() > 0;
+                }
+            }
+        }
+        false
     }
 }

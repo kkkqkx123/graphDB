@@ -17,7 +17,10 @@ use crate::storage::metadata::{
     ExtendedSchemaManager, IndexManager, SchemaManager,
 };
 use crate::transaction::context::TransactionContext;
+use crate::transaction::undo_log::UndoLogManager;
 use crate::transaction::version_manager::VersionManager;
+
+use super::transaction_support::TransactionSupport;
 
 #[derive(Clone)]
 pub struct GraphStorageContext {
@@ -33,6 +36,10 @@ pub struct GraphStorageContext {
     pub fulltext_storage: Option<Arc<FulltextStorage>>,
     pub work_dir: Option<PathBuf>,
     pub db_path: String,
+    /// Transaction support for undo log management
+    pub txn_support: Arc<Mutex<TransactionSupport>>,
+    /// Undo log manager for transaction rollback
+    pub undo_logs: Arc<Mutex<UndoLogManager>>,
 }
 
 impl GraphStorageContext {
@@ -57,6 +64,8 @@ impl GraphStorageContext {
             fulltext_storage: None,
             work_dir: None,
             db_path: String::new(),
+            txn_support: Arc::new(Mutex::new(TransactionSupport::new())),
+            undo_logs: Arc::new(Mutex::new(UndoLogManager::new())),
         }
     }
 
@@ -95,6 +104,8 @@ impl GraphStorageContext {
             fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
+            txn_support: Arc::new(Mutex::new(TransactionSupport::new())),
+            undo_logs: Arc::new(Mutex::new(UndoLogManager::new())),
         }
     }
 
@@ -124,6 +135,8 @@ impl GraphStorageContext {
             fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
+            txn_support: Arc::new(Mutex::new(TransactionSupport::new())),
+            undo_logs: Arc::new(Mutex::new(UndoLogManager::new())),
         })
     }
 
@@ -192,6 +205,32 @@ impl GraphStorageContext {
 
     pub fn is_fulltext_enabled(&self) -> bool {
         self.fulltext_storage.is_some()
+    }
+
+    /// Begin a transaction
+    pub fn begin_transaction(&self) {
+        self.txn_support.lock().begin();
+    }
+
+    /// Commit the current transaction
+    pub fn commit_transaction(&self) {
+        self.txn_support.lock().commit();
+    }
+
+    /// Rollback the current transaction
+    pub fn rollback_transaction(&self, ts: u32) -> crate::core::StorageResult<()> {
+        let mut graph = self.graph.write();
+        self.txn_support.lock().rollback(&mut graph, ts)
+    }
+
+    /// Check if in a transaction
+    pub fn is_in_transaction(&self) -> bool {
+        self.txn_support.lock().is_in_transaction()
+    }
+
+    /// Get undo log count
+    pub fn undo_log_count(&self) -> usize {
+        self.txn_support.lock().undo_log_count()
     }
 }
 

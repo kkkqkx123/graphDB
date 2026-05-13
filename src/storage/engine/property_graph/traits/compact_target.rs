@@ -2,11 +2,11 @@
 //!
 //! Implements the CompactTarget trait for PropertyGraph.
 
-use crate::storage::metadata::TableId;
+use crate::storage::vertex::LabelId;
 use crate::transaction::compact_transaction::{CompactTarget, CompactTransactionResult};
 use crate::transaction::wal::types::Timestamp;
 
-use super::PropertyGraph;
+use super::super::PropertyGraph;
 
 impl CompactTarget for PropertyGraph {
     fn compact(
@@ -27,13 +27,24 @@ impl CompactTarget for PropertyGraph {
 
         self.last_compacted_vertices.clear();
 
-        for (label_id, table) in &mut self.schema_ops.vertex_tables {
+        let vertex_labels: Vec<LabelId> =
+            self.schema_ops.vertex_tables.keys().copied().collect();
+
+        for &label_id in &vertex_labels {
+            let table = self
+                .schema_ops
+                .vertex_tables
+                .get_mut(&label_id)
+                .expect("label must exist");
             let removed = table.compact_with_ts_collect(ts);
             total_vertices_removed += removed.len();
             if !removed.is_empty() {
-                self.last_compacted_vertices.push((*label_id, removed));
+                self.last_compacted_vertices.push((label_id, removed));
             }
-            self.table_tracker.mark_modified(TableId::vertex(*label_id));
+        }
+
+        for &label_id in &vertex_labels {
+            self.mark_vertex_modified(label_id);
         }
 
         log::info!(
@@ -41,11 +52,22 @@ impl CompactTarget for PropertyGraph {
             total_vertices_removed
         );
 
+        let edge_keys: Vec<(LabelId, LabelId, LabelId)> =
+            self.edge_ops.edge_tables.keys().copied().collect();
+
         if compact_csr {
-            for ((src_label, dst_label, edge_label), table) in &mut self.edge_ops.edge_tables {
+            for &key in &edge_keys {
+                let table = self
+                    .edge_ops
+                    .edge_tables
+                    .get_mut(&key)
+                    .expect("edge key must exist");
                 let removed = table.compact_csr(ts, reserve_ratio);
                 total_edges_removed += removed;
-                self.table_tracker.mark_modified(TableId::edge(*edge_label));
+            }
+
+            for &(_, _, edge_label) in &edge_keys {
+                self.mark_edge_modified(edge_label);
             }
 
             log::info!(
@@ -54,9 +76,17 @@ impl CompactTarget for PropertyGraph {
             );
         }
 
-        for ((_, _, edge_label), table) in &mut self.edge_ops.edge_tables {
+        for &key in &edge_keys {
+            let table = self
+                .edge_ops
+                .edge_tables
+                .get_mut(&key)
+                .expect("edge key must exist");
             table.compact_properties(ts);
-            self.table_tracker.mark_modified(TableId::edge(*edge_label));
+        }
+
+        for &(_, _, edge_label) in &edge_keys {
+            self.mark_edge_modified(edge_label);
         }
 
         let index_gc_stats = self.gc_index_tombstones(ts).unwrap_or_default();

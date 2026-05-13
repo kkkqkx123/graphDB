@@ -5,7 +5,6 @@
 
 use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::{StorageError, StorageResult};
-use crate::storage::metadata::schema_manager::SchemaManager;
 
 use super::context::GraphStorageContext;
 
@@ -144,14 +143,17 @@ impl<'a> SchemaAdapterOps<'a> {
             edge_type.properties.iter().map(|p| p.into()).collect();
 
         use crate::storage::edge::EdgeStrategy;
+        use crate::storage::engine::edge::CreateEdgeTypeParams;
         graph.create_edge_type_with_id(
-            &edge_type.edge_type_name,
+            CreateEdgeTypeParams {
+                name: &edge_type.edge_type_name,
+                src_label: src_label_id,
+                dst_label: dst_label_id,
+                properties,
+                oe_strategy: EdgeStrategy::Multiple,
+                ie_strategy: EdgeStrategy::Multiple,
+            },
             edge_type_id,
-            src_label_id,
-            dst_label_id,
-            properties,
-            EdgeStrategy::Multiple,
-            EdgeStrategy::Multiple,
         )?;
 
         Ok(edge_type_id)

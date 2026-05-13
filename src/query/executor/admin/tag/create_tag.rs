@@ -72,6 +72,7 @@ impl ExecutorTagInfo {
 pub struct CreateTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     tag_info: ExecutorTagInfo,
+    #[allow(dead_code)]
     if_not_exists: bool,
 }
 

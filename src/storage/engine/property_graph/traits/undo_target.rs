@@ -3,19 +3,18 @@
 //! Implements the UndoTarget trait for PropertyGraph.
 
 use crate::storage::edge::EdgeStrategy;
-use crate::storage::metadata::TableId;
+use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 use crate::transaction::undo_log::{
     PropertyValue, UndoLogError, UndoLogResult, UndoTarget,
 };
 use crate::transaction::wal::types::{ColumnId, LabelId as TxnLabelId, Timestamp};
 
-use super::super::edge::CreateEdgeTypeParams;
-use super::super::transaction::{
+use crate::storage::engine::transaction::{
     DeleteEdgeParams, DeleteEdgeTypeParams, RevertDeleteEdgeParams, TransactionOps,
     UpdateEdgePropertyUndoParams,
 };
-use super::PropertyGraph;
+use super::super::PropertyGraph;
 
 impl UndoTarget for PropertyGraph {
     fn delete_vertex_type(&mut self, label: TxnLabelId) -> UndoLogResult<()> {
@@ -24,7 +23,7 @@ impl UndoTarget for PropertyGraph {
             &mut self.edge_ops,
             label,
         )?;
-        self.table_tracker.mark_modified(TableId::vertex(label));
+        self.mark_vertex_modified(label);
         Ok(())
     }
 
@@ -35,8 +34,7 @@ impl UndoTarget for PropertyGraph {
             edge_label: edge_key.edge_label,
         };
         TransactionOps::delete_edge_type(&mut self.edge_ops, params)?;
-        self.table_tracker
-            .mark_modified(TableId::edge(edge_key.edge_label));
+        self.mark_edge_modified(edge_key.edge_label);
         Ok(())
     }
 
@@ -51,7 +49,7 @@ impl UndoTarget for PropertyGraph {
             vertex.vid,
             ts,
         )?;
-        self.table_tracker.mark_modified(TableId::vertex(vertex.label));
+        self.mark_vertex_modified(vertex.label);
         Ok(())
     }
 
@@ -70,8 +68,7 @@ impl UndoTarget for PropertyGraph {
             edge_ctx.ie_offset,
             edge_ctx.timestamp,
         )?;
-        self.table_tracker
-            .mark_modified(TableId::edge(edge_ctx.edge_id.edge_label));
+        self.mark_edge_modified(edge_ctx.edge_id.edge_label);
         Ok(())
     }
 
@@ -90,7 +87,7 @@ impl UndoTarget for PropertyGraph {
             value,
             ts,
         )?;
-        self.table_tracker.mark_modified(TableId::vertex(vertex.label));
+        self.mark_vertex_modified(vertex.label);
         Ok(())
     }
 
@@ -119,8 +116,7 @@ impl UndoTarget for PropertyGraph {
             value,
             ts,
         )?;
-        self.table_tracker
-            .mark_modified(TableId::edge(edge_id.edge_label));
+        self.mark_edge_modified(edge_id.edge_label);
         Ok(())
     }
 
@@ -143,7 +139,7 @@ impl UndoTarget for PropertyGraph {
             0,
             ts,
         )?;
-        self.table_tracker.mark_modified(TableId::vertex(vertex.label));
+        self.mark_vertex_modified(vertex.label);
         Ok(())
     }
 
@@ -155,15 +151,14 @@ impl UndoTarget for PropertyGraph {
             dst_vid: edge_ctx.edge_id.dst_vid,
             edge_label: edge_ctx.edge_id.edge_label,
         };
-        super::super::transaction::TransactionOps::revert_delete_edge(
+        TransactionOps::revert_delete_edge(
             &mut self.edge_ops,
             params,
             edge_ctx.oe_offset,
             edge_ctx.ie_offset,
             edge_ctx.timestamp,
         )?;
-        self.table_tracker
-            .mark_modified(TableId::edge(edge_ctx.edge_id.edge_label));
+        self.mark_edge_modified(edge_ctx.edge_id.edge_label);
         Ok(())
     }
 
@@ -178,7 +173,7 @@ impl UndoTarget for PropertyGraph {
             prop_names,
         )?;
         if let Some(label) = self.schema_ops.vertex_label_names.get(label_name) {
-            self.table_tracker.mark_modified(TableId::vertex(*label));
+            self.mark_vertex_modified(*label);
         }
         Ok(())
     }
@@ -199,7 +194,7 @@ impl UndoTarget for PropertyGraph {
             prop_names,
         )?;
         if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
-            self.table_tracker.mark_modified(TableId::edge(*label));
+            self.mark_edge_modified(*label);
         }
         Ok(())
     }
@@ -211,7 +206,7 @@ impl UndoTarget for PropertyGraph {
             label_name,
             label,
         )?;
-        self.table_tracker.mark_modified(TableId::vertex(label));
+        self.mark_vertex_modified(label);
         Ok(())
     }
 
@@ -247,7 +242,7 @@ impl UndoTarget for PropertyGraph {
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
 
         if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
-            self.table_tracker.mark_modified(TableId::edge(*label));
+            self.mark_edge_modified(*label);
         }
 
         Ok(())
@@ -266,7 +261,7 @@ impl UndoTarget for PropertyGraph {
             original_names,
         )?;
         if let Some(label_id) = self.schema_ops.vertex_label_names.get(label) {
-            self.table_tracker.mark_modified(TableId::vertex(*label_id));
+            self.mark_vertex_modified(*label_id);
         }
         Ok(())
     }
@@ -289,7 +284,7 @@ impl UndoTarget for PropertyGraph {
             original_names,
         )?;
         if let Some(label) = self.edge_ops.edge_label_names.get(edge_label) {
-            self.table_tracker.mark_modified(TableId::edge(*label));
+            self.mark_edge_modified(*label);
         }
         Ok(())
     }

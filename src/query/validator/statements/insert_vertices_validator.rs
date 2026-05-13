@@ -175,7 +175,6 @@ impl InsertVerticesValidator {
         use crate::core::types::expr::Expression;
         use crate::core::DataType;
         use crate::core::Value;
-        use crate::storage::metadata::schema_manager::SchemaManager;
 
         // Get tag schema to check property types
         let tag_info = ctx

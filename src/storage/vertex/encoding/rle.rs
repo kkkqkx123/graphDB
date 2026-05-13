@@ -235,6 +235,10 @@ impl RleBoolColumn {
         self.encoder.run_count()
     }
 
+    pub fn memory_usage(&self) -> usize {
+        self.encoder.memory_usage() + self.null_bitmap.memory_usage()
+    }
+
     pub fn clear(&mut self) {
         self.encoder.clear();
         self.null_bitmap.clear();
@@ -283,7 +287,7 @@ impl super::EncodedColumn for RleBoolColumn {
     }
 
     fn memory_usage(&self) -> usize {
-        RleBoolColumn::memory_usage(self)
+        self.encoder.memory_usage() + self.null_bitmap.memory_usage()
     }
 
     fn encoding_type(&self) -> super::EncodingType {

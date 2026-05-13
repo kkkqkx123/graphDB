@@ -12,6 +12,7 @@ use crate::transaction::wal::{
     ParallelWalParser, ParsedWalEntry, RecoveryResult, UpdateEdgePropRedo, UpdateVertexPropRedo,
     WalOpType, WalParser, WalRecoveryMode,
 };
+use crate::transaction::wal::types::{LabelId, Timestamp};
 
 /// Recovery configuration
 #[derive(Debug, Clone)]
@@ -50,54 +51,43 @@ pub struct RecoveryStats {
 pub trait RecoveryApplier {
     fn replay_insert_vertex(
         &mut self,
-        label: u32,
+        label: LabelId,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
-        ts: u32,
+        ts: Timestamp,
     ) -> StorageResult<()>;
 
     fn replay_insert_edge(
         &mut self,
-        src_label: u32,
-        src_oid: &[u8],
-        dst_label: u32,
-        dst_oid: &[u8],
-        edge_label: u32,
-        properties: &[(String, Vec<u8>)],
-        ts: u32,
+        redo: &InsertEdgeRedo,
+        ts: Timestamp,
     ) -> StorageResult<()>;
 
     fn replay_update_vertex_prop(
         &mut self,
-        label: u32,
+        label: LabelId,
         oid: &[u8],
         prop_name: &str,
         value: &[u8],
-        ts: u32,
+        ts: Timestamp,
     ) -> StorageResult<()>;
 
     fn replay_update_edge_prop(
         &mut self,
-        src_label: u32,
-        src_oid: &[u8],
-        dst_label: u32,
-        dst_oid: &[u8],
-        edge_label: u32,
-        prop_name: &str,
-        value: &[u8],
-        ts: u32,
+        redo: &UpdateEdgePropRedo,
+        ts: Timestamp,
     ) -> StorageResult<()>;
 
-    fn replay_delete_vertex(&mut self, label: u32, oid: &[u8], ts: u32) -> StorageResult<()>;
+    fn replay_delete_vertex(&mut self, label: LabelId, oid: &[u8], ts: Timestamp) -> StorageResult<()>;
 
     fn replay_delete_edge(
         &mut self,
-        src_label: u32,
+        src_label: LabelId,
         src_oid: &[u8],
-        dst_label: u32,
+        dst_label: LabelId,
         dst_oid: &[u8],
-        edge_label: u32,
-        ts: u32,
+        edge_label: LabelId,
+        ts: Timestamp,
     ) -> StorageResult<()>;
 }
 
@@ -236,15 +226,7 @@ impl RecoveryManager {
                 WalOpType::InsertEdge => {
                     match self.deserialize_insert_edge(payload) {
                         Ok(redo) => {
-                            applier.replay_insert_edge(
-                                redo.src_label,
-                                &redo.src_oid,
-                                redo.dst_label,
-                                &redo.dst_oid,
-                                redo.edge_label,
-                                &redo.properties,
-                                ts,
-                            )?;
+                            applier.replay_insert_edge(&redo, ts)?;
                             self.stats.wal_entries_replayed += 1;
                         }
                         Err(e) => {
@@ -274,16 +256,7 @@ impl RecoveryManager {
                 WalOpType::UpdateEdgeProp => {
                     match self.deserialize_update_edge_prop(payload) {
                         Ok(redo) => {
-                            applier.replay_update_edge_prop(
-                                redo.src_label,
-                                &redo.src_oid,
-                                redo.dst_label,
-                                &redo.dst_oid,
-                                redo.edge_label,
-                                &redo.prop_name,
-                                &redo.value,
-                                ts,
-                            )?;
+                            applier.replay_update_edge_prop(&redo, ts)?;
                             self.stats.wal_entries_replayed += 1;
                         }
                         Err(e) => {
