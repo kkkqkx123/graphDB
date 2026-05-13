@@ -1,11 +1,20 @@
 //! Query context
 //!
 //! Manage the context information throughout the entire lifecycle of queries, from parsing and validation to planning and execution.
+//!
+//! ## Arena Allocation
+//!
+//! For high-performance query execution with many temporary allocations,
+//! enable arena allocation via `with_arena()`. This is beneficial for:
+//!
+//! - Complex queries with many intermediate results
+//! - Expression evaluation with temporary values
+//! - Graph traversal with path accumulation
 
 use std::sync::Arc;
 
 use crate::core::types::{CharsetInfo, SpaceInfo};
-use crate::utils::IdGenerator;
+use crate::utils::{Arena, IdGenerator};
 
 use super::{QueryExecutionManager, QueryRequestContext};
 
@@ -20,6 +29,7 @@ use super::{QueryExecutionManager, QueryRequestContext};
 /// Possession of the Query Execution Manager (execution plan, termination flags)
 /// ID generation for query execution
 /// Spatial information management (space info, character set)
+/// Optional arena allocator for high-performance temporary allocations
 pub struct QueryContext {
     /// Query request context
     rctx: Arc<QueryRequestContext>,
@@ -31,6 +41,8 @@ pub struct QueryContext {
     space_info: Option<SpaceInfo>,
     /// Character set information
     charset_info: Option<Box<CharsetInfo>>,
+    /// Optional arena allocator for temporary allocations during query execution
+    arena: Option<Arena>,
 }
 
 impl QueryContext {
@@ -42,6 +54,34 @@ impl QueryContext {
             id_gen: IdGenerator::new(0),
             space_info: None,
             charset_info: None,
+            arena: None,
+        }
+    }
+
+    /// Create a new query context with arena allocation enabled.
+    ///
+    /// Arena allocation is beneficial for queries that create many
+    /// temporary data structures during execution.
+    pub fn with_arena(rctx: Arc<QueryRequestContext>) -> Self {
+        Self {
+            rctx,
+            execution_manager: QueryExecutionManager::new(),
+            id_gen: IdGenerator::new(0),
+            space_info: None,
+            charset_info: None,
+            arena: Some(Arena::new()),
+        }
+    }
+
+    /// Create a new query context with a custom arena capacity.
+    pub fn with_arena_capacity(rctx: Arc<QueryRequestContext>, capacity: usize) -> Self {
+        Self {
+            rctx,
+            execution_manager: QueryExecutionManager::new(),
+            id_gen: IdGenerator::new(0),
+            space_info: None,
+            charset_info: None,
+            arena: Some(Arena::with_capacity(capacity)),
         }
     }
 
@@ -97,6 +137,26 @@ impl QueryContext {
             id_gen,
             space_info,
             charset_info,
+            arena: None,
+        }
+    }
+
+    /// Create query contexts from various components with arena (for use by the Builder).
+    pub(crate) fn from_components_with_arena(
+        rctx: Arc<QueryRequestContext>,
+        execution_manager: QueryExecutionManager,
+        id_gen: IdGenerator,
+        space_info: Option<SpaceInfo>,
+        charset_info: Option<Box<CharsetInfo>>,
+        arena: Arena,
+    ) -> Self {
+        Self {
+            rctx,
+            execution_manager,
+            id_gen,
+            space_info,
+            charset_info,
+            arena: Some(arena),
         }
     }
 
@@ -206,7 +266,25 @@ impl QueryContext {
         self.id_gen.reset(0);
         self.space_info = None;
         self.charset_info = None;
+        if let Some(ref mut arena) = self.arena {
+            arena.reset();
+        }
         log::info!("Query context has been reset");
+    }
+
+    /// Check if arena allocation is enabled
+    pub fn has_arena(&self) -> bool {
+        self.arena.is_some()
+    }
+
+    /// Get a reference to the arena allocator
+    pub fn arena(&self) -> Option<&Arena> {
+        self.arena.as_ref()
+    }
+
+    /// Get arena memory statistics (allocated_bytes)
+    pub fn arena_stats(&self) -> Option<usize> {
+        self.arena.as_ref().map(|a| a.allocated_bytes())
     }
 
     /// Obtain a reference to the query execution manager.
@@ -233,6 +311,7 @@ impl std::fmt::Debug for QueryContext {
             .field("plan_id", &self.plan_id())
             .field("space_id", &self.space_id())
             .field("killed", &self.is_killed())
+            .field("has_arena", &self.arena.is_some())
             .finish()
     }
 }

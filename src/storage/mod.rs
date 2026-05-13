@@ -48,9 +48,9 @@ pub use crate::core::StorageResult;
 pub use compression::CompressionType;
 
 pub use container::{
-    open_container, open_container_from_file, AnonMmap, ArenaAllocator, ArenaPool,
-    ContainerConfig, ContainerError, ContainerResult, ContainerStats, FileHeader, FileMmap,
-    HugePageMmap, IDataContainer, MemoryLevel, DEFAULT_HUGE_PAGE_SIZE,
+    open_container, open_container_from_file, AnonMmap, ContainerConfig, ContainerError,
+    ContainerResult, ContainerStats, FileHeader, FileMmap, HugePageMmap, IDataContainer,
+    MemoryLevel, DEFAULT_HUGE_PAGE_SIZE,
 };
 
 pub use engine::config::FlushConfig;

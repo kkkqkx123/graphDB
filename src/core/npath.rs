@@ -6,7 +6,7 @@
 //! # Core strengths
 //!
 //! 1. **Shared prefix**: multiple paths share the same prefix portion to save memory
-//! 2. **O(1)扩展**：新路径只需创建一个新节点，指向父路径
+//! 2. **O(1) Extension **: New path simply creates a new node pointing to parent path
 //! 3. **Fast splicing**: bi-directional BFS path splicing by simply finding the point of intersection
 //!
 //! # Examples of use

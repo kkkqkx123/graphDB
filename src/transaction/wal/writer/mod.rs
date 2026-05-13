@@ -18,7 +18,7 @@ mod local;
 
 pub use compression::decompress_payload;
 pub use dummy::DummyWalWriter;
-pub use group_commit::GroupCommitManager;
+pub(crate) use group_commit::GroupCommitManager;
 pub use local::LocalWalWriter;
 pub use traits::WalWriter;
 pub use factory::WalWriterFactory;

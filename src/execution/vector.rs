@@ -2,9 +2,37 @@
 //!
 //! Provides batch processing capabilities for improved CPU cache locality
 //! and SIMD optimization potential. Follows DuckDB's vectorized execution model.
+//!
+//! ## Arena Allocation
+//!
+//! For high-performance scenarios with many temporary allocations, use
+//! `ArenaVectorBatch` which leverages `Arena` for efficient
+//! batch memory management. This is particularly useful for:
+//!
+//! - Query execution with intermediate results
+//! - Expression evaluation with temporary values
+//! - Batch processing pipelines
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! use graphdb::execution::ArenaVectorBatch;
+//! use graphdb::utils::Arena;
+//!
+//! // Create arena-backed batch for temporary allocations
+//! let arena = Arena::new();
+//! let mut batch = ArenaVectorBatch::new(&arena, 3);
+//!
+//! // All allocations come from the arena
+//! batch.push_row(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+//!
+//! // Arena can be reset for reuse
+//! arena.reset();
+//! ```
 
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
+use crate::utils::Arena;
 use bitvec::prelude::{BitVec, Lsb0};
 
 pub const VECTOR_BATCH_SIZE: usize = 2048;
@@ -650,6 +678,156 @@ impl VectorSelector {
     }
 }
 
+/// Arena-backed vector batch for high-performance temporary allocations.
+///
+/// This structure can be used with an arena for allocating temporary values,
+/// while the column storage is managed normally. The arena reference is kept
+/// for potential future use in allocating temporary computation results.
+pub struct ArenaVectorBatch<'a> {
+    arena: &'a Arena,
+    columns: Vec<VectorColumn>,
+    selection: Option<Vec<usize>>,
+}
+
+impl<'a> ArenaVectorBatch<'a> {
+    pub fn new(arena: &'a Arena, column_count: usize) -> Self {
+        let mut columns = Vec::with_capacity(column_count);
+        for _ in 0..column_count {
+            columns.push(VectorColumn::default());
+        }
+
+        Self {
+            arena,
+            columns,
+            selection: None,
+        }
+    }
+
+    pub fn with_capacity(arena: &'a Arena, column_count: usize, capacity: usize) -> Self {
+        let mut columns = Vec::with_capacity(column_count);
+        for _ in 0..column_count {
+            columns.push(VectorColumn::with_capacity(capacity));
+        }
+
+        Self {
+            arena,
+            columns,
+            selection: None,
+        }
+    }
+
+    pub fn column_count(&self) -> usize {
+        self.columns.len()
+    }
+
+    pub fn row_count(&self) -> usize {
+        self.columns.first().map_or(0, |c| c.len())
+    }
+
+    pub fn push_row(&mut self, values: Vec<Value>) -> StorageResult<()> {
+        if values.len() != self.columns.len() {
+            return Err(StorageError::invalid_operation(format!(
+                "Expected {} values, got {}",
+                self.columns.len(),
+                values.len()
+            )));
+        }
+
+        for (col, value) in self.columns.iter_mut().zip(values.into_iter()) {
+            col.push(value);
+        }
+
+        Ok(())
+    }
+
+    pub fn get_row(&self, row_idx: usize) -> Option<Vec<Value>> {
+        let row_count = self.row_count();
+        if row_idx >= row_count {
+            return None;
+        }
+
+        Some(self.columns.iter().map(|col| col.get(row_idx)).collect())
+    }
+
+    pub fn column(&self, idx: usize) -> Option<&VectorColumn> {
+        self.columns.get(idx)
+    }
+
+    pub fn column_mut(&mut self, idx: usize) -> Option<&mut VectorColumn> {
+        self.columns.get_mut(idx)
+    }
+
+    pub fn set_selection(&mut self, selection: Vec<usize>) {
+        self.selection = Some(selection);
+    }
+
+    pub fn selection(&self) -> Option<&[usize]> {
+        self.selection.as_deref()
+    }
+
+    pub fn clear(&mut self) {
+        for col in self.columns.iter_mut() {
+            col.clear();
+        }
+        self.selection = None;
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        self.columns.iter().map(|c| c.memory_usage()).sum()
+    }
+
+    pub fn to_vector_batch(&self) -> VectorBatch {
+        VectorBatch::from_columns(self.columns.clone())
+    }
+
+    pub fn arena(&self) -> &Arena {
+        self.arena
+    }
+}
+
+/// Arena-backed selection vector for efficient filtering operations.
+pub struct ArenaSelectionVector<'a> {
+    arena: &'a Arena,
+    data: Vec<usize>,
+}
+
+impl<'a> ArenaSelectionVector<'a> {
+    pub fn new(arena: &'a Arena, capacity: usize) -> Self {
+        Self {
+            arena,
+            data: Vec::with_capacity(capacity),
+        }
+    }
+
+    pub fn push(&mut self, value: usize) {
+        self.data.push(value);
+    }
+
+    pub fn as_slice(&self) -> &[usize] {
+        &self.data
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
+    pub fn extend_from_slice(&mut self, values: &[usize]) {
+        self.data.extend_from_slice(values);
+    }
+
+    pub fn arena(&self) -> &Arena {
+        self.arena
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -805,5 +983,57 @@ mod tests {
 
         assert_eq!(batch.selected_count(), 4);
         assert_eq!(batch.selection(), Some(selection.as_slice()));
+    }
+
+    #[test]
+    fn test_arena_vector_batch() {
+        let arena = Arena::new();
+        let mut batch = ArenaVectorBatch::new(&arena, 2);
+
+        batch
+            .push_row(vec![Value::Int(1), Value::String("a".to_string())])
+            .expect("Push failed");
+        batch
+            .push_row(vec![Value::Int(2), Value::String("b".to_string())])
+            .expect("Push failed");
+
+        assert_eq!(batch.row_count(), 2);
+
+        let row = batch.get_row(0).expect("Get row failed");
+        assert_eq!(row[0], Value::Int(1));
+        assert_eq!(row[1], Value::String("a".to_string()));
+    }
+
+    #[test]
+    fn test_arena_selection_vector() {
+        let arena = Arena::new();
+        let mut sel = ArenaSelectionVector::new(&arena, 100);
+
+        sel.push(1);
+        sel.push(3);
+        sel.push(5);
+
+        assert_eq!(sel.len(), 3);
+        assert_eq!(sel.as_slice(), &[1, 3, 5]);
+
+        sel.clear();
+        assert!(sel.is_empty());
+    }
+
+    #[test]
+    fn test_arena_batch_to_vector_batch() {
+        let arena = Arena::new();
+        let mut arena_batch = ArenaVectorBatch::new(&arena, 2);
+
+        arena_batch
+            .push_row(vec![Value::Int(1), Value::Int(10)])
+            .expect("Push failed");
+        arena_batch
+            .push_row(vec![Value::Int(2), Value::Int(20)])
+            .expect("Push failed");
+
+        let batch = arena_batch.to_vector_batch();
+        assert_eq!(batch.row_count(), 2);
+        assert_eq!(batch.column_count(), 2);
     }
 }

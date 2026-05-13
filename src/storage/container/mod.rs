@@ -1,13 +1,14 @@
 //! Storage Container Module
 //!
-//! Provides memory-mapped file and arena-based memory allocation for the storage layer.
+//! Provides memory-mapped file containers for the storage layer.
 //!
 //! ## Components
 //!
 //! - `AnonMmap`: Anonymous memory-mapped container for temporary storage
 //! - `HugePageMmap`: Huge page memory container for large allocations
 //! - `FileMmap`: Memory-mapped file container for persistent storage
-//! - `ArenaAllocator`: High-performance arena allocator for batch allocations
+//!
+//! For arena allocation, use `graphdb::utils::Arena` instead.
 //!
 //! ## Usage
 //!
@@ -27,13 +28,11 @@
 //! ```
 
 mod anon_mmap;
-mod arena_allocator;
 mod file_mmap;
 mod mmap;
 mod types;
 
 pub use anon_mmap::{AnonMmap, HugePageMmap};
-pub use arena_allocator::{ArenaAllocator, ArenaPool};
 pub use file_mmap::FileMmap;
 pub use mmap::{FileHeader, IDataContainer};
 pub use types::{
@@ -125,19 +124,5 @@ mod tests {
         let container = open_container(MemoryLevel::InMemory, None::<&str>, 1024)
             .expect("Failed to open container");
         assert!(container.is_open());
-    }
-
-    #[test]
-    fn test_arena_workflow() {
-        let arena = ArenaAllocator::new().expect("Failed to create arena");
-
-        let ptr = arena
-            .allocate_bytes(b"test data")
-            .expect("Failed to allocate");
-
-        unsafe {
-            let slice = std::slice::from_raw_parts(ptr.as_ptr(), 9);
-            assert_eq!(slice, b"test data");
-        }
     }
 }

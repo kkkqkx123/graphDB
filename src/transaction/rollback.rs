@@ -20,7 +20,7 @@ pub use crate::transaction::undo_log::{
 ///
 /// Define the basic operations required for operation log rollbacks.
 /// This is used for savepoint rollback functionality.
-pub trait OperationLogContext {
+pub(crate) trait OperationLogContext {
     fn operation_log_len(&self) -> usize;
     fn truncate_operation_log(&self, index: usize);
     fn get_operation_log(&self, index: usize) -> Option<OperationLog>;
@@ -54,7 +54,7 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
 ///
 /// Defines the basic operations required for undo log rollbacks.
 /// This is the primary rollback mechanism for NeuG architecture.
-pub trait UndoLogContext {
+pub(crate) trait UndoLogContext {
     fn undo_log_len(&self) -> usize;
     fn add_undo_log(&self, log: UndoLogEntry);
     fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), StorageError>;
@@ -84,7 +84,7 @@ impl UndoLogContext for crate::transaction::context::TransactionContext {
 ///
 /// Primary rollback mechanism for NeuG architecture.
 /// Uses UndoLog entries to reverse operations during transaction abort.
-pub struct UndoLogRollback<'a, T: UndoLogContext> {
+pub(crate) struct UndoLogRollback<'a, T: UndoLogContext> {
     ctx: &'a T,
 }
 
@@ -118,7 +118,7 @@ impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
 ///
 /// Provides both OperationLog and UndoLog rollback capabilities.
 /// Used for transactions that need to support both mechanisms.
-pub struct CombinedRollback<'a, T: OperationLogContext + UndoLogContext> {
+pub(crate) struct CombinedRollback<'a, T: OperationLogContext + UndoLogContext> {
     ctx: &'a T,
 }
 
@@ -164,10 +164,10 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
 }
 
 /// Rollback helper functions
-pub struct RollbackHelper;
+pub(crate) struct RollbackHelper;
 
 /// Parameters for create_update_edge_prop_undo operation
-pub struct CreateUpdateEdgePropUndoParams {
+pub(crate) struct CreateUpdateEdgePropUndoParams {
     pub src_label: LabelId,
     pub src_vid: u64,
     pub dst_label: LabelId,
@@ -180,14 +180,14 @@ pub struct CreateUpdateEdgePropUndoParams {
 }
 
 /// Parameters for create_remove_vertex_undo operation
-pub struct CreateRemoveVertexUndoParams {
+pub(crate) struct CreateRemoveVertexUndoParams {
     pub label: LabelId,
     pub vid: u64,
     pub related_edges: Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>,
 }
 
 /// Parameters for create_remove_edge_undo operation
-pub struct CreateRemoveEdgeUndoParams {
+pub(crate) struct CreateRemoveEdgeUndoParams {
     pub src_label: LabelId,
     pub src_vid: u64,
     pub dst_label: LabelId,

@@ -4,7 +4,7 @@ use crate::transaction::types::TransactionId;
 use dashmap::DashMap;
 
 /// index update buffer
-pub struct IndexUpdateBuffer {
+pub(crate) struct IndexUpdateBuffer {
     /// Pending updates organized by transaction ID
     buffers: DashMap<TransactionId, Vec<PendingIndexUpdate>>,
     /// deployment
@@ -89,7 +89,7 @@ impl IndexUpdateBuffer {
 
 /// Buffer statistics
 #[derive(Debug, Clone)]
-pub struct BufferStats {
+pub(crate) struct BufferStats {
     pub active_transactions: usize,
     pub total_pending_updates: usize,
 }

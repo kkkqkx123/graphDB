@@ -58,7 +58,7 @@ pub use compact_transaction::{
     CompactTarget, CompactTransaction, CompactTransactionError, CompactTransactionResult,
 };
 pub use context::TransactionContext;
-pub use index_buffer::IndexUpdateBuffer;
+pub(crate) use index_buffer::IndexUpdateBuffer;
 pub use insert_transaction::{
     InsertTarget, InsertTransaction, InsertTransactionError, InsertTransactionResult,
 };
@@ -77,7 +77,7 @@ pub use undo_log::{
     RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
     UpdateEdgePropUndo, UpdateVertexPropUndo,
 };
-pub use rollback::{
+pub(crate) use rollback::{
     CombinedRollback, CreateRemoveEdgeUndoParams, CreateRemoveVertexUndoParams,
     CreateUpdateEdgePropUndoParams, OperationLogContext,
     RollbackHelper, UndoLogContext, UndoLogRollback,

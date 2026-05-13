@@ -40,6 +40,7 @@ metrics = "0.23"
 memmap2 = "0.9"
 crc32fast = "1.5"
 zstd = "0.13"
+bumpalo = "3.16"
 
 axum = { version = "0.8", features = ["macros"], optional = true }
 tower = { version = "0.5", optional = true }
