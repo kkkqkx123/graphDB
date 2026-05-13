@@ -1,9 +1,10 @@
-//! Index Operations
+//! Index MVCC Operations
 //!
-//! Contains index-related operations for PropertyGraph.
+//! Contains index-related MVCC operations for PropertyGraph.
+//! This module handles low-level index updates with MVCC support.
 
 use crate::core::{StorageResult, Value};
-use crate::storage::index::secondary::GcStats;
+use crate::storage::index::secondary::{GcStats, IndexDataManager};
 use crate::transaction::wal::types::Timestamp;
 
 use super::PropertyGraph;

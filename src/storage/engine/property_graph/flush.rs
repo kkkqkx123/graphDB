@@ -1,6 +1,7 @@
-//! Persistence Operations
+//! Flush Operations
 //!
 //! Contains flush, load, and checkpoint operations for PropertyGraph.
+//! This module handles low-level data persistence at the storage engine level.
 
 use std::path::Path;
 

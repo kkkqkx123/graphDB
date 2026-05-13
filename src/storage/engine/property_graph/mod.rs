@@ -5,11 +5,11 @@
 
 mod compact_target;
 mod core_ops;
-mod index_ops;
+mod flush;
+mod index_mvcc;
 mod insert_target;
-mod persistence_ops;
 mod recovery;
-mod schema_ops;
+mod type_ops;
 mod undo_target;
 
 use std::collections::HashMap;
@@ -216,7 +216,7 @@ impl PropertyGraph {
         properties: Vec<VertexPropertyDef>,
         primary_key: &str,
     ) -> StorageResult<LabelId> {
-        schema_ops::create_vertex_type(self, name, properties, primary_key)
+        type_ops::create_vertex_type(self, name, properties, primary_key)
     }
 
     pub fn create_vertex_type_with_id(
@@ -226,7 +226,7 @@ impl PropertyGraph {
         properties: Vec<VertexPropertyDef>,
         primary_key: &str,
     ) -> StorageResult<LabelId> {
-        schema_ops::create_vertex_type_with_id(self, name, label_id, properties, primary_key)
+        type_ops::create_vertex_type_with_id(self, name, label_id, properties, primary_key)
     }
 
     pub fn create_edge_type(
@@ -238,7 +238,7 @@ impl PropertyGraph {
         oe_strategy: EdgeStrategy,
         ie_strategy: EdgeStrategy,
     ) -> StorageResult<LabelId> {
-        schema_ops::create_edge_type(
+        type_ops::create_edge_type(
             self,
             name,
             src_label,
@@ -259,7 +259,7 @@ impl PropertyGraph {
         oe_strategy: EdgeStrategy,
         ie_strategy: EdgeStrategy,
     ) -> StorageResult<LabelId> {
-        schema_ops::create_edge_type_with_id(
+        type_ops::create_edge_type_with_id(
             self,
             name,
             label_id,
@@ -272,11 +272,11 @@ impl PropertyGraph {
     }
 
     pub fn drop_vertex_type(&mut self, name: &str) -> StorageResult<()> {
-        schema_ops::drop_vertex_type(self, name)
+        type_ops::drop_vertex_type(self, name)
     }
 
     pub fn drop_edge_type(&mut self, name: &str) -> StorageResult<()> {
-        schema_ops::drop_edge_type(self, name)
+        type_ops::drop_edge_type(self, name)
     }
 
     // ==================== Vertex Operations ====================
@@ -460,15 +460,15 @@ impl PropertyGraph {
     // ==================== Persistence Operations ====================
 
     pub fn flush(&self) -> StorageResult<()> {
-        persistence_ops::flush(self)
+        flush::flush(self)
     }
 
     pub fn flush_incremental(&self) -> StorageResult<Vec<TableId>> {
-        persistence_ops::flush_incremental(self)
+        flush::flush_incremental(self)
     }
 
     pub fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
-        persistence_ops::flush_tables_to_dir(self, data_dir)
+        flush::flush_tables_to_dir(self, data_dir)
     }
 
     pub fn load(&mut self) -> StorageResult<()> {
@@ -476,11 +476,11 @@ impl PropertyGraph {
     }
 
     pub(crate) fn load_data(&mut self) -> StorageResult<()> {
-        persistence_ops::load_data(self)
+        flush::load_data(self)
     }
 
     pub fn restore_from_checkpoint(&mut self, checkpoint_dir: &Path) -> StorageResult<()> {
-        persistence_ops::restore_from_checkpoint(self, checkpoint_dir)
+        flush::restore_from_checkpoint(self, checkpoint_dir)
     }
 
     // ==================== Compaction Operations ====================
@@ -530,7 +530,7 @@ impl PropertyGraph {
         props: &[(String, Value)],
         ts: Timestamp,
     ) -> StorageResult<()> {
-        index_ops::update_vertex_indexes_mvcc(self, space_id, vertex_id, index_name, props, ts)
+        index_mvcc::update_vertex_indexes_mvcc(self, space_id, vertex_id, index_name, props, ts)
     }
 
     pub fn delete_vertex_indexes_mvcc(
@@ -539,7 +539,7 @@ impl PropertyGraph {
         vertex_id: &Value,
         ts: Timestamp,
     ) -> StorageResult<()> {
-        index_ops::delete_vertex_indexes_mvcc(self, space_id, vertex_id, ts)
+        index_mvcc::delete_vertex_indexes_mvcc(self, space_id, vertex_id, ts)
     }
 
     pub fn update_edge_indexes_mvcc(
@@ -551,7 +551,7 @@ impl PropertyGraph {
         props: &[(String, Value)],
         ts: Timestamp,
     ) -> StorageResult<()> {
-        index_ops::update_edge_indexes_mvcc(self, space_id, src, dst, index_name, props, ts)
+        index_mvcc::update_edge_indexes_mvcc(self, space_id, src, dst, index_name, props, ts)
     }
 
     pub fn delete_edge_indexes_mvcc(
@@ -562,11 +562,11 @@ impl PropertyGraph {
         index_names: &[String],
         ts: Timestamp,
     ) -> StorageResult<()> {
-        index_ops::delete_edge_indexes_mvcc(self, space_id, src, dst, index_names, ts)
+        index_mvcc::delete_edge_indexes_mvcc(self, space_id, src, dst, index_names, ts)
     }
 
     pub fn gc_index_tombstones(&mut self, ts: Timestamp) -> StorageResult<GcStats> {
-        index_ops::gc_index_tombstones(self, ts)
+        index_mvcc::gc_index_tombstones(self, ts)
     }
 
     pub fn gc_index_tombstones_incremental(
@@ -574,6 +574,6 @@ impl PropertyGraph {
         ts: Timestamp,
         batch_size: usize,
     ) -> StorageResult<GcStats> {
-        index_ops::gc_index_tombstones_incremental(self, ts, batch_size)
+        index_mvcc::gc_index_tombstones_incremental(self, ts, batch_size)
     }
 }

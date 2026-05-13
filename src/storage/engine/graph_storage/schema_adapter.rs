@@ -1,6 +1,7 @@
-//! Schema Operations
+//! Schema Adapter Operations
 //!
-//! Provides schema management operations for spaces, tags, and edge types.
+//! Provides high-level schema management operations for spaces, tags, and edge types.
+//! This module acts as an adapter between the StorageClient API and the underlying schema system.
 
 use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::{StorageError, StorageResult};
@@ -8,11 +9,11 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 
 use super::context::GraphStorageContext;
 
-pub struct SchemaOps<'a> {
+pub struct SchemaAdapterOps<'a> {
     ctx: &'a GraphStorageContext,
 }
 
-impl<'a> SchemaOps<'a> {
+impl<'a> SchemaAdapterOps<'a> {
     pub fn new(ctx: &'a GraphStorageContext) -> Self {
         Self { ctx }
     }

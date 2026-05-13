@@ -1,6 +1,7 @@
-//! Schema Operations
+//! Type Operations
 //!
 //! Contains vertex and edge type creation/deletion operations for PropertyGraph.
+//! This module handles low-level type management at the storage engine level.
 
 use crate::core::{StorageError, StorageResult};
 use crate::storage::edge::{EdgeStrategy, PropertyDef as EdgePropertyDef};

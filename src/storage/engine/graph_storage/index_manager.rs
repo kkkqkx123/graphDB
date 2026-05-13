@@ -1,6 +1,7 @@
-//! Index Operations
+//! Index Manager Operations
 //!
-//! Provides index management and lookup operations.
+//! Provides high-level index management and lookup operations.
+//! This module acts as an adapter between the StorageClient API and the underlying index system.
 
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
@@ -10,11 +11,11 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 
 use super::context::GraphStorageContext;
 
-pub struct IndexOps<'a> {
+pub struct IndexManagerOps<'a> {
     ctx: &'a GraphStorageContext,
 }
 
-impl<'a> IndexOps<'a> {
+impl<'a> IndexManagerOps<'a> {
     pub fn new(ctx: &'a GraphStorageContext) -> Self {
         Self { ctx }
     }

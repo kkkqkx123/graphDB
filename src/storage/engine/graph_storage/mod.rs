@@ -6,11 +6,11 @@
 
 mod context;
 mod converters;
-mod index_ops;
+mod index_manager;
 mod maintenance;
 mod persistence;
 mod reader;
-mod schema_ops;
+mod schema_adapter;
 mod user_ops;
 mod writer;
 
@@ -296,35 +296,35 @@ impl StorageClient for GraphStorage {
     }
 
     fn create_space(&mut self, space: &mut SpaceInfo) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).create_space(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).create_space(space)
     }
 
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).drop_space(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).drop_space(space)
     }
 
     fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).get_space(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).get_space(space)
     }
 
     fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).get_space_by_id(space_id)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).get_space_by_id(space_id)
     }
 
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).list_spaces()
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).list_spaces()
     }
 
     fn get_space_id(&self, space: &str) -> Result<u64, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).get_space_id(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).get_space_id(space)
     }
 
     fn space_exists(&self, space: &str) -> bool {
-        schema_ops::SchemaOps::new(&self.ctx).space_exists(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).space_exists(space)
     }
 
     fn clear_space(&mut self, space: &str) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).clear_space(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).clear_space(space)
     }
 
     fn alter_space_comment(
@@ -332,23 +332,23 @@ impl StorageClient for GraphStorage {
         space_id: u64,
         comment: String,
     ) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).alter_space_comment(space_id, comment)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).alter_space_comment(space_id, comment)
     }
 
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<u32, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).create_tag(space, tag)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).create_tag(space, tag)
     }
 
     fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).drop_tag(space, tag)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).drop_tag(space, tag)
     }
 
     fn get_tag(&self, space: &str, tag: &str) -> Result<Option<TagInfo>, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).get_tag(space, tag)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).get_tag(space, tag)
     }
 
     fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).list_tags(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).list_tags(space)
     }
 
     fn alter_tag(
@@ -358,7 +358,7 @@ impl StorageClient for GraphStorage {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).alter_tag(space, tag_name, additions, deletions)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).alter_tag(space, tag_name, additions, deletions)
     }
 
     fn create_edge_type(
@@ -366,11 +366,11 @@ impl StorageClient for GraphStorage {
         space: &str,
         edge_type: &EdgeTypeInfo,
     ) -> Result<u32, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).create_edge_type(space, edge_type)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).create_edge_type(space, edge_type)
     }
 
     fn drop_edge_type(&mut self, space: &str, edge_type: &str) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).drop_edge_type(space, edge_type)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).drop_edge_type(space, edge_type)
     }
 
     fn get_edge_type(
@@ -378,11 +378,11 @@ impl StorageClient for GraphStorage {
         space: &str,
         edge_type: &str,
     ) -> Result<Option<EdgeTypeInfo>, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).get_edge_type(space, edge_type)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).get_edge_type(space, edge_type)
     }
 
     fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).list_edge_types(space)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).list_edge_types(space)
     }
 
     fn alter_edge_type(
@@ -392,49 +392,49 @@ impl StorageClient for GraphStorage {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        schema_ops::SchemaOps::new(&self.ctx).alter_edge_type(space, edge_type_name, additions, deletions)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).alter_edge_type(space, edge_type_name, additions, deletions)
     }
 
     fn create_tag_index(&mut self, space: &str, index: &Index) -> Result<bool, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).create_tag_index(space, index)
+        index_manager::IndexManagerOps::new(&self.ctx).create_tag_index(space, index)
     }
 
     fn drop_tag_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).drop_tag_index(space, index_name)
+        index_manager::IndexManagerOps::new(&self.ctx).drop_tag_index(space, index_name)
     }
 
     fn get_tag_index(&self, space: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).get_tag_index(space, index_name)
+        index_manager::IndexManagerOps::new(&self.ctx).get_tag_index(space, index_name)
     }
 
     fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).list_tag_indexes(space)
+        index_manager::IndexManagerOps::new(&self.ctx).list_tag_indexes(space)
     }
 
     fn create_edge_index(&mut self, space: &str, index: &Index) -> Result<bool, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).create_edge_index(space, index)
+        index_manager::IndexManagerOps::new(&self.ctx).create_edge_index(space, index)
     }
 
     fn drop_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).drop_edge_index(space, index_name)
+        index_manager::IndexManagerOps::new(&self.ctx).drop_edge_index(space, index_name)
     }
 
     fn get_edge_index(&self, space: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).get_edge_index(space, index_name)
+        index_manager::IndexManagerOps::new(&self.ctx).get_edge_index(space, index_name)
     }
 
     fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).list_edge_indexes(space)
+        index_manager::IndexManagerOps::new(&self.ctx).list_edge_indexes(space)
     }
 
     fn rebuild_tag_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
         let vertices = reader::GraphStorageReader::new(&self.ctx).scan_vertices(space)?;
-        index_ops::IndexOps::new(&self.ctx).rebuild_tag_index(space, index_name, &vertices)
+        index_manager::IndexManagerOps::new(&self.ctx).rebuild_tag_index(space, index_name, &vertices)
     }
 
     fn rebuild_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
         let edges = reader::GraphStorageReader::new(&self.ctx).scan_all_edges(space)?;
-        index_ops::IndexOps::new(&self.ctx).rebuild_edge_index(space, index_name, &edges)
+        index_manager::IndexManagerOps::new(&self.ctx).rebuild_edge_index(space, index_name, &edges)
     }
 
     fn insert_vertex_data(
@@ -511,7 +511,7 @@ impl StorageClient for GraphStorage {
         index_name: &str,
         value: &Value,
     ) -> Result<Vec<Value>, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).lookup_index(space, index_name, value)
+        index_manager::IndexManagerOps::new(&self.ctx).lookup_index(space, index_name, value)
     }
 
     fn lookup_index_with_score(
@@ -520,7 +520,7 @@ impl StorageClient for GraphStorage {
         index_name: &str,
         value: &Value,
     ) -> Result<Vec<(Value, f32)>, StorageError> {
-        index_ops::IndexOps::new(&self.ctx).lookup_index_with_score(space, index_name, value)
+        index_manager::IndexManagerOps::new(&self.ctx).lookup_index_with_score(space, index_name, value)
     }
 
     fn get_vertex_with_schema(
