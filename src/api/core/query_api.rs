@@ -54,7 +54,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// Create a new QueryApi instance with schema manager support
     pub fn with_schema_manager(
         storage: Arc<Mutex<S>>,
-        schema_manager: Arc<InMemorySchemaManager>,
+        schema_manager: Arc<SchemaManager>,
     ) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
@@ -72,7 +72,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     pub async fn with_vector_search(
         storage: Arc<Mutex<S>>,
         vector_config: VectorClientConfig,
-        schema_manager: Option<Arc<InMemorySchemaManager>>,
+        schema_manager: Option<Arc<SchemaManager>>,
     ) -> Result<Self, String> {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());

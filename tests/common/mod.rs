@@ -20,7 +20,7 @@ pub mod validation_helpers;
 pub mod c_api_helpers;
 
 use graphdb::core::error::DBError;
-use graphdb::storage::metadata::InMemorySchemaManager;
+use graphdb::storage::metadata::SchemaManager;
 use graphdb::storage::GraphStorage;
 use parking_lot::Mutex;
 use std::path::PathBuf;
@@ -70,7 +70,7 @@ impl TestStorage {
     }
 
     /// Getting the Schema Manager from Storage
-    pub fn schema_manager(&self) -> Arc<InMemorySchemaManager> {
+    pub fn schema_manager(&self) -> Arc<SchemaManager> {
         let storage = self.storage.lock();
         storage.get_schema_manager()
     }

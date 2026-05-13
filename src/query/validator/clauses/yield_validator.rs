@@ -21,7 +21,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::InMemorySchemaManager;
+use crate::storage::metadata::SchemaManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -89,7 +89,7 @@ impl YieldValidator {
     }
 
     /// Create a new instance with schema manager
-    pub fn with_schema_manager(schema_manager: Arc<InMemorySchemaManager>) -> Self {
+    pub fn with_schema_manager(schema_manager: Arc<SchemaManager>) -> Self {
         Self {
             yield_columns: Vec::new(),
             distinct: false,
@@ -107,7 +107,7 @@ impl YieldValidator {
     }
 
     /// Set schema manager
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_validator = Some(SchemaValidator::new(schema_manager));
     }
 

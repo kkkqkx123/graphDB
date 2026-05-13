@@ -5,7 +5,7 @@
 use crate::core::types::{InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::property_graph::InsertEdgeParams;
-use crate::storage::metadata::index_metadata_manager::IndexMetadataManager;
+use crate::storage::metadata::index_manager::IndexMetadataManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::storage::vertex::LabelId;
 

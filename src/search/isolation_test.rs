@@ -12,7 +12,7 @@ mod tests {
     use crate::core::types::{IsolationLevel, SpaceInfo, TagInfo};
     use crate::search::metadata::IndexKey;
     use crate::search::{EngineType, FulltextConfig, FulltextIndexManager, SearchError};
-    use crate::storage::metadata::{InMemorySchemaManager, SchemaManager};
+    use crate::storage::metadata::SchemaManager;
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -124,8 +124,8 @@ mod tests {
 
     // ==================== Helper Functions ====================
 
-    fn create_test_schema_manager_with_space(space: SpaceInfo) -> Arc<InMemorySchemaManager> {
-        let manager = InMemorySchemaManager::new();
+    fn create_test_schema_manager_with_space(space: SpaceInfo) -> Arc<SchemaManager> {
+        let manager = SchemaManager::new();
         let mut space = space;
         let _ = manager.create_space(&mut space);
         Arc::new(manager)
@@ -386,7 +386,7 @@ mod tests {
             ..Default::default()
         };
 
-        let manager = InMemorySchemaManager::new();
+        let manager = SchemaManager::new();
         
         let mut space1 = SpaceInfo::new("space1".to_string());
         space1.space_id = 1;
@@ -461,7 +461,7 @@ mod tests {
             ..Default::default()
         };
 
-        let schema_mgr = InMemorySchemaManager::new();
+        let schema_mgr = SchemaManager::new();
         let mut space = SpaceInfo::new("test_space".to_string());
         space.space_id = 1;
         for i in 0..5 {

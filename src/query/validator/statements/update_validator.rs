@@ -74,7 +74,7 @@ impl UpdateValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<SchemaManager>) -> Self {
         self.schema_validator = Some(SchemaValidator::new(schema_manager));
         self
     }

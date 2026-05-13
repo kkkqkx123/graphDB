@@ -247,6 +247,18 @@ impl SchemaManager {
         Ok(None)
     }
 
+    pub fn get_space_id(&self, space_name: &str) -> Result<u64, StorageError> {
+        let name_index = self.space_name_index.read();
+        if let Some(space_id) = name_index.get(space_name) {
+            Ok(*space_id)
+        } else {
+            Err(StorageError::db_error(format!(
+                "Space \"{}\" does not exist",
+                space_name
+            )))
+        }
+    }
+
     pub fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
         let spaces = self.spaces.read();
         Ok(spaces.get(&space_id).map(|d| d.info.clone()))
@@ -505,6 +517,72 @@ impl SchemaManager {
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
+    }
+
+    pub fn alter_tag(
+        &self,
+        space_name: &str,
+        tag_name: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    ) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
+        })?;
+
+        let mut tags = self.tags.write();
+        let tag_key = tags
+            .iter()
+            .find(|((sid, _), data)| {
+                *sid == space_info.space_id && data.info.tag_name == tag_name
+            })
+            .map(|(k, _)| *k);
+
+        if let Some(key) = tag_key {
+            if let Some(data) = tags.get_mut(&key) {
+                for prop in additions {
+                    if !data.info.properties.iter().any(|p| p.name == prop.name) {
+                        data.info.properties.push(prop);
+                    }
+                }
+                data.info.properties.retain(|p| !deletions.contains(&p.name));
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn alter_edge_type(
+        &self,
+        space_name: &str,
+        edge_type_name: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    ) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
+        })?;
+
+        let mut edge_types = self.edge_types.write();
+        let key = edge_types
+            .iter()
+            .find(|((sid, _), data)| {
+                *sid == space_info.space_id && data.info.edge_type_name == edge_type_name
+            })
+            .map(|(k, _)| *k);
+
+        if let Some(k) = key {
+            if let Some(data) = edge_types.get_mut(&k) {
+                for prop in additions {
+                    if !data.info.properties.iter().any(|p| p.name == prop.name) {
+                        data.info.properties.push(prop);
+                    }
+                }
+                data.info.properties.retain(|p| !deletions.contains(&p.name));
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub fn save_schema(&self, path: &Path) -> Result<(), StorageError> {

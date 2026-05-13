@@ -36,7 +36,7 @@ pub struct ValidatedFindPath {
 /// FIND PATH Validator – New System Implementation
 #[derive(Debug)]
 pub struct FindPathValidator {
-    schema_manager: Option<Arc<InMemorySchemaManager>>,
+    schema_manager: Option<Arc<SchemaManager>>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
@@ -56,12 +56,12 @@ impl FindPathValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<InMemorySchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<SchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
 
-    pub fn set_schema_manager(&mut self, schema_manager: Arc<InMemorySchemaManager>) {
+    pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_manager = Some(schema_manager);
     }
 
