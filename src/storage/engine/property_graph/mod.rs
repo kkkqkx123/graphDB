@@ -202,6 +202,31 @@ impl PropertyGraph {
         self.cache_manager.clear_cache();
     }
 
+    pub fn with_edge_property_cache(
+        mut self,
+        config: crate::storage::cache::EdgePropertyCacheConfig,
+    ) -> Self {
+        self.cache_manager = self.cache_manager.with_edge_property_cache(config);
+        self
+    }
+
+    pub fn set_edge_property_cache(
+        &mut self,
+        config: crate::storage::cache::EdgePropertyCacheConfig,
+    ) {
+        self.cache_manager.set_edge_property_cache(config);
+    }
+
+    pub fn edge_cache_stats(
+        &self,
+    ) -> Option<std::sync::Arc<crate::storage::cache::EdgePropertyCacheStats>> {
+        self.cache_manager.edge_cache_stats()
+    }
+
+    pub fn cache_manager(&self) -> &CacheManager {
+        &self.cache_manager
+    }
+
     pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {
         let config = PropertyGraphConfig {
             work_dir: path.as_ref().to_path_buf(),

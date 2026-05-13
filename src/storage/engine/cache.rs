@@ -1,10 +1,15 @@
 //! Cache Manager
 //!
-//! Manages record cache and memory tracking for the storage engine.
+//! Manages record cache, edge property cache, and memory tracking for the storage engine.
 //!
-//! ## Design Note: Why No Edge Cache?
+//! ## Design Note: Edge Property Cache
 //!
-//! Edge data is NOT cached separately because:
+//! Edge property cache is optional and disabled by default. Enable it when:
+//! - Edge property access frequency exceeds threshold
+//! - Property size is small (< 1KB)
+//! - Edge update frequency is low
+//!
+//! Edge data structure (CSR) is NOT cached separately because:
 //!
 //! 1. **CSR is already read-optimized**: The CSR structure provides O(1) edge list
 //!    access with contiguous memory layout, which is CPU cache-friendly.
@@ -16,16 +21,21 @@
 //! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
 //!    with direct offset access.
 
+use std::sync::Arc;
+
+use crate::core::Value;
 use crate::storage::cache::{
-    CachedVertex, RecordCache, RecordCacheConfig,
-    RecordCacheStats, SharedRecordCache, VertexCacheKey,
+    CachedVertex, EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats,
+    RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache, VertexCacheKey,
 };
+use crate::storage::edge::EdgeId;
 use crate::storage::memory::SharedMemoryTracker;
 use crate::storage::vertex::LabelId;
 
 /// Manager for storage caches
 pub struct CacheManager {
     pub record_cache: Option<SharedRecordCache>,
+    pub edge_property_cache: Option<Arc<EdgePropertyCache>>,
     pub memory_tracker: Option<SharedMemoryTracker>,
 }
 
@@ -46,12 +56,32 @@ impl CacheManager {
 
         Self {
             record_cache,
+            edge_property_cache: None,
             memory_tracker: Some(memory_tracker),
+        }
+    }
+
+    pub fn with_edge_property_cache(mut self, config: EdgePropertyCacheConfig) -> Self {
+        if config.enabled {
+            self.edge_property_cache = Some(Arc::new(EdgePropertyCache::new(config)));
+        }
+        self
+    }
+
+    pub fn set_edge_property_cache(&mut self, config: EdgePropertyCacheConfig) {
+        if config.enabled {
+            self.edge_property_cache = Some(Arc::new(EdgePropertyCache::new(config)));
+        } else {
+            self.edge_property_cache = None;
         }
     }
 
     pub fn record_cache(&self) -> Option<&SharedRecordCache> {
         self.record_cache.as_ref()
+    }
+
+    pub fn edge_property_cache(&self) -> Option<&Arc<EdgePropertyCache>> {
+        self.edge_property_cache.as_ref()
     }
 
     pub fn memory_tracker(&self) -> Option<&SharedMemoryTracker> {
@@ -64,6 +94,12 @@ impl CacheManager {
             .map(|c: &SharedRecordCache| c.stats())
     }
 
+    pub fn edge_cache_stats(&self) -> Option<Arc<EdgePropertyCacheStats>> {
+        self.edge_property_cache
+            .as_ref()
+            .map(|c: &Arc<EdgePropertyCache>| c.stats())
+    }
+
     pub fn memory_stats(&self) -> Option<crate::storage::memory::MemoryStats> {
         self.memory_tracker
             .as_ref()
@@ -73,6 +109,9 @@ impl CacheManager {
     pub fn clear_cache(&self) {
         if let Some(ref record_cache) = self.record_cache {
             record_cache.clear();
+        }
+        if let Some(ref edge_cache) = self.edge_property_cache {
+            edge_cache.clear();
         }
     }
 
@@ -131,6 +170,33 @@ impl CacheManager {
         if let Some(ref rc) = self.record_cache {
             let key = VertexCacheKey::new(label, internal_id);
             rc.remove_vertex(&key);
+        }
+    }
+
+    // ==================== Edge Property Cache Operations ====================
+
+    pub fn get_edge_property(&self, edge_id: EdgeId, prop_name: &str) -> Option<Value> {
+        self.edge_property_cache
+            .as_ref()
+            .and_then(|c| c.get(edge_id, prop_name))
+    }
+
+    pub fn cache_edge_property(&self, edge_id: EdgeId, prop_name: &str, value: Value) -> bool {
+        self.edge_property_cache
+            .as_ref()
+            .map(|c| c.put(edge_id, prop_name, value))
+            .unwrap_or(false)
+    }
+
+    pub fn invalidate_edge(&self, edge_id: EdgeId) {
+        if let Some(ref cache) = self.edge_property_cache {
+            cache.invalidate(edge_id);
+        }
+    }
+
+    pub fn invalidate_edge_property(&self, edge_id: EdgeId, prop_name: &str) {
+        if let Some(ref cache) = self.edge_property_cache {
+            cache.invalidate_property(edge_id, prop_name);
         }
     }
 

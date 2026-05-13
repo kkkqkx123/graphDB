@@ -4,12 +4,14 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use super::{
     CsrBase, CsrEdgeIterator, CsrIterator, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId,
     MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::storage::cache::EdgePropertyCache;
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -49,6 +51,7 @@ pub struct EdgeTable {
     properties: PropertyTable,
     edge_id_counter: AtomicU64,
     is_open: bool,
+    property_cache: Option<Arc<EdgePropertyCache>>,
 }
 
 impl EdgeTable {
@@ -84,7 +87,22 @@ impl EdgeTable {
             properties,
             edge_id_counter: AtomicU64::new(0),
             is_open: true,
+            property_cache: None,
         }
+    }
+
+    pub fn with_cache(
+        schema: EdgeSchema,
+        config: EdgeTableConfig,
+        cache: Option<Arc<EdgePropertyCache>>,
+    ) -> Self {
+        let mut table = Self::with_config(schema, config);
+        table.property_cache = cache;
+        table
+    }
+
+    pub fn set_cache(&mut self, cache: Option<Arc<EdgePropertyCache>>) {
+        self.property_cache = cache;
     }
 
     pub fn open<P: AsRef<Path>>(&mut self, _path: P) -> StorageResult<()> {
@@ -172,6 +190,10 @@ impl EdgeTable {
 
             if prop_offset > 0 {
                 self.properties.delete(prop_offset);
+            }
+
+            if let Some(ref cache) = self.property_cache {
+                cache.invalidate(edge_id);
             }
 
             return Ok(true);
@@ -348,10 +370,42 @@ impl EdgeTable {
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
             self.properties.update(nbr.prop_offset, values)?;
+
+            if let Some(ref cache) = self.property_cache {
+                cache.invalidate(nbr.edge_id);
+            }
+
             return Ok(true);
         }
 
         Ok(false)
+    }
+
+    pub fn get_property_cached(
+        &self,
+        edge_id: EdgeId,
+        prop_offset: u32,
+        prop_name: &str,
+    ) -> Option<Value> {
+        if let Some(ref cache) = self.property_cache {
+            if let Some(value) = cache.get(edge_id, prop_name) {
+                return Some(value);
+            }
+        }
+
+        let value = self.properties.get_property(prop_offset, prop_name)?;
+
+        if let Some(ref cache) = self.property_cache {
+            cache.put(edge_id, prop_name, value.clone());
+        }
+
+        Some(value)
+    }
+
+    pub fn invalidate_edge_cache(&self, edge_id: EdgeId) {
+        if let Some(ref cache) = self.property_cache {
+            cache.invalidate(edge_id);
+        }
     }
 
     pub fn out_edges(&self, src: VertexId, ts: Timestamp) -> Vec<EdgeRecord> {

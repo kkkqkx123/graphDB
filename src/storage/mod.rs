@@ -20,7 +20,6 @@ pub mod iterator;
 pub mod memory;
 pub mod metadata;
 pub mod params;
-pub mod stats;
 pub mod vertex;
 
 #[cfg(test)]
@@ -33,7 +32,10 @@ pub use interface::{
 pub use engine::graph_storage::GraphStorage;
 pub use engine::sync_wrapper::SyncWrapper;
 
-pub use cache::{RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache};
+pub use cache::{
+    EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats, EdgePropertyKey,
+    RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache,
+};
 
 pub use extend::FulltextStorage;
 
@@ -74,8 +76,6 @@ pub use engine::{
     batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
     VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE, PropertyGraph, PropertyGraphConfig,
 };
-
-pub use stats::{ColumnStatistics, Histogram, HistogramBucket, StatsCollector};
 
 #[cfg(test)]
 pub use test_mock::*;
