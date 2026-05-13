@@ -5,8 +5,7 @@
 use crate::error::Result;
 use crate::serialize::types::*;
 use crate::Index;
-use oxicode::config::standard;
-use oxicode::serde::{decode_from_slice, encode_to_vec};
+use postcard::{from_bytes, to_allocvec};
 use std::collections::HashMap;
 
 const CHUNK_SIZE_REG: usize = 250000;
@@ -81,7 +80,7 @@ impl ChunkedSerializer {
                 chunk_index,
                 total_chunks,
                 data_type: ChunkDataType::Registry,
-                data: encode_to_vec(&chunk.to_vec(), standard())?,
+                data: to_allocvec(&chunk.to_vec())?,
             };
             callback(chunk_data)?;
         }
@@ -89,7 +88,6 @@ impl ChunkedSerializer {
         Ok(())
     }
 
-    /// Chunked export of primary indexes
     fn export_main_index_chunked<F>(
         &self,
         main_index: &HashMap<String, Vec<u64>>,
@@ -111,7 +109,7 @@ impl ChunkedSerializer {
                 chunk_index,
                 total_chunks,
                 data_type: ChunkDataType::MainIndex,
-                data: encode_to_vec(&chunk.to_vec(), standard())?,
+                data: to_allocvec(&chunk.to_vec())?,
             };
             callback(chunk_data)?;
         }
@@ -119,7 +117,6 @@ impl ChunkedSerializer {
         Ok(())
     }
 
-    /// Exporting Context Indexes in Chunks
     fn export_context_index_chunked<F>(
         &self,
         context_index: &HashMap<String, HashMap<String, Vec<u64>>>,
@@ -141,7 +138,7 @@ impl ChunkedSerializer {
                 chunk_index,
                 total_chunks,
                 data_type: ChunkDataType::ContextIndex,
-                data: encode_to_vec(&chunk.to_vec(), standard())?,
+                data: to_allocvec(&chunk.to_vec())?,
             };
             callback(chunk_data)?;
         }
@@ -149,7 +146,6 @@ impl ChunkedSerializer {
         Ok(())
     }
 
-    /// chunking
     pub fn import_chunked<F>(&self, index: &mut Index, mut provider: F) -> Result<()>
     where
         F: FnMut() -> Result<Option<ChunkData>>,
@@ -161,8 +157,7 @@ impl ChunkedSerializer {
         while let Some(chunk) = provider()? {
             match chunk.data_type {
                 ChunkDataType::Registry => {
-                    let (items, _): (Vec<String>, usize) =
-                        decode_from_slice(&chunk.data, standard())?;
+                    let items: Vec<String> = from_bytes(&chunk.data)?;
                     if registry_data.is_none() {
                         registry_data = Some(RegistryData::Set(Vec::new()));
                     }
@@ -175,15 +170,13 @@ impl ChunkedSerializer {
                     }
                 }
                 ChunkDataType::MainIndex => {
-                    let (items, _): (Vec<(String, Vec<u64>)>, usize) =
-                        decode_from_slice(&chunk.data, standard())?;
+                    let items: Vec<(String, Vec<u64>)> = from_bytes(&chunk.data)?;
                     for (key, value) in items {
                         main_index_data.insert(key, value);
                     }
                 }
                 ChunkDataType::ContextIndex => {
-                    let (items, _): (Vec<(String, HashMap<String, Vec<u64>>)>, usize) =
-                        decode_from_slice(&chunk.data, standard())?;
+                    let items: Vec<(String, HashMap<String, Vec<u64>>)> = from_bytes(&chunk.data)?;
                     for (key, value) in items {
                         context_index_data.insert(key, value);
                     }

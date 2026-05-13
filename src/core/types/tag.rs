@@ -2,10 +2,9 @@
 
 use super::property::PropertyDef;
 use super::schema_trait::SchemaInfo;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TagInfo {
     pub tag_id: u32,
     pub tag_name: String,

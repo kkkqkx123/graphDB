@@ -2,12 +2,11 @@
 //!
 //! This module defines the List type and its associated operations.
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
 /// Simple list representation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct List {
     pub values: Vec<super::Value>,
 }

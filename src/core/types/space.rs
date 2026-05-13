@@ -1,19 +1,18 @@
 //! Basic types in the graph space
 
 use crate::core::types::{DataType, EdgeTypeInfo, MetadataVersion, TagInfo};
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Charset and collation information
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CharsetInfo {
     pub charset: String,
     pub collation: String,
 }
 
 /// Isolation level for space storage
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum IsolationLevel {
     /// Shared storage (default) - all spaces share the same base path
     #[default]
@@ -25,7 +24,7 @@ pub enum IsolationLevel {
 }
 
 /// Space status for lifecycle management
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum SpaceStatus {
     /// Space is online and fully operational
     #[default]
@@ -49,7 +48,7 @@ impl SpaceStatus {
 }
 
 /// Storage engine type for space
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum EngineType {
     #[default]
     Redb,
@@ -134,7 +133,7 @@ impl From<SpaceSummary> for SpaceInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpaceInfo {
     pub space_id: u64,
     pub space_name: String,

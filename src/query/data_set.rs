@@ -3,7 +3,6 @@
 //! This module defines the DataSet type and its associated operations.
 //! DataSet is the core data structure for query result representation and data passing.
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -12,7 +11,7 @@ use std::hash::Hash;
 ///
 /// DataSet is the primary carrier of structured data in query execution,
 /// used for passing data between executors and returning results to API layer.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
 pub struct DataSet {
     pub col_names: Vec<String>,
     pub rows: Vec<Vec<crate::core::Value>>,

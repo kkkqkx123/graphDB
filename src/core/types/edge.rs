@@ -2,10 +2,9 @@
 
 use super::property::PropertyDef;
 use super::schema_trait::SchemaInfo;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EdgeTypeInfo {
     pub edge_type_id: u32,
     pub edge_type_name: String,

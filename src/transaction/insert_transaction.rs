@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use oxicode::{decode_from_slice, encode_to_vec};
+use postcard::{from_bytes, to_allocvec};
 
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::version_manager::{VersionManager, VersionManagerError};
@@ -293,7 +293,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
     }
 
     /// Serialize a redo log entry
-    fn serialize_redo<U: oxicode::Encode>(
+    fn serialize_redo<U: serde::Serialize + serde::de::DeserializeOwned>(
         &mut self,
         op_type: WalOpType,
         redo: &U,
@@ -301,7 +301,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
         let op_byte = op_type as u8;
         self.wal_buffer.push(op_byte);
 
-        let encoded = encode_to_vec(redo)
+        let encoded = to_allocvec(redo)
             .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
 
         let len = encoded.len() as u32;
@@ -341,9 +341,8 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
 
             match op_type {
                 WalOpType::InsertVertex => {
-                    let redo: InsertVertexRedo = decode_from_slice(payload)
-                        .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?
-                        .0;
+                    let redo: InsertVertexRedo = from_bytes(payload)
+                        .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
                     self.graph.add_vertex(
                         redo.label,
                         &redo.oid,
@@ -352,9 +351,8 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
                     )?;
                 }
                 WalOpType::InsertEdge => {
-                    let redo: InsertEdgeRedo = decode_from_slice(payload)
-                        .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?
-                        .0;
+                    let redo: InsertEdgeRedo = from_bytes(payload)
+                        .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
                     let src_vid = self
                         .graph
                         .get_vertex_id(redo.src_label, &redo.src_oid, self.timestamp)

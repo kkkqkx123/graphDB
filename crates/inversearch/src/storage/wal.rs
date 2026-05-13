@@ -7,8 +7,7 @@ use crate::r#type::DocId;
 use crate::Index;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
-use oxicode::config::standard;
-use oxicode::serde::{decode_from_slice, encode_to_vec};
+use postcard::{from_bytes, to_allocvec};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -169,7 +168,7 @@ impl WALManager {
 
     /// Record changes to WAL
     pub async fn record_change(&self, change: IndexChange) -> Result<()> {
-        let serialized = encode_to_vec(&change, standard())?;
+        let serialized = to_allocvec(&change)?;
         let encoded = general_purpose::STANDARD.encode(&serialized);
         let line = format!("{}\n", encoded);
 
@@ -202,7 +201,7 @@ impl WALManager {
 
         let mut lines = Vec::new();
         for change in changes {
-            let serialized = encode_to_vec(&change, standard())?;
+            let serialized = to_allocvec(&change)?;
             let encoded = general_purpose::STANDARD.encode(&serialized);
             lines.push(format!("{}\n", encoded));
         }
@@ -362,9 +361,7 @@ impl WALManager {
 
             for line in reader.lines().map_while(|r| r.ok()) {
                 if let Ok(decoded) = general_purpose::STANDARD.decode(&line) {
-                    if let Ok((change, _)) =
-                        decode_from_slice::<IndexChange, _>(&decoded, standard())
-                    {
+                    if let Ok(change) = from_bytes::<IndexChange>(&decoded) {
                         self.apply_change(index, change)?;
                     }
                 }
@@ -397,13 +394,13 @@ impl WALManager {
         use crate::serialize::SerializeConfig;
         let config = SerializeConfig::default();
         let export_data = index.export(&config)?;
-        Ok(encode_to_vec(&export_data, standard())?)
+        Ok(to_allocvec(&export_data)?)
     }
 
     /// Deserialized indexes
     fn deserialize_index(&self, index: &mut Index, data: &[u8]) -> Result<()> {
         use crate::serialize::{IndexExportData, SerializeConfig};
-        let (export_data, _): (IndexExportData, usize) = decode_from_slice(data, standard())?;
+        let export_data: IndexExportData = from_bytes(data)?;
         let config = SerializeConfig::default();
         index.import(export_data, &config)?;
         Ok(())

@@ -6,7 +6,6 @@ use std::fmt;
 use std::time::Duration;
 
 use crc32fast::Hasher;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 /// WAL magic number for file identification
@@ -61,7 +60,7 @@ pub type TransactionId = u64;
 
 /// LSN (Log Sequence Number) - monotonically increasing byte offset
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
 pub struct Lsn(pub u64);
 
@@ -479,8 +478,8 @@ impl From<std::io::Error> for WalError {
     }
 }
 
-impl From<oxicode::Error> for WalError {
-    fn from(e: oxicode::Error) -> Self {
+impl From<postcard::Error> for WalError {
+    fn from(e: postcard::Error) -> Self {
         WalError::SerializationError(e.to_string())
     }
 }
@@ -637,7 +636,7 @@ impl UpdateWalUnit {
 }
 
 /// Insert vertex redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsertVertexRedo {
     pub label: LabelId,
     pub oid: Vec<u8>,
@@ -645,7 +644,7 @@ pub struct InsertVertexRedo {
 }
 
 /// Insert edge redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsertEdgeRedo {
     pub src_label: LabelId,
     pub src_oid: Vec<u8>,
@@ -656,7 +655,7 @@ pub struct InsertEdgeRedo {
 }
 
 /// Update vertex property redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateVertexPropRedo {
     pub label: LabelId,
     pub oid: Vec<u8>,
@@ -665,7 +664,7 @@ pub struct UpdateVertexPropRedo {
 }
 
 /// Update edge property redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateEdgePropRedo {
     pub src_label: LabelId,
     pub src_oid: Vec<u8>,
@@ -677,14 +676,14 @@ pub struct UpdateEdgePropRedo {
 }
 
 /// Create vertex type redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateVertexTypeRedo {
     pub label_name: String,
     pub schema: Vec<(String, String)>,
 }
 
 /// Create edge type redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateEdgeTypeRedo {
     pub src_label: String,
     pub dst_label: String,
@@ -693,14 +692,14 @@ pub struct CreateEdgeTypeRedo {
 }
 
 /// Delete vertex redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteVertexRedo {
     pub label: LabelId,
     pub oid: Vec<u8>,
 }
 
 /// Delete edge redo log
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteEdgeRedo {
     pub src_label: LabelId,
     pub src_oid: Vec<u8>,

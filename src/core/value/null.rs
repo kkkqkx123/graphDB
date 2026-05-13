@@ -2,7 +2,6 @@
 //!
 //! Nebula-Graph-compatible null value type definition.
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
@@ -17,7 +16,7 @@ use std::hash::Hash;
 /// - **UnknownProp**: Unknown property
 /// - **DivByZero**: divide by zero error
 /// - **OutOfRange**: value out of range
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
 pub enum NullType {
     #[default]
     Null, // Standard null values

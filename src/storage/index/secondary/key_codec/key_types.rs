@@ -3,7 +3,7 @@
 //! This module defines the core types and constants used for index key encoding.
 
 use crate::core::{StorageError, Value};
-use oxicode::{decode_from_slice, encode_to_vec};
+use postcard::{from_bytes, to_allocvec};
 
 /// Byte key wrapper for index keys
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -37,12 +37,11 @@ pub const KEY_TYPE_VERTEX_FORWARD: u8 = 0x03;
 pub const KEY_TYPE_EDGE_FORWARD: u8 = 0x04;
 
 pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
-    encode_to_vec(value).map_err(|e| StorageError::serialize_error(e.to_string()))
+    to_allocvec(value).map_err(|e| StorageError::serialize_error(e.to_string()))
 }
 
 pub fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
-    decode_from_slice(data)
-        .map(|(v, _)| v)
+    from_bytes(data)
         .map_err(|e| StorageError::deserialize_error(e.to_string()))
 }
 

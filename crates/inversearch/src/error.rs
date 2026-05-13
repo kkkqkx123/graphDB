@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-impl From<oxicode::Error> for InversearchError {
-    fn from(error: oxicode::Error) -> Self {
-        InversearchError::OxicoideError(error.to_string())
+impl From<postcard::Error> for InversearchError {
+    fn from(error: postcard::Error) -> Self {
+        InversearchError::PostcardError(error.to_string())
     }
 }
 
@@ -53,8 +53,8 @@ pub enum InversearchError {
     #[error("Async error: {0}")]
     AsyncError(String),
 
-    #[error("Oxicoide error: {0}")]
-    OxicoideError(String),
+    #[error("Postcard error: {0}")]
+    PostcardError(String),
 
     #[error("JSON error: {0}")]
     JsonError(String),

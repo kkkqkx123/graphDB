@@ -1,10 +1,9 @@
 //! Metadata version management type
 
 use crate::core::types::{EdgeTypeInfo, TagInfo};
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MetadataVersion {
     pub version: i32,
     pub timestamp: i64,
@@ -21,7 +20,7 @@ impl Default for MetadataVersion {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SchemaVersion {
     pub version: i32,
     pub space_id: u64,
@@ -31,7 +30,7 @@ pub struct SchemaVersion {
     pub comment: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SchemaHistory {
     pub space_id: u64,
     pub versions: Vec<SchemaVersion>,

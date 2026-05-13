@@ -5,7 +5,6 @@
 
 use crate::core::types::span::Span;
 use crate::core::Value;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 // ============================================================================
@@ -13,7 +12,7 @@ use serde::{Deserialize, Serialize};
 // ============================================================================
 
 /// CREATE VECTOR INDEX statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateVectorIndex {
     pub span: Span,
     pub index_name: String,
@@ -24,7 +23,7 @@ pub struct CreateVectorIndex {
 }
 
 /// Vector index configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorIndexConfig {
     pub vector_size: usize,
     pub distance: VectorDistance,
@@ -33,7 +32,7 @@ pub struct VectorIndexConfig {
 }
 
 /// DROP VECTOR INDEX statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DropVectorIndex {
     pub span: Span,
     pub index_name: String,
@@ -45,7 +44,7 @@ pub struct DropVectorIndex {
 // ============================================================================
 
 /// SEARCH VECTOR statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchVectorStatement {
     pub span: Span,
     pub index_name: String,
@@ -59,7 +58,7 @@ pub struct SearchVectorStatement {
 }
 
 /// Vector query expression
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorQueryExpr {
     pub span: Span,
     pub query_type: VectorQueryType,
@@ -67,7 +66,7 @@ pub struct VectorQueryExpr {
 }
 
 /// Vector query type
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VectorQueryType {
     /// Direct vector: [0.1, 0.2, ...]
     Vector,
@@ -78,7 +77,7 @@ pub enum VectorQueryType {
 }
 
 /// Vector distance metric
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum VectorDistance {
     Cosine,
@@ -87,26 +86,26 @@ pub enum VectorDistance {
 }
 
 /// YIELD clause for vector search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorYieldClause {
     pub items: Vec<VectorYieldItem>,
 }
 
 /// Yield item for vector search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorYieldItem {
     pub expr: String,
     pub alias: Option<String>,
 }
 
 /// WHERE clause (reuse from fulltext)
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhereClause {
     pub condition: WhereCondition,
 }
 
 /// WHERE condition
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WhereCondition {
     /// Comparison: score > 0.5
     Comparison(String, ComparisonOp, Value),
@@ -119,7 +118,7 @@ pub enum WhereCondition {
 }
 
 /// Comparison operator
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComparisonOp {
     #[serde(rename = "=")]
     Eq,
@@ -136,20 +135,20 @@ pub enum ComparisonOp {
 }
 
 /// ORDER BY clause
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderClause {
     pub items: Vec<OrderItem>,
 }
 
 /// Order item
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderItem {
     pub expr: String,
     pub order: VectorOrderDirection,
 }
 
 /// Order direction
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VectorOrderDirection {
     #[serde(rename = "asc")]
     Asc,
@@ -162,7 +161,7 @@ pub enum VectorOrderDirection {
 // ============================================================================
 
 /// MATCH with vector search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchVector {
     pub span: Span,
     pub pattern: String,
@@ -171,7 +170,7 @@ pub struct MatchVector {
 }
 
 /// Vector match condition in WHERE clause
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorMatchCondition {
     pub field: String,
     pub query: VectorQueryExpr,
@@ -179,7 +178,7 @@ pub struct VectorMatchCondition {
 }
 
 /// LOOKUP with vector search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LookupVector {
     pub span: Span,
     pub schema_name: String,

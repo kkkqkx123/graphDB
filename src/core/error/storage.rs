@@ -329,8 +329,8 @@ impl<T> From<std::sync::PoisonError<T>> for StorageError {
     }
 }
 
-impl From<oxicode::Error> for StorageError {
-    fn from(e: oxicode::Error) -> Self {
+impl From<postcard::Error> for StorageError {
+    fn from(e: postcard::Error) -> Self {
         Self::from_boxed(StorageErrorKind::SerializeError, e)
     }
 }

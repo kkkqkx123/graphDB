@@ -3,12 +3,11 @@
 //! This module defines types for dates, times, date-times, and intervals, as well as the related operations.
 
 use crate::core::value::interval::IntervalValue;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
 /// Simple date representation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
 pub struct DateValue {
     pub year: i32,
     pub month: u32,
@@ -145,7 +144,7 @@ impl std::fmt::Display for DateValue {
 }
 
 /// Simple time representation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Default)]
 pub struct TimeValue {
     pub hour: u32,
     pub minute: u32,
@@ -205,7 +204,7 @@ impl std::fmt::Display for TimeValue {
 }
 
 /// Simple date and time representation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
 pub struct DateTimeValue {
     pub year: i32,
     pub month: u32,

@@ -1,9 +1,8 @@
 //! User Management Type Definition
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PasswordInfo {
     pub username: Option<String>,
     pub old_password: String,
@@ -12,7 +11,7 @@ pub struct PasswordInfo {
 
 /// User information - refer to nebula-graph UserItem implementation
 /// Includes password hashes and resource limits
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserInfo {
     pub username: String,
     /// Password hashing (bcrypt encryption)
@@ -101,7 +100,7 @@ impl UserInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserAlterInfo {
     pub username: String,
     /// New lock status

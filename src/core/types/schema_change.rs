@@ -1,10 +1,9 @@
 //! Definition of Schema change type
 
 use crate::core::types::property::PropertyDef;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SchemaChangeType {
     AddProperty,
     DropProperty,
@@ -13,7 +12,7 @@ pub enum SchemaChangeType {
     DropIndex,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SchemaChange {
     pub change_type: SchemaChangeType,
     pub target: String,

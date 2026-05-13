@@ -4,11 +4,10 @@
 
 use super::property_trait::PropertyTypeTrait;
 use crate::core::Value;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 /// Comparison operator for partial index conditions
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ComparisonOperator {
     #[serde(rename = "eq")]
     Equal,
@@ -33,7 +32,7 @@ pub enum ComparisonOperator {
 }
 
 /// Condition for partial index filtering
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PartialIndexCondition {
     pub field: String,
     pub operator: ComparisonOperator,
@@ -125,7 +124,7 @@ impl PartialIndexCondition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IndexStatus {
     #[serde(rename = "creating")]
     Creating,
@@ -137,7 +136,7 @@ pub enum IndexStatus {
     Failed(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IndexType {
     #[serde(rename = "tag")]
     TagIndex,
@@ -145,7 +144,7 @@ pub enum IndexType {
     EdgeIndex,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IndexField {
     pub name: String,
     pub value_type: Value,
@@ -224,7 +223,7 @@ pub struct IndexConfig {
     pub partial_condition: Option<PartialIndexCondition>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Index {
     pub id: i32,
     pub name: String,
@@ -356,7 +355,7 @@ mod tests {
 // ============================================================================
 
 /// Full-text index engine type enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FulltextEngineType {
     #[serde(rename = "bm25")]
     Bm25,
@@ -375,7 +374,7 @@ impl std::fmt::Display for FulltextEngineType {
 
 /// Tokenization mode for Inversearch
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
 pub enum TokenizeMode {
     #[serde(rename = "bidirectional")]
@@ -393,7 +392,7 @@ pub enum TokenizeMode {
 
 /// Character set type for Inversearch
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode,
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
 pub enum CharsetType {
     #[serde(rename = "cjk")]
@@ -408,7 +407,7 @@ pub enum CharsetType {
 }
 
 /// BM25 index configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BM25IndexConfig {
     /// BM25 parameter k1 - controls term frequency saturation (default: 1.2)
     pub k1: f32,
@@ -435,7 +434,7 @@ impl Default for BM25IndexConfig {
 }
 
 /// Inversearch index configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InversearchIndexConfig {
     /// Tokenization mode
     pub tokenize_mode: TokenizeMode,
@@ -465,7 +464,7 @@ impl Default for InversearchIndexConfig {
 }
 
 /// Full-text index field configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextIndexField {
     pub field_name: String,
     pub analyzer: Option<String>,
@@ -497,7 +496,7 @@ impl FulltextIndexField {
 }
 
 /// Full-text index options
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextIndexOptions {
     pub engine_type: FulltextEngineType,
     pub bm25_config: Option<BM25IndexConfig>,

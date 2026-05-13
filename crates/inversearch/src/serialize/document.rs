@@ -5,8 +5,7 @@
 use crate::document::Document;
 use crate::error::Result;
 use crate::serialize::types::*;
-use oxicode::config::standard;
-use oxicode::serde::{decode_from_slice, encode_to_vec};
+use postcard::{from_bytes, to_allocvec};
 
 impl Document {
     /// Exporting Document Data
@@ -176,13 +175,13 @@ impl Document {
     /// Serialization to binary data (high performance)
     pub fn to_binary(&self, config: &SerializeConfig) -> Result<Vec<u8>> {
         let data = self.export(config)?;
-        let serialized = encode_to_vec(&data, standard())?;
+        let serialized = to_allocvec(&data)?;
         Ok(serialized)
     }
 
     /// Deserialization from binary data
     pub fn from_binary(data: &[u8], config: &SerializeConfig) -> Result<Document> {
-        let (data, _) = decode_from_slice::<DocumentExportData, _>(data, standard())?;
+        let data = from_bytes::<DocumentExportData>(data)?;
 
         let mut doc_config = crate::document::DocumentConfig::new();
 

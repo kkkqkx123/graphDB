@@ -16,7 +16,6 @@ use crate::core::{
     vertex_edge_path::{Edge, Path, Vertex},
 };
 use crate::query::DataSet;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -25,7 +24,7 @@ use std::{
 
 /// Indicates values that can be stored in node/edge attributes
 /// Simplified design following PostgreSQL type system
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Value {
     Empty,
     Null(NullType),

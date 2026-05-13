@@ -6,7 +6,6 @@
 use crate::core::types::span::Span;
 use crate::core::types::FulltextEngineType;
 use crate::core::Value;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -15,7 +14,7 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// CREATE FULLTEXT INDEX statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateFulltextIndex {
     pub span: Span,
     pub index_name: String,
@@ -27,7 +26,7 @@ pub struct CreateFulltextIndex {
 }
 
 /// Index field definition
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexFieldDef {
     pub field_name: String,
     pub analyzer: Option<String>,
@@ -35,7 +34,7 @@ pub struct IndexFieldDef {
 }
 
 /// Index options
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexOptions {
     pub bm25_config: Option<BM25Options>,
     pub inversearch_config: Option<InversearchOptions>,
@@ -43,7 +42,7 @@ pub struct IndexOptions {
 }
 
 /// BM25 specific options
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BM25Options {
     pub k1: Option<f32>,
     pub b: Option<f32>,
@@ -53,7 +52,7 @@ pub struct BM25Options {
 }
 
 /// Inversearch specific options
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InversearchOptions {
     pub tokenize_mode: Option<String>,
     pub resolution: Option<usize>,
@@ -64,7 +63,7 @@ pub struct InversearchOptions {
 }
 
 /// DROP FULLTEXT INDEX statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DropFulltextIndex {
     pub span: Span,
     pub index_name: String,
@@ -72,7 +71,7 @@ pub struct DropFulltextIndex {
 }
 
 /// ALTER FULLTEXT INDEX statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlterFulltextIndex {
     pub span: Span,
     pub index_name: String,
@@ -80,7 +79,7 @@ pub struct AlterFulltextIndex {
 }
 
 /// Alter index action
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlterIndexAction {
     AddField(IndexFieldDef),
     DropField(String),
@@ -90,7 +89,7 @@ pub enum AlterIndexAction {
 }
 
 /// SHOW FULLTEXT INDEX statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShowFulltextIndex {
     pub span: Span,
     pub pattern: Option<String>,
@@ -98,7 +97,7 @@ pub struct ShowFulltextIndex {
 }
 
 /// DESCRIBE FULLTEXT INDEX statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DescribeFulltextIndex {
     pub span: Span,
     pub index_name: String,
@@ -109,7 +108,7 @@ pub struct DescribeFulltextIndex {
 // ============================================================================
 
 /// SEARCH statement
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchStatement {
     pub span: Span,
     pub index_name: String,
@@ -122,7 +121,7 @@ pub struct SearchStatement {
 }
 
 /// Full-text query expression
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FulltextQueryExpr {
     /// Simple text query: MATCH 'database'
     Simple(String),
@@ -155,20 +154,20 @@ pub enum FulltextQueryExpr {
 }
 
 /// YIELD clause for full-text search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextYieldClause {
     pub items: Vec<FulltextYieldItem>,
 }
 
 /// Yield item for full-text search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextYieldItem {
     pub expr: YieldExpression,
     pub alias: Option<String>,
 }
 
 /// Yield expression
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum YieldExpression {
     /// Field reference
     Field(String),
@@ -185,7 +184,7 @@ pub enum YieldExpression {
 }
 
 /// Highlight function parameters
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HighlightParams {
     pub pre_tag: Option<String>,
     pub post_tag: Option<String>,
@@ -194,13 +193,13 @@ pub struct HighlightParams {
 }
 
 /// WHERE clause
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhereClause {
     pub condition: WhereCondition,
 }
 
 /// WHERE condition
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WhereCondition {
     /// Comparison: score > 0.5
     Comparison(String, ComparisonOp, Value),
@@ -215,7 +214,7 @@ pub enum WhereCondition {
 }
 
 /// Comparison operator
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComparisonOp {
     #[serde(rename = "=")]
     Eq,
@@ -232,20 +231,20 @@ pub enum ComparisonOp {
 }
 
 /// ORDER BY clause
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderClause {
     pub items: Vec<OrderItem>,
 }
 
 /// Order item
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderItem {
     pub expr: String,
     pub order: FulltextOrderDirection,
 }
 
 /// Order direction
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FulltextOrderDirection {
     #[serde(rename = "asc")]
     Asc,
@@ -258,7 +257,7 @@ pub enum FulltextOrderDirection {
 // ============================================================================
 
 /// MATCH with full-text search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchFulltext {
     pub span: Span,
     pub pattern: String,
@@ -267,7 +266,7 @@ pub struct MatchFulltext {
 }
 
 /// Full-text match condition in WHERE clause
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextMatchCondition {
     pub field: String,
     pub query: String,
@@ -275,7 +274,7 @@ pub struct FulltextMatchCondition {
 }
 
 /// LOOKUP with full-text search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LookupFulltext {
     pub span: Span,
     pub schema_name: String,

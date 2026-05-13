@@ -7,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use oxicode::encode_to_vec;
+use postcard::to_allocvec;
 
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::undo_log::{
@@ -689,7 +689,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
     }
 
     /// Serialize a redo log entry
-    fn serialize_redo<U: oxicode::Encode>(
+    fn serialize_redo<U: serde::Serialize + serde::de::DeserializeOwned>(
         &mut self,
         op_type: WalOpType,
         redo: &U,
@@ -697,7 +697,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         let op_byte = op_type as u8;
         self.wal_buffer.push(op_byte);
 
-        let encoded = encode_to_vec(redo)
+        let encoded = to_allocvec(redo)
             .map_err(|e| UpdateTransactionError::SerializationError(e.to_string()))?;
 
         let len = encoded.len() as u32;

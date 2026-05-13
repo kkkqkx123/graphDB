@@ -16,8 +16,7 @@ use crate::storage::common::{
 };
 use crate::{Index, StorageInterface};
 use dashmap::DashMap;
-use oxicode::config::standard;
-use oxicode::serde::{decode_from_slice, encode_to_vec};
+use postcard::{from_bytes, to_allocvec};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -96,11 +95,10 @@ impl WarmCacheEntry {
     async fn load(&self) -> Result<FileStorageData> {
         let file_data = load_from_file(&self.file_path).await?;
         let data = if self.compressed {
-            let bytes = encode_to_vec(&file_data, standard())?;
+            let bytes = to_allocvec(&file_data)?;
             let decompressed = decompress_data(&bytes)?;
-            let (decompressed_data, _) =
-                decode_from_slice::<FileStorageData, _>(&decompressed, standard())
-                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+            let decompressed_data = from_bytes::<FileStorageData>(&decompressed)
+                .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
             decompressed_data
         } else {
             file_data
@@ -183,7 +181,7 @@ impl WALWriter {
     }
 
     async fn write_entry(&mut self, entry: &WALEntry) -> Result<()> {
-        let bytes = encode_to_vec(entry, standard())
+        let bytes = to_allocvec(entry)
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
         let len = bytes.len() as u32;
 
@@ -356,7 +354,7 @@ impl WALManager {
         }
 
         let file_data = load_from_file(path).await?;
-        let bytes = encode_to_vec(&file_data, standard())?;
+        let bytes = to_allocvec(&file_data)?;
         let mut entries = Vec::new();
         let mut offset = 0;
 
@@ -376,9 +374,8 @@ impl WALManager {
                 break;
             }
 
-            let (entry, _) =
-                decode_from_slice::<WALEntry, _>(&bytes[offset..offset + len], standard())
-                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+            let entry = from_bytes::<WALEntry>(&bytes[offset..offset + len])
+                .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
             entries.push(entry);
             offset += len;
         }
@@ -573,11 +570,10 @@ impl ColdWarmCacheManager {
         if let Some(entry) = self.cold_storage.get(index_name) {
             let file_data = load_from_file(&entry.file_path).await?;
             let data: IndexData = if entry.compressed {
-                let bytes = encode_to_vec(&file_data, standard())?;
+                let bytes = to_allocvec(&file_data)?;
                 let decompressed = decompress_data(&bytes)?;
-                let (decompressed_data, _) =
-                    decode_from_slice::<IndexData, _>(&decompressed, standard())
-                        .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+                let decompressed_data = from_bytes::<IndexData>(&decompressed)
+                    .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
                 decompressed_data
             } else {
                 file_data.into()
@@ -800,7 +796,7 @@ impl ColdWarmCacheManager {
             .cold_storage_path
             .join(format!("{}.warm", index_name));
         let file_data: FileStorageData = data.clone().into();
-        let bytes = encode_to_vec(&file_data, standard())
+        let bytes = to_allocvec(&file_data)
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
 
         let (final_bytes, compressed) = if self.config.cold_storage_compression {
@@ -828,7 +824,7 @@ impl ColdWarmCacheManager {
             .cold_storage_path
             .join(format!("{}.cold", index_name));
         let file_data: FileStorageData = data.clone().into();
-        let bytes = encode_to_vec(&file_data, standard())
+        let bytes = to_allocvec(&file_data)
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
 
         let (final_bytes, compressed) = if self.config.cold_storage_compression {

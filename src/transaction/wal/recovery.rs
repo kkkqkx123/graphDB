@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use oxicode::decode_from_slice;
+use postcard::from_bytes;
 
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::{
@@ -307,38 +307,32 @@ impl RecoveryManager {
     }
 
     fn deserialize_insert_vertex(&self, payload: &[u8]) -> StorageResult<InsertVertexRedo> {
-        decode_from_slice(payload)
-            .map(|(v, _)| v)
+        from_bytes(payload)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_insert_edge(&self, payload: &[u8]) -> StorageResult<InsertEdgeRedo> {
-        decode_from_slice(payload)
-            .map(|(v, _)| v)
+        from_bytes(payload)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_update_vertex_prop(&self, payload: &[u8]) -> StorageResult<UpdateVertexPropRedo> {
-        decode_from_slice(payload)
-            .map(|(v, _)| v)
+        from_bytes(payload)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_update_edge_prop(&self, payload: &[u8]) -> StorageResult<UpdateEdgePropRedo> {
-        decode_from_slice(payload)
-            .map(|(v, _)| v)
+        from_bytes(payload)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_delete_vertex(&self, payload: &[u8]) -> StorageResult<DeleteVertexRedo> {
-        decode_from_slice(payload)
-            .map(|(v, _)| v)
+        from_bytes(payload)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_delete_edge(&self, payload: &[u8]) -> StorageResult<DeleteEdgeRedo> {
-        decode_from_slice(payload)
-            .map(|(v, _)| v)
+        from_bytes(payload)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 

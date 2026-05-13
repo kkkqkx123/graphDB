@@ -20,10 +20,9 @@ pub mod user;
 // Full-text search types
 pub mod fulltext_query;
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DataType {
     Empty,
     Null,

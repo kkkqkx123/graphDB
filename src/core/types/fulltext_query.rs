@@ -4,12 +4,11 @@
 //! search options, highlight configuration, and result types.
 
 use crate::core::Value;
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Full-text query type enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FulltextQuery {
     /// Simple text query
     Simple(String),
@@ -92,7 +91,7 @@ impl FulltextQuery {
 }
 
 /// Field query for multi-field search
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldQuery {
     pub field: String,
     pub query: String,
@@ -115,7 +114,7 @@ impl FieldQuery {
 }
 
 /// Full-text query options
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulltextQueryOptions {
     /// Maximum number of results to return
     pub limit: usize,
@@ -176,7 +175,7 @@ impl FulltextQueryOptions {
 }
 
 /// Highlight configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HighlightOptions {
     /// Fields to highlight
     pub fields: Vec<String>,
@@ -226,7 +225,7 @@ impl HighlightOptions {
 }
 
 /// Sort field configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SortField {
     pub field: String,
     pub order: SortOrder,
@@ -244,7 +243,7 @@ impl SortField {
 }
 
 /// Sort order enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SortOrder {
     #[serde(rename = "asc")]
     Asc,
@@ -253,7 +252,7 @@ pub enum SortOrder {
 }
 
 /// Sort missing value handling
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SortMissing {
     #[serde(rename = "first")]
     First,

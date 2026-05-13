@@ -3,12 +3,11 @@
 //! This module provides vector types for efficient storage and manipulation of vector data.
 //! Vector types are essential for vector similarity search and embedding operations.
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
 /// Vector value type for efficient storage of numerical vectors
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VectorValue {
     /// Dense vector - most common, stores all values
     Dense(Vec<f32>),

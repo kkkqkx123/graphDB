@@ -1,23 +1,22 @@
 //! Import/Export type definitions
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SchemaExportConfig {
     pub space_id: Option<u64>,
     pub format: ExportFormat,
     pub include_comments: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ExportFormat {
     JSON,
     YAML,
     Rust,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct SchemaImportResult {
     pub success: bool,
     pub space_name: String,

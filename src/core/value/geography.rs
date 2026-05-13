@@ -3,12 +3,11 @@
 //! This module defines geographic spatial types and related operations.
 //! Supports Point, LineString, Polygon, MultiPoint, MultiLineString, and MultiPolygon.
 
-use oxicode::{Decode, Encode};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 /// Geographic Point type (single coordinate pair)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct GeographyValue {
     pub latitude: f64,
     pub longitude: f64,
@@ -96,7 +95,7 @@ impl GeographyValue {
 }
 
 /// LineString type (ordered sequence of points)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct LineStringValue {
     pub points: Vec<GeographyValue>,
 }
@@ -168,7 +167,7 @@ impl LineStringValue {
 }
 
 /// Polygon type (closed ring with optional holes)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct PolygonValue {
     pub exterior: LineStringValue,
     pub holes: Vec<LineStringValue>,
@@ -302,7 +301,7 @@ impl PolygonValue {
 }
 
 /// MultiPoint type (collection of points)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct MultiPointValue {
     pub points: Vec<GeographyValue>,
 }
@@ -343,7 +342,7 @@ impl MultiPointValue {
 }
 
 /// MultiLineString type (collection of linestrings)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct MultiLineStringValue {
     pub linestrings: Vec<LineStringValue>,
 }
@@ -380,7 +379,7 @@ impl MultiLineStringValue {
 }
 
 /// MultiPolygon type (collection of polygons)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct MultiPolygonValue {
     pub polygons: Vec<PolygonValue>,
 }
@@ -422,7 +421,7 @@ impl MultiPolygonValue {
 }
 
 /// Geographic type enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Geography {
     Point(GeographyValue),
     LineString(LineStringValue),

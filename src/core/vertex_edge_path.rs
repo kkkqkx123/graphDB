@@ -1,11 +1,10 @@
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::core::value::{NullType, Value};
 
 /// Represents a tag in the graph, similar to Nebula's Tag structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Tag {
     pub name: String,
     pub properties: HashMap<String, Value>,
@@ -51,7 +50,7 @@ impl Tag {
 }
 
 /// Represents a vertex in the graph, similar to Nebula's Vertex structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Vertex {
     pub vid: Box<Value>, // Vertex ID can now be any Value type, using Box to break cycles
     pub id: i64,         // Internal integer ID for indexing and fast lookup
@@ -326,7 +325,7 @@ impl Vertex {
 }
 
 /// Represents an edge in the graph, similar to Nebula's Edge structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Edge {
     pub src: Box<Value>, // Source vertex ID (can be any Value type, using Box to break cycles)
     pub dst: Box<Value>, // Destination vertex ID (can be any Value type, using Box to break cycles)
@@ -497,7 +496,7 @@ impl PartialOrd for Edge {
 }
 
 /// Represents a step in a path
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Step {
     pub dst: Box<Vertex>,
     pub edge: Box<Edge>,
@@ -579,7 +578,7 @@ impl Step {
 }
 
 /// Represents a path in the graph
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Path {
     pub src: Box<Vertex>,
     pub steps: Vec<Step>,

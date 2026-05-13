@@ -57,77 +57,7 @@ pub struct Json {
 /// - Supports GIN index creation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonB {
-    /// Parsed JSON value
     value: JsonValue,
-}
-
-// Manual oxicode implementations using serde integration
-impl oxicode::Encode for Json {
-    fn encode<E: oxicode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), oxicode::Error> {
-        // Serialize to JSON string first, then encode the string
-        let json_str = serde_json::to_string(self).map_err(|e| oxicode::Error::OwnedCustom {
-            message: e.to_string(),
-        })?;
-        oxicode::Encode::encode(&json_str, encoder)
-    }
-}
-
-impl oxicode::Decode for Json {
-    fn decode<D: oxicode::de::Decoder<Context = ()>>(
-        decoder: &mut D,
-    ) -> Result<Self, oxicode::Error> {
-        // Decode string first, then deserialize from JSON
-        let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
-            message: e.to_string(),
-        })
-    }
-}
-
-impl<'de> oxicode::BorrowDecode<'de> for Json {
-    fn borrow_decode<D: oxicode::de::BorrowDecoder<'de, Context = ()>>(
-        decoder: &mut D,
-    ) -> Result<Self, oxicode::Error> {
-        // Decode string first, then deserialize from JSON
-        let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
-            message: e.to_string(),
-        })
-    }
-}
-
-impl oxicode::Encode for JsonB {
-    fn encode<E: oxicode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), oxicode::Error> {
-        // Serialize to JSON string first, then encode the string
-        let json_str = serde_json::to_string(self).map_err(|e| oxicode::Error::OwnedCustom {
-            message: e.to_string(),
-        })?;
-        oxicode::Encode::encode(&json_str, encoder)
-    }
-}
-
-impl oxicode::Decode for JsonB {
-    fn decode<D: oxicode::de::Decoder<Context = ()>>(
-        decoder: &mut D,
-    ) -> Result<Self, oxicode::Error> {
-        // Decode string first, then deserialize from JSON
-        let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
-            message: e.to_string(),
-        })
-    }
-}
-
-impl<'de> oxicode::BorrowDecode<'de> for JsonB {
-    fn borrow_decode<D: oxicode::de::BorrowDecoder<'de, Context = ()>>(
-        decoder: &mut D,
-    ) -> Result<Self, oxicode::Error> {
-        // Decode string first, then deserialize from JSON
-        let json_str: String = oxicode::Decode::decode(decoder)?;
-        serde_json::from_str(&json_str).map_err(|e| oxicode::Error::OwnedCustom {
-            message: e.to_string(),
-        })
-    }
 }
 
 impl Json {
@@ -212,7 +142,7 @@ impl Hash for Json {
     }
 }
 
-// Json and JsonB use serde for serialization, oxicode will use serde integration
+// Json and JsonB use serde for serialization, postcard will use serde integration
 
 impl JsonB {
     /// Create JSONB from string (must validate)
@@ -311,7 +241,7 @@ impl PartialOrd for JsonB {
     }
 }
 
-// Json and JsonB use serde for serialization, oxicode will use serde integration
+// Json and JsonB use serde for serialization, postcard will use serde integration
 
 /// Normalize JSON value (for JSONB)
 fn normalize_json(value: JsonValue) -> JsonValue {

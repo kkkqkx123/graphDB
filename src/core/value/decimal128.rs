@@ -64,35 +64,6 @@ impl<'de> Deserialize<'de> for Decimal128Value {
     }
 }
 
-impl oxicode::Encode for Decimal128Value {
-    fn encode<E: oxicode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), oxicode::Error> {
-        let bytes = self.inner.to_ne_bytes();
-        oxicode::Encode::encode(&bytes, encoder)
-    }
-}
-
-impl oxicode::Decode for Decimal128Value {
-    fn decode<D: oxicode::de::Decoder<Context = ()>>(
-        decoder: &mut D,
-    ) -> Result<Self, oxicode::Error> {
-        let bytes: [u8; 16] = oxicode::Decode::decode(decoder)?;
-        Ok(Self {
-            inner: Decimal128::from_ne_bytes(bytes),
-        })
-    }
-}
-
-impl<'de> oxicode::BorrowDecode<'de> for Decimal128Value {
-    fn borrow_decode<D: oxicode::de::BorrowDecoder<'de, Context = ()>>(
-        decoder: &mut D,
-    ) -> Result<Self, oxicode::Error> {
-        let bytes: [u8; 16] = oxicode::Decode::decode(decoder)?;
-        Ok(Self {
-            inner: Decimal128::from_ne_bytes(bytes),
-        })
-    }
-}
-
 impl Decimal128Value {
     /// Create a new Decimal128 value
     pub fn new(inner: Decimal128) -> Self {

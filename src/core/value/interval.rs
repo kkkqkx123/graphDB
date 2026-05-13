@@ -15,7 +15,6 @@
 //! - days: i32 (clock days, separate from months for DST handling)
 //! - microseconds: i64 (clock time, can exceed 24 hours)
 
-use oxicode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::Hash;
@@ -32,7 +31,7 @@ use std::ops::{Add, Neg, Sub};
 /// - "1 year 2 months" -> months: 14
 /// - "3 days 4 hours" -> days: 3, microseconds: 4 * 3600 * 1_000_000
 /// - "1 year 2 days" -> months: 12, days: 2
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IntervalValue {
     /// Calendar months (can be negative)
     pub months: i32,
