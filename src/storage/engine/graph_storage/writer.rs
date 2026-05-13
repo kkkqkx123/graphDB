@@ -10,7 +10,7 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::storage::vertex::LabelId;
 
 use super::context::GraphStorageContext;
-use super::converters::value_to_string;
+use super::type_utils::value_to_string;
 
 pub struct GraphStorageWriter<'a> {
     ctx: &'a GraphStorageContext,

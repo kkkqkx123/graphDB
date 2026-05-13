@@ -7,7 +7,7 @@ use crate::storage::metadata::Schema;
 use crate::storage::metadata::SchemaManager;
 
 use super::context::GraphStorageContext;
-use super::converters::{
+use super::type_utils::{
     edge_record_to_edge, serialize_properties, value_to_string, vertex_record_to_vertex,
 };
 

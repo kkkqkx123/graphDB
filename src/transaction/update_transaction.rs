@@ -689,7 +689,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
     }
 
     /// Serialize a redo log entry
-    fn serialize_redo<U: serde::Serialize + oxicode::Encode>(
+    fn serialize_redo<U: oxicode::Encode>(
         &mut self,
         op_type: WalOpType,
         redo: &U,

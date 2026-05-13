@@ -7,7 +7,7 @@ use crate::storage::interface::StorageStats;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 use super::context::GraphStorageContext;
-use super::converters::edge_record_to_edge;
+use super::type_utils::edge_record_to_edge;
 
 pub struct MaintenanceOps<'a> {
     ctx: &'a GraphStorageContext,

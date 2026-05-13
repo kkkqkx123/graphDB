@@ -1,4 +1,4 @@
-//! Type Conversion Helpers
+//! Type Conversion Utilities
 //!
 //! Provides utility functions for converting between different data representations
 //! used by the storage engine.

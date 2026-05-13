@@ -1,13 +1,12 @@
 //! Persistence Operations
 //!
 //! Provides persistence, checkpoint, and compaction operations.
+//! This module delegates to PropertyGraph's flush operations for data persistence.
 
 use std::path::PathBuf;
 
 use crate::core::{StorageError, StorageResult};
-use crate::storage::engine::persistence_coordinator::{CheckpointInfo, CheckpointStats};
-use crate::storage::index::secondary::InMemoryIndexDataManager;
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::engine::persistence_coordinator::{CheckpointData, CheckpointInfo, CheckpointStats};
 use crate::storage::vertex::Timestamp;
 
 use super::context::GraphStorageContext;
@@ -42,30 +41,8 @@ impl<'a> PersistenceOps<'a> {
         let mut file = File::create(&version_file)?;
         writeln!(file, "1")?;
 
-        let vertex_dir = data_dir.join("vertices");
-        fs::create_dir_all(&vertex_dir)?;
-
-        let edge_dir = data_dir.join("edges");
-        fs::create_dir_all(&edge_dir)?;
-
         let graph = self.ctx.graph.read();
-
-        for (label_id, table) in graph.vertex_tables() {
-            let table_dir = vertex_dir.join(format!("label_{}", label_id));
-            fs::create_dir_all(&table_dir)?;
-            table.flush(&table_dir)?;
-        }
-
-        for (key, table) in graph.edge_tables() {
-            let (src_label, dst_label, edge_label) = key;
-            let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
-            fs::create_dir_all(&table_dir)?;
-            table.flush(&table_dir)?;
-        }
-
-        let index_dir = data_dir.join("indexes");
-        fs::create_dir_all(&index_dir)?;
-        graph.index_data_manager().save(&index_dir)?;
+        graph.flush_tables_to_dir(&data_dir)?;
 
         log::info!("Data saved to {:?}", data_dir);
         Ok(())
@@ -89,42 +66,25 @@ impl<'a> PersistenceOps<'a> {
                 let graph = graph.read();
                 let mut vertex_count = 0u64;
                 let mut edge_count = 0u64;
-                let mut data_size = 0u64;
 
                 let data_dir = checkpoint_dir.join("data");
                 std::fs::create_dir_all(&data_dir)?;
 
-                let vertex_dir = data_dir.join("vertices");
-                std::fs::create_dir_all(&vertex_dir)?;
+                graph.flush_tables_to_dir(&data_dir)?;
 
-                for (label_id, table) in graph.vertex_tables() {
-                    let table_dir = vertex_dir.join(format!("label_{}", label_id));
-                    std::fs::create_dir_all(&table_dir)?;
-                    table.flush(&table_dir)?;
+                for (_, table) in graph.vertex_tables() {
                     vertex_count += table.total_count() as u64;
                 }
 
-                let edge_dir = data_dir.join("edges");
-                std::fs::create_dir_all(&edge_dir)?;
-
-                for (key, table) in graph.edge_tables() {
-                    let (src_label, dst_label, edge_label) = key;
-                    let table_dir =
-                        edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
-                    std::fs::create_dir_all(&table_dir)?;
-                    table.flush(&table_dir)?;
+                for (_, table) in graph.edge_tables() {
                     edge_count += table.edge_count() as u64;
                 }
 
-                let index_dir = data_dir.join("indexes");
-                std::fs::create_dir_all(&index_dir)?;
-                graph.index_data_manager().save(&index_dir)?;
+                let data_size = std::fs::metadata(&data_dir)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
 
-                if let Ok(metadata) = std::fs::metadata(&data_dir) {
-                    data_size = metadata.len();
-                }
-
-                Ok(crate::storage::engine::persistence_coordinator::CheckpointData {
+                Ok(CheckpointData {
                     vertex_count,
                     edge_count,
                     data_size,
