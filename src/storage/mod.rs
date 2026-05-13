@@ -17,7 +17,6 @@ pub mod extend;
 pub mod index;
 pub mod interface;
 pub mod iterator;
-pub mod lob;
 pub mod memory;
 pub mod metadata;
 pub mod params;
@@ -46,7 +45,7 @@ pub use metadata::*;
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
 
-pub use compression::{CompressionType, Compressor};
+pub use compression::CompressionType;
 
 pub use container::{
     open_container, open_container_from_file, AnonMmap, ArenaAllocator, ArenaPool,
@@ -75,8 +74,6 @@ pub use engine::{
     batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
     VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE, PropertyGraph, PropertyGraphConfig,
 };
-
-pub use lob::{LargeObjectStore, LobId, LobStats, DEFAULT_LOB_THRESHOLD};
 
 pub use stats::{ColumnStatistics, Histogram, HistogramBucket, StatsCollector};
 

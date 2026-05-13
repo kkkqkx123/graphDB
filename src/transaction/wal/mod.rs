@@ -92,8 +92,9 @@ mod tests {
         let mut parser = LocalWalParser::new();
         parser.open(&wal_path).expect("Failed to parse WAL");
 
-        assert_eq!(parser.all_entries.len(), 1);
-        assert_eq!(parser.all_entries[0].payload, b"test_data");
+        let entries = parser.parse_all_entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].payload, b"test_data");
     }
 
     #[test]
@@ -122,7 +123,8 @@ mod tests {
         let mut parser = LocalWalParser::new();
         parser.open(&wal_path).expect("Failed to parse WAL");
 
-        assert_eq!(parser.all_entries.len(), 1);
-        assert_eq!(parser.all_entries[0].payload, large_payload);
+        let entries = parser.parse_all_entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].payload, large_payload);
     }
 }
