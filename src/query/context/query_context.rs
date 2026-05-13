@@ -142,6 +142,7 @@ impl QueryContext {
     }
 
     /// Create query contexts from various components with arena (for use by the Builder).
+    #[allow(dead_code)]
     pub(crate) fn from_components_with_arena(
         rctx: Arc<QueryRequestContext>,
         execution_manager: QueryExecutionManager,

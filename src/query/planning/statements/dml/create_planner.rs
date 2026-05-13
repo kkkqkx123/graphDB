@@ -470,6 +470,7 @@ impl Default for CreatePlanner {
 }
 
 #[cfg(test)]
+#[allow(clippy::arc_with_non_send_sync)]
 mod tests {
     use super::*;
     use crate::query::parser::parsing::Parser;

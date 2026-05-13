@@ -67,7 +67,6 @@ pub use types::{
     WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAGIC, WAL_MAX_RECORD_SIZE, WAL_VERSION,
 };
 pub use writer::{DummyWalWriter, LocalWalWriter, WalWriter, WalWriterFactory};
-pub(crate) use writer::GroupCommitManager;
 
 #[cfg(test)]
 mod tests {

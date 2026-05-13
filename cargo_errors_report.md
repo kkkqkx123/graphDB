@@ -2,113 +2,139 @@
 
 ## Summary
 
-- **Total Errors**: 10
-- **Total Warnings**: 13
-- **Total Issues**: 23
-- **Unique Error Patterns**: 2
-- **Unique Warning Patterns**: 10
-- **Files with Issues**: 13
+- **Total Errors**: 0
+- **Total Warnings**: 52
+- **Total Issues**: 52
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 23
+- **Files with Issues**: 19
 
 ## Error Statistics
 
-**Total Errors**: 10
-
-### Error Type Breakdown
-
-- **error[E0061]**: 10 errors
-
-### Files with Errors (Top 10)
-
-- `src\storage\engine\property_graph_tests.rs`: 10 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 13
+**Total Warnings**: 52
 
 ### Warning Type Breakdown
 
-- **warning**: 13 warnings
+- **warning**: 52 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\transaction\update_transaction.rs`: 2 warnings
-- `src\query\planning\plan\core\nodes\management\manage_node_enums.rs`: 1 warnings
-- `src\core\error\storage.rs`: 1 warnings
-- `src\query\executor\graph_operations\graph_traversal\factory.rs`: 1 warnings
-- `src\transaction\insert_transaction.rs`: 1 warnings
-- `src\api\server\client\transaction_context.rs`: 1 warnings
-- `src\query\executor\base\manage_executor_enums.rs`: 1 warnings
-- `src\storage\engine\graph_storage.rs`: 1 warnings
-- `src\query\validator\helpers\schema_validator.rs`: 1 warnings
-- `src\query\planning\statements\clauses\return_clause_planner.rs`: 1 warnings
-
-## Detailed Error Categorization
-
-### error[E0061]: this method takes 1 argument but 7 arguments were supplied
-
-**Total Occurrences**: 10  
-**Unique Files**: 1
-
-#### `src\storage\engine\property_graph_tests.rs`: 10 occurrences
-
-- Line 81: this method takes 1 argument but 7 arguments were supplied
-- Line 216: this method takes 1 argument but 7 arguments were supplied
-- Line 227: this method takes 1 argument but 7 arguments were supplied
-- ... 7 more occurrences in this file
+- `src\transaction\rollback.rs`: 14 warnings
+- `src\query\planning\statements\dml\create_planner.rs`: 6 warnings
+- `src\query\query_pipeline_manager.rs`: 4 warnings
+- `src\transaction\index_buffer.rs`: 4 warnings
+- `src\query\planning\statements\clauses\order_by_planner.rs`: 3 warnings
+- `src\query\planning\statements\clauses\return_clause_planner.rs`: 3 warnings
+- `src\query\planning\statements\clauses\pagination_planner.rs`: 3 warnings
+- `src\transaction\mod.rs`: 2 warnings
+- `src\query\planning\statements\clauses\yield_planner.rs`: 2 warnings
+- `src\query\planning\statements\clauses\where_clause_planner.rs`: 2 warnings
 
 ## Detailed Warning Categorization
 
-### warning: very complex type used. Consider factoring parts into `type` definitions
+### warning: usage of an `Arc` that is not `Send` and `Sync`
 
-**Total Occurrences**: 13  
-**Unique Files**: 12
+**Total Occurrences**: 52  
+**Unique Files**: 19
 
-#### `src\transaction\update_transaction.rs`: 2 occurrences
+#### `src\transaction\rollback.rs`: 14 occurrences
 
-- Line 241: very complex type used. Consider factoring parts into `type` definitions
-- Line 533: this function has too many arguments (9/7)
+- Line 23: trait `OperationLogContext` is never used
+- Line 57: trait `UndoLogContext` is never used
+- Line 87: struct `UndoLogRollback` is never constructed
+- ... 11 more occurrences in this file
 
-#### `src\query\planning\plan\core\nodes\management\manage_node_enums.rs`: 1 occurrences
+#### `src\query\planning\statements\dml\create_planner.rs`: 6 occurrences
 
-- Line 55: large size difference between variants: the entire enum is at least 312 bytes
+- Line 488: usage of an `Arc` that is not `Send` and `Sync`
+- Line 509: usage of an `Arc` that is not `Send` and `Sync`
+- Line 529: usage of an `Arc` that is not `Send` and `Sync`
+- ... 3 more occurrences in this file
 
-#### `src\storage\page\mod.rs`: 1 occurrences
+#### `src\query\query_pipeline_manager.rs`: 4 occurrences
 
-- Line 8: module has the same name as its containing module
+- Line 211: usage of an `Arc` that is not `Send` and `Sync`
+- Line 290: usage of an `Arc` that is not `Send` and `Sync`
+- Line 350: usage of an `Arc` that is not `Send` and `Sync`
+- ... 1 more occurrences in this file
 
-#### `src\query\planning\statements\clauses\return_clause_planner.rs`: 1 occurrences
+#### `src\transaction\index_buffer.rs`: 4 occurrences
 
-- Line 194: very complex type used. Consider factoring parts into `type` definitions
+- Line 7: struct `IndexUpdateBuffer` is never constructed
+- Line 15: multiple associated items are never used
+- Line 92: struct `BufferStats` is never constructed
+- ... 1 more occurrences in this file
 
-#### `src\storage\engine\graph_storage.rs`: 1 occurrences
+#### `src\query\planning\statements\clauses\order_by_planner.rs`: 3 occurrences
 
-- Line 27: unused import: `PropertyGraphUpdateEdgePropertyParams`
+- Line 242: usage of an `Arc` that is not `Send` and `Sync`
+- Line 286: usage of an `Arc` that is not `Send` and `Sync`
+- Line 335: usage of an `Arc` that is not `Send` and `Sync`
 
-#### `src\api\server\client\transaction_context.rs`: 1 occurrences
+#### `src\query\planning\statements\clauses\return_clause_planner.rs`: 3 occurrences
 
-- Line 15: you should consider adding a `Default` implementation for `TransactionContext`
+- Line 416: usage of an `Arc` that is not `Send` and `Sync`
+- Line 478: usage of an `Arc` that is not `Send` and `Sync`
+- Line 537: usage of an `Arc` that is not `Send` and `Sync`
 
-#### `src\core\error\storage.rs`: 1 occurrences
+#### `src\query\planning\statements\clauses\pagination_planner.rs`: 3 occurrences
 
-- Line 152: constructor `storage_error` has the same name as the type
+- Line 179: usage of an `Arc` that is not `Send` and `Sync`
+- Line 223: usage of an `Arc` that is not `Send` and `Sync`
+- Line 265: usage of an `Arc` that is not `Send` and `Sync`
 
-#### `src\query\executor\graph_operations\graph_traversal\factory.rs`: 1 occurrences
+#### `src\transaction\mod.rs`: 2 occurrences
 
-- Line 36: this function has too many arguments (9/7)
+- Line 61: unused import: `index_buffer::IndexUpdateBuffer`
+- Line 81: unused imports: `CombinedRollback`, `CreateRemoveEdgeUndoParams`, `CreateRemoveVertexUndoParams`, `CreateUpdateEdgePropUndoParams`, `OperationLogContext`, `RollbackHelper`, `UndoLogContext`, and `UndoLogRollback`
 
-#### `src\query\planning\statements\dql\composite_index_analyzer.rs`: 1 occurrences
+#### `src\query\planning\statements\clauses\yield_planner.rs`: 2 occurrences
 
-- Line 180: large size difference between variants: the entire enum is at least 448 bytes
+- Line 409: usage of an `Arc` that is not `Send` and `Sync`
+- Line 460: usage of an `Arc` that is not `Send` and `Sync`
 
-#### `src\query\validator\helpers\schema_validator.rs`: 1 occurrences
+#### `src\query\planning\statements\clauses\where_clause_planner.rs`: 2 occurrences
 
-- Line 671: very complex type used. Consider factoring parts into `type` definitions
+- Line 156: usage of an `Arc` that is not `Send` and `Sync`
+- Line 200: usage of an `Arc` that is not `Send` and `Sync`
 
-#### `src\transaction\insert_transaction.rs`: 1 occurrences
+#### `src\query\context\query_context.rs`: 1 occurrences
 
-- Line 89: this function has too many arguments (8/7)
+- Line 145: associated function `from_components_with_arena` is never used
 
-#### `src\query\executor\base\manage_executor_enums.rs`: 1 occurrences
+#### `src\query\validator\statements\go_validator.rs`: 1 occurrences
 
-- Line 50: large size difference between variants: the entire enum is at least 544 bytes
+- Line 577: usage of an `Arc` that is not `Send` and `Sync`
+
+#### `src\query\validator\statements\insert_edges_validator.rs`: 1 occurrences
+
+- Line 478: usage of an `Arc` that is not `Send` and `Sync`
+
+#### `src\query\validator\clauses\limit_validator.rs`: 1 occurrences
+
+- Line 338: usage of an `Arc` that is not `Send` and `Sync`
+
+#### `src\query\validator\statements\insert_vertices_validator.rs`: 1 occurrences
+
+- Line 496: usage of an `Arc` that is not `Send` and `Sync`
+
+#### `src\query\planning\statements\statement_planner.rs`: 1 occurrences
+
+- Line 136: usage of an `Arc` that is not `Send` and `Sync`
+
+#### `tests\integration_query.rs`: 1 occurrences
+
+- Line 30: usage of an `Arc` that is not `Send` and `Sync`
+
+#### `src\query\planning\statements\dml\insert_planner.rs`: 1 occurrences
+
+- Line 241: usage of an `Arc` that is not `Send` and `Sync`
+
+#### `src\transaction\wal\mod.rs`: 1 occurrences
+
+- Line 70: unused import: `writer::GroupCommitManager`
 

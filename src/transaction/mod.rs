@@ -58,16 +58,6 @@ pub use compact_transaction::{
     CompactTarget, CompactTransaction, CompactTransactionError, CompactTransactionResult,
 };
 pub use context::TransactionContext;
-pub(crate) use index_buffer::IndexUpdateBuffer;
-pub use insert_transaction::{
-    InsertTarget, InsertTransaction, InsertTransactionError, InsertTransactionResult,
-};
-pub use manager::TransactionManager;
-pub use monitor::TransactionMonitor;
-pub use read_transaction::{
-    ReadTarget, ReadTransaction, ReadTransactionError, ReadTransactionResult, VertexRecord,
-    INVALID_TIMESTAMP,
-};
 pub use types::*;
 pub use error::{TransactionError, TransactionErrorKind, TransactionResult};
 pub use undo_log::{
@@ -77,10 +67,14 @@ pub use undo_log::{
     RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
     UpdateEdgePropUndo, UpdateVertexPropUndo,
 };
-pub(crate) use rollback::{
-    CombinedRollback, CreateRemoveEdgeUndoParams, CreateRemoveVertexUndoParams,
-    CreateUpdateEdgePropUndoParams, OperationLogContext,
-    RollbackHelper, UndoLogContext, UndoLogRollback,
+pub use insert_transaction::{
+    InsertTarget, InsertTransaction, InsertTransactionError, InsertTransactionResult,
+};
+pub use manager::TransactionManager;
+pub use monitor::TransactionMonitor;
+pub use read_transaction::{
+    ReadTarget, ReadTransaction, ReadTransactionError, ReadTransactionResult, VertexRecord,
+    INVALID_TIMESTAMP,
 };
 pub use update_transaction::{
     AddEdgePropertiesParam, AddVertexPropertiesParam, CreateEdgeTypeParam, CreateVertexTypeParam,

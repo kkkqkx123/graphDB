@@ -8,6 +8,8 @@
 //! - query::executor - executor scheduling, result return
 //! - query::query_pipeline_manager - full query pipeline
 
+#![allow(clippy::arc_with_non_send_sync)]
+
 mod common;
 
 use common::{assertions::assert_ok, TestStorage};

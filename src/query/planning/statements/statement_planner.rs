@@ -45,6 +45,7 @@ pub trait ClausePlanner: std::fmt::Debug {
 }
 
 #[cfg(test)]
+#[allow(clippy::arc_with_non_send_sync)]
 mod tests {
     use super::*;
     use crate::query::parser::ast::{Ast, Span};

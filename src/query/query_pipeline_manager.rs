@@ -21,6 +21,8 @@
 //! );
 //! ```
 
+#![allow(clippy::arc_with_non_send_sync)]
+
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::{ErrorInfo, ErrorType, QueryMetrics, QueryPhase, QueryProfile, StatsManager};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};

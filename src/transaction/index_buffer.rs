@@ -4,6 +4,7 @@ use crate::transaction::types::TransactionId;
 use dashmap::DashMap;
 
 /// index update buffer
+#[allow(dead_code)]
 pub(crate) struct IndexUpdateBuffer {
     /// Pending updates organized by transaction ID
     buffers: DashMap<TransactionId, Vec<PendingIndexUpdate>>,
@@ -11,6 +12,7 @@ pub(crate) struct IndexUpdateBuffer {
     config: IndexBufferConfig,
 }
 
+#[allow(dead_code)]
 impl IndexUpdateBuffer {
     pub fn new(config: IndexBufferConfig) -> Self {
         Self {
@@ -20,6 +22,7 @@ impl IndexUpdateBuffer {
     }
 
     /// obtaining configuration
+    #[allow(dead_code)]
     pub fn config(&self) -> &IndexBufferConfig {
         &self.config
     }
@@ -62,11 +65,13 @@ impl IndexUpdateBuffer {
     }
 
     /// Get all pending transaction IDs
+    #[allow(dead_code)]
     pub fn get_all_txn_ids(&self) -> Vec<TransactionId> {
         self.buffers.iter().map(|entry| *entry.key()).collect()
     }
 
     /// Cleaning up timeout transactions
+    #[allow(dead_code)]
     pub fn cleanup_timeout(&self) -> Vec<TransactionId> {
         let expired_txns: Vec<TransactionId> =
             self.buffers.iter().map(|entry| *entry.key()).collect();
@@ -88,6 +93,7 @@ impl IndexUpdateBuffer {
 }
 
 /// Buffer statistics
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct BufferStats {
     pub active_transactions: usize,

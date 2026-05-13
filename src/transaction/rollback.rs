@@ -20,6 +20,7 @@ pub use crate::transaction::undo_log::{
 ///
 /// Define the basic operations required for operation log rollbacks.
 /// This is used for savepoint rollback functionality.
+#[allow(dead_code)]
 pub(crate) trait OperationLogContext {
     fn operation_log_len(&self) -> usize;
     fn truncate_operation_log(&self, index: usize);
@@ -54,6 +55,7 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
 ///
 /// Defines the basic operations required for undo log rollbacks.
 /// This is the primary rollback mechanism for NeuG architecture.
+#[allow(dead_code)]
 pub(crate) trait UndoLogContext {
     fn undo_log_len(&self) -> usize;
     fn add_undo_log(&self, log: UndoLogEntry);
@@ -84,10 +86,12 @@ impl UndoLogContext for crate::transaction::context::TransactionContext {
 ///
 /// Primary rollback mechanism for NeuG architecture.
 /// Uses UndoLog entries to reverse operations during transaction abort.
+#[allow(dead_code)]
 pub(crate) struct UndoLogRollback<'a, T: UndoLogContext> {
     ctx: &'a T,
 }
 
+#[allow(dead_code)]
 impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
     pub fn new(ctx: &'a T) -> Self {
         Self { ctx }
@@ -118,10 +122,12 @@ impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
 ///
 /// Provides both OperationLog and UndoLog rollback capabilities.
 /// Used for transactions that need to support both mechanisms.
+#[allow(dead_code)]
 pub(crate) struct CombinedRollback<'a, T: OperationLogContext + UndoLogContext> {
     ctx: &'a T,
 }
 
+#[allow(dead_code)]
 impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
     pub fn new(ctx: &'a T) -> Self {
         Self { ctx }
@@ -164,9 +170,11 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
 }
 
 /// Rollback helper functions
+#[allow(dead_code)]
 pub(crate) struct RollbackHelper;
 
 /// Parameters for create_update_edge_prop_undo operation
+#[allow(dead_code)]
 pub(crate) struct CreateUpdateEdgePropUndoParams {
     pub src_label: LabelId,
     pub src_vid: u64,
@@ -180,6 +188,7 @@ pub(crate) struct CreateUpdateEdgePropUndoParams {
 }
 
 /// Parameters for create_remove_vertex_undo operation
+#[allow(dead_code)]
 pub(crate) struct CreateRemoveVertexUndoParams {
     pub label: LabelId,
     pub vid: u64,
@@ -187,6 +196,7 @@ pub(crate) struct CreateRemoveVertexUndoParams {
 }
 
 /// Parameters for create_remove_edge_undo operation
+#[allow(dead_code)]
 pub(crate) struct CreateRemoveEdgeUndoParams {
     pub src_label: LabelId,
     pub src_vid: u64,
@@ -197,6 +207,7 @@ pub(crate) struct CreateRemoveEdgeUndoParams {
     pub ie_offset: i32,
 }
 
+#[allow(dead_code)]
 impl RollbackHelper {
     pub fn create_insert_vertex_undo(label: LabelId, vid: u64) -> UndoLogEntry {
         UndoLogEntry::InsertVertex(InsertVertexUndo {
