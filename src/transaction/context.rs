@@ -12,6 +12,7 @@ use parking_lot::{Mutex, RwLock};
 
 use super::types::*;
 use super::error::TransactionError;
+use super::rollback::CombinedRollback;
 use super::undo_log::{UndoLogEntry, UndoLogManager, UndoTarget};
 use super::wal::types::Timestamp;
 
@@ -450,7 +451,11 @@ impl TransactionContext {
                 .ok_or(TransactionError::savepoint_not_found(id))?
         };
 
-        self.truncate_operation_log(savepoint_info.operation_log_index);
+        // Use CombinedRollback for comprehensive savepoint rollback
+        let rollback = CombinedRollback::new(self);
+        rollback
+            .rollback_operation_log_to_index(savepoint_info.operation_log_index)
+            .map_err(|e| TransactionError::rollback_failed(e.to_string()))?;
 
         {
             let mut manager = self.savepoint_manager.write();
@@ -466,10 +471,9 @@ impl TransactionContext {
             }
         }
 
-        {
-            let mut undo_logs = self.undo_logs.write();
-            let _ = undo_logs.execute_undo(target, self.start_timestamp);
-        }
+        rollback
+            .execute_undo_rollback(target, self.start_timestamp)
+            .map_err(|e| TransactionError::rollback_failed(e.to_string()))?;
 
         Ok(())
     }

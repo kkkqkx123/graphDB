@@ -36,7 +36,6 @@ pub mod codec;
 pub mod compact_transaction;
 pub mod context;
 pub mod error;
-pub mod index_buffer;
 pub mod insert_transaction;
 pub mod manager;
 pub mod monitor;
@@ -66,6 +65,10 @@ pub use undo_log::{
     InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
     RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
     UpdateEdgePropUndo, UpdateVertexPropUndo,
+};
+pub use rollback::{
+    CreateRemoveEdgeUndoParams, CreateRemoveVertexUndoParams, CreateUpdateEdgePropUndoParams,
+    RollbackHelper,
 };
 pub use insert_transaction::{
     InsertTarget, InsertTransaction, InsertTransactionError, InsertTransactionResult,

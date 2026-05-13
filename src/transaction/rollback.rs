@@ -20,12 +20,20 @@ pub use crate::transaction::undo_log::{
 ///
 /// Define the basic operations required for operation log rollbacks.
 /// This is used for savepoint rollback functionality.
-#[allow(dead_code)]
 pub(crate) trait OperationLogContext {
     fn operation_log_len(&self) -> usize;
     fn truncate_operation_log(&self, index: usize);
+    
+    /// Reserved for future use: operation log audit and replay
+    #[allow(dead_code)]
     fn get_operation_log(&self, index: usize) -> Option<OperationLog>;
+    
+    /// Reserved for future use: operation log batch query
+    #[allow(dead_code)]
     fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog>;
+    
+    /// Reserved for future use: operation log cleanup
+    #[allow(dead_code)]
     fn clear_operation_log(&self);
 }
 
@@ -55,10 +63,15 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
 ///
 /// Defines the basic operations required for undo log rollbacks.
 /// This is the primary rollback mechanism for NeuG architecture.
-#[allow(dead_code)]
 pub(crate) trait UndoLogContext {
+    /// Reserved for future use: undo log monitoring and statistics
+    #[allow(dead_code)]
     fn undo_log_len(&self) -> usize;
+    
+    /// Reserved for future use: manual undo log management
+    #[allow(dead_code)]
     fn add_undo_log(&self, log: UndoLogEntry);
+    
     fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), StorageError>;
     fn clear_undo_logs(&self);
 }
@@ -86,12 +99,10 @@ impl UndoLogContext for crate::transaction::context::TransactionContext {
 ///
 /// Primary rollback mechanism for NeuG architecture.
 /// Uses UndoLog entries to reverse operations during transaction abort.
-#[allow(dead_code)]
 pub(crate) struct UndoLogRollback<'a, T: UndoLogContext> {
     ctx: &'a T,
 }
 
-#[allow(dead_code)]
 impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
     pub fn new(ctx: &'a T) -> Self {
         Self { ctx }
@@ -105,14 +116,18 @@ impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
         self.ctx.execute_undo_logs(target)
     }
 
-    pub fn undo_log_len(&self) -> usize {
-        self.ctx.undo_log_len()
-    }
-
     pub fn clear_logs(&self) {
         self.ctx.clear_undo_logs();
     }
 
+    /// Reserved for future use: undo log length query
+    #[allow(dead_code)]
+    pub fn undo_log_len(&self) -> usize {
+        self.ctx.undo_log_len()
+    }
+
+    /// Reserved for future use: manual undo log addition
+    #[allow(dead_code)]
     pub fn add_log(&self, log: UndoLogEntry) {
         self.ctx.add_undo_log(log);
     }
@@ -122,12 +137,10 @@ impl<'a, T: UndoLogContext> UndoLogRollback<'a, T> {
 ///
 /// Provides both OperationLog and UndoLog rollback capabilities.
 /// Used for transactions that need to support both mechanisms.
-#[allow(dead_code)]
 pub(crate) struct CombinedRollback<'a, T: OperationLogContext + UndoLogContext> {
     ctx: &'a T,
 }
 
-#[allow(dead_code)]
 impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
     pub fn new(ctx: &'a T) -> Self {
         Self { ctx }
@@ -155,14 +168,20 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
         Ok(())
     }
 
+    /// Reserved for future use: operation log length query
+    #[allow(dead_code)]
     pub fn operation_log_len(&self) -> usize {
         self.ctx.operation_log_len()
     }
 
+    /// Reserved for future use: undo log length query
+    #[allow(dead_code)]
     pub fn undo_log_len(&self) -> usize {
         self.ctx.undo_log_len()
     }
 
+    /// Reserved for future use: complete log cleanup
+    #[allow(dead_code)]
     pub fn clear_all_logs(&self) {
         self.ctx.clear_operation_log();
         self.ctx.clear_undo_logs();
@@ -170,12 +189,13 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
 }
 
 /// Rollback helper functions
-#[allow(dead_code)]
-pub(crate) struct RollbackHelper;
+///
+/// Factory for creating undo log entries.
+/// Used by transactions to record rollback information.
+pub struct RollbackHelper;
 
 /// Parameters for create_update_edge_prop_undo operation
-#[allow(dead_code)]
-pub(crate) struct CreateUpdateEdgePropUndoParams {
+pub struct CreateUpdateEdgePropUndoParams {
     pub src_label: LabelId,
     pub src_vid: u64,
     pub dst_label: LabelId,
@@ -188,16 +208,14 @@ pub(crate) struct CreateUpdateEdgePropUndoParams {
 }
 
 /// Parameters for create_remove_vertex_undo operation
-#[allow(dead_code)]
-pub(crate) struct CreateRemoveVertexUndoParams {
+pub struct CreateRemoveVertexUndoParams {
     pub label: LabelId,
     pub vid: u64,
     pub related_edges: Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>,
 }
 
 /// Parameters for create_remove_edge_undo operation
-#[allow(dead_code)]
-pub(crate) struct CreateRemoveEdgeUndoParams {
+pub struct CreateRemoveEdgeUndoParams {
     pub src_label: LabelId,
     pub src_vid: u64,
     pub dst_label: LabelId,
@@ -207,8 +225,9 @@ pub(crate) struct CreateRemoveEdgeUndoParams {
     pub ie_offset: i32,
 }
 
-#[allow(dead_code)]
 impl RollbackHelper {
+    /// Reserved for future use: insert vertex undo creation
+    #[allow(dead_code)]
     pub fn create_insert_vertex_undo(label: LabelId, vid: u64) -> UndoLogEntry {
         UndoLogEntry::InsertVertex(InsertVertexUndo {
             v_label: label,
@@ -216,6 +235,8 @@ impl RollbackHelper {
         })
     }
 
+    /// Reserved for future use: insert edge undo creation
+    #[allow(dead_code)]
     pub fn create_insert_edge_undo(
         src_label: LabelId,
         dst_label: LabelId,
@@ -284,10 +305,14 @@ impl RollbackHelper {
         })
     }
 
+    /// Reserved for future use: DDL create vertex type undo
+    #[allow(dead_code)]
     pub fn create_create_vertex_type_undo(label: LabelId) -> UndoLogEntry {
         UndoLogEntry::CreateVertexType(CreateVertexTypeUndo { vertex_type: label })
     }
 
+    /// Reserved for future use: DDL create edge type undo
+    #[allow(dead_code)]
     pub fn create_create_edge_type_undo(
         src_type: LabelId,
         dst_type: LabelId,

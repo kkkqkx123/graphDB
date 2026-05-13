@@ -2,10 +2,29 @@
 //!
 //! Manage the context information throughout the entire lifecycle of queries, from parsing and validation to planning and execution.
 //!
+//! ## Creation
+//!
+//! Use [`QueryContext::new`] for simple cases or [`QueryContext::builder`] for complex configuration:
+//!
+//! ```rust,ignore
+//! use graphdb::query::context::{QueryContext, QueryRequestContext};
+//! use std::sync::Arc;
+//!
+//! // Simple creation
+//! let rctx = Arc::new(QueryRequestContext::new("MATCH (n) RETURN n".to_string()));
+//! let ctx = QueryContext::new(rctx);
+//!
+//! // With builder (for complex configuration)
+//! let ctx = QueryContext::builder(rctx)
+//!     .with_space_info(space_info)
+//!     .with_arena()
+//!     .build();
+//! ```
+//!
 //! ## Arena Allocation
 //!
 //! For high-performance query execution with many temporary allocations,
-//! enable arena allocation via `with_arena()`. This is beneficial for:
+//! enable arena allocation via the builder's `with_arena()` method. This is beneficial for:
 //!
 //! - Complex queries with many intermediate results
 //! - Expression evaluation with temporary values
@@ -25,11 +44,15 @@ use super::{QueryExecutionManager, QueryRequestContext};
 ///
 /// # Responsibilities
 ///
-/// The context of the query request is available (session information, request parameters).
-/// Possession of the Query Execution Manager (execution plan, termination flags)
-/// ID generation for query execution
-/// Spatial information management (space info, character set)
-/// Optional arena allocator for high-performance temporary allocations
+/// - Query request context (session information, request parameters)
+/// - Query execution manager (execution plan, termination flags)
+/// - ID generation for query execution
+/// - Space information management (space info, character set)
+/// - Optional arena allocator for high-performance temporary allocations
+///
+/// # Creation
+///
+/// Use [`QueryContext::new`] for simple cases or [`QueryContext::builder`] for complex configuration.
 pub struct QueryContext {
     /// Query request context
     rctx: Arc<QueryRequestContext>,
@@ -46,7 +69,10 @@ pub struct QueryContext {
 }
 
 impl QueryContext {
-    /// Create a new query context.
+    /// Create a new query context with default configuration.
+    ///
+    /// For complex configuration (arena allocation, custom ID generator, etc.),
+    /// use [`QueryContext::builder`] instead.
     pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
         Self {
             rctx,
@@ -58,112 +84,39 @@ impl QueryContext {
         }
     }
 
-    /// Create a new query context with arena allocation enabled.
-    ///
-    /// Arena allocation is beneficial for queries that create many
-    /// temporary data structures during execution.
-    pub fn with_arena(rctx: Arc<QueryRequestContext>) -> Self {
-        Self {
-            rctx,
-            execution_manager: QueryExecutionManager::new(),
-            id_gen: IdGenerator::new(0),
-            space_info: None,
-            charset_info: None,
-            arena: Some(Arena::new()),
-        }
-    }
-
-    /// Create a new query context with a custom arena capacity.
-    pub fn with_arena_capacity(rctx: Arc<QueryRequestContext>, capacity: usize) -> Self {
-        Self {
-            rctx,
-            execution_manager: QueryExecutionManager::new(),
-            id_gen: IdGenerator::new(0),
-            space_info: None,
-            charset_info: None,
-            arena: Some(Arena::with_capacity(capacity)),
-        }
-    }
-
-    /// Create a temporary context for verification.
-    ///
-    /// This is a convenient method for creating a temporary QueryContext during the validation phase.
-    ///
-    /// # Parameters
-    /// `query_text`: The text of the query.
+    /// Create a builder for complex configuration.
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use crate::query::context::QueryContext;
-    ///
-    /// let qctx = QueryContext::new_for_validation("MATCH (n) RETURN n".to_string());
+    /// ```rust,ignore
+    /// let ctx = QueryContext::builder(rctx)
+    ///     .with_space_info(space_info)
+    ///     .with_charset_info(charset_info)
+    ///     .with_arena()
+    ///     .build();
     /// ```
-    pub fn new_for_validation(query_text: String) -> Self {
-        let rctx = Arc::new(QueryRequestContext::new(query_text));
-        Self::new(rctx)
-    }
-
-    /// Create a temporary context for planning purposes.
-    ///
-    /// This is a convenient method for creating a temporary QueryContext during the planning phase.
-    ///
-    /// # Parameters
-    /// - `query_text`: The query text
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use crate::query::context::QueryContext;
-    ///
-    /// let qctx = QueryContext::new_for_planning("MATCH (n) RETURN n".to_string());
-    /// ```
-    pub fn new_for_planning(query_text: String) -> Self {
-        let rctx = Arc::new(QueryRequestContext::new(query_text));
-        Self::new(rctx)
-    }
-
-    /// Create query contexts from various components (for use by the Builder).
-    pub(crate) fn from_components(
-        rctx: Arc<QueryRequestContext>,
-        execution_manager: QueryExecutionManager,
-        id_gen: IdGenerator,
-        space_info: Option<SpaceInfo>,
-        charset_info: Option<Box<CharsetInfo>>,
-    ) -> Self {
-        Self {
-            rctx,
-            execution_manager,
-            id_gen,
-            space_info,
-            charset_info,
-            arena: None,
-        }
-    }
-
-    /// Create query contexts from various components with arena (for use by the Builder).
-    #[allow(dead_code)]
-    pub(crate) fn from_components_with_arena(
-        rctx: Arc<QueryRequestContext>,
-        execution_manager: QueryExecutionManager,
-        id_gen: IdGenerator,
-        space_info: Option<SpaceInfo>,
-        charset_info: Option<Box<CharsetInfo>>,
-        arena: Arena,
-    ) -> Self {
-        Self {
-            rctx,
-            execution_manager,
-            id_gen,
-            space_info,
-            charset_info,
-            arena: Some(arena),
-        }
-    }
-
-    /// Create a builder.
     pub fn builder(rctx: Arc<QueryRequestContext>) -> super::QueryContextBuilder {
         super::QueryContextBuilder::new(rctx)
+    }
+
+    /// Internal constructor for QueryContextBuilder.
+    /// Only visible within the query::context module.
+    pub(super) fn from_builder(
+        rctx: Arc<QueryRequestContext>,
+        execution_manager: QueryExecutionManager,
+        id_gen: IdGenerator,
+        space_info: Option<SpaceInfo>,
+        charset_info: Option<Box<CharsetInfo>>,
+        arena: Option<Arena>,
+    ) -> Self {
+        Self {
+            rctx,
+            execution_manager,
+            id_gen,
+            space_info,
+            charset_info,
+            arena,
+        }
     }
 
     /// Obtain the context of the query request.

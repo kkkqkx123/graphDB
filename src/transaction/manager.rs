@@ -13,6 +13,7 @@ use super::cleaner::TransactionCleaner;
 use super::context::TransactionContext;
 use super::error::TransactionError;
 use super::monitor::TransactionMonitor;
+use super::rollback::UndoLogRollback;
 use super::types::*;
 use super::undo_log::UndoTarget;
 use super::version_manager::{VersionManager, VersionManagerConfig};
@@ -334,7 +335,13 @@ impl TransactionManager {
             ctx
         };
 
-        context.execute_undo_logs(target)?;
+        // Use UndoLogRollback for structured rollback execution
+        let rollback = UndoLogRollback::new(&*context);
+        rollback
+            .execute_rollback(target, context.timestamp())
+            .map_err(|e| TransactionError::rollback_failed(e.to_string()))?;
+        rollback.clear_logs();
+
         self.abort_transaction_internal(&context)
     }
 

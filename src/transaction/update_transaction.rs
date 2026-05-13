@@ -10,11 +10,11 @@ use std::collections::HashSet;
 use postcard::to_allocvec;
 
 use super::read_transaction::INVALID_TIMESTAMP;
+use super::rollback::RollbackHelper;
 use super::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
-    DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
-    RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoTarget, UpdateEdgePropUndo,
-    UpdateVertexPropUndo,
+    DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo,
+    UndoLogEntry, UndoLogError, UndoLogManager, UndoTarget,
 };
 use super::version_manager::{VersionManager, VersionManagerError};
 use super::wal::types::{
@@ -534,12 +534,12 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.graph
             .update_vertex_property(param, prop_name, value, self.timestamp)?;
 
-        self.undo_logs.add(UndoLogEntry::UpdateVertexProp(UpdateVertexPropUndo {
-            v_label: label,
+        self.undo_logs.add(RollbackHelper::create_update_vertex_prop_undo(
+            label,
             vid,
-            col_id: 0,
+            0,
             old_value,
-        }));
+        ));
 
         Ok(())
     }
@@ -563,17 +563,19 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             self.timestamp,
         )?;
 
-        self.undo_logs.add(UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
-            src_label: param.src_label,
-            src_vid: param.src_vid,
-            dst_label: param.dst_label,
-            dst_vid: param.dst_vid,
-            edge_label: param.edge_label,
-            oe_offset: 0,
-            ie_offset: 0,
-            col_id: 0,
-            old_value: param.old_value,
-        }));
+        self.undo_logs.add(RollbackHelper::create_update_edge_prop_undo(
+            super::rollback::CreateUpdateEdgePropUndoParams {
+                src_label: param.src_label,
+                src_vid: param.src_vid,
+                dst_label: param.dst_label,
+                dst_vid: param.dst_vid,
+                edge_label: param.edge_label,
+                oe_offset: 0,
+                ie_offset: 0,
+                col_id: 0,
+                old_value: param.old_value,
+            },
+        ));
 
         Ok(())
     }
@@ -582,18 +584,20 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
     pub fn delete_vertex(&mut self, label: LabelId, vid: VertexId) -> UpdateTransactionResult<()> {
         let related_edges = UpdateTarget::delete_vertex(self.graph, label, vid, self.timestamp)?;
 
-        self.undo_logs.add(UndoLogEntry::RemoveVertex(RemoveVertexUndo {
-            v_label: label,
-            vid,
-            related_edges: related_edges
-                .iter()
-                .map(
-                    |(sl, dl, el, edges): &(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)| {
-                        (*sl, *dl, *el, edges.clone())
-                    },
-                )
-                .collect(),
-        }));
+        self.undo_logs.add(RollbackHelper::create_remove_vertex_undo(
+            super::rollback::CreateRemoveVertexUndoParams {
+                label,
+                vid,
+                related_edges: related_edges
+                    .iter()
+                    .map(
+                        |(sl, dl, el, edges): &(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)| {
+                            (*sl, *dl, *el, edges.clone())
+                        },
+                    )
+                    .collect(),
+            },
+        ));
 
         Ok(())
     }
@@ -620,15 +624,17 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             self.timestamp,
         )?;
 
-        self.undo_logs.add(UndoLogEntry::RemoveEdge(RemoveEdgeUndo {
-            src_label,
-            src_vid,
-            dst_label,
-            dst_vid,
-            edge_label,
-            oe_offset: 0,
-            ie_offset: 0,
-        }));
+        self.undo_logs.add(RollbackHelper::create_remove_edge_undo(
+            super::rollback::CreateRemoveEdgeUndoParams {
+                src_label,
+                src_vid,
+                dst_label,
+                dst_vid,
+                edge_label,
+                oe_offset: 0,
+                ie_offset: 0,
+            },
+        ));
 
         Ok(())
     }
