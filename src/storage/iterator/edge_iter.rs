@@ -5,7 +5,8 @@
 //! - EdgeRangeIterator: Iterator over edges of specified vertices
 //! - EdgeFilterIterator: Iterator with predicate pushdown support
 
-use crate::storage::edge::{EdgeRecord, EdgeTable, EdgeTableScanIterator, EdgeVertexIterator, Timestamp, VertexId};
+use crate::core::types::{Timestamp, VertexId};
+use crate::storage::edge::{EdgeRecord, EdgeTable, EdgeTableScanIterator, EdgeVertexIterator};
 use crate::storage::iterator::predicate::PredicateEnum;
 
 pub type EdgeScanIterator<'a> = EdgeTableScanIterator<'a>;

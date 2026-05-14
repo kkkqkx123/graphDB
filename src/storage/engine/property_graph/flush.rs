@@ -5,9 +5,9 @@
 
 use std::path::Path;
 
+use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::metadata::{TableId, TableType};
-use crate::storage::vertex::LabelId;
 
 use super::{DATA_FORMAT_VERSION, PropertyGraph};
 

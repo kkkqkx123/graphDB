@@ -1,10 +1,11 @@
+use crate::core::types::{ColumnId, LabelId, Timestamp};
 use crate::storage::edge::EdgeStrategy;
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
-use crate::transaction::undo_log::{
-    PropertyValue, UndoLogError, UndoLogResult, UndoTarget,
-};
-use crate::transaction::wal::types::{ColumnId, LabelId as TxnLabelId, Timestamp};
+use crate::interfaces::undo::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
+
+// Type alias for backward compatibility
+type TxnLabelId = LabelId;
 
 use crate::storage::engine::transaction::{
     DeleteEdgeParams, DeleteEdgeTypeParams, RevertDeleteEdgeParams, TransactionOps,

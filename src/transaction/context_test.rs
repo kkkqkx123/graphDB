@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
+use crate::core::types::{ColumnId, EdgeDeletionContext, EdgeIdentifier, EdgeKey, LabelId, Timestamp, VertexIdentifier};
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::{
     DurabilityLevel, OperationLog, TransactionConfig, TransactionId, TransactionState,
@@ -12,7 +12,6 @@ use crate::transaction::types::{
 use crate::transaction::TransactionErrorKind;
 use crate::transaction::undo_log::PropertyValue;
 use crate::transaction::undo_log::{UndoLogResult, UndoTarget};
-use crate::transaction::wal::types::{ColumnId, LabelId, Timestamp};
 
 struct MockUndoTarget;
 

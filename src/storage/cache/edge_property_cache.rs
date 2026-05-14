@@ -33,8 +33,8 @@ use std::time::{Duration, Instant};
 use lru::LruCache;
 use parking_lot::Mutex;
 
+use crate::core::types::EdgeId;
 use crate::core::Value;
-use crate::storage::edge::EdgeId;
 
 const DEFAULT_MAX_ENTRIES: usize = 10_000;
 const DEFAULT_MAX_MEMORY: usize = 10 * 1024 * 1024;

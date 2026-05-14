@@ -10,9 +10,10 @@ use std::time::{Duration, Instant, SystemTime};
 use parking_lot::RwLock;
 
 use crate::core::error::StorageResult;
+use crate::core::types::Timestamp;
 use crate::storage::engine::snapshot_manager::{SnapshotManager, SnapshotOptions};
 use crate::storage::engine::WalManager;
-use crate::transaction::wal::{CheckpointManager, Lsn, Timestamp};
+use crate::transaction::wal::{CheckpointManager, Lsn};
 
 #[derive(Debug, Clone)]
 pub struct CheckpointInfo {

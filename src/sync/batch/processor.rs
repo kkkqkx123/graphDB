@@ -7,7 +7,8 @@ use tokio::sync::Mutex;
 use super::buffer::BatchBuffer;
 use super::config::BatchConfig;
 use super::error::{BatchError, BatchResult};
-use super::trait_def::{BatchProcessor, TransactionBuffer};
+use super::trait_def::BatchProcessor;
+use crate::interfaces::TransactionBuffer;
 use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexKey, IndexOperation};
 use crate::transaction::types::TransactionId;
 

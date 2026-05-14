@@ -54,8 +54,9 @@ pub mod manager_test;
 
 pub use cleaner::TransactionCleaner;
 pub use compact_transaction::{
-    CompactTarget, CompactTransaction, CompactTransactionError, CompactTransactionResult,
+    CompactTransaction, CompactTransactionError, CompactTransactionResult,
 };
+pub use crate::interfaces::CompactTarget;
 pub use context::TransactionContext;
 pub use types::*;
 pub use error::{TransactionError, TransactionErrorKind, TransactionResult};

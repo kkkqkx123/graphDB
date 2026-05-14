@@ -67,9 +67,9 @@ pub use edge::{
     MutableCsr, Nbr, PropertyDef as EdgePropertyDef, PropertyTable,
 };
 
-pub use params::{
-    EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, EdgeLocation, EdgeOperationContext,
-    EdgePropertyUpdateContext, VertexIdentifier,
+pub use crate::core::types::{
+    EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, EdgeLocation, 
+    EdgeOperationContext, EdgePropertyUpdateContext, VertexIdentifier,
 };
 
 pub use engine::{

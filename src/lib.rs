@@ -7,6 +7,7 @@ pub mod api;
 pub mod common;
 pub mod config;
 pub mod core;
+pub mod interfaces;
 pub mod query;
 pub mod search;
 pub mod storage;

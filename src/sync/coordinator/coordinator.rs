@@ -8,8 +8,9 @@ use tracing::{debug, warn};
 use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
 use crate::search::manager::FulltextIndexManager;
 use crate::sync::batch::{
-    BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer, TransactionBuffer,
+    BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
 };
+use crate::interfaces::TransactionBuffer;
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 use crate::sync::external_index::{
     FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient, VectorClientConfig,

@@ -58,14 +58,17 @@ pub use parser::{
     WalEntryIter, WalParser, WalParserFactory,
 };
 pub use types::{
-    align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ArchiveMode, ColumnId,
+    align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ArchiveMode,
     CompressionLevel, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
-    EdgeId, InsertEdgeRedo, InsertVertexRedo, LabelId, Lsn,
-    RecordType, SyncPolicy, Timestamp, TransactionId, UpdateEdgePropRedo, UpdateVertexPropRedo,
-    UpdateWalUnit, VertexId, WalCompression, WalConfig, WalContentUnit, WalError, WalFileHeader,
+    InsertEdgeRedo, InsertVertexRedo, Lsn,
+    RecordType, SyncPolicy, TransactionId, UpdateEdgePropRedo, UpdateVertexPropRedo,
+    UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError, WalFileHeader,
     WalHeader, WalOpType, WalRecoveryMode, WalResult, WalStats, WAL_BLOCK_SIZE,
     WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAGIC, WAL_MAX_RECORD_SIZE, WAL_VERSION,
 };
+
+// Re-export fundamental types from core for backward compatibility
+pub use crate::core::types::{ColumnId, EdgeId, LabelId, Timestamp, VertexId};
 pub use writer::{DummyWalWriter, LocalWalWriter, WalWriter, WalWriterFactory};
 
 #[cfg(test)]

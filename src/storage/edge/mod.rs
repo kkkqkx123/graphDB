@@ -60,14 +60,11 @@ pub use property_table::PropertyTable;
 pub use single_immutable_csr::SingleImmutableCsr;
 pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
 
-pub type EdgeId = u64;
-pub type LabelId = u32;
-pub type VertexId = u64;
-pub type Timestamp = u32;
+pub use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
 
-pub const INVALID_TIMESTAMP: Timestamp = u32::MAX;
-pub const MAX_TIMESTAMP: Timestamp = u32::MAX - 1;
-pub const INVALID_EDGE_ID: EdgeId = u64::MAX;
+pub const INVALID_TIMESTAMP: u32 = u32::MAX;
+pub const MAX_TIMESTAMP: u32 = u32::MAX - 1;
+pub const INVALID_EDGE_ID: u64 = u64::MAX;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EdgeStrategy {

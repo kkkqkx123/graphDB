@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::{
-    EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
-    PropertyDef as EdgePropertyDef, VertexId,
+    EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
+    PropertyDef as EdgePropertyDef,
 };
-use crate::storage::vertex::{LabelId, Timestamp};
 
 use super::schema::SchemaOps;
 

@@ -14,7 +14,7 @@ use super::types::*;
 use super::error::TransactionError;
 use super::rollback::CombinedRollback;
 use super::undo_log::{UndoLogEntry, UndoLogManager, UndoTarget};
-use super::wal::types::Timestamp;
+use super::wal::Timestamp;
 
 /// Transaction Context
 ///

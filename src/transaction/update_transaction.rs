@@ -17,10 +17,8 @@ use super::undo_log::{
     UndoLogEntry, UndoLogError, UndoLogManager, UndoTarget,
 };
 use super::version_manager::{VersionManager, VersionManagerError};
-use super::wal::types::{
-    CreateEdgeTypeRedo, CreateVertexTypeRedo, LabelId, Timestamp, VertexId, WalHeader,
-    WalOpType,
-};
+use super::wal::types::{CreateEdgeTypeRedo, CreateVertexTypeRedo, WalHeader, WalOpType};
+use super::wal::{LabelId, Timestamp, VertexId};
 use super::wal::writer::WalWriter;
 
 /// Result type for vertex deletion including related edge information
@@ -732,7 +730,7 @@ impl<'a, T: UpdateTarget + ?Sized> Drop for UpdateTransaction<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
+    use crate::core::types::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
     use crate::transaction::ColumnId;
     use super::super::undo_log::UndoLogResult;
     use super::super::wal::writer::DummyWalWriter;

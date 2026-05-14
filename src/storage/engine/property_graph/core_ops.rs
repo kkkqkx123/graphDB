@@ -2,10 +2,10 @@
 //!
 //! Contains vertex and edge CRUD operations for PropertyGraph.
 
+use crate::core::types::{EdgeId, LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::edge::{EdgeId, EdgeRecord};
-use crate::storage::vertex::{LabelId, VertexRecord};
-use crate::transaction::wal::types::Timestamp;
+use crate::storage::edge::EdgeRecord;
+use crate::storage::vertex::VertexRecord;
 
 use super::super::edge::{EdgeOperationParams, EdgeTraversalParams};
 use super::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};

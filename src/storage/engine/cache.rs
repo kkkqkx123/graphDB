@@ -23,14 +23,13 @@
 
 use std::sync::Arc;
 
+use crate::core::types::{EdgeId, LabelId};
 use crate::core::Value;
 use crate::storage::cache::{
     CachedVertex, EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats,
     RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache, VertexCacheKey,
 };
-use crate::storage::edge::EdgeId;
 use crate::storage::memory::SharedMemoryTracker;
-use crate::storage::vertex::LabelId;
 
 /// Manager for storage caches
 pub struct CacheManager {

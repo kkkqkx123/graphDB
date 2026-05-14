@@ -8,6 +8,8 @@ use std::time::Duration;
 use crc32fast::Hasher;
 use serde::{Deserialize, Serialize};
 
+use crate::core::types::{ColumnId, LabelId, Timestamp};
+
 /// WAL magic number for file identification
 pub const WAL_MAGIC: u32 = 0x47524150; // "GRAP" in hex
 
@@ -51,9 +53,6 @@ pub fn align_to_block(offset: usize) -> usize {
 pub fn blocks_needed(size: usize) -> usize {
     size.div_ceil(WAL_BLOCK_SIZE)
 }
-
-/// Timestamp type for MVCC
-pub type Timestamp = u32;
 
 /// Transaction ID type
 pub type TransactionId = u64;
@@ -110,18 +109,6 @@ impl From<Lsn> for u64 {
         lsn.0
     }
 }
-
-/// Label ID type
-pub type LabelId = u32;
-
-/// Vertex ID type
-pub type VertexId = u64;
-
-/// Edge ID type
-pub type EdgeId = u64;
-
-/// Column ID type
-pub type ColumnId = i32;
 
 /// WAL operation type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

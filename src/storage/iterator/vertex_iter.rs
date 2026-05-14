@@ -5,8 +5,9 @@
 //! - VertexRangeIterator: Iterator over a range of vertices
 //! - VertexFilterIterator: Iterator with predicate pushdown support
 
+use crate::core::types::{Timestamp, VertexId};
 use crate::storage::iterator::predicate::PredicateEnum;
-use crate::storage::vertex::{Timestamp, VertexId, VertexRecord, VertexTable};
+use crate::storage::vertex::{VertexRecord, VertexTable};
 use std::collections::HashMap;
 
 pub type VertexTableScanIterator<'a> = crate::storage::vertex::vertex_table::VertexIterator<'a>;

@@ -2,11 +2,10 @@
 //!
 //! Provides write operations for the graph storage engine.
 
-use crate::core::types::{InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget};
+use crate::core::types::{InsertEdgeInfo, InsertVertexInfo, LabelId, UpdateInfo, UpdateOp, UpdateTarget};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::property_graph::InsertEdgeParams;
 use crate::storage::metadata::index_manager::IndexMetadataManager;
-use crate::storage::vertex::LabelId;
 
 use super::context::GraphStorageContext;
 use super::type_utils::value_to_string;

@@ -10,4 +10,5 @@ pub use error::BatchError;
 pub use processor::GenericBatchProcessor;
 pub use processor::TransactionBatchBuffer;
 pub use trait_def::BatchProcessor;
-pub use trait_def::TransactionBuffer;
+
+pub use crate::interfaces::transaction_buffer::TransactionBuffer;

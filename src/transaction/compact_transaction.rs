@@ -6,8 +6,11 @@
 
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::version_manager::{VersionManager, VersionManagerError};
-use super::wal::types::{Timestamp, WalHeader};
+use super::wal::types::WalHeader;
+use super::wal::Timestamp;
 use super::wal::writer::WalWriter;
+use crate::interfaces::compact::{CompactConfig, CompactError, CompactStats};
+use crate::interfaces::CompactTarget;
 
 /// Compact transaction error
 #[derive(Debug, Clone, thiserror::Error)]
@@ -23,6 +26,9 @@ pub enum CompactTransactionError {
 
     #[error("Compact failed: {0}")]
     CompactFailed(String),
+
+    #[error("Compact error: {0}")]
+    CompactError(#[from] CompactError),
 }
 
 /// Compact transaction result type
@@ -35,7 +41,7 @@ pub type CompactTransactionResult<T> = Result<T, CompactTransactionError>;
 ///
 /// # Compaction Operations
 ///
-/// - CSR compaction: Rebuilds CSR structures to remove deleted edges
+/// - Structure compaction: Rebuilds storage structures to remove deleted data
 /// - Version cleanup: Removes old MVCC versions that are no longer visible
 /// - Space reclamation: Frees unused storage space
 ///
@@ -49,32 +55,9 @@ pub struct CompactTransaction<'a, T: CompactTarget + ?Sized> {
     graph: &'a mut T,
     version_manager: &'a VersionManager,
     wal_writer: &'a mut dyn WalWriter,
-    compact_csr: bool,
-    reserve_ratio: f32,
+    config: CompactConfig,
     timestamp: Timestamp,
     wal_buffer: Vec<u8>,
-}
-
-/// Target for compact operations (will be PropertyGraph in phase 2)
-pub trait CompactTarget: Send + Sync {
-    /// Compact the graph storage
-    ///
-    /// # Arguments
-    /// * `compact_csr` - Whether to compact CSR structures
-    /// * `reserve_ratio` - Ratio of space to reserve (0.0 - 1.0)
-    /// * `ts` - Transaction timestamp
-    fn compact(
-        &mut self,
-        compact_csr: bool,
-        reserve_ratio: f32,
-        ts: Timestamp,
-    ) -> CompactTransactionResult<()>;
-
-    /// Get the current storage size
-    fn storage_size(&self) -> usize;
-
-    /// Get the used storage size
-    fn used_storage_size(&self) -> usize;
 }
 
 impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
@@ -95,13 +78,13 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
     ) -> CompactTransactionResult<Self> {
         let timestamp = version_manager.acquire_update_timestamp()?;
         let wal_buffer = vec![0; WalHeader::SIZE];
+        let config = CompactConfig::new(compact_csr, reserve_ratio);
 
         Ok(Self {
             graph,
             version_manager,
             wal_writer,
-            compact_csr,
-            reserve_ratio: reserve_ratio.clamp(0.0, 1.0),
+            config,
             timestamp,
             wal_buffer,
         })
@@ -112,19 +95,16 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
         self.timestamp
     }
 
-    /// Get whether CSR compaction is enabled
     pub fn compact_csr(&self) -> bool {
-        self.compact_csr
+        self.config.enable_structure_compaction
     }
 
-    /// Get the reserve ratio
     pub fn reserve_ratio(&self) -> f32 {
-        self.reserve_ratio
+        self.config.reserve_ratio
     }
 
-    /// Get storage statistics before compaction
-    pub fn storage_stats(&self) -> (usize, usize) {
-        (self.graph.storage_size(), self.graph.used_storage_size())
+    pub fn storage_stats(&self) -> CompactStats {
+        self.graph.get_compact_stats()
     }
 
     /// Commit the compact transaction
@@ -152,7 +132,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
         log::info!("Starting compaction at timestamp {}", self.timestamp);
 
         self.graph
-            .compact(self.compact_csr, self.reserve_ratio, self.timestamp)?;
+            .compact(&self.config, self.timestamp)?;
 
         log::info!("Completed compaction at timestamp {}", self.timestamp);
 
@@ -190,25 +170,21 @@ impl<'a, T: CompactTarget + ?Sized> Drop for CompactTransaction<'a, T> {
 mod tests {
     use super::super::wal::writer::DummyWalWriter;
     use super::*;
+    use crate::interfaces::compact::{CompactConfig, CompactResult};
 
     struct MockCompactTarget;
 
     impl CompactTarget for MockCompactTarget {
         fn compact(
             &mut self,
-            _compact_csr: bool,
-            _reserve_ratio: f32,
+            _config: &CompactConfig,
             _ts: Timestamp,
-        ) -> CompactTransactionResult<()> {
+        ) -> CompactResult<()> {
             Ok(())
         }
 
-        fn storage_size(&self) -> usize {
-            1024
-        }
-
-        fn used_storage_size(&self) -> usize {
-            512
+        fn get_compact_stats(&self) -> CompactStats {
+            CompactStats::new(1024, 512)
         }
     }
 
@@ -275,8 +251,8 @@ mod tests {
         let txn = CompactTransaction::new(&mut target, &vm, &mut wal, true, 0.8)
             .expect("Failed to create compact transaction");
 
-        let (total, used) = txn.storage_stats();
-        assert_eq!(total, 1024);
-        assert_eq!(used, 512);
+        let stats = txn.storage_stats();
+        assert_eq!(stats.total_size, 1024);
+        assert_eq!(stats.used_size, 512);
     }
 }

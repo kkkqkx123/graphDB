@@ -7,10 +7,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::types::{
-    Lsn, RecordType, Timestamp, UpdateWalUnit, WalCompression, WalError,
+    Lsn, RecordType, UpdateWalUnit, WalCompression, WalError,
     WalFileHeader, WalHeader, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
     WAL_HEADER_SIZE,
 };
+use crate::core::types::Timestamp;
 
 /// WAL parser trait
 pub trait WalParser: Send + Sync {
@@ -927,7 +928,8 @@ impl WalParserFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transaction::wal::types::{WalConfig, WalOpType};
+    use crate::transaction::wal::types::WalConfig;
+    use crate::transaction::wal::WalOpType;
     use crate::transaction::wal::writer::{LocalWalWriter, WalWriter};
     use tempfile::TempDir;
 

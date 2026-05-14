@@ -3,10 +3,10 @@
 //! Provides rollback functionality for transactions using both OperationLog and UndoLog mechanisms.
 //! The UndoLog-based rollback is the recommended approach for NeuG architecture.
 
+use crate::core::types::{LabelId, Timestamp};
 use crate::core::StorageError;
 use crate::transaction::types::OperationLog;
 use crate::transaction::undo_log::{UndoLogEntry, UndoTarget};
-use crate::transaction::wal::types::{LabelId, Timestamp};
 
 pub use crate::transaction::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,

@@ -18,7 +18,8 @@
 
 use super::degree_index::{DegreeInfo, DegreeIndex};
 use super::edge_id_index::{EdgeLocation, EdgeIdIndex};
-use crate::storage::index::index_types::{CompositeIndexStats, EdgeId, IndexCategory, IndexStats, PrimaryIndex, PropOffset, VertexId};
+use crate::core::types::{EdgeId, VertexId};
+use crate::storage::index::index_types::{CompositeIndexStats, IndexCategory, IndexStats, PrimaryIndex, PropOffset};
 
 #[derive(Debug)]
 pub struct PrimaryIndexManager {

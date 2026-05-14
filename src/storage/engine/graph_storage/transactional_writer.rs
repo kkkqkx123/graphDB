@@ -1,7 +1,6 @@
+use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::PropertyGraph;
-use crate::storage::vertex::LabelId;
-use crate::transaction::wal::types::Timestamp;
 
 use super::context::GraphStorageContext;
 use super::type_utils::value_to_string;

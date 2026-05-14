@@ -15,6 +15,7 @@ pub mod schema_trait;
 pub mod space;
 pub mod space_name_validation;
 pub mod span;
+pub mod storage_ids;
 pub mod tag;
 pub mod user;
 // Full-text search types
@@ -225,6 +226,13 @@ pub use self::query::{
     ExecutionMode, PlanType, QueryHint, QueryOptions, QueryStats, QueryStatus, QueryType,
 };
 pub use self::span::{Position, Span, ToSpan};
+
+// Export storage identifier types for cross-module usage
+pub use self::storage_ids::{
+    ColumnId, EdgeDeletionContext, EdgeDeletionContextParams, EdgeId, EdgeIdentifier, EdgeKey,
+    EdgeLocation, EdgeOperationContext, EdgePropertyUpdateContext, LabelId, Timestamp, VertexId,
+    VertexIdentifier,
+};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;
 

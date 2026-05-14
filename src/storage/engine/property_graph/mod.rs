@@ -15,18 +15,16 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
+use crate::core::types::{EdgeId, LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{
-    EdgeId, EdgeRecord, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef,
+    EdgeRecord, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef,
 };
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::vertex::vertex_table::VertexIterator;
-use crate::storage::vertex::{
-    LabelId, PropertyDef as VertexPropertyDef, VertexRecord, VertexTable,
-};
-use crate::transaction::wal::types::Timestamp;
+use crate::storage::vertex::{PropertyDef as VertexPropertyDef, VertexRecord, VertexTable};
 use crate::transaction::wal::writer::WalWriter;
 
 use super::cache::CacheManager;

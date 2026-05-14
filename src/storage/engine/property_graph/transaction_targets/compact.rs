@@ -1,20 +1,18 @@
-use crate::storage::vertex::LabelId;
-use crate::transaction::compact_transaction::{CompactTarget, CompactTransactionResult};
-use crate::transaction::wal::types::Timestamp;
+use crate::interfaces::compact::{CompactConfig, CompactResult, CompactStats, CompactTarget};
+use crate::core::types::{LabelId, Timestamp};
 
 use super::super::PropertyGraph;
 
 impl CompactTarget for PropertyGraph {
     fn compact(
         &mut self,
-        compact_csr: bool,
-        reserve_ratio: f32,
+        config: &CompactConfig,
         ts: Timestamp,
-    ) -> CompactTransactionResult<()> {
+    ) -> CompactResult<()> {
         log::info!(
-            "Starting compaction: compact_csr={}, reserve_ratio={}, ts={}",
-            compact_csr,
-            reserve_ratio,
+            "Starting compaction: enable_structure_compaction={}, reserve_ratio={}, ts={}",
+            config.enable_structure_compaction,
+            config.reserve_ratio,
             ts
         );
 
@@ -51,14 +49,14 @@ impl CompactTarget for PropertyGraph {
         let edge_keys: Vec<(LabelId, LabelId, LabelId)> =
             self.edge_ops.edge_tables.keys().copied().collect();
 
-        if compact_csr {
+        if config.enable_structure_compaction {
             for &key in &edge_keys {
                 let table = self
                     .edge_ops
                     .edge_tables
                     .get_mut(&key)
                     .expect("edge key must exist");
-                let removed = table.compact_csr(ts, reserve_ratio);
+                let removed = table.compact_csr(ts, config.reserve_ratio);
                 total_edges_removed += removed;
             }
 
@@ -105,6 +103,14 @@ impl CompactTarget for PropertyGraph {
         Ok(())
     }
 
+    fn get_compact_stats(&self) -> CompactStats {
+        let total = self.storage_size();
+        let used = self.used_storage_size();
+        CompactStats::new(total, used)
+    }
+}
+
+impl PropertyGraph {
     fn storage_size(&self) -> usize {
         let mut total = 0usize;
 

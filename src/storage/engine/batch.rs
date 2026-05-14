@@ -3,8 +3,9 @@
 //! Provides efficient batch read/write interfaces for bulk data operations.
 //! Optimizes memory allocation and reduces function call overhead.
 
+use crate::core::types::{Timestamp, VertexId};
 use crate::core::Value;
-use crate::storage::edge::{EdgeRecord, EdgeTable, Timestamp, VertexId};
+use crate::storage::edge::{EdgeRecord, EdgeTable};
 use crate::storage::vertex::{VertexRecord, VertexTable};
 
 pub const DEFAULT_BATCH_SIZE: usize = 1024;

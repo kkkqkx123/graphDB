@@ -1,7 +1,11 @@
+use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult};
+use crate::interfaces::recovery::RecoveryApplier;
 use crate::transaction::codec::bytes_to_value;
-use crate::transaction::wal::{InsertEdgeRedo, RecoveryApplier, UpdateEdgePropRedo};
-use crate::transaction::wal::types::{LabelId as TxnLabelId, Timestamp};
+use crate::transaction::wal::{InsertEdgeRedo, UpdateEdgePropRedo};
+
+// Type alias for backward compatibility
+type TxnLabelId = LabelId;
 
 use crate::storage::engine::edge::EdgeOperationParams;
 use crate::storage::engine::transaction::{AddEdgeParams, DeleteEdgeParams, TransactionOps};

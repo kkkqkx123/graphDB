@@ -6,13 +6,13 @@ use std::path::PathBuf;
 
 use postcard::from_bytes;
 
+use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::{
     DeleteEdgeRedo, DeleteVertexRedo, InsertEdgeRedo, InsertVertexRedo, LocalWalParser,
     ParallelWalParser, ParsedWalEntry, RecoveryResult, UpdateEdgePropRedo, UpdateVertexPropRedo,
     WalOpType, WalParser, WalRecoveryMode,
 };
-use crate::transaction::wal::types::{LabelId, Timestamp};
 
 /// Recovery configuration
 #[derive(Debug, Clone)]

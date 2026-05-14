@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::{Condvar, Mutex, RwLock};
 
-use super::wal::types::Timestamp;
+use super::wal::Timestamp;
 
 /// Default ring buffer size for timestamp tracking
 const RING_BUF_SIZE: u32 = 1024 * 1024;

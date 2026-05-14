@@ -3,10 +3,10 @@
 //! This module provides transaction support including undo log management
 //! and automatic rollback on failure.
 
+use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::PropertyGraph;
 use crate::transaction::undo_log::{UndoLogEntry, UndoLogManager};
-use crate::transaction::wal::types::Timestamp;
 
 /// Transaction support for write operations
 pub struct TransactionSupport {

@@ -5,10 +5,11 @@
 
 use std::path::Path;
 
+use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::persistence_coordinator::{CheckpointData, CheckpointInfo, CheckpointStats};
-use crate::storage::vertex::Timestamp;
-use crate::transaction::compact_transaction::{CompactTarget, CompactTransaction};
+use crate::transaction::compact_transaction::CompactTransaction;
+use crate::interfaces::CompactTarget;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryManager, RecoveryStats};
 use crate::transaction::wal::writer::WalWriter;
 
@@ -200,23 +201,23 @@ impl<'a> PersistenceOps<'a> {
             reserve_ratio,
         ).map_err(|e| StorageError::db_error(format!("Failed to create compact transaction: {}", e)))?;
 
-        let (before_size, before_used) = txn.storage_stats();
+        let before_stats = txn.storage_stats();
         log::info!(
             "Starting transactional compaction: compact_csr={}, reserve_ratio={:.2}, size={}/{}",
             compact_csr,
             reserve_ratio,
-            before_used,
-            before_size
+            before_stats.used_size,
+            before_stats.total_size
         );
 
         txn.commit().map_err(|e| StorageError::db_error(format!("Compact transaction failed: {}", e)))?;
 
-        let (after_size, after_used) = (graph.storage_size(), graph.used_storage_size());
+        let after_stats = graph.get_compact_stats();
         log::info!(
             "Compaction completed: size={}/{} (freed {} bytes)",
-            after_used,
-            after_size,
-            before_used.saturating_sub(after_used)
+            after_stats.used_size,
+            after_stats.total_size,
+            before_stats.used_size.saturating_sub(after_stats.used_size)
         );
 
         Ok(())

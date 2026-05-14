@@ -1,14 +1,15 @@
+use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
 use crate::core::Value;
-use crate::storage::edge::{EdgeId, UpdateEdgePropertyByOffsetParams};
-use crate::storage::vertex::{LabelId, Timestamp};
+use crate::storage::edge::UpdateEdgePropertyByOffsetParams;
 use crate::transaction::insert_transaction::{
     InsertTransactionError, InsertTransactionResult,
 };
 use crate::transaction::codec::{bytes_to_value, property_value_to_value};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult};
-use crate::transaction::wal::types::{
-    LabelId as TxnLabelId, VertexId as TxnVertexId,
-};
+
+// Type aliases for backward compatibility
+type TxnLabelId = LabelId;
+type TxnVertexId = VertexId;
 
 use super::schema::SchemaOps;
 use super::edge::{EdgeOps, EdgeOperationParams};

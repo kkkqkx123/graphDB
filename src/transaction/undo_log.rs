@@ -3,8 +3,8 @@
 //! Provides transaction rollback support through undo log entries.
 //! Each undo log entry can reverse a specific operation during transaction abort.
 
-use crate::storage::{EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, VertexIdentifier};
-use super::wal::types::{ColumnId, EdgeId, LabelId, Timestamp, VertexId};
+use crate::core::types::{EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, VertexIdentifier};
+use super::wal::{ColumnId, EdgeId, LabelId, Timestamp, VertexId};
 
 /// Undo log error
 #[derive(Debug, Clone, thiserror::Error)]

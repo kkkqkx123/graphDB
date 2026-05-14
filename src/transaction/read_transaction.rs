@@ -5,7 +5,7 @@
 //! the transaction was started.
 
 use super::version_manager::{VersionManager, VersionManagerError};
-use super::wal::types::{LabelId, Timestamp, VertexId};
+use super::wal::{LabelId, Timestamp, VertexId};
 
 /// Invalid timestamp constant
 pub const INVALID_TIMESTAMP: Timestamp = 0;

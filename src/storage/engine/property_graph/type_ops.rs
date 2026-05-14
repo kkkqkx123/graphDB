@@ -3,9 +3,10 @@
 //! Contains vertex and edge type creation/deletion operations for PropertyGraph.
 //! This module handles low-level type management at the storage engine level.
 
+use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::edge::{EdgeStrategy, PropertyDef as EdgePropertyDef};
-use crate::storage::vertex::{LabelId, PropertyDef as VertexPropertyDef};
+use crate::storage::vertex::PropertyDef as VertexPropertyDef;
 
 use super::super::edge::CreateEdgeTypeParams;
 use super::PropertyGraph;

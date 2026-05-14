@@ -29,33 +29,6 @@ pub trait BatchProcessor: Send + Sync + std::fmt::Debug {
     async fn stop_background_task(&self);
 }
 
-/// Trait for transaction-aware buffering of index operations
-///
-/// This trait provides two-phase commit support for index operations:
-/// - Operations are buffered during transaction execution (prepare phase)
-/// - On commit: operations are cleared from buffer (caller executes them)
-/// - On rollback: operations are discarded
-///
-/// Note: The implementor only manages buffering, not execution.
-/// The caller is responsible for executing operations after commit.
-#[async_trait]
-pub trait TransactionBuffer: Send + Sync {
-    /// Buffer an operation for the given transaction (prepare phase)
-    async fn prepare(
-        &self,
-        txn_id: crate::transaction::types::TransactionId,
-        operation: IndexOperation,
-    ) -> BatchResult<()>;
-
-    /// Mark transaction as committed
-    ///
-    /// Note: This only clears the buffer. The caller must execute
-    /// the operations using `take_operations()` before or after calling this.
-    async fn commit(&self, txn_id: crate::transaction::types::TransactionId) -> BatchResult<()>;
-
-    /// Rollback the transaction by discarding all buffered operations
-    async fn rollback(&self, txn_id: crate::transaction::types::TransactionId) -> BatchResult<()>;
-
-    /// Get the number of pending operations for a transaction
-    fn pending_count(&self, txn_id: crate::transaction::types::TransactionId) -> usize;
-}
+// NOTE: TransactionBuffer trait has been moved to crate::interfaces::transaction_buffer
+// This module now re-exports it for backward compatibility
+pub use crate::interfaces::transaction_buffer::TransactionBuffer;

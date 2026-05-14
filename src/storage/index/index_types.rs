@@ -20,10 +20,10 @@
 //! - `EdgeIndexManager`: Index on edge properties
 
 use crate::core::StorageResult;
-use crate::storage::edge::Timestamp;
 
-pub type VertexId = u64;
-pub type EdgeId = u64;
+// Re-export fundamental types from core for backward compatibility
+pub use crate::core::types::{EdgeId, Timestamp, VertexId};
+
 pub type PropOffset = u32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

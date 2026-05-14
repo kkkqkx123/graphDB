@@ -9,8 +9,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{
-    Lsn, Timestamp, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
+    Lsn, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
 };
+use crate::core::types::Timestamp;
 use crate::storage::metadata::{TableId, TableTracker};
 
 /// Checkpoint information

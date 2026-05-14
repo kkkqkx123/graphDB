@@ -13,7 +13,8 @@
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::storage::index::index_types::{PrimaryIndex, VertexId};
+use crate::core::types::VertexId;
+use crate::storage::index::index_types::PrimaryIndex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DegreeInfo {
