@@ -432,7 +432,7 @@ impl TransactionContext {
     pub fn rollback_to_savepoint<T: UndoTarget + ?Sized>(
         &self,
         id: SavepointId,
-        target: &mut T,
+        target: &T,
     ) -> Result<(), TransactionError> {
         let state = self.state.load();
         if !state.can_execute() {
@@ -497,7 +497,7 @@ impl TransactionContext {
     }
 
     /// Execute undo logs for rollback
-    pub fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), TransactionError> {
+    pub fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &T) -> Result<(), TransactionError> {
         let mut undo_logs = self.undo_logs.write();
         undo_logs
             .execute_undo(target, self.start_timestamp)

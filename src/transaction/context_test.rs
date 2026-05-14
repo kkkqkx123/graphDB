@@ -16,20 +16,20 @@ use crate::transaction::undo_log::{UndoLogResult, UndoTarget};
 struct MockUndoTarget;
 
 impl UndoTarget for MockUndoTarget {
-    fn delete_vertex_type(&mut self, _label: LabelId) -> UndoLogResult<()> {
+    fn delete_vertex_type(&self, _label: LabelId) -> UndoLogResult<()> {
         Ok(())
     }
-    fn delete_edge_type(&mut self, _edge_key: EdgeKey) -> UndoLogResult<()> {
+    fn delete_edge_type(&self, _edge_key: EdgeKey) -> UndoLogResult<()> {
         Ok(())
     }
-    fn delete_vertex(&mut self, _vertex: VertexIdentifier, _ts: Timestamp) -> UndoLogResult<()> {
+    fn delete_vertex(&self, _vertex: VertexIdentifier, _ts: Timestamp) -> UndoLogResult<()> {
         Ok(())
     }
-    fn delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+    fn delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         Ok(())
     }
     fn undo_update_vertex_property(
-        &mut self,
+        &self,
         _vertex: VertexIdentifier,
         _col_id: ColumnId,
         _value: PropertyValue,
@@ -38,7 +38,7 @@ impl UndoTarget for MockUndoTarget {
         Ok(())
     }
     fn undo_update_edge_property(
-        &mut self,
+        &self,
         _edge_id: EdgeIdentifier,
         _oe_offset: i32,
         _ie_offset: i32,
@@ -49,24 +49,24 @@ impl UndoTarget for MockUndoTarget {
         Ok(())
     }
     fn revert_delete_vertex(
-        &mut self,
+        &self,
         _vertex: VertexIdentifier,
         _ts: Timestamp,
     ) -> UndoLogResult<()> {
         Ok(())
     }
-    fn revert_delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+    fn revert_delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         Ok(())
     }
     fn revert_delete_vertex_properties(
-        &mut self,
+        &self,
         _label_name: &str,
         _prop_names: &[String],
     ) -> UndoLogResult<()> {
         Ok(())
     }
     fn revert_delete_edge_properties(
-        &mut self,
+        &self,
         _src_label: &str,
         _dst_label: &str,
         _edge_label: &str,
@@ -74,11 +74,11 @@ impl UndoTarget for MockUndoTarget {
     ) -> UndoLogResult<()> {
         Ok(())
     }
-    fn revert_delete_vertex_label(&mut self, _label_name: &str) -> UndoLogResult<()> {
+    fn revert_delete_vertex_label(&self, _label_name: &str) -> UndoLogResult<()> {
         Ok(())
     }
     fn revert_delete_edge_label(
-        &mut self,
+        &self,
         _src_label: &str,
         _dst_label: &str,
         _edge_label: &str,
@@ -86,7 +86,7 @@ impl UndoTarget for MockUndoTarget {
         Ok(())
     }
     fn revert_rename_vertex_properties(
-        &mut self,
+        &self,
         _label_name: &str,
         _current_names: &[String],
         _original_names: &[String],
@@ -94,7 +94,7 @@ impl UndoTarget for MockUndoTarget {
         Ok(())
     }
     fn revert_rename_edge_properties(
-        &mut self,
+        &self,
         _src_label: &str,
         _dst_label: &str,
         _edge_label: &str,
@@ -370,8 +370,8 @@ fn test_rollback_to_savepoint() {
 
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
 
-    let mut mock_target = MockUndoTarget;
-    let result = ctx.rollback_to_savepoint(savepoint_id, &mut mock_target);
+    let mock_target = MockUndoTarget;
+    let result = ctx.rollback_to_savepoint(savepoint_id, &mock_target);
     assert!(result.is_ok());
 
     assert_eq!(ctx.operation_log_len(), 0);
@@ -385,8 +385,8 @@ fn test_rollback_to_nonexistent_savepoint() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    let mut mock_target = MockUndoTarget;
-    let result = ctx.rollback_to_savepoint(999, &mut mock_target);
+    let mock_target = MockUndoTarget;
+    let result = ctx.rollback_to_savepoint(999, &mock_target);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err.kind(), TransactionErrorKind::SavepointNotFound);
@@ -451,8 +451,8 @@ fn test_savepoint_with_operations() {
 
     assert_eq!(ctx.operation_log_len(), 2);
 
-    let mut mock_target = MockUndoTarget;
-    let result = ctx.rollback_to_savepoint(sp1, &mut mock_target);
+    let mock_target = MockUndoTarget;
+    let result = ctx.rollback_to_savepoint(sp1, &mock_target);
     assert!(result.is_ok());
 
     assert_eq!(ctx.operation_log_len(), 0);

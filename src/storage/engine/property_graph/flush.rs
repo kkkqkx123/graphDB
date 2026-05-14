@@ -46,7 +46,7 @@ pub fn flush(graph: &PropertyGraph) -> StorageResult<()> {
         }
     }
 
-    graph.wal_manager.sync()?;
+    graph.wal_manager.lock().sync()?;
 
     graph.table_tracker.clear();
 
@@ -97,7 +97,7 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
     drop(schema);
     drop(edge);
 
-    graph.wal_manager.sync()?;
+    graph.wal_manager.lock().sync()?;
 
     Ok(modified_tables)
 }
@@ -131,7 +131,7 @@ pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageRes
     fs::create_dir_all(&index_dir)?;
     graph.index_data_manager.read().flush(&index_dir)?;
 
-    graph.wal_manager.sync()?;
+    graph.wal_manager.lock().sync()?;
 
     Ok(())
 }

@@ -22,6 +22,7 @@
 //!    with direct offset access.
 
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::core::types::{EdgeId, LabelId};
 use crate::core::Value;
@@ -34,7 +35,7 @@ use crate::storage::memory::SharedMemoryTracker;
 /// Manager for storage caches
 pub struct CacheManager {
     pub record_cache: Option<SharedRecordCache>,
-    pub edge_property_cache: Option<Arc<EdgePropertyCache>>,
+    pub edge_property_cache: Mutex<Option<Arc<EdgePropertyCache>>>,
     pub memory_tracker: Option<SharedMemoryTracker>,
 }
 
@@ -55,23 +56,23 @@ impl CacheManager {
 
         Self {
             record_cache,
-            edge_property_cache: None,
+            edge_property_cache: Mutex::new(None),
             memory_tracker: Some(memory_tracker),
         }
     }
 
-    pub fn with_edge_property_cache(mut self, config: EdgePropertyCacheConfig) -> Self {
+    pub fn with_edge_property_cache(self, config: EdgePropertyCacheConfig) -> Self {
         if config.enabled {
-            self.edge_property_cache = Some(Arc::new(EdgePropertyCache::new(config)));
+            *self.edge_property_cache.lock().unwrap() = Some(Arc::new(EdgePropertyCache::new(config)));
         }
         self
     }
 
-    pub fn set_edge_property_cache(&mut self, config: EdgePropertyCacheConfig) {
+    pub fn set_edge_property_cache(&self, config: EdgePropertyCacheConfig) {
         if config.enabled {
-            self.edge_property_cache = Some(Arc::new(EdgePropertyCache::new(config)));
+            *self.edge_property_cache.lock().unwrap() = Some(Arc::new(EdgePropertyCache::new(config)));
         } else {
-            self.edge_property_cache = None;
+            *self.edge_property_cache.lock().unwrap() = None;
         }
     }
 
@@ -79,8 +80,8 @@ impl CacheManager {
         self.record_cache.as_ref()
     }
 
-    pub fn edge_property_cache(&self) -> Option<&Arc<EdgePropertyCache>> {
-        self.edge_property_cache.as_ref()
+    pub fn edge_property_cache(&self) -> Option<Arc<EdgePropertyCache>> {
+        self.edge_property_cache.lock().unwrap().clone()
     }
 
     pub fn memory_tracker(&self) -> Option<&SharedMemoryTracker> {
@@ -95,6 +96,8 @@ impl CacheManager {
 
     pub fn edge_cache_stats(&self) -> Option<Arc<EdgePropertyCacheStats>> {
         self.edge_property_cache
+            .lock()
+            .unwrap()
             .as_ref()
             .map(|c: &Arc<EdgePropertyCache>| c.stats())
     }
@@ -109,7 +112,7 @@ impl CacheManager {
         if let Some(ref record_cache) = self.record_cache {
             record_cache.clear();
         }
-        if let Some(ref edge_cache) = self.edge_property_cache {
+        if let Some(ref edge_cache) = *self.edge_property_cache.lock().unwrap() {
             edge_cache.clear();
         }
     }
@@ -176,25 +179,29 @@ impl CacheManager {
 
     pub fn get_edge_property(&self, edge_id: EdgeId, prop_name: &str) -> Option<Value> {
         self.edge_property_cache
+            .lock()
+            .unwrap()
             .as_ref()
             .and_then(|c| c.get(edge_id, prop_name))
     }
 
     pub fn cache_edge_property(&self, edge_id: EdgeId, prop_name: &str, value: Value) -> bool {
         self.edge_property_cache
+            .lock()
+            .unwrap()
             .as_ref()
             .map(|c| c.put(edge_id, prop_name, value))
             .unwrap_or(false)
     }
 
     pub fn invalidate_edge(&self, edge_id: EdgeId) {
-        if let Some(ref cache) = self.edge_property_cache {
+        if let Some(ref cache) = *self.edge_property_cache.lock().unwrap() {
             cache.invalidate(edge_id);
         }
     }
 
     pub fn invalidate_edge_property(&self, edge_id: EdgeId, prop_name: &str) {
-        if let Some(ref cache) = self.edge_property_cache {
+        if let Some(ref cache) = *self.edge_property_cache.lock().unwrap() {
             cache.invalidate_property(edge_id, prop_name);
         }
     }

@@ -22,7 +22,7 @@ impl RecoveryApplier for PropertyGraph {
         {
             let mut schema = self.schema_ops.write();
             TransactionOps::add_vertex(
-                &mut *schema,
+                &mut schema,
                 label,
                 oid,
                 properties,
@@ -83,8 +83,8 @@ impl RecoveryApplier for PropertyGraph {
             let schema = self.schema_ops.read();
             let mut edge = self.edge_ops.write();
             TransactionOps::add_edge(
-                &mut *edge,
-                &*schema,
+                &mut edge,
+                &schema,
                 params,
                 &redo.properties,
                 ts,
@@ -167,7 +167,7 @@ impl RecoveryApplier for PropertyGraph {
             {
                 let mut schema = self.schema_ops.write();
                 TransactionOps::delete_vertex(
-                    &mut *schema,
+                    &mut schema,
                     label,
                     vertex.internal_id as u64,
                     ts,
@@ -212,7 +212,7 @@ impl RecoveryApplier for PropertyGraph {
             {
                 let mut edge = self.edge_ops.write();
                 TransactionOps::delete_edge(
-                    &mut *edge,
+                    &mut edge,
                     params,
                     0,
                     0,

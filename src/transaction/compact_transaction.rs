@@ -176,7 +176,7 @@ mod tests {
 
     impl CompactTarget for MockCompactTarget {
         fn compact(
-            &mut self,
+            &self,
             _config: &CompactConfig,
             _ts: Timestamp,
         ) -> CompactResult<()> {
@@ -191,10 +191,10 @@ mod tests {
     #[test]
     fn test_compact_transaction_basic() {
         let vm = VersionManager::new();
-        let mut target = MockCompactTarget;
+        let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&mut target, &vm, &mut wal, true, 0.8)
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
             .expect("Failed to create compact transaction");
 
         assert!(txn.timestamp() >= 1);
@@ -205,10 +205,10 @@ mod tests {
     #[test]
     fn test_compact_transaction_commit() {
         let vm = VersionManager::new();
-        let mut target = MockCompactTarget;
+        let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&mut target, &vm, &mut wal, true, 0.8)
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
             .expect("Failed to create compact transaction");
 
         txn.commit().expect("Commit failed");
@@ -219,10 +219,10 @@ mod tests {
     #[test]
     fn test_compact_transaction_abort() {
         let vm = VersionManager::new();
-        let mut target = MockCompactTarget;
+        let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&mut target, &vm, &mut wal, true, 0.8)
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
             .expect("Failed to create compact transaction");
 
         txn.abort().expect("Abort failed");
@@ -233,10 +233,10 @@ mod tests {
     #[test]
     fn test_compact_transaction_reserve_ratio_clamp() {
         let vm = VersionManager::new();
-        let mut target = MockCompactTarget;
+        let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&mut target, &vm, &mut wal, true, 1.5)
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 1.5)
             .expect("Failed to create compact transaction");
 
         assert!((txn.reserve_ratio() - 1.0).abs() < 0.001);
@@ -245,10 +245,10 @@ mod tests {
     #[test]
     fn test_compact_transaction_storage_stats() {
         let vm = VersionManager::new();
-        let mut target = MockCompactTarget;
+        let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&mut target, &vm, &mut wal, true, 0.8)
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
             .expect("Failed to create compact transaction");
 
         let stats = txn.storage_stats();

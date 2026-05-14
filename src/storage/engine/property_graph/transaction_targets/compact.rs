@@ -3,8 +3,6 @@ use crate::core::types::{LabelId, Timestamp};
 
 use super::super::PropertyGraph;
 
-use std::sync::atomic::Ordering;
-
 impl CompactTarget for PropertyGraph {
     fn compact(
         &self,

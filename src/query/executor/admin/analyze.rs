@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 
 use crate::core::types::EdgeDirection;
 use crate::core::Value;

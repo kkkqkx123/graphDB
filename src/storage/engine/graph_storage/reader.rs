@@ -257,16 +257,15 @@ impl<'a> GraphStorageReader<'a> {
         let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-                if let Some(table) = self.ctx.graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
-                    for record in table.scan(ts) {
-                        let edge = edge_record_to_edge(
-                            &record,
-                            edge_type,
-                            &format!("{}", record.src_vid),
-                            &format!("{}", record.dst_vid),
-                        );
-                        edges.push(edge);
-                    }
+                let records = self.ctx.graph.scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
+                for record in records {
+                    let edge = edge_record_to_edge(
+                        &record,
+                        edge_type,
+                        &format!("{}", record.src_vid),
+                        &format!("{}", record.dst_vid),
+                    );
+                    edges.push(edge);
                 }
             }
         }
@@ -383,13 +382,12 @@ impl<'a> GraphStorageReader<'a> {
         let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-                if let Some(table) = self.ctx.graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
-                    let schema = self.ctx.schema_manager.get_edge_type_schema(space, edge_type)?;
+                let records = self.ctx.graph.scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
+                let schema = self.ctx.schema_manager.get_edge_type_schema(space, edge_type)?;
 
-                    for record in table.scan(ts) {
-                        let data = serialize_properties(&record.properties);
-                        results.push((schema.clone(), data));
-                    }
+                for record in records {
+                    let data = serialize_properties(&record.properties);
+                    results.push((schema.clone(), data));
                 }
             }
         }

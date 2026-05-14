@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 
 use crate::api::server::auth::UserStorage;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;

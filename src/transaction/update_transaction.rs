@@ -739,24 +739,24 @@ mod tests {
     struct MockUpdateTarget;
 
     impl UndoTarget for MockUpdateTarget {
-        fn delete_vertex_type(&mut self, _label: LabelId) -> UndoLogResult<()> {
+        fn delete_vertex_type(&self, _label: LabelId) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_edge_type(&mut self, _edge_key: EdgeKey) -> UndoLogResult<()> {
+        fn delete_edge_type(&self, _edge_key: EdgeKey) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_vertex(&mut self, _vertex: VertexIdentifier, _ts: Timestamp) -> UndoLogResult<()> {
+        fn delete_vertex(&self, _vertex: VertexIdentifier, _ts: Timestamp) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+        fn delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn undo_update_vertex_property(
-            &mut self,
+            &self,
             _vertex: VertexIdentifier,
             _col_id: ColumnId,
             _value: PropertyValue,
@@ -766,7 +766,7 @@ mod tests {
         }
 
         fn undo_update_edge_property(
-            &mut self,
+            &self,
             _edge_id: EdgeIdentifier,
             _oe_offset: i32,
             _ie_offset: i32,
@@ -778,19 +778,19 @@ mod tests {
         }
 
         fn revert_delete_vertex(
-            &mut self,
+            &self,
             _vertex: VertexIdentifier,
             _ts: Timestamp,
         ) -> UndoLogResult<()> {
             Ok(())
         }
 
-        fn revert_delete_edge(&mut self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+        fn revert_delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn revert_delete_vertex_properties(
-            &mut self,
+            &self,
             _label_name: &str,
             _prop_names: &[String],
         ) -> UndoLogResult<()> {
@@ -798,7 +798,7 @@ mod tests {
         }
 
         fn revert_delete_edge_properties(
-            &mut self,
+            &self,
             _src_label: &str,
             _dst_label: &str,
             _edge_label: &str,
@@ -807,12 +807,12 @@ mod tests {
             Ok(())
         }
 
-        fn revert_delete_vertex_label(&mut self, _label_name: &str) -> UndoLogResult<()> {
+        fn revert_delete_vertex_label(&self, _label_name: &str) -> UndoLogResult<()> {
             Ok(())
         }
 
         fn revert_delete_edge_label(
-            &mut self,
+            &self,
             _src_label: &str,
             _dst_label: &str,
             _edge_label: &str,
@@ -821,7 +821,7 @@ mod tests {
         }
 
         fn revert_rename_vertex_properties(
-            &mut self,
+            &self,
             _label_name: &str,
             _current_names: &[String],
             _original_names: &[String],
@@ -830,7 +830,7 @@ mod tests {
         }
 
         fn revert_rename_edge_properties(
-            &mut self,
+            &self,
             _src_label: &str,
             _dst_label: &str,
             _edge_label: &str,

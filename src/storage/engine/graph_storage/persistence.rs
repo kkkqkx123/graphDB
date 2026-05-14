@@ -71,8 +71,8 @@ impl<'a> PersistenceOps<'a> {
 
                 graph.flush_tables_to_dir(&data_dir)?;
 
-                let vertex_count: u64 = graph.vertex_tables().values().map(|t| t.total_count() as u64).sum();
-                let edge_count: u64 = graph.edge_tables().values().map(|t| t.edge_count()).sum();
+                let vertex_count = graph.total_vertex_count() as u64;
+                let edge_count = graph.total_edge_count() as u64;
 
                 let data_size = std::fs::metadata(&data_dir)
                     .map(|m| m.len())

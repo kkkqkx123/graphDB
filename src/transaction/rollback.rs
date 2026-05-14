@@ -72,7 +72,7 @@ pub(crate) trait UndoLogContext {
     #[allow(dead_code)]
     fn add_undo_log(&self, log: UndoLogEntry);
     
-    fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), StorageError>;
+    fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &T) -> Result<(), StorageError>;
     fn clear_undo_logs(&self);
 }
 
@@ -85,7 +85,7 @@ impl UndoLogContext for crate::transaction::context::TransactionContext {
         self.add_undo_log(log);
     }
 
-    fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &mut T) -> Result<(), StorageError> {
+    fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &T) -> Result<(), StorageError> {
         self.execute_undo_logs(target)
             .map_err(|e| StorageError::db_error(e.to_string()))
     }
@@ -148,7 +148,7 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
 
     pub fn execute_undo_rollback<U: UndoTarget + ?Sized>(
         &self,
-        target: &mut U,
+        target: &U,
         _ts: Timestamp,
     ) -> Result<(), StorageError> {
         self.ctx.execute_undo_logs(target)
@@ -352,7 +352,7 @@ mod tests {
             self.logs.borrow_mut().add(log);
         }
 
-        fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, _target: &mut T) -> Result<(), StorageError> {
+        fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, _target: &T) -> Result<(), StorageError> {
             self.logs.borrow_mut().clear();
             Ok(())
         }

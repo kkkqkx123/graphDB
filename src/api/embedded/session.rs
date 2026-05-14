@@ -15,7 +15,7 @@ use crate::sync::vector_sync::SearchOptions;
 use crate::sync::SyncManager;
 use crate::transaction::TransactionManager;
 use crate::transaction::TransactionOptions;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 

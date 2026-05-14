@@ -8,7 +8,7 @@ use std::time::Duration;
 use crc32fast::Hasher;
 use serde::{Deserialize, Serialize};
 
-use crate::core::types::{ColumnId, LabelId, Timestamp};
+use crate::core::types::{LabelId, Timestamp};
 
 /// WAL magic number for file identification
 pub const WAL_MAGIC: u32 = 0x47524150; // "GRAP" in hex

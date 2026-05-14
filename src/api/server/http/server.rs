@@ -11,7 +11,7 @@ use crate::config::Config;
 use crate::query::executor::expression::functions::FunctionRegistry;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// HTTP server

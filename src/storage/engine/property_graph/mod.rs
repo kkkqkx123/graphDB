@@ -9,7 +9,6 @@ mod index_mvcc;
 mod transaction_targets;
 mod type_ops;
 
-use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -20,12 +19,12 @@ use crate::core::types::{EdgeId, LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{
-    EdgeRecord, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef,
+    EdgeRecord, EdgeStrategy, PropertyDef as EdgePropertyDef,
 };
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
-use crate::storage::vertex::vertex_table::VertexIterator;
-use crate::storage::vertex::{PropertyDef as VertexPropertyDef, VertexRecord, VertexTable};
+use crate::storage::vertex::PropertyDef as VertexPropertyDef;
+use crate::storage::vertex::VertexRecord;
 use crate::transaction::wal::writer::WalWriter;
 
 use super::cache::CacheManager;
@@ -43,7 +42,7 @@ pub struct PropertyGraph {
     pub(crate) schema_ops: RwLock<SchemaOps>,
     pub(crate) edge_ops: RwLock<EdgeOps>,
     pub(crate) cache_manager: CacheManager,
-    pub(crate) wal_manager: WalManager,
+    pub(crate) wal_manager: Mutex<WalManager>,
     pub(crate) table_tracker: Arc<TableTracker>,
     pub(crate) memory_tracker: SharedMemoryTracker,
     pub(crate) config: PropertyGraphConfig,
@@ -123,7 +122,7 @@ impl PropertyGraph {
             schema_ops: RwLock::new(SchemaOps::new()),
             edge_ops: RwLock::new(EdgeOps::new()),
             cache_manager,
-            wal_manager: WalManager::new(),
+            wal_manager: Mutex::new(WalManager::new()),
             table_tracker,
             memory_tracker,
             config,
@@ -133,17 +132,17 @@ impl PropertyGraph {
         }
     }
 
-    pub fn with_wal(mut self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) -> Self {
-        self.wal_manager.set_wal_writer(wal_writer);
+    pub fn with_wal(self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) -> Self {
+        self.wal_manager.lock().set_wal_writer(wal_writer);
         self
     }
 
     pub fn set_wal_writer(&self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) {
-        self.wal_manager.set_wal_writer(wal_writer);
+        self.wal_manager.lock().set_wal_writer(wal_writer);
     }
 
     pub fn wal_enabled(&self) -> bool {
-        self.wal_manager.is_enabled()
+        self.wal_manager.lock().is_enabled()
     }
 
     pub fn memory_tracker(&self) -> &SharedMemoryTracker {
@@ -426,12 +425,13 @@ impl PropertyGraph {
 
     // ==================== Query Operations ====================
 
-    pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<VertexIterator<'_>> {
+    pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<Vec<VertexRecord>> {
         if !self.is_open.load(Ordering::Acquire) {
             return None;
         }
         let schema = self.schema_ops.read();
         QueryOps::scan_vertices(&schema.vertex_tables, label, ts)
+            .map(|iter| iter.collect())
     }
 
     pub fn vertex_count(&self, label: LabelId, ts: Timestamp) -> usize {
@@ -470,36 +470,54 @@ impl PropertyGraph {
 
     // ==================== Table Access ====================
 
-    pub fn get_vertex_table_opt(&self, label: LabelId) -> Option<crate::storage::vertex::VertexTable> {
+    pub fn get_vertex_table_opt(&self, label: LabelId) -> Option<String> {
         let schema = self.schema_ops.read();
-        schema.get_vertex_table(label).map(|t| {
-            crate::storage::vertex::VertexTable::empty_with_label(t.label_name().to_string())
-        })
+        schema.get_vertex_table(label).map(|t| t.label_name().to_string())
     }
 
-    pub fn get_edge_table(
+    pub fn scan_edges(
         &self,
         src_label: LabelId,
         dst_label: LabelId,
         edge_label: LabelId,
-    ) -> Option<EdgeTable> {
+        ts: Timestamp,
+    ) -> Vec<EdgeRecord> {
         let edge = self.edge_ops.read();
-        edge.get_edge_table(src_label, dst_label, edge_label).cloned()
+        edge.get_edge_table(src_label, dst_label, edge_label)
+            .map(|t| t.scan(ts))
+            .unwrap_or_default()
     }
 
-    pub fn get_edge_table_by_label(&self, edge_label: LabelId) -> Option<EdgeTable> {
+    pub fn scan_edges_by_label(
+        &self,
+        edge_label: LabelId,
+        ts: Timestamp,
+    ) -> Vec<EdgeRecord> {
         let edge = self.edge_ops.read();
-        edge.get_edge_table_by_label(edge_label).cloned()
+        edge.get_edge_table_by_label(edge_label)
+            .map(|t| t.scan(ts))
+            .unwrap_or_default()
     }
 
-    pub fn vertex_tables(&self) -> HashMap<LabelId, VertexTable> {
+    pub fn total_vertex_count(&self) -> usize {
         let schema = self.schema_ops.read();
-        schema.vertex_tables().clone()
+        schema.vertex_tables.values().map(|t| t.total_count()).sum()
     }
 
-    pub fn edge_tables(&self) -> HashMap<(LabelId, LabelId, LabelId), EdgeTable> {
+    pub fn total_edge_count(&self) -> usize {
         let edge = self.edge_ops.read();
-        edge.edge_tables().map(|(k, v)| (k.clone(), v.clone())).collect()
+        edge.edge_tables.values().map(|t| t.edge_count() as usize).sum()
+    }
+
+    pub fn collect_all_edge_records(&self, ts: Timestamp) -> Vec<(LabelId, LabelId, LabelId, EdgeRecord)> {
+        let edge = self.edge_ops.read();
+        let mut records = Vec::new();
+        for ((src_label, dst_label, edge_label), table) in &edge.edge_tables {
+            for edge_record in table.scan(ts) {
+                records.push((*src_label, *dst_label, *edge_label, edge_record));
+            }
+        }
+        records
     }
 
     // ==================== Persistence Operations ====================

@@ -7,7 +7,7 @@ use crate::storage::vertex::PropertyDef;
 
 #[test]
 fn test_create_and_get_vertex() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let label_id = graph
         .create_vertex_type(
             "person",
@@ -37,7 +37,7 @@ fn test_create_and_get_vertex() {
 
 #[test]
 fn test_create_edge() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -97,7 +97,7 @@ fn test_create_edge() {
 
 #[test]
 fn test_delete_vertex() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let label_id = graph
         .create_vertex_type(
             "person",
@@ -121,7 +121,7 @@ fn test_delete_vertex() {
 
 #[test]
 fn test_drop_vertex_type() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let _label_id = graph
         .create_vertex_type(
             "person",
@@ -136,7 +136,7 @@ fn test_drop_vertex_type() {
 
 #[test]
 fn test_vertex_count() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let label_id = graph
         .create_vertex_type(
             "person",
@@ -164,7 +164,7 @@ fn test_vertex_count() {
 
 #[test]
 fn test_out_edges() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -243,7 +243,7 @@ fn test_out_edges() {
 
 #[test]
 fn test_in_edges() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -322,7 +322,7 @@ fn test_in_edges() {
 
 #[test]
 fn test_update_vertex_property() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let label_id = graph
         .create_vertex_type(
             "person",
@@ -357,7 +357,7 @@ fn test_update_vertex_property() {
 
 #[test]
 fn test_update_edge_property() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -431,7 +431,7 @@ fn test_update_edge_property() {
 
 #[test]
 fn test_delete_edge() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -508,7 +508,7 @@ fn test_delete_edge() {
 
 #[test]
 fn test_edge_count() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -584,7 +584,7 @@ fn test_edge_count() {
 
 #[test]
 fn test_drop_edge_type() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -613,7 +613,7 @@ fn test_drop_edge_type() {
 
 #[test]
 fn test_vertex_label_names() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     graph
         .create_vertex_type(
             "person",
@@ -631,13 +631,13 @@ fn test_vertex_label_names() {
 
     let names = graph.vertex_label_names();
     assert_eq!(names.len(), 2);
-    assert!(names.contains(&"person"));
-    assert!(names.contains(&"company"));
+    assert!(names.iter().any(|n| n == "person"));
+    assert!(names.iter().any(|n| n == "company"));
 }
 
 #[test]
 fn test_edge_label_names() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -662,12 +662,12 @@ fn test_edge_label_names() {
 
     let names = graph.edge_label_names();
     assert_eq!(names.len(), 1);
-    assert!(names.contains(&"knows"));
+    assert!(names.iter().any(|n| n == "knows"));
 }
 
 #[test]
 fn test_duplicate_vertex_type() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     graph
         .create_vertex_type(
             "person",
@@ -686,7 +686,7 @@ fn test_duplicate_vertex_type() {
 
 #[test]
 fn test_duplicate_edge_type() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -725,7 +725,7 @@ fn test_duplicate_edge_type() {
 
 #[test]
 fn test_edge_with_missing_vertex_label() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",
@@ -750,7 +750,7 @@ fn test_edge_with_missing_vertex_label() {
 
 #[test]
 fn test_insert_vertex_with_missing_label() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let result = graph.insert_vertex(
         999,
         "alice",
@@ -762,7 +762,7 @@ fn test_insert_vertex_with_missing_label() {
 
 #[test]
 fn test_get_nonexistent_vertex() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let label_id = graph
         .create_vertex_type(
             "person",
@@ -777,7 +777,7 @@ fn test_get_nonexistent_vertex() {
 
 #[test]
 fn test_get_nonexistent_edge() {
-    let mut graph = PropertyGraph::new();
+    let graph = PropertyGraph::new();
     let person_label = graph
         .create_vertex_type(
             "person",

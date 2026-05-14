@@ -10,7 +10,6 @@ use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
 use crate::sync::vector_sync::VectorSyncCoordinator;
-use parking_lot::RwLock;
 
 /// Vector index metadata provider
 pub struct VectorIndexMetadataProvider {
