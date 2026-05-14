@@ -53,7 +53,7 @@ impl DefaultExpressionContext {
     /// Copy all variables from the ExecutionContext to the new DefaultExpressionContext.
     pub fn from_execution_context(ctx: &crate::query::executor::base::ExecutionContext) -> Self {
         Self {
-            variables: ctx.variables.lock().clone(),
+            variables: ctx.variables.read().clone(),
         }
     }
 

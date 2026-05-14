@@ -2,7 +2,7 @@
 //!
 //! Implement the UNION operation to merge two datasets and remove duplicate rows.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
@@ -26,7 +26,7 @@ impl<S: StorageClient> UnionExecutor<S> {
     /// Create a new Union executor.
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         left_input_var: String,
         right_input_var: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -124,10 +124,10 @@ mod tests {
     use ExpressionAnalysisContext;
 
     // Create a storage engine for testing purposes.
-    fn create_test_storage() -> Arc<Mutex<crate::storage::test_mock::MockStorage>> {
+    fn create_test_storage() -> Arc<RwLock<crate::storage::test_mock::MockStorage>> {
         let storage =
             crate::storage::test_mock::MockStorage::new().expect("Failed to create test storage");
-        Arc::new(Mutex::new(storage))
+        Arc::new(RwLock::new(storage))
     }
 
     #[test]

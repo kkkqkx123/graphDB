@@ -12,7 +12,7 @@
 //! - Use the AggFunctionManager to manage aggregate functions.
 //! - Unified handling of NULL and empty values
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -235,7 +235,7 @@ pub struct AggregateExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient> AggregateExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,
     ) -> Self {
@@ -244,7 +244,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
     pub fn with_col_names(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,
         col_names: Vec<String>,
@@ -898,7 +898,7 @@ pub struct GroupByExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> GroupByExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,
     ) -> Self {
@@ -974,7 +974,7 @@ pub struct HavingExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> HavingExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
+    pub fn new(id: i64, storage: Arc<RwLock<S>>, condition: Expression) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "HavingExecutor".to_string(),

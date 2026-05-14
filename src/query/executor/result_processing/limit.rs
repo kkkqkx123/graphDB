@@ -2,7 +2,7 @@
 //!
 //! Implementing a limit on the number of query results and an offset function, supporting the LIMIT and OFFSET operations.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
@@ -26,7 +26,7 @@ pub struct LimitExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, limit: Option<usize>, offset: usize) -> Self {
+    pub fn new(id: i64, storage: Arc<RwLock<S>>, limit: Option<usize>, offset: usize) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "LimitExecutor".to_string(),
@@ -43,12 +43,12 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
     }
 
     /// Only set the LIMIT
-    pub fn with_limit(id: i64, storage: Arc<Mutex<S>>, limit: usize) -> Self {
+    pub fn with_limit(id: i64, storage: Arc<RwLock<S>>, limit: usize) -> Self {
         Self::new(id, storage, Some(limit), 0)
     }
 
     /// Only set the OFFSET.
-    pub fn with_offset(id: i64, storage: Arc<Mutex<S>>, offset: usize) -> Self {
+    pub fn with_offset(id: i64, storage: Arc<RwLock<S>>, offset: usize) -> Self {
         Self::new(id, storage, None, offset)
     }
 
@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_limit_executor_basic() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_limit_executor_only_limit() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 

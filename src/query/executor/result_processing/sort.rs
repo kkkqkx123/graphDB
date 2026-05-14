@@ -4,7 +4,7 @@
 //!
 //! CPU-intensive operations are parallelized using Rayon.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -99,7 +99,7 @@ pub struct SortExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         sort_keys: Vec<SortKey>,
         limit: Option<usize>,
         config: SortConfig,
@@ -906,7 +906,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for SortExecutor<S> {
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for SortExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         &self.base.storage
     }
 }
@@ -975,7 +975,7 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
@@ -1003,7 +1003,7 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -1031,7 +1031,7 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -1061,7 +1061,7 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -1093,7 +1093,7 @@ mod tests {
         let sort_keys = vec![SortKey::from_column_index(10, SortOrder::Asc)]; // Invalid column index
 
         let config = SortConfig::default();
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -1119,7 +1119,7 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 

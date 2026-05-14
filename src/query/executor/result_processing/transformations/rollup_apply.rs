@@ -2,7 +2,7 @@
 //!
 //! Responsible for handling aggregation operations, which involve aggregating the values from the right input based on the keys from the left input.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -54,7 +54,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
 
     pub fn with_context(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: crate::query::executor::base::ExecutionContext,
         config: RollupApplyConfig,
     ) -> Self {
@@ -459,12 +459,12 @@ mod tests {
     use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_rollup_apply_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
@@ -513,7 +513,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_zero_key() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -567,7 +567,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_multi_key() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -630,7 +630,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_empty_right() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -683,7 +683,7 @@ mod tests {
 
     #[test]
     fn test_rollup_apply_empty_left() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 

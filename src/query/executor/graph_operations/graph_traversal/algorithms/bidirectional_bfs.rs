@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::core::{Edge, NPath, Path, Value, Vertex};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use super::traits::ShortestPathAlgorithm;
 use super::types::{
@@ -17,13 +17,13 @@ use super::types::{
 
 /// Bidirectional BFS (Broad-Search First) shortest path algorithm
 pub struct BidirectionalBFS<S: StorageClient> {
-    storage: Arc<Mutex<S>>,
+    storage: Arc<RwLock<S>>,
     stats: AlgorithmStats,
     edge_direction: crate::core::types::EdgeDirection,
 }
 
 impl<S: StorageClient> BidirectionalBFS<S> {
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         Self {
             storage,
             stats: AlgorithmStats::new(),
@@ -42,7 +42,7 @@ impl<S: StorageClient> BidirectionalBFS<S> {
         node_id: &Value,
         edge_types: Option<&[String]>,
     ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
 
         let edges = storage
             .get_node_edges("default", node_id, self.edge_direction)
@@ -98,7 +98,7 @@ impl<S: StorageClient> BidirectionalBFS<S> {
 
     /// Obtain the vertices
     fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
         storage
             .get_vertex("default", vid)
             .map_err(|e| QueryError::storage(e.to_string()))

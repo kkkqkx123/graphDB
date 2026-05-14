@@ -11,7 +11,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Delete Label Enforcer
 ///
@@ -27,7 +27,7 @@ pub struct DeleteTagExecutor<S: StorageClient> {
 impl<S: StorageClient> DeleteTagExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         tag_names: Vec<String>,
         vertex_ids: Vec<Value>,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -105,7 +105,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteTagExecutor
 }
 
 impl<S: StorageClient> HasStorage<S> for DeleteTagExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -113,7 +113,7 @@ impl<S: StorageClient> HasStorage<S> for DeleteTagExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
-        let mut storage = self.get_storage().lock();
+        let mut storage = self.get_storage().write();
 
         for vertex_id in &self.vertex_ids {
             // If you are in delete all labels mode, first get all label names of the vertices

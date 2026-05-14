@@ -2,7 +2,7 @@
 //!
 //! Provides reconstruction of tab indexes and side indexes.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -23,7 +23,7 @@ impl<S: StorageClient> RebuildTagIndexExecutor<S> {
     /// Creating a new RebuildTagIndexExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -44,7 +44,7 @@ impl<S: StorageClient> RebuildTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.rebuild_tag_index(&self.space_name, &self.index_name);
 
@@ -95,7 +95,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildTagIndexEx
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for RebuildTagIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -114,7 +114,7 @@ impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
     /// Creating a new RebuildEdgeIndexExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -135,7 +135,7 @@ impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.rebuild_edge_index(&self.space_name, &self.index_name);
 
@@ -186,7 +186,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildEdgeIndexE
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for RebuildEdgeIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

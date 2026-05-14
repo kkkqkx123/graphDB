@@ -16,7 +16,7 @@ use crate::query::planning::plan::core::nodes::{
     ScanVerticesNode,
 };
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Data Access Executor Builder
@@ -35,7 +35,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// Building the ScanVertices executor
     pub fn build_scan_vertices(
         node: &ScanVerticesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let col_names = if !node.col_names().is_empty() {
@@ -65,7 +65,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// Building the ScanEdges executor
     pub fn build_scan_edges(
         node: &ScanEdgesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ScanEdgesExecutor::new(
@@ -82,7 +82,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// Constructing the GetVertices executor
     pub fn build_get_vertices(
         node: &GetVerticesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let vertex_ids = parse_vertex_ids(node.src_vids());
@@ -115,7 +115,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// Constructing the GetNeighbors executor
     pub fn build_get_neighbors(
         node: &GetNeighborsNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let vertex_ids = parse_vertex_ids(node.src_vids());
@@ -139,7 +139,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// Building the EdgeIndexScan executor
     pub fn build_edge_index_scan(
         node: &EdgeIndexScanNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = IndexScanExecutor::new(
@@ -170,7 +170,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// Constructing the GetEdges executor
     pub fn build_get_edges(
         node: &GetEdgesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let edge_type = if node.edge_type().is_empty() {
@@ -191,7 +191,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// Building the IndexScan executor (for scanning tag indexes)
     pub fn build_index_scan(
         node: &IndexScanNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = IndexScanExecutor::new(

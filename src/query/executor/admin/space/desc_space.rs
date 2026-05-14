@@ -10,7 +10,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Figure space details
 #[derive(Debug, Clone)]
@@ -47,7 +47,7 @@ impl<S: StorageClient> DescSpaceExecutor<S> {
     /// Creating a new DescSpaceExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -61,7 +61,7 @@ impl<S: StorageClient> DescSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.get_space(&self.space_name);
 
@@ -128,7 +128,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescSpaceExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

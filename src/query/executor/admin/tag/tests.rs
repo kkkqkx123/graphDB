@@ -11,12 +11,12 @@ mod tests {
     use crate::query::executor::Executor;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_create_tag_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let properties = vec![
@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn test_alter_tag_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let new_prop = PropertyDef::new("email".to_string(), DataType::String);
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_drop_tag_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_drop_tag_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -114,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_desc_tag_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_show_tags_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());

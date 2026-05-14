@@ -13,7 +13,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// ExpandAllExecutor – An executor that performs full-path expansion
 ///
@@ -70,7 +70,7 @@ impl<S: StorageClient> std::fmt::Debug for ExpandAllExecutor<S> {
 /// Parameters for creating ExpandAllExecutor
 pub struct ExpandAllExecutorParams<S: StorageClient + Send> {
     pub id: i64,
-    pub storage: Arc<Mutex<S>>,
+    pub storage: Arc<RwLock<S>>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub any_edge_type: bool,
@@ -212,7 +212,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
             // Obtain the complete information of the neighboring nodes.
             let neighbor_vertex = {
-                let storage = self.get_storage().lock();
+                let storage = self.get_storage().read();
                 storage
                     .get_vertex("default", &neighbor_id)
                     .map_err(|e| QueryError::storage(e.to_string()))?
@@ -580,7 +580,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
 
         // If src_vids is set (from GO FROM clause), add those vertices as input nodes
         if !self.src_vids.is_empty() {
-            let storage = self.get_storage().lock();
+            let storage = self.get_storage().read();
             for vid in &self.src_vids {
                 match storage.get_vertex(&self.space_name, vid) {
                     Ok(Some(vertex)) => {
@@ -661,7 +661,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
 }
 
 impl<S: StorageClient + Send> HasStorage<S> for ExpandAllExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
             .as_ref()

@@ -1,6 +1,6 @@
 //! Describe Fulltext Index Executor
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::DBError;
@@ -23,7 +23,7 @@ pub struct DescribeFulltextIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> DescribeFulltextIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         index_name: String,
         space_id: u64,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -55,7 +55,7 @@ impl<S: StorageClient> DescribeFulltextIndexExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for DescribeFulltextIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

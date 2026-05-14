@@ -2,7 +2,7 @@
 //!
 //! Provide the basic implementations for all join operations, including core functions such as hash table construction and detection.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -43,7 +43,7 @@ pub struct BaseJoinExecutor<S: StorageClient> {
 impl<S: StorageClient> BaseJoinExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionContextStruct>,
         config: JoinConfig,
     ) -> Self {
@@ -64,7 +64,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
     pub fn with_description(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionContextStruct>,
         config: JoinConfigWithDesc,
     ) -> Self {
@@ -83,7 +83,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
     pub fn with_context(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: crate::query::executor::base::ExecutionContext,
         config: JoinConfigWithDesc,
     ) -> Self {
@@ -431,7 +431,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
     for BaseJoinExecutor<S>
 {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
             .as_ref()

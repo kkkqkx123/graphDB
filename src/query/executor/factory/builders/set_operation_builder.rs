@@ -10,7 +10,7 @@ use crate::query::executor::relational_algebra::set_operations::{
 };
 use crate::query::planning::plan::core::nodes::{IntersectNode, MinusNode, UnionNode};
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Set Operation Executor Builder
@@ -29,7 +29,7 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
     /// Building a Union executor
     pub fn build_union(
         node: &UnionNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The UnionExecutor requires left_input_var and right_input_var.
@@ -53,7 +53,7 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
     /// Building the Minus executor
     pub fn build_minus(
         node: &MinusNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The `MinusExecutor` requires `left_input_var` and `right_input_var`.
@@ -76,7 +76,7 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
     /// Constructing the Intersect executor
     pub fn build_intersect(
         node: &IntersectNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The IntersectExecutor requires the left_input_var and right_input_var parameters.

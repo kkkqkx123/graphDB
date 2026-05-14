@@ -2,7 +2,7 @@
 //!
 //! Responsible for viewing the details of the specified edge type.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::types::graph_schema::PropertyType;
@@ -40,7 +40,7 @@ impl<S: StorageClient> DescEdgeExecutor<S> {
     /// Creating a new DescEdgeExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         edge_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -56,7 +56,7 @@ impl<S: StorageClient> DescEdgeExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.get_edge_type(&self.space_name, &self.edge_name);
 
@@ -133,7 +133,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescEdgeExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

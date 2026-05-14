@@ -149,7 +149,7 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
     let storage_stats = {
         let storage = storage.clone();
         tokio::task::spawn_blocking(move || {
-            let storage = storage.lock();
+            let storage = storage.read();
             storage.get_storage_stats()
         })
         .await

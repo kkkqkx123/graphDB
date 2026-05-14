@@ -2,7 +2,7 @@
 //!
 //! Provides creation, deletion, description and listing functions for side indexes.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::types::index::IndexConfig;
@@ -76,7 +76,7 @@ pub struct CreateEdgeIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -96,7 +96,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
 
     pub fn with_if_not_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -118,7 +118,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.create_edge_index(&self.space_name, &self.index_info);
 
@@ -168,13 +168,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeIndexEx
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowEdgeIndexesExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateEdgeIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -191,7 +191,7 @@ pub struct DropEdgeIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> DropEdgeIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -211,7 +211,7 @@ impl<S: StorageClient> DropEdgeIndexExecutor<S> {
 
     pub fn with_if_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -233,7 +233,7 @@ impl<S: StorageClient> DropEdgeIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.drop_edge_index(&self.space_name, &self.index_name);
 
@@ -283,7 +283,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeIndexExec
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropEdgeIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -299,7 +299,7 @@ pub struct DescEdgeIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> DescEdgeIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -320,7 +320,7 @@ impl<S: StorageClient> DescEdgeIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.get_edge_index(&self.space_name, &self.index_name);
 
@@ -383,7 +383,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeIndexExec
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescEdgeIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -398,7 +398,7 @@ pub struct ShowEdgeIndexesExecutor<S: StorageClient> {
 impl<S: StorageClient> ShowEdgeIndexesExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -417,7 +417,7 @@ impl<S: StorageClient> ShowEdgeIndexesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgeIndexesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.list_edge_indexes(&self.space_name);
 

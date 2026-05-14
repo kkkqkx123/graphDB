@@ -2,7 +2,7 @@
 //!
 //! Responsible for changing user passwords.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::DBError;
@@ -25,7 +25,7 @@ pub struct ChangePasswordExecutor<S: StorageClient> {
 impl<S: StorageClient> ChangePasswordExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         username: Option<String>,
         old_password: String,
         new_password: String,
@@ -48,7 +48,7 @@ impl<S: StorageClient> ChangePasswordExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage = storage.lock();
+        let mut storage = storage.write();
         let password_info = PasswordInfo {
             username: self.username.clone(),
             old_password: self.old_password.clone(),
@@ -97,7 +97,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExe
 }
 
 impl<S: StorageClient> HasStorage<S> for ChangePasswordExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_change_password_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

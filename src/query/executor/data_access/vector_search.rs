@@ -19,7 +19,7 @@ use crate::query::planning::plan::core::nodes::search::vector::data_access::{
 use crate::query::DataSet;
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::{SearchOptions, VectorSyncCoordinator};
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use vector_client::types::SearchResult;
 
 /// Vector search executor
@@ -35,7 +35,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
     pub fn new(
         id: i64,
         node: VectorSearchNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
         coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
@@ -368,7 +368,7 @@ impl<S: StorageClient> Executor<S> for VectorSearchExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for VectorSearchExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -388,7 +388,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
     pub fn new(
         id: i64,
         node: VectorLookupNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
         coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
@@ -598,7 +598,7 @@ impl<S: StorageClient> Executor<S> for VectorLookupExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for VectorLookupExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -618,7 +618,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
     pub fn new(
         id: i64,
         node: VectorMatchNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
         coordinator: Arc<crate::sync::vector_sync::VectorSyncCoordinator>,
     ) -> Self {
@@ -790,7 +790,7 @@ impl<S: StorageClient> Executor<S> for VectorMatchExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for VectorMatchExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

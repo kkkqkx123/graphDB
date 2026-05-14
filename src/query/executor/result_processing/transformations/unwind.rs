@@ -2,7 +2,7 @@
 //!
 //! Responsible for handling the list expansion process, expanding each element in the list into a separate row.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
@@ -34,7 +34,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     /// Create a new UnwindExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _input_var: String,
         unwind_expression: Expression,
         col_names: Vec<String>,
@@ -52,7 +52,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     /// Create an UnwindExecutor with context information
     pub fn with_context(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _input_var: String,
         unwind_expression: Expression,
         col_names: Vec<String>,
@@ -183,12 +183,12 @@ mod tests {
     use super::*;
     use crate::core::{Expression, List, Value};
     use crate::storage::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_unwind_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 

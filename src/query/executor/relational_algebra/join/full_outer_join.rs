@@ -1,4 +1,4 @@
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ pub struct FullOuterJoinExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionContextStruct>,
         config: FullOuterJoinConfig,
     ) -> Self {
@@ -275,7 +275,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for FullOuterJoinExecutor<S>
 impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
     for FullOuterJoinExecutor<S>
 {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .get_base()
             .storage

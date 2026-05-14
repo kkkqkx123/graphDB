@@ -13,13 +13,13 @@ use crate::query::planning::plan::control_flow::{
 };
 use crate::query::planning::plan::DataCollectNode;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Create executor function type alias
 type CreateExecutorFn<S> = dyn FnMut(
     &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-    Arc<Mutex<S>>,
+    Arc<RwLock<S>>,
     &ExecutionContext,
 ) -> Result<ExecutorEnum<S>, QueryError>;
 
@@ -39,7 +39,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Constructing a Loop Executor
     pub fn build_loop(
         node: &LoopNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         create_executor_fn: &mut CreateExecutorFn<S>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -69,7 +69,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Building the Select Executor
     pub fn build_select(
         node: &SelectNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         create_executor_fn: &mut CreateExecutorFn<S>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -105,7 +105,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Constructing an Argument Executor
     pub fn build_argument(
         node: &ArgumentNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ArgumentExecutor::new(
@@ -120,7 +120,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Constructing a PassThrough executor
     pub fn build_pass_through(
         node: &PassThroughNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -131,7 +131,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Building the DataCollect executor
     pub fn build_data_collect(
         node: &DataCollectNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -142,7 +142,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Building the BeginTransaction executor
     pub fn build_begin_transaction(
         node: &BeginTransactionNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -153,7 +153,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Building the Commit executor
     pub fn build_commit(
         node: &CommitNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -164,7 +164,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// Building the Rollback executor
     pub fn build_rollback(
         node: &RollbackNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =

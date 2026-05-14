@@ -7,7 +7,7 @@ use graphdb::core::error::DBError;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Query execution helper
@@ -17,7 +17,7 @@ pub struct QueryHelper<S: graphdb::storage::StorageClient + 'static> {
 
 impl<S: graphdb::storage::StorageClient + 'static> QueryHelper<S> {
     /// Create a new query helper
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         use graphdb::core::stats::StatsManager;
         use graphdb::query::optimizer::OptimizerEngine;
         use std::sync::Arc;

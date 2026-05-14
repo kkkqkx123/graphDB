@@ -11,7 +11,7 @@ use crate::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
 use crate::storage::{GraphStorage, StorageClient};
 use crate::sync::{SyncConfig, SyncManager};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -101,7 +101,7 @@ impl GraphDatabase<GraphStorage> {
             })?
         };
 
-        let storage = Arc::new(Mutex::new(storage));
+        let storage = Arc::new(RwLock::new(storage));
 
         let fulltext_config = FulltextConfig::default();
         let vector_config = VectorClientConfig::default();
@@ -186,12 +186,12 @@ impl GraphDatabase<GraphStorage> {
         let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
 
         let query_api = if let Some(ref sync) = sync_manager {
-            Arc::new(Mutex::new(QueryApi::with_sync_manager(
+            Arc::new(RwLock::new(QueryApi::with_sync_manager(
                 storage.clone(),
                 sync.clone(),
             )))
         } else {
-            Arc::new(Mutex::new(QueryApi::new(storage.clone())))
+            Arc::new(RwLock::new(QueryApi::new(storage.clone())))
         };
         let schema_api = SchemaApi::new(storage.clone());
 
@@ -298,9 +298,17 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
     /// Getting a reference to the storage client
     ///
     /// # Return
-    /// - MutexGuard for Storage Clients
-    pub fn storage(&self) -> parking_lot::MutexGuard<'_, S> {
-        self.inner.storage.lock()
+    /// - RwLockReadGuard for Storage Clients
+    pub fn storage(&self) -> parking_lot::RwLockReadGuard<'_, S> {
+        self.inner.storage.read()
+    }
+
+    /// Getting a mutable reference to the storage client
+    ///
+    /// # Return
+    /// - RwLockWriteGuard for Storage Clients
+    pub fn storage_mut(&self) -> parking_lot::RwLockWriteGuard<'_, S> {
+        self.inner.storage.write()
     }
 }
 
@@ -326,12 +334,12 @@ impl GraphDatabase<MockStorage> {
             CoreError::StorageError(format!("Failed to initialize Mock store: {}", e))
         })?;
 
-        let storage = Arc::new(Mutex::new(storage));
+        let storage = Arc::new(RwLock::new(storage));
 
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
 
-        let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
+        let query_api = Arc::new(RwLock::new(QueryApi::new(storage.clone())));
         let schema_api = SchemaApi::new(storage.clone());
 
         let inner = Arc::new(GraphDatabaseInner {

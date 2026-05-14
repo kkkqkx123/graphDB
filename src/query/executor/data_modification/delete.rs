@@ -17,7 +17,7 @@ use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Delete the executor.
 ///
@@ -37,7 +37,7 @@ pub struct DeleteExecutor<S: StorageClient> {
 impl<S: StorageClient> DeleteExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<(Value, Value, String)>>,
         condition: Option<ContextualExpression>,
@@ -134,7 +134,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteExecutor<S>
 }
 
 impl<S: StorageClient> HasStorage<S> for DeleteExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -146,7 +146,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         let condition_expression = self.condition.as_ref().and_then(|c| c.get_expression());
 
         if let Some(ids) = &self.vertex_ids {
-            let mut storage = self.get_storage().lock();
+            let mut storage = self.get_storage().write();
             for id in ids {
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
@@ -212,7 +212,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         }
 
         if let Some(edges) = &self.edge_ids {
-            let mut storage = self.get_storage().lock();
+            let mut storage = self.get_storage().write();
             for (src, dst, edge_type) in edges {
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(edge)) =
@@ -267,7 +267,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 
         if let Some(tag_names) = &self.tag_names {
             if let Some(ids) = &self.vertex_ids {
-                let mut storage = self.get_storage().lock();
+                let mut storage = self.get_storage().write();
                 for id in ids {
                     if self.is_all_tags {
                         if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
@@ -289,7 +289,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         }
 
         if let Some(index_name) = &self.index_name {
-            let mut storage = self.get_storage().lock();
+            let mut storage = self.get_storage().write();
             if storage.drop_tag_index(&self.space_name, index_name).is_ok() {
                 total_deleted += 1;
             }
@@ -322,7 +322,7 @@ pub struct PipeDeleteExecutor<S: StorageClient + 'static> {
 impl<S: StorageClient + 'static> PipeDeleteExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -453,7 +453,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for PipeDeleteExecuto
 }
 
 impl<S: StorageClient> HasStorage<S> for PipeDeleteExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -469,7 +469,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         let col_names = &input_data.col_names;
 
         if !self.vertex_id_expressions.is_empty() {
-            let mut storage = self.get_storage().lock();
+            let mut storage = self.get_storage().write();
 
             for row in &input_data.rows {
                 for vid_expr in &self.vertex_id_expressions {
@@ -519,7 +519,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
         }
 
         if !self.edge_expressions.is_empty() {
-            let mut storage = self.get_storage().lock();
+            let mut storage = self.get_storage().write();
             let edge_type = self
                 .edge_type
                 .clone()

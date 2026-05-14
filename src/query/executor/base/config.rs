@@ -7,21 +7,21 @@ use std::sync::Arc;
 use crate::core::Expression;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Universal Actuator Configuration
 ///
 /// Encapsulates the basic configuration common to all actuators
 pub struct ExecutorConfig<S: StorageClient> {
     pub id: i64,
-    pub storage: Arc<Mutex<S>>,
+    pub storage: Arc<RwLock<S>>,
     pub expr_context: Arc<ExpressionAnalysisContext>,
 }
 
 impl<S: StorageClient> ExecutorConfig<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {

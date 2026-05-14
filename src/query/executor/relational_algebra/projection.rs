@@ -4,7 +4,7 @@
 //!
 //! CPU-intensive operations are parallelized using Rayon.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -182,7 +182,7 @@ pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient> ProjectExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         columns: Vec<ProjectionColumn>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -478,7 +478,7 @@ mod tests {
 
     #[test]
     fn test_simple_projection() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -519,7 +519,7 @@ mod tests {
 
     #[test]
     fn test_expression_projection() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

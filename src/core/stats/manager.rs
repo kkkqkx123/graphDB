@@ -3,7 +3,7 @@
 //! Provides unified management of query metrics, query portraits and error statistics.
 
 use dashmap::DashMap;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -115,9 +115,9 @@ impl MetricValue {
 pub struct StatsManager {
     metrics: Arc<DashMap<MetricType, Arc<MetricValue>>>,
     space_metrics: Arc<DashMap<String, SpaceMetrics>>,
-    last_query_metrics: Arc<Mutex<Option<QueryMetrics>>>,
-    query_profiles: Arc<Mutex<VecDeque<QueryProfile>>>,
-    query_latency_histogram: Arc<Mutex<LatencyHistogram>>,
+    last_query_metrics: Arc<RwLock<Option<QueryMetrics>>>,
+    query_profiles: Arc<RwLock<VecDeque<QueryProfile>>>,
+    query_latency_histogram: Arc<RwLock<LatencyHistogram>>,
     config: crate::config::MonitoringConfig,
     error_stats: ErrorStatsManager,
     slow_query_logger: Option<Arc<SlowQueryLogger>>,
@@ -134,9 +134,9 @@ impl StatsManager {
         Self {
             metrics: Arc::new(DashMap::new()),
             space_metrics: Arc::new(DashMap::new()),
-            last_query_metrics: Arc::new(Mutex::new(None)),
-            query_profiles: Arc::new(Mutex::new(VecDeque::with_capacity(cache_size))),
-            query_latency_histogram: Arc::new(Mutex::new(LatencyHistogram::new(10000))),
+            last_query_metrics: Arc::new(RwLock::new(None)),
+            query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(cache_size))),
+            query_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
             config,
             error_stats: ErrorStatsManager::new(),
             slow_query_logger: None,
@@ -155,9 +155,9 @@ impl StatsManager {
         Ok(Self {
             metrics: Arc::new(DashMap::new()),
             space_metrics: Arc::new(DashMap::new()),
-            last_query_metrics: Arc::new(Mutex::new(None)),
-            query_profiles: Arc::new(Mutex::new(VecDeque::with_capacity(cache_size))),
-            query_latency_histogram: Arc::new(Mutex::new(LatencyHistogram::new(10000))),
+            last_query_metrics: Arc::new(RwLock::new(None)),
+            query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(cache_size))),
+            query_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
             config,
             error_stats: ErrorStatsManager::new(),
             slow_query_logger: Some(logger),
@@ -174,7 +174,7 @@ impl StatsManager {
             self.write_slow_query_log(&profile);
         }
 
-        let mut profiles = self.query_profiles.lock();
+        let mut profiles = self.query_profiles.write();
         if profiles.len() >= self.config.memory_cache_size {
             profiles.pop_front();
         }
@@ -251,12 +251,12 @@ impl StatsManager {
     }
 
     pub fn get_recent_queries(&self, limit: usize) -> Vec<QueryProfile> {
-        let profiles = self.query_profiles.lock();
+        let profiles = self.query_profiles.write();
         profiles.iter().rev().take(limit).cloned().collect()
     }
 
     pub fn get_slow_queries(&self, limit: usize) -> Vec<QueryProfile> {
-        let profiles = self.query_profiles.lock();
+        let profiles = self.query_profiles.write();
         profiles
             .iter()
             .filter(|p| p.total_duration_us >= self.config.slow_query_threshold_ms * 1000)
@@ -268,7 +268,7 @@ impl StatsManager {
 
     /// Get slow query statistics
     pub fn get_slow_query_stats(&self) -> SlowQueryStats {
-        let profiles = self.query_profiles.lock();
+        let profiles = self.query_profiles.write();
         let slow_queries: Vec<&QueryProfile> = profiles
             .iter()
             .filter(|p| p.total_duration_us >= self.config.slow_query_threshold_ms * 1000)
@@ -309,12 +309,12 @@ pub struct SlowQueryStats {
 
 impl StatsManager {
     pub fn get_query_profile(&self, trace_id: &str) -> Option<QueryProfile> {
-        let profiles = self.query_profiles.lock();
+        let profiles = self.query_profiles.write();
         profiles.iter().find(|p| p.trace_id == trace_id).cloned()
     }
 
     pub fn get_session_queries(&self, session_id: i64, limit: usize) -> Vec<QueryProfile> {
-        let profiles = self.query_profiles.lock();
+        let profiles = self.query_profiles.write();
         profiles
             .iter()
             .filter(|p| p.session_id == session_id)
@@ -325,7 +325,7 @@ impl StatsManager {
     }
 
     pub fn get_executor_stats_summary(&self) -> HashMap<String, (u64, u64, usize)> {
-        let profiles = self.query_profiles.lock();
+        let profiles = self.query_profiles.write();
         let mut stats: HashMap<String, (u64, u64, usize)> = HashMap::new();
 
         for profile in profiles.iter() {
@@ -343,12 +343,12 @@ impl StatsManager {
     }
 
     pub fn clear_query_cache(&self) {
-        let mut profiles = self.query_profiles.lock();
+        let mut profiles = self.query_profiles.write();
         profiles.clear();
     }
 
     pub fn query_cache_size(&self) -> usize {
-        let profiles = self.query_profiles.lock();
+        let profiles = self.query_profiles.write();
         profiles.len()
     }
 
@@ -482,13 +482,13 @@ impl StatsManager {
     }
 
     pub fn record_query_metrics(&self, metrics: &QueryMetrics) {
-        let mut last_metrics = self.last_query_metrics.lock();
+        let mut last_metrics = self.last_query_metrics.write();
         *last_metrics = Some(metrics.clone());
         drop(last_metrics);
 
         // Record latency histogram
         {
-            let mut histogram = self.query_latency_histogram.lock();
+            let mut histogram = self.query_latency_histogram.write();
             histogram.record_micros(metrics.total_time_us);
         }
 
@@ -520,7 +520,7 @@ impl StatsManager {
 
     /// Get latency percentiles (avg, p50, p95, p99) in microseconds
     pub fn get_latency_percentiles(&self) -> (u64, u64, u64, u64) {
-        let histogram = self.query_latency_histogram.lock();
+        let histogram = self.query_latency_histogram.write();
         (
             histogram.avg(),
             histogram.p50(),
@@ -531,18 +531,18 @@ impl StatsManager {
 
     /// Get latency histogram report
     pub fn get_latency_report(&self) -> String {
-        let histogram = self.query_latency_histogram.lock();
+        let histogram = self.query_latency_histogram.write();
         histogram.report()
     }
 
     /// Clear latency histogram
     pub fn clear_latency_histogram(&self) {
-        let mut histogram = self.query_latency_histogram.lock();
+        let mut histogram = self.query_latency_histogram.write();
         histogram.clear();
     }
 
     pub fn get_last_query_metrics(&self) -> Option<QueryMetrics> {
-        let last_metrics = self.last_query_metrics.lock();
+        let last_metrics = self.last_query_metrics.write();
         last_metrics.clone()
     }
 

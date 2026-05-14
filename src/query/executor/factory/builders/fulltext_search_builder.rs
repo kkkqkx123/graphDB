@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use crate::core::error::QueryError;
 use crate::core::types::span::Span;
@@ -44,7 +44,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build CreateFulltextIndex executor
     pub fn build_create_fulltext_index(
         node: &CreateFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -77,7 +77,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build DropFulltextIndex executor
     pub fn build_drop_fulltext_index(
         node: &DropFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -104,7 +104,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build AlterFulltextIndex executor
     pub fn build_alter_fulltext_index(
         node: &AlterFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -128,7 +128,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build ShowFulltextIndex executor
     pub fn build_show_fulltext_index(
         node: &ShowFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -150,7 +150,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build DescribeFulltextIndex executor
     pub fn build_describe_fulltext_index(
         node: &DescribeFulltextIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -176,7 +176,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build FulltextSearch executor
     pub fn build_fulltext_search(
         node: &FulltextSearchNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -231,7 +231,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build FulltextLookup executor
     pub fn build_fulltext_lookup(
         node: &FulltextLookupNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -266,7 +266,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
     /// Build MatchFulltext executor
     pub fn build_match_fulltext(
         node: &MatchFulltextNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {

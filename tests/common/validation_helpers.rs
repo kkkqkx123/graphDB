@@ -6,7 +6,7 @@ use crate::common::TestResult;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -17,7 +17,7 @@ pub struct ValidationHelper<S: graphdb::storage::StorageClient + 'static> {
 
 impl<S: graphdb::storage::StorageClient + 'static> ValidationHelper<S> {
     /// Create a new validation helper
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         use graphdb::core::stats::StatsManager;
         use graphdb::query::optimizer::OptimizerEngine;
         use std::sync::Arc;

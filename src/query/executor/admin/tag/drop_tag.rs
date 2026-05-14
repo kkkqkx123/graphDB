@@ -2,7 +2,7 @@
 //!
 //! Responsible for deleting the specified tag and all its data.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -24,7 +24,7 @@ impl<S: StorageClient> DropTagExecutor<S> {
     /// Create a new DropTagExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         tag_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -40,7 +40,7 @@ impl<S: StorageClient> DropTagExecutor<S> {
     /// Creating a DropTagExecutor with the IF EXISTS option
     pub fn with_if_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         tag_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -57,7 +57,7 @@ impl<S: StorageClient> DropTagExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let vertices_with_tag = storage_guard
             .scan_vertices_by_tag(&self.space_name, &self.tag_name)
@@ -123,7 +123,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagExecutor<S
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropTagExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

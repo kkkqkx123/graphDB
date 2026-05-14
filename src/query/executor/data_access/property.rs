@@ -7,7 +7,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 #[derive(Debug)]
 pub struct GetPropExecutor<S: StorageClient> {
@@ -20,7 +20,7 @@ pub struct GetPropExecutor<S: StorageClient> {
 impl<S: StorageClient> GetPropExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<Value>>,
         prop_names: Vec<String>,
@@ -87,14 +87,14 @@ impl<S: StorageClient> Executor<S> for GetPropExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
 impl<S: StorageClient> GetPropExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
-        let storage = self.get_storage().lock();
+        let storage = self.get_storage().read();
 
         let mut props = Vec::new();
 

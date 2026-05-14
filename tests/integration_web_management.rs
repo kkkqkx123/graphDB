@@ -29,7 +29,7 @@ async fn create_test_web_state() -> (
     use graphdb::config::Config;
     use graphdb::storage::GraphStorage;
     use graphdb::transaction::{TransactionManager, TransactionManagerConfig};
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use tempfile::tempdir;
 
     // Create temporary directories
@@ -39,7 +39,7 @@ async fn create_test_web_state() -> (
     // Create storage
     let storage = GraphStorage::new_with_path(db_path).unwrap();
     let storage_arc = Arc::new(storage.clone());
-    let storage_mutex = Arc::new(Mutex::new(storage));
+    let storage_mutex = Arc::new(RwLock::new(storage));
 
     // Create config
     let config = Config::default();

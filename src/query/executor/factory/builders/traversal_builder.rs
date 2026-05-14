@@ -22,7 +22,7 @@ use crate::query::planning::plan::core::nodes::traversal::{
 };
 use crate::query::planning::plan::core::nodes::{ExpandAllNode, ExpandNode, TraverseNode};
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Graph Traversal Executor Builder
@@ -41,7 +41,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Constructing the Expand executor
     pub fn build_expand(
         node: &ExpandNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Parameters of ExpandExecutor::new: id, storage, edge_direction, edge_types, max_depth, expr_context
@@ -60,7 +60,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Building the ExpandAll executor
     pub fn build_expand_all(
         node: &ExpandAllNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Parameters of ExpandAllExecutor::new: id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context
@@ -69,7 +69,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
         // Get space name from storage using space_id
         let space_name = {
-            let storage_guard = storage.lock();
+            let storage_guard = storage.read();
             match storage_guard.get_space_by_id(node.space_id()) {
                 Ok(Some(space_info)) => space_info.space_name,
                 _ => "default".to_string(), // Fallback to default if space not found
@@ -120,7 +120,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Building the Traverse executor
     pub fn build_traverse(
         node: &TraverseNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // TraverseExecutor::new parameters: id, storage, edge_direction, edge_types, max_depth, conditions, expr_context
@@ -139,7 +139,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Building the AllPaths executor
     pub fn build_all_paths(
         node: &AllPathsNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = AllPathsExecutor::new(
@@ -158,7 +158,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Building the ShortestPath executor
     pub fn build_shortest_path(
         node: &ShortestPathNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
@@ -183,7 +183,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Building the BFSShortest executor
     pub fn build_bfs_shortest(
         node: &BFSShortestNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::Value;
@@ -209,7 +209,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Constructing the MultiShortestPath executor
     pub fn build_multi_shortest_path(
         node: &MultiShortestPathNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         //  Obtain the starting and ending point IDs from the input.
@@ -232,7 +232,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Bidirectional expand from two input sources meeting at common vertices
     pub fn build_bi_expand(
         node: &BiExpandNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ExpandExecutor::new(
@@ -250,7 +250,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// Bidirectional traverse from two input sources meeting at common vertices
     pub fn build_bi_traverse(
         node: &BiTraverseNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ExpandExecutor::new(

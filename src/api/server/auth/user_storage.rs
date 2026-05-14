@@ -5,20 +5,20 @@
 
 use crate::core::types::{PasswordInfo, UserAlterInfo, UserInfo};
 use crate::core::{RoleType, StorageError};
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Manages user accounts and role assignments in memory.
 #[derive(Clone)]
 pub struct UserStorage {
-    users: Arc<Mutex<HashMap<String, UserInfo>>>,
+    users: Arc<RwLock<HashMap<String, UserInfo>>>,
 }
 
 impl std::fmt::Debug for UserStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UserStorage")
-            .field("user_count", &self.users.lock().len())
+            .field("user_count", &self.users.write().len())
             .finish()
     }
 }
@@ -33,13 +33,13 @@ impl UserStorage {
     /// Create a new user storage instance.
     pub fn new() -> Self {
         Self {
-            users: Arc::new(Mutex::new(HashMap::new())),
+            users: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     /// Change the user password.
     pub fn change_password(&self, info: &PasswordInfo) -> Result<bool, StorageError> {
-        let mut users = self.users.lock();
+        let mut users = self.users.write();
         let username = info
             .username
             .clone()
@@ -57,7 +57,7 @@ impl UserStorage {
 
     /// Create a new user.
     pub fn create_user(&self, info: &UserInfo) -> Result<bool, StorageError> {
-        let mut users = self.users.lock();
+        let mut users = self.users.write();
         if users.contains_key(&info.username) {
             return Err(StorageError::db_error(format!(
                 "User {} already exists",
@@ -70,7 +70,7 @@ impl UserStorage {
 
     /// Modify user information.
     pub fn alter_user(&self, info: &UserAlterInfo) -> Result<bool, StorageError> {
-        let mut users = self.users.lock();
+        let mut users = self.users.write();
         if let Some(user) = users.get_mut(&info.username) {
             if let Some(is_locked) = info.is_locked {
                 user.is_locked = is_locked;
@@ -98,19 +98,19 @@ impl UserStorage {
 
     /// Delete the user.
     pub fn drop_user(&self, username: &str) -> Result<bool, StorageError> {
-        let mut users = self.users.lock();
+        let mut users = self.users.write();
         users.remove(username);
         Ok(true)
     }
 
     /// Get user information.
     pub fn get_user(&self, username: &str) -> Option<UserInfo> {
-        self.users.lock().get(username).cloned()
+        self.users.write().get(username).cloned()
     }
 
     /// Check whether the user exists.
     pub fn user_exists(&self, username: &str) -> bool {
-        self.users.lock().contains_key(username)
+        self.users.write().contains_key(username)
     }
 
     /// Grant roles to user (only verifies user existence; actual authorization is handled by PermissionManager).
@@ -120,7 +120,7 @@ impl UserStorage {
         _space_id: u64,
         _role: RoleType,
     ) -> Result<bool, StorageError> {
-        let users = self.users.lock();
+        let users = self.users.write();
         if users.contains_key(username) {
             Ok(true)
         } else {
@@ -133,7 +133,7 @@ impl UserStorage {
 
     /// Revoke roles from user (only verifies user existence; actual revocation is handled by PermissionManager).
     pub fn revoke_role(&self, username: &str, _space_id: u64) -> Result<bool, StorageError> {
-        let users = self.users.lock();
+        let users = self.users.write();
         if users.contains_key(username) {
             Ok(true)
         } else {

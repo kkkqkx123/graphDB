@@ -3,7 +3,7 @@
 //! Implement a data deduplication function that supports deduplication strategies based on specified keys.
 //! CPU-intensive operations are parallelized using Rayon.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -54,7 +54,7 @@ pub struct DedupExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         strategy: DedupStrategy,
         memory_limit: Option<usize>,
     ) -> Self {
@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_dedup_executor_full_strategy() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
@@ -562,7 +562,7 @@ mod tests {
 
     #[test]
     fn test_dedup_executor_by_keys_strategy() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock Storage"),
         ));
 

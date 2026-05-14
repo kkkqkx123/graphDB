@@ -96,7 +96,7 @@ async fn list_spaces<S: StorageClient + Clone + Send + Sync + 'static>(
     let storage = web_state.core_state.server.get_storage();
 
     let result = task::spawn_blocking(move || {
-        let storage = storage.lock();
+        let storage = storage.read();
 
         let spaces = storage
             .list_spaces()
@@ -130,7 +130,7 @@ async fn get_space_details<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<SpaceDetail>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         let space_info = storage
             .get_space(&name)
@@ -181,7 +181,7 @@ async fn get_space_statistics<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<SpaceStatistics>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         // Verify space exists
         let _ = storage
@@ -225,7 +225,7 @@ async fn list_tags<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         // Verify space exists
         let _ = storage
@@ -329,7 +329,7 @@ async fn get_tag<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<TagDetail>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         let tag_info = storage
             .get_tag(&space_name, &tag_name)
@@ -454,7 +454,7 @@ async fn list_edge_types<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         // Verify space exists
         let _ = storage
@@ -557,7 +557,7 @@ async fn get_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<EdgeTypeDetail>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         let edge_info = storage
             .get_edge_type(&space_name, &edge_name)
@@ -682,7 +682,7 @@ async fn list_indexes<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         // Verify space exists
         let space_info = storage
@@ -789,7 +789,7 @@ async fn get_index<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> WebResult<Json<ApiResponse<IndexInfo>>> {
     let result = task::spawn_blocking(move || {
         let storage = web_state.core_state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.read();
 
         // Try to get tag index first
         if let Some(index) = storage

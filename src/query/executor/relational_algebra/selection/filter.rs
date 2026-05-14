@@ -3,7 +3,7 @@
 //! Implementing a function for conditional filtering of search results, with support for the HAVING clause.
 //! CPU-intensive operations are parallelized using Rayon.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -167,7 +167,7 @@ pub struct FilterExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: ContextualExpression) -> Self {
+    pub fn new(id: i64, storage: Arc<RwLock<S>>, condition: ContextualExpression) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "FilterExecutor".to_string(),
@@ -502,7 +502,7 @@ mod tests {
 
     #[test]
     fn test_filter_executor_basic() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 

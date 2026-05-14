@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutorEnum, VectorManageExecutor};
@@ -43,7 +43,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
     /// Build VectorSearch executor
     pub fn build_vector_search(
         node: &VectorSearchNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -68,7 +68,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
     /// Build CreateVectorIndex executor
     pub fn build_create_vector_index(
         node: &CreateVectorIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -95,7 +95,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
     /// Build DropVectorIndex executor
     pub fn build_drop_vector_index(
         node: &DropVectorIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -122,7 +122,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
     /// Build VectorLookup executor
     pub fn build_vector_lookup(
         node: &VectorLookupNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -147,7 +147,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
     /// Build VectorMatch executor
     pub fn build_vector_match(
         node: &VectorMatchNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {

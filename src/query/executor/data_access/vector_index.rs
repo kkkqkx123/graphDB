@@ -13,7 +13,7 @@ use crate::query::planning::plan::core::nodes::search::vector::management::{
 };
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::VectorSyncCoordinator;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 fn convert_distance(
     dist: crate::query::parser::ast::vector::VectorDistance,
@@ -44,7 +44,7 @@ impl<S: StorageClient> CreateVectorIndexExecutor<S> {
     pub fn new(
         id: i64,
         node: CreateVectorIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
         coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
@@ -152,7 +152,7 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for CreateVectorIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
             .as_ref()
@@ -173,7 +173,7 @@ impl<S: StorageClient> DropVectorIndexExecutor<S> {
     pub fn new(
         id: i64,
         node: DropVectorIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
         coordinator: Arc<VectorSyncCoordinator>,
     ) -> Self {
@@ -264,7 +264,7 @@ impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for DropVectorIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
             .as_ref()

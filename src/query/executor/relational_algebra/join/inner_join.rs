@@ -2,7 +2,7 @@
 //!
 //! Implement an inner join algorithm based on hashing, which supports both single-key and multi-key joins.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -53,7 +53,7 @@ impl<S: StorageClient> std::fmt::Debug for InnerJoinExecutor<S> {
 
 impl<S: StorageClient> InnerJoinExecutor<S> {
     pub fn new(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionContextStruct>,
         config: InnerJoinConfig,
     ) -> Self {
@@ -80,7 +80,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
     }
 
     pub fn with_context(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: crate::query::executor::base::ExecutionContext,
         config: InnerJoinConfig,
     ) -> Self {
@@ -460,7 +460,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for InnerJoinExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base_executor
             .get_base()
             .storage
@@ -476,7 +476,7 @@ pub struct HashInnerJoinExecutor<S: StorageClient> {
 
 impl<S: StorageClient> HashInnerJoinExecutor<S> {
     pub fn new(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionContextStruct>,
         config: InnerJoinConfig,
     ) -> Self {
@@ -486,7 +486,7 @@ impl<S: StorageClient> HashInnerJoinExecutor<S> {
     }
 
     pub fn with_context(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: crate::query::executor::base::ExecutionContext,
         config: InnerJoinConfig,
     ) -> Self {
@@ -535,7 +535,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for HashInnerJoinExecutor<S>
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for HashInnerJoinExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.inner.get_storage()
     }
 }
@@ -569,7 +569,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_single_key_with_expression() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
@@ -623,7 +623,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_multi_key() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
@@ -709,7 +709,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_empty_dataset() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
@@ -765,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_with_variable_expression() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionContextStruct::new());

@@ -9,7 +9,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::query::executor::base::ExecutionResult;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Result Processor Context
 ///
@@ -88,7 +88,7 @@ pub struct BaseResultProcessor<S: StorageClient> {
     /// Actuator Description
     pub description: String,
     /// Storage Engine References
-    pub storage: Arc<Mutex<S>>,
+    pub storage: Arc<RwLock<S>>,
     /// input data
     pub input: Option<ExecutionResult>,
     /// processing context
@@ -101,7 +101,7 @@ pub struct BaseResultProcessor<S: StorageClient> {
 
 impl<S: StorageClient> BaseResultProcessor<S> {
     /// Creating a new base results processor
-    pub fn new(id: i64, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, name: String, description: String, storage: Arc<RwLock<S>>) -> Self {
         Self {
             id,
             name,

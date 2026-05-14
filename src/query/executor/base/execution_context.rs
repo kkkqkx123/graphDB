@@ -2,7 +2,7 @@
 //!
 //! Manage the intermediate results and variables during the execution of the executor.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -19,9 +19,9 @@ use crate::search::SearchEngine;
 #[derive(Debug, Clone)]
 pub struct ExecutionContext {
     /// Intermediate results are stored.
-    pub results: Arc<Mutex<HashMap<String, ExecutionResult>>>,
+    pub results: Arc<RwLock<HashMap<String, ExecutionResult>>>,
     /// Variable storage
-    pub variables: Arc<Mutex<HashMap<String, crate::core::Value>>>,
+    pub variables: Arc<RwLock<HashMap<String, crate::core::Value>>>,
     /// Expression context, used for sharing expression information and caching across different stages.
     pub expression_context: Arc<ExpressionAnalysisContext>,
     /// Search engine for full-text search
@@ -34,8 +34,8 @@ impl ExecutionContext {
     /// Create a new execution context.
     pub fn new(expression_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            results: Arc::new(Mutex::new(HashMap::new())),
-            variables: Arc::new(Mutex::new(HashMap::new())),
+            results: Arc::new(RwLock::new(HashMap::new())),
+            variables: Arc::new(RwLock::new(HashMap::new())),
             expression_context,
             search_engine: None,
             parameters: Arc::new(HashMap::new()),
@@ -48,8 +48,8 @@ impl ExecutionContext {
         parameters: HashMap<String, crate::core::Value>,
     ) -> Self {
         Self {
-            results: Arc::new(Mutex::new(HashMap::new())),
-            variables: Arc::new(Mutex::new(HashMap::new())),
+            results: Arc::new(RwLock::new(HashMap::new())),
+            variables: Arc::new(RwLock::new(HashMap::new())),
             expression_context,
             search_engine: None,
             parameters: Arc::new(parameters),
@@ -62,8 +62,8 @@ impl ExecutionContext {
         search_engine: Arc<dyn SearchEngine>,
     ) -> Self {
         Self {
-            results: Arc::new(Mutex::new(HashMap::new())),
-            variables: Arc::new(Mutex::new(HashMap::new())),
+            results: Arc::new(RwLock::new(HashMap::new())),
+            variables: Arc::new(RwLock::new(HashMap::new())),
             expression_context,
             search_engine: Some(search_engine),
             parameters: Arc::new(HashMap::new()),
@@ -72,22 +72,22 @@ impl ExecutionContext {
 
     /// Set intermediate results
     pub fn set_result(&self, name: String, result: ExecutionResult) {
-        self.results.lock().insert(name, result);
+        self.results.write().insert(name, result);
     }
 
     /// Obtain the intermediate results.
     pub fn get_result(&self, name: &str) -> Option<ExecutionResult> {
-        self.results.lock().get(name).cloned()
+        self.results.write().get(name).cloned()
     }
 
     /// Setting variables
     pub fn set_variable(&self, name: String, value: crate::core::Value) {
-        self.variables.lock().insert(name, value);
+        self.variables.write().insert(name, value);
     }
 
     /// Obtain the variable
     pub fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
-        self.variables.lock().get(name).cloned()
+        self.variables.write().get(name).cloned()
     }
 
     /// Obtain the context of the expression.
@@ -107,7 +107,7 @@ impl ExecutionContext {
 
     /// Get current space ID from variables
     pub fn current_space_id(&self) -> Option<u64> {
-        self.variables.lock().get("space_id").and_then(|v| match v {
+        self.variables.write().get("space_id").and_then(|v| match v {
             Value::Int(id) => Some(*id as u64),
             _ => None,
         })
@@ -116,7 +116,7 @@ impl ExecutionContext {
     /// Set current space ID
     pub fn set_space_id(&self, space_id: u64) {
         self.variables
-            .lock()
+            .write()
             .insert("space_id".to_string(), Value::BigInt(space_id as i64));
     }
 }
@@ -125,8 +125,8 @@ impl Default for ExecutionContext {
     /// Default implementation: Creates a new ExpressionContext.
     fn default() -> Self {
         Self {
-            results: Arc::new(Mutex::new(HashMap::new())),
-            variables: Arc::new(Mutex::new(HashMap::new())),
+            results: Arc::new(RwLock::new(HashMap::new())),
+            variables: Arc::new(RwLock::new(HashMap::new())),
             expression_context: Arc::new(ExpressionAnalysisContext::new()),
             search_engine: None,
             parameters: Arc::new(HashMap::new()),
@@ -136,11 +136,11 @@ impl Default for ExecutionContext {
 
 impl crate::query::executor::expression::evaluator::traits::ExpressionContext for ExecutionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
-        self.variables.lock().get(name).cloned()
+        self.variables.write().get(name).cloned()
     }
 
     fn set_variable(&mut self, name: String, value: Value) {
-        self.variables.lock().insert(name, value);
+        self.variables.write().insert(name, value);
     }
 
     fn get_function(&self, name: &str) -> Option<OwnedFunctionRef> {

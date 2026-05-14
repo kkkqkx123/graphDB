@@ -2,7 +2,7 @@
 //!
 //! Implement a hash-based left outer join algorithm that supports both single-key and multi-key joins.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
@@ -39,7 +39,7 @@ pub struct LeftJoinConfig {
 
 impl<S: StorageClient> LeftJoinExecutor<S> {
     pub fn new(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionContextStruct>,
         config: LeftJoinConfig,
     ) -> Self {
@@ -306,7 +306,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base_executor
             .get_base()
             .storage
@@ -322,7 +322,7 @@ pub struct HashLeftJoinExecutor<S: StorageClient> {
 
 impl<S: StorageClient> HashLeftJoinExecutor<S> {
     pub fn new(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionContextStruct>,
         config: LeftJoinConfig,
     ) -> Self {
@@ -371,7 +371,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> 
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for HashLeftJoinExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.inner.get_storage()
     }
 }
@@ -384,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_left_join_single_key() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionContextStruct::new());
@@ -476,7 +476,7 @@ mod tests {
 
     #[test]
     fn test_left_join_empty_right() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionContextStruct::new());

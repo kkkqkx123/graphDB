@@ -18,7 +18,7 @@ use crate::query::executor::expression::evaluator::expression_evaluator::Express
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Deleted items
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ pub struct RemoveExecutor<S: StorageClient + 'static> {
 impl<S: StorageClient + 'static> RemoveExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         remove_items: Vec<RemoveItem>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -114,7 +114,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RemoveExecutor<S>
 }
 
 impl<S: StorageClient + 'static> HasStorage<S> for RemoveExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -132,7 +132,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for RemoveExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
     fn do_execute(&mut self) -> DBResult<i64> {
         let mut removed_count = 0i64;
-        let mut storage = self.get_storage().lock();
+        let mut storage = self.get_storage().write();
 
         for remove_item in &self.remove_items {
             let expression = remove_item.expression.get_expression().ok_or_else(|| {

@@ -11,7 +11,7 @@ use crate::query::DataSet;
 use crate::storage::{SchemaManager, StorageClient};
 use crate::transaction::TransactionManager;
 use log::{info, warn};
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Duration;
 use vector_client::VectorManager;
@@ -35,7 +35,7 @@ impl<S: StorageClient + ?Sized> Drop for TransactionContextGuard<'_, S> {
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
-    query_api: Arc<Mutex<QueryApi<S>>>,
+    query_api: Arc<RwLock<QueryApi<S>>>,
     authenticator: PasswordAuthenticator,
     permission_manager: Arc<PermissionManager>,
     pub stats_manager: Arc<StatsManager>,
@@ -93,7 +93,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(
-                Arc::new(Mutex::new((*storage).clone())),
+                Arc::new(RwLock::new((*storage).clone())),
                 config.vector.clone(),
                 schema_manager.clone(),
             )
@@ -107,7 +107,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                             .unwrap_or_else(|_| panic!("Failed to create vector manager")),
                     );
                     let vector_api = Arc::new(VectorApi::new(vector_manager.clone()));
-                    (Arc::new(Mutex::new(api)), Some(vector_api))
+                    (Arc::new(RwLock::new(api)), Some(vector_api))
                 }
                 Err(e) => {
                     warn!(
@@ -115,20 +115,20 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                         e
                     );
                     let api = if let Some(sm) = schema_manager.clone() {
-                        QueryApi::with_schema_manager(Arc::new(Mutex::new((*storage).clone())), sm)
+                        QueryApi::with_schema_manager(Arc::new(RwLock::new((*storage).clone())), sm)
                     } else {
-                        QueryApi::new(Arc::new(Mutex::new((*storage).clone())))
+                        QueryApi::new(Arc::new(RwLock::new((*storage).clone())))
                     };
-                    (Arc::new(Mutex::new(api)), None)
+                    (Arc::new(RwLock::new(api)), None)
                 }
             }
         } else {
             let api = if let Some(sm) = schema_manager {
-                QueryApi::with_schema_manager(Arc::new(Mutex::new((*storage).clone())), sm)
+                QueryApi::with_schema_manager(Arc::new(RwLock::new((*storage).clone())), sm)
             } else {
-                QueryApi::new(Arc::new(Mutex::new((*storage).clone())))
+                QueryApi::new(Arc::new(RwLock::new((*storage).clone())))
             };
-            (Arc::new(Mutex::new(api)), None)
+            (Arc::new(RwLock::new(api)), None)
         };
 
         let authenticator = AuthenticatorFactory::create_default(&config.server.auth);
@@ -329,7 +329,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             parameters: None,
         };
 
-        let mut query_api = self.query_api.lock();
+        let mut query_api = self.query_api.write();
         let result = query_api.execute(stmt, query_request);
 
         // If the query failed and we have an active transaction, check if the

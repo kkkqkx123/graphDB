@@ -13,7 +13,7 @@ use crate::storage::metadata::SchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use crate::sync::SyncManager;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Instant;
 use vector_client::{VectorClientConfig, VectorManager};
@@ -25,7 +25,7 @@ pub struct QueryApi<S: StorageClient + 'static> {
 
 impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// Create a new QueryApi instance
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
         Self {
@@ -38,7 +38,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     }
 
     /// Create a new QueryApi instance with sync manager support
-    pub fn with_sync_manager(storage: Arc<Mutex<S>>, sync_manager: Arc<SyncManager>) -> Self {
+    pub fn with_sync_manager(storage: Arc<RwLock<S>>, sync_manager: Arc<SyncManager>) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
         Self {
@@ -53,7 +53,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
     /// Create a new QueryApi instance with schema manager support
     pub fn with_schema_manager(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         schema_manager: Arc<SchemaManager>,
     ) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
@@ -70,7 +70,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
     /// Create a new QueryApi instance with vector search support
     pub async fn with_vector_search(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         vector_config: VectorClientConfig,
         schema_manager: Option<Arc<SchemaManager>>,
     ) -> Result<Self, String> {

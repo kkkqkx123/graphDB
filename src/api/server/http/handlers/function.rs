@@ -16,7 +16,7 @@ pub async fn register<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(request): Json<RegisterFunctionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let registry = state.server.get_function_registry();
-    let registry_guard = registry.lock();
+    let registry_guard = registry.read();
 
     if registry_guard.contains(&request.name) {
         return Err(HttpError::bad_request(format!(
@@ -50,7 +50,7 @@ pub async fn list<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let registry = state.server.get_function_registry();
-    let registry_guard = registry.lock();
+    let registry_guard = registry.read();
 
     let function_names = registry_guard.function_names();
     let functions: Vec<serde_json::Value> = function_names
@@ -74,7 +74,7 @@ pub async fn info<S: StorageClient + Clone + Send + Sync + 'static>(
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let registry = state.server.get_function_registry();
-    let registry_guard = registry.lock();
+    let registry_guard = registry.read();
 
     if !registry_guard.contains(&name) {
         return Err(HttpError::not_found(format!(
@@ -111,7 +111,7 @@ pub async fn unregister<S: StorageClient + Clone + Send + Sync + 'static>(
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let registry = state.server.get_function_registry();
-    let registry_guard = registry.lock();
+    let registry_guard = registry.read();
 
     if !registry_guard.contains(&name) {
         return Err(HttpError::not_found(format!(

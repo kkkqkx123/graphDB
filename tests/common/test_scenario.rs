@@ -8,7 +8,7 @@ use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use graphdb::storage::GraphStorage;
 use graphdb::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ use crate::common::TestStorage;
 
 /// Test scenario builder for fluent test writing
 pub struct TestScenario {
-    storage: Arc<Mutex<GraphStorage>>,
+    storage: Arc<RwLock<GraphStorage>>,
     pipeline: QueryPipelineManager<GraphStorage>,
     last_result: Option<ExecutionResult>,
     last_error: Option<String>,
@@ -36,7 +36,7 @@ impl TestScenario {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer = Arc::new(OptimizerEngine::default());
         let schema_manager = {
-            let storage_guard = storage.lock();
+            let storage_guard = storage.write();
             storage_guard.get_schema_manager()
         };
         let pipeline =
@@ -156,7 +156,7 @@ impl TestScenario {
         }
 
         let space_result = {
-            let storage_guard = self.storage.lock();
+            let storage_guard = self.storage.write();
             storage_guard.get_space(space_name)
         };
 
@@ -506,7 +506,7 @@ impl TestScenario {
         let src_val = Value::Int(src as i32);
         let dst_val = Value::Int(dst as i32);
         let found = {
-            let storage_guard = self.storage.lock();
+            let storage_guard = self.storage.write();
             let edges = storage_guard
                 .scan_edges_by_type(&space_name, edge_type)
                 .unwrap_or_default();
@@ -532,7 +532,7 @@ impl TestScenario {
         let src_val = Value::Int(src as i32);
         let dst_val = Value::Int(dst as i32);
         let found = {
-            let storage_guard = self.storage.lock();
+            let storage_guard = self.storage.write();
             let edges = storage_guard
                 .scan_edges_by_type(&space_name, edge_type)
                 .unwrap_or_default();
@@ -591,7 +591,7 @@ impl TestScenario {
             .map(|s| s.space_name.clone())
             .unwrap_or_default();
         let actual = {
-            let storage_guard = self.storage.lock();
+            let storage_guard = self.storage.write();
             storage_guard
                 .scan_vertices_by_tag(&space_name, tag)
                 .map(|vertices| vertices.len())
@@ -615,7 +615,7 @@ impl TestScenario {
             .map(|s| s.space_name.clone())
             .unwrap_or_default();
         let actual = {
-            let storage_guard = self.storage.lock();
+            let storage_guard = self.storage.write();
             storage_guard
                 .scan_edges_by_type(&space_name, edge_type)
                 .map(|edges| edges.len())

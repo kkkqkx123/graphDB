@@ -17,14 +17,14 @@ use crate::query::executor::utils::recursion_detector::{
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Actuator Factory
 ///
 /// Responsible for coordinating the creation of executors for each sub-module
 pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
-    pub(crate) storage: Option<Arc<Mutex<S>>>,
+    pub(crate) storage: Option<Arc<RwLock<S>>>,
     pub(crate) config: ExecutorSafetyConfig,
     pub(crate) recursion_detector: RecursionDetector,
     pub(crate) sync_manager: Option<Arc<SyncManager>>,
@@ -45,7 +45,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     }
 
     /// Setting the storage engine
-    pub fn with_storage(storage: Arc<Mutex<S>>) -> Self {
+    pub fn with_storage(storage: Arc<RwLock<S>>) -> Self {
         let mut factory = Self::new();
         factory.storage = Some(storage);
         factory
@@ -60,7 +60,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
     /// Setting both storage and sync manager
     pub fn with_storage_and_sync_manager(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         sync_manager: Arc<SyncManager>,
     ) -> Self {
         let mut factory = Self::new();
@@ -127,7 +127,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     pub fn create_executor(
         &mut self,
         plan_node: &PlanNodeEnum,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         self.validate_plan_node(plan_node)?;
@@ -553,7 +553,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_loop_executor(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::LoopNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // First, verify and check the recursion.
@@ -604,7 +604,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     fn build_select_executor(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::SelectNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // First, verify and check the recursion.

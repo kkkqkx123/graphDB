@@ -14,12 +14,12 @@ mod tests {
     use crate::query::executor::Executor;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_create_edge_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let properties = vec![
@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn test_alter_edge_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let new_prop = PropertyDef::new("label".to_string(), DataType::String);
@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_desc_edge_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_show_edges_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_executor_empty_properties() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "empty_edge".to_string(), "person".to_string(), "person".to_string());
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_executor_with_all_data_types() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let properties = vec![
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_executor_with_nullable_properties() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let properties = vec![
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_alter_edge_executor_change_operation() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let new_prop = PropertyDef::new("updated_field".to_string(), DataType::String);
@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_alter_edge_executor_empty_items() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let alter_info = AlterEdgeInfo::new("test_space".to_string(), "knows".to_string());
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_alter_edge_executor_with_comment() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let new_prop = PropertyDef::new("new_field".to_string(), DataType::BigInt);
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_executor_nonexistent_edge() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_executor_with_if_exists_nonexistent() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_desc_edge_executor_nonexistent_edge() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn test_show_edges_executor_empty_space() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -442,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_executor_open_close_multiple_times() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats_updates() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
@@ -481,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_executor_special_characters_in_name() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info =
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn test_alter_edge_executor_multiple_operations() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let items = vec![
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn test_executor_description_consistency() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

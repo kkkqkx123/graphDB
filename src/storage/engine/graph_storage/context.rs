@@ -30,16 +30,16 @@ pub struct GraphStorageContext {
     pub index_metadata_manager: Arc<IndexManager>,
     pub version_manager: Arc<VersionManager>,
     pub user_storage: Arc<UserStorage>,
-    pub current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
+    pub current_txn_context: Arc<RwLock<Option<Arc<TransactionContext>>>>,
     pub persistence: Option<Arc<RwLock<PersistenceCoordinator>>>,
     pub index_gc_manager: Option<Arc<IndexGcManager>>,
     pub fulltext_storage: Option<Arc<FulltextStorage>>,
     pub work_dir: Option<PathBuf>,
     pub db_path: String,
     /// Transaction support for undo log management
-    pub txn_support: Arc<Mutex<TransactionSupport>>,
+    pub txn_support: Arc<RwLock<TransactionSupport>>,
     /// Undo log manager for transaction rollback
-    pub undo_logs: Arc<Mutex<UndoLogManager>>,
+    pub undo_logs: Arc<RwLock<UndoLogManager>>,
 }
 
 impl GraphStorageContext {
@@ -58,14 +58,14 @@ impl GraphStorageContext {
             index_metadata_manager,
             version_manager,
             user_storage,
-            current_txn_context: Arc::new(Mutex::new(None)),
+            current_txn_context: Arc::new(RwLock::new(None)),
             persistence: None,
             index_gc_manager: None,
             fulltext_storage: None,
             work_dir: None,
             db_path: String::new(),
-            txn_support: Arc::new(Mutex::new(TransactionSupport::new())),
-            undo_logs: Arc::new(Mutex::new(UndoLogManager::new())),
+            txn_support: Arc::new(RwLock::new(TransactionSupport::new())),
+            undo_logs: Arc::new(RwLock::new(UndoLogManager::new())),
         }
     }
 
@@ -98,14 +98,14 @@ impl GraphStorageContext {
             index_metadata_manager,
             version_manager,
             user_storage,
-            current_txn_context: Arc::new(Mutex::new(None)),
+            current_txn_context: Arc::new(RwLock::new(None)),
             persistence,
             index_gc_manager: None,
             fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
-            txn_support: Arc::new(Mutex::new(TransactionSupport::new())),
-            undo_logs: Arc::new(Mutex::new(UndoLogManager::new())),
+            txn_support: Arc::new(RwLock::new(TransactionSupport::new())),
+            undo_logs: Arc::new(RwLock::new(UndoLogManager::new())),
         }
     }
 
@@ -129,14 +129,14 @@ impl GraphStorageContext {
             index_metadata_manager,
             version_manager,
             user_storage,
-            current_txn_context: Arc::new(Mutex::new(None)),
+            current_txn_context: Arc::new(RwLock::new(None)),
             persistence: Some(persistence),
             index_gc_manager: None,
             fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
-            txn_support: Arc::new(Mutex::new(TransactionSupport::new())),
-            undo_logs: Arc::new(Mutex::new(UndoLogManager::new())),
+            txn_support: Arc::new(RwLock::new(TransactionSupport::new())),
+            undo_logs: Arc::new(RwLock::new(UndoLogManager::new())),
         })
     }
 
@@ -179,7 +179,7 @@ impl GraphStorageContext {
     }
 
     pub fn get_read_timestamp(&self) -> u32 {
-        if let Some(txn_ctx) = self.current_txn_context.lock().clone() {
+        if let Some(txn_ctx) = self.current_txn_context.write().clone() {
             txn_ctx.timestamp()
         } else {
             self.version_manager.read_timestamp()
@@ -187,7 +187,7 @@ impl GraphStorageContext {
     }
 
     pub fn get_write_timestamp(&self) -> u32 {
-        if let Some(txn_ctx) = self.current_txn_context.lock().clone() {
+        if let Some(txn_ctx) = self.current_txn_context.write().clone() {
             txn_ctx.timestamp()
         } else {
             self.version_manager.write_timestamp()
@@ -195,11 +195,11 @@ impl GraphStorageContext {
     }
 
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
-        self.current_txn_context.lock().clone()
+        self.current_txn_context.write().clone()
     }
 
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
-        *self.current_txn_context.lock() = context;
+        *self.current_txn_context.write() = context;
     }
 
     pub fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
@@ -231,28 +231,28 @@ impl GraphStorageContext {
 
     /// Begin a transaction
     pub fn begin_transaction(&self) {
-        self.txn_support.lock().begin();
+        self.txn_support.write().begin();
     }
 
     /// Commit the current transaction
     pub fn commit_transaction(&self) {
-        self.txn_support.lock().commit();
+        self.txn_support.write().commit();
     }
 
     /// Rollback the current transaction
     pub fn rollback_transaction(&self, ts: u32) -> crate::core::StorageResult<()> {
         let mut graph = self.graph.write();
-        self.txn_support.lock().rollback(&mut graph, ts)
+        self.txn_support.write().rollback(&mut graph, ts)
     }
 
     /// Check if in a transaction
     pub fn is_in_transaction(&self) -> bool {
-        self.txn_support.lock().is_in_transaction()
+        self.txn_support.write().is_in_transaction()
     }
 
     /// Get undo log count
     pub fn undo_log_count(&self) -> usize {
-        self.txn_support.lock().undo_log_count()
+        self.txn_support.write().undo_log_count()
     }
 }
 

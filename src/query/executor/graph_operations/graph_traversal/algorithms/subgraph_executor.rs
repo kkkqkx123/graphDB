@@ -16,7 +16,7 @@ use crate::query::executor::base::{
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use super::types::AlgorithmStats;
 
@@ -176,7 +176,7 @@ impl<S: StorageClient> std::fmt::Debug for SubgraphExecutor<S> {
 impl<S: StorageClient> SubgraphExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         start_vids: Vec<Value>,
         config: SubgraphConfig,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -202,7 +202,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
             DBError::storage("Storage not set".to_string())
         })?;
-        let storage = storage.lock();
+        let storage = storage.read();
 
         let edges = storage
             .get_node_edges("default", node_id, self.config.edge_direction)
@@ -291,7 +291,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
             DBError::storage("Storage not set".to_string())
         })?;
-        let storage = storage.lock();
+        let storage = storage.read();
 
         for vid in &self.valid_vids {
             match storage.get_vertex("default", vid) {
@@ -407,7 +407,7 @@ impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for SubgraphExecuto
 }
 
 impl<S: StorageClient> HasStorage<S> for SubgraphExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_subgraph_executor_creation() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let config = SubgraphConfig::new(2);

@@ -36,7 +36,7 @@ use crate::query::planning::plan::core::nodes::{
     ShowTagIndexesNode, ShowTagsNode, ShowUsersNode, SwitchSpaceNode,
 };
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Management Executor Builder
@@ -57,7 +57,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the CreateSpace executor
     pub fn build_create_space(
         node: &CreateSpaceNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
@@ -77,7 +77,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DropSpace executor
     pub fn build_drop_space(
         node: &DropSpaceNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DropSpaceExecutor::new(
@@ -94,7 +94,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DescSpace executor
     pub fn build_desc_space(
         node: &DescSpaceNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DescSpaceExecutor::new(
@@ -111,7 +111,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the ShowSpaces executor
     pub fn build_show_spaces(
         _node: &ShowSpacesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -126,7 +126,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the CreateTag executor
     pub fn build_create_tag(
         node: &CreateTagNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::tag::create_tag::ExecutorTagInfo;
@@ -155,7 +155,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the AlterTag executor
     pub fn build_alter_tag(
         node: &AlterTagNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};
@@ -181,7 +181,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DescTag executor
     pub fn build_desc_tag(
         node: &DescTagNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DescTagExecutor::new(
@@ -197,7 +197,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DropTag executor
     pub fn build_drop_tag(
         node: &DropTagNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = if node.if_exists() {
@@ -223,7 +223,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the ShowTags executor
     pub fn build_show_tags(
         node: &ShowTagsNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowTagsExecutor::new(
@@ -238,7 +238,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the ShowCreateTag executor
     pub fn build_show_create_tag(
         node: &ShowCreateTagNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowCreateTagExecutor::new(
@@ -258,7 +258,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the CreateEdge executor
     pub fn build_create_edge(
         node: &CreateEdgeNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::edge::create_edge::ExecutorEdgeInfo;
@@ -296,7 +296,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the AlterEdge executor
     pub fn build_alter_edge(
         node: &AlterEdgeNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem};
@@ -326,7 +326,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DescEdge executor
     pub fn build_desc_edge(
         node: &DescEdgeNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DescEdgeExecutor::new(
@@ -342,7 +342,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DropEdge executor
     pub fn build_drop_edge(
         node: &DropEdgeNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = if node.if_exists() {
@@ -368,7 +368,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the ShowEdges executor
     pub fn build_show_edges(
         node: &ShowEdgesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowEdgesExecutor::new(
@@ -385,7 +385,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Construct the CreateTagIndex executor.
     pub fn build_create_tag_index(
         node: &CreateTagIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::{Index, IndexType};
@@ -421,7 +421,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DropTagIndex executor
     pub fn build_drop_tag_index(
         node: &DropTagIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DropTagIndexExecutor::new(
@@ -439,7 +439,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the DescTagIndex executor
     pub fn build_desc_tag_index(
         node: &DescTagIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DescTagIndexExecutor::new(
@@ -457,7 +457,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the ShowTagIndexes executor
     pub fn build_show_tag_indexes(
         node: &ShowTagIndexesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowTagIndexesExecutor::new(
@@ -474,7 +474,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the RebuildTagIndex executor
     pub fn build_rebuild_tag_index(
         node: &RebuildTagIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = RebuildTagIndexExecutor::new(
@@ -494,7 +494,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Build the CreateEdgeIndex executor.
     pub fn build_create_edge_index(
         node: &CreateEdgeIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::{Index, IndexType};
@@ -530,7 +530,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the DropEdgeIndex executor
     pub fn build_drop_edge_index(
         node: &DropEdgeIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DropEdgeIndexExecutor::new(
@@ -548,7 +548,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the DescEdgeIndex executor
     pub fn build_desc_edge_index(
         node: &DescEdgeIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = DescEdgeIndexExecutor::new(
@@ -566,7 +566,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the ShowEdgeIndexes executor
     pub fn build_show_edge_indexes(
         node: &ShowEdgeIndexesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowEdgeIndexesExecutor::new(
@@ -583,7 +583,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the RebuildEdgeIndex executor
     pub fn build_rebuild_edge_index(
         node: &RebuildEdgeIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = RebuildEdgeIndexExecutor::new(
@@ -603,7 +603,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the CreateUser executor
     pub fn build_create_user(
         node: &CreateUserNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::UserInfo;
@@ -627,7 +627,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the AlterUser executor
     pub fn build_alter_user(
         node: &AlterUserNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::UserAlterInfo;
@@ -648,7 +648,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the DropUser executor
     pub fn build_drop_user(
         node: &DropUserNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // DropUserNode 使用 username() 方法
@@ -664,7 +664,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Constructing the ChangePassword executor
     pub fn build_change_password(
         node: &ChangePasswordNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // ChangePasswordNode 使用 password_info() 方法获取 PasswordInfo
@@ -686,7 +686,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the GrantRole executor
     pub fn build_grant_role(
         node: &GrantRoleNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let role = match node.role() {
@@ -712,7 +712,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the RevokeRole executor
     pub fn build_revoke_role(
         node: &RevokeRoleNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = RevokeRoleExecutor::new(
@@ -730,7 +730,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the SwitchSpace executor
     pub fn build_switch_space(
         node: &SwitchSpaceNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = SwitchSpaceExecutor::new(
@@ -747,7 +747,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the AlterSpace executor
     pub fn build_alter_space(
         node: &AlterSpaceNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let options: Vec<ExecutorSpaceAlterOption> = node
@@ -774,7 +774,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the ClearSpace executor
     pub fn build_clear_space(
         node: &ClearSpaceNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ClearSpaceExecutor::new(
@@ -791,7 +791,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// Building the ShowStats executor
     pub fn build_show_stats(
         node: &ShowStatsNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let stats_type = match node.stats_type() {
@@ -813,7 +813,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     pub fn build_show_create_space(
         node: &ShowCreateSpaceNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -823,7 +823,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     pub fn build_show_create_edge(
         node: &ShowCreateEdgeNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -833,7 +833,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     pub fn build_show_indexes(
         node: &ShowIndexesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -843,7 +843,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     pub fn build_show_create_index(
         node: &ShowCreateIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -853,7 +853,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     pub fn build_show_users(
         node: &ShowUsersNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =
@@ -863,7 +863,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
 
     pub fn build_show_roles(
         node: &ShowRolesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor =

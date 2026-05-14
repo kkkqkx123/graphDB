@@ -2,7 +2,7 @@
 //!
 //! Implement the functionality of random sampling of query results, supporting various sampling methods.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashSet;
@@ -46,7 +46,7 @@ pub struct SampleExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         method: SampleMethod,
         count: usize,
         seed: Option<u64>,
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_sample_executor_random() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_sample_executor_reservoir() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 

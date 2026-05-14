@@ -2,7 +2,7 @@
 //!
 //! Implement the Cartesian product (cross join) algorithm, supporting the joining of multiple tables.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
@@ -35,7 +35,7 @@ impl<S: StorageClient> std::fmt::Debug for CrossJoinExecutor<S> {
 impl<S: StorageClient> CrossJoinExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         input_vars: Vec<String>,
         col_names: Vec<String>,
         expr_context: Arc<ExpressionContextStruct>,
@@ -59,7 +59,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
 
     pub fn with_context(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         input_vars: Vec<String>,
         col_names: Vec<String>,
         context: crate::query::executor::base::ExecutionContext,
@@ -312,7 +312,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
     for CrossJoinExecutor<S>
 {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base_executor
             .get_base()
             .storage
@@ -331,7 +331,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_two_tables() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
@@ -416,7 +416,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_empty_table() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 
@@ -468,7 +468,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_three_tables() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 

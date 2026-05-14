@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
@@ -38,34 +38,34 @@ pub enum AnalyzeTarget {
 pub struct AnalyzeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     target: AnalyzeTarget,
-    stats_manager: Arc<Mutex<StatisticsManager>>,
+    stats_manager: Arc<RwLock<StatisticsManager>>,
 }
 
 impl<S: StorageClient> AnalyzeExecutor<S> {
     /// Create a new AnalyzeExecutor.
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AnalyzeExecutor".to_string(), storage, expr_context),
             target: AnalyzeTarget::All,
-            stats_manager: Arc::new(Mutex::new(StatisticsManager::new())),
+            stats_manager: Arc::new(RwLock::new(StatisticsManager::new())),
         }
     }
 
     /// Create an AnalyzeExecutor with a specified goal
     pub fn with_target(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         target: AnalyzeTarget,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AnalyzeExecutor".to_string(), storage, expr_context),
             target,
-            stats_manager: Arc::new(Mutex::new(StatisticsManager::new())),
+            stats_manager: Arc::new(RwLock::new(StatisticsManager::new())),
         }
     }
 
@@ -75,7 +75,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
     }
 
     /// Statistics Information Manager
-    pub fn stats_manager(&self) -> Arc<Mutex<StatisticsManager>> {
+    pub fn stats_manager(&self) -> Arc<RwLock<StatisticsManager>> {
         self.stats_manager.clone()
     }
 
@@ -182,7 +182,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
     /// Perform the analysis and return the resulting dataset.
     fn execute_analysis(&self, space: &str) -> crate::query::executor::base::DBResult<DataSet> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let mut rows = Vec::new();
 
@@ -196,7 +196,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
 
                     // Update the Statistics Information Manager
                     {
-                        let manager = self.stats_manager.lock();
+                        let manager = self.stats_manager.write();
                         manager.update_tag_stats(stats.clone());
                     }
 
@@ -220,7 +220,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
 
                     // Update the Statistics Information Manager
                     {
-                        let manager = self.stats_manager.lock();
+                        let manager = self.stats_manager.write();
                         manager.update_edge_stats(stats.clone());
                     }
 
@@ -238,7 +238,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
 
                 // Update the Statistics Information Manager
                 {
-                    let manager = self.stats_manager.lock();
+                    let manager = self.stats_manager.write();
                     manager.update_tag_stats(stats.clone());
                 }
 
@@ -255,7 +255,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
 
                 // Update the Statistics Information Manager
                 {
-                    let manager = self.stats_manager.lock();
+                    let manager = self.stats_manager.write();
                     manager.update_edge_stats(stats.clone());
                 }
 
@@ -346,7 +346,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AnalyzeExecutor<S
 }
 
 impl<S: StorageClient> HasStorage<S> for AnalyzeExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

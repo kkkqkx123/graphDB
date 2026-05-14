@@ -3,7 +3,7 @@
 //! Implementing efficient TopN queries by optimizing performance using heap data structures
 //! CPU-intensive operations are parallelized using Rayon.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
@@ -102,7 +102,7 @@ pub struct TopNExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient> TopNExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         n: usize,
         sort_columns: Vec<String>,
         ascending: bool,
@@ -153,7 +153,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     /// Create a TopN executor with the definition of sorted columns
     pub fn with_sort_columns(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         n: usize,
         sort_columns: Vec<SortColumn>,
         sort_direction: OrderDirection,
@@ -199,7 +199,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     /// Create a TopN executor with sort keys (supports expressions)
     pub fn with_sort_keys(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         n: usize,
         sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
     ) -> Self {
@@ -1274,7 +1274,7 @@ mod tests {
 
     #[test]
     fn test_topn_executor_basic() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 
@@ -1311,7 +1311,7 @@ mod tests {
 
     #[test]
     fn test_topn_executor_with_offset() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
 

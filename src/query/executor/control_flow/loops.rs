@@ -3,7 +3,7 @@
 //! Actuators related to loop control
 //!
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
@@ -47,7 +47,7 @@ pub struct LoopExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient> LoopExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         condition: Option<Expression>,
         body_executor: ExecutorEnum<S>,
         max_iterations: Option<usize>,
@@ -321,7 +321,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for LoopExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -336,7 +336,7 @@ pub struct WhileLoopExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> WhileLoopExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         condition: Expression,
         body_executor: ExecutorEnum<S>,
         max_iterations: Option<usize>,
@@ -394,7 +394,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for WhileLoopExecutor
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for WhileLoopExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.inner.get_storage()
     }
 }
@@ -423,7 +423,7 @@ pub struct ForLoopConfig<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         config: ForLoopConfig<S>,
     ) -> Self {
@@ -517,7 +517,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.inner.get_storage()
     }
 }
@@ -536,7 +536,7 @@ pub struct SelectExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient> SelectExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         condition: Expression,
         if_branch: ExecutorEnum<S>,
         else_branch: Option<ExecutorEnum<S>>,
@@ -636,7 +636,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for SelectExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
             .as_ref()
@@ -649,13 +649,13 @@ mod tests {
     use super::*;
     use crate::core::BinaryOperator;
     use crate::storage::test_mock::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
     use ExpressionAnalysisContext;
 
     #[test]
     fn test_while_loop_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let storage_clone = storage.clone();
@@ -690,7 +690,7 @@ mod tests {
 
     #[test]
     fn test_for_loop_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let storage_clone = storage.clone();

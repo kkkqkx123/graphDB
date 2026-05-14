@@ -2,7 +2,7 @@
 //!
 //! Responsible for modifying the configuration of the graphic space.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::DBError;
@@ -29,7 +29,7 @@ pub struct AlterSpaceExecutor<S: StorageClient> {
 impl<S: StorageClient> AlterSpaceExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         options: Vec<SpaceAlterOption>,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -45,7 +45,7 @@ impl<S: StorageClient> AlterSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterSpaceExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let space_id = storage_guard.get_space_id(&self.space_name).map_err(|e| {
             DBError::storage(format!("Failed to get space ID: {}", e))
@@ -101,7 +101,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterSpaceExecuto
 }
 
 impl<S: StorageClient> HasStorage<S> for AlterSpaceExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_alter_space_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];

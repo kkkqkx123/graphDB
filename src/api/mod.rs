@@ -223,7 +223,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     // Create HTTP server
     let http_server = Arc::new(HttpServer::new(
         graph_service,
-        Arc::new(parking_lot::Mutex::new((*storage).clone())),
+        Arc::new(parking_lot::RwLock::new((*storage).clone())),
         transaction_manager,
         &config,
     ));

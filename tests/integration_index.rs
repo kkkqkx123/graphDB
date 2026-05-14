@@ -18,11 +18,11 @@ use graphdb::core::types::{Index, IndexField, IndexStatus, IndexType};
 use graphdb::core::{Edge, Value, Vertex};
 use graphdb::query::planning::plan::{IndexLimit, ScanType};
 use graphdb::storage::{GraphStorage, StorageClient};
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
-fn get_storage(storage: &Arc<Mutex<GraphStorage>>) -> parking_lot::MutexGuard<'_, GraphStorage> {
-    storage.lock()
+fn get_storage(storage: &Arc<RwLock<GraphStorage>>) -> parking_lot::RwLockWriteGuard<'_, GraphStorage> {
+    storage.write()
 }
 
 // ==================== Tag Indexing Metadata Management Test ====================

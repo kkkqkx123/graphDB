@@ -7,7 +7,7 @@ use std::time::Instant;
 
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use super::execution_context::ExecutionContext;
 use super::execution_result::{DBResult, ExecutionResult};
@@ -51,11 +51,11 @@ pub trait Executor<S: StorageClient>: Send {
     }
 }
 
-/// “Storage Access Trait”
+/// "Storage Access Trait"
 ///
 /// Only executors that have access to storage capabilities can implement this trait.
 pub trait HasStorage<S: StorageClient> {
-    fn get_storage(&self) -> &Arc<Mutex<S>>;
+    fn get_storage(&self) -> &Arc<RwLock<S>>;
 }
 
 /// “Input Access Trait” – A unified mechanism for handling user input
@@ -95,7 +95,7 @@ pub struct BaseExecutor<S: StorageClient> {
     /// Actuator description
     pub description: String,
     /// Storage engine reference
-    pub storage: Option<Arc<Mutex<S>>>,
+    pub storage: Option<Arc<RwLock<S>>>,
     /// Of course! Please provide the text you would like to have translated.
     pub context: ExecutionContext,
     /// Has it been turned on?
@@ -109,7 +109,7 @@ impl<S: StorageClient> BaseExecutor<S> {
     pub fn new(
         id: i64,
         name: String,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -144,7 +144,7 @@ impl<S: StorageClient> BaseExecutor<S> {
     pub fn with_context(
         id: i64,
         name: String,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: ExecutionContext,
     ) -> Self {
         Self {
@@ -163,7 +163,7 @@ impl<S: StorageClient> BaseExecutor<S> {
         id: i64,
         name: String,
         description: String,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
     ) -> Self {
         Self {
             id,
@@ -181,7 +181,7 @@ impl<S: StorageClient> BaseExecutor<S> {
         id: i64,
         name: String,
         description: String,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: ExecutionContext,
     ) -> Self {
         Self {
@@ -207,7 +207,7 @@ impl<S: StorageClient> BaseExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for BaseExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.storage.as_ref().expect("Storage not set")
     }
 }

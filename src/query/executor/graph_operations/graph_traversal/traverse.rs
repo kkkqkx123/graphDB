@@ -13,12 +13,12 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Parameters for creating a TraverseExecutor
 pub struct TraverseExecutorParams<S: StorageClient + Send + 'static> {
     pub id: i64,
-    pub storage: Arc<Mutex<S>>,
+    pub storage: Arc<RwLock<S>>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
@@ -75,7 +75,7 @@ impl<S: StorageClient> std::fmt::Debug for TraverseExecutor<S> {
 impl<S: StorageClient> TraverseExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
@@ -246,7 +246,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
             for (neighbor_id, edge) in neighbors_with_edges {
                 // Obtain the complete information of the neighboring nodes.
-                let storage = self.get_storage().lock();
+                let storage = self.get_storage().read();
                 let neighbor_vertex = storage
                     .get_vertex("default", &neighbor_id)
                     .map_err(|e| QueryError::storage(e.to_string()))?;
@@ -458,7 +458,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
 }
 
 impl<S: StorageClient + Send> HasStorage<S> for TraverseExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
             .as_ref()

@@ -2,7 +2,7 @@
 //!
 //! Responsible for creating new labels in the specified graph space.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::types::{PropertyDef, TagInfo};
@@ -80,7 +80,7 @@ impl<S: StorageClient> CreateTagExecutor<S> {
     /// Create a new CreateTagExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         tag_info: ExecutorTagInfo,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -94,7 +94,7 @@ impl<S: StorageClient> CreateTagExecutor<S> {
     /// Creating a CreateTagExecutor with the IF NOT EXISTS option
     pub fn with_if_not_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         tag_info: ExecutorTagInfo,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -109,7 +109,7 @@ impl<S: StorageClient> CreateTagExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let metadata_tag_info = TagInfo::from_executor(&self.tag_info);
         let result = storage_guard.create_tag(&self.tag_info.space_name, &metadata_tag_info);
@@ -157,7 +157,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateTagExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

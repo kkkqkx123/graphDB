@@ -11,7 +11,7 @@ use crate::config::Config;
 use crate::query::executor::expression::functions::FunctionRegistry;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use std::sync::Arc;
 
 /// HTTP server
@@ -26,16 +26,16 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
     schema_api: SchemaApi<S>,
     auth_service: PasswordAuthenticator,
     batch_manager: Arc<BatchManager<S>>,
-    storage: Arc<Mutex<S>>,
+    storage: Arc<RwLock<S>>,
     config: Config,
-    function_registry: Arc<Mutex<FunctionRegistry>>,
+    function_registry: Arc<RwLock<FunctionRegistry>>,
 }
 
 impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     /// Create a new HTTP server
     pub fn new(
         graph_service: Arc<GraphService<S>>,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         txn_manager: Arc<TransactionManager>,
         config: &Config,
     ) -> Self {
@@ -49,7 +49,7 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
             batch_manager: Arc::new(BatchManager::new(storage.clone())),
             storage: storage.clone(),
             config: config.clone(),
-            function_registry: Arc::new(Mutex::new(FunctionRegistry::new())),
+            function_registry: Arc::new(RwLock::new(FunctionRegistry::new())),
         }
     }
 
@@ -99,7 +99,7 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     }
 
     /// Getting the Storage Client
-    pub fn get_storage(&self) -> Arc<Mutex<S>> {
+    pub fn get_storage(&self) -> Arc<RwLock<S>> {
         self.storage.clone()
     }
 
@@ -114,7 +114,7 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     }
 
     /// Get function registry
-    pub fn get_function_registry(&self) -> Arc<Mutex<FunctionRegistry>> {
+    pub fn get_function_registry(&self) -> Arc<RwLock<FunctionRegistry>> {
         self.function_registry.clone()
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! Responsible for displaying status information about the tag index.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::Value;
@@ -24,7 +24,7 @@ pub struct ShowTagIndexStatusExecutor<S: StorageClient> {
 impl<S: StorageClient> ShowTagIndexStatusExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -42,7 +42,7 @@ impl<S: StorageClient> ShowTagIndexStatusExecutor<S> {
 
     pub fn with_index_name(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -63,7 +63,7 @@ impl<S: StorageClient> ShowTagIndexStatusExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexStatusExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let indexes = storage_guard.list_tag_indexes(&self.space_name);
 
@@ -154,7 +154,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexStatu
 }
 
 impl<S: StorageClient> HasStorage<S> for ShowTagIndexStatusExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_show_tag_index_status_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_show_tag_index_status_executor_with_name() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

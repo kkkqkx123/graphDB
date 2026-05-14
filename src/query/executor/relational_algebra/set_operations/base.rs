@@ -2,7 +2,7 @@
 //!
 //! Provide the general functions and interfaces of all set operation executors.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -30,7 +30,7 @@ impl<S: StorageClient> SetExecutor<S> {
     pub fn new(
         id: i64,
         name: String,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         left_input_var: String,
         right_input_var: String,
         expr_context: Arc<ExpressionAnalysisContext>,

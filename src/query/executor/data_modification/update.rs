@@ -23,7 +23,7 @@ use crate::query::executor::expression::evaluator::expression_evaluator::Express
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Update the executor.
 ///
@@ -73,7 +73,7 @@ pub struct UpdateResult {
 impl<S: StorageClient> UpdateExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         vertex_updates: Option<Vec<VertexUpdate>>,
         edge_updates: Option<Vec<EdgeUpdate>>,
         condition: Option<ContextualExpression>,
@@ -158,7 +158,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UpdateExecutor<S>
 }
 
 impl<S: StorageClient> HasStorage<S> for UpdateExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -169,7 +169,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
         let condition_expression = self.condition.as_ref().and_then(|c| c.get_expression());
 
-        let mut storage = self.get_storage().lock();
+        let mut storage = self.get_storage().write();
 
         if let Some(updates) = &self.vertex_updates {
             for update in updates {

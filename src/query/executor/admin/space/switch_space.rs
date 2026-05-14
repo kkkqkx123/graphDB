@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Switching space actuators
 ///
@@ -22,7 +22,7 @@ pub struct SwitchSpaceExecutor<S: StorageClient> {
 impl<S: StorageClient> SwitchSpaceExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -36,7 +36,7 @@ impl<S: StorageClient> SwitchSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SwitchSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         match storage_guard.get_space(&self.space_name) {
             Ok(Some(space_info)) => {
@@ -107,7 +107,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SwitchSpaceExecut
 }
 
 impl<S: StorageClient> HasStorage<S> for SwitchSpaceExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_switch_space_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

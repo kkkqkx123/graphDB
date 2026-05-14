@@ -3,7 +3,7 @@
 //! Materialize (cache) the input data in memory to optimize the use of Common Table Expressions (CTEs) or subqueries that are referenced multiple times.
 //! Avoid duplicate calculations to improve query performance.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::DBError;
@@ -48,7 +48,7 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
     /// Create a new materialized executor.
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         memory_limit: Option<usize>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
     ) -> Self {

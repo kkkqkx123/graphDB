@@ -11,7 +11,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutorConfig};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// BFS (Broadest First Search) shortest path configuration
 pub struct BfsShortestPathConfig {
@@ -439,14 +439,14 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             // Expand from the starting direction.
             if left_has_vids {
                 let storage = self.get_storage().clone();
-                let storage_guard = storage.lock();
+                let storage_guard = storage.read();
                 self.build_path(&storage_guard, &left_vids, false)?;
             }
 
             // away
             if right_has_vids {
                 let storage = self.get_storage().clone();
-                let storage_guard = storage.lock();
+                let storage_guard = storage.read();
                 self.build_path(&storage_guard, &right_vids, true)?;
             }
 
@@ -515,7 +515,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
 }
 
 impl<S: StorageClient + 'static> HasStorage<S> for BFSShortestExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
 }

@@ -11,7 +11,7 @@ mod tests {
     use crate::query::executor::Executor;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     fn create_test_context() -> Arc<ExpressionAnalysisContext> {
@@ -20,7 +20,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let index_config = crate::core::types::IndexConfig {
@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_index_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let index_config = crate::core::types::IndexConfig {
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_drop_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = DropTagIndexExecutor::new(
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_drop_tag_index_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = DropTagIndexExecutor::with_if_exists(
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_desc_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = DescTagIndexExecutor::new(
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_show_tag_indexes_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = ShowTagIndexesExecutor::new(
@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_rebuild_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = RebuildTagIndexExecutor::new(
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let index_config = crate::core::types::IndexConfig {
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_index_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let index_config = crate::core::types::IndexConfig {
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = DropEdgeIndexExecutor::new(
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_index_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = DropEdgeIndexExecutor::with_if_exists(
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_desc_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = DescEdgeIndexExecutor::new(
@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_show_edge_indexes_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = ShowEdgeIndexesExecutor::new(
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_rebuild_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let mut executor = RebuildEdgeIndexExecutor::new(
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let index_config = crate::core::types::IndexConfig {
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let index_config = crate::core::types::IndexConfig {

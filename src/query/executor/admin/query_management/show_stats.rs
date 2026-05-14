@@ -2,7 +2,7 @@
 //!
 //! Responsible for displaying statistical information about the database.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::Value;
@@ -32,7 +32,7 @@ pub struct ShowStatsExecutor<S: StorageClient> {
 impl<S: StorageClient> ShowStatsExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         stats_type: ShowStatsType,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -46,7 +46,7 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowStatsExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let dataset = match &self.stats_type {
             ShowStatsType::Storage => self.show_storage_stats(&*storage_guard),
@@ -150,7 +150,7 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for ShowStatsExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not available")
     }
 }
@@ -163,12 +163,12 @@ mod tests {
     use crate::query::executor::Executor;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_show_stats_executor_storage() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_show_stats_executor_space() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_executor_metadata() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_executor_with_different_ids() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -323,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats_mutable() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_multiple_executions() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

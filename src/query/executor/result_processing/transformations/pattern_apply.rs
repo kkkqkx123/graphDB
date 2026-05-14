@@ -3,7 +3,7 @@
 //! Responsible for handling pattern matching operations, supporting the semantics of EXISTS and NOT EXISTS.
 //! Perform a key matching between the left input data and the right input data.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -66,7 +66,7 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
 
     pub fn with_context(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: crate::query::executor::base::ExecutionContext,
         config: PatternApplyConfig,
     ) -> Self {
@@ -296,12 +296,12 @@ mod tests {
     use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_pattern_apply_single_key_positive() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn test_pattern_apply_single_key_anti_predicate() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_pattern_apply_zero_key_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -427,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_pattern_apply_zero_key_not_exists() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

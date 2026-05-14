@@ -9,7 +9,7 @@ use crate::query::planning::plan::ExecutionPlan;
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Find the input_var from an ExpandAllNode in the plan tree
@@ -75,7 +75,7 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
     fn build_executor_chain(
         &mut self,
         plan_node: &crate::query::planning::plan::PlanNodeEnum,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<crate::query::executor::ExecutorEnum<S>, QueryError> {
         let mut executor = self
@@ -174,7 +174,7 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
     pub fn execute_plan(
         &mut self,
         plan: &ExecutionPlan,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expression_context: Arc<ExpressionAnalysisContext>,
     ) -> Result<ExecutionResult, QueryError> {
         let context = ExecutionContext::new(expression_context);

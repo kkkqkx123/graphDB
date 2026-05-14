@@ -17,7 +17,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::manager::FulltextIndexManager;
 use crate::search::SearchEngine;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -28,7 +28,7 @@ pub struct FulltextSearchExecutorParams<S: StorageClient> {
     pub statement: SearchStatement,
     pub engine: Arc<dyn SearchEngine>,
     pub context: ExecutionContext,
-    pub storage: Arc<Mutex<S>>,
+    pub storage: Arc<RwLock<S>>,
     pub expr_context: Arc<ExpressionAnalysisContext>,
     pub fulltext_manager: Arc<FulltextIndexManager>,
     pub space_id: u64,
@@ -66,7 +66,7 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
         statement: SearchStatement,
         engine: Arc<dyn SearchEngine>,
         context: ExecutionContext,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
@@ -379,7 +379,7 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
         config: FulltextScanConfig,
         engine: Arc<dyn SearchEngine>,
         context: ExecutionContext,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
@@ -447,7 +447,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
 
         let mut rows = Vec::new();
         let storage = self.get_storage().clone();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         for result in search_results {
             let vertex_id = &result.doc_id;
@@ -613,7 +613,7 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for FulltextSearchExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -635,7 +635,7 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
 
         let mut rows = Vec::new();
         let storage = self.get_storage().clone();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         for result in search_results {
             let vertex_id = &result.doc_id;
@@ -742,7 +742,7 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for FulltextScanExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -772,7 +772,7 @@ mod tests {
             base: BaseExecutor::new(
                 1,
                 "TestExecutor".to_string(),
-                std::sync::Arc::new(parking_lot::Mutex::new(
+                std::sync::Arc::new(parking_lot::RwLock::new(
                     MockStorage::new().expect("Failed to create MockStorage"),
                 )),
                 std::sync::Arc::new(ExpressionAnalysisContext::new()),

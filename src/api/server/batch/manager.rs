@@ -6,7 +6,7 @@ use crate::api::server::batch::types::*;
 use crate::core::{Edge, Value, Vertex};
 use crate::storage::StorageClient;
 use dashmap::DashMap;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -15,12 +15,12 @@ pub struct BatchManager<S: StorageClient + Clone + 'static> {
     /// Store all batch jobs
     tasks: Arc<DashMap<BatchId, BatchTask>>,
     /// Storage Client
-    storage: Arc<Mutex<S>>,
+    storage: Arc<RwLock<S>>,
 }
 
 impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     /// Creating a new batch task manager
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         Self {
             tasks: Arc::new(DashMap::new()),
             storage,
@@ -172,7 +172,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         operation.add_items(core_items);
 
         // Execute batch operation
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let core_result = operation.execute_sync(&mut *storage, space_name)?;
 
         // Convert core result to server result

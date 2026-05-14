@@ -1,6 +1,6 @@
 //! Match Fulltext Executor
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ pub struct MatchFulltextExecutor<S: StorageClient> {
 impl<S: StorageClient> MatchFulltextExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         fulltext_condition: FulltextMatchCondition,
         yield_clause: Option<FulltextYieldClause>,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -93,7 +93,7 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for MatchFulltextExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -115,7 +115,7 @@ impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
 
         let mut rows = Vec::new();
         let storage = self.get_storage().clone();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         for result in search_results {
             let vertex_id = &result.doc_id;

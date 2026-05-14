@@ -14,18 +14,18 @@ mod tests {
     use crate::query::executor::graph_operations::graph_traversal::traverse::TraverseExecutorParams;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::{MockStorage, StorageClient};
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
-    fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
-        let storage = Arc::new(Mutex::new(
+    fn create_test_graph(_test_name: &str) -> Arc<RwLock<MockStorage>> {
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let space = "default";
 
         // Create test diagrams: A -> B -> C, A -> D
         {
-            let mut storage_lock = storage.lock();
+            let mut storage_lock = storage.write();
 
             // Create vertices
             let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);
@@ -187,14 +187,14 @@ mod tests {
     ///         \--(weight: 5)--> D --(weight: 1)--> C
     /// 最短路径(按权重): A->B->C (总权重: 3)
     /// 最短路径(按步数): A->B->C 或 A->D->C (都是2步)
-    fn create_weighted_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
-        let storage = Arc::new(Mutex::new(
+    fn create_weighted_test_graph(_test_name: &str) -> Arc<RwLock<MockStorage>> {
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let space = "default";
 
         {
-            let mut storage_lock = storage.lock();
+            let mut storage_lock = storage.write();
 
             // Create vertices
             let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);
@@ -358,8 +358,8 @@ mod tests {
     }
 
     // Create a test image with coordinate attributes for testing the A* algorithm.
-    fn create_spatial_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
-        let storage = Arc::new(Mutex::new(
+    fn create_spatial_test_graph(_test_name: &str) -> Arc<RwLock<MockStorage>> {
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create Mock store"),
         ));
         let space = "default";
@@ -367,7 +367,7 @@ mod tests {
         // 创建空间测试图：A(0,0) -> B(3,4) -> C(6,8), A -> D(1,1) -> C
         // Use the Euclidean distance as an heuristic.
         {
-            let mut storage_lock = storage.lock();
+            let mut storage_lock = storage.write();
 
             // Create vertices with coordinate attributes
             let mut props_a = std::collections::HashMap::new();

@@ -12,7 +12,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Creating an Indexing Executor
 ///
@@ -28,7 +28,7 @@ pub struct CreateIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> CreateIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         index_name: String,
         index_type: crate::core::types::IndexType,
         properties: Vec<String>,
@@ -46,7 +46,7 @@ impl<S: StorageClient> CreateIndexExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for CreateIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -98,7 +98,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateIndexExecut
 
 impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<()> {
-        let mut storage = self.get_storage().lock();
+        let mut storage = self.get_storage().write();
 
         let target_name = self
             .tag_name
@@ -148,7 +148,7 @@ pub struct DropIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> DropIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -160,7 +160,7 @@ impl<S: StorageClient> DropIndexExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for DropIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -212,7 +212,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropIndexExecutor
 
 impl<S: StorageClient + Send + Sync + 'static> DropIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<()> {
-        let mut storage = self.get_storage().lock();
+        let mut storage = self.get_storage().write();
 
         storage.drop_tag_index("default", &self._index_name)?;
 

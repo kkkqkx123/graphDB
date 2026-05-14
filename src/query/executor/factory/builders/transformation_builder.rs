@@ -17,7 +17,7 @@ use crate::query::planning::plan::core::nodes::{
     UnwindNode,
 };
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Data Conversion Executor Builder
@@ -36,7 +36,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// Building the Unwind executor
     pub fn build_unwind(
         node: &UnwindNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -70,7 +70,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// Constructing the Assign executor
     pub fn build_assign(
         node: &AssignNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let mut parsed_assignments = Vec::new();
@@ -96,7 +96,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// Building the Materialize executor
     pub fn build_materialize(
         node: &MaterializeNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Create a materialized executor, using the default memory limit (100MB).
@@ -112,7 +112,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// Constructing the AppendVertices executor
     pub fn build_append_vertices(
         node: &AppendVerticesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let input_var = node
@@ -143,7 +143,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// Constructing the RollUpApply executor
     pub fn build_rollup_apply(
         node: &RollUpApplyNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let left_input_var = node
@@ -182,7 +182,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// Constructing the PatternApply executor
     pub fn build_pattern_apply(
         node: &PatternApplyNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let left_input_var = node
@@ -217,7 +217,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// Apply executes a correlated subquery for each row from the left input
     pub fn build_apply(
         node: &ApplyNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let left_input_var = node

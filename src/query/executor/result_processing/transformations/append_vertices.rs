@@ -2,7 +2,7 @@
 //!
 //! Responsible for handling the addition of vertices; retrieves vertex information based on the provided vertex ID and adds it to the result.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
@@ -58,7 +58,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     /// Create an AppendVerticesExecutor with context.
     pub fn with_context(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: crate::query::executor::base::ExecutionContext,
         config: AppendVerticesConfig,
     ) -> Self {
@@ -173,7 +173,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     fn fetch_vertices(&mut self, vids: Vec<Value>) -> DBResult<Vec<Vertex>> {
         let mut vertices = Vec::new();
 
-        let storage = self.get_storage().lock();
+        let storage = self.get_storage().read();
 
         for vid in vids {
             if vid.is_empty() {
@@ -246,12 +246,12 @@ mod tests {
     use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_append_vertices_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 

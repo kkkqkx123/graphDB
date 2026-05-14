@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Delete the image space executor.
 ///
@@ -23,7 +23,7 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
     /// Create a new DropSpaceExecutor.
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -37,7 +37,7 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
     /// Create a DropSpaceExecutor with the IF EXISTS option
     pub fn with_if_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -52,7 +52,7 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.drop_space(&self.space_name);
 
@@ -109,7 +109,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropSpaceExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

@@ -97,7 +97,7 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     // Query the `space_name` using the `space_id`.
     let space_name = {
         let storage = state.server.get_storage();
-        let storage = storage.lock();
+        let storage = storage.write();
         match storage.get_space_by_id(task.space_id) {
             Ok(Some(space_info)) => space_info.space_name,
             Ok(None) => {

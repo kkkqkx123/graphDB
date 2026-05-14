@@ -15,7 +15,7 @@ use crate::query::planning::plan::core::nodes::{
     LeftJoinNode, RightJoinNode, SemiJoinNode,
 };
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Connection Executor Builder
@@ -50,7 +50,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// Constructing the InnerJoin executor
     pub fn build_inner_join(
         node: &InnerJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let (left_var, right_var) = Self::extract_join_vars(node);
@@ -74,7 +74,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// Constructing the HashInnerJoin executor
     pub fn build_hash_inner_join(
         node: &HashInnerJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let (left_var, right_var) = Self::extract_join_vars(node);
@@ -97,7 +97,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// Building the LeftJoin executor
     pub fn build_left_join(
         node: &LeftJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let (left_var, right_var) = Self::extract_join_vars(node);
@@ -120,7 +120,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// Constructing the HashLeftJoin executor
     pub fn build_hash_left_join(
         node: &HashLeftJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let (left_var, right_var) = Self::extract_join_vars(node);
@@ -144,7 +144,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// Constructing the FullOuterJoin executor
     pub fn build_full_outer_join(
         node: &FullOuterJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let (left_var, right_var) = Self::extract_join_vars(node);
@@ -171,7 +171,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// Building the CrossJoin executor
     pub fn build_cross_join(
         node: &CrossJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The CrossJoinExecutor requires a list of input variables of type Vec<String>.
@@ -228,7 +228,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// RightJoin is implemented by converting to LeftJoin with swapped inputs
     pub fn build_right_join(
         node: &RightJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let left_join_node = node.to_left_join();
@@ -238,7 +238,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// Building the SemiJoin executor
     pub fn build_semi_join(
         node: &SemiJoinNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let (left_var, right_var) = Self::extract_join_vars(node);

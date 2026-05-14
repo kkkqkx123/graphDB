@@ -7,17 +7,17 @@ use crate::core::types::{
     EdgeTypeInfo, Index, IndexField, IndexStatus, IndexType, SpaceInfo, TagInfo,
 };
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Schema Manipulation API - Core Layer
 pub struct SchemaApi<S: StorageClient> {
-    storage: Arc<Mutex<S>>,
+    storage: Arc<RwLock<S>>,
 }
 
 impl<S: StorageClient> SchemaApi<S> {
     /// Creating a New Schema API Instance
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         Self { storage }
     }
 
@@ -31,7 +31,7 @@ impl<S: StorageClient> SchemaApi<S> {
             .with_vid_type(config.vid_type)
             .with_comment(config.comment);
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         storage
             .create_space(&mut space_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -45,7 +45,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # Parameters
     /// - `name`: space name
     pub fn drop_space(&self, name: &str) -> CoreResult<()> {
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = storage
             .drop_space(name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -69,7 +69,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # Return
     /// Space ID
     pub fn use_space(&self, name: &str) -> CoreResult<u64> {
-        let storage = self.storage.lock();
+        let storage = self.storage.write();
         let space_id = storage
             .get_space_id(name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -83,7 +83,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # Returns
     /// List of space information
     pub fn list_spaces(&self) -> CoreResult<Vec<crate::core::types::SpaceInfo>> {
-        let storage = self.storage.lock();
+        let storage = self.storage.write();
         let spaces = storage
             .list_spaces()
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -113,7 +113,7 @@ impl<S: StorageClient> SchemaApi<S> {
 
         let tag_info = TagInfo::new(name.to_string()).with_properties(core_properties);
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = storage
             .create_tag(&space_name, &tag_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -130,7 +130,7 @@ impl<S: StorageClient> SchemaApi<S> {
     pub fn drop_tag(&self, space_id: u64, name: &str) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = storage
             .drop_tag(&space_name, name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -166,7 +166,7 @@ impl<S: StorageClient> SchemaApi<S> {
         let core_additions: Vec<crate::core::types::PropertyDef> =
             additions.into_iter().map(|p| p.into()).collect();
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = storage
             .alter_tag(&space_name, tag_name, core_additions, deletions)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -206,7 +206,7 @@ impl<S: StorageClient> SchemaApi<S> {
 
         let edge_type_info = EdgeTypeInfo::new(name.to_string()).with_properties(core_properties);
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = storage
             .create_edge_type(&space_name, &edge_type_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -228,7 +228,7 @@ impl<S: StorageClient> SchemaApi<S> {
     pub fn drop_edge_type(&self, space_id: u64, name: &str) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = storage
             .drop_edge_type(&space_name, name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -268,7 +268,7 @@ impl<S: StorageClient> SchemaApi<S> {
         let core_additions: Vec<crate::core::types::PropertyDef> =
             additions.into_iter().map(|p| p.into()).collect();
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = storage
             .alter_edge_type(&space_name, edge_type_name, core_additions, deletions)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -304,7 +304,7 @@ impl<S: StorageClient> SchemaApi<S> {
                 fields,
             } => {
                 // Get label information to determine field type
-                let storage = self.storage.lock();
+                let storage = self.storage.read();
                 let tag_info = storage
                     .get_tag(&space_name, &tag_name)
                     .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -322,7 +322,7 @@ impl<S: StorageClient> SchemaApi<S> {
                 fields,
             } => {
                 // Get edge type information to determine field type
-                let storage = self.storage.lock();
+                let storage = self.storage.read();
                 let edge_info = storage
                     .get_edge_type(&space_name, &edge_name)
                     .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -338,7 +338,7 @@ impl<S: StorageClient> SchemaApi<S> {
         };
 
         // Call the corresponding creation method based on the index type
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
         let result = match index_type {
             IndexType::TagIndex => {
                 let index = Index {
@@ -398,7 +398,7 @@ impl<S: StorageClient> SchemaApi<S> {
     pub fn drop_index(&self, space_id: u64, name: &str) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
 
         // Try to delete the tag index.
         if let Ok(Some(_)) = storage.get_tag_index(&space_name, name) {
@@ -444,7 +444,7 @@ impl<S: StorageClient> SchemaApi<S> {
     pub fn rebuild_index(&self, space_id: u64, index_name: &str) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
-        let mut storage = self.storage.lock();
+        let mut storage = self.storage.write();
 
         // Try to rebuild tag index
         if let Ok(Some(_)) = storage.get_tag_index(&space_name, index_name) {
@@ -490,7 +490,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # Back
     /// The “Schema” describes a string.
     pub fn describe_schema(&self, space_id: u64) -> CoreResult<String> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
 
         // Obtaining spatial information
         let space_info = storage
@@ -586,7 +586,7 @@ impl<S: StorageClient> SchemaApi<S> {
 impl<S: StorageClient> SchemaApi<S> {
     /// Retrieve the space name based on the space ID.
     fn get_space_name_by_id(&self, space_id: u64) -> CoreResult<String> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
         let space_info = storage
             .get_space_by_id(space_id)
             .map_err(|e| CoreError::StorageError(e.to_string()))?
@@ -689,8 +689,8 @@ mod tests {
     use super::*;
     use crate::storage::test_mock::MockStorage;
 
-    fn create_mock_storage() -> Arc<Mutex<MockStorage>> {
-        Arc::new(Mutex::new(
+    fn create_mock_storage() -> Arc<RwLock<MockStorage>> {
+        Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ))
     }

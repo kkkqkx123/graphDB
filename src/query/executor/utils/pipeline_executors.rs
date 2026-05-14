@@ -1,4 +1,4 @@
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
@@ -21,7 +21,7 @@ pub struct ArgumentExecutor<S: StorageClient + 'static> {
 impl<S: StorageClient + 'static> ArgumentExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         var: &str,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -117,7 +117,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ArgumentExecutor<S>
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for ArgumentExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
 }
@@ -133,7 +133,7 @@ pub struct PassThroughExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient> PassThroughExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -199,7 +199,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for PassThroughExecutor
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for PassThroughExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
 }
@@ -216,7 +216,7 @@ pub struct DataCollectExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient> DataCollectExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -290,7 +290,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for DataCollectExecutor
 }
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for DataCollectExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
 }
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_creation() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_with_variable() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_with_result() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_variable_not_found() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_pass_through_executor_creation() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn test_data_collect_executor_creation() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

@@ -2,7 +2,7 @@
 //!
 //! Provide functions for creating, deleting, describing, and listing tag indexes.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::types::index::IndexConfig;
@@ -76,7 +76,7 @@ pub struct CreateTagIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> CreateTagIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -96,7 +96,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
 
     pub fn with_if_not_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_info: Index,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -118,7 +118,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.create_tag_index(&self.space_name, &self.index_info);
 
@@ -168,13 +168,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagIndexExe
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowTagIndexesExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateTagIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -191,7 +191,7 @@ pub struct DropTagIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> DropTagIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -211,7 +211,7 @@ impl<S: StorageClient> DropTagIndexExecutor<S> {
 
     pub fn with_if_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -233,7 +233,7 @@ impl<S: StorageClient> DropTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.drop_tag_index(&self.space_name, &self.index_name);
 
@@ -283,7 +283,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagIndexExecu
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropTagIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -299,7 +299,7 @@ pub struct DescTagIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> DescTagIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -320,7 +320,7 @@ impl<S: StorageClient> DescTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.get_tag_index(&self.space_name, &self.index_name);
 
@@ -383,7 +383,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagIndexExecu
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescTagIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -398,7 +398,7 @@ pub struct ShowTagIndexesExecutor<S: StorageClient> {
 impl<S: StorageClient> ShowTagIndexesExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -417,7 +417,7 @@ impl<S: StorageClient> ShowTagIndexesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.list_tag_indexes(&self.space_name);
 

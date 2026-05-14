@@ -1,6 +1,6 @@
 //! Show Fulltext Index Executor
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::Value;
@@ -19,7 +19,7 @@ pub struct ShowFulltextIndexExecutor<S: StorageClient> {
 impl<S: StorageClient> ShowFulltextIndexExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         fulltext_manager: Arc<FulltextIndexManager>,
     ) -> Self {
@@ -36,7 +36,7 @@ impl<S: StorageClient> ShowFulltextIndexExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for ShowFulltextIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

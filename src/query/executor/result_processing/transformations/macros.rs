@@ -7,7 +7,7 @@ macro_rules! impl_has_storage {
         impl<S: $crate::storage::StorageClient + Send + 'static>
             $crate::query::executor::base::HasStorage<S> for $executor<S>
         {
-            fn get_storage(&self) -> &std::sync::Arc<parking_lot::Mutex<S>> {
+            fn get_storage(&self) -> &std::sync::Arc<parking_lot::RwLock<S>> {
                 self.base
                     .storage
                     .as_ref()

@@ -10,7 +10,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// List the executors that run in the graph space
 ///
@@ -24,7 +24,7 @@ impl<S: StorageClient> ShowSpacesExecutor<S> {
     /// Create a new ShowSpacesExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -36,7 +36,7 @@ impl<S: StorageClient> ShowSpacesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.list_spaces();
 
@@ -104,7 +104,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowSpacesExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

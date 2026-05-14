@@ -224,7 +224,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         // Execute batch operation using core API
-        let mut storage = self.session.storage();
+        let mut storage = self.session.storage_mut();
         let core_result = self
             .core_operation
             .execute_sync(&mut *storage, space_name)?;
@@ -245,7 +245,7 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         // Execute batch operation using core API
-        let mut storage = self.session.storage();
+        let mut storage = self.session.storage_mut();
         let _ = self
             .core_operation
             .execute_sync(&mut *storage, space_name)?;

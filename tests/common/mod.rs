@@ -22,7 +22,7 @@ pub mod c_api_helpers;
 use graphdb::core::error::DBError;
 use graphdb::storage::metadata::SchemaManager;
 use graphdb::storage::GraphStorage;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ pub type TestResult<T> = Result<T, Box<DBError>>;
 /// Ensure that each test has a separate storage environment using a temporary folder in the project directory.
 /// Automatic cleanup of temporary directories after testing
 pub struct TestStorage {
-    storage: Arc<Mutex<GraphStorage>>,
+    storage: Arc<RwLock<GraphStorage>>,
     temp_path: PathBuf,
 }
 
@@ -44,7 +44,7 @@ impl TestStorage {
         let temp_dir = tempfile::tempdir().map_err(|e| DBError::io(e.to_string()))?;
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             GraphStorage::new_with_path(db_path).map_err(|e| Box::new(DBError::from(e)))?,
         ));
         Ok(Self {
@@ -55,7 +55,7 @@ impl TestStorage {
 
     /// Creating a Test Storage Instance with a specific path
     pub fn new_with_path(path: PathBuf) -> TestResult<Self> {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             GraphStorage::new_with_path(path).map_err(|e| Box::new(DBError::from(e)))?,
         ));
         Ok(Self {
@@ -65,13 +65,13 @@ impl TestStorage {
     }
 
     /// Getting a Reference to a Storage Instance
-    pub fn storage(&self) -> Arc<Mutex<GraphStorage>> {
+    pub fn storage(&self) -> Arc<RwLock<GraphStorage>> {
         self.storage.clone()
     }
 
     /// Getting the Schema Manager from Storage
     pub fn schema_manager(&self) -> Arc<SchemaManager> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
         storage.get_schema_manager()
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! Responsible for listing all edge types in the specified graph space.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::Value;
@@ -25,7 +25,7 @@ impl<S: StorageClient> ShowEdgesExecutor<S> {
     /// Create a new ShowEdgesExecutor.
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -39,7 +39,7 @@ impl<S: StorageClient> ShowEdgesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock();
+        let storage_guard = storage.read();
 
         let result = storage_guard.list_edge_types(&self.space_name);
 
@@ -97,7 +97,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowEdgesExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

@@ -15,7 +15,7 @@ use crate::sync::vector_sync::SearchOptions;
 use crate::sync::SyncManager;
 use crate::transaction::TransactionManager;
 use crate::transaction::TransactionOptions;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -53,16 +53,16 @@ pub struct Session<S: StorageClient + Clone + 'static> {
     /// Session-level change statistics
     statistics: SessionStatistics,
     /// Session-level function registry
-    function_registry: Arc<Mutex<FunctionRegistry>>,
+    function_registry: Arc<RwLock<FunctionRegistry>>,
 }
 
 /// Internal structure of the database, used for sharing data between Session and GraphDatabase
 #[repr(C)]
 pub(crate) struct GraphDatabaseInner<S: StorageClient + Clone + 'static> {
-    pub(crate) query_api: Arc<Mutex<QueryApi<S>>>,
+    pub(crate) query_api: Arc<RwLock<QueryApi<S>>>,
     pub(crate) schema_api: SchemaApi<S>,
     pub(crate) txn_manager: Arc<TransactionManager>,
-    pub(crate) storage: Arc<Mutex<S>>,
+    pub(crate) storage: Arc<RwLock<S>>,
     pub(crate) fulltext_manager: Option<Arc<FulltextIndexManager>>,
     pub(crate) sync_manager: Option<Arc<SyncManager>>,
 }
@@ -76,19 +76,19 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             space_name: None,
             auto_commit: true,
             statistics: SessionStatistics::new(),
-            function_registry: Arc::new(Mutex::new(FunctionRegistry::new())),
+            function_registry: Arc::new(RwLock::new(FunctionRegistry::new())),
         }
     }
 
     /// Register a custom function
     pub fn register_custom_function(&self, function: CustomFunction) -> CoreResult<()> {
-        let mut registry = self.function_registry.lock();
+        let mut registry = self.function_registry.write();
         registry.register_custom_full(function);
         Ok(())
     }
 
     /// Obtain a reference to the function registry.
-    pub fn function_registry(&self) -> Arc<Mutex<FunctionRegistry>> {
+    pub fn function_registry(&self) -> Arc<RwLock<FunctionRegistry>> {
         Arc::clone(&self.function_registry)
     }
 
@@ -175,7 +175,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             parameters: None,
         };
 
-        let mut query_api = self.db.query_api.lock();
+        let mut query_api = self.db.query_api.write();
         let result = query_api.execute(query, ctx)?;
 
         // Update statistical information
@@ -207,7 +207,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             parameters: Some(params),
         };
 
-        let mut query_api = self.db.query_api.lock();
+        let mut query_api = self.db.query_api.write();
         let result = query_api.execute(query, ctx)?;
         Ok(QueryResult::from_core(result))
     }
@@ -330,7 +330,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// List all graph spaces
     pub fn list_spaces(&self) -> CoreResult<Vec<String>> {
         // Getting all the space through the storage layer
-        let storage = self.db.storage.lock();
+        let storage = self.db.storage.write();
         let spaces = storage
             .list_spaces()
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -338,8 +338,13 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     }
 
     /// Getting a lock on the query API (internal use)
-    pub(crate) fn query_api(&self) -> parking_lot::MutexGuard<'_, QueryApi<S>> {
-        self.db.query_api.as_ref().lock()
+    pub(crate) fn query_api(&self) -> parking_lot::RwLockReadGuard<'_, QueryApi<S>> {
+        self.db.query_api.as_ref().read()
+    }
+
+    /// Getting a mutable lock on the query API (internal use)
+    pub(crate) fn query_api_mut(&self) -> parking_lot::RwLockWriteGuard<'_, QueryApi<S>> {
+        self.db.query_api.as_ref().write()
     }
 
     /// Get space ID (internal use)
@@ -353,8 +358,13 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     }
 
     /// Acquiring stored locks (for internal use)
-    pub(crate) fn storage(&self) -> parking_lot::MutexGuard<'_, S> {
-        self.db.storage.lock()
+    pub(crate) fn storage(&self) -> parking_lot::RwLockReadGuard<'_, S> {
+        self.db.storage.read()
+    }
+
+    /// Acquiring stored write locks (for internal use)
+    pub(crate) fn storage_mut(&self) -> parking_lot::RwLockWriteGuard<'_, S> {
+        self.db.storage.write()
     }
 
     /// Get current space name (for internal use)
@@ -412,7 +422,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         let count = vertices.len();
-        let mut storage = self.storage();
+        let mut storage = self.storage_mut();
         storage
             .batch_insert_vertices(space_name, vertices)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -434,7 +444,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         let count = edges.len();
-        let mut storage = self.storage();
+        let mut storage = self.storage_mut();
         storage
             .batch_insert_edges(space_name, edges)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;

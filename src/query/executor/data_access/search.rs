@@ -11,7 +11,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// IndexScanExecutor - Index Scan Executor
 ///
@@ -517,7 +517,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
             self.index_name, self.schema_name, self.scan_type
         );
         eprintln!("  scan_limits={:?}", self.scan_limits);
-        let storage = self.get_storage().lock();
+        let storage = self.get_storage().read();
 
         let index_results = self.lookup_by_index(&storage)?;
         eprintln!("  index_results count: {}", index_results.len());
@@ -700,7 +700,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
 }
 
 impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

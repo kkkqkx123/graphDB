@@ -2,7 +2,7 @@
 //!
 //! Responsible for modifying attribute definitions for already existing edge types.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::types::PropertyDef;
@@ -87,7 +87,7 @@ impl<S: StorageClient> AlterEdgeExecutor<S> {
     /// Creating a new AlterEdgeExecutor
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         alter_info: AlterEdgeInfo,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -101,7 +101,7 @@ impl<S: StorageClient> AlterEdgeExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let additions: Vec<PropertyDef> = self
             .alter_info
@@ -178,7 +178,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for AlterEdgeExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

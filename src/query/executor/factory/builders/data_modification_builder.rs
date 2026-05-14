@@ -14,7 +14,7 @@ use crate::query::planning::plan::core::nodes::{
     UpdateNode, UpdateTargetType, UpdateVerticesNode,
 };
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Constructing the InsertVertices executor
     pub fn build_insert_vertices(
         node: &InsertVerticesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Convert node data into vertex data.
@@ -121,7 +121,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Constructing the InsertEdges executor
     pub fn build_insert_edges(
         node: &InsertEdgesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let mut edges = Vec::new();
@@ -204,7 +204,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the Remove Executor
     pub fn build_remove(
         node: &RemoveNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Translate: `remove_items`
@@ -237,7 +237,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the DeleteVertices executor (standalone DELETE)
     pub fn build_delete_vertices(
         node: &DeleteVerticesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::DeleteExecutor;
@@ -272,7 +272,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the DeleteEdges executor (standalone DELETE)
     pub fn build_delete_edges(
         node: &DeleteEdgesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::DeleteExecutor;
@@ -319,7 +319,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the PipeDeleteVertices executor (pipe DELETE)
     pub fn build_pipe_delete_vertices(
         node: &PipeDeleteVerticesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::PipeDeleteExecutor;
@@ -337,7 +337,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the PipeDeleteEdges executor (pipe DELETE)
     pub fn build_pipe_delete_edges(
         node: &PipeDeleteEdgesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::PipeDeleteExecutor;
@@ -355,7 +355,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the DeleteTags executor (standalone DELETE TAG)
     pub fn build_delete_tags(
         node: &DeleteTagsNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::DeleteExecutor;
@@ -391,7 +391,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the DeleteIndex executor (standalone DELETE INDEX)
     pub fn build_delete_index(
         node: &DeleteIndexNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::DeleteExecutor;
@@ -413,7 +413,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the Update executor
     pub fn build_update(
         node: &UpdateNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor, VertexUpdate};
@@ -576,7 +576,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the UpdateVertices executor
     pub fn build_update_vertices(
         node: &UpdateVerticesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::{UpdateExecutor, VertexUpdate};
@@ -651,7 +651,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     /// Building the UpdateEdges executor
     pub fn build_update_edges(
         node: &UpdateEdgesNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor};

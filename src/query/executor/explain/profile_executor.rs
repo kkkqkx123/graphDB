@@ -39,7 +39,7 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
         }
     }
 
-    fn get_storage(&self) -> &Arc<parking_lot::Mutex<S>> {
+    fn get_storage(&self) -> &Arc<parking_lot::RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
 

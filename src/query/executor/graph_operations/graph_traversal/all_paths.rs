@@ -224,7 +224,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             .storage
             .as_ref()
             .expect("AllPathsExecutor storage not set");
-        let storage = storage.lock();
+        let storage = storage.read();
 
         let edges = storage
             .get_node_edges("default", node_id, direction)
@@ -310,7 +310,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .storage
                     .as_ref()
                     .expect("AllPathsExecutor storage not set");
-                let storage = storage.lock();
+                let storage = storage.read();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                     // Using NPath expansion, O(1) operation, sharing prefixes
                     let new_npath = Arc::new(NPath::extend(
@@ -369,7 +369,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .storage
                     .as_ref()
                     .expect("AllPathsExecutor storage not set");
-                let storage = storage.lock();
+                let storage = storage.read();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                     // Using the NPath extension
                     let new_npath = Arc::new(NPath::extend(
@@ -516,7 +516,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             .storage
             .as_ref()
             .expect("AllPathsExecutor storage not set");
-        let storage = storage.lock();
+        let storage = storage.read();
 
         // Initialize the left queue
         for left_id in &self.left_start_ids {

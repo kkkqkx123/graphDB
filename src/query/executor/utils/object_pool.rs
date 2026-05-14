@@ -5,7 +5,7 @@
 
 use crate::query::executor::base::ExecutorEnum;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
@@ -474,14 +474,14 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
 
 /// Object pool wrapper – Provides a thread-safe object pool.
 pub struct ThreadSafeExecutorPool<S: StorageClient + 'static> {
-    inner: Arc<Mutex<ExecutorObjectPool<S>>>,
+    inner: Arc<RwLock<ExecutorObjectPool<S>>>,
 }
 
 impl<S: StorageClient + 'static> ThreadSafeExecutorPool<S> {
     /// Create a new thread-safe object pool.
     pub fn new(config: ObjectPoolConfig) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(ExecutorObjectPool::new(config))),
+            inner: Arc::new(RwLock::new(ExecutorObjectPool::new(config))),
         }
     }
 
@@ -492,49 +492,49 @@ impl<S: StorageClient + 'static> ThreadSafeExecutorPool<S> {
 
     /// Get the executor from the object pool.
     pub fn acquire(&self, executor_type: &str) -> Option<ExecutorEnum<S>> {
-        let mut pool = self.inner.lock();
+        let mut pool = self.inner.write();
         pool.acquire(executor_type)
     }
 
     /// Release the executor back to the object pool.
     pub fn release(&self, executor_type: &str, executor: ExecutorEnum<S>) {
-        let mut pool = self.inner.lock();
+        let mut pool = self.inner.write();
         pool.release(executor_type, executor);
     }
 
     /// Clear the object pool.
     pub fn clear(&self) {
-        let mut pool = self.inner.lock();
+        let mut pool = self.inner.write();
         pool.clear();
     }
 
     /// Obtain object pool statistics information
     pub fn stats(&self) -> PoolStats {
-        let pool = self.inner.lock();
+        let pool = self.inner.write();
         pool.stats().clone()
     }
 
     /// Obtain object pool configuration
     pub fn config(&self) -> ObjectPoolConfig {
-        let pool = self.inner.lock();
+        let pool = self.inner.write();
         pool.config().clone()
     }
 
     /// Update the object pool configuration.
     pub fn set_config(&self, config: ObjectPoolConfig) {
-        let mut pool = self.inner.lock();
+        let mut pool = self.inner.write();
         pool.set_config(config);
     }
 
     /// Get the pool size of the specified type
     pub fn pool_size(&self, executor_type: &str) -> usize {
-        let pool = self.inner.lock();
+        let pool = self.inner.write();
         pool.pool_size(executor_type)
     }
 
     /// Get the total pool size
     pub fn total_size(&self) -> usize {
-        let pool = self.inner.lock();
+        let pool = self.inner.write();
         pool.total_size()
     }
 }

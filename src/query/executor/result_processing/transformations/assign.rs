@@ -2,7 +2,7 @@
 //!
 //! Responsible for handling variable assignment operations, assigning the results of expressions to variables.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
@@ -27,7 +27,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
     /// Create a new AssignExecutor.
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         assign_items: Vec<(String, Expression)>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -40,7 +40,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
     /// Create an AssignExecutor with context.
     pub fn with_context(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         assign_items: Vec<(String, Expression)>,
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
@@ -136,12 +136,12 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
-    use parking_lot::Mutex;
+    use parking_lot::RwLock;
     use std::sync::Arc;
 
     #[test]
     fn test_assign_executor() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
 

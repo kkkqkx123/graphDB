@@ -41,7 +41,7 @@ use crate::query::QueryRequestContext;
 use crate::storage::metadata::SchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -74,7 +74,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     /// `stats_manager`: A manager for statistical information.
     /// `optimizer_engine`: The optimizer engine (global instance).
     pub fn with_optimizer(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         stats_manager: Arc<StatsManager>,
         optimizer_engine: Arc<OptimizerEngine>,
     ) -> Self {
@@ -105,7 +105,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     /// - `optimizer_engine`: Optimizer engine (global instance)
     /// - `plan_cache_config`: Query plan cache configuration
     pub fn with_optimizer_and_cache(
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         stats_manager: Arc<StatsManager>,
         optimizer_engine: Arc<OptimizerEngine>,
         plan_cache_config: PlanCacheConfig,

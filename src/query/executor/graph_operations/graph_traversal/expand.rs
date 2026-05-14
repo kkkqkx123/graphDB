@@ -11,12 +11,12 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Parameters for creating an ExpandExecutor
 pub struct ExpandExecutorParams<S: StorageClient + Send + 'static> {
     pub id: i64,
-    pub storage: Arc<Mutex<S>>,
+    pub storage: Arc<RwLock<S>>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
@@ -63,7 +63,7 @@ impl<S: StorageClient> std::fmt::Debug for ExpandExecutor<S> {
 impl<S: StorageClient> ExpandExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
@@ -212,7 +212,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
     fn build_expansion_result(&self, expanded_nodes: Vec<Value>) -> ExecutionResult {
         // Convert the node ID into a vertex object.
         let mut vertices = Vec::new();
-        let storage = self.get_storage().lock();
+        let storage = self.get_storage().read();
 
         for node_id in expanded_nodes {
             if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
@@ -333,7 +333,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
 }
 
 impl<S: StorageClient + Send> HasStorage<S> for ExpandExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
             .as_ref()

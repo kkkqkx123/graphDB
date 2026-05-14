@@ -8,7 +8,7 @@ use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Parameters for creating GetVerticesExecutor
 pub struct GetVerticesParams {
@@ -46,7 +46,7 @@ pub struct GetVerticesExecutor<S: StorageClient + 'static> {
 impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         params: GetVerticesParams,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -123,7 +123,7 @@ impl<S: StorageClient + 'static> Executor<S> for GetVerticesExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for GetVerticesExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -132,7 +132,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
         match &self.vertex_ids {
             Some(ids) if ids.len() > 1 => {
-                let storage = self.get_storage().lock();
+                let storage = self.get_storage().read();
                 let mut result_vertices: Vec<vertex_edge_path::Vertex> = Vec::new();
                 let mut failed_count = 0;
 
@@ -173,7 +173,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 Ok(result_vertices)
             }
             Some(ids) if ids.len() == 1 => {
-                let storage = self.get_storage().lock();
+                let storage = self.get_storage().read();
 
                 match storage.get_vertex(&self.space_name, &ids[0]) {
                     Ok(Some(vertex)) => Ok(vec![vertex]),
@@ -183,7 +183,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
             }
             Some(_) => Ok(Vec::new()),
             None => {
-                let storage = self.get_storage().lock();
+                let storage = self.get_storage().read();
 
                 let vertices = storage.scan_vertices(&self.space_name)?
                     .into_iter()
@@ -265,7 +265,7 @@ pub struct ScanVerticesExecutor<S: StorageClient> {
 impl<S: StorageClient> ScanVerticesExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         tag_filter: Option<crate::core::Expression>,
         vertex_filter: Option<crate::core::Expression>,
         limit: Option<usize>,
@@ -345,14 +345,14 @@ impl<S: StorageClient> Executor<S> for ScanVerticesExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for ScanVerticesExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
 impl<S: StorageClient> ScanVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
-        let storage = self.get_storage().lock();
+        let storage = self.get_storage().read();
 
         let mut vertices: Vec<vertex_edge_path::Vertex> = storage.scan_vertices("default")?
             .into_iter()

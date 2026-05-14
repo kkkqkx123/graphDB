@@ -15,7 +15,7 @@ use crate::query::planning::plan::core::nodes::{
     AggregateNode, DedupNode, FilterNode, LimitNode, ProjectNode, SampleNode, SortNode, TopNNode,
 };
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 /// Data Processing Executor Builder
@@ -34,7 +34,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building a Filter Executor
     pub fn build_filter(
         node: &FilterNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The `FilterExecutor::new` method requires a `ContextualExpression`.
@@ -47,7 +47,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building the Project Executor
     pub fn build_project(
         node: &ProjectNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Convert YieldColumn to ProjectionColumn.
@@ -70,7 +70,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building the Limit executor
     pub fn build_limit(
         node: &LimitNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Parameters of LimitExecutor::new: id, storage, limit, offset
@@ -87,7 +87,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building the Sort executor
     pub fn build_sort(
         node: &SortNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // SortItem now contains an Expression instead of just a column name
@@ -121,7 +121,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building a TopN executor
     pub fn build_topn(
         node: &TopNNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // TopNExecutor now supports expressions via with_sort_keys
@@ -147,7 +147,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building the Sample Executor
     pub fn build_sample(
         node: &SampleNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // Parameters for SampleExecutor::new: id, storage, method, count, seed
@@ -164,7 +164,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building the Aggregate Executor
     pub fn build_aggregate(
         node: &AggregateNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // `group_keys` is a `Vec<String>`, so it can be directly converted to an `Expression::Variable`.
@@ -198,7 +198,7 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// Building a Dedup Executor
     pub fn build_dedup(
         node: &DedupNode,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::result_processing::dedup::DedupStrategy;

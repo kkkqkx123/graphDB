@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use super::traits::ShortestPathAlgorithm;
 use super::types::{
@@ -53,7 +53,7 @@ impl PartialOrd for AStarNode {
 
 /// A* shortest path algorithm
 pub struct AStar<S: StorageClient> {
-    storage: Arc<Mutex<S>>,
+    storage: Arc<RwLock<S>>,
     stats: AlgorithmStats,
     edge_direction: crate::core::types::EdgeDirection,
     /// weighting
@@ -63,7 +63,7 @@ pub struct AStar<S: StorageClient> {
 }
 
 impl<S: StorageClient> AStar<S> {
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         Self {
             storage,
             stats: AlgorithmStats::new(),
@@ -144,7 +144,7 @@ impl<S: StorageClient> AStar<S> {
         &self,
         vid: &Value,
     ) -> Result<Option<std::collections::HashMap<String, crate::core::Value>>, QueryError> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
         storage
             .get_vertex("default", vid)
             .map(|v| v.map(|vertex| vertex.properties))
@@ -157,7 +157,7 @@ impl<S: StorageClient> AStar<S> {
         node_id: &Value,
         edge_types: Option<&[String]>,
     ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
 
         let edges = storage
             .get_node_edges("default", node_id, self.edge_direction)
@@ -214,7 +214,7 @@ impl<S: StorageClient> AStar<S> {
 
     /// Get Vertex
     fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
-        let storage = self.storage.lock();
+        let storage = self.storage.read();
         storage
             .get_vertex("default", vid)
             .map_err(|e| QueryError::storage(e.to_string()))

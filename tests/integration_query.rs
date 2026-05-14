@@ -132,7 +132,7 @@ fn test_validator_match_basic() {
     // Creating a Graph Space and Schema
     let mut space_info = common::storage_helpers::create_test_space("validator_test_space");
     {
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
         assert_ok(storage_guard.create_space(&mut space_info));
     }
 
@@ -201,7 +201,7 @@ fn test_planner_match_statement() {
     // Creating a graph space
     let mut space_info = common::storage_helpers::create_test_space("planner_test_space");
     {
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
         assert_ok(storage_guard.create_space(&mut space_info));
     }
 
@@ -269,7 +269,7 @@ fn test_pipeline_manager_use_space() {
 
     // Create the space first
     {
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
         let mut space_info = common::storage_helpers::create_test_space("use_test_space");
         let _ = storage_guard.create_space(&mut space_info);
     }

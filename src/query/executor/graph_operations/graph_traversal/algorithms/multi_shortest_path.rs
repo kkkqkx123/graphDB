@@ -16,7 +16,7 @@ use crate::query::executor::base::{
 };
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 use super::types::{
     cleanup_termination_map, create_termination_map, is_termination_complete, mark_path_found,
@@ -156,7 +156,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
             DBError::storage("Storage not set".to_string())
         })?;
-        let storage = storage.lock();
+        let storage = storage.read();
 
         let edges = storage
             .get_node_edges("default", node_id, direction)
@@ -552,7 +552,7 @@ impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for MultiShortestPa
 }
 
 impl<S: StorageClient> HasStorage<S> for MultiShortestPathExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn test_has_duplicate_edges() {
-        let storage = Arc::new(Mutex::new(
+        let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());

@@ -15,7 +15,7 @@ use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::DataSet;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 // Introducing the algorithm module
 use super::algorithms::{
@@ -272,7 +272,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShortestPathExecu
 }
 
 impl<S: StorageClient + Send> HasStorage<S> for ShortestPathExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not initialized")
     }
 }

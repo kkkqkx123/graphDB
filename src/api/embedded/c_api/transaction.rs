@@ -212,7 +212,7 @@ pub unsafe extern "C" fn graphdb_txn_execute(
         parameters: None,
     };
 
-    let mut query_api = session.inner.query_api();
+    let mut query_api = session.inner.query_api_mut();
     match query_api.execute(query_str, ctx) {
         Ok(core_result) => {
             let query_result = crate::api::embedded::result::QueryResult::from_core(core_result);

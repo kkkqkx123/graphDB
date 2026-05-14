@@ -5,7 +5,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Value};
 use crate::query::executor::base::EdgeDirection;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Obtaining neighbor nodes
 ///
@@ -34,13 +34,13 @@ use parking_lot::Mutex;
 /// )?;
 /// ```
 pub fn get_neighbors<S: StorageClient>(
-    storage: &Arc<Mutex<S>>,
+    storage: &Arc<RwLock<S>>,
     node_id: &Value,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
     allow_loop: bool,
 ) -> DBResult<Vec<Value>> {
-    let storage_guard = storage.lock();
+    let storage_guard = storage.read();
 
     let edges = storage_guard
         .get_node_edges("default", node_id, EdgeDirection::Both)
@@ -117,13 +117,13 @@ pub fn get_neighbors<S: StorageClient>(
 /// # Back
 /// List of tuples representing neighbor nodes and edges
 pub fn get_neighbors_with_edges<S: StorageClient>(
-    storage: &Arc<Mutex<S>>,
+    storage: &Arc<RwLock<S>>,
     node_id: &Value,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
     allow_loop: bool,
 ) -> DBResult<Vec<(Value, Edge)>> {
-    let storage_guard = storage.lock();
+    let storage_guard = storage.read();
 
     let edges = storage_guard
         .get_node_edges("default", node_id, EdgeDirection::Both)

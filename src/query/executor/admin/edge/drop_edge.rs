@@ -2,7 +2,7 @@
 //!
 //! Responsible for deleting the specified edge type and all its associated data.
 
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -24,7 +24,7 @@ impl<S: StorageClient> DropEdgeExecutor<S> {
     /// Create a new DropEdgeExecutor.
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         edge_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -40,7 +40,7 @@ impl<S: StorageClient> DropEdgeExecutor<S> {
     /// Create a DropEdgeExecutor with the IF EXISTS option
     pub fn with_if_exists(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         space_name: String,
         edge_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -57,7 +57,7 @@ impl<S: StorageClient> DropEdgeExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock();
+        let mut storage_guard = storage.write();
 
         let result = storage_guard.drop_edge_type(&self.space_name, &self.edge_name);
 
@@ -114,7 +114,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropEdgeExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }

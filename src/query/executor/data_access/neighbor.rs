@@ -7,7 +7,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 pub struct GetNeighborsExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
@@ -19,7 +19,7 @@ pub struct GetNeighborsExecutor<S: StorageClient + 'static> {
 impl<S: StorageClient> GetNeighborsExecutor<S> {
     pub fn new(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         vertex_ids: Vec<Value>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
@@ -91,7 +91,7 @@ impl<S: StorageClient + 'static> Executor<S> for GetNeighborsExecutor<S> {
 }
 
 impl<S: StorageClient> HasStorage<S> for GetNeighborsExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
+    fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
@@ -102,7 +102,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
             return Ok(Vec::new());
         }
 
-        let storage = self.get_storage().lock();
+        let storage = self.get_storage().read();
         let mut neighbor_ids: Vec<Value> = Vec::new();
         let edge_types_filter = self.edge_types.as_ref();
         let direction = self.edge_direction;

@@ -195,7 +195,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             parameters: None,
         };
 
-        let mut query_api = self.session.query_api();
+        let mut query_api = self.session.query_api_mut();
         let result = query_api.execute(query, ctx)?;
         Ok(QueryResult::from_core(result))
     }
@@ -224,7 +224,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             parameters: Some(params),
         };
 
-        let mut query_api = self.session.query_api();
+        let mut query_api = self.session.query_api_mut();
         let result = query_api.execute(query, ctx)?;
         Ok(QueryResult::from_core(result))
     }

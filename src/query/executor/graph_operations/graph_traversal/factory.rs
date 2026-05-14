@@ -7,7 +7,7 @@ use crate::query::executor::graph_operations::graph_traversal::expand_all::{Expa
 use crate::query::executor::graph_operations::graph_traversal::shortest_path::ShortestPathExecutor;
 use crate::query::executor::graph_operations::graph_traversal::traverse::{TraverseExecutor, TraverseExecutorParams};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 
 /// Graph Traversal Executor Factory
 pub struct GraphTraversalExecutorFactory;
@@ -52,7 +52,7 @@ impl GraphTraversalExecutorFactory {
     /// Create the ShortestPathExecutor
     pub fn create_shortest_path_executor<S: crate::storage::StorageClient>(
         id: i64,
-        storage: Arc<Mutex<S>>,
+        storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         config: ShortestPathConfig,
         algorithm: ShortestPathAlgorithmType,
