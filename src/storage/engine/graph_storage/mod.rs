@@ -109,7 +109,7 @@ impl GraphStorage {
         self.ctx.is_fulltext_enabled()
     }
 
-    pub fn get_db(&self) -> Arc<RwLock<PropertyGraph>> {
+    pub fn get_db(&self) -> Arc<PropertyGraph> {
         self.ctx.graph.clone()
     }
 

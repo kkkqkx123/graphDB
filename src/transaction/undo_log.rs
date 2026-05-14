@@ -50,19 +50,19 @@ impl PropertyValue {
 
 /// Target for undo operations (will be PropertyGraph in phase 2)
 pub trait UndoTarget: Send + Sync {
-    fn delete_vertex_type(&mut self, label: LabelId) -> UndoLogResult<()>;
-    fn delete_edge_type(&mut self, edge_key: EdgeKey) -> UndoLogResult<()>;
-    fn delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()>;
-    fn delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()>;
+    fn delete_vertex_type(&self, label: LabelId) -> UndoLogResult<()>;
+    fn delete_edge_type(&self, edge_key: EdgeKey) -> UndoLogResult<()>;
+    fn delete_vertex(&self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()>;
+    fn delete_edge(&self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()>;
     fn undo_update_vertex_property(
-        &mut self,
+        &self,
         vertex: VertexIdentifier,
         col_id: ColumnId,
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()>;
     fn undo_update_edge_property(
-        &mut self,
+        &self,
         edge_id: EdgeIdentifier,
         oe_offset: i32,
         ie_offset: i32,
@@ -70,35 +70,35 @@ pub trait UndoTarget: Send + Sync {
         value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()>;
-    fn revert_delete_vertex(&mut self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()>;
-    fn revert_delete_edge(&mut self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()>;
+    fn revert_delete_vertex(&self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()>;
+    fn revert_delete_edge(&self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()>;
     fn revert_delete_vertex_properties(
-        &mut self,
+        &self,
         label_name: &str,
         prop_names: &[String],
     ) -> UndoLogResult<()>;
     fn revert_delete_edge_properties(
-        &mut self,
+        &self,
         src_label: &str,
         dst_label: &str,
         edge_label: &str,
         prop_names: &[String],
     ) -> UndoLogResult<()>;
-    fn revert_delete_vertex_label(&mut self, label_name: &str) -> UndoLogResult<()>;
+    fn revert_delete_vertex_label(&self, label_name: &str) -> UndoLogResult<()>;
     fn revert_delete_edge_label(
-        &mut self,
+        &self,
         src_label: &str,
         dst_label: &str,
         edge_label: &str,
     ) -> UndoLogResult<()>;
     fn revert_rename_vertex_properties(
-        &mut self,
+        &self,
         label_name: &str,
         current_names: &[String],
         original_names: &[String],
     ) -> UndoLogResult<()>;
     fn revert_rename_edge_properties(
-        &mut self,
+        &self,
         src_label: &str,
         dst_label: &str,
         edge_label: &str,
@@ -723,7 +723,7 @@ impl UndoLogManager {
         self.logs.pop()
     }
 
-    pub fn execute_undo<T: UndoTarget + ?Sized>(&mut self, graph: &mut T, ts: Timestamp) -> UndoLogResult<()> {
+    pub fn execute_undo<T: UndoTarget + ?Sized>(&mut self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
         while let Some(log) = self.logs.pop() {
             log.undo(graph, ts)?;
         }

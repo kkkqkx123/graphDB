@@ -25,24 +25,23 @@ impl<'a> GraphStorageWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
         let mut inserted_tags: Vec<(LabelId, String)> = Vec::new();
 
         for tag in &vertex.tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.name) {
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
                 let id_str = value_to_string(&vertex.vid);
                 let props: Vec<(String, Value)> = tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
-                if graph.insert_vertex(label_id, &id_str, &props, ts).is_err() {
+                if self.ctx.graph.insert_vertex(label_id, &id_str, &props, ts).is_err() {
                     for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
-                        let _ = graph.delete_vertex(*rollback_label, rollback_id, ts);
+                        let _ = self.ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
                     }
                     return Err(StorageError::vertex_already_exists(id_str));
                 }
 
                 if let Err(e) = Self::update_vertex_indexes(
-                    &graph,
+                    &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
                     space_info.space_id,
                     &vertex.vid,
@@ -51,9 +50,9 @@ impl<'a> GraphStorageWriter<'a> {
                     ts,
                 ) {
                     for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
-                        let _ = graph.delete_vertex(*rollback_label, rollback_id, ts);
+                        let _ = self.ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
                     }
-                    let _ = graph.delete_vertex(label_id, &id_str, ts);
+                    let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
                     return Err(e);
                 }
 
@@ -70,19 +69,18 @@ impl<'a> GraphStorageWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
         let id_str = value_to_string(&vertex.vid);
 
         for tag in &vertex.tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.name) {
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
                 for (prop_name, value) in &tag.properties {
-                    graph.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
+                    self.ctx.graph.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
                 }
 
                 let props: Vec<(String, Value)> =
                     tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
                 Self::update_vertex_indexes(
-                    &graph,
+                    &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
                     space_info.space_id,
                     &vertex.vid,
@@ -103,15 +101,14 @@ impl<'a> GraphStorageWriter<'a> {
 
         let tags = self.ctx.schema_manager.list_tags(space)?;
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
         let id_str = value_to_string(id);
 
         for tag in &tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
-                let _ = graph.delete_vertex(label_id, &id_str, ts);
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
+                let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
 
                 Self::delete_vertex_indexes(
-                    &graph,
+                    &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
                     space_info.space_id,
                     id,
@@ -163,16 +160,15 @@ impl<'a> GraphStorageWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
         let mut deleted_count = 0;
 
         let id_str = value_to_string(vertex_id);
 
         for tag_name in tag_names {
-            if let Some(label_id) = graph.get_vertex_label_id(tag_name) {
-                if graph.delete_vertex(label_id, &id_str, ts).is_ok() {
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(tag_name) {
+                if self.ctx.graph.delete_vertex(label_id, &id_str, ts).is_ok() {
                     Self::delete_vertex_indexes(
-                        &graph,
+                        &self.ctx.graph,
                         &self.ctx.index_metadata_manager,
                         space_info.space_id,
                         vertex_id,
@@ -193,20 +189,19 @@ impl<'a> GraphStorageWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
-        if let Some(edge_label_id) = graph.get_edge_label_id(&edge.edge_type) {
+        if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(&edge.edge_type) {
             let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
             for et in edge_types {
                 if et.edge_type_name == edge.edge_type {
-                    if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
-                        if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
+                    if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                        if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
                             let src_str = value_to_string(&edge.src);
                             let dst_str = value_to_string(&edge.dst);
                             let props: Vec<(String, Value)> =
                                 edge.props.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
-                            graph.insert_edge(InsertEdgeParams {
+                            self.ctx.graph.insert_edge(InsertEdgeParams {
                                 edge_label: edge_label_id,
                                 src_label: src_label_id,
                                 src_id: &src_str,
@@ -217,7 +212,7 @@ impl<'a> GraphStorageWriter<'a> {
                             })?;
 
                             Self::update_edge_indexes(EdgeIndexUpdateParams {
-                                graph: &graph,
+                                graph: &self.ctx.graph,
                                 index_metadata_manager: &self.ctx.index_metadata_manager,
                                 space_id: space_info.space_id,
                                 src: &edge.src,
@@ -249,21 +244,20 @@ impl<'a> GraphStorageWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
-        if let Some(edge_label_id) = graph.get_edge_label_id(edge_type) {
+        if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(edge_type) {
             let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
             for et in edge_types {
                 if et.edge_type_name == edge_type {
-                    if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
-                        if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
+                    if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                        if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
                             let src_str = value_to_string(src);
                             let dst_str = value_to_string(dst);
 
-                            graph.delete_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)?;
+                            self.ctx.graph.delete_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)?;
 
                             Self::delete_edge_indexes(
-                                &graph,
+                                &self.ctx.graph,
                                 &self.ctx.index_metadata_manager,
                                 space_info.space_id,
                                 src,
@@ -306,16 +300,15 @@ impl<'a> GraphStorageWriter<'a> {
         }
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
-        if let Some(label_id) = graph.get_vertex_label_id(&info.tag_name) {
+        if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&info.tag_name) {
             let id_str = value_to_string(&info.vertex_id);
 
-            let result = graph.insert_vertex(label_id, &id_str, &info.props, ts);
+            let result = self.ctx.graph.insert_vertex(label_id, &id_str, &info.props, ts);
             match result {
                 Ok(_) => {
                     Self::update_vertex_indexes(
-                        &graph,
+                        &self.ctx.graph,
                         &self.ctx.index_metadata_manager,
                         space_info.space_id,
                         &info.vertex_id,
@@ -355,18 +348,17 @@ impl<'a> GraphStorageWriter<'a> {
         }
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
-        if let Some(edge_label_id) = graph.get_edge_label_id(&info.edge_name) {
+        if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(&info.edge_name) {
             let src_id = value_to_string(&info.src_vertex_id);
             let dst_id = value_to_string(&info.dst_vertex_id);
 
             let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
             for et in edge_types {
                 if et.edge_type_name == info.edge_name {
-                    if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
-                        if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
-                            let result = graph.insert_edge(InsertEdgeParams {
+                    if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                        if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
+                            let result = self.ctx.graph.insert_edge(InsertEdgeParams {
                                 edge_label: edge_label_id,
                                 src_label: src_label_id,
                                 src_id: &src_id,
@@ -378,7 +370,7 @@ impl<'a> GraphStorageWriter<'a> {
                             match result {
                                 Ok(_) => {
                                     Self::update_edge_indexes(EdgeIndexUpdateParams {
-                                        graph: &graph,
+                                        graph: &self.ctx.graph,
                                         index_metadata_manager: &self.ctx.index_metadata_manager,
                                         space_id: space_info.space_id,
                                         src: &info.src_vertex_id,
@@ -416,14 +408,13 @@ impl<'a> GraphStorageWriter<'a> {
 
         let tags = self.ctx.schema_manager.list_tags(space)?;
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
         let mut deleted = false;
 
         for tag in tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
-                if graph.delete_vertex(label_id, vertex_id, ts).is_ok() {
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
+                if self.ctx.graph.delete_vertex(label_id, vertex_id, ts).is_ok() {
                     Self::delete_vertex_indexes(
-                        &graph,
+                        &self.ctx.graph,
                         &self.ctx.index_metadata_manager,
                         space_info.space_id,
                         &Value::String(vertex_id.to_string()),
@@ -451,19 +442,18 @@ impl<'a> GraphStorageWriter<'a> {
 
         let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
         let mut deleted = false;
 
         for et in edge_types {
-            if let Some(edge_label_id) = graph.get_edge_label_id(&et.edge_type_name) {
-                if let Some(src_label_id) = graph.get_vertex_label_id(&et.src_tag_name) {
-                    if let Some(dst_label_id) = graph.get_vertex_label_id(&et.dst_tag_name) {
-                        if graph
+            if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(&et.edge_type_name) {
+                if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                    if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
+                        if self.ctx.graph
                             .delete_edge(edge_label_id, src_label_id, src, dst_label_id, dst, ts)
                             .is_ok()
                         {
                             Self::delete_edge_indexes(
-                                &graph,
+                                &self.ctx.graph,
                                 &self.ctx.index_metadata_manager,
                                 space_info.space_id,
                                 &Value::String(src.to_string()),
@@ -496,7 +486,6 @@ impl<'a> GraphStorageWriter<'a> {
         }
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
         let UpdateTarget {
             space_name,
@@ -511,12 +500,12 @@ impl<'a> GraphStorageWriter<'a> {
             ));
         }
 
-        if let Some(label_id) = graph.get_vertex_label_id(label) {
+        if let Some(label_id) = self.ctx.graph.get_vertex_label_id(label) {
             let id_str = value_to_string(id);
             let value = match &info.update_op {
                 UpdateOp::Set => info.value.clone(),
                 UpdateOp::Add => {
-                    if let Some(current) = graph.get_vertex(label_id, &id_str, ts) {
+                    if let Some(current) = self.ctx.graph.get_vertex(label_id, &id_str, ts) {
                         let current_val = current.properties.iter().find(|(k, _)| k == prop).map(|(_, v)| v);
                         if let (
                             Some(crate::core::Value::Int(cv)),
@@ -532,7 +521,7 @@ impl<'a> GraphStorageWriter<'a> {
                     }
                 }
                 UpdateOp::Subtract => {
-                    if let Some(current) = graph.get_vertex(label_id, &id_str, ts) {
+                    if let Some(current) = self.ctx.graph.get_vertex(label_id, &id_str, ts) {
                         let current_val = current.properties.iter().find(|(k, _)| k == prop).map(|(_, v)| v);
                         if let (
                             Some(crate::core::Value::Int(cv)),
@@ -550,11 +539,11 @@ impl<'a> GraphStorageWriter<'a> {
                 _ => info.value.clone(),
             };
 
-            graph.update_vertex_property(label_id, &id_str, prop, &value, ts)?;
+            self.ctx.graph.update_vertex_property(label_id, &id_str, prop, &value, ts)?;
 
             let props = vec![(prop.clone(), value)];
             Self::update_vertex_indexes(
-                &graph,
+                &self.ctx.graph,
                 &self.ctx.index_metadata_manager,
                 space_info.space_id,
                 id,

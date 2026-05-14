@@ -10,17 +10,19 @@ use crate::storage::vertex::VertexRecord;
 use super::super::edge::{EdgeOperationParams, EdgeTraversalParams};
 use super::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
 
+use std::sync::atomic::Ordering;
+
 pub fn insert_vertex(
-    graph: &mut PropertyGraph,
+    graph: &PropertyGraph,
     label: LabelId,
     external_id: &str,
     properties: &[(String, Value)],
     ts: Timestamp,
 ) -> StorageResult<u32> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    graph.schema_ops.insert_vertex(label, external_id, properties, ts)
+    graph.schema_ops.write().insert_vertex(label, external_id, properties, ts)
 }
 
 pub fn get_vertex(
@@ -29,7 +31,7 @@ pub fn get_vertex(
     external_id: &str,
     ts: Timestamp,
 ) -> Option<VertexRecord> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return None;
     }
 
@@ -37,7 +39,7 @@ pub fn get_vertex(
         .cache_manager
         .get_cached_vertex_id(label, external_id)
         .or_else(|| {
-            let id = graph.schema_ops.get_vertex_internal_id(label, external_id, ts)?;
+            let id = graph.schema_ops.read().get_vertex_internal_id(label, external_id, ts)?;
             graph.cache_manager.cache_vertex_id(label, external_id, id);
             Some(id)
         })?;
@@ -50,9 +52,10 @@ pub fn get_vertex(
         });
     }
 
-    let record = graph
-        .schema_ops
-        .get_vertex_by_internal_id(label, internal_id, ts)?;
+    let record = {
+        let schema = graph.schema_ops.read();
+        schema.get_vertex_by_internal_id(label, internal_id, ts)?
+    };
 
     graph.cache_manager.cache_vertex(
         label,
@@ -70,7 +73,7 @@ pub fn get_vertex_by_internal_id(
     internal_id: u32,
     ts: Timestamp,
 ) -> Option<VertexRecord> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return None;
     }
 
@@ -82,9 +85,10 @@ pub fn get_vertex_by_internal_id(
         });
     }
 
-    let record = graph
-        .schema_ops
-        .get_vertex_by_internal_id(label, internal_id, ts)?;
+    let record = {
+        let schema = graph.schema_ops.read();
+        schema.get_vertex_by_internal_id(label, internal_id, ts)?
+    };
 
     graph.cache_manager.cache_vertex(
         label,
@@ -97,35 +101,36 @@ pub fn get_vertex_by_internal_id(
 }
 
 pub fn delete_vertex(
-    graph: &mut PropertyGraph,
+    graph: &PropertyGraph,
     label: LabelId,
     external_id: &str,
     ts: Timestamp,
 ) -> StorageResult<()> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    graph.schema_ops.delete_vertex(label, external_id, ts)
+    graph.schema_ops.write().delete_vertex(label, external_id, ts)
 }
 
 pub fn update_vertex_property(
-    graph: &mut PropertyGraph,
+    graph: &PropertyGraph,
     label: LabelId,
     external_id: &str,
     property_name: &str,
     value: &Value,
     ts: Timestamp,
 ) -> StorageResult<()> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
     graph
         .schema_ops
+        .write()
         .update_vertex_property(label, external_id, property_name, value, ts)
 }
 
-pub fn insert_edge(graph: &mut PropertyGraph, params: InsertEdgeParams) -> StorageResult<EdgeId> {
-    if !graph.is_open {
+pub fn insert_edge(graph: &PropertyGraph, params: InsertEdgeParams) -> StorageResult<EdgeId> {
+    if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
     let op_params = EdgeOperationParams {
@@ -135,11 +140,12 @@ pub fn insert_edge(graph: &mut PropertyGraph, params: InsertEdgeParams) -> Stora
         dst_label: params.dst_label,
         dst_id: params.dst_id,
     };
-    graph.edge_ops.insert_edge(
+    let schema = graph.schema_ops.read();
+    graph.edge_ops.write().insert_edge(
         op_params,
         params.properties,
         params.ts,
-        &graph.schema_ops.vertex_tables,
+        &schema.vertex_tables,
     )
 }
 
@@ -152,7 +158,7 @@ pub fn get_edge(
     dst_id: &str,
     ts: Timestamp,
 ) -> Option<EdgeRecord> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return None;
     }
     let params = EdgeOperationParams {
@@ -162,11 +168,12 @@ pub fn get_edge(
         dst_label,
         dst_id,
     };
-    graph.edge_ops.get_edge(params, ts, &graph.schema_ops.vertex_tables)
+    let schema = graph.schema_ops.read();
+    graph.edge_ops.read().get_edge(params, ts, &schema.vertex_tables)
 }
 
 pub fn delete_edge(
-    graph: &mut PropertyGraph,
+    graph: &PropertyGraph,
     edge_label: LabelId,
     src_label: LabelId,
     src_id: &str,
@@ -174,7 +181,7 @@ pub fn delete_edge(
     dst_id: &str,
     ts: Timestamp,
 ) -> StorageResult<bool> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
     let params = EdgeOperationParams {
@@ -184,14 +191,15 @@ pub fn delete_edge(
         dst_label,
         dst_id,
     };
-    graph.edge_ops.delete_edge(params, ts, &graph.schema_ops.vertex_tables)
+    let schema = graph.schema_ops.read();
+    graph.edge_ops.write().delete_edge(params, ts, &schema.vertex_tables)
 }
 
 pub fn update_edge_property(
-    graph: &mut PropertyGraph,
+    graph: &PropertyGraph,
     params: PropertyGraphUpdateEdgePropertyParams,
 ) -> StorageResult<bool> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
     let op_params = EdgeOperationParams {
@@ -201,12 +209,13 @@ pub fn update_edge_property(
         dst_label: params.dst_label,
         dst_id: params.dst_id,
     };
-    graph.edge_ops.update_edge_property(
+    let schema = graph.schema_ops.read();
+    graph.edge_ops.write().update_edge_property(
         op_params,
         params.prop_name,
         params.value,
         params.ts,
-        &graph.schema_ops.vertex_tables,
+        &schema.vertex_tables,
     )
 }
 
@@ -218,7 +227,7 @@ pub fn out_edges(
     src_id: &str,
     ts: Timestamp,
 ) -> Option<Vec<EdgeRecord>> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return None;
     }
     let params = EdgeTraversalParams {
@@ -226,7 +235,8 @@ pub fn out_edges(
         src_label,
         dst_label,
     };
-    graph.edge_ops.out_edges(params, src_id, ts, &graph.schema_ops.vertex_tables)
+    let schema = graph.schema_ops.read();
+    graph.edge_ops.read().out_edges(params, src_id, ts, &schema.vertex_tables)
 }
 
 pub fn in_edges(
@@ -237,7 +247,7 @@ pub fn in_edges(
     dst_id: &str,
     ts: Timestamp,
 ) -> Option<Vec<EdgeRecord>> {
-    if !graph.is_open {
+    if !graph.is_open.load(Ordering::Acquire) {
         return None;
     }
     let params = EdgeTraversalParams {
@@ -245,5 +255,6 @@ pub fn in_edges(
         src_label,
         dst_label,
     };
-    graph.edge_ops.in_edges(params, dst_id, ts, &graph.schema_ops.vertex_tables)
+    let schema = graph.schema_ops.read();
+    graph.edge_ops.read().in_edges(params, dst_id, ts, &schema.vertex_tables)
 }

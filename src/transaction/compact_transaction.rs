@@ -52,7 +52,7 @@ pub type CompactTransactionResult<T> = Result<T, CompactTransactionError>;
 /// txn.commit()?;
 /// ```
 pub struct CompactTransaction<'a, T: CompactTarget + ?Sized> {
-    graph: &'a mut T,
+    graph: &'a T,
     version_manager: &'a VersionManager,
     wal_writer: &'a mut dyn WalWriter,
     config: CompactConfig,
@@ -70,7 +70,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
     /// * `compact_csr` - Whether to compact CSR structures
     /// * `reserve_ratio` - Ratio of space to reserve (0.0 - 1.0)
     pub fn new(
-        graph: &'a mut T,
+        graph: &'a T,
         version_manager: &'a VersionManager,
         wal_writer: &'a mut dyn WalWriter,
         compact_csr: bool,

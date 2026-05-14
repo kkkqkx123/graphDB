@@ -28,12 +28,11 @@ impl<'a> TransactionalWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
         let mut inserted_ids: Vec<(LabelId, String)> = Vec::new();
 
         for tag in &vertex.tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.name) {
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
                 let id_str = value_to_string(&vertex.vid);
                 let props: Vec<(String, Value)> = tag
                     .properties
@@ -41,13 +40,13 @@ impl<'a> TransactionalWriter<'a> {
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
 
-                match graph.insert_vertex(label_id, &id_str, &props, ts) {
+                match self.ctx.graph.insert_vertex(label_id, &id_str, &props, ts) {
                     Ok(_) => {
                         inserted_ids.push((label_id, id_str));
                     }
                     Err(e) => {
                         for (rollback_label, rollback_id) in inserted_ids.iter().rev() {
-                            let _ = graph.delete_vertex(*rollback_label, rollback_id, ts);
+                            let _ = self.ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
                         }
                         return Err(e);
                     }
@@ -72,7 +71,6 @@ impl<'a> TransactionalWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
 
         let mut inserted_ids: Vec<Value> = Vec::with_capacity(vertices.len());
         let mut rollback_info: Vec<(LabelId, String)> = Vec::new();
@@ -80,7 +78,7 @@ impl<'a> TransactionalWriter<'a> {
         for vertex in vertices {
             let mut vertex_inserted = false;
             for tag in &vertex.tags {
-                if let Some(label_id) = graph.get_vertex_label_id(&tag.name) {
+                if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
                     let id_str = value_to_string(&vertex.vid);
                     let props: Vec<(String, Value)> = tag
                         .properties
@@ -88,7 +86,7 @@ impl<'a> TransactionalWriter<'a> {
                         .map(|(k, v)| (k.clone(), v.clone()))
                         .collect();
 
-                    match graph.insert_vertex(label_id, &id_str, &props, ts) {
+                    match self.ctx.graph.insert_vertex(label_id, &id_str, &props, ts) {
                         Ok(_) => {
                             if !vertex_inserted {
                                 rollback_info.push((label_id, id_str));
@@ -97,7 +95,7 @@ impl<'a> TransactionalWriter<'a> {
                         }
                         Err(e) => {
                             for (rollback_label, rollback_id) in rollback_info.iter().rev() {
-                                let _ = graph.delete_vertex(*rollback_label, rollback_id, ts);
+                                let _ = self.ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
                             }
                             return Err(e);
                         }
@@ -115,11 +113,9 @@ impl<'a> TransactionalWriter<'a> {
     /// Execute a transactional operation with automatic rollback
     pub fn execute_transactional<F, T>(&self, operation: F) -> StorageResult<T>
     where
-        F: FnOnce(&mut PropertyGraph, Timestamp) -> StorageResult<T>,
+        F: FnOnce(&PropertyGraph, Timestamp) -> StorageResult<T>,
     {
         let ts = self.ctx.get_write_timestamp();
-        let mut graph = self.ctx.graph.write();
-
-        operation(&mut graph, ts)
+        operation(&self.ctx.graph, ts)
     }
 }

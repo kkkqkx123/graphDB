@@ -25,12 +25,11 @@ impl<'a> SchemaAdapterOps<'a> {
         let tags = self.ctx.schema_manager.list_tags(space)?;
         let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
 
-        let mut graph = self.ctx.graph.write();
         for tag in tags {
-            let _ = graph.drop_vertex_type(&tag.tag_name);
+            let _ = self.ctx.graph.drop_vertex_type(&tag.tag_name);
         }
         for et in edge_types {
-            let _ = graph.drop_edge_type(&et.edge_type_name);
+            let _ = self.ctx.graph.drop_edge_type(&et.edge_type_name);
         }
 
         self.ctx.schema_manager.drop_space(space)
@@ -60,14 +59,11 @@ impl<'a> SchemaAdapterOps<'a> {
         let tags = self.ctx.schema_manager.list_tags(space)?;
         let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
 
-        {
-            let mut graph = self.ctx.graph.write();
-            for tag in tags {
-                let _ = graph.drop_vertex_type(&tag.tag_name);
-            }
-            for et in edge_types {
-                let _ = graph.drop_edge_type(&et.edge_type_name);
-            }
+        for tag in tags {
+            let _ = self.ctx.graph.drop_vertex_type(&tag.tag_name);
+        }
+        for et in edge_types {
+            let _ = self.ctx.graph.drop_edge_type(&et.edge_type_name);
         }
 
         self.ctx.schema_manager.clear_space(space)
@@ -85,17 +81,13 @@ impl<'a> SchemaAdapterOps<'a> {
 
         let primary_key = tag.properties.first().map(|p| p.name.as_str()).unwrap_or("id");
 
-        let mut graph = self.ctx.graph.write();
-        graph.create_vertex_type_with_id(&tag.tag_name, tag_id, properties, primary_key)?;
+        self.ctx.graph.create_vertex_type_with_id(&tag.tag_name, tag_id, properties, primary_key)?;
 
         Ok(tag_id)
     }
 
     pub fn drop_tag(&self, space: &str, tag_name: &str) -> StorageResult<bool> {
-        {
-            let mut graph = self.ctx.graph.write();
-            let _ = graph.drop_vertex_type(tag_name);
-        }
+        let _ = self.ctx.graph.drop_vertex_type(tag_name);
 
         self.ctx.schema_manager.drop_tag(space, tag_name)
     }
@@ -123,14 +115,12 @@ impl<'a> SchemaAdapterOps<'a> {
     pub fn create_edge_type(&self, space: &str, edge_type: &EdgeTypeInfo) -> StorageResult<u32> {
         let edge_type_id = self.ctx.schema_manager.create_edge_type(space, edge_type)?;
 
-        let mut graph = self.ctx.graph.write();
-
-        let src_label_id = graph
+        let src_label_id = self.ctx.graph
             .get_vertex_label_id(&edge_type.src_tag_name)
             .ok_or_else(|| {
                 StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name))
             })?;
-        let dst_label_id = graph
+        let dst_label_id = self.ctx.graph
             .get_vertex_label_id(&edge_type.dst_tag_name)
             .ok_or_else(|| {
                 StorageError::not_found(format!(
@@ -144,7 +134,7 @@ impl<'a> SchemaAdapterOps<'a> {
 
         use crate::storage::edge::EdgeStrategy;
         use crate::storage::engine::edge::CreateEdgeTypeParams;
-        graph.create_edge_type_with_id(
+        self.ctx.graph.create_edge_type_with_id(
             CreateEdgeTypeParams {
                 name: &edge_type.edge_type_name,
                 src_label: src_label_id,
@@ -160,10 +150,7 @@ impl<'a> SchemaAdapterOps<'a> {
     }
 
     pub fn drop_edge_type(&self, space: &str, edge_type_name: &str) -> StorageResult<bool> {
-        {
-            let mut graph = self.ctx.graph.write();
-            let _ = graph.drop_edge_type(edge_type_name);
-        }
+        let _ = self.ctx.graph.drop_edge_type(edge_type_name);
 
         self.ctx.schema_manager.drop_edge_type(space, edge_type_name)
     }

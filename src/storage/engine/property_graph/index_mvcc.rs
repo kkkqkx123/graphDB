@@ -17,7 +17,7 @@ pub fn update_vertex_indexes_mvcc(
     props: &[(String, Value)],
     ts: Timestamp,
 ) -> StorageResult<()> {
-    graph.index_data_manager.update_vertex_indexes_mvcc(
+    graph.index_data_manager.write().update_vertex_indexes_mvcc(
         space_id,
         vertex_id,
         index_name,
@@ -34,6 +34,7 @@ pub fn delete_vertex_indexes_mvcc(
 ) -> StorageResult<()> {
     graph
         .index_data_manager
+        .write()
         .delete_vertex_indexes_mvcc(space_id, vertex_id, ts)
 }
 
@@ -46,7 +47,7 @@ pub fn update_edge_indexes_mvcc(
     props: &[(String, Value)],
     ts: Timestamp,
 ) -> StorageResult<()> {
-    graph.index_data_manager.update_edge_indexes_mvcc(
+    graph.index_data_manager.write().update_edge_indexes_mvcc(
         space_id,
         src,
         dst,
@@ -66,11 +67,12 @@ pub fn delete_edge_indexes_mvcc(
 ) -> StorageResult<()> {
     graph
         .index_data_manager
+        .write()
         .delete_edge_indexes_mvcc(space_id, src, dst, index_names, ts)
 }
 
-pub fn gc_index_tombstones(graph: &mut PropertyGraph, ts: Timestamp) -> StorageResult<GcStats> {
-    graph.index_data_manager.gc_tombstones(ts)
+pub fn gc_index_tombstones(graph: &PropertyGraph, ts: Timestamp) -> StorageResult<GcStats> {
+    graph.index_data_manager.write().gc_tombstones(ts)
 }
 
 pub fn gc_index_tombstones_incremental(
@@ -78,5 +80,5 @@ pub fn gc_index_tombstones_incremental(
     ts: Timestamp,
     batch_size: usize,
 ) -> StorageResult<GcStats> {
-    graph.index_data_manager.gc_tombstones_incremental(ts, batch_size)
+    graph.index_data_manager.write().gc_tombstones_incremental(ts, batch_size)
 }

@@ -30,12 +30,11 @@ impl<'a> GraphStorageReader<'a> {
         }
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let id_str = value_to_string(id);
 
         for tag in &tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
-                if let Some(record) = graph.get_vertex(label_id, &id_str, ts) {
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
+                if let Some(record) = self.ctx.graph.get_vertex(label_id, &id_str, ts) {
                     let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
                     return Ok(Some(vertex));
                 }
@@ -48,12 +47,11 @@ impl<'a> GraphStorageReader<'a> {
     pub fn scan_vertices(&self, space: &str) -> StorageResult<Vec<Vertex>> {
         let tags = self.ctx.schema_manager.list_tags(space)?;
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let mut vertices = Vec::new();
 
         for tag in &tags {
-            if let Some(label_id) = graph.get_vertex_label_id(&tag.tag_name) {
-                if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+            if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
+                if let Some(iterator) = self.ctx.graph.scan_vertices(label_id, ts) {
                     for record in iterator {
                         let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
                         vertices.push(vertex);
@@ -71,11 +69,10 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let mut vertices = Vec::new();
 
         let label_id = tag_info.tag_id;
-        if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+        if let Some(iterator) = self.ctx.graph.scan_vertices(label_id, ts) {
             for record in iterator {
                 let vertex = vertex_record_to_vertex(&record, tag);
                 vertices.push(vertex);
@@ -97,11 +94,10 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let mut vertices = Vec::new();
 
         let label_id = tag_info.tag_id;
-        if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+        if let Some(iterator) = self.ctx.graph.scan_vertices(label_id, ts) {
             for record in iterator {
                 if record.properties.iter().any(|(k, v)| k == prop && v == value) {
                     let vertex = vertex_record_to_vertex(&record, tag);
@@ -126,16 +122,15 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
 
         let src_str = value_to_string(src);
         let dst_str = value_to_string(dst);
 
         let edge_label_id = edge_info.edge_type_id;
-        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
-            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+        if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                 if let Some(record) =
-                    graph.get_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)
+                    self.ctx.graph.get_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)
                 {
                     let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
                     return Ok(Some(edge));
@@ -158,7 +153,6 @@ impl<'a> GraphStorageReader<'a> {
         }
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let node_str = value_to_string(node_id);
         let mut edges = Vec::new();
 
@@ -166,12 +160,12 @@ impl<'a> GraphStorageReader<'a> {
             let edge_label_id = edge_info.edge_type_id;
             let edge_type_name = &edge_info.edge_type_name;
 
-            if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
-                if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+            if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
+                if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                     match direction {
                         EdgeDirection::Out => {
                             if let Some(out_edges) =
-                                graph.out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                                self.ctx.graph.out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
                             {
                                 for record in out_edges {
                                     let edge = edge_record_to_edge(
@@ -186,7 +180,7 @@ impl<'a> GraphStorageReader<'a> {
                         }
                         EdgeDirection::In => {
                             if let Some(in_edges) =
-                                graph.in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                                self.ctx.graph.in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
                             {
                                 for record in in_edges {
                                     let edge = edge_record_to_edge(
@@ -201,7 +195,7 @@ impl<'a> GraphStorageReader<'a> {
                         }
                         EdgeDirection::Both => {
                             if let Some(out_edges) =
-                                graph.out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                                self.ctx.graph.out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
                             {
                                 for record in out_edges {
                                     let edge = edge_record_to_edge(
@@ -214,7 +208,7 @@ impl<'a> GraphStorageReader<'a> {
                                 }
                             }
                             if let Some(in_edges) =
-                                graph.in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                                self.ctx.graph.in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
                             {
                                 for record in in_edges {
                                     let edge = edge_record_to_edge(
@@ -258,13 +252,12 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let mut edges = Vec::new();
 
         let edge_label_id = edge_info.edge_type_id;
-        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
-            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-                if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
+        if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+                if let Some(table) = self.ctx.graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
                     for record in table.scan(ts) {
                         let edge = edge_record_to_edge(
                             &record,
@@ -308,11 +301,10 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let id_str = value_to_string(id);
 
         let label_id = tag_info.tag_id;
-        if let Some(record) = graph.get_vertex(label_id, &id_str, ts) {
+        if let Some(record) = self.ctx.graph.get_vertex(label_id, &id_str, ts) {
             let schema = self.ctx.schema_manager.get_tag_schema(space, tag)?;
             let data = serialize_properties(&record.properties);
             return Ok(Some((schema, data)));
@@ -333,15 +325,14 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let src_str = value_to_string(src);
         let dst_str = value_to_string(dst);
 
         let edge_label_id = edge_info.edge_type_id;
-        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
-            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+        if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
                 if let Some(record) =
-                    graph.get_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)
+                    self.ctx.graph.get_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)
                 {
                     let schema = self.ctx.schema_manager.get_edge_type_schema(space, edge_type)?;
                     let data = serialize_properties(&record.properties);
@@ -363,11 +354,10 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let mut results = Vec::new();
 
         let label_id = tag_info.tag_id;
-        if let Some(iterator) = graph.scan_vertices(label_id, ts) {
+        if let Some(iterator) = self.ctx.graph.scan_vertices(label_id, ts) {
             let schema = self.ctx.schema_manager.get_tag_schema(space, tag)?;
             for record in iterator {
                 let data = serialize_properties(&record.properties);
@@ -388,13 +378,12 @@ impl<'a> GraphStorageReader<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let mut results = Vec::new();
 
         let edge_label_id = edge_info.edge_type_id;
-        if let Some(src_label_id) = graph.get_vertex_label_id(&edge_info.src_tag_name) {
-            if let Some(dst_label_id) = graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-                if let Some(table) = graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
+        if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
+            if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+                if let Some(table) = self.ctx.graph.get_edge_table(src_label_id, dst_label_id, edge_label_id) {
                     let schema = self.ctx.schema_manager.get_edge_type_schema(space, edge_type)?;
 
                     for record in table.scan(ts) {

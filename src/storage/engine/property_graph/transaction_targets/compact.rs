@@ -3,9 +3,11 @@ use crate::core::types::{LabelId, Timestamp};
 
 use super::super::PropertyGraph;
 
+use std::sync::atomic::Ordering;
+
 impl CompactTarget for PropertyGraph {
     fn compact(
-        &mut self,
+        &self,
         config: &CompactConfig,
         ts: Timestamp,
     ) -> CompactResult<()> {
@@ -19,21 +21,23 @@ impl CompactTarget for PropertyGraph {
         let mut total_vertices_removed = 0usize;
         let mut total_edges_removed = 0usize;
 
-        self.last_compacted_vertices.clear();
+        *self.last_compacted_vertices.lock() = Vec::new();
 
-        let vertex_labels: Vec<LabelId> =
-            self.schema_ops.vertex_tables.keys().copied().collect();
+        let vertex_labels: Vec<LabelId>;
+        {
+            let mut schema = self.schema_ops.write();
+            vertex_labels = schema.vertex_tables.keys().copied().collect();
 
-        for &label_id in &vertex_labels {
-            let table = self
-                .schema_ops
-                .vertex_tables
-                .get_mut(&label_id)
-                .expect("label must exist");
-            let removed = table.compact_with_ts_collect(ts);
-            total_vertices_removed += removed.len();
-            if !removed.is_empty() {
-                self.last_compacted_vertices.push((label_id, removed));
+            for &label_id in &vertex_labels {
+                let table = schema
+                    .vertex_tables
+                    .get_mut(&label_id)
+                    .expect("label must exist");
+                let removed = table.compact_with_ts_collect(ts);
+                total_vertices_removed += removed.len();
+                if !removed.is_empty() {
+                    self.last_compacted_vertices.lock().push((label_id, removed));
+                }
             }
         }
 
@@ -46,37 +50,34 @@ impl CompactTarget for PropertyGraph {
             total_vertices_removed
         );
 
-        let edge_keys: Vec<(LabelId, LabelId, LabelId)> =
-            self.edge_ops.edge_tables.keys().copied().collect();
+        let edge_keys: Vec<(LabelId, LabelId, LabelId)>;
+        {
+            let mut edge = self.edge_ops.write();
+            edge_keys = edge.edge_tables.keys().copied().collect();
 
-        if config.enable_structure_compaction {
+            if config.enable_structure_compaction {
+                for &key in &edge_keys {
+                    let table = edge
+                        .edge_tables
+                        .get_mut(&key)
+                        .expect("edge key must exist");
+                    let removed = table.compact_csr(ts, config.reserve_ratio);
+                    total_edges_removed += removed;
+                }
+
+                log::info!(
+                    "Compacted CSR structures: {} edges removed",
+                    total_edges_removed
+                );
+            }
+
             for &key in &edge_keys {
-                let table = self
-                    .edge_ops
+                let table = edge
                     .edge_tables
                     .get_mut(&key)
                     .expect("edge key must exist");
-                let removed = table.compact_csr(ts, config.reserve_ratio);
-                total_edges_removed += removed;
+                table.compact_properties(ts);
             }
-
-            for &(_, _, edge_label) in &edge_keys {
-                self.mark_edge_modified(edge_label);
-            }
-
-            log::info!(
-                "Compacted CSR structures: {} edges removed",
-                total_edges_removed
-            );
-        }
-
-        for &key in &edge_keys {
-            let table = self
-                .edge_ops
-                .edge_tables
-                .get_mut(&key)
-                .expect("edge key must exist");
-            table.compact_properties(ts);
         }
 
         for &(_, _, edge_label) in &edge_keys {
@@ -114,12 +115,17 @@ impl PropertyGraph {
     fn storage_size(&self) -> usize {
         let mut total = 0usize;
 
-        for table in self.schema_ops.vertex_tables.values() {
-            total += table.memory_size();
+        {
+            let schema = self.schema_ops.read();
+            for table in schema.vertex_tables.values() {
+                total += table.memory_size();
+            }
         }
-
-        for table in self.edge_ops.edge_tables.values() {
-            total += table.memory_size();
+        {
+            let edge = self.edge_ops.read();
+            for table in edge.edge_tables.values() {
+                total += table.memory_size();
+            }
         }
 
         total
@@ -128,12 +134,17 @@ impl PropertyGraph {
     fn used_storage_size(&self) -> usize {
         let mut total = 0usize;
 
-        for table in self.schema_ops.vertex_tables.values() {
-            total += table.used_memory_size();
+        {
+            let schema = self.schema_ops.read();
+            for table in schema.vertex_tables.values() {
+                total += table.used_memory_size();
+            }
         }
-
-        for table in self.edge_ops.edge_tables.values() {
-            total += table.used_memory_size();
+        {
+            let edge = self.edge_ops.read();
+            for table in edge.edge_tables.values() {
+                total += table.used_memory_size();
+            }
         }
 
         total

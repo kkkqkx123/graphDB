@@ -50,7 +50,7 @@ pub struct RecoveryStats {
 /// Implementors handle the actual data modifications during WAL replay.
 pub trait RecoveryApplier {
     fn replay_insert_vertex(
-        &mut self,
+        &self,
         label: LabelId,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
@@ -58,13 +58,13 @@ pub trait RecoveryApplier {
     ) -> StorageResult<()>;
 
     fn replay_insert_edge(
-        &mut self,
+        &self,
         redo: &InsertEdgeRedo,
         ts: Timestamp,
     ) -> StorageResult<()>;
 
     fn replay_update_vertex_prop(
-        &mut self,
+        &self,
         label: LabelId,
         oid: &[u8],
         prop_name: &str,
@@ -73,15 +73,15 @@ pub trait RecoveryApplier {
     ) -> StorageResult<()>;
 
     fn replay_update_edge_prop(
-        &mut self,
+        &self,
         redo: &UpdateEdgePropRedo,
         ts: Timestamp,
     ) -> StorageResult<()>;
 
-    fn replay_delete_vertex(&mut self, label: LabelId, oid: &[u8], ts: Timestamp) -> StorageResult<()>;
+    fn replay_delete_vertex(&self, label: LabelId, oid: &[u8], ts: Timestamp) -> StorageResult<()>;
 
     fn replay_delete_edge(
-        &mut self,
+        &self,
         src_label: LabelId,
         src_oid: &[u8],
         dst_label: LabelId,
@@ -108,7 +108,7 @@ impl RecoveryManager {
     /// Perform crash recovery with a RecoveryApplier for WAL replay
     pub fn recover_with_applier(
         &mut self,
-        applier: &mut dyn RecoveryApplier,
+        applier: &dyn RecoveryApplier,
     ) -> StorageResult<RecoveryStats> {
         let start = std::time::Instant::now();
 
@@ -182,7 +182,7 @@ impl RecoveryManager {
     fn replay_wal_entries(
         &mut self,
         wal_result: &RecoveryResult,
-        applier: &mut dyn RecoveryApplier,
+        applier: &dyn RecoveryApplier,
     ) -> StorageResult<()> {
         self.replay_parsed_entries(&wal_result.all_entries, applier)
     }
@@ -191,7 +191,7 @@ impl RecoveryManager {
     fn replay_parsed_entries(
         &mut self,
         entries: &[ParsedWalEntry],
-        applier: &mut dyn RecoveryApplier,
+        applier: &dyn RecoveryApplier,
     ) -> StorageResult<()> {
         for entry in entries {
             let op_type = match WalOpType::try_from(entry.header.op_type) {

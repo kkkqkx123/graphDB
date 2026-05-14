@@ -66,6 +66,6 @@ pub enum CompactError {
 /// Trait for targets that can be compacted
 /// This abstracts the storage-specific implementation details from the transaction layer
 pub trait CompactTarget: Send + Sync {
-    fn compact(&mut self, config: &CompactConfig, ts: Timestamp) -> CompactResult<()>;
+    fn compact(&self, config: &CompactConfig, ts: Timestamp) -> CompactResult<()>;
     fn get_compact_stats(&self) -> CompactStats;
 }

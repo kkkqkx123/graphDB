@@ -45,8 +45,7 @@ impl<'a> PersistenceOps<'a> {
         let mut file = File::create(&version_file)?;
         writeln!(file, "1")?;
 
-        let graph = self.ctx.graph.read();
-        graph.flush_tables_to_dir(&data_dir)?;
+        self.ctx.graph.flush_tables_to_dir(&data_dir)?;
 
         log::info!("Data saved to {:?}", data_dir);
         Ok(())
@@ -67,22 +66,13 @@ impl<'a> PersistenceOps<'a> {
 
         let stats = persistence.write().create_checkpoint(
             |checkpoint_dir, _timestamp| {
-                let graph = graph.read();
-                let mut vertex_count = 0u64;
-                let mut edge_count = 0u64;
-
                 let data_dir = checkpoint_dir.join("data");
                 std::fs::create_dir_all(&data_dir)?;
 
                 graph.flush_tables_to_dir(&data_dir)?;
 
-                for table in graph.vertex_tables().values() {
-                    vertex_count += table.total_count() as u64;
-                }
-
-                for (_, table) in graph.edge_tables() {
-                    edge_count += table.edge_count();
-                }
+                let vertex_count: u64 = graph.vertex_tables().values().map(|t| t.total_count() as u64).sum();
+                let edge_count: u64 = graph.edge_tables().values().map(|t| t.edge_count()).sum();
 
                 let data_size = std::fs::metadata(&data_dir)
                     .map(|m| m.len())
@@ -109,7 +99,6 @@ impl<'a> PersistenceOps<'a> {
         let graph = self.ctx.graph.clone();
 
         persistence.write().load_latest_checkpoint(|checkpoint_dir| {
-            let mut graph = graph.write();
             graph.restore_from_checkpoint(checkpoint_dir)
         })
     }
@@ -153,12 +142,10 @@ impl<'a> PersistenceOps<'a> {
     }
 
     pub fn compact_all(&self, ts: Timestamp) -> StorageResult<()> {
-        let mut graph = self.ctx.graph.write();
-
-        let label_ids = graph.vertex_label_ids();
+        let label_ids = self.ctx.graph.vertex_label_ids();
 
         for label_id in label_ids {
-            let removed = graph.compact_vertex_table_with_ts(label_id, ts);
+            let removed = self.ctx.graph.compact_vertex_table_with_ts(label_id, ts);
             if !removed.is_empty() {
                 log::info!(
                     "Compacted label {}: removed {} vertices",
@@ -168,7 +155,7 @@ impl<'a> PersistenceOps<'a> {
             }
         }
 
-        let stats = graph.gc_index_tombstones(ts)?;
+        let stats = self.ctx.graph.gc_index_tombstones(ts)?;
         if stats.total_removed() > 0 {
             log::info!(
                 "Index GC: removed {} vertex entries, {} edge entries",
@@ -190,11 +177,10 @@ impl<'a> PersistenceOps<'a> {
         reserve_ratio: f32,
         wal_writer: &mut dyn WalWriter,
     ) -> StorageResult<()> {
-        let mut graph = self.ctx.graph.write();
         let version_manager = &self.ctx.version_manager;
 
         let txn = CompactTransaction::new(
-            &mut *graph,
+            &*self.ctx.graph,
             version_manager,
             wal_writer,
             compact_csr,
@@ -212,7 +198,7 @@ impl<'a> PersistenceOps<'a> {
 
         txn.commit().map_err(|e| StorageError::db_error(format!("Compact transaction failed: {}", e)))?;
 
-        let after_stats = graph.get_compact_stats();
+        let after_stats = self.ctx.graph.get_compact_stats();
         log::info!(
             "Compaction completed: size={}/{} (freed {} bytes)",
             after_stats.used_size,
@@ -228,13 +214,10 @@ impl<'a> PersistenceOps<'a> {
             let schema_path = path.join("schema");
             self.ctx.schema_manager.load_schema(&schema_path)?;
 
-            {
-                let mut graph = self.ctx.graph.write();
-                graph.load()?;
+            self.ctx.graph.load()?;
 
-                let index_path = path.join("indexes");
-                graph.index_data_manager_mut().load(&index_path)?;
-            }
+            let index_path = path.join("indexes");
+            self.ctx.graph.index_data_manager().write().load(&index_path)?;
         }
         Ok(())
     }
@@ -247,15 +230,12 @@ impl<'a> PersistenceOps<'a> {
             std::fs::create_dir_all(&schema_path).map_err(|e| StorageError::io_error(e.to_string()))?;
             self.ctx.schema_manager.save_schema(&schema_path)?;
 
-            {
-                let graph = self.ctx.graph.read();
-                graph.flush()?;
+            self.ctx.graph.flush()?;
 
-                let index_path = path.join("indexes");
-                std::fs::create_dir_all(&index_path)
-                    .map_err(|e| StorageError::io_error(e.to_string()))?;
-                graph.index_data_manager().flush(&index_path)?;
-            }
+            let index_path = path.join("indexes");
+            std::fs::create_dir_all(&index_path)
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
+            self.ctx.graph.index_data_manager().read().flush(&index_path)?;
         }
         Ok(())
     }
@@ -278,17 +258,15 @@ impl<'a> PersistenceOps<'a> {
         };
 
         let mut manager = RecoveryManager::new(config);
-        let mut graph = self.ctx.graph.write();
 
-        manager.recover_with_applier(&mut *graph)
+        manager.recover_with_applier(&*self.ctx.graph)
     }
 
     /// Recover from WAL with custom configuration
     pub fn recover_from_wal_with_config(&self, config: RecoveryConfig) -> StorageResult<RecoveryStats> {
         let mut manager = RecoveryManager::new(config);
-        let mut graph = self.ctx.graph.write();
 
-        manager.recover_with_applier(&mut *graph)
+        manager.recover_with_applier(&*self.ctx.graph)
     }
 
     /// Check if WAL recovery is needed

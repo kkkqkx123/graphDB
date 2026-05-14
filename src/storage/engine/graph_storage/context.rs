@@ -24,7 +24,7 @@ use super::transaction_support::TransactionSupport;
 
 #[derive(Clone)]
 pub struct GraphStorageContext {
-    pub graph: Arc<RwLock<PropertyGraph>>,
+    pub graph: Arc<PropertyGraph>,
     pub schema_manager: Arc<SchemaManager>,
     pub extended_schema_manager: Arc<ExtendedSchemaManager>,
     pub index_metadata_manager: Arc<IndexManager>,
@@ -44,7 +44,7 @@ pub struct GraphStorageContext {
 
 impl GraphStorageContext {
     pub fn new() -> Self {
-        let graph = Arc::new(RwLock::new(PropertyGraph::new()));
+        let graph = Arc::new(PropertyGraph::new());
         let schema_manager = Arc::new(SchemaManager::new());
         let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(IndexManager::new());
@@ -72,7 +72,7 @@ impl GraphStorageContext {
     pub fn new_with_path(path: PathBuf) -> Self {
         use crate::storage::engine::PersistenceConfig;
 
-        let graph = Arc::new(RwLock::new(PropertyGraph::new()));
+        let graph = Arc::new(PropertyGraph::new());
         let schema_manager = Arc::new(SchemaManager::new());
         let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(IndexManager::new());
@@ -113,7 +113,7 @@ impl GraphStorageContext {
         path: PathBuf,
         config: crate::storage::engine::PersistenceConfig,
     ) -> crate::core::StorageResult<Self> {
-        let graph = Arc::new(RwLock::new(PropertyGraph::new()));
+        let graph = Arc::new(PropertyGraph::new());
         let schema_manager = Arc::new(SchemaManager::new());
         let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(IndexManager::new());
@@ -141,10 +141,7 @@ impl GraphStorageContext {
     }
 
     pub fn with_index_gc(mut self, config: IndexGcConfig) -> Self {
-        let graph = self.graph.read();
-        let index_data_manager = graph.index_data_manager().clone();
-        drop(graph);
-
+        let index_data_manager = self.graph.index_data_manager().read().clone();
         let gc_manager = IndexGcManager::new(index_data_manager, self.version_manager.clone(), config);
 
         self.index_gc_manager = Some(Arc::new(gc_manager));
@@ -168,14 +165,13 @@ impl GraphStorageContext {
         &self,
         config: crate::storage::cache::EdgePropertyCacheConfig,
     ) {
-        let mut graph = self.graph.write();
-        graph.set_edge_property_cache(config);
+        self.graph.set_edge_property_cache(config);
     }
 
     pub fn edge_cache_stats(
         &self,
     ) -> Option<std::sync::Arc<crate::storage::cache::EdgePropertyCacheStats>> {
-        self.graph.read().edge_cache_stats()
+        self.graph.edge_cache_stats()
     }
 
     pub fn get_read_timestamp(&self) -> u32 {
@@ -241,8 +237,8 @@ impl GraphStorageContext {
 
     /// Rollback the current transaction
     pub fn rollback_transaction(&self, ts: u32) -> crate::core::StorageResult<()> {
-        let mut graph = self.graph.write();
-        self.txn_support.write().rollback(&mut graph, ts)
+        let mut txn = self.txn_support.write();
+        txn.rollback(&self.graph, ts)
     }
 
     /// Check if in a transaction

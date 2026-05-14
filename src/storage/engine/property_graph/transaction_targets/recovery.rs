@@ -13,26 +13,28 @@ use super::super::PropertyGraph;
 
 impl RecoveryApplier for PropertyGraph {
     fn replay_insert_vertex(
-        &mut self,
+        &self,
         label: TxnLabelId,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> StorageResult<()> {
-        TransactionOps::add_vertex(
-            &mut self.schema_ops,
-            label,
-            oid,
-            properties,
-            ts,
-        )?;
-
+        {
+            let mut schema = self.schema_ops.write();
+            TransactionOps::add_vertex(
+                &mut *schema,
+                label,
+                oid,
+                properties,
+                ts,
+            )?;
+        }
         self.mark_vertex_modified(label);
         Ok(())
     }
 
     fn replay_insert_edge(
-        &mut self,
+        &self,
         redo: &InsertEdgeRedo,
         ts: Timestamp,
     ) -> StorageResult<()> {
@@ -77,21 +79,25 @@ impl RecoveryApplier for PropertyGraph {
             edge_label: redo.edge_label,
         };
 
-        TransactionOps::add_edge(
-            &mut self.edge_ops,
-            &self.schema_ops,
-            params,
-            &redo.properties,
-            ts,
-        )
-        .map_err(|e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)))?;
+        {
+            let schema = self.schema_ops.read();
+            let mut edge = self.edge_ops.write();
+            TransactionOps::add_edge(
+                &mut *edge,
+                &*schema,
+                params,
+                &redo.properties,
+                ts,
+            )
+            .map_err(|e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)))?;
+        }
 
         self.mark_edge_modified(redo.edge_label);
         Ok(())
     }
 
     fn replay_update_vertex_prop(
-        &mut self,
+        &self,
         label: TxnLabelId,
         oid: &[u8],
         prop_name: &str,
@@ -103,15 +109,18 @@ impl RecoveryApplier for PropertyGraph {
             StorageError::deserialize_error("Failed to decode property value in WAL recovery".to_string())
         })?;
 
-        self.schema_ops
-            .update_vertex_property(label, &oid_str, prop_name, &prop_value, ts)?;
+        {
+            let mut schema = self.schema_ops.write();
+            schema
+                .update_vertex_property(label, &oid_str, prop_name, &prop_value, ts)?;
+        }
 
         self.mark_vertex_modified(label);
         Ok(())
     }
 
     fn replay_update_edge_prop(
-        &mut self,
+        &self,
         redo: &UpdateEdgePropRedo,
         ts: Timestamp,
     ) -> StorageResult<()> {
@@ -130,20 +139,24 @@ impl RecoveryApplier for PropertyGraph {
             edge_label: redo.edge_label,
         };
 
-        self.edge_ops.update_edge_property(
-            params,
-            &redo.prop_name,
-            &prop_value,
-            ts,
-            self.schema_ops.vertex_tables(),
-        )?;
+        {
+            let schema = self.schema_ops.read();
+            let mut edge = self.edge_ops.write();
+            edge.update_edge_property(
+                params,
+                &redo.prop_name,
+                &prop_value,
+                ts,
+                &schema.vertex_tables,
+            )?;
+        }
         self.mark_edge_modified(redo.edge_label);
 
         Ok(())
     }
 
     fn replay_delete_vertex(
-        &mut self,
+        &self,
         label: TxnLabelId,
         oid: &[u8],
         ts: Timestamp,
@@ -151,13 +164,16 @@ impl RecoveryApplier for PropertyGraph {
         let oid_str = String::from_utf8_lossy(oid).to_string();
 
         if let Some(vertex) = self.get_vertex(label, &oid_str, ts) {
-            TransactionOps::delete_vertex(
-                &mut self.schema_ops,
-                label,
-                vertex.internal_id as u64,
-                ts,
-            )
-            .map_err(|e| StorageError::db_error(format!("Failed to replay delete vertex: {}", e)))?;
+            {
+                let mut schema = self.schema_ops.write();
+                TransactionOps::delete_vertex(
+                    &mut *schema,
+                    label,
+                    vertex.internal_id as u64,
+                    ts,
+                )
+                .map_err(|e| StorageError::db_error(format!("Failed to replay delete vertex: {}", e)))?;
+            }
             self.mark_vertex_modified(label);
         } else {
             log::debug!(
@@ -170,7 +186,7 @@ impl RecoveryApplier for PropertyGraph {
     }
 
     fn replay_delete_edge(
-        &mut self,
+        &self,
         src_label: TxnLabelId,
         src_oid: &[u8],
         dst_label: TxnLabelId,
@@ -181,10 +197,10 @@ impl RecoveryApplier for PropertyGraph {
         let src_oid_str = String::from_utf8_lossy(src_oid).to_string();
         let dst_oid_str = String::from_utf8_lossy(dst_oid).to_string();
 
-        if let (Some(src), Some(dst)) = (
-            self.get_vertex(src_label, &src_oid_str, ts),
-            self.get_vertex(dst_label, &dst_oid_str, ts),
-        ) {
+        let src = self.get_vertex(src_label, &src_oid_str, ts);
+        let dst = self.get_vertex(dst_label, &dst_oid_str, ts);
+
+        if let (Some(src), Some(dst)) = (src, dst) {
             let params = DeleteEdgeParams {
                 src_label,
                 src_vid: src.internal_id as u64,
@@ -193,14 +209,17 @@ impl RecoveryApplier for PropertyGraph {
                 edge_label,
             };
 
-            TransactionOps::delete_edge(
-                &mut self.edge_ops,
-                params,
-                0,
-                0,
-                ts,
-            )
-            .map_err(|e| StorageError::db_error(format!("Failed to replay delete edge: {}", e)))?;
+            {
+                let mut edge = self.edge_ops.write();
+                TransactionOps::delete_edge(
+                    &mut *edge,
+                    params,
+                    0,
+                    0,
+                    ts,
+                )
+                .map_err(|e| StorageError::db_error(format!("Failed to replay delete edge: {}", e)))?;
+            }
             self.mark_edge_modified(edge_label);
         } else {
             log::debug!(

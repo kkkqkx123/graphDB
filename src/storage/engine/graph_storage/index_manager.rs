@@ -85,14 +85,13 @@ impl<'a> IndexManagerOps<'a> {
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
         let ts = self.ctx.get_write_timestamp();
-        let graph = self.ctx.graph.read();
         for vertex in vertices {
             let props: Vec<(String, Value)> = vertex
                 .properties
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            graph.update_vertex_indexes_mvcc(space_id, &vertex.vid, &index.name, &props, ts)?;
+            self.ctx.graph.update_vertex_indexes_mvcc(space_id, &vertex.vid, &index.name, &props, ts)?;
         }
 
         Ok(true)
@@ -112,11 +111,10 @@ impl<'a> IndexManagerOps<'a> {
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
         let ts = self.ctx.get_write_timestamp();
-        let graph = self.ctx.graph.read();
         for edge in edges {
             let props: Vec<(String, Value)> =
                 edge.props.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-            graph.update_edge_indexes_mvcc(space_id, &edge.src, &edge.dst, &index.name, &props, ts)?;
+            self.ctx.graph.update_edge_indexes_mvcc(space_id, &edge.src, &edge.dst, &index.name, &props, ts)?;
         }
 
         Ok(true)
@@ -136,8 +134,7 @@ impl<'a> IndexManagerOps<'a> {
             .get_tag_index(space_id, index_name)?
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
-        let graph = self.ctx.graph.read();
-        let results = graph.index_data_manager().lookup_tag_index(space_id, &index, value)?;
+        let results = self.ctx.graph.index_data_manager().read().lookup_tag_index(space_id, &index, value)?;
         Ok(results)
     }
 
@@ -155,8 +152,7 @@ impl<'a> IndexManagerOps<'a> {
             .get_tag_index(space_id, index_name)?
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
-        let graph = self.ctx.graph.read();
-        let results = graph.index_data_manager().lookup_tag_index(space_id, &index, value)?;
+        let results = self.ctx.graph.index_data_manager().read().lookup_tag_index(space_id, &index, value)?;
         Ok(results.into_iter().map(|v| (v, 1.0)).collect())
     }
 }

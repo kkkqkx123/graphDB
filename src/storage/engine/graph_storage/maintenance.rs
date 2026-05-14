@@ -18,17 +18,16 @@ impl<'a> MaintenanceOps<'a> {
     }
 
     pub fn get_storage_stats(&self) -> StorageStats {
-        let graph = self.ctx.graph.read();
-
-        let total_vertices: usize = graph
+        let total_vertices: usize = self.ctx.graph
             .vertex_tables()
             .values()
             .map(|table| table.total_count())
             .sum();
 
-        let total_edges: usize = graph
+        let total_edges: usize = self.ctx.graph
             .edge_tables()
-            .map(|(_, table)| table.edge_count() as usize)
+            .values()
+            .map(|table| table.edge_count() as usize)
             .sum();
 
         let spaces = self.ctx.schema_manager.list_spaces().unwrap_or_default();
@@ -59,16 +58,16 @@ impl<'a> MaintenanceOps<'a> {
         })?;
 
         let ts = self.ctx.get_read_timestamp();
-        let graph = self.ctx.graph.read();
         let mut dangling_edges = Vec::new();
 
-        for ((src_label_id, dst_label_id, _edge_label_id), table) in graph.edge_tables() {
+        let edge_tables = self.ctx.graph.edge_tables();
+        for ((src_label_id, dst_label_id, _edge_label_id), table) in &edge_tables {
             let edge_type_name = table.label_name().to_string();
             for record in table.scan(ts) {
-                let src_exists = graph
+                let src_exists = self.ctx.graph
                     .get_vertex_by_internal_id(*src_label_id, record.src_vid as u32, ts)
                     .is_some();
-                let dst_exists = graph
+                let dst_exists = self.ctx.graph
                     .get_vertex_by_internal_id(*dst_label_id, record.dst_vid as u32, ts)
                     .is_some();
 

@@ -35,7 +35,7 @@ impl TransactionSupport {
     }
 
     /// Rollback the transaction using undo logs
-    pub fn rollback(&mut self, graph: &mut PropertyGraph, ts: Timestamp) -> StorageResult<()> {
+    pub fn rollback(&mut self, graph: &PropertyGraph, ts: Timestamp) -> StorageResult<()> {
         self.in_transaction = false;
         self.undo_logs
             .execute_undo(graph, ts)
@@ -74,15 +74,15 @@ impl Default for TransactionSupport {
 
 /// Execute an operation with automatic rollback on failure
 pub fn with_rollback<T, F>(
-    graph: &mut PropertyGraph,
+    graph: &PropertyGraph,
     txn_support: &mut TransactionSupport,
     ts: Timestamp,
     operation: F,
 ) -> StorageResult<T>
 where
-    F: FnOnce(&mut PropertyGraph, &mut TransactionSupport) -> StorageResult<T>,
+    F: FnOnce() -> StorageResult<T>,
 {
-    let result = operation(graph, txn_support);
+    let result = operation();
 
     match result {
         Ok(value) => Ok(value),
@@ -100,17 +100,17 @@ where
 
 /// Execute an operation in a transaction context
 pub fn execute_in_transaction<T, F>(
-    graph: &mut PropertyGraph,
+    graph: &PropertyGraph,
     ts: Timestamp,
     operation: F,
 ) -> StorageResult<T>
 where
-    F: FnOnce(&mut PropertyGraph, &mut TransactionSupport) -> StorageResult<T>,
+    F: FnOnce() -> StorageResult<T>,
 {
     let mut txn_support = TransactionSupport::new();
     txn_support.begin();
 
-    let result = operation(graph, &mut txn_support);
+    let result = operation();
 
     match result {
         Ok(value) => {
