@@ -19,10 +19,11 @@
 //! - `VertexIndexManager`: Index on vertex properties
 //! - `EdgeIndexManager`: Index on edge properties
 
+use crate::core::types::Timestamp;
 use crate::core::StorageResult;
 
 // Re-export fundamental types from core for backward compatibility
-pub use crate::core::types::{EdgeId, Timestamp, VertexId};
+pub use crate::core::types::{EdgeId, VertexId};
 
 pub type PropOffset = u32;
 

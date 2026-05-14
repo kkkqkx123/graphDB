@@ -5,7 +5,7 @@
 
 use crate::core::types::Timestamp;
 use crate::core::{StorageResult, Value};
-use crate::storage::index::secondary::{GcStats, IndexDataManager};
+use crate::storage::index::secondary::IndexDataManager;
 
 use super::PropertyGraph;
 
@@ -69,16 +69,4 @@ pub fn delete_edge_indexes_mvcc(
         .index_data_manager
         .write()
         .delete_edge_indexes_mvcc(space_id, src, dst, index_names, ts)
-}
-
-pub fn gc_index_tombstones(graph: &PropertyGraph, ts: Timestamp) -> StorageResult<GcStats> {
-    graph.index_data_manager.write().gc_tombstones(ts)
-}
-
-pub fn gc_index_tombstones_incremental(
-    graph: &PropertyGraph,
-    ts: Timestamp,
-    batch_size: usize,
-) -> StorageResult<GcStats> {
-    graph.index_data_manager.write().gc_tombstones_incremental(ts, batch_size)
 }

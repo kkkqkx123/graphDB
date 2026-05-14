@@ -337,11 +337,6 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         Ok(spaces.into_iter().map(|s| s.space_name).collect())
     }
 
-    /// Getting a lock on the query API (internal use)
-    pub(crate) fn query_api(&self) -> parking_lot::RwLockReadGuard<'_, QueryApi<S>> {
-        self.db.query_api.as_ref().read()
-    }
-
     /// Getting a mutable lock on the query API (internal use)
     pub(crate) fn query_api_mut(&self) -> parking_lot::RwLockWriteGuard<'_, QueryApi<S>> {
         self.db.query_api.as_ref().write()
@@ -355,11 +350,6 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// Getting the transaction manager (internal use)
     pub(crate) fn txn_manager(&self) -> Arc<TransactionManager> {
         self.db.txn_manager.clone()
-    }
-
-    /// Acquiring stored locks (for internal use)
-    pub(crate) fn storage(&self) -> parking_lot::RwLockReadGuard<'_, S> {
-        self.db.storage.read()
     }
 
     /// Acquiring stored write locks (for internal use)
