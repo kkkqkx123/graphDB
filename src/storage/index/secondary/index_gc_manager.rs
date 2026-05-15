@@ -52,7 +52,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use super::index_data_manager::{GcStats, InMemoryIndexDataManager, Timestamp};
-use crate::transaction::VersionManager;
+use crate::core::mvcc::VersionManager;
 
 /// GC manager configuration
 #[derive(Debug, Clone)]

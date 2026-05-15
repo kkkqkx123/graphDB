@@ -16,7 +16,7 @@ use super::undo_log::{
     DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo,
     UndoLogEntry, UndoLogError, UndoLogManager, UndoTarget,
 };
-use super::version_manager::{VersionManager, VersionManagerError};
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::types::{CreateEdgeTypeRedo, CreateVertexTypeRedo, WalHeader, WalOpType};
 use super::wal::{LabelId, Timestamp, VertexId};
 use super::wal::writer::WalWriter;

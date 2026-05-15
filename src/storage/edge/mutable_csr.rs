@@ -808,7 +808,7 @@ impl MutableCsr {
     /// Batch delete edges
     pub fn batch_delete_edges(&mut self, edges: &[(VertexId, EdgeId)], ts: Timestamp) {
         for (src, edge_id) in edges {
-            self.delete_edge(src.clone(), *edge_id, ts);
+            self.delete_edge(*src, *edge_id, ts);
         }
     }
 

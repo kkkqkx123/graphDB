@@ -246,8 +246,8 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 let should_update = if let Some(ref expression) = condition_expression {
                     self.evaluate_condition(
                         expression,
-                        update.src,
-                        Some(update.dst),
+                        update.src.clone(),
+                        Some(update.dst.clone()),
                         Some(&update.edge_type),
                         None,
                         &update.properties,

@@ -2,7 +2,6 @@
 //!
 //! Provide an advanced filtering function for vertex labels that supports the evaluation of complex expressions.
 
-use crate::core::types::VertexId;
 use crate::core::value::list::List;
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Expression;
@@ -93,6 +92,7 @@ impl TagFilterProcessor {
 mod tests {
     use super::*;
     use crate::core::types::operators::BinaryOperator;
+    use crate::core::types::VertexId;
     use crate::core::vertex_edge_path::{Tag, Vertex};
 
     #[test]

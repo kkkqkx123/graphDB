@@ -259,7 +259,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         let vertex = self
             .inner
             .get_vertex(space, id)?
-            .ok_or_else(|| StorageError::node_not_found(id.clone()))?;
+            .ok_or_else(|| StorageError::node_not_found(*id))?;
 
         self.inner.delete_vertex(space, id)?;
 
@@ -270,7 +270,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
 
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
-                    let id_value = Value::from(id.clone());
+                    let id_value = Value::from(*id);
 
                     sync_manager
                         .on_vertex_change_with_txn(
@@ -295,7 +295,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         let vertex = self
             .inner
             .get_vertex(space, id)?
-            .ok_or_else(|| StorageError::node_not_found(id.clone()))?;
+            .ok_or_else(|| StorageError::node_not_found(*id))?;
 
         self.inner.delete_vertex_with_edges(space, id)?;
 
@@ -306,7 +306,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
 
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
-                    let id_value = Value::from(id.clone());
+                    let id_value = Value::from(*id);
 
                     sync_manager
                         .on_vertex_change_with_txn(
@@ -417,8 +417,8 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
             if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
-                    let src_value = Value::from(src.clone());
-                    let dst_value = Value::from(dst.clone());
+                    let src_value = Value::from(*src);
+                    let dst_value = Value::from(*dst);
 
                     sync_manager
                         .on_edge_delete(txn_id, space_id, &src_value, &dst_value, edge_type)

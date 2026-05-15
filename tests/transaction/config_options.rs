@@ -48,7 +48,7 @@ fn test_transaction_options_default() {
 
     assert_eq!(options.timeout, None);
     assert!(!options.read_only);
-    assert_eq!(options.durability, DurabilityLevel::Immediate);
+    assert_eq!(options.durability, DurabilityLevel::Sync);
     assert_eq!(options.isolation_level, IsolationLevel::RepeatableRead);
     assert_eq!(options.query_timeout, None);
     assert_eq!(options.statement_timeout, None);
@@ -92,7 +92,7 @@ fn test_transaction_config_default() {
     let config = TransactionConfig::default();
 
     assert_eq!(config.timeout, Duration::from_secs(30));
-    assert_eq!(config.durability, DurabilityLevel::Immediate);
+    assert_eq!(config.durability, DurabilityLevel::Sync);
     assert_eq!(config.isolation_level, IsolationLevel::RepeatableRead);
     assert_eq!(config.query_timeout, None);
     assert_eq!(config.statement_timeout, None);
@@ -151,8 +151,8 @@ fn test_retry_config_builder() {
 #[test]
 fn test_durability_level_equality() {
     assert_eq!(DurabilityLevel::None, DurabilityLevel::None);
-    assert_eq!(DurabilityLevel::Immediate, DurabilityLevel::Immediate);
-    assert_ne!(DurabilityLevel::None, DurabilityLevel::Immediate);
+    assert_eq!(DurabilityLevel::Sync, DurabilityLevel::Sync);
+    assert_ne!(DurabilityLevel::None, DurabilityLevel::Sync);
 }
 
 /// Test IsolationLevel default and display
@@ -250,7 +250,7 @@ fn test_readonly_transaction_options() {
 
     let context = manager.get_context(txn_id).expect("Failed to get context");
     assert!(context.read_only);
-    assert_eq!(context.durability, DurabilityLevel::Immediate); // Read-only always uses Immediate
+    assert_eq!(context.durability, DurabilityLevel::Sync); // Read-only always uses Sync
 
     manager
         .commit_transaction(txn_id)

@@ -268,7 +268,7 @@ impl NPath {
     }
 
     pub fn collect_vertex_ids(&self) -> Vec<VertexId> {
-        self.iter_vertices().map(|v| v.vid.clone()).collect()
+        self.iter_vertices().map(|v| v.vid).collect()
     }
 
     /// Collect all the edges.
@@ -464,7 +464,6 @@ pub mod utils {
 mod tests {
     use super::*;
     use crate::core::types::VertexId;
-    use crate::core::Value;
 
     fn create_test_vertex(id: i64) -> Arc<Vertex> {
         Arc::new(Vertex::new(VertexId::from_int64(id), vec![]))

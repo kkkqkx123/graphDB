@@ -6,7 +6,7 @@ use crate::core::error::StorageError;
 #[cfg(test)]
 use crate::core::types::{
     EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
-    TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
+    TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 #[cfg(test)]
 use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};

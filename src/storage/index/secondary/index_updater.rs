@@ -660,8 +660,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                             self.undo_log.add(IndexUndoEntry::DeleteEdgeIndex {
                                 space_id,
                                 index_name: index.name.clone(),
-                                src: Value::from(edge.src.clone()),
-                                dst: Value::from(edge.dst.clone()),
+                                src: Value::from(edge.src),
+                                dst: Value::from(edge.dst),
                                 prop_name: field.name.clone(),
                                 prop_value: prop_value.clone(),
                             });
@@ -711,8 +711,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                             self.undo_log.add(IndexUndoEntry::InsertEdgeIndex {
                                 space_id,
                                 index_name: index.name.clone(),
-                                src: Value::from(edge.src.clone()),
-                                dst: Value::from(edge.dst.clone()),
+                                src: Value::from(edge.src),
+                                dst: Value::from(edge.dst),
                                 prop_name: field.name.clone(),
                                 prop_value: prop_value.clone(),
                             });

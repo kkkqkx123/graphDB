@@ -141,7 +141,7 @@ fn test_two_phase_commit_durability_levels() {
 
     let mut options1 = TransactionOptions::new();
     options1.two_phase_commit = true;
-    options1.durability = graphdb::transaction::DurabilityLevel::Immediate;
+    options1.durability = graphdb::transaction::DurabilityLevel::Sync;
     let txn1 = manager
         .begin_transaction(options1)
         .expect("Failed to begin transaction 1");

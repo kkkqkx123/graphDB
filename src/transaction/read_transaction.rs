@@ -4,7 +4,7 @@
 //! A read transaction sees a consistent snapshot of the database at the time
 //! the transaction was started.
 
-use super::version_manager::{VersionManager, VersionManagerError};
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::{LabelId, Timestamp, VertexId};
 
 /// Invalid timestamp constant

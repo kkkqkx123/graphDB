@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use postcard::{from_bytes, to_allocvec};
 
 use super::read_transaction::INVALID_TIMESTAMP;
-use super::version_manager::{VersionManager, VersionManagerError};
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::types::{InsertEdgeRedo, InsertVertexRedo, WalHeader, WalOpType};
 use super::wal::{EdgeId, LabelId, Timestamp, VertexId};
 use super::wal::writer::WalWriter;

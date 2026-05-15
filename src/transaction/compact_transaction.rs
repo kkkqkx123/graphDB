@@ -5,7 +5,7 @@
 //! including CSR compaction and removal of old versions.
 
 use super::read_transaction::INVALID_TIMESTAMP;
-use super::version_manager::{VersionManager, VersionManagerError};
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::types::WalHeader;
 use super::wal::Timestamp;
 use super::wal::writer::WalWriter;

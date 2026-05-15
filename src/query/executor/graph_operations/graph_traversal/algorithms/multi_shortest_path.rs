@@ -527,7 +527,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for MultiShortestPathEx
 mod tests {
     use super::*;
     use crate::core::types::VertexId;
-    use crate::core::{Path, Value, Vertex};
+    use crate::core::{Path, Vertex};
     use crate::query::executor::base::ExecutorConfig;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;

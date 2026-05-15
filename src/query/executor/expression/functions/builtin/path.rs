@@ -3,7 +3,6 @@
 //! Provide functions for path operations, including nodes and relationships.
 
 use crate::core::error::ExpressionError;
-use crate::core::types::VertexId;
 use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;
@@ -94,6 +93,7 @@ fn execute_relationships(args: &[Value]) -> Result<Value, ExpressionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::VertexId;
     use crate::core::vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
     use std::collections::HashMap;
 

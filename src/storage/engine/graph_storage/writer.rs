@@ -108,7 +108,7 @@ impl<'a> GraphStorageWriter<'a> {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
                 let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
 
-                let id_value = Value::from(id);
+                let id_value = Value::from(*id);
                 Self::delete_vertex_indexes(
                     &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
@@ -261,8 +261,8 @@ impl<'a> GraphStorageWriter<'a> {
 
                             self.ctx.graph.delete_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)?;
 
-                            let src_value = Value::from(src.clone());
-                            let dst_value = Value::from(dst.clone());
+                            let src_value = Value::from(*src);
+                            let dst_value = Value::from(*dst);
                             Self::delete_edge_indexes(
                                 &self.ctx.graph,
                                 &self.ctx.index_metadata_manager,

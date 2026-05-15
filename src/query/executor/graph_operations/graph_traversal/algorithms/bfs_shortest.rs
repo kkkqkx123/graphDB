@@ -227,13 +227,14 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
 
         // Mark the newly discovered vertex as having been visited.
         let new_vids: Vec<VertexId> = unique_dst.into_iter().collect();
+        let new_vids_count = new_vids.len();
         if reverse {
-            self.right_visited_vids.extend(new_vids);
+            self.right_visited_vids.extend(&new_vids);
         } else {
-            self.left_visited_vids.extend(new_vids);
+            self.left_visited_vids.extend(&new_vids);
         }
 
-        self.nodes_visited += new_vids.len();
+        self.nodes_visited += new_vids_count;
 
         Ok(new_vids)
     }
@@ -344,10 +345,10 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         };
 
         if all_edges.is_empty() {
-            return Some(Path::new(Vertex::new(meet_vid.clone(), vec![])));
+            return Some(Path::new(Vertex::new(*meet_vid, vec![])));
         }
 
-        let mut current_vid = meet_vid.clone();
+        let mut current_vid = *meet_vid;
         let mut steps: Vec<(Vertex, Edge)> = Vec::new();
 
         for edge_layer in all_edges.iter().rev() {

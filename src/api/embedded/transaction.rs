@@ -57,7 +57,7 @@ impl Default for TransactionConfig {
         Self {
             timeout: None,
             read_only: false,
-            durability: DurabilityLevel::Immediate,
+            durability: DurabilityLevel::Sync,
             isolation_level: IsolationLevel::default(),
             query_timeout: None,
             statement_timeout: None,

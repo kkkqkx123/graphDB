@@ -656,7 +656,7 @@ impl Path {
         }
 
         if let Some(last_step) = self.steps.first() {
-            *self.src = Vertex::new(last_step.edge.src.clone(), vec![]);
+            *self.src = Vertex::new(last_step.edge.src, vec![]);
         }
     }
 

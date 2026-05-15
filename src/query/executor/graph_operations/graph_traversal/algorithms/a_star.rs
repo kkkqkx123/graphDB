@@ -360,9 +360,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
                         g_cost: tentative_g_cost,
                         h_cost,
                         f_cost,
-                        vertex_id,
+                        vertex_id: neighbor_id,
                     }));
-                    open_set.insert(current.vertex_id.clone());
+                    open_set.insert(current.vertex_id);
                 }
             }
         }

@@ -42,7 +42,7 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
         let options = TransactionOptions {
             read_only: request.read_only,
             timeout: request.timeout_seconds.map(std::time::Duration::from_secs),
-            durability: DurabilityLevel::Immediate,
+            durability: DurabilityLevel::Sync,
             isolation_level: IsolationLevel::default(),
             query_timeout: request
                 .query_timeout_seconds

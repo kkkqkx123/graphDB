@@ -265,7 +265,7 @@ fn test_transaction_config_default() {
     assert!(config.timeout.is_none());
     assert_eq!(
         config.durability,
-        graphdb::transaction::DurabilityLevel::Immediate
+        graphdb::transaction::DurabilityLevel::Sync
     );
 }
 

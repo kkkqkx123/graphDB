@@ -44,7 +44,6 @@ pub mod rollback;
 pub mod types;
 pub mod undo_log;
 pub mod update_transaction;
-pub mod version_manager;
 pub mod wal;
 
 #[cfg(test)]
@@ -86,7 +85,7 @@ pub use update_transaction::{
     RenamePropertiesParam, UpdateTarget, UpdateTransaction, UpdateTransactionError,
     UpdateTransactionResult,
 };
-pub use version_manager::{
+pub use crate::core::mvcc::{
     InsertTimestampGuard, ReadTimestampGuard, UpdateTimestampGuard, VersionManager,
     VersionManagerConfig, VersionManagerError, VersionManagerResult,
 };
