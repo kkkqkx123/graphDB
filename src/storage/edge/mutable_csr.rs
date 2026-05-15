@@ -136,7 +136,7 @@ impl MutableCsr {
             offset += DEFAULT_VERTEX_DEGREE;
         }
 
-        nbr_list.resize(offset, Nbr::new(0, 0, 0, INVALID_TIMESTAMP));
+        nbr_list.resize(offset, Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP));
 
         Self {
             nbr_list,
@@ -181,7 +181,7 @@ impl MutableCsr {
         }
 
         self.nbr_list
-            .resize(new_total_capacity, Nbr::new(0, 0, 0, INVALID_TIMESTAMP));
+            .resize(new_total_capacity, Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP));
         self.vertex_capacity = new_vertex_capacity;
         self.total_edge_capacity = new_total_capacity;
     }
@@ -203,7 +203,7 @@ impl MutableCsr {
         prop_offset: u32,
         ts: Timestamp,
     ) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
 
         if src_idx >= self.vertex_capacity {
             self.ensure_vertex_capacity(src_idx + 1);
@@ -242,7 +242,7 @@ impl MutableCsr {
         prop_offset: u32,
         ts: Timestamp,
     ) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
 
         if src_idx >= self.vertex_capacity {
             self.ensure_vertex_capacity(src_idx + 1);
@@ -293,7 +293,7 @@ impl MutableCsr {
         let insert_pos = self.adj_offsets[src_idx] + old_capacity;
         self.nbr_list.splice(
             insert_pos..insert_pos,
-            std::iter::repeat_n(Nbr::new(0, 0, 0, INVALID_TIMESTAMP), additional),
+            std::iter::repeat_n(Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP), additional),
         );
 
         for i in (src_idx + 1)..self.vertex_capacity {
@@ -306,7 +306,7 @@ impl MutableCsr {
 
     /// Delete an edge by edge_id
     pub fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -330,7 +330,7 @@ impl MutableCsr {
 
     /// Delete edge by destination vertex
     pub fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -355,7 +355,7 @@ impl MutableCsr {
 
     /// Delete an edge by offset position in the CSR
     pub fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -380,7 +380,7 @@ impl MutableCsr {
 
     /// Revert a deleted edge
     pub fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -403,7 +403,7 @@ impl MutableCsr {
 
     /// Revert a deleted edge by offset position
     pub fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -428,7 +428,7 @@ impl MutableCsr {
 
     /// Find a deleted edge by destination
     pub fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return None;
         }
@@ -447,7 +447,7 @@ impl MutableCsr {
 
     /// Get edges of a vertex at a given timestamp
     pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return Vec::new();
         }
@@ -459,7 +459,7 @@ impl MutableCsr {
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                result.push(*nbr);
+                result.push(nbr.clone());
             }
         }
         result
@@ -478,7 +478,7 @@ impl MutableCsr {
         use std::arch::x86_64::_mm_prefetch;
         use std::arch::x86_64::_MM_HINT_T0;
         
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return Vec::new();
         }
@@ -506,7 +506,7 @@ impl MutableCsr {
             
             let nbr = &self.nbr_list[offset + i];
             if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                result.push(*nbr);
+                result.push(nbr.clone());
             }
         }
         result
@@ -540,7 +540,7 @@ impl MutableCsr {
 
     /// Get degree of a vertex at a given timestamp
     pub fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return 0;
         }
@@ -560,7 +560,7 @@ impl MutableCsr {
 
     /// Check if an edge exists
     pub fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -579,7 +579,7 @@ impl MutableCsr {
 
     /// Get a specific edge
     pub fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return None;
         }
@@ -590,7 +590,7 @@ impl MutableCsr {
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return Some(*nbr);
+                return Some(nbr.clone());
             }
         }
         None
@@ -598,7 +598,7 @@ impl MutableCsr {
 
     /// Get edge by edge_id
     pub fn get_edge_by_id(&self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> Option<Nbr> {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return None;
         }
@@ -609,7 +609,7 @@ impl MutableCsr {
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.edge_id == edge_id && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return Some(*nbr);
+                return Some(nbr.clone());
             }
         }
         None
@@ -618,7 +618,7 @@ impl MutableCsr {
     /// Clear all edges
     pub fn clear(&mut self) {
         for nbr in &mut self.nbr_list {
-            *nbr = Nbr::new(0, 0, 0, INVALID_TIMESTAMP);
+            *nbr = Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP);
         }
         for degree in &mut self.degrees {
             *degree = 0;
@@ -640,10 +640,10 @@ impl MutableCsr {
 
             let mut write_idx = 0;
             for read_idx in 0..degree {
-                let nbr = self.nbr_list[offset + read_idx];
+                let nbr = &self.nbr_list[offset + read_idx];
                 if nbr.timestamp != INVALID_TIMESTAMP {
                     if write_idx != read_idx {
-                        self.nbr_list[offset + write_idx] = nbr;
+                        self.nbr_list[offset + write_idx] = nbr.clone();
                     }
                     write_idx += 1;
                 }
@@ -670,16 +670,21 @@ impl MutableCsr {
         prop_offsets: &[u32],
         ts: Timestamp,
     ) {
-        let max_vertex = src_list.iter().max().copied().unwrap_or(0) as usize;
+        let max_vertex = src_list
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or(VertexId::zero())
+            .as_int64()
+            .unwrap_or(0) as usize;
         self.ensure_vertex_capacity(max_vertex + 1);
 
         for i in 0..src_list.len() {
-            let src = src_list[i];
             let dst = dst_list[i];
             let edge_id = edge_ids[i];
             let prop_offset = prop_offsets[i];
 
-            let src_idx = src as usize;
+            let src_idx = src_list[i].as_int64().unwrap_or(0) as usize;
             let degree = self.degrees[src_idx] as usize;
             let capacity = self.capacities[src_idx] as usize;
             let offset = self.adj_offsets[src_idx];
@@ -728,16 +733,22 @@ impl MutableCsr {
         }
         
         // Phase 1: Pre-allocation (sequential)
-        let max_vertex = src_list.iter().max().copied().unwrap_or(0) as usize;
+        let max_vertex = src_list
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or(VertexId::zero())
+            .as_int64()
+            .unwrap_or(0) as usize;
         self.ensure_vertex_capacity(max_vertex + 1);
         
         // Group edges by source vertex
         let mut groups: HashMap<VertexId, Vec<(VertexId, EdgeId, u32)>> = HashMap::new();
         for i in 0..src_list.len() {
             groups
-                .entry(src_list[i])
+                .entry(src_list[i].clone())
                 .or_default()
-                .push((dst_list[i], edge_ids[i], prop_offsets[i]));
+                .push((dst_list[i].clone(), edge_ids[i], prop_offsets[i]));
         }
         
         // Calculate insertion positions and ensure capacity for each vertex
@@ -745,17 +756,16 @@ impl MutableCsr {
         let mut total_new_edges = 0usize;
         
         for (&src, edges) in &groups {
-            let src_idx = src as usize;
+            let src_idx = src.as_int64().unwrap_or(0) as usize;
             let current_degree = self.degrees[src_idx] as usize;
             let new_edges = edges.len();
             let required_capacity = current_degree + new_edges;
             
-            // Ensure capacity for this vertex
             while (self.capacities[src_idx] as usize) < required_capacity {
                 self.expand_vertex_capacity(src_idx);
             }
             
-            insert_positions.insert(src, self.adj_offsets[src_idx] + current_degree);
+            insert_positions.insert(src.clone(), self.adj_offsets[src_idx] + current_degree);
             total_new_edges += new_edges;
         }
         
@@ -769,7 +779,7 @@ impl MutableCsr {
         let degrees_ptr = self.degrees.as_mut_ptr() as usize;
         
         groups_vec.into_par_iter().for_each(move |(src, edges)| {
-            let src_idx = src as usize;
+            let src_idx = src.as_int64().unwrap_or(0) as usize;
             let mut pos = insert_positions[&src];
             let edges_len = edges.len();
             
@@ -797,8 +807,8 @@ impl MutableCsr {
 
     /// Batch delete edges
     pub fn batch_delete_edges(&mut self, edges: &[(VertexId, EdgeId)], ts: Timestamp) {
-        for &(src, edge_id) in edges {
-            self.delete_edge(src, edge_id, ts);
+        for (src, edge_id) in edges {
+            self.delete_edge(src.clone(), *edge_id, ts);
         }
     }
 
@@ -833,7 +843,7 @@ impl MutableCsr {
         }
 
         for nbr in &self.nbr_list {
-            result.extend_from_slice(&nbr.neighbor.to_le_bytes());
+            result.extend_from_slice(&nbr.neighbor.as_int64().unwrap_or(0).to_le_bytes());
             result.extend_from_slice(&nbr.edge_id.to_le_bytes());
             result.extend_from_slice(&nbr.prop_offset.to_le_bytes());
             result.extend_from_slice(&nbr.timestamp.to_le_bytes());
@@ -910,12 +920,7 @@ impl MutableCsr {
                 u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
             offset += 4;
 
-            nbr_list.push(Nbr {
-                neighbor,
-                edge_id,
-                prop_offset,
-                timestamp,
-            });
+            nbr_list.push(Nbr::new(VertexId::from_u64(neighbor), edge_id, prop_offset, timestamp));
         }
 
         self.vertex_capacity = vertex_capacity;
@@ -1072,11 +1077,11 @@ impl<'a> Iterator for MutableCsrIterator<'a> {
             let offset = self.csr.adj_offsets[self.current_vertex];
 
             while self.current_edge < degree {
-                let nbr = self.csr.nbr_list[offset + self.current_edge];
+                let nbr = self.csr.nbr_list[offset + self.current_edge].clone();
                 self.current_edge += 1;
 
                 if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
-                    return Some((self.current_vertex as VertexId, nbr));
+                    return Some((VertexId::from_int64(self.current_vertex as i64), nbr));
                 }
             }
 
@@ -1098,7 +1103,7 @@ pub struct MutableCsrEdgeIterator<'a> {
 
 impl<'a> MutableCsrEdgeIterator<'a> {
     pub fn new(csr: &'a MutableCsr, src: VertexId, ts: Timestamp) -> Self {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         let (offset, degree) = if src_idx < csr.vertex_capacity {
             (csr.adj_offsets[src_idx], csr.degrees[src_idx] as usize)
         } else {
@@ -1120,7 +1125,7 @@ impl<'a> Iterator for MutableCsrEdgeIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.current < self.degree {
-            let nbr = self.csr.nbr_list[self.offset + self.current];
+            let nbr = self.csr.nbr_list[self.offset + self.current].clone();
             self.current += 1;
 
             if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
@@ -1246,20 +1251,20 @@ mod tests {
     fn test_basic_insert_and_query() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        assert!(csr.insert_edge(0, 1, 100, 0, 1));
-        assert!(csr.insert_edge(0, 2, 101, 0, 1));
-        assert!(csr.insert_edge(1, 3, 102, 0, 1));
+        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1));
+        assert!(csr.insert_edge(VertexId::from_int64(1), VertexId::from_int64(3), 102, 0, 1));
 
-        assert!(!csr.insert_edge(0, 1, 103, 0, 1));
+        assert!(!csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 103, 0, 1));
 
-        assert_eq!(csr.degree(0, 1), 2);
-        assert_eq!(csr.degree(1, 1), 1);
-        assert_eq!(csr.degree(2, 1), 0);
+        assert_eq!(csr.degree(VertexId::from_int64(0), 1), 2);
+        assert_eq!(csr.degree(VertexId::from_int64(1), 1), 1);
+        assert_eq!(csr.degree(VertexId::from_int64(2), 1), 0);
 
-        assert!(csr.has_edge(0, 1, 1));
-        assert!(csr.has_edge(0, 2, 1));
-        assert!(csr.has_edge(1, 3, 1));
-        assert!(!csr.has_edge(0, 3, 1));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 1));
+        assert!(csr.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 1));
+        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(3), 1));
 
         assert_eq!(csr.edge_count(), 3);
     }
@@ -1268,12 +1273,12 @@ mod tests {
     fn test_delete_edge() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        csr.insert_edge(0, 1, 100, 0, 1);
-        csr.insert_edge(0, 2, 101, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1);
 
-        assert!(csr.delete_edge(0, 100, 2));
-        assert!(!csr.has_edge(0, 1, 2));
-        assert!(csr.has_edge(0, 2, 2));
+        assert!(csr.delete_edge(VertexId::from_int64(0), 100, 2));
+        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 2));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 2));
 
         assert_eq!(csr.edge_count(), 1);
     }
@@ -1282,26 +1287,26 @@ mod tests {
     fn test_revert_delete() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        csr.insert_edge(0, 1, 100, 0, 1);
-        csr.delete_edge(0, 100, 2);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr.delete_edge(VertexId::from_int64(0), 100, 2);
 
-        assert!(csr.revert_delete(0, 100, 3));
-        assert!(csr.has_edge(0, 1, 3));
+        assert!(csr.revert_delete(VertexId::from_int64(0), 100, 3));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 3));
     }
 
     #[test]
     fn test_compact() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        csr.insert_edge(0, 1, 100, 0, 1);
-        csr.insert_edge(0, 2, 101, 0, 1);
-        csr.insert_edge(0, 3, 102, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(3), 102, 0, 1);
 
-        csr.delete_edge(0, 101, 2);
+        csr.delete_edge(VertexId::from_int64(0), 101, 2);
 
         csr.compact();
 
-        let edges: Vec<_> = csr.iter_edges(0, 3).collect();
+        let edges: Vec<_> = csr.iter_edges(VertexId::from_int64(0), 3).collect();
         assert_eq!(edges.len(), 2);
     }
 
@@ -1309,9 +1314,9 @@ mod tests {
     fn test_dump_and_load() {
         let mut csr1 = MutableCsr::with_capacity(10, 100);
 
-        csr1.insert_edge(0, 1, 100, 0, 1);
-        csr1.insert_edge(0, 2, 101, 0, 1);
-        csr1.insert_edge(1, 3, 102, 0, 1);
+        csr1.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr1.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1);
+        csr1.insert_edge(VertexId::from_int64(1), VertexId::from_int64(3), 102, 0, 1);
 
         let data = csr1.dump();
 
@@ -1320,29 +1325,29 @@ mod tests {
 
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
-        assert!(csr2.has_edge(0, 1, 1));
-        assert!(csr2.has_edge(0, 2, 1));
-        assert!(csr2.has_edge(1, 3, 1));
+        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
+        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 1));
+        assert!(csr2.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 1));
     }
 
     #[test]
     fn test_resize() {
         let mut csr = MutableCsr::with_capacity(2, 10);
 
-        csr.insert_edge(0, 1, 100, 0, 1);
-        csr.insert_edge(100, 1, 101, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr.insert_edge(VertexId::from_int64(100), VertexId::from_int64(1), 101, 0, 1);
 
         assert!(csr.vertex_capacity() >= 101);
-        assert!(csr.has_edge(100, 1, 1));
+        assert!(csr.has_edge(VertexId::from_int64(100), VertexId::from_int64(1), 1));
     }
 
     #[test]
     fn test_iterator() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        csr.insert_edge(0, 1, 100, 0, 1);
-        csr.insert_edge(0, 2, 101, 0, 1);
-        csr.insert_edge(1, 3, 102, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1);
+        csr.insert_edge(VertexId::from_int64(1), VertexId::from_int64(3), 102, 0, 1);
 
         let edges: Vec<_> = csr.iter(1).collect();
         assert_eq!(edges.len(), 3);

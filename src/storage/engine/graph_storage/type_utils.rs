@@ -6,23 +6,40 @@
 use std::collections::HashMap;
 
 use crate::core::{Edge, Value, Vertex};
+use crate::core::types::VertexId;
 use crate::core::vertex_edge_path::Tag;
 use crate::storage::edge::EdgeRecord;
 use crate::storage::vertex::VertexRecord;
 
-pub fn value_to_string(id: &Value) -> String {
-    match id {
+pub fn vertex_id_to_string(vid: &VertexId) -> String {
+    if let Some(i) = vid.as_int64() {
+        i.to_string()
+    } else if let Some(s) = vid.as_str() {
+        s.to_string()
+    } else {
+        format!("{:?}", vid)
+    }
+}
+
+pub fn value_to_string(value: &Value) -> String {
+    match value {
+        Value::SmallInt(i) => i.to_string(),
+        Value::Int(i) => i.to_string(),
+        Value::BigInt(i) => i.to_string(),
         Value::String(s) => s.clone(),
-        _ => id.to_string().unwrap_or_default(),
+        Value::Float(f) => f.to_string(),
+        Value::Double(f) => f.to_string(),
+        Value::Bool(b) => b.to_string(),
+        _ => format!("{:?}", value),
     }
 }
 
 pub fn vertex_record_to_vertex(record: &VertexRecord, tag_name: &str) -> Vertex {
-    let vid_value = Value::String(record.vid.to_string());
+    let vid = VertexId::from_string(&record.vid);
     let properties: HashMap<String, Value> = record.properties.iter().cloned().collect();
 
     Vertex {
-        vid: Box::new(vid_value),
+        vid,
         id: record.internal_id as i64,
         tags: vec![Tag {
             name: tag_name.to_string(),
@@ -36,8 +53,8 @@ pub fn edge_record_to_edge(record: &EdgeRecord, edge_type: &str, src_id: &str, d
     let props: HashMap<String, Value> = record.properties.iter().cloned().collect();
 
     Edge {
-        src: Box::new(Value::String(src_id.to_string())),
-        dst: Box::new(Value::String(dst_id.to_string())),
+        src: VertexId::from_string(src_id),
+        dst: VertexId::from_string(dst_id),
         edge_type: edge_type.to_string(),
         ranking: 0,
         id: record.edge_id as i64,

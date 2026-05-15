@@ -3,6 +3,7 @@
 //! Responsible for creating executors for data modification operations (InsertVertices, InsertEdges, Remove).
 
 use crate::core::error::QueryError;
+use crate::core::types::VertexId;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::ExecutionContext;
@@ -84,7 +85,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             }
 
             // Create vertices with evaluated ID
-            let vertex = Vertex::new(vid, tags);
+            let vertex_id = VertexId::try_from(&vid).map_err(|e| {
+                QueryError::execution(format!("Invalid vertex ID: {}", e))
+            })?;
+            let vertex = Vertex::new(vertex_id, tags);
             vertices.push(vertex);
         }
 
@@ -174,7 +178,13 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             }
 
             // Create an edge with evaluated src, dst and rank
-            let edge = Edge::new(src, dst, node.edge_name().to_string(), rank, props);
+            let src_vid = VertexId::try_from(&src).map_err(|e| {
+                QueryError::execution(format!("Invalid source vertex ID: {}", e))
+            })?;
+            let dst_vid = VertexId::try_from(&dst).map_err(|e| {
+                QueryError::execution(format!("Invalid destination vertex ID: {}", e))
+            })?;
+            let edge = Edge::new(src_vid, dst_vid, node.edge_name().to_string(), rank, props);
 
             edges.push(edge);
         }

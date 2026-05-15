@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
+use crate::core::error::DBError;
+use crate::core::types::VertexId;
 use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -103,7 +105,8 @@ impl<S: StorageClient> GetPropExecutor<S> {
             props.reserve(total_props);
 
             for vertex_id in vertex_ids {
-                if let Some(vertex) = storage.get_vertex("default", vertex_id)? {
+                let vid = VertexId::try_from(vertex_id).map_err(DBError::from)?;
+                if let Some(vertex) = storage.get_vertex("default", &vid)? {
                     for prop_name in &self.prop_names {
                         if let Some(value) = vertex.get_property_any(prop_name) {
                             props.push(value.clone());

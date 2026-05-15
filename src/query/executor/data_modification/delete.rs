@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use crate::core::error::DBError;
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::VertexId;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
@@ -148,8 +149,9 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         if let Some(ids) = &self.vertex_ids {
             let mut storage = self.get_storage().write();
             for id in ids {
+                let vid = VertexId::try_from(id).map_err(DBError::from)?;
                 let should_delete = if let Some(ref expression) = condition_expression {
-                    if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
+                    if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, &vid) {
                         let mut context = DefaultExpressionContext::new();
                         context.set_variable("VID".to_string(), id.clone());
                         for (key, value) in &vertex.properties {
@@ -178,7 +180,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                 if should_delete {
                     if self.with_edge {
                         let edges = storage
-                            .get_node_edges(&self.space_name, id, crate::core::EdgeDirection::Both)
+                            .get_node_edges(&self.space_name, &vid, crate::core::EdgeDirection::Both)
                             .map_err(|e| {
                                 crate::core::error::DBError::storage(format!(
                                     "Failed to retrieve associated edges: {}",
@@ -204,7 +206,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                         }
                     }
 
-                    if storage.delete_vertex(&self.space_name, id).is_ok() {
+                    if storage.delete_vertex(&self.space_name, &vid).is_ok() {
                         total_deleted += 1;
                     }
                 }
@@ -214,9 +216,11 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         if let Some(edges) = &self.edge_ids {
             let mut storage = self.get_storage().write();
             for (src, dst, edge_type) in edges {
+                let src_vid = VertexId::try_from(src).map_err(DBError::from)?;
+                let dst_vid = VertexId::try_from(dst).map_err(DBError::from)?;
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(edge)) =
-                        storage.get_edge(&self.space_name, src, dst, edge_type, 0)
+                        storage.get_edge(&self.space_name, &src_vid, &dst_vid, edge_type, 0)
                     {
                         let mut context = DefaultExpressionContext::new();
                         context.set_variable("SRC".to_string(), src.clone());
@@ -253,9 +257,9 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                         .scan_edges_by_type(&self.space_name, edge_type)
                         .map_err(DBError::from)?;
                     for edge in edges {
-                        if *edge.src == *src && *edge.dst == *dst {
+                        if edge.src == src_vid && edge.dst == dst_vid {
                             storage
-                                .delete_edge(&self.space_name, src, dst, edge_type, edge.ranking)
+                                .delete_edge(&self.space_name, &src_vid, &dst_vid, edge_type, edge.ranking)
                                 .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;
@@ -269,8 +273,9 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             if let Some(ids) = &self.vertex_ids {
                 let mut storage = self.get_storage().write();
                 for id in ids {
+                    let vid = VertexId::try_from(id).map_err(DBError::from)?;
                     if self.is_all_tags {
-                        if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
+                        if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, &vid) {
                             for tag in &vertex.tags {
                                 if storage.drop_tag(&self.space_name, &tag.name).is_ok() {
                                     total_deleted += 1;
@@ -474,6 +479,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
             for row in &input_data.rows {
                 for vid_expr in &self.vertex_id_expressions {
                     let id = self.evaluate_expression_with_row(vid_expr, col_names, row)?;
+                    let vid = VertexId::try_from(&id).map_err(DBError::from)?;
 
                     let should_delete = self.check_condition(&storage, &id)?;
 
@@ -482,7 +488,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                             let edges = storage
                                 .get_node_edges(
                                     &self.space_name,
-                                    &id,
+                                    &vid,
                                     crate::core::EdgeDirection::Both,
                                 )
                                 .map_err(|e| {
@@ -510,7 +516,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                             }
                         }
 
-                        if storage.delete_vertex(&self.space_name, &id).is_ok() {
+                        if storage.delete_vertex(&self.space_name, &vid).is_ok() {
                             total_deleted += 1;
                         }
                     }
@@ -529,15 +535,17 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                 for (src_expr, dst_expr, _rank_expr) in &self.edge_expressions {
                     let src = self.evaluate_expression_with_row(src_expr, col_names, row)?;
                     let dst = self.evaluate_expression_with_row(dst_expr, col_names, row)?;
+                    let src_vid = VertexId::try_from(&src).map_err(DBError::from)?;
+                    let dst_vid = VertexId::try_from(&dst).map_err(DBError::from)?;
 
                     let edges = storage
                         .scan_edges_by_type(&self.space_name, &edge_type)
                         .map_err(DBError::from)?;
 
                     for edge in edges {
-                        if *edge.src == src && *edge.dst == dst {
+                        if edge.src == src_vid && edge.dst == dst_vid {
                             storage
-                                .delete_edge(&self.space_name, &src, &dst, &edge_type, edge.ranking)
+                                .delete_edge(&self.space_name, &src_vid, &dst_vid, &edge_type, edge.ranking)
                                 .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;

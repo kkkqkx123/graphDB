@@ -261,17 +261,18 @@ impl EdgeTable {
 
         let mut found = false;
         for src in 0..self.out_csr.vertex_capacity() {
+            let src_vid = VertexId::from_int64(src as i64);
             let edges: Vec<_> = self
                 .out_csr
-                .edges_of(src as VertexId, ts)
+                .edges_of(src_vid, ts)
                 .into_iter()
                 .filter(|nbr| nbr.edge_id == edge_id)
                 .collect();
 
             for nbr in edges {
-                self.out_csr.delete_edge(src as VertexId, edge_id, ts);
+                self.out_csr.delete_edge(src_vid, edge_id, ts);
                 self.in_csr
-                    .delete_edge_by_dst(nbr.neighbor, src as VertexId, ts);
+                    .delete_edge_by_dst(nbr.neighbor.clone(), src_vid, ts);
 
                 if nbr.prop_offset > 0 {
                     self.properties.delete(nbr.prop_offset);
@@ -308,6 +309,7 @@ impl EdgeTable {
             edge_id: nbr.edge_id,
             src_vid: src,
             dst_vid: dst,
+            ranking: 0,
             properties,
         })
     }
@@ -325,9 +327,10 @@ impl EdgeTable {
         }
 
         for src in 0..self.out_csr.vertex_capacity() {
+            let src_vid = VertexId::from_int64(src as i64);
             if let Some(nbr) = self
                 .out_csr
-                .edges_of(src as VertexId, ts)
+                .edges_of(src_vid, ts)
                 .iter()
                 .find(|nbr| nbr.edge_id == edge_id)
             {
@@ -347,8 +350,9 @@ impl EdgeTable {
 
                 return Some(EdgeRecord {
                     edge_id: nbr.edge_id,
-                    src_vid: src as VertexId,
-                    dst_vid: nbr.neighbor,
+                    src_vid: src_vid,
+                    dst_vid: nbr.neighbor.clone(),
+                    ranking: 0,
                     properties,
                 });
             }
@@ -435,6 +439,7 @@ impl EdgeTable {
                     edge_id: nbr.edge_id,
                     src_vid: src,
                     dst_vid: nbr.neighbor,
+                    ranking: 0,
                     properties,
                 }
             })
@@ -468,6 +473,7 @@ impl EdgeTable {
                     edge_id: nbr.edge_id,
                     src_vid: nbr.neighbor,
                     dst_vid: dst,
+                    ranking: 0,
                     properties,
                 }
             })
@@ -506,7 +512,8 @@ impl EdgeTable {
 
         let mut edges = Vec::new();
         for src in 0..self.out_csr.vertex_capacity() {
-            for nbr in self.out_csr.edges_of(src as VertexId, ts) {
+            let src_vid = VertexId::from_int64(src as i64);
+            for nbr in self.out_csr.edges_of(src_vid, ts) {
                 let properties = if nbr.prop_offset > 0 {
                     self.properties
                         .get(nbr.prop_offset)
@@ -523,8 +530,9 @@ impl EdgeTable {
 
                 edges.push(EdgeRecord {
                     edge_id: nbr.edge_id,
-                    src_vid: src as VertexId,
-                    dst_vid: nbr.neighbor,
+                    src_vid: src_vid,
+                    dst_vid: nbr.neighbor.clone(),
+                    ranking: 0,
                     properties,
                 });
             }
@@ -896,6 +904,7 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
                 edge_id: nbr.edge_id,
                 src_vid,
                 dst_vid: nbr.neighbor,
+                ranking: 0,
                 properties,
             }
         })
@@ -943,6 +952,7 @@ impl<'a> Iterator for EdgeVertexIterator<'a> {
                 edge_id: nbr.edge_id,
                 src_vid: self.src_vid,
                 dst_vid: nbr.neighbor,
+                ranking: 0,
                 properties,
             }
         })
@@ -974,15 +984,15 @@ mod tests {
         let mut table = EdgeTable::new(schema);
 
         let edge_id = table
-            .insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.5))], 100)
+            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.5))], 100)
             .unwrap();
 
-        assert!(table.has_edge(0, 1, 100));
+        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100));
 
-        let edge = table.get_edge(0, 1, 100).unwrap();
+        let edge = table.get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100).unwrap();
         assert_eq!(edge.edge_id, edge_id);
-        assert_eq!(edge.src_vid, 0);
-        assert_eq!(edge.dst_vid, 1);
+        assert_eq!(edge.src_vid, VertexId::from_int64(0));
+        assert_eq!(edge.dst_vid, VertexId::from_int64(1));
     }
 
     #[test]
@@ -991,11 +1001,11 @@ mod tests {
         let mut table = EdgeTable::new(schema);
 
         table
-            .insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.5))], 100)
+            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.5))], 100)
             .unwrap();
 
-        assert!(table.delete_edge(0, 1, 200).unwrap());
-        assert!(!table.has_edge(0, 1, 300));
+        assert!(table.delete_edge(VertexId::from_int64(0), VertexId::from_int64(1), 200).unwrap());
+        assert!(!table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 300));
     }
 
     #[test]

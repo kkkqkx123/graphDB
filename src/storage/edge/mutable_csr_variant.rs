@@ -159,7 +159,7 @@ impl MutableCsrTrait for MutableCsrVariant {
     fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
         match self {
             MutableCsrVariant::Multiple(csr) => csr.revert_delete(src, edge_id, ts),
-            MutableCsrVariant::Single(csr) => csr.revert_delete(src, edge_id, ts),
+            MutableCsrVariant::Single(csr) => MutableCsrTrait::revert_delete(csr, src, edge_id, ts),
             MutableCsrVariant::CacheOptimized(csr) => csr.revert_delete(src, edge_id, ts),
         }
     }

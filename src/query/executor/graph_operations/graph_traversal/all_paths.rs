@@ -19,6 +19,7 @@ use std::time::Instant;
 use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::VertexId;
 use crate::core::{Edge, NPath, Path, Value};
 use crate::query::executor::base::{
     AllPathsConfig, BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
@@ -57,7 +58,7 @@ impl SelfLoopDedup {
 }
 
 /// Unique identifier for a path based on its vertex sequence
-type PathKey = Vec<Value>;
+type PathKey = Vec<VertexId>;
 
 /// Caching of path results: Using NPath to reduce memory usage
 #[derive(Debug, Clone)]
@@ -84,7 +85,7 @@ impl PathResultCache {
     fn generate_path_key(npath: &NPath) -> PathKey {
         npath
             .iter_vertices()
-            .map(|v| v.vid.as_ref().clone())
+            .map(|v| v.vid.clone())
             .collect()
     }
 
@@ -122,8 +123,8 @@ impl PathResultCache {
 #[derive(Debug, Clone)]
 pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    left_start_ids: Vec<Value>,
-    right_start_ids: Vec<Value>,
+    left_start_ids: Vec<VertexId>,
+    right_start_ids: Vec<VertexId>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_steps: usize,
@@ -132,18 +133,15 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     pub offset: usize,
     pub step_filter: Option<String>,
     pub filter: Option<String>,
-    pub with_loop: bool, // Are self-loop edges allowed?
+    pub with_loop: bool,
     left_steps: usize,
     right_steps: usize,
-    left_visited: HashSet<Value>,
-    right_visited: HashSet<Value>,
-    /// Store a mapping from the vertex to its NPath, which is used for path reconstruction.
-    left_path_map: HashMap<Value, Arc<NPath>>,
-    right_path_map: HashMap<Value, Arc<NPath>>,
-    /// Use NPath instead of Path to store intermediate results, thereby reducing memory copying.
-    left_queue: VecDeque<(Value, Arc<NPath>)>,
-    right_queue: VecDeque<(Value, Arc<NPath>)>,
-    /// Use the NPath cache results to delay the conversion to a Path object.
+    left_visited: HashSet<VertexId>,
+    right_visited: HashSet<VertexId>,
+    left_path_map: HashMap<VertexId, Arc<NPath>>,
+    right_path_map: HashMap<VertexId, Arc<NPath>>,
+    left_queue: VecDeque<(VertexId, Arc<NPath>)>,
+    right_queue: VecDeque<(VertexId, Arc<NPath>)>,
     result_cache: PathResultCache,
     nodes_visited: usize,
     edges_traversed: usize,
@@ -216,9 +214,9 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
     fn get_neighbors(
         &self,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
-    ) -> DBResult<Vec<(Value, Edge)>> {
+    ) -> DBResult<Vec<(VertexId, Edge)>> {
         let storage = self
             .base
             .storage
@@ -241,7 +239,6 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             edges
         };
 
-        // Deduplication of self-loop edges (determined based on the configuration of with_loop whether to perform deduplication or not)
         let mut dedup = SelfLoopDedup::with_loop(self.with_loop);
 
         let neighbors = filtered_edges
@@ -249,24 +246,24 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             .filter(|edge| dedup.should_include(edge))
             .filter_map(|edge| match direction {
                 EdgeDirection::In => {
-                    if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
+                    if edge.dst == *node_id {
+                        Some((edge.src.clone(), edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
+                    if edge.src == *node_id {
+                        Some((edge.dst.clone(), edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
-                    } else if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
+                    if edge.src == *node_id {
+                        Some((edge.dst.clone(), edge))
+                    } else if edge.dst == *node_id {
+                        Some((edge.src.clone(), edge))
                     } else {
                         None
                     }
@@ -421,58 +418,36 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         use crate::core::{Edge, Vertex};
         use std::sync::Arc;
 
-        // Obtain the vertex sets of the two paths.
         let left_vertices: std::collections::HashSet<_> = left_path
             .iter_vertices()
-            .map(|v| v.vid.as_ref().clone())
+            .map(|v| v.vid.clone())
             .collect();
         let right_vertices: std::collections::HashSet<_> = right_path
             .iter_vertices()
-            .map(|v| v.vid.as_ref().clone())
+            .map(|v| v.vid.clone())
             .collect();
 
-        // Check for any duplicate vertices (other than the intersection points).
         let common: Vec<_> = left_vertices.intersection(&right_vertices).collect();
         if common.len() != 1 {
-            // If there are no common vertices, or if there are multiple common vertices, it is not possible to connect the elements; instead, loops may be formed.
             return None;
         }
 
-        // Obtain the intersection point.
         let junction_id = common[0].clone();
 
-        // Verify that the intersection point is the end point of both paths.
-        if left_path.end_vertex().vid.as_ref() != &junction_id {
+        if left_path.end_vertex().vid != *junction_id {
             return None;
         }
-        if right_path.end_vertex().vid.as_ref() != &junction_id {
+        if right_path.end_vertex().vid != *junction_id {
             return None;
         }
 
-        // Check whether the total path length exceeds the specified limit.
         let total_length = left_path.len() + right_path.len();
         if total_length > self.max_steps {
             return None;
         }
 
-        // Construct the complete path: Left path + Reversed right path
-        // The right path is the one that leads back from the destination; therefore, the direction needs to be reversed.
         let mut full_path = left_path.clone();
 
-        // Collect all the steps (edges and vertices) of the right path.
-        // Right path NPath structure: each node has (vertex, edge, parent).
-        // edge represents the edge connecting vertex to parent.
-        // Since expand_right uses EdgeDirection::In, for NPath([4, 2]):
-        //   - node: vertex=2, edge=edge_2_4(src=2,dst=4), parent=vertex=4
-        //   - This means: from 4, we went backwards to 2 via edge 2->4
-        //
-        // iter() returns nodes from junction (end) towards destination (root):
-        //   1. (vertex=2, edge=edge_2_4) - junction step
-        //   2. (vertex=4, edge=None) - destination (root)
-        //
-        // To build forward path from junction to destination:
-        //   junction(2) -> destination(4) via edge 2->4
-        //   The edge already has the correct direction: src=junction, dst=next
         let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path
             .iter()
             .filter_map(|node| {
@@ -481,14 +456,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             })
             .collect();
 
-        // Process steps in order (from junction towards destination).
-        // Each step: (edge, vertex) where edge connects vertex to its parent.
-        // edge.src = vertex, edge.dst = parent (in the reverse direction).
-        // For forward path: we go from vertex towards parent, so edge direction is correct.
         for (edge, _vertex) in right_steps {
-            let next_vid = edge.dst.as_ref().clone();
+            let next_vid = edge.dst.clone();
             let reversed_edge = Arc::new(Edge::new(
-                full_path.end_vertex().vid.as_ref().clone(),
+                full_path.end_vertex().vid.clone(),
                 next_vid.clone(),
                 edge.edge_type.clone(),
                 edge.ranking,
@@ -496,7 +467,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             ));
             if let Some(parent_npath) = right_path
                 .iter()
-                .find(|n| n.vertex().vid.as_ref() == &next_vid)
+                .find(|n| n.vertex().vid == next_vid)
             {
                 full_path = NPath::extend(
                     Arc::new(full_path),

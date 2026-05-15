@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use super::super::base::{BaseExecutor, ExecutorConfig, IndexScanConfig};
 use crate::core::error::DBError;
+use crate::core::types::VertexId;
 use crate::core::{NullType, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
@@ -257,7 +258,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                                 };
 
                                 if passes_end {
-                                    results.push((*vertex.vid).clone());
+                                    results.push(Value::BigInt(vertex.vid.as_int64().unwrap_or(0)));
                                 }
                             }
                         }
@@ -315,7 +316,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             }
         }
         match column_name {
-            "vid" => Some((*vertex.vid).clone()),
+            "vid" => Some(Value::BigInt(vertex.vid.as_int64().unwrap_or(0))),
             "id" => Some(Value::BigInt(vertex.id)),
             _ => None,
         }
@@ -326,8 +327,8 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             return Some(value.clone());
         }
         match column_name {
-            "src" => Some((*edge.src).clone()),
-            "dst" => Some((*edge.dst).clone()),
+            "src" => Some(Value::BigInt(edge.src.as_int64().unwrap_or(0))),
+            "dst" => Some(Value::BigInt(edge.dst.as_int64().unwrap_or(0))),
             "ranking" => Some(Value::BigInt(edge.ranking)),
             _ => None,
         }
@@ -349,14 +350,14 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     if parts.len() >= 2 {
                         // Try to parse as integers first (since that's how they were inserted)
                         let src = if let Ok(src_int) = parts[0].parse::<i64>() {
-                            Value::BigInt(src_int)
+                            VertexId::from_int64(src_int)
                         } else {
-                            Value::String(parts[0].to_string())
+                            VertexId::from_string(parts[0])
                         };
                         let dst = if let Ok(dst_int) = parts[1].parse::<i64>() {
-                            Value::BigInt(dst_int)
+                            VertexId::from_int64(dst_int)
                         } else {
-                            Value::String(parts[1].to_string())
+                            VertexId::from_string(parts[1])
                         };
                         let rank = if parts.len() >= 3 {
                             parts[2].parse::<i64>().unwrap_or(0)
@@ -373,8 +374,9 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             } else {
                 // Vertex Type
+                let vid = VertexId::try_from(&id).map_err(DBError::from)?;
                 if let Some(vertex) = storage
-                    .get_vertex(&space_name, &id)
+                    .get_vertex(&space_name, &vid)
                     .map_err(DBError::from)?
                 {
                     results.push(Value::Vertex(Box::new(vertex)));
@@ -433,7 +435,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         let key = format!("{}{}", schema_prefix, col);
                         match col.as_str() {
                             "vid" => {
-                                props.insert(key, (*vertex.vid).clone());
+                                props.insert(key, Value::BigInt(vertex.vid.as_int64().unwrap_or(0)));
                             }
                             "id" => {
                                 props.insert(key, Value::BigInt(vertex.id));
@@ -459,10 +461,10 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         let key = format!("{}{}", schema_prefix, col);
                         match col.as_str() {
                             "src" => {
-                                props.insert(key, (*edge.src).clone());
+                                props.insert(key, Value::BigInt(edge.src.as_int64().unwrap_or(0)));
                             }
                             "dst" => {
-                                props.insert(key, (*edge.dst).clone());
+                                props.insert(key, Value::BigInt(edge.dst.as_int64().unwrap_or(0)));
                             }
                             "edge_type" => {
                                 props.insert(key, Value::String(edge.edge_type.clone()));
@@ -612,7 +614,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
                             format!("{}.", self.schema_name)
                         }
                     );
-                    row_map.insert(vid_key, (*vertex.vid).clone());
+                    row_map.insert(vid_key, Value::BigInt(vertex.vid.as_int64().unwrap_or(0)));
 
                     // Add properties from tags
                     for tag in &vertex.tags {

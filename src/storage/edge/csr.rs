@@ -85,14 +85,20 @@ impl Csr {
             return;
         }
 
-        let max_vertex = src_list.iter().max().copied().unwrap_or(0) as usize;
+        let max_vertex = src_list
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or(VertexId::zero())
+            .as_int64()
+            .unwrap_or(0) as usize;
         if max_vertex >= self.vertex_capacity {
             self.resize(max_vertex + 1);
         }
 
         let mut degrees = vec![0u32; self.vertex_capacity];
-        for &src in src_list {
-            let src_idx = src as usize;
+        for src in src_list {
+            let src_idx = src.as_int64().unwrap_or(0) as usize;
             if src_idx < degrees.len() {
                 degrees[src_idx] += 1;
             }
@@ -107,7 +113,8 @@ impl Csr {
         new_offsets[self.vertex_capacity] = cumsum;
 
         let total_edges = self.edges.len() + src_list.len();
-        let mut new_edges = vec![ImmutableNbr::new(0, 0, 0); total_edges];
+        let mut new_edges =
+            vec![ImmutableNbr::new(VertexId::from_int64(0), 0, 0); total_edges];
 
         for (i, offset) in new_offsets.iter().enumerate().take(self.vertex_capacity) {
             let old_start = self.offsets[i] as usize;
@@ -121,11 +128,15 @@ impl Csr {
 
         let mut current_pos = new_offsets.clone();
         for i in 0..src_list.len() {
-            let src = src_list[i] as usize;
+            let src = src_list[i].as_int64().unwrap_or(0) as usize;
             if src < current_pos.len() - 1 {
                 let pos = current_pos[src] as usize;
                 if pos < new_edges.len() {
-                    new_edges[pos] = ImmutableNbr::new(dst_list[i], edge_ids[i], prop_offsets[i]);
+                    new_edges[pos] = ImmutableNbr::new(
+                        dst_list[i].clone(),
+                        edge_ids[i],
+                        prop_offsets[i],
+                    );
                     current_pos[src] += 1;
                 }
             }
@@ -139,7 +150,7 @@ impl Csr {
 
     /// Get edges of a vertex
     pub fn edges_of(&self, vid: VertexId) -> &[ImmutableNbr] {
-        let vid_idx = vid as usize;
+        let vid_idx = vid.as_int64().unwrap_or(0) as usize;
         if vid_idx >= self.vertex_capacity {
             return &[];
         }
@@ -156,7 +167,7 @@ impl Csr {
 
     /// Get degree of a vertex
     pub fn degree(&self, vid: VertexId) -> usize {
-        let vid_idx = vid as usize;
+        let vid_idx = vid.as_int64().unwrap_or(0) as usize;
         if vid_idx >= self.vertex_capacity {
             return 0;
         }
@@ -214,7 +225,7 @@ impl Csr {
 
         result.extend_from_slice(&(self.edges.len() as u64).to_le_bytes());
         for edge in &self.edges {
-            result.extend_from_slice(&edge.neighbor.to_le_bytes());
+            result.extend_from_slice(&edge.neighbor.as_int64().unwrap_or(0).to_le_bytes());
             result.extend_from_slice(&edge.edge_id.to_le_bytes());
             result.extend_from_slice(&edge.prop_offset.to_le_bytes());
         }
@@ -272,11 +283,7 @@ impl Csr {
                 u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
             offset += 4;
 
-            edges.push(ImmutableNbr {
-                neighbor,
-                edge_id,
-                prop_offset,
-            });
+            edges.push(ImmutableNbr::new(VertexId::from_u64(neighbor), edge_id, prop_offset));
         }
 
         self.vertex_capacity = vertex_capacity;
@@ -345,7 +352,7 @@ impl<'a> Iterator for CsrIterator<'a> {
             if self.current_edge < end && self.current_edge < self.csr.edges.len() {
                 let edge = &self.csr.edges[self.current_edge];
                 self.current_edge += 1;
-                return Some((self.current_vertex as VertexId, edge));
+                return Some((VertexId::from_int64(self.current_vertex as i64), edge));
             }
 
             self.current_vertex += 1;
@@ -363,7 +370,7 @@ pub struct CsrEdgeIterator<'a> {
 
 impl<'a> CsrEdgeIterator<'a> {
     pub fn new(csr: &'a Csr, vid: VertexId) -> Self {
-        let vid_idx = vid as usize;
+        let vid_idx = vid.as_int64().unwrap_or(0) as usize;
         let edges = if vid_idx < csr.vertex_capacity {
             let start = csr.offsets[vid_idx] as usize;
             let end = csr.offsets[vid_idx + 1] as usize;
@@ -461,31 +468,37 @@ mod tests {
         let mut csr = Csr::with_capacity(10, 100);
 
         csr.batch_put_edges(
-            &[0, 0, 1, 2],
-            &[1, 2, 3, 0],
+            &[0, 0, 1, 2].map(VertexId::from_int64),
+            &[1, 2, 3, 0].map(VertexId::from_int64),
             &[0, 1, 2, 3],
             &[0, 1, 2, 3],
             100,
         );
 
-        assert_eq!(csr.degree(0), 2);
-        assert_eq!(csr.degree(1), 1);
-        assert_eq!(csr.degree(2), 1);
+        assert_eq!(csr.degree(VertexId::from_int64(0)), 2);
+        assert_eq!(csr.degree(VertexId::from_int64(1)), 1);
+        assert_eq!(csr.degree(VertexId::from_int64(2)), 1);
         assert_eq!(csr.edge_count(), 4);
 
-        let edges: Vec<_> = csr.iter_edges(0).collect();
+        let edges: Vec<_> = csr.iter_edges(VertexId::from_int64(0)).collect();
         assert_eq!(edges.len(), 2);
 
-        assert!(csr.has_edge(0, 1));
-        assert!(csr.has_edge(0, 2));
-        assert!(!csr.has_edge(0, 3));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1)));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2)));
+        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(3)));
     }
 
     #[test]
     fn test_iterator() {
         let mut csr = Csr::with_capacity(5, 20);
 
-        csr.batch_put_edges(&[0, 1, 2], &[1, 2, 3], &[0, 1, 2], &[0, 0, 0], 100);
+        csr.batch_put_edges(
+            &[0, 1, 2].map(VertexId::from_int64),
+            &[1, 2, 3].map(VertexId::from_int64),
+            &[0, 1, 2],
+            &[0, 0, 0],
+            100,
+        );
 
         let count = csr.iter().count();
         assert_eq!(count, 3);
@@ -496,8 +509,8 @@ mod tests {
         let mut csr1 = Csr::with_capacity(10, 100);
 
         csr1.batch_put_edges(
-            &[0, 0, 1, 2],
-            &[1, 2, 3, 0],
+            &[0, 0, 1, 2].map(VertexId::from_int64),
+            &[1, 2, 3, 0].map(VertexId::from_int64),
             &[0, 1, 2, 3],
             &[0, 1, 2, 3],
             100,
@@ -510,22 +523,28 @@ mod tests {
 
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
-        assert!(csr2.has_edge(0, 1));
-        assert!(csr2.has_edge(0, 2));
-        assert!(csr2.has_edge(1, 3));
+        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(1)));
+        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(2)));
+        assert!(csr2.has_edge(VertexId::from_int64(1), VertexId::from_int64(3)));
     }
 
     #[test]
     fn test_get_edge() {
         let mut csr = Csr::with_capacity(10, 100);
 
-        csr.batch_put_edges(&[0, 0], &[1, 2], &[100, 101], &[0, 1], 100);
+        csr.batch_put_edges(
+            &[0, 0].map(VertexId::from_int64),
+            &[1, 2].map(VertexId::from_int64),
+            &[100, 101],
+            &[0, 1],
+            100,
+        );
 
-        let edge = csr.get_edge(0, 1);
+        let edge = csr.get_edge(VertexId::from_int64(0), VertexId::from_int64(1));
         assert!(edge.is_some());
         assert_eq!(edge.unwrap().edge_id, 100);
 
-        let edge = csr.get_edge(0, 3);
+        let edge = csr.get_edge(VertexId::from_int64(0), VertexId::from_int64(3));
         assert!(edge.is_none());
     }
 
@@ -533,10 +552,16 @@ mod tests {
     fn test_get_edge_by_id() {
         let mut csr = Csr::with_capacity(10, 100);
 
-        csr.batch_put_edges(&[0, 0], &[1, 2], &[100, 101], &[0, 1], 100);
+        csr.batch_put_edges(
+            &[0, 0].map(VertexId::from_int64),
+            &[1, 2].map(VertexId::from_int64),
+            &[100, 101],
+            &[0, 1],
+            100,
+        );
 
-        let edge = csr.get_edge_by_id(0, 100);
+        let edge = csr.get_edge_by_id(VertexId::from_int64(0), 100);
         assert!(edge.is_some());
-        assert_eq!(edge.unwrap().neighbor, 1);
+        assert_eq!(edge.unwrap().neighbor, VertexId::from_int64(1));
     }
 }

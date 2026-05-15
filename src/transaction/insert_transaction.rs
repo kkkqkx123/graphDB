@@ -197,7 +197,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
         let base = self
             .added_vertices
             .entry(label)
-            .or_insert_with(|| self.graph.lid_num(label) as VertexId);
+            .or_insert_with(|| VertexId::from_int64(self.graph.lid_num(label) as i64));
         let num = self.vertex_nums.entry(label).or_insert(0u64);
         let vid = *base + *num;
         *num += 1;

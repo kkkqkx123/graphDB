@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{Value, Vertex};
+use crate::core::types::VertexId;
 #[cfg(test)]
 use crate::query::executor::base::Executor;
 use crate::query::executor::base::{
@@ -157,7 +158,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
 
             // Create vertices
             let vertex = Vertex {
-                vid: Box::new(vid.clone()),
+                vid: VertexId::try_from(&vid).map_err(|e| DBError::storage(e.to_string()))?,
                 id: 0,
                 tags: Vec::new(),
                 properties: std::collections::HashMap::new(),

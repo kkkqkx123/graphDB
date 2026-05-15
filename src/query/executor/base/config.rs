@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::Expression;
+use crate::core::types::VertexId;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
@@ -65,7 +66,7 @@ pub struct BfsShortestConfig {
 
 /// Multiple Starting Point Shortest Path Configuration
 pub struct MultiShortestPathConfig {
-    pub start_vids: Vec<crate::core::Value>,
+    pub start_vids: Vec<VertexId>,
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_steps: usize,
@@ -73,8 +74,8 @@ pub struct MultiShortestPathConfig {
 
 /// All path configurations
 pub struct AllPathsConfig {
-    pub left_start_ids: Vec<crate::core::Value>,
-    pub right_start_ids: Vec<crate::core::Value>,
+    pub left_start_ids: Vec<VertexId>,
+    pub right_start_ids: Vec<VertexId>,
     pub max_hops: usize,
     pub edge_types: Option<Vec<String>>,
     pub direction: crate::core::types::EdgeDirection,
@@ -82,7 +83,7 @@ pub struct AllPathsConfig {
 
 /// Shortest Path Configuration
 pub struct ShortestPathConfig {
-    pub start_vertex_ids: Vec<crate::core::Value>,
+    pub start_vertex_ids: Vec<VertexId>,
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
 }

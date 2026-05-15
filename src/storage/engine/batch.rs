@@ -141,7 +141,7 @@ impl<'a> EdgeBatchReader<'a> {
         Self {
             table,
             ts,
-            current_src: 0,
+            current_src: VertexId::from_int64(0),
             vertex_capacity,
             batch_size: if batch_size > 0 { batch_size } else { DEFAULT_BATCH_SIZE },
         }
@@ -168,22 +168,24 @@ impl<'a> Iterator for EdgeBatchReader<'a> {
     type Item = Vec<EdgeRecord>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_src >= self.vertex_capacity as u64 {
+        let capacity_vid = VertexId::from_int64(self.vertex_capacity as i64);
+        if self.current_src >= capacity_vid {
             return None;
         }
 
         let mut batch = Vec::with_capacity(self.batch_size);
         let mut collected = 0;
 
-        while self.current_src < self.vertex_capacity as u64 && collected < self.batch_size {
-            let edges = self.table.out_edges(self.current_src, self.ts);
+        while self.current_src < capacity_vid && collected < self.batch_size {
+            let edges = self.table.out_edges(self.current_src.clone(), self.ts);
             if !edges.is_empty() {
                 let remaining = self.batch_size - collected;
                 let to_take = edges.len().min(remaining);
                 batch.extend(edges.into_iter().take(to_take));
                 collected += to_take;
             }
-            self.current_src += 1;
+            let current = self.current_src.as_int64().unwrap_or(0);
+            self.current_src = VertexId::from_int64(current + 1);
         }
 
         if batch.is_empty() {
@@ -483,8 +485,8 @@ mod tests {
         let edges: Vec<_> = (0..50)
             .map(|i| {
                 (
-                    0 as VertexId,
-                    i as VertexId + 1,
+                    VertexId::from_int64(0),
+                    VertexId::from_int64(i as i64 + 1),
                     vec![("weight".to_string(), Value::Double(i as f64 * 0.1))],
                 )
             })

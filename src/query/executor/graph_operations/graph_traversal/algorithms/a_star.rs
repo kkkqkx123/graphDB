@@ -6,6 +6,7 @@ use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
 
+use crate::core::types::VertexId;
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
@@ -25,7 +26,7 @@ pub struct AStarNode {
     pub h_cost: f64,
     /// Total cost = g_cost + h_cost
     pub f_cost: f64,
-    pub vertex_id: Value,
+    pub vertex_id: VertexId,
 }
 
 impl Eq for AStarNode {}
@@ -111,24 +112,24 @@ impl<S: StorageClient> AStar<S> {
     /// For multiple endpoints, the heuristic value to the nearest endpoint is used
     fn calculate_heuristic(
         &self,
-        current_id: &Value,
-        end_ids: &[Value],
+        current_id: &VertexId,
+        end_ids: &[VertexId],
     ) -> Result<f64, QueryError> {
         if self.heuristic_config.is_zero() {
             return Ok(0.0);
         }
 
-        // Get current node properties
+        let current_value = Value::from(current_id.clone());
         let current_props = self.get_vertex_props(current_id)?;
 
-        // Calculate the heuristic value to all endpoints and take the minimum value
         let min_h = end_ids
             .iter()
             .filter_map(|end_id| {
+                let end_value = Value::from(end_id.clone());
                 let end_props = self.get_vertex_props(end_id).ok()?;
                 Some(self.heuristic_config.evaluate(
-                    current_id,
-                    end_id,
+                    &current_value,
+                    &end_value,
                     current_props.as_ref(),
                     end_props.as_ref(),
                 ))
@@ -142,7 +143,7 @@ impl<S: StorageClient> AStar<S> {
     /// Get vertex properties
     fn get_vertex_props(
         &self,
-        vid: &Value,
+        vid: &VertexId,
     ) -> Result<Option<std::collections::HashMap<String, crate::core::Value>>, QueryError> {
         let storage = self.storage.read();
         storage
@@ -154,9 +155,9 @@ impl<S: StorageClient> AStar<S> {
     /// Get neighbor nodes and edges
     fn get_neighbors_with_edges(
         &self,
-        node_id: &Value,
+        node_id: &VertexId,
         edge_types: Option<&[String]>,
-    ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
+    ) -> Result<Vec<(VertexId, Edge, f64)>, QueryError> {
         let storage = self.storage.read();
 
         let edges = storage
@@ -172,33 +173,32 @@ impl<S: StorageClient> AStar<S> {
             edges
         };
 
-        // (math.) self-loop edge de-weighting
         let mut dedup = SelfLoopDedup::new();
 
-        let neighbors_with_edges: Vec<(Value, Edge, f64)> = filtered_edges
+        let neighbors_with_edges: Vec<(VertexId, Edge, f64)> = filtered_edges
             .into_iter()
             .filter(|edge| dedup.should_include(edge))
             .filter_map(|edge| {
                 let neighbor_id = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
-                        if *edge.dst == *node_id {
-                            (*edge.src).clone()
+                        if edge.dst == *node_id {
+                            edge.src.clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
-                        if *edge.src == *node_id {
-                            (*edge.dst).clone()
+                        if edge.src == *node_id {
+                            edge.dst.clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
-                        if *edge.src == *node_id {
-                            (*edge.dst).clone()
-                        } else if *edge.dst == *node_id {
-                            (*edge.src).clone()
+                        if edge.src == *node_id {
+                            edge.dst.clone()
+                        } else if edge.dst == *node_id {
+                            edge.src.clone()
                         } else {
                             return None;
                         }
@@ -213,7 +213,7 @@ impl<S: StorageClient> AStar<S> {
     }
 
     /// Get Vertex
-    fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
+    fn get_vertex(&self, vid: &VertexId) -> Result<Option<Vertex>, QueryError> {
         let storage = self.storage.read();
         storage
             .get_vertex("default", vid)
@@ -223,11 +223,11 @@ impl<S: StorageClient> AStar<S> {
     /// Reconstructing paths based on precursor mapping
     fn reconstruct_path(
         &self,
-        end_id: &Value,
-        previous_map: &HashMap<Value, (Value, Edge)>,
-        start_ids: &[Value],
+        end_id: &VertexId,
+        previous_map: &HashMap<VertexId, (VertexId, Edge)>,
+        start_ids: &[VertexId],
     ) -> Result<Option<Path>, QueryError> {
-        let mut path_edges: Vec<(Value, Edge)> = Vec::new();
+        let mut path_edges: Vec<(VertexId, Edge)> = Vec::new();
         let mut current = end_id.clone();
 
         while let Some((prev_id, edge)) = previous_map.get(&current) {
@@ -235,7 +235,6 @@ impl<S: StorageClient> AStar<S> {
             current = prev_id.clone();
 
             if start_ids.contains(&current) {
-                // Finding the Starting Point, Building the Path
                 let start_vertex = match self.get_vertex(&current)? {
                     Some(v) => v,
                     None => return Ok(None),
@@ -246,7 +245,6 @@ impl<S: StorageClient> AStar<S> {
                     steps: Vec::new(),
                 };
 
-                // Reverse traversal build path
                 path_edges.reverse();
                 for (dst_id, edge) in path_edges {
                     let dst_vertex = match self.get_vertex(&dst_id)? {
@@ -271,17 +269,17 @@ impl<S: StorageClient> AStar<S> {
 impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
     fn find_paths(
         &mut self,
-        start_ids: &[Value],
-        end_ids: &[Value],
+        start_ids: &[VertexId],
+        end_ids: &[VertexId],
         edge_types: Option<&[String]>,
         max_depth: Option<usize>,
         single_shortest: bool,
         limit: usize,
     ) -> Result<Vec<Path>, QueryError> {
-        let mut g_cost_map: HashMap<Value, f64> = HashMap::new();
-        let mut previous_map: HashMap<Value, (Value, Edge)> = HashMap::new();
-        let mut closed_set: HashSet<Value> = HashSet::new();
-        let mut open_set: HashSet<Value> = HashSet::new();
+        let mut g_cost_map: HashMap<VertexId, f64> = HashMap::new();
+        let mut previous_map: HashMap<VertexId, (VertexId, Edge)> = HashMap::new();
+        let mut closed_set: HashSet<VertexId> = HashSet::new();
+        let mut open_set: HashSet<VertexId> = HashSet::new();
         let mut priority_queue: BinaryHeap<Reverse<AStarNode>> = BinaryHeap::new();
 
         // Initialization starting point

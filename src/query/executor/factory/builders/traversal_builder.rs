@@ -3,7 +3,7 @@
 //! Responsible for creating executors of graph traversal types (Expand, ExpandAll, Traverse, AllPaths, ShortestPath, MultiShortestPath)
 
 use crate::core::error::QueryError;
-use crate::core::types::EdgeDirection;
+use crate::core::types::{EdgeDirection, VertexId};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     AllPathsConfig, ExecutionContext, ExecutorConfig, MultiShortestPathConfig, ShortestPathConfig,
@@ -199,8 +199,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
                 max_depth: Some(node.steps()),
                 single_shortest: false,
                 limit: usize::MAX,
-                start_vertex: Value::Null(crate::core::NullType::Null),
-                end_vertex: Value::Null(crate::core::NullType::Null),
+                start_vertex: VertexId::new(),
+                end_vertex: VertexId::new(),
             },
         );
         Ok(ExecutorEnum::BFSShortest(executor))

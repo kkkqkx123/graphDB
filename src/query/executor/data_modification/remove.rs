@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use crate::core::error::DBError;
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::VertexId;
 use crate::core::{Expression, Value};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
@@ -144,7 +145,8 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
                     if let Some((vertex_id, property_name)) =
                         self.extract_property_info(&expression)?
                     {
-                        if let Some(mut vertex) = storage.get_vertex("default", &vertex_id)? {
+                        let vid = VertexId::try_from(&vertex_id).map_err(DBError::from)?;
+                        if let Some(mut vertex) = storage.get_vertex("default", &vid)? {
                             vertex.properties.remove(&property_name);
                             storage.update_vertex("default", vertex)?;
                             removed_count += 1;
@@ -153,7 +155,8 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
                 }
                 RemoveItemType::Tag => {
                     if let Some((vertex_id, tag_name)) = self.extract_tag_info(&expression)? {
-                        let count = storage.delete_tags("default", &vertex_id, &[tag_name])?;
+                        let vid = VertexId::try_from(&vertex_id).map_err(DBError::from)?;
+                        let count = storage.delete_tags("default", &vid, &[tag_name])?;
                         removed_count += count as i64;
                     }
                 }

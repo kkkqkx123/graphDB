@@ -7,6 +7,8 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use crate::core::Value;
+
 // ============================================================================
 // Fundamental Type Aliases
 // ============================================================================
@@ -97,6 +99,18 @@ impl VertexId {
     pub fn into_inner(self) -> Vec<u8> {
         self.0
     }
+
+    pub fn as_usize(&self) -> Option<usize> {
+        self.as_int64().map(|v| v as usize)
+    }
+
+    pub fn zero() -> Self {
+        Self::from_int64(0)
+    }
+
+    pub const fn const_default() -> Self {
+        VertexId(Vec::new())
+    }
 }
 
 impl fmt::Display for VertexId {
@@ -114,6 +128,21 @@ impl fmt::Display for VertexId {
 impl Default for VertexId {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl TryFrom<&Value> for VertexId {
+    type Error = crate::core::StorageError;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Int(i) => Ok(Self::from_int64(*i as i64)),
+            Value::BigInt(i) => Ok(Self::from_int64(*i)),
+            Value::String(s) => Ok(Self::from_string(s)),
+            _ => Err(crate::core::StorageError::invalid_input(
+                "Cannot convert Value to VertexId",
+            )),
+        }
     }
 }
 
@@ -138,6 +167,18 @@ impl From<String> for VertexId {
 impl From<&str> for VertexId {
     fn from(s: &str) -> Self {
         Self::from_string(s)
+    }
+}
+
+impl From<VertexId> for Value {
+    fn from(vid: VertexId) -> Self {
+        if let Some(i) = vid.as_int64() {
+            Value::BigInt(i)
+        } else if let Some(s) = vid.as_str() {
+            Value::String(s.to_string())
+        } else {
+            Value::Blob(vid.into_inner())
+        }
     }
 }
 

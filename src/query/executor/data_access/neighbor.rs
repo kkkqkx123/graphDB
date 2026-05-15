@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats};
+use crate::core::error::DBError;
+use crate::core::types::VertexId;
 use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -103,12 +105,13 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
         }
 
         let storage = self.get_storage().read();
-        let mut neighbor_ids: Vec<Value> = Vec::new();
+        let mut neighbor_ids: Vec<VertexId> = Vec::new();
         let edge_types_filter = self.edge_types.as_ref();
         let direction = self.edge_direction;
 
         for vertex_id in &self.vertex_ids {
-            let edges = storage.get_node_edges("default", vertex_id, direction)?;
+            let vid = VertexId::try_from(vertex_id).map_err(DBError::from)?;
+            let edges = storage.get_node_edges("default", &vid, direction)?;
 
             for edge in edges {
                 if let Some(filter_types) = edge_types_filter {
@@ -117,10 +120,10 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
                     }
                 }
 
-                let neighbor_id = if edge.src.as_ref() == vertex_id {
-                    (*edge.dst).clone()
+                let neighbor_id = if edge.src == vid {
+                    edge.dst
                 } else {
-                    (*edge.src).clone()
+                    edge.src
                 };
 
                 neighbor_ids.push(neighbor_id);

@@ -301,7 +301,7 @@ impl<'a> GraphStorageWriter<'a> {
         let ts = self.ctx.get_write_timestamp();
 
         if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&info.tag_name) {
-            let id_str = value_to_string(&info.vertex_id);
+            let id_str = info.vertex_id.to_string();
 
             let result = self.ctx.graph.insert_vertex(label_id, &id_str, &info.props, ts);
             match result {
@@ -349,8 +349,8 @@ impl<'a> GraphStorageWriter<'a> {
         let ts = self.ctx.get_write_timestamp();
 
         if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(&info.edge_name) {
-            let src_id = value_to_string(&info.src_vertex_id);
-            let dst_id = value_to_string(&info.dst_vertex_id);
+            let src_id = info.src_vertex_id.to_string();
+            let dst_id = info.dst_vertex_id.to_string();
 
             let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
             for et in edge_types {
@@ -500,7 +500,7 @@ impl<'a> GraphStorageWriter<'a> {
         }
 
         if let Some(label_id) = self.ctx.graph.get_vertex_label_id(label) {
-            let id_str = value_to_string(id);
+            let id_str = id.to_string();
             let value = match &info.update_op {
                 UpdateOp::Set => info.value.clone(),
                 UpdateOp::Add => {

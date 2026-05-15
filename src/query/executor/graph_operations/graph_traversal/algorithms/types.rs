@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use crate::core::{Edge, NPath, Path, Value};
+use crate::core::types::VertexId;
 
 /// Multi-source shortest path request
 /// A pathfinding request that specifies a pair of starting and ending points.
@@ -34,21 +35,16 @@ impl MultiPathRequest {
 }
 
 /// Multi-source shortest path termination mapping table
-/// Track the completion status of all (src, dst) pairs
-pub type TerminationMap = HashMap<Value, Vec<(Value, bool)>>;
+pub type TerminationMap = HashMap<VertexId, Vec<(VertexId, bool)>>;
 
 /// Intermediate path mapping
-/// First layer key: Target vertex ID
-/// Second layer key: Source vertex ID
-/// Value: All paths from the source to the target.
-pub type Interims = HashMap<Value, HashMap<Value, Vec<Path>>>;
+pub type Interims = HashMap<VertexId, HashMap<VertexId, Vec<Path>>>;
 
 /// Create a termination mapping table
-/// Create a Cartesian product mapping from the source set and the target set.
-pub fn create_termination_map(start_vids: &[Value], end_vids: &[Value]) -> TerminationMap {
+pub fn create_termination_map(start_vids: &[VertexId], end_vids: &[VertexId]) -> TerminationMap {
     let mut map = HashMap::new();
     for src in start_vids {
-        let pairs: Vec<(Value, bool)> = end_vids.iter().map(|dst| (dst.clone(), true)).collect();
+        let pairs: Vec<(VertexId, bool)> = end_vids.iter().map(|dst| (dst.clone(), true)).collect();
         map.insert(src.clone(), pairs);
     }
     map
@@ -60,8 +56,7 @@ pub fn is_termination_complete(map: &TerminationMap) -> bool {
 }
 
 /// The marked path has been found.
-/// Returning `true` indicates that the pair exists and has been marked.
-pub fn mark_path_found(map: &mut TerminationMap, src: &Value, dst: &Value) -> bool {
+pub fn mark_path_found(map: &mut TerminationMap, src: &VertexId, dst: &VertexId) -> bool {
     if let Some(pairs) = map.get_mut(src) {
         for (d, found) in pairs.iter_mut() {
             if d == dst {
@@ -74,7 +69,6 @@ pub fn mark_path_found(map: &mut TerminationMap, src: &Value, dst: &Value) -> bo
 }
 
 /// Clean up the found path pairs.
-/// Remove all entries where the value of `found` is `false`.
 pub fn cleanup_termination_map(map: &mut TerminationMap) {
     map.retain(|_, pairs| {
         pairs.retain(|(_, found)| *found);
@@ -110,13 +104,11 @@ impl SelfLoopDedup {
     /// Returning `true` indicates that the edge should be included (either as it appears for the first time or because self-loops are allowed).
     /// Returning `false` indicates that this edge should be skipped (it represents a duplicate, self-looping edge).
     pub fn should_include(&mut self, edge: &Edge) -> bool {
-        let is_self_loop = *edge.src == *edge.dst;
+        let is_self_loop = edge.src == edge.dst;
         if is_self_loop {
-            // If self-loop edges are allowed, return true directly.
             if self.with_loop {
                 return true;
             }
-            // Otherwise, perform deduplication.
             let key = (edge.edge_type.clone(), edge.ranking);
             self.seen.insert(key)
         } else {
@@ -129,7 +121,7 @@ impl SelfLoopDedup {
 #[derive(Debug, Clone)]
 pub struct DistanceNode {
     pub distance: f64,
-    pub vertex_id: Value,
+    pub vertex_id: VertexId,
 }
 
 impl Eq for DistanceNode {}
@@ -158,14 +150,12 @@ impl PartialOrd for DistanceNode {
 /// Bidirectional BFS state
 #[derive(Debug, Clone)]
 pub struct BidirectionalBFSState {
-    /// Use NPath instead of Path to store intermediate results, thereby reducing memory copying.
-    pub left_queue: VecDeque<(Value, Arc<NPath>)>,
-    pub right_queue: VecDeque<(Value, Arc<NPath>)>,
-    /// Use the NPath cache to store the paths that have been accessed.
-    pub left_visited: HashMap<Value, (Arc<NPath>, f64)>,
-    pub right_visited: HashMap<Value, (Arc<NPath>, f64)>,
-    pub left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>>,
-    pub right_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>>,
+    pub left_queue: VecDeque<(VertexId, Arc<NPath>)>,
+    pub right_queue: VecDeque<(VertexId, Arc<NPath>)>,
+    pub left_visited: HashMap<VertexId, (Arc<NPath>, f64)>,
+    pub right_visited: HashMap<VertexId, (Arc<NPath>, f64)>,
+    pub left_edges: Vec<HashMap<VertexId, Vec<(Edge, VertexId)>>>,
+    pub right_edges: Vec<HashMap<VertexId, Vec<(Edge, VertexId)>>>,
 }
 
 impl BidirectionalBFSState {
@@ -342,19 +332,15 @@ impl EdgeWeightConfig {
 /// Path concatenation tool function
 /// The left path goes from the starting point to the middle point, while the right path goes from the ending point to the middle point.
 pub fn combine_npaths(left: &Arc<NPath>, right: &Arc<NPath>) -> Option<Path> {
-    // Check whether the two paths intersect at the same vertex.
-    if left.vertex().vid.as_ref() != right.vertex().vid.as_ref() {
+    if left.vertex().vid != right.vertex().vid {
         return None;
     }
 
-    // Construct a path from the starting point on the left to the intersection point.
     let left_path = left.to_path();
 
-    // Construct a path from the starting point on the right to the intersection point, and then reverse it.
     let mut right_path = right.to_path();
     right_path.reverse();
 
-    // Merge the two paths
     let mut combined = left_path;
     combined.steps.extend(right_path.steps);
 

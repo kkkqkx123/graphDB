@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats, PathConfig};
+use crate::core::error::DBError;
+use crate::core::types::VertexId;
 use crate::core::{Path, Step, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -42,8 +44,10 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
 
         let mut all_paths: Vec<Path> = Vec::new();
 
+        let start_vid = VertexId::try_from(&self.start_vertex).map_err(DBError::from)?;
+
         let start_vertex_obj =
-            if let Some(vertex) = storage.get_vertex("default", &self.start_vertex)? {
+            if let Some(vertex) = storage.get_vertex("default", &start_vid)? {
                 vertex
             } else {
                 return Ok(ExecutionResult::DataSet(DataSet::new()));
@@ -60,7 +64,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
             for path in &current_paths {
                 let direction = self.direction;
 
-                let edges = storage.get_node_edges("default", &self.start_vertex, direction)?;
+                let edges = storage.get_node_edges("default", &start_vid, direction)?;
 
                 for edge in edges {
                     let neighbor_id = edge.dst.clone();

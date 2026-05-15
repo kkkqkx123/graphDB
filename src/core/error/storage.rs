@@ -162,12 +162,12 @@ impl StorageError {
         Self::new(StorageErrorKind::DeserializeError, message)
     }
 
-    pub fn node_not_found(value: crate::core::Value) -> Self {
-        Self::new(StorageErrorKind::NodeNotFound, format!("{:?}", value))
+    pub fn node_not_found(value: crate::core::types::VertexId) -> Self {
+        Self::new(StorageErrorKind::NodeNotFound, format!("{}", value))
     }
 
-    pub fn edge_not_found(value: crate::core::Value) -> Self {
-        Self::new(StorageErrorKind::EdgeNotFound, format!("{:?}", value))
+    pub fn edge_not_found(value: crate::core::types::VertexId) -> Self {
+        Self::new(StorageErrorKind::EdgeNotFound, format!("{}", value))
     }
 
     pub fn not_supported(message: impl Into<String>) -> Self {

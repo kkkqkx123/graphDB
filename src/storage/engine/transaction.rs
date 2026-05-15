@@ -88,7 +88,7 @@ impl TransactionOps {
             .insert_vertex(label, external_id, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
-        Ok(internal_id as TxnVertexId)
+        Ok(VertexId::from_int64(internal_id as i64))
     }
 
     pub fn add_edge(
@@ -108,10 +108,10 @@ impl TransactionOps {
             .ok_or(InsertTransactionError::LabelNotFound(params.dst_label))?;
 
         let src_external = src_table
-            .get_external_id(params.src_vid as u32)
+            .get_external_id(params.src_vid.as_int64().unwrap_or(0) as u32)
             .ok_or(InsertTransactionError::VertexNotFound(params.src_vid))?;
         let dst_external = dst_table
-            .get_external_id(params.dst_vid as u32)
+            .get_external_id(params.dst_vid.as_int64().unwrap_or(0) as u32)
             .ok_or(InsertTransactionError::VertexNotFound(params.dst_vid))?;
 
         let props: Vec<(String, Value)> = properties
@@ -143,7 +143,7 @@ impl TransactionOps {
         let external_id = std::str::from_utf8(oid).ok()?;
         schema_ops
             .get_vertex_internal_id(label, external_id, ts)
-            .map(|id| id as TxnVertexId)
+            .map(|id| VertexId::from_int64(id as i64))
     }
 
     pub fn get_vertex_oid(
@@ -154,7 +154,7 @@ impl TransactionOps {
     ) -> Option<Vec<u8>> {
         schema_ops
             .get_vertex_table(label)?
-            .get_external_id(vid as u32)
+            .get_external_id(vid.as_int64().unwrap_or(0) as u32)
             .map(|s| s.into_bytes())
     }
 
@@ -240,7 +240,7 @@ impl TransactionOps {
     ) -> UndoLogResult<()> {
         if let Some(table) = schema_ops.vertex_tables.get_mut(&label) {
             table
-                .delete_by_internal_id(vid as u32, ts)
+                .delete_by_internal_id(vid.as_int64().unwrap_or(0) as u32, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -346,7 +346,7 @@ impl TransactionOps {
 
         let value = property_value_to_value(old_value);
         table
-            .update_property_by_id(vid as u32, col_id, &value, ts)
+            .update_property_by_id(vid.as_int64().unwrap_or(0) as u32, col_id, &value, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }

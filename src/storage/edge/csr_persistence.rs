@@ -6,6 +6,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::core::{StorageError, StorageResult};
+use crate::core::types::VertexId;
 use super::LoadFromPartsParams;
 
 const MAGIC_NUMBER: u32 = 0x43535231; // "CSR1"
@@ -135,7 +136,7 @@ impl CsrPersistence {
 
         for nbr in csr.nbr_slice() {
             writer
-                .write_all(&nbr.neighbor.to_le_bytes())
+                .write_all(&nbr.neighbor.as_int64().unwrap_or(0).to_le_bytes())
                 .map_err(|e| StorageError::io_error(e.to_string()))?;
             writer
                 .write_all(&nbr.edge_id.to_le_bytes())
@@ -223,12 +224,12 @@ impl CsrPersistence {
                 .read_exact(&mut timestamp_bytes)
                 .map_err(|e| StorageError::io_error(e.to_string()))?;
 
-            nbr_list.push(super::Nbr {
-                neighbor: u64::from_le_bytes(neighbor_bytes),
-                edge_id: u64::from_le_bytes(edge_id_bytes),
-                prop_offset: u32::from_le_bytes(prop_offset_bytes),
-                timestamp: u32::from_le_bytes(timestamp_bytes),
-            });
+            nbr_list.push(super::Nbr::new(
+                VertexId::from_u64(u64::from_le_bytes(neighbor_bytes)),
+                u64::from_le_bytes(edge_id_bytes),
+                u32::from_le_bytes(prop_offset_bytes),
+                u32::from_le_bytes(timestamp_bytes),
+            ));
         }
 
         let mut csr = super::MutableCsr::new();
@@ -310,9 +311,9 @@ mod tests {
         let path = temp_dir.path().join("test_csr.bin");
 
         let mut csr = super::super::MutableCsr::with_capacity(10, 100);
-        csr.insert_edge(0, 1, 100, 0, 1);
-        csr.insert_edge(0, 2, 101, 0, 1);
-        csr.insert_edge(1, 3, 102, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1);
+        csr.insert_edge(VertexId::from_int64(1), VertexId::from_int64(3), 102, 0, 1);
 
         let persistence = CsrPersistence::new();
         persistence
@@ -323,9 +324,9 @@ mod tests {
 
         assert_eq!(loaded_csr.vertex_capacity(), csr.vertex_capacity());
         assert_eq!(loaded_csr.edge_count(), csr.edge_count());
-        assert!(loaded_csr.has_edge(0, 1, 1));
-        assert!(loaded_csr.has_edge(0, 2, 1));
-        assert!(loaded_csr.has_edge(1, 3, 1));
+        assert!(loaded_csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
+        assert!(loaded_csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 1));
+        assert!(loaded_csr.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 1));
     }
 
     #[test]
@@ -334,7 +335,13 @@ mod tests {
         let path = temp_dir.path().join("test_csr_immutable.bin");
 
         let mut csr = super::super::Csr::with_capacity(10, 100);
-        csr.batch_put_edges(&[0, 0, 1], &[1, 2, 3], &[100, 101, 102], &[0, 0, 0], 1);
+        csr.batch_put_edges(
+            &[0, 0, 1].map(VertexId::from_int64),
+            &[1, 2, 3].map(VertexId::from_int64),
+            &[100, 101, 102],
+            &[0, 0, 0],
+            1,
+        );
 
         let persistence = CsrPersistence::new();
         persistence.save_csr(&csr, &path).expect("Failed to save");
@@ -343,8 +350,8 @@ mod tests {
 
         assert_eq!(loaded_csr.vertex_capacity(), csr.vertex_capacity());
         assert_eq!(loaded_csr.edge_count(), csr.edge_count());
-        assert!(loaded_csr.has_edge(0, 1));
-        assert!(loaded_csr.has_edge(0, 2));
-        assert!(loaded_csr.has_edge(1, 3));
+        assert!(loaded_csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1)));
+        assert!(loaded_csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2)));
+        assert!(loaded_csr.has_edge(VertexId::from_int64(1), VertexId::from_int64(3)));
     }
 }

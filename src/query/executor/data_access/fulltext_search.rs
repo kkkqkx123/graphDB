@@ -4,6 +4,7 @@
 //! including SEARCH statements and full-text scan operations.
 
 use crate::core::error::DBError;
+use crate::core::types::VertexId;
 use crate::core::Value;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
@@ -450,10 +451,10 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
         let storage_guard = storage.read();
 
         for result in search_results {
-            let vertex_id = &result.doc_id;
+            let vertex_id = VertexId::try_from(&result.doc_id).map_err(DBError::from)?;
 
             let vertex = storage_guard
-                .get_vertex("", vertex_id)
+                .get_vertex("", &vertex_id)
                 .map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {
@@ -638,10 +639,10 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
         let storage_guard = storage.read();
 
         for result in search_results {
-            let vertex_id = &result.doc_id;
+            let vertex_id = VertexId::try_from(&result.doc_id).map_err(DBError::from)?;
 
             let vertex = storage_guard
-                .get_vertex("", vertex_id)
+                .get_vertex("", &vertex_id)
                 .map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {

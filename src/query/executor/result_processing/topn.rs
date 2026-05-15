@@ -860,8 +860,8 @@ impl<S: StorageClient> TopNExecutor<S> {
             _ => {
                 // For complex expressions, use an expression evaluator.
                 let mut context = DefaultExpressionContext::new();
-                context.set_variable("src".to_string(), *edge.src.clone());
-                context.set_variable("dst".to_string(), *edge.dst.clone());
+                context.set_variable("src".to_string(), edge.src.clone().into());
+                context.set_variable("dst".to_string(), edge.dst.clone().into());
                 context.set_variable("ranking".to_string(), Value::BigInt(edge.ranking));
                 context.set_variable(
                     "edge_type".to_string(),

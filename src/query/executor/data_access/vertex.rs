@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
+use crate::core::error::DBError;
+use crate::core::types::VertexId;
 use crate::core::{vertex_edge_path, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
@@ -137,7 +139,8 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 let mut failed_count = 0;
 
                 for id in ids {
-                    match storage.get_vertex(&self.space_name, id) {
+                    let vid = VertexId::try_from(id).map_err(DBError::from)?;
+                    match storage.get_vertex(&self.space_name, &vid) {
                         Ok(Some(vertex)) => {
                             let include_vertex =
                                 if let Some(ref tag_filter_expression) = self.tag_filter {
@@ -175,7 +178,8 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
             Some(ids) if ids.len() == 1 => {
                 let storage = self.get_storage().read();
 
-                match storage.get_vertex(&self.space_name, &ids[0]) {
+                let vid = VertexId::try_from(&ids[0]).map_err(DBError::from)?;
+                match storage.get_vertex(&self.space_name, &vid) {
                     Ok(Some(vertex)) => Ok(vec![vertex]),
                     Ok(None) => Ok(vec![]),
                     Err(e) => Err(crate::core::error::DBError::from(e)),

@@ -59,10 +59,10 @@ impl<'a> MaintenanceOps<'a> {
                 .find(|_| self.ctx.graph.get_edge_label_id(&edge_label_id.to_string()).is_some())
                 .unwrap_or_else(|| edge_label_id.to_string());
             let src_exists = self.ctx.graph
-                .get_vertex_by_internal_id(src_label_id, record.src_vid as u32, ts)
+                .get_vertex_by_internal_id(src_label_id, record.src_vid.as_int64().unwrap_or(0) as u32, ts)
                 .is_some();
             let dst_exists = self.ctx.graph
-                .get_vertex_by_internal_id(dst_label_id, record.dst_vid as u32, ts)
+                .get_vertex_by_internal_id(dst_label_id, record.dst_vid.as_int64().unwrap_or(0) as u32, ts)
                 .is_some();
 
             if !src_exists || !dst_exists {

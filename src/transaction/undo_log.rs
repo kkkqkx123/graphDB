@@ -153,7 +153,7 @@ pub struct InsertVertexUndo {
 
 impl InsertVertexUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.delete_vertex(VertexIdentifier::new(self.v_label, self.vid), ts)
+        graph.delete_vertex(VertexIdentifier::new(self.v_label, self.vid.clone()), ts)
     }
 
     pub fn description(&self) -> String {
@@ -177,9 +177,9 @@ impl InsertEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
         graph.delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
             src_label: self.src_label,
-            src_vid: self.src_vid,
+            src_vid: self.src_vid.clone(),
             dst_label: self.dst_label,
-            dst_vid: self.dst_vid,
+            dst_vid: self.dst_vid.clone(),
             edge_label: self.edge_label,
             oe_offset: self.oe_offset,
             ie_offset: self.ie_offset,
@@ -207,7 +207,7 @@ pub struct UpdateVertexPropUndo {
 impl UpdateVertexPropUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
         graph.undo_update_vertex_property(
-            VertexIdentifier::new(self.v_label, self.vid),
+            VertexIdentifier::new(self.v_label, self.vid.clone()),
             self.col_id,
             self.old_value.clone(),
             ts,
@@ -241,9 +241,9 @@ impl UpdateEdgePropUndo {
         graph.undo_update_edge_property(
             EdgeIdentifier::new(
                 self.src_label,
-                self.src_vid,
+                self.src_vid.clone(),
                 self.dst_label,
-                self.dst_vid,
+                self.dst_vid.clone(),
                 self.edge_label,
             ),
             self.oe_offset,
@@ -281,15 +281,15 @@ pub struct RemoveVertexUndo {
 
 impl RemoveVertexUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.revert_delete_vertex(VertexIdentifier::new(self.v_label, self.vid), ts)?;
+        graph.revert_delete_vertex(VertexIdentifier::new(self.v_label, self.vid.clone()), ts)?;
 
         for (src_label, dst_label, edge_label, edges) in &self.related_edges {
             for edge in edges {
                 graph.revert_delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
                     src_label: *src_label,
-                    src_vid: edge.src_vid,
+                    src_vid: edge.src_vid.clone(),
                     dst_label: *dst_label,
-                    dst_vid: edge.dst_vid,
+                    dst_vid: edge.dst_vid.clone(),
                     edge_label: *edge_label,
                     oe_offset: edge.oe_offset,
                     ie_offset: edge.ie_offset,
@@ -327,9 +327,9 @@ impl RemoveEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
             src_label: self.src_label,
-            src_vid: self.src_vid,
+            src_vid: self.src_vid.clone(),
             dst_label: self.dst_label,
-            dst_vid: self.dst_vid,
+            dst_vid: self.dst_vid.clone(),
             edge_label: self.edge_label,
             oe_offset: self.oe_offset,
             ie_offset: self.ie_offset,

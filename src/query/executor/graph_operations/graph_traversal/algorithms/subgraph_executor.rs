@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Value, Vertex};
+use crate::core::types::VertexId;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
@@ -83,13 +84,9 @@ impl SubgraphConfig {
 /// Results of the subgraph query
 #[derive(Debug, Clone)]
 pub struct SubgraphResult {
-    /// Vertices in the subgraph
-    pub vertices: HashMap<Value, Vertex>,
-    /// Edges in the subgraph
+    pub vertices: HashMap<VertexId, Vertex>,
     pub edges: Vec<Edge>,
-    /// ID of the visited vertex
-    pub visited_vids: HashSet<Value>,
-    /// Statistical information
+    pub visited_vids: HashSet<VertexId>,
     pub stats: AlgorithmStats,
 }
 
@@ -103,7 +100,6 @@ impl SubgraphResult {
         }
     }
 
-    /// Convert to a list of paths
     pub fn to_paths(&self) -> Vec<Path> {
         let mut paths = Vec::new();
 
@@ -114,7 +110,7 @@ impl SubgraphResult {
                     .vertices
                     .get(&edge.dst)
                     .cloned()
-                    .unwrap_or_else(|| Vertex::with_vid(edge.dst.as_ref().clone()));
+                    .unwrap_or_else(|| Vertex::with_vid(edge.dst.clone()));
                 path.steps.push(crate::core::Step::new(
                     dst_vertex,
                     edge.edge_type.clone(),
@@ -136,27 +132,16 @@ impl Default for SubgraphResult {
 }
 
 /// Subgraph Query Executor
-///
-/// Retrieve all vertices and edges within a given number of steps, starting from a specified starting point.
 pub struct SubgraphExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    /// List of source IDs
-    start_vids: Vec<Value>,
-    /// Configuration
+    start_vids: Vec<VertexId>,
     config: SubgraphConfig,
-    /// Current step number
     current_step: usize,
-    /// The peak of historical visits (vid -> step)
-    history_vids: HashMap<Value, usize>,
-    /// The vertex that is accessed in the current step
-    current_vids: HashSet<Value>,
-    /// Valid vertices (vertices that are within the range of the number of steps)
-    valid_vids: HashSet<Value>,
-    /// The next vertex to be visited
-    next_vids: Vec<Value>,
-    /// Subgraph results
+    history_vids: HashMap<VertexId, usize>,
+    current_vids: HashSet<VertexId>,
+    valid_vids: HashSet<VertexId>,
+    next_vids: Vec<VertexId>,
     result: SubgraphResult,
-    /// Statistics
     stats: AlgorithmStats,
 }
 
@@ -177,11 +162,11 @@ impl<S: StorageClient> SubgraphExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
-        start_vids: Vec<Value>,
+        start_vids: Vec<VertexId>,
         config: SubgraphConfig,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
-        let valid_vids: HashSet<Value> = start_vids.iter().cloned().collect();
+        let valid_vids: HashSet<VertexId> = start_vids.iter().cloned().collect();
 
         Self {
             base: BaseExecutor::new(id, "SubgraphExecutor".to_string(), storage, expr_context),
@@ -197,8 +182,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         }
     }
 
-    /// Obtaining neighbor nodes
-    fn get_neighbors(&self, node_id: &Value) -> DBResult<Vec<(Value, Edge)>> {
+    fn get_neighbors(&self, node_id: &VertexId) -> DBResult<Vec<(VertexId, Edge)>> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
             DBError::storage("Storage not set".to_string())
         })?;
@@ -222,11 +206,11 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         let neighbors: Vec<(Value, Edge)> = filtered_edges
             .into_iter()
             .filter_map(|edge| {
-                if *edge.src == *node_id {
-                    Some(((*edge.dst).clone(), edge))
-                } else if *edge.dst == *node_id && self.config.edge_direction == EdgeDirection::Both
+                if edge.src == *node_id {
+                    Some((edge.dst.clone(), edge))
+                } else if edge.dst == *node_id && self.config.edge_direction == EdgeDirection::Both
                 {
-                    Some(((*edge.src).clone(), edge))
+                    Some((edge.src.clone(), edge))
                 } else {
                     None
                 }

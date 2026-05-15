@@ -100,7 +100,7 @@ fn execute_id(args: &[Value]) -> Result<Value, ExpressionError> {
         ));
     }
     match &args[0] {
-        Value::Vertex(v) => Ok((*v.vid).clone()),
+        Value::Vertex(v) => Ok(Value::BigInt(v.vid.as_int64().unwrap_or(0))),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
             "The id function requires a vertex type",
@@ -178,7 +178,7 @@ fn execute_src(args: &[Value]) -> Result<Value, ExpressionError> {
         ));
     }
     match &args[0] {
-        Value::Edge(e) => Ok((*e.src).clone()),
+        Value::Edge(e) => Ok(Value::BigInt(e.src.as_int64().unwrap_or(0))),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
             "The src function requires the edge type",
@@ -193,7 +193,7 @@ fn execute_dst(args: &[Value]) -> Result<Value, ExpressionError> {
         ));
     }
     match &args[0] {
-        Value::Edge(e) => Ok((*e.dst).clone()),
+        Value::Edge(e) => Ok(Value::BigInt(e.dst.as_int64().unwrap_or(0))),
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error(
             "The dst function requires an edge type",
@@ -224,7 +224,7 @@ fn execute_startnode(args: &[Value]) -> Result<Value, ExpressionError> {
     }
     match &args[0] {
         Value::Edge(e) => {
-            let vertex = Vertex::new((*e.src).clone(), vec![]);
+            let vertex = Vertex::new(e.src.clone(), vec![]);
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
@@ -242,7 +242,7 @@ fn execute_endnode(args: &[Value]) -> Result<Value, ExpressionError> {
     }
     match &args[0] {
         Value::Edge(e) => {
-            let vertex = Vertex::new((*e.dst).clone(), vec![]);
+            let vertex = Vertex::new(e.dst.clone(), vec![]);
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),

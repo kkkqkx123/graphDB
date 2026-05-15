@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::{Edge, EdgeDirection, Path, Value, Vertex};
+use crate::core::types::VertexId;
 use crate::query::executor::base::{BaseExecutor, ExecutorConfig};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::DataSet;
@@ -21,8 +22,8 @@ pub struct BfsShortestPathConfig {
     pub max_depth: Option<usize>,
     pub single_shortest: bool,
     pub limit: usize,
-    pub start_vertex: Value,
-    pub end_vertex: Value,
+    pub start_vertex: VertexId,
+    pub end_vertex: VertexId,
 }
 
 /// BFSShortestExecutor – The BFS shortest path executor
@@ -38,15 +39,15 @@ pub struct BFSShortestExecutor<S: StorageClient + 'static> {
     with_loop: bool,  // Are self-loop edges allowed?
     single_shortest: bool,
     limit: usize,
-    start_vertex: Value,
-    end_vertex: Value,
+    start_vertex: VertexId,
+    end_vertex: VertexId,
 
     // Status of translation:
     step: usize,
-    left_visited_vids: HashSet<Value>,
-    right_visited_vids: HashSet<Value>,
-    all_left_edges: Vec<HashMap<Value, Edge>>,
-    all_right_edges: Vec<HashMap<Value, Edge>>,
+    left_visited_vids: HashSet<VertexId>,
+    right_visited_vids: HashSet<VertexId>,
+    all_left_edges: Vec<HashMap<VertexId, Edge>>,
+    all_right_edges: Vec<HashMap<VertexId, Edge>>,
     current_paths: Vec<Path>,
     terminate_early: bool,
 
@@ -137,11 +138,11 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
     fn build_path(
         &mut self,
         storage: &S,
-        start_vids: &[Value],
+        start_vids: &[VertexId],
         reverse: bool,
-    ) -> DBResult<Vec<Value>> {
-        let mut current_edges: HashMap<Value, Edge> = HashMap::new();
-        let mut unique_dst: HashSet<Value> = HashSet::new();
+    ) -> DBResult<Vec<VertexId>> {
+        let mut current_edges: HashMap<VertexId, Edge> = HashMap::new();
+        let mut unique_dst: HashSet<VertexId> = HashSet::new();
         // Deduplication tracking from self-loop edges
         let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
@@ -177,13 +178,12 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             for edge in edges {
                 self.edges_traversed += 1;
                 let dst = if reverse {
-                    (*edge.src).clone()
+                    edge.src.clone()
                 } else {
-                    (*edge.dst).clone()
+                    edge.dst.clone()
                 };
 
-                // Check whether it is a self-loop edge.
-                let is_self_loop = *edge.src == *edge.dst;
+                let is_self_loop = edge.src == edge.dst;
                 // If self-loop edges are not allowed, duplicates should be removed.
                 if is_self_loop && !self.with_loop {
                     let key = (edge.edge_type.clone(), edge.ranking);
@@ -226,7 +226,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         }
 
         // Mark the newly discovered vertex as having been visited.
-        let new_vids: Vec<Value> = unique_dst.iter().cloned().collect();
+        let new_vids: Vec<VertexId> = unique_dst.iter().cloned().collect();
         if reverse {
             self.right_visited_vids.extend(new_vids.clone());
         } else {
@@ -251,7 +251,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             .expect("Left edges should not be empty");
 
         // Find the intersection point.
-        let mut meet_vids: HashSet<Value> = HashSet::new();
+        let mut meet_vids: HashSet<VertexId> = HashSet::new();
         let mut odd_step = true;
 
         // First, try to match the right edge of the previous step.
@@ -310,7 +310,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
     }
 
     /// Create a complete path from the starting point to the ending point.
-    fn create_path(&self, meet_vid: &Value, _odd_step: bool) -> Option<Path> {
+    fn create_path(&self, meet_vid: &VertexId, _odd_step: bool) -> Option<Path> {
         // Construct the path for the left half (from the starting point to the intersection point).
         let left_path = self.build_half_path(meet_vid, false)?;
 
@@ -336,7 +336,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
     }
 
     /// Constructing a half-path
-    fn build_half_path(&self, meet_vid: &Value, reverse: bool) -> Option<Path> {
+    fn build_half_path(&self, meet_vid: &VertexId, reverse: bool) -> Option<Path> {
         let all_edges = if reverse {
             &self.all_right_edges
         } else {
@@ -347,18 +347,15 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             return Some(Path::new(Vertex::new(meet_vid.clone(), vec![])));
         }
 
-        // Tracing back from the intersection to the starting point/ending point
         let mut current_vid = meet_vid.clone();
         let mut steps: Vec<(Vertex, Edge)> = Vec::new();
 
-        // Traverse the edge layer in reverse order.
         for edge_layer in all_edges.iter().rev() {
             if let Some(edge) = edge_layer.get(&current_vid) {
-                // When searching in the reverse direction, use edge.dst as the next vertex
                 let next_vid = if reverse {
-                    (*edge.dst).clone()
+                    edge.dst.clone()
                 } else {
-                    (*edge.src).clone()
+                    edge.src.clone()
                 };
                 steps.push((Vertex::new(next_vid.clone(), vec![]), edge.clone()));
                 current_vid = next_vid;
@@ -367,7 +364,6 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             }
         }
 
-        // Constructing a path
         if steps.is_empty() {
             return Some(Path::new(Vertex::new(meet_vid.clone(), vec![])));
         }
@@ -413,7 +409,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             }
 
             // Expand from the starting direction.
-            let left_vids: Vec<Value> = if current_step == 1 {
+            let left_vids: Vec<VertexId> = if current_step == 1 {
                 vec![start_vertex.clone()]
             } else {
                 let last_left_edges = self.all_left_edges.last();
@@ -423,7 +419,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
                 }
             };
 
-            let right_vids: Vec<Value> = if current_step == 1 {
+            let right_vids: Vec<VertexId> = if current_step == 1 {
                 vec![end_vertex.clone()]
             } else {
                 let last_right_edges = self.all_right_edges.last();

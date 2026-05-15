@@ -7,6 +7,7 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::core::types::VertexId;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
@@ -63,12 +64,11 @@ impl<S: StorageClient> Dijkstra<S> {
         }
     }
 
-    /// Get neighbor nodes and edges
     fn get_neighbors_with_edges(
         &self,
-        node_id: &Value,
+        node_id: &VertexId,
         edge_types: Option<&[String]>,
-    ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
+    ) -> Result<Vec<(VertexId, Edge, f64)>, QueryError> {
         let storage = self.storage.read();
 
         let edges = storage
@@ -84,33 +84,32 @@ impl<S: StorageClient> Dijkstra<S> {
             edges
         };
 
-        // (math.) self-loop edge de-weighting
         let mut dedup = SelfLoopDedup::new();
 
-        let neighbors_with_edges: Vec<(Value, Edge, f64)> = filtered_edges
+        let neighbors_with_edges: Vec<(VertexId, Edge, f64)> = filtered_edges
             .into_iter()
             .filter(|edge| dedup.should_include(edge))
             .filter_map(|edge| {
                 let neighbor_id = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
-                        if *edge.dst == *node_id {
-                            (*edge.src).clone()
+                        if edge.dst == *node_id {
+                            edge.src.clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
-                        if *edge.src == *node_id {
-                            (*edge.dst).clone()
+                        if edge.src == *node_id {
+                            edge.dst.clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
-                        if *edge.src == *node_id {
-                            (*edge.dst).clone()
-                        } else if *edge.dst == *node_id {
-                            (*edge.src).clone()
+                        if edge.src == *node_id {
+                            edge.dst.clone()
+                        } else if edge.dst == *node_id {
+                            edge.src.clone()
                         } else {
                             return None;
                         }
@@ -124,22 +123,20 @@ impl<S: StorageClient> Dijkstra<S> {
         Ok(neighbors_with_edges)
     }
 
-    /// Get Vertex
-    fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
+    fn get_vertex(&self, vid: &VertexId) -> Result<Option<Vertex>, QueryError> {
         let storage = self.storage.read();
         storage
             .get_vertex("default", vid)
             .map_err(|e| QueryError::storage(e.to_string()))
     }
 
-    /// Reconstructing paths based on precursor mapping
     fn reconstruct_path(
         &self,
-        end_id: &Value,
-        previous_map: &HashMap<Value, (Value, Edge)>,
-        start_ids: &[Value],
+        end_id: &VertexId,
+        previous_map: &HashMap<VertexId, (VertexId, Edge)>,
+        start_ids: &[VertexId],
     ) -> Result<Option<Path>, QueryError> {
-        let mut path_edges: Vec<(Value, Edge)> = Vec::new();
+        let mut path_edges: Vec<(VertexId, Edge)> = Vec::new();
         let mut current = end_id.clone();
 
         while let Some((prev_id, edge)) = previous_map.get(&current) {
@@ -147,7 +144,6 @@ impl<S: StorageClient> Dijkstra<S> {
             current = prev_id.clone();
 
             if start_ids.contains(&current) {
-                // Finding the Starting Point, Building the Path
                 let start_vertex = match self.get_vertex(&current)? {
                     Some(v) => v,
                     None => return Ok(None),
@@ -158,7 +154,6 @@ impl<S: StorageClient> Dijkstra<S> {
                     steps: Vec::new(),
                 };
 
-                // Reverse traversal build path
                 path_edges.reverse();
                 for (dst_id, edge) in path_edges {
                     let dst_vertex = match self.get_vertex(&dst_id)? {
@@ -183,16 +178,16 @@ impl<S: StorageClient> Dijkstra<S> {
 impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
     fn find_paths(
         &mut self,
-        start_ids: &[Value],
-        end_ids: &[Value],
+        start_ids: &[VertexId],
+        end_ids: &[VertexId],
         edge_types: Option<&[String]>,
         max_depth: Option<usize>,
         single_shortest: bool,
         limit: usize,
     ) -> Result<Vec<Path>, QueryError> {
-        let mut distance_map: HashMap<Value, f64> = HashMap::new();
-        let mut previous_map: HashMap<Value, (Value, Edge)> = HashMap::new();
-        let mut visited_nodes: HashSet<Value> = HashSet::new();
+        let mut distance_map: HashMap<VertexId, f64> = HashMap::new();
+        let mut previous_map: HashMap<VertexId, (VertexId, Edge)> = HashMap::new();
+        let mut visited_nodes: HashSet<VertexId> = HashSet::new();
         let mut priority_queue: BinaryHeap<Reverse<DistanceNode>> = BinaryHeap::new();
 
         for start_id in start_ids {

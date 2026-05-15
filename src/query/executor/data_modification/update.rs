@@ -15,6 +15,7 @@ use std::time::Instant;
 
 use crate::core::error::DBError;
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::VertexId;
 use crate::core::{Expression, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
@@ -195,8 +196,9 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 };
 
                 if should_update {
+                    let vertex_vid = VertexId::try_from(&update.vertex_id).map_err(DBError::from)?;
                     if let Some(mut vertex) =
-                        storage.get_vertex(&self.space_name, &update.vertex_id)?
+                        storage.get_vertex(&self.space_name, &vertex_vid)?
                     {
                         let evaluated_props = self.evaluate_property_expressions(
                             &update.properties,
@@ -218,7 +220,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         update_result.returned_props = evaluated_props;
                     } else if self.insertable {
                         let new_vertex = crate::core::Vertex::new_with_properties(
-                            update.vertex_id.clone(),
+                            vertex_vid.clone(),
                             Vec::new(),
                             update.properties.clone(),
                         );
@@ -256,10 +258,12 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
                 if should_update {
                     let rank = update.rank.unwrap_or(0);
+                    let edge_src = VertexId::try_from(&update.src).map_err(DBError::from)?;
+                    let edge_dst = VertexId::try_from(&update.dst).map_err(DBError::from)?;
                     if let Some(mut edge) = storage.get_edge(
                         &self.space_name,
-                        &update.src,
-                        &update.dst,
+                        &edge_src,
+                        &edge_dst,
                         &update.edge_type,
                         rank,
                     )? {
@@ -274,8 +278,8 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         }
                         storage.delete_edge(
                             &self.space_name,
-                            &update.src,
-                            &update.dst,
+                            &edge_src,
+                            &edge_dst,
                             &update.edge_type,
                             rank,
                         )?;
@@ -283,8 +287,8 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         update_result.returned_props = evaluated_props;
                     } else if self.insertable {
                         let new_edge = crate::core::Edge::new(
-                            update.src.clone(),
-                            update.dst.clone(),
+                            edge_src.clone(),
+                            edge_dst.clone(),
                             update.edge_type.clone(),
                             update.rank.unwrap_or(0),
                             update.properties.clone(),

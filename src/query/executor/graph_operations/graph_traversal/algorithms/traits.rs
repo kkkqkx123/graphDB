@@ -4,6 +4,7 @@
 
 use super::types::AlgorithmStats;
 use crate::core::{Path, Value};
+use crate::core::types::VertexId;
 use crate::query::QueryError;
 
 /// Shortest Path Algorithm Interface
@@ -24,8 +25,8 @@ pub trait ShortestPathAlgorithm {
     /// List of found paths
     fn find_paths(
         &mut self,
-        start_ids: &[Value],
-        end_ids: &[Value],
+        start_ids: &[VertexId],
+        end_ids: &[VertexId],
         edge_types: Option<&[String]>,
         max_depth: Option<usize>,
         single_shortest: bool,

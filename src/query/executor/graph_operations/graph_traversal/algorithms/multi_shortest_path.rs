@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::core::types::VertexId;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
@@ -29,8 +30,8 @@ use super::types::{
 /// Supports single/multiple shortest paths using bi-directional BFS algorithm
 pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    start_vids: Vec<Value>,
-    end_vids: Vec<Value>,
+    start_vids: Vec<VertexId>,
+    end_vids: Vec<VertexId>,
     termination_map: TerminationMap,
     edge_direction: EdgeDirection,
     edge_types: Option<Vec<String>>,
@@ -38,24 +39,15 @@ pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     single_shortest: bool,
     limit: usize,
     step: usize,
-    /// Leftward Historical Path
     history_left_paths: Interims,
-    /// Rightward History Path
     history_right_paths: Interims,
-    /// Current left path
     left_paths: Interims,
-    /// Current right path
     right_paths: Interims,
-    /// Previous step rightward path (for odd step intersections)
     pre_right_paths: Interims,
-    /// Result Path
     result_paths: Vec<Path>,
-    /// Statistical information
     stats: AlgorithmStats,
-    /// Input actuator (for acquiring side data)
     left_input: Option<Box<ExecutorEnum<S>>>,
     right_input: Option<Box<ExecutorEnum<S>>>,
-    /// Found Paths Count
     found_count: usize,
 }
 
@@ -126,9 +118,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         self
     }
 
-    /// Initializing the history path
     fn init(&mut self) {
-        // Initialize the leftward history path
         for src in &self.start_vids {
             let path = Path::new(Vertex::with_vid(src.clone()));
             let mut src_map = HashMap::new();
@@ -136,7 +126,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             self.history_left_paths.insert(src.clone(), src_map);
         }
 
-        // Initialize rightward history path
         for dst in &self.end_vids {
             let path = Path::new(Vertex::with_vid(dst.clone()));
             let mut dst_map = HashMap::new();
@@ -147,12 +136,11 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         }
     }
 
-    /// Getting Neighbor Edges from Storage
     fn get_neighbors(
         &self,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
-    ) -> DBResult<Vec<(Value, Edge)>> {
+    ) -> DBResult<Vec<(VertexId, Edge)>> {
         let storage = self.base.storage.as_ref().ok_or_else(|| {
             DBError::storage("Storage not set".to_string())
         })?;
@@ -173,7 +161,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             edges
         };
 
-        // (math.) self-loop edge de-weighting
         let mut dedup = SelfLoopDedup::new();
 
         let neighbors = filtered_edges
@@ -181,24 +168,24 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             .filter(|edge| dedup.should_include(edge))
             .filter_map(|edge| match direction {
                 EdgeDirection::In => {
-                    if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
+                    if edge.dst == *node_id {
+                        Some((edge.src.clone(), edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
+                    if edge.src == *node_id {
+                        Some((edge.dst.clone(), edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
-                    } else if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
+                    if edge.src == *node_id {
+                        Some((edge.dst.clone(), edge))
+                    } else if edge.dst == *node_id {
+                        Some((edge.src.clone(), edge))
                     } else {
                         None
                     }
@@ -215,7 +202,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             .iter()
             .map(|p| {
                 let mut new_path = p.clone();
-                let dst_vertex = Vertex::with_vid(edge.dst.as_ref().clone());
+                let dst_vertex = Vertex::with_vid(edge.dst.clone());
                 new_path.steps.push(Step::new(
                     dst_vertex,
                     edge.edge_type.clone(),
@@ -227,7 +214,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             .collect()
     }
 
-    /// Build path (enter from left or right)
     fn build_path(&mut self, reverse: bool) -> DBResult<()> {
         let history_paths = if reverse {
             &self.history_right_paths
@@ -235,8 +221,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             &self.history_left_paths
         };
 
-        // Get the vertices to be extended
-        let expand_vids: Vec<Value> = if self.step == 1 {
+        let expand_vids: Vec<VertexId> = if self.step == 1 {
             if reverse {
                 self.end_vids.clone()
             } else {
@@ -246,18 +231,15 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             history_paths.keys().cloned().collect()
         };
 
-        // Gather all neighbor information first to avoid borrowing conflicts
-        let mut all_neighbors: Vec<(Value, Vec<(Value, Edge)>)> = Vec::new();
+        let mut all_neighbors: Vec<(VertexId, Vec<(VertexId, Edge)>)> = Vec::new();
         for vid in &expand_vids {
             let neighbors = self.get_neighbors(vid, self.edge_direction)?;
             self.stats.increment_edges_traversed(neighbors.len());
             all_neighbors.push((vid.clone(), neighbors));
         }
 
-        // Processing of collected neighborhood information
         for (vid, neighbors) in all_neighbors {
             for (neighbor_id, edge) in neighbors {
-                // Skip self-loop
                 if neighbor_id == vid {
                     continue;
                 }
@@ -269,7 +251,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                 };
 
                 if self.step == 1 {
-                    // Step 1: Create the initial path
                     let src_vertex = Vertex::with_vid(vid.clone());
                     let dst_vertex = Vertex::with_vid(neighbor_id.clone());
                     let path = Path {
@@ -288,13 +269,11 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                     let src_paths = entry.entry(vid.clone()).or_insert_with(Vec::new);
                     src_paths.push(path);
                 } else {
-                    // Next steps: Extension from the historical path
                     if let Some(pre_paths) = history_paths.get(&vid) {
                         for (src_id, paths) in pre_paths {
-                            // Check for loop formation
                             if let Some(history_dst) = history_paths.get(&neighbor_id) {
                                 if history_dst.contains_key(src_id) {
-                                    continue; // loop detection
+                                    continue;
                                 }
                             }
 
@@ -314,7 +293,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         Ok(())
     }
 
-    /// Path intersection (odd or even steps)
     fn conjunct_path(&mut self, odd_step: bool) -> DBResult<bool> {
         let right_paths = if odd_step {
             &self.pre_right_paths
@@ -322,16 +300,12 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             &self.right_paths
         };
 
-        // Collect path pairs that need to be processed to avoid borrowing conflicts
-        let mut path_pairs: Vec<(Value, Value, Vec<Path>, Vec<Path>)> = Vec::new();
+        let mut path_pairs: Vec<(VertexId, VertexId, Vec<Path>, Vec<Path>)> = Vec::new();
 
-        // Find Intersections
         for (meet_vid, left_src_map) in &self.left_paths {
             if let Some(right_src_map) = right_paths.get(meet_vid) {
-                // Find a match at the intersection
                 for (left_src, left_paths) in left_src_map {
                     for (right_src, right_paths) in right_src_map {
-                        // Check whether it is a valid (src, dst) pair
                         if self.is_valid_pair(left_src, right_src) {
                             path_pairs.push((
                                 left_src.clone(),
@@ -345,7 +319,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // Processing of collected path pairs
         for (left_src, right_src, left_paths, right_paths) in path_pairs {
             self.build_result_paths(&left_paths, &right_paths, &left_src, &right_src)?;
 
@@ -354,12 +327,10 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // Cleaning up found path pairs
         if self.single_shortest {
             cleanup_termination_map(&mut self.termination_map);
         }
 
-        // Check for termination
         if is_termination_complete(&self.termination_map) {
             return Ok(true);
         }
@@ -368,7 +339,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             return Ok(true);
         }
 
-        // Checking the step limit
         if self.step * 2 > self.max_steps {
             return Ok(true);
         }
@@ -376,8 +346,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         Ok(false)
     }
 
-    /// Check whether it is a valid (src, dst) pair
-    fn is_valid_pair(&self, src: &Value, dst: &Value) -> bool {
+    fn is_valid_pair(&self, src: &VertexId, dst: &VertexId) -> bool {
         if let Some(pairs) = self.termination_map.get(src) {
             pairs.iter().any(|(d, found)| d == dst && *found)
         } else {
@@ -385,22 +354,19 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         }
     }
 
-    /// Building a Results Path
     fn build_result_paths(
         &mut self,
         left_paths: &[Path],
         right_paths: &[Path],
-        _src: &Value,
-        _dst: &Value,
+        _src: &VertexId,
+        _dst: &VertexId,
     ) -> DBResult<()> {
         for left_path in left_paths {
             for right_path in right_paths {
-                // splice path
                 let mut full_path = left_path.clone();
                 let mut reversed_right = right_path.clone();
                 reversed_right.reverse();
 
-                // Consolidation steps
                 full_path.steps.extend(reversed_right.steps);
 
                 // Check for repeating edges
@@ -416,7 +382,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                 }
 
                 if self.single_shortest {
-                    // Single shortest path mode stops when a pair is found
                     return Ok(());
                 }
             }
@@ -424,7 +389,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         Ok(())
     }
 
-    /// Checking paths for duplicate edges
     fn has_duplicate_edges(&self, path: &Path) -> bool {
         let mut edge_set = HashSet::new();
 
@@ -438,9 +402,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         false
     }
 
-    /// Update History Path
     fn update_history(&mut self) {
-        // Merge the current left path into the history
         for (dst, src_map) in &self.left_paths {
             let history_entry = self.history_left_paths.entry(dst.clone()).or_default();
             for (src, paths) in src_map {
@@ -449,7 +411,6 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // Merge the current right-hand path into the history
         for (dst, src_map) in &self.right_paths {
             let history_entry = self.history_right_paths.entry(dst.clone()).or_default();
             for (src, paths) in src_map {
@@ -458,43 +419,34 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // Save the current right path for the next step
         self.pre_right_paths = self.right_paths.clone();
 
-        // Clear the current path
         self.left_paths.clear();
         self.right_paths.clear();
     }
 
-    /// Perform a multi-source shortest path lookup
     pub fn execute_multi_path(&mut self) -> DBResult<Vec<Path>> {
         let start_time = Instant::now();
 
         self.init();
 
         loop {
-            // Constructing a leftward path
             self.build_path(false)?;
 
-            // Constructing a rightward path
             self.build_path(true)?;
 
-            // Intersection of odd-numbered steps
             if self.conjunct_path(true)? {
                 break;
             }
 
-            // Intersection of even-numbered steps
             if self.conjunct_path(false)? {
                 break;
             }
 
-            // Update the historical path
             self.update_history();
 
             self.step += 1;
 
-            // Check the step limit.
             if self.step * 2 > self.max_steps {
                 break;
             }

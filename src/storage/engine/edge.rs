@@ -230,8 +230,8 @@ impl EdgeOps {
             .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
 
         edge_table.insert_edge(
-            src_internal as VertexId,
-            dst_internal as VertexId,
+            VertexId::from_int64(src_internal as i64),
+            VertexId::from_int64(dst_internal as i64),
             properties,
             ts,
         )
@@ -252,7 +252,7 @@ impl EdgeOps {
         let key = (params.src_label, params.dst_label, params.edge_label);
         let edge_table = self.edge_tables.get(&key)?;
 
-        edge_table.get_edge(src_internal as VertexId, dst_internal as VertexId, ts)
+        edge_table.get_edge(VertexId::from_int64(src_internal as i64), VertexId::from_int64(dst_internal as i64), ts)
     }
 
     pub fn delete_edge(
@@ -281,7 +281,7 @@ impl EdgeOps {
             .get_mut(&key)
             .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
 
-        edge_table.delete_edge(src_internal as VertexId, dst_internal as VertexId, ts)
+        edge_table.delete_edge(VertexId::from_int64(src_internal as i64), VertexId::from_int64(dst_internal as i64), ts)
     }
 
     pub fn update_edge_property(
@@ -313,8 +313,8 @@ impl EdgeOps {
             .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
 
         edge_table.update_edge_property(
-            src_internal as VertexId,
-            dst_internal as VertexId,
+            VertexId::from_int64(src_internal as i64),
+            VertexId::from_int64(dst_internal as i64),
             prop_name,
             value,
             ts,
@@ -334,7 +334,7 @@ impl EdgeOps {
         let key = (params.src_label, params.dst_label, params.edge_label);
         let edge_table = self.edge_tables.get(&key)?;
 
-        Some(edge_table.out_edges(src_internal as VertexId, ts))
+        Some(edge_table.out_edges(VertexId::from_int64(src_internal as i64), ts))
     }
 
     pub fn in_edges(
@@ -350,7 +350,7 @@ impl EdgeOps {
         let key = (params.src_label, params.dst_label, params.edge_label);
         let edge_table = self.edge_tables.get(&key)?;
 
-        Some(edge_table.in_edges(dst_internal as VertexId, ts))
+        Some(edge_table.in_edges(VertexId::from_int64(dst_internal as i64), ts))
     }
 
     pub fn edge_count(&self, edge_label: LabelId) -> u64 {

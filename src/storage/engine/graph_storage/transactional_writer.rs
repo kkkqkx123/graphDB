@@ -3,7 +3,7 @@ use crate::core::{StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::PropertyGraph;
 
 use super::context::GraphStorageContext;
-use super::type_utils::value_to_string;
+use super::type_utils::vertex_id_to_string;
 
 /// Transactional writer for atomic insert operations
 pub struct TransactionalWriter<'a> {
@@ -33,7 +33,7 @@ impl<'a> TransactionalWriter<'a> {
 
         for tag in &vertex.tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
-                let id_str = value_to_string(&vertex.vid);
+                let id_str = vertex_id_to_string(&vertex.vid);
                 let props: Vec<(String, Value)> = tag
                     .properties
                     .iter()
@@ -79,7 +79,7 @@ impl<'a> TransactionalWriter<'a> {
             let mut vertex_inserted = false;
             for tag in &vertex.tags {
                 if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
-                    let id_str = value_to_string(&vertex.vid);
+                    let id_str = vertex_id_to_string(&vertex.vid);
                     let props: Vec<(String, Value)> = tag
                         .properties
                         .iter()

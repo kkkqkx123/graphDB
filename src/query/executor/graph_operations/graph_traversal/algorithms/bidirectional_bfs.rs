@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::{Edge, NPath, Path, Value, Vertex};
+use crate::core::types::VertexId;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
@@ -39,9 +40,9 @@ impl<S: StorageClient> BidirectionalBFS<S> {
     /// Obtaining neighbor nodes and edges
     fn get_neighbors_with_edges(
         &self,
-        node_id: &Value,
+        node_id: &VertexId,
         edge_types: Option<&[String]>,
-    ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
+    ) -> Result<Vec<(VertexId, Edge, f64)>, QueryError> {
         let storage = self.storage.read();
 
         let edges = storage
@@ -60,30 +61,30 @@ impl<S: StorageClient> BidirectionalBFS<S> {
         // Remove duplicates from the self-loop edges.
         let mut dedup = SelfLoopDedup::new();
 
-        let neighbors_with_edges: Vec<(Value, Edge, f64)> = filtered_edges
+        let neighbors_with_edges: Vec<(VertexId, Edge, f64)> = filtered_edges
             .into_iter()
             .filter(|edge| dedup.should_include(edge))
             .filter_map(|edge| {
                 let (neighbor_id, weight) = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
-                        if *edge.dst == *node_id {
-                            ((*edge.src).clone(), edge.ranking as f64)
+                        if edge.dst == *node_id {
+                            (edge.src.clone(), edge.ranking as f64)
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
-                        if *edge.src == *node_id {
-                            ((*edge.dst).clone(), edge.ranking as f64)
+                        if edge.src == *node_id {
+                            (edge.dst.clone(), edge.ranking as f64)
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
-                        if *edge.src == *node_id {
-                            ((*edge.dst).clone(), edge.ranking as f64)
-                        } else if *edge.dst == *node_id {
-                            ((*edge.src).clone(), edge.ranking as f64)
+                        if edge.src == *node_id {
+                            (edge.dst.clone(), edge.ranking as f64)
+                        } else if edge.dst == *node_id {
+                            (edge.src.clone(), edge.ranking as f64)
                         } else {
                             return None;
                         }
@@ -97,7 +98,7 @@ impl<S: StorageClient> BidirectionalBFS<S> {
     }
 
     /// Obtain the vertices
-    fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
+    fn get_vertex(&self, vid: &VertexId) -> Result<Option<Vertex>, QueryError> {
         let storage = self.storage.read();
         storage
             .get_vertex("default", vid)
@@ -108,8 +109,8 @@ impl<S: StorageClient> BidirectionalBFS<S> {
 impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
     fn find_paths(
         &mut self,
-        start_ids: &[Value],
-        end_ids: &[Value],
+        start_ids: &[VertexId],
+        end_ids: &[VertexId],
         edge_types: Option<&[String]>,
         max_depth: Option<usize>,
         single_shortest: bool,
@@ -117,12 +118,11 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
     ) -> Result<Vec<Path>, QueryError> {
         let mut state = BidirectionalBFSState::new();
         let mut result_paths = Vec::new();
-        let mut visited_left: HashMap<Value, Arc<NPath>> = HashMap::new();
-        let mut visited_right: HashMap<Value, Arc<NPath>> = HashMap::new();
-        let mut left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
-        let mut right_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
+        let mut visited_left: HashMap<VertexId, Arc<NPath>> = HashMap::new();
+        let mut visited_right: HashMap<VertexId, Arc<NPath>> = HashMap::new();
+        let mut left_edges: Vec<HashMap<VertexId, Vec<(Edge, VertexId)>>> = Vec::new();
+        let mut right_edges: Vec<HashMap<VertexId, Vec<(Edge, VertexId)>>> = Vec::new();
 
-        // Initialize the left-facing queue (starting from the beginning point).
         for start_id in start_ids {
             if let Ok(Some(start_vertex)) = self.get_vertex(start_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(start_vertex)));
@@ -133,7 +133,6 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             }
         }
 
-        // Initialize a right-facing queue (starting from the end).
         for end_id in end_ids {
             if let Ok(Some(end_vertex)) = self.get_vertex(end_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(end_vertex)));
@@ -158,13 +157,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                 .last_mut()
                 .expect("left_edges should not be empty");
 
-            // Leftward expansion
             while let Some((current_id, current_npath)) = state.left_queue.pop_front() {
                 self.stats.increment_nodes_visited();
 
-                // Check whether it intersects with the path going from right to left.
                 if let Some(right_npath) = visited_right.get(&current_id) {
-                    // Concatenated path: Left path + Reversed right path
                     if let Some(combined_path) = combine_npaths(&current_npath, right_npath) {
                         if !has_duplicate_edges(&combined_path) {
                             result_paths.push(combined_path);
@@ -177,7 +173,6 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                     continue;
                 }
 
-                // Check the depth limit.
                 if let Some(max_d) = max_depth {
                     if current_npath.len() >= max_d {
                         continue;
@@ -193,7 +188,6 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                     }
 
                     if let Ok(Some(neighbor_vertex)) = self.get_vertex(&neighbor_id) {
-                        // Using NPath expansion, O(1) operation
                         let new_npath = Arc::new(NPath::extend(
                             current_npath.clone(),
                             Arc::new(edge.clone()),
@@ -219,7 +213,6 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                 .last_mut()
                 .expect("right_edges should not be empty");
 
-            // Rightward expansion
             while let Some((current_id, current_npath)) = state.right_queue.pop_front() {
                 self.stats.increment_nodes_visited();
 
@@ -242,7 +235,6 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                     }
 
                     if let Ok(Some(neighbor_vertex)) = self.get_vertex(&neighbor_id) {
-                        // Using NPath expansion, O(1) operation
                         let new_npath = Arc::new(NPath::extend(
                             current_npath.clone(),
                             Arc::new(edge.clone()),

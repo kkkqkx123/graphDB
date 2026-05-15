@@ -97,7 +97,7 @@ impl CacheOptimizedCsr {
             offset += DEFAULT_VERTEX_DEGREE;
         }
 
-        neighbors.resize(offset, 0);
+        neighbors.resize(offset, VertexId::zero());
         edge_ids.resize(offset, 0);
         prop_offsets.resize(offset, 0);
         timestamps.resize(offset, INVALID_TIMESTAMP);
@@ -142,7 +142,7 @@ impl CacheOptimizedCsr {
 
         // Extend data arrays
         let additional_edges = additional * DEFAULT_VERTEX_DEGREE;
-        self.neighbors.resize(self.neighbors.len() + additional_edges, 0);
+        self.neighbors.resize(self.neighbors.len() + additional_edges, VertexId::zero());
         self.edge_ids.resize(self.edge_ids.len() + additional_edges, 0);
         self.prop_offsets.resize(self.prop_offsets.len() + additional_edges, 0);
         self.timestamps.resize(self.timestamps.len() + additional_edges, INVALID_TIMESTAMP);
@@ -170,7 +170,7 @@ impl CacheOptimizedCsr {
         let insert_pos = self.adj_offsets[src_idx] + old_capacity;
 
         // Insert space in all arrays
-        self.neighbors.splice(insert_pos..insert_pos, std::iter::repeat_n(0, additional));
+        self.neighbors.splice(insert_pos..insert_pos, std::iter::repeat_n(VertexId::zero(), additional));
         self.edge_ids.splice(insert_pos..insert_pos, std::iter::repeat_n(0, additional));
         self.prop_offsets.splice(insert_pos..insert_pos, std::iter::repeat_n(0, additional));
         self.timestamps.splice(insert_pos..insert_pos, std::iter::repeat_n(INVALID_TIMESTAMP, additional));
@@ -193,7 +193,7 @@ impl CacheOptimizedCsr {
         prop_offset: u32,
         ts: Timestamp,
     ) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             self.ensure_vertex_capacity(src_idx + 1);
         }
@@ -249,7 +249,7 @@ impl CacheOptimizedCsr {
 
     /// Get edges of a vertex at a given timestamp
     pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return Vec::new();
         }
@@ -294,7 +294,7 @@ impl CacheOptimizedCsr {
     unsafe fn edges_of_avx2(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
         use std::arch::x86_64::*;
 
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return Vec::new();
         }
@@ -422,7 +422,7 @@ impl CsrBase for CacheOptimizedCsr {
     }
 
     fn clear(&mut self) {
-        self.neighbors.fill(0);
+        self.neighbors.fill(VertexId::zero());
         self.edge_ids.fill(0);
         self.prop_offsets.fill(0);
         self.timestamps.fill(INVALID_TIMESTAMP);
@@ -450,7 +450,7 @@ impl CsrBase for CacheOptimizedCsr {
         }
 
         for chunk in self.neighbors.chunks(1) {
-            result.extend_from_slice(&chunk[0].to_le_bytes());
+            result.extend_from_slice(&chunk[0].as_int64().unwrap_or(0).to_le_bytes());
         }
 
         for chunk in self.edge_ids.chunks(1) {
@@ -522,7 +522,7 @@ impl CsrBase for CacheOptimizedCsr {
         let mut neighbors = Vec::with_capacity(nbr_count);
         for _ in 0..nbr_count {
             let neighbor = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            neighbors.push(neighbor);
+            neighbors.push(VertexId::from_u64(neighbor));
             offset += 8;
         }
 
@@ -583,7 +583,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, _ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -604,7 +604,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, _ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -625,7 +625,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn delete_edge_by_offset(&mut self, src: VertexId, offset_pos: i32, _ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -648,7 +648,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -669,7 +669,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn revert_delete_by_offset(&mut self, src: VertexId, offset_pos: i32, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -692,7 +692,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return None;
         }
@@ -721,7 +721,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return 0;
         }
@@ -739,7 +739,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
     }
 
     fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return false;
         }
@@ -802,22 +802,27 @@ impl MutableCsrTrait for CacheOptimizedCsr {
         prop_offsets: &[u32],
         ts: Timestamp,
     ) {
-        let max_vertex = src_list.iter().max().copied().unwrap_or(0) as usize;
+        let max_vertex = src_list
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or(VertexId::zero())
+            .as_int64()
+            .unwrap_or(0) as usize;
         self.ensure_vertex_capacity(max_vertex + 1);
 
         for i in 0..src_list.len() {
-            let src = src_list[i];
             let dst = dst_list[i];
             let edge_id = edge_ids[i];
             let prop_offset = prop_offsets[i];
 
-            let src_idx = src as usize;
+            let src_idx = src_list[i].as_int64().unwrap_or(0) as usize;
             let degree = self.degrees[src_idx] as usize;
             let capacity = self.capacities[src_idx] as usize;
             let offset = self.adj_offsets[src_idx];
 
             if degree < capacity {
-                self.neighbors[offset + degree] = dst;
+                self.neighbors[offset + degree] = dst.clone();
                 self.edge_ids[offset + degree] = edge_id;
                 self.prop_offsets[offset + degree] = prop_offset;
                 self.timestamps[offset + degree] = ts;
@@ -830,7 +835,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
 
 impl CacheOptimizedCsr {
     pub fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return None;
         }
@@ -916,7 +921,7 @@ pub struct CacheOptimizedCsrEdgeIterator<'a> {
 
 impl<'a> CacheOptimizedCsrEdgeIterator<'a> {
     pub fn new(csr: &'a CacheOptimizedCsr, src: VertexId, ts: Timestamp) -> Self {
-        let src_idx = src as usize;
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
         let degree = if src_idx < csr.vertex_capacity {
             csr.degrees[src_idx] as usize
         } else {
@@ -936,7 +941,7 @@ impl<'a> Iterator for CacheOptimizedCsrEdgeIterator<'a> {
     type Item = Nbr;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let src_idx = self.src as usize;
+        let src_idx = self.src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.csr.vertex_capacity {
             return None;
         }
@@ -982,7 +987,7 @@ impl<'a> Iterator for CacheOptimizedCsrIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.current_vertex < self.csr.vertex_capacity {
-            let src = self.current_vertex as VertexId;
+            let src = VertexId::from_int64(self.current_vertex as i64);
             let degree = self.csr.degrees[self.current_vertex] as usize;
             let offset = self.csr.adj_offsets[self.current_vertex];
             self.current_vertex += 1;
@@ -1016,19 +1021,19 @@ mod tests {
         let mut csr = CacheOptimizedCsr::new();
 
         // Insert edges
-        assert!(csr.insert_edge(0, 1, 100, 0, 10));
-        assert!(csr.insert_edge(0, 2, 101, 1, 10));
-        assert!(csr.insert_edge(1, 2, 102, 2, 10));
+        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 10));
+        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 1, 10));
+        assert!(csr.insert_edge(VertexId::from_int64(1), VertexId::from_int64(2), 102, 2, 10));
 
         // Check edge count
         assert_eq!(csr.edge_count(), 3);
 
         // Get edges
-        let edges = csr.edges_of(0, 10);
+        let edges = csr.edges_of(VertexId::from_int64(0), 10);
         assert_eq!(edges.len(), 2);
 
         // Delete edge
-        assert!(csr.delete_edge(0, 100, 20));
+        assert!(csr.delete_edge(VertexId::from_int64(0), 100, 20));
         assert_eq!(csr.edge_count(), 2);
     }
 
@@ -1038,12 +1043,12 @@ mod tests {
 
         // Insert many edges for one vertex
         for i in 0..100 {
-            csr.insert_edge(0, i, i, 0, 10);
+            csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(i), i, 0, 10);
         }
 
         // Test SIMD version
-        let edges_simd = csr.edges_of_simd(0, 10);
-        let edges_normal = csr.edges_of(0, 10);
+        let edges_simd = csr.edges_of_simd(VertexId::from_int64(0), 10);
+        let edges_normal = csr.edges_of(VertexId::from_int64(0), 10);
 
         assert_eq!(edges_simd.len(), edges_normal.len());
     }
@@ -1052,8 +1057,8 @@ mod tests {
     fn test_parallel_insert() {
         let mut csr = CacheOptimizedCsr::new();
 
-        let src_list: Vec<VertexId> = (0..1000).collect();
-        let dst_list: Vec<VertexId> = (1000..2000).collect();
+        let src_list: Vec<VertexId> = (0..1000).map(VertexId::from_int64).collect();
+        let dst_list: Vec<VertexId> = (1000..2000).map(VertexId::from_int64).collect();
         let edge_ids: Vec<EdgeId> = (0..1000).collect();
         let prop_offsets: Vec<u32> = vec![0; 1000];
 

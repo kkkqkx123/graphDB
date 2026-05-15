@@ -5,6 +5,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::core::error::DBError;
+use crate::core::types::VertexId;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
@@ -116,9 +118,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
         let mut storage = self.get_storage().write();
 
         for vertex_id in &self.vertex_ids {
+            let vid = VertexId::try_from(vertex_id).map_err(DBError::from)?;
             // If you are in delete all labels mode, first get all label names of the vertices
             let tag_names_to_delete = if self.delete_all_tags {
-                match storage.get_vertex(&self.space_name, vertex_id) {
+                match storage.get_vertex(&self.space_name, &vid) {
                     Ok(Some(vertex)) => vertex
                         .tags
                         .iter()
@@ -136,7 +139,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                 self.tag_names.clone()
             };
 
-            match storage.delete_tags(&self.space_name, vertex_id, &tag_names_to_delete) {
+            match storage.delete_tags(&self.space_name, &vid, &tag_names_to_delete) {
                 Ok(deleted_count) => {
                     total_deleted += deleted_count;
                 }

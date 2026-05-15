@@ -216,7 +216,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         let old_vertex = self
             .inner
             .get_vertex(space, &vertex.vid)?
-            .ok_or_else(|| StorageError::node_not_found(*vertex.vid.clone()))?;
+            .ok_or_else(|| StorageError::node_not_found(vertex.vid.clone()))?;
 
         self.inner.update_vertex(space, vertex.clone())?;
 
@@ -253,7 +253,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         Ok(())
     }
 
-    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError> {
         let vertex = self
             .inner
             .get_vertex(space, id)?
@@ -288,7 +288,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         Ok(())
     }
 
-    fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex_with_edges(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError> {
         let vertex = self
             .inner
             .get_vertex(space, id)?
@@ -327,7 +327,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         &mut self,
         space: &str,
         vertices: Vec<Vertex>,
-    ) -> Result<Vec<Value>, StorageError> {
+    ) -> Result<Vec<VertexId>, StorageError> {
         let results = self.inner.batch_insert_vertices(space, vertices.clone())?;
 
         if self.enabled {
@@ -372,7 +372,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
     fn delete_tags(
         &mut self,
         space: &str,
-        vertex_id: &Value,
+        vertex_id: &VertexId,
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
         self.inner.delete_tags(space, vertex_id, tag_names)
@@ -401,8 +401,8 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
     fn delete_edge(
         &mut self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         rank: i64,
     ) -> Result<(), StorageError> {

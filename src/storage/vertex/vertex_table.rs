@@ -141,7 +141,7 @@ impl VertexTable {
             .collect();
 
         Some(VertexRecord {
-            vid: internal_id as VertexId,
+            vid: VertexId::from_int64(internal_id as i64),
             internal_id,
             properties,
         })
@@ -164,7 +164,7 @@ impl VertexTable {
             .collect();
 
         Some(VertexRecord {
-            vid: internal_id as VertexId,
+            vid: VertexId::from_int64(internal_id as i64),
             internal_id,
             properties,
         })
