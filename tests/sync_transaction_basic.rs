@@ -5,7 +5,7 @@
 mod common;
 
 use common::sync_helpers::{create_test_vertex, SyncTestHarness};
-use graphdb::core::types::DataType;
+use graphdb::core::types::{DataType, VertexId};
 use graphdb::core::Value;
 use graphdb::storage::StorageClient;
 use std::collections::HashMap;
@@ -372,8 +372,8 @@ fn test_transaction_edge_insert_sync() {
         .expect("Failed to begin transaction");
 
     let edge = graphdb::core::Edge::new(
-        Value::Int(1),
-        Value::Int(2),
+        VertexId::from_int64(1),
+        VertexId::from_int64(2),
         "KNOWS".to_string(),
         0,
         HashMap::new(),
@@ -390,7 +390,7 @@ fn test_transaction_edge_insert_sync() {
     // Verify edge exists
     let edge_opt = harness
         .storage
-        .get_edge("test_space", &Value::Int(1), &Value::Int(2), "KNOWS", 0)
+        .get_edge("test_space", &VertexId::from_int64(1), &VertexId::from_int64(2), "KNOWS", 0)
         .expect("Failed to get edge");
     assert!(edge_opt.is_some(), "Edge should exist");
 }
@@ -451,8 +451,8 @@ fn test_transaction_edge_with_properties_sync() {
     edge_props.insert("since".to_string(), Value::Int(2020));
 
     let edge = graphdb::core::Edge::new(
-        Value::Int(1),
-        Value::Int(100),
+        VertexId::from_int64(1),
+        VertexId::from_int64(100),
         "WORKS_AT".to_string(),
         0,
         edge_props,
@@ -471,8 +471,8 @@ fn test_transaction_edge_with_properties_sync() {
         .storage
         .get_edge(
             "test_space",
-            &Value::Int(1),
-            &Value::Int(100),
+            &VertexId::from_int64(1),
+            &VertexId::from_int64(100),
             "WORKS_AT",
             0,
         )

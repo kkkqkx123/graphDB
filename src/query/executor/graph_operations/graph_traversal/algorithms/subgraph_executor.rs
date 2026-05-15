@@ -110,7 +110,7 @@ impl SubgraphResult {
                     .vertices
                     .get(&edge.dst)
                     .cloned()
-                    .unwrap_or_else(|| Vertex::with_vid(edge.dst.clone()));
+                    .unwrap_or_else(|| Vertex::with_vid(edge.dst));
                 path.steps.push(crate::core::Step::new(
                     dst_vertex,
                     edge.edge_type.clone(),
@@ -166,7 +166,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         config: SubgraphConfig,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
-        let valid_vids: HashSet<VertexId> = start_vids.iter().cloned().collect();
+        let valid_vids: HashSet<VertexId> = start_vids.iter().copied().collect();
 
         Self {
             base: BaseExecutor::new(id, "SubgraphExecutor".to_string(), storage, expr_context),
@@ -207,10 +207,10 @@ impl<S: StorageClient> SubgraphExecutor<S> {
             .into_iter()
             .filter_map(|edge| {
                 if edge.src == *node_id {
-                    Some((edge.dst.clone(), edge))
+                    Some((edge.dst, edge))
                 } else if edge.dst == *node_id && self.config.edge_direction == EdgeDirection::Both
                 {
-                    Some((edge.src.clone(), edge))
+                    Some((edge.src, edge))
                 } else {
                     None
                 }
@@ -248,11 +248,11 @@ impl<S: StorageClient> SubgraphExecutor<S> {
                 self.result.edges.push(edge);
 
                 // Add the target vertex to the set of valid vertices.
-                self.valid_vids.insert(neighbor_id.clone());
+                self.valid_vids.insert(neighbor_id);
 
                 // If it’s not the last step, add it to the list of steps to be visited next.
                 if self.current_step < self.config.steps
-                    && self.current_vids.insert(neighbor_id.clone())
+                    && self.current_vids.insert(neighbor_id)
                 {
                     self.next_vids.push(neighbor_id);
                 }
@@ -261,7 +261,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 
         // Update the history record
         for vid in &self.current_vids {
-            self.history_vids.insert(vid.clone(), self.current_step);
+            self.history_vids.insert(*vid, self.current_step);
         }
 
         self.current_step += 1;
@@ -280,12 +280,12 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         for vid in &self.valid_vids {
             match storage.get_vertex("default", vid) {
                 Ok(Some(vertex)) => {
-                    self.result.vertices.insert(vid.clone(), vertex);
+                    self.result.vertices.insert(*vid, vertex);
                 }
                 Ok(None) => {
                     // The vertex does not exist; create a vertex that contains only the VID (Vertex Identifier).
-                    let vertex = Vertex::with_vid(vid.clone());
-                    self.result.vertices.insert(vid.clone(), vertex);
+                    let vertex = Vertex::with_vid(*vid);
+                    self.result.vertices.insert(*vid, vertex);
                 }
                 Err(e) => {
                     return Err(DBError::storage(e.to_string()));
@@ -316,8 +316,8 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         } else {
             // Please provide the specific text you would like to have translated. Once I have the text, I can assist you with the translation.
             for vid in &self.valid_vids {
-                let vertex = Vertex::with_vid(vid.clone());
-                self.result.vertices.insert(vid.clone(), vertex);
+                let vertex = Vertex::with_vid(*vid);
+                self.result.vertices.insert(*vid, vertex);
             }
         }
 
@@ -409,6 +409,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for SubgraphExecutor<S>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::VertexId;
     use crate::core::Value;
     use crate::storage::MockStorage;
 
@@ -443,7 +444,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let executor =
-            SubgraphExecutor::new(1, storage, vec![Value::from("a")], config, expr_context);
+            SubgraphExecutor::new(1, storage, vec![VertexId::from("a")], config, expr_context);
 
         assert_eq!(executor.start_vids.len(), 1);
         assert_eq!(executor.config.steps, 2);
@@ -457,15 +458,15 @@ mod tests {
         // Add some vertices.
         result
             .vertices
-            .insert(Value::from("a"), Vertex::with_vid(Value::from("a")));
+            .insert(VertexId::from("a"), Vertex::with_vid(VertexId::from("a")));
         result
             .vertices
-            .insert(Value::from("b"), Vertex::with_vid(Value::from("b")));
+            .insert(VertexId::from("b"), Vertex::with_vid(VertexId::from("b")));
 
         // Add an edge.
         let edge = Edge::new(
-            Value::from("a"),
-            Value::from("b"),
+            VertexId::from("a"),
+            VertexId::from("b"),
             "knows".to_string(),
             0,
             HashMap::new(),

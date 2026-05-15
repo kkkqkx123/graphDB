@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use graphdb::core::types::VertexId;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
@@ -92,7 +93,7 @@ fn create_test_vertex(vid: i64, tag_name: &str, content: &str) -> Vertex {
     let mut props = HashMap::new();
     props.insert("content".to_string(), Value::String(content.to_string()));
     let tag = Tag::new(tag_name.to_string(), props);
-    Vertex::new(Value::Int(vid as i32), vec![tag])
+    Vertex::new(VertexId::from_int64(vid), vec![tag])
 }
 
 // ==================== Basic Sync Tests ====================
@@ -118,7 +119,7 @@ async fn test_sync_vertex_change() {
 
     // Create vertex
     let vertex = create_test_vertex(1, "Article", "Hello World");
-    let vid = vertex.vid();
+    let vid = Value::from(vertex.vid);
 
     // Extract properties
     let props: Vec<(String, Value)> = vertex
@@ -131,7 +132,7 @@ async fn test_sync_vertex_change() {
 
     // Sync vertex change
     ctx.coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
+        .on_vertex_change(1, "Article", &vid, &props, ChangeType::Insert)
         .await
         .expect("Failed to sync vertex");
 
@@ -178,7 +179,7 @@ async fn test_sync_batch_processing() {
     // Batch insert multiple vertices
     for i in 0..10 {
         let vertex = create_test_vertex(i, "Article", &format!("Article {}", i));
-        let vid = vertex.vid();
+        let vid = Value::from(vertex.vid);
 
         let props: Vec<(String, Value)> = vertex
             .get_tag("Article")
@@ -189,7 +190,7 @@ async fn test_sync_batch_processing() {
             .collect();
 
         ctx.coordinator
-            .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
+            .on_vertex_change(1, "Article", &vid, &props, ChangeType::Insert)
             .await
             .expect("Failed to sync vertex");
     }
@@ -221,7 +222,7 @@ async fn test_sync_delete_operation() {
 
     // Insert vertex
     let vertex = create_test_vertex(1, "Article", "Delete me");
-    let vid = vertex.vid();
+    let vid = Value::from(vertex.vid);
 
     let props: Vec<(String, Value)> = vertex
         .get_tag("Article")
@@ -232,7 +233,7 @@ async fn test_sync_delete_operation() {
         .collect();
 
     ctx.coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
+        .on_vertex_change(1, "Article", &vid, &props, ChangeType::Insert)
         .await
         .expect("Failed to insert vertex");
 
@@ -240,7 +241,7 @@ async fn test_sync_delete_operation() {
 
     // Delete vertex
     ctx.coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Delete)
+        .on_vertex_change(1, "Article", &vid, &props, ChangeType::Delete)
         .await
         .expect("Failed to delete vertex");
 
@@ -276,7 +277,7 @@ async fn test_concurrent_sync_operations() {
         let coordinator = ctx.coordinator.clone();
         let handle = tokio::spawn(async move {
             let vertex = create_test_vertex(i, "Article", &format!("Concurrent {}", i));
-            let vid = vertex.vid();
+            let vid = Value::from(vertex.vid);
 
             let props: Vec<(String, Value)> = vertex
                 .get_tag("Article")
@@ -287,7 +288,7 @@ async fn test_concurrent_sync_operations() {
                 .collect();
 
             coordinator
-                .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
+                .on_vertex_change(1, "Article", &vid, &props, ChangeType::Insert)
                 .await
         });
         handles.push(handle);
@@ -326,7 +327,7 @@ async fn test_sync_nonexistent_index() {
 
     // Try to sync without creating index first
     let vertex = create_test_vertex(1, "Article", "Test");
-    let vid = vertex.vid();
+    let vid = Value::from(vertex.vid);
 
     let props: Vec<(String, Value)> = vertex
         .get_tag("Article")
@@ -339,7 +340,7 @@ async fn test_sync_nonexistent_index() {
     // Should succeed but not index anything (index doesn't exist, so field is skipped)
     let result = ctx
         .coordinator
-        .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
+        .on_vertex_change(1, "Article", &vid, &props, ChangeType::Insert)
         .await;
 
     // Should succeed (fields without indexes are silently skipped)
@@ -397,7 +398,7 @@ async fn test_custom_batch_size() {
     // Insert 3 vertices (should trigger batch flush at 2)
     for i in 0..3 {
         let vertex = create_test_vertex(i, "Article", &format!("Batch {}", i));
-        let vid = vertex.vid();
+        let vid = Value::from(vertex.vid);
 
         let props: Vec<(String, Value)> = vertex
             .get_tag("Article")
@@ -408,7 +409,7 @@ async fn test_custom_batch_size() {
             .collect();
 
         ctx.coordinator
-            .on_vertex_change(1, "Article", vid, &props, ChangeType::Insert)
+            .on_vertex_change(1, "Article", &vid, &props, ChangeType::Insert)
             .await
             .expect("Failed to sync vertex");
     }

@@ -39,7 +39,7 @@ impl<'a> GraphStorageWriter<'a> {
                     return Err(StorageError::vertex_already_exists(id_str));
                 }
 
-                let vid_value = Value::from(vertex.vid.clone());
+                let vid_value = Value::from(vertex.vid);
                 if let Err(e) = Self::update_vertex_indexes(
                     &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
@@ -60,7 +60,7 @@ impl<'a> GraphStorageWriter<'a> {
             }
         }
 
-        Ok(vertex.vid.clone())
+        Ok(vertex.vid)
     }
 
     pub fn update_vertex(&self, space: &str, vertex: Vertex) -> StorageResult<()> {
@@ -79,7 +79,7 @@ impl<'a> GraphStorageWriter<'a> {
 
                 let props: Vec<(String, Value)> =
                     tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-                let vid_value = Value::from(vertex.vid.clone());
+                let vid_value = Value::from(vertex.vid);
                 Self::update_vertex_indexes(
                     &self.ctx.graph,
                     &self.ctx.index_metadata_manager,

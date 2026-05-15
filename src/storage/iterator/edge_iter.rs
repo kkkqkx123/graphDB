@@ -141,9 +141,9 @@ mod tests {
         let mut table = EdgeTable::new(schema);
 
         let ts = 100u32;
-        table.insert_edge(1, 2, &[("weight".to_string(), Value::Double(1.0))], ts).unwrap();
-        table.insert_edge(1, 3, &[("weight".to_string(), Value::Double(2.0))], ts).unwrap();
-        table.insert_edge(2, 3, &[("weight".to_string(), Value::Double(3.0))], ts).unwrap();
+        table.insert_edge(VertexId::from_int64(1), VertexId::from_int64(2), &[("weight".to_string(), Value::Double(1.0))], ts).unwrap();
+        table.insert_edge(VertexId::from_int64(1), VertexId::from_int64(3), &[("weight".to_string(), Value::Double(2.0))], ts).unwrap();
+        table.insert_edge(VertexId::from_int64(2), VertexId::from_int64(3), &[("weight".to_string(), Value::Double(3.0))], ts).unwrap();
 
         table
     }
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn test_edge_range_iterator() {
         let table = create_test_table();
-        let iter = EdgeRangeIterator::new(&table, vec![1, 2], 100);
+        let iter = EdgeRangeIterator::new(&table, vec![VertexId::from_int64(1), VertexId::from_int64(2)], 100);
         let edges: Vec<_> = iter.collect();
 
         assert_eq!(edges.len(), 3);

@@ -224,7 +224,7 @@ fn execute_startnode(args: &[Value]) -> Result<Value, ExpressionError> {
     }
     match &args[0] {
         Value::Edge(e) => {
-            let vertex = Vertex::new(e.src.clone(), vec![]);
+            let vertex = Vertex::new(e.src, vec![]);
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
@@ -242,7 +242,7 @@ fn execute_endnode(args: &[Value]) -> Result<Value, ExpressionError> {
     }
     match &args[0] {
         Value::Edge(e) => {
-            let vertex = Vertex::new(e.dst.clone(), vec![]);
+            let vertex = Vertex::new(e.dst, vec![]);
             Ok(Value::Vertex(Box::new(vertex)))
         }
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
@@ -255,6 +255,7 @@ fn execute_endnode(args: &[Value]) -> Result<Value, ExpressionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::VertexId;
     use crate::core::vertex_edge_path::{Edge, Tag};
     use std::collections::HashMap;
 
@@ -270,13 +271,13 @@ mod tests {
             "employee".to_string(),
             HashMap::from([("dept".to_string(), Value::String("Engineering".to_string()))]),
         );
-        Vertex::new(Value::Int(1), vec![tag1, tag2])
+        Vertex::new(VertexId::from_int64(1), vec![tag1, tag2])
     }
 
     fn create_test_edge() -> Edge {
         Edge::new(
-            Value::Int(1),
-            Value::Int(2),
+            VertexId::from_int64(1),
+            VertexId::from_int64(2),
             "knows".to_string(),
             0,
             HashMap::from([("since".to_string(), Value::Int(2020))]),
@@ -289,7 +290,7 @@ mod tests {
         let result = GraphFunction::Id
             .execute(&[Value::Vertex(Box::new(vertex))])
             .expect("The id function execution should succeed");
-        assert_eq!(result, Value::Int(1));
+        assert_eq!(result, Value::BigInt(1));
     }
 
     #[test]
@@ -335,7 +336,7 @@ mod tests {
         let result = GraphFunction::Src
             .execute(&[Value::Edge(Box::new(edge))])
             .expect("The src function execution should succeed");
-        assert_eq!(result, Value::Int(1));
+        assert_eq!(result, Value::BigInt(1));
     }
 
     #[test]
@@ -344,7 +345,7 @@ mod tests {
         let result = GraphFunction::Dst
             .execute(&[Value::Edge(Box::new(edge))])
             .expect("The dst function execution should succeed");
-        assert_eq!(result, Value::Int(2));
+        assert_eq!(result, Value::BigInt(2));
     }
 
     #[test]
@@ -353,7 +354,7 @@ mod tests {
         let result = GraphFunction::Rank
             .execute(&[Value::Edge(Box::new(edge))])
             .expect("The execution of the rank function should succeed");
-        assert_eq!(result, Value::Int(0));
+        assert_eq!(result, Value::BigInt(0));
     }
 
     #[test]

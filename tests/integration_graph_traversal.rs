@@ -10,6 +10,7 @@
 mod common;
 
 use common::TestStorage;
+use graphdb::core::types::VertexId;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Edge, Path, Step, Value, Vertex};
 use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
@@ -78,7 +79,7 @@ fn test_multi_shortest_path_executor_creation() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::MultiShortestPathConfig {
-            start_vids: vec![Value::from("alice")],
+            start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
@@ -102,7 +103,7 @@ fn test_multi_shortest_path_with_edge_filter() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::MultiShortestPathConfig {
-            start_vids: vec![Value::from("alice")],
+            start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Out,
             edge_types: Some(vec!["KNOWS".to_string()]),
             max_steps: 10,
@@ -125,7 +126,7 @@ fn test_multi_shortest_path_bidirectional_direction() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::MultiShortestPathConfig {
-            start_vids: vec![Value::from("alice")],
+            start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Both,
             edge_types: None,
             max_steps: 10,
@@ -175,7 +176,7 @@ fn test_subgraph_executor_creation() {
     let executor = SubgraphExecutor::new(
         1,
         storage.clone(),
-        vec![Value::from("alice")],
+        vec![VertexId::from_string("alice")],
         config,
         Arc::new(ExpressionAnalysisContext::new()),
     );
@@ -196,9 +197,9 @@ fn test_subgraph_executor_multiple_start_vids() {
         1,
         storage.clone(),
         vec![
-            Value::from("alice"),
-            Value::from("bob"),
-            Value::from("charlie"),
+            VertexId::from_string("alice"),
+            VertexId::from_string("bob"),
+            VertexId::from_string("charlie"),
         ],
         config,
         Arc::new(ExpressionAnalysisContext::new()),
@@ -212,17 +213,17 @@ fn test_subgraph_executor_multiple_start_vids() {
 
 #[test]
 fn test_path_creation() {
-    let vertex = Vertex::with_vid(Value::from("A"));
+    let vertex = Vertex::with_vid(VertexId::from_string("A"));
     let path = Path::new(vertex.clone());
 
-    assert_eq!(path.src.vid, Box::new(Value::from("A")));
+    assert_eq!(path.src.vid, VertexId::from_string("A"));
     assert!(path.steps.is_empty());
 }
 
 #[test]
 fn test_path_with_steps() {
-    let src = Vertex::with_vid(Value::from("A"));
-    let dst = Vertex::with_vid(Value::from("B"));
+    let src = Vertex::with_vid(VertexId::from_string("A"));
+    let dst = Vertex::with_vid(VertexId::from_string("B"));
 
     let mut path = Path::new(src);
     path.steps
@@ -234,9 +235,9 @@ fn test_path_with_steps() {
 
 #[test]
 fn test_vertex_with_vid() {
-    let vertex = Vertex::with_vid(Value::from("test_id"));
+    let vertex = Vertex::with_vid(VertexId::from_string("test_id"));
 
-    assert_eq!(vertex.vid, Box::new(Value::from("test_id")));
+    assert_eq!(vertex.vid, VertexId::from_string("test_id"));
     assert!(vertex.tags.is_empty());
     assert!(vertex.properties.is_empty());
 }
@@ -251,9 +252,9 @@ fn test_vertex_with_tags() {
             .collect(),
     );
 
-    let vertex = Vertex::new(Value::from("alice"), vec![tag]);
+    let vertex = Vertex::new(VertexId::from_string("alice"), vec![tag]);
 
-    assert_eq!(vertex.vid, Box::new(Value::from("alice")));
+    assert_eq!(vertex.vid, VertexId::from_string("alice"));
     assert_eq!(vertex.tags.len(), 1);
     assert_eq!(vertex.tags[0].name, "Person");
 }
@@ -263,15 +264,15 @@ fn test_vertex_with_tags() {
 #[test]
 fn test_edge_creation() {
     let edge = Edge::new(
-        Value::from("A"),
-        Value::from("B"),
+        VertexId::from_string("A"),
+        VertexId::from_string("B"),
         "KNOWS".to_string(),
         0,
         HashMap::new(),
     );
 
-    assert_eq!(edge.src, Box::new(Value::from("A")));
-    assert_eq!(edge.dst, Box::new(Value::from("B")));
+    assert_eq!(edge.src, VertexId::from_string("A"));
+    assert_eq!(edge.dst, VertexId::from_string("B"));
     assert_eq!(edge.edge_type, "KNOWS");
     assert_eq!(edge.ranking, 0);
 }
@@ -282,8 +283,8 @@ fn test_edge_with_properties() {
     props.insert("since".to_string(), Value::from("2020-01-01"));
 
     let edge = Edge::new(
-        Value::from("A"),
-        Value::from("B"),
+        VertexId::from_string("A"),
+        VertexId::from_string("B"),
         "KNOWS".to_string(),
         1,
         props,
@@ -330,7 +331,7 @@ fn test_multi_shortest_path_empty_end() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::MultiShortestPathConfig {
-            start_vids: vec![Value::from("alice")],
+            start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
@@ -370,7 +371,7 @@ fn test_subgraph_zero_steps() {
     let executor = SubgraphExecutor::new(
         1,
         storage.clone(),
-        vec![Value::from("alice")],
+        vec![VertexId::from_string("alice")],
         config,
         Arc::new(ExpressionAnalysisContext::new()),
     );
@@ -473,8 +474,8 @@ fn test_all_paths_executor_with_loop() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::AllPathsConfig {
-            left_start_ids: vec![Value::from("A")],
-            right_start_ids: vec![Value::from("B")],
+            left_start_ids: vec![VertexId::from_string("A")],
+            right_start_ids: vec![VertexId::from_string("B")],
             max_hops: 5,
             edge_types: None,
             direction: ExecEdgeDirection::Both,
@@ -490,8 +491,8 @@ fn test_all_paths_executor_with_loop() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::AllPathsConfig {
-            left_start_ids: vec![Value::from("A")],
-            right_start_ids: vec![Value::from("B")],
+            left_start_ids: vec![VertexId::from_string("A")],
+            right_start_ids: vec![VertexId::from_string("B")],
             max_hops: 5,
             edge_types: None,
             direction: ExecEdgeDirection::Both,
@@ -521,7 +522,7 @@ fn test_weighted_shortest_path_executor_creation() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::from("A")],
+            start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: Some(vec!["connect".to_string()]),
         },
@@ -551,7 +552,7 @@ fn test_weighted_shortest_path_with_ranking() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::from("A")],
+            start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
         },
@@ -580,7 +581,7 @@ fn test_weighted_shortest_path_astar() {
             Arc::new(ExpressionAnalysisContext::new()),
         ),
         graphdb::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::from("A")],
+            start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
         },

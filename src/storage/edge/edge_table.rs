@@ -272,7 +272,7 @@ impl EdgeTable {
             for nbr in edges {
                 self.out_csr.delete_edge(src_vid, edge_id, ts);
                 self.in_csr
-                    .delete_edge_by_dst(nbr.neighbor.clone(), src_vid, ts);
+                    .delete_edge_by_dst(nbr.neighbor, src_vid, ts);
 
                 if nbr.prop_offset > 0 {
                     self.properties.delete(nbr.prop_offset);
@@ -351,7 +351,7 @@ impl EdgeTable {
                 return Some(EdgeRecord {
                     edge_id: nbr.edge_id,
                     src_vid: src_vid,
-                    dst_vid: nbr.neighbor.clone(),
+                    dst_vid: nbr.neighbor,
                     ranking: 0,
                     properties,
                 });
@@ -531,7 +531,7 @@ impl EdgeTable {
                 edges.push(EdgeRecord {
                     edge_id: nbr.edge_id,
                     src_vid: src_vid,
-                    dst_vid: nbr.neighbor.clone(),
+                    dst_vid: nbr.neighbor,
                     ranking: 0,
                     properties,
                 });
@@ -1013,19 +1013,19 @@ mod tests {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema);
 
-        table.insert_edge(0, 1, &[], 100).unwrap();
-        table.insert_edge(0, 2, &[], 100).unwrap();
-        table.insert_edge(1, 0, &[], 100).unwrap();
+        table.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[], 100).unwrap();
+        table.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), &[], 100).unwrap();
+        table.insert_edge(VertexId::from_int64(1), VertexId::from_int64(0), &[], 100).unwrap();
 
-        assert_eq!(table.out_degree(0, 100), 2);
-        assert_eq!(table.in_degree(0, 100), 1);
-        assert_eq!(table.out_degree(1, 100), 1);
-        assert_eq!(table.in_degree(1, 100), 1);
+        assert_eq!(table.out_degree(VertexId::from_int64(0), 100), 2);
+        assert_eq!(table.in_degree(VertexId::from_int64(0), 100), 1);
+        assert_eq!(table.out_degree(VertexId::from_int64(1), 100), 1);
+        assert_eq!(table.in_degree(VertexId::from_int64(1), 100), 1);
 
-        let out_edges = table.out_edges(0, 100);
+        let out_edges = table.out_edges(VertexId::from_int64(0), 100);
         assert_eq!(out_edges.len(), 2);
 
-        let in_edges = table.in_edges(0, 100);
+        let in_edges = table.in_edges(VertexId::from_int64(0), 100);
         assert_eq!(in_edges.len(), 1);
     }
 
@@ -1035,14 +1035,14 @@ mod tests {
         let mut table = EdgeTable::new(schema);
 
         table
-            .insert_edge(0, 1, &[("weight".to_string(), Value::Double(1.0))], 100)
+            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.0))], 100)
             .unwrap();
 
         table
-            .update_properties(0, 1, &[("weight".to_string(), Value::Double(2.0))], 100)
+            .update_properties(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(2.0))], 100)
             .unwrap();
 
-        let edge = table.get_edge(0, 1, 100).unwrap();
+        let edge = table.get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100).unwrap();
         assert_eq!(edge.properties.len(), 1);
     }
 }

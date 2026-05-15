@@ -2,261 +2,430 @@
 
 ## Summary
 
-- **Total Errors**: 100
-- **Total Warnings**: 3
-- **Total Issues**: 103
-- **Unique Error Patterns**: 21
-- **Unique Warning Patterns**: 2
-- **Files with Issues**: 31
+- **Total Errors**: 186
+- **Total Warnings**: 222
+- **Total Issues**: 408
+- **Unique Error Patterns**: 8
+- **Unique Warning Patterns**: 66
+- **Files with Issues**: 53
 
 ## Error Statistics
 
-**Total Errors**: 100
+**Total Errors**: 186
 
 ### Error Type Breakdown
 
-- **error[E0308]**: 90 errors
-- **error[E0277]**: 4 errors
-- **error[E0433]**: 2 errors
-- **error[E0507]**: 2 errors
-- **error[E0282]**: 2 errors
+- **error[E0308]**: 183 errors
+- **error[E0614]**: 3 errors
 
 ### Files with Errors (Top 10)
 
-- `src\storage\engine\graph_storage\writer.rs`: 13 errors
-- `src\query\executor\graph_operations\graph_traversal\expand_all.rs`: 10 errors
-- `src\transaction\rollback.rs`: 9 errors
-- `src\storage\index\secondary\index_updater.rs`: 6 errors
-- `src\transaction\update_transaction.rs`: 6 errors
-- `src\storage\engine\sync_wrapper.rs`: 6 errors
-- `src\query\executor\graph_operations\graph_traversal\algorithms\subgraph_executor.rs`: 5 errors
-- `src\storage\engine\property_graph\transaction_targets\recovery.rs`: 5 errors
-- `src\query\executor\graph_operations\graph_traversal\traversal_utils.rs`: 4 errors
-- `src\query\executor\graph_operations\graph_traversal\shortest_path.rs`: 4 errors
+- `src\query\executor\graph_operations\graph_traversal\tests.rs`: 32 errors
+- `src\storage\index\primary\degree_index.rs`: 29 errors
+- `src\transaction\undo_log.rs`: 21 errors
+- `src\storage\index\primary\edge_id_index.rs`: 18 errors
+- `src\storage\index\primary\primary_index_manager.rs`: 18 errors
+- `src\query\executor\graph_operations\graph_traversal\algorithms\multi_shortest_path.rs`: 17 errors
+- `src\storage\edge\edge_table.rs`: 12 errors
+- `src\storage\edge\mutable_csr_variant.rs`: 8 errors
+- `src\query\executor\graph_operations\graph_traversal\algorithms\subgraph_executor.rs`: 6 errors
+- `src\query\executor\expression\functions\builtin\path.rs`: 6 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 222
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 222 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\executor\factory\builders\traversal_builder.rs`: 1 warnings
-- `src\query\executor\graph_operations\graph_traversal\algorithms\bidirectional_bfs.rs`: 1 warnings
-- `src\query\executor\graph_operations\graph_traversal\algorithms\dijkstra.rs`: 1 warnings
+- `src\query\executor\graph_operations\graph_traversal\algorithms\multi_shortest_path.rs`: 25 warnings
+- `src\query\executor\graph_operations\graph_traversal\all_paths.rs`: 19 warnings
+- `src\query\executor\graph_operations\graph_traversal\algorithms\a_star.rs`: 17 warnings
+- `src\query\executor\graph_operations\graph_traversal\algorithms\bfs_shortest.rs`: 17 warnings
+- `src\query\executor\graph_operations\graph_traversal\algorithms\bidirectional_bfs.rs`: 16 warnings
+- `src\query\executor\graph_operations\graph_traversal\algorithms\dijkstra.rs`: 13 warnings
+- `src\query\executor\graph_operations\graph_traversal\algorithms\subgraph_executor.rs`: 11 warnings
+- `src\transaction\undo_log.rs`: 11 warnings
+- `src\storage\engine\sync_wrapper.rs`: 10 warnings
+- `src\storage\engine\graph_storage\writer.rs`: 9 warnings
 
 ## Detailed Error Categorization
 
-### error[E0308]: mismatched types: expected `u64`, found `VertexId`
+### error[E0308]: mismatched types: expected `VertexId`, found integer
 
-**Total Occurrences**: 90  
-**Unique Files**: 24
+**Total Occurrences**: 183  
+**Unique Files**: 20
 
-#### `src\storage\engine\graph_storage\writer.rs`: 13 occurrences
+#### `src\query\executor\graph_operations\graph_traversal\tests.rs`: 32 occurrences
 
-- Line 46: mismatched types: expected `&Value`, found `&VertexId`
-- Line 85: mismatched types: expected `&Value`, found `&VertexId`
-- Line 113: mismatched types: expected `&Value`, found `&VertexId`
-- ... 10 more occurrences in this file
+- Line 31: mismatched types: expected `VertexId`, found `Value`
+- Line 32: mismatched types: expected `VertexId`, found `Value`
+- Line 33: mismatched types: expected `VertexId`, found `Value`
+- ... 29 more occurrences in this file
 
-#### `src\query\executor\graph_operations\graph_traversal\expand_all.rs`: 10 occurrences
+#### `src\storage\index\primary\degree_index.rs`: 29 occurrences
 
-- Line 190: mismatched types: expected `&Value`, found `&VertexId`
-- Line 207: mismatched types: expected `VertexId`, found `Value`
-- Line 217: mismatched types: expected `&VertexId`, found `&Value`
-- ... 7 more occurrences in this file
+- Line 276: arguments to this method are incorrect
+- Line 277: arguments to this method are incorrect
+- Line 278: arguments to this method are incorrect
+- ... 26 more occurrences in this file
 
-#### `src\transaction\rollback.rs`: 9 occurrences
+#### `src\transaction\undo_log.rs`: 21 occurrences
 
-- Line 234: mismatched types: expected `VertexId`, found `u64`
-- Line 253: mismatched types: expected `VertexId`, found `u64`
-- Line 254: mismatched types: expected `VertexId`, found `u64`
-- ... 6 more occurrences in this file
+- Line 853: mismatched types: expected `VertexId`, found integer
+- Line 858: mismatched types: expected `VertexId`, found integer
+- Line 859: mismatched types: expected `VertexId`, found integer
+- ... 18 more occurrences in this file
 
-#### `src\transaction\update_transaction.rs`: 6 occurrences
+#### `src\storage\index\primary\edge_id_index.rs`: 18 occurrences
 
-- Line 537: mismatched types: expected `u64`, found `VertexId`
-- Line 567: mismatched types: expected `u64`, found `VertexId`
-- Line 569: mismatched types: expected `u64`, found `VertexId`
+- Line 161: arguments to this method are incorrect
+- Line 162: arguments to this method are incorrect
+- Line 163: arguments to this method are incorrect
+- ... 15 more occurrences in this file
+
+#### `src\storage\index\primary\primary_index_manager.rs`: 18 occurrences
+
+- Line 224: arguments to this method are incorrect
+- Line 225: arguments to this method are incorrect
+- Line 226: arguments to this method are incorrect
+- ... 15 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\multi_shortest_path.rs`: 17 occurrences
+
+- Line 539: arguments to this function are incorrect
+- Line 542: mismatched types: expected `&VertexId`, found `&Value`
+- Line 543: mismatched types: expected `&VertexId`, found `&Value`
+- ... 14 more occurrences in this file
+
+#### `src\storage\edge\edge_table.rs`: 12 occurrences
+
+- Line 1016: arguments to this method are incorrect
+- Line 1017: arguments to this method are incorrect
+- Line 1018: arguments to this method are incorrect
+- ... 9 more occurrences in this file
+
+#### `src\storage\edge\mutable_csr_variant.rs`: 8 occurrences
+
+- Line 334: arguments to this method are incorrect
+- Line 335: arguments to this method are incorrect
+- Line 348: arguments to this method are incorrect
+- ... 5 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\subgraph_executor.rs`: 6 occurrences
+
+- Line 446: mismatched types: expected `VertexId`, found `Value`
+- Line 460: mismatched types: expected `VertexId`, found `Value`
+- Line 460: mismatched types: expected `VertexId`, found `Value`
 - ... 3 more occurrences in this file
 
-#### `src\storage\engine\sync_wrapper.rs`: 6 occurrences
+#### `src\query\planning\statements\seeks\edge_seek.rs`: 4 occurrences
 
-- Line 197: mismatched types: expected `&Value`, found `&VertexId`
-- Line 238: mismatched types: expected `&Value`, found `&VertexId`
-- Line 277: mismatched types: expected `&Value`, found `&VertexId`
-- ... 3 more occurrences in this file
-
-#### `src\storage\index\secondary\index_updater.rs`: 6 occurrences
-
-- Line 234: arguments to this method are incorrect
-- Line 279: arguments to this method are incorrect
-- Line 659: mismatched types: expected `Value`, found `VertexId`
-- ... 3 more occurrences in this file
-
-#### `src\storage\engine\property_graph\transaction_targets\recovery.rs`: 5 occurrences
-
-- Line 76: mismatched types: expected `VertexId`, found `u64`
-- Line 78: mismatched types: expected `VertexId`, found `u64`
-- Line 172: mismatched types: expected `VertexId`, found `u64`
-- ... 2 more occurrences in this file
-
-#### `src\query\executor\graph_operations\graph_traversal\shortest_path.rs`: 4 occurrences
-
-- Line 81: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
-- Line 149: arguments to this method are incorrect
-- Line 164: arguments to this method are incorrect
+- Line 219: arguments to this function are incorrect
+- Line 224: arguments to this function are incorrect
+- Line 239: arguments to this function are incorrect
 - ... 1 more occurrences in this file
 
-#### `src\query\executor\graph_operations\graph_traversal\algorithms\subgraph_executor.rs`: 3 occurrences
+#### `src\storage\iterator\edge_iter.rs`: 4 occurrences
 
-- Line 220: mismatched types: expected `Vec<(VertexId, Edge)>`, found `Vec<(Value, Edge)>`
-- Line 234: mismatched types: expected `&VertexId`, found `&Value`
-- Line 244: mismatched types: expected `&VertexId`, found `&Value`
+- Line 144: arguments to this method are incorrect
+- Line 145: arguments to this method are incorrect
+- Line 146: arguments to this method are incorrect
+- ... 1 more occurrences in this file
 
-#### `src\transaction\insert_transaction.rs`: 3 occurrences
+#### `src\query\executor\expression\functions\builtin\path.rs`: 3 occurrences
 
-- Line 194: mismatched types: expected `VertexId`, found integer
-- Line 358: mismatched types: expected `VertexId`, found integer
-- Line 362: mismatched types: expected `VertexId`, found integer
+- Line 101: mismatched types: expected `VertexId`, found `Value`
+- Line 111: arguments to this function are incorrect
+- Line 118: arguments to this function are incorrect
 
-#### `src\query\executor\graph_operations\graph_traversal\expand.rs`: 3 occurrences
+#### `src\storage\engine\batch.rs`: 2 occurrences
 
-- Line 218: mismatched types: expected `&VertexId`, found `&Value`
-- Line 270: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
-- Line 272: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
+- Line 414: arguments to this method are incorrect
+- Line 445: arguments to this method are incorrect
 
-#### `src\query\executor\graph_operations\graph_traversal\traverse.rs`: 3 occurrences
+#### `src\query\executor\utils\tag_filter.rs`: 2 occurrences
 
-- Line 245: mismatched types: expected `&Value`, found `&VertexId`
-- Line 251: mismatched types: expected `&VertexId`, found `&Value`
-- Line 295: mismatched types: expected `Value`, found `VertexId`
+- Line 101: mismatched types: expected `VertexId`, found `Value`
+- Line 121: mismatched types: expected `VertexId`, found `Value`
 
-#### `src\query\planning\statements\dql\path_planner.rs`: 2 occurrences
+#### `src\query\executor\expression\functions\builtin\graph.rs`: 2 occurrences
 
-- Line 132: mismatched types: expected `Vec<VertexId>`, found `Vec<Value>`
-- Line 133: mismatched types: expected `Vec<VertexId>`, found `Vec<Value>`
+- Line 273: mismatched types: expected `VertexId`, found `Value`
+- Line 277: arguments to this function are incorrect
 
-#### `src\query\planning\statements\paths\shortest_path_planner.rs`: 2 occurrences
+#### `src\storage\iterator\vertex_iter.rs`: 1 occurrences
 
-- Line 214: mismatched types: expected `Value`, found `VertexId`
-- Line 268: mismatched types: expected `&VertexId`, found `&Value`
+- Line 192: mismatched types: expected `VertexId`, found integer
 
-#### `src\query\planning\statements\seeks\vertex_seek.rs`: 2 occurrences
+#### `src\query\executor\graph_operations\graph_traversal\all_paths.rs`: 1 occurrences
 
-- Line 35: mismatched types: expected `&VertexId`, found `&Value`
-- Line 43: mismatched types: expected `&VertexId`, found `&Value`
+- Line 639: arguments to this function are incorrect
 
-#### `src\query\executor\factory\builders\traversal_builder.rs`: 2 occurrences
+#### `src\storage\edge\cache_optimized_csr.rs`: 1 occurrences
 
-- Line 172: mismatched types: expected `Vec<VertexId>`, found `Vec<Value>`
-- Line 222: mismatched types: expected `Vec<VertexId>`, found `Vec<Value>`
+- Line 1046: mismatched types: expected `u64`, found `i64`
 
-#### `src\storage\engine\graph_storage\index_manager.rs`: 2 occurrences
+#### `src\transaction\insert_transaction.rs`: 1 occurrences
 
-- Line 94: mismatched types: expected `&Value`, found `&VertexId`
-- Line 117: arguments to this method are incorrect
+- Line 420: mismatched types: expected `VertexId`, found integer
 
-#### `src\query\planning\statements\seeks\scan_seek.rs`: 2 occurrences
+#### `src\query\optimizer\cost\calculator.rs`: 1 occurrences
 
-- Line 72: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
-- Line 95: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
+- Line 953: mismatched types: expected `VertexId`, found `Value`
 
-#### `src\storage\engine\property_graph\core_ops.rs`: 2 occurrences
+### error[E0614]: type `core::types::storage_ids::VertexId` cannot be dereferenced: can't be dereferenced
 
-- Line 50: mismatched types: expected `VertexId`, found `u64`
-- Line 83: mismatched types: expected `VertexId`, found `u64`
-
-#### `src\query\planning\statements\seeks\index_seek.rs`: 1 occurrences
-
-- Line 49: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
-
-#### `src\query\executor\result_processing\transformations\append_vertices.rs`: 1 occurrences
-
-- Line 184: mismatched types: expected `&VertexId`, found `&Value`
-
-#### `src\query\planning\statements\seeks\prop_index_seek.rs`: 1 occurrences
-
-- Line 312: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
-
-#### `src\query\planning\statements\seeks\variable_prop_index_seek.rs`: 1 occurrences
-
-- Line 310: mismatched types: expected `Vec<Value>`, found `Vec<VertexId>`
-
-#### `src\storage\index\secondary\index_data_manager.rs`: 1 occurrences
-
-- Line 614: arguments to this method are incorrect
-
-### error[E0277]: the trait bound `std::string::String: From<&storage_ids::VertexId>` is not satisfied: the trait `From<&storage_ids::VertexId>` is not implemented for `std::string::String`
-
-**Total Occurrences**: 4  
-**Unique Files**: 3
-
-#### `src\query\executor\graph_operations\graph_traversal\algorithms\subgraph_executor.rs`: 2 occurrences
-
-- Line 218: a value of type `Vec<(value_def::Value, Edge)>` cannot be built from an iterator over elements of type `(storage_ids::VertexId, Edge)`: value of type `Vec<(value_def::Value, Edge)>` cannot be built from `std::iter::Iterator<Item=(storage_ids::VertexId, Edge)>`
-- Line 230: a value of type `Vec<value_def::Value>` cannot be built from an iterator over elements of type `storage_ids::VertexId`: value of type `Vec<value_def::Value>` cannot be built from `std::iter::Iterator<Item=storage_ids::VertexId>`
-
-#### `src\storage\engine\graph_storage\type_utils.rs`: 1 occurrences
-
-- Line 38: the trait bound `std::string::String: From<&storage_ids::VertexId>` is not satisfied: the trait `From<&storage_ids::VertexId>` is not implemented for `std::string::String`
-
-#### `src\storage\edge\csr.rs`: 1 occurrences
-
-- Line 125: the trait bound `ImmutableNbr: std::marker::Copy` is not satisfied: the trait `std::marker::Copy` is not implemented for `ImmutableNbr`
-
-### error[E0282]: type annotations needed
-
-**Total Occurrences**: 2  
+**Total Occurrences**: 3  
 **Unique Files**: 1
 
-#### `src\query\executor\graph_operations\graph_traversal\traversal_utils.rs`: 2 occurrences
+#### `src\query\executor\expression\functions\builtin\path.rs`: 3 occurrences
 
-- Line 44: type annotations needed
-- Line 127: type annotations needed
-
-### error[E0507]: cannot move out of index of `Vec<Nbr>`: move occurs because value has type `Nbr`, which does not implement the `Copy` trait
-
-**Total Occurrences**: 2  
-**Unique Files**: 2
-
-#### `src\storage\edge\mutable_csr.rs`: 1 occurrences
-
-- Line 992: cannot move out of index of `Vec<Nbr>`: move occurs because value has type `Nbr`, which does not implement the `Copy` trait
-
-#### `src\storage\index\primary\edge_id_index.rs`: 1 occurrences
-
-- Line 70: cannot move out of dereference of `dashmap::mapref::one::Ref<'_, u64, edge_id_index::EdgeLocation>`: move occurs because value has type `edge_id_index::EdgeLocation`, which does not implement the `Copy` trait
-
-### error[E0433]: failed to resolve: use of undeclared type `VertexId`: use of undeclared type `VertexId`
-
-**Total Occurrences**: 2  
-**Unique Files**: 1
-
-#### `src\query\executor\graph_operations\graph_traversal\traversal_utils.rs`: 2 occurrences
-
-- Line 43: failed to resolve: use of undeclared type `VertexId`: use of undeclared type `VertexId`
-- Line 126: failed to resolve: use of undeclared type `VertexId`: use of undeclared type `VertexId`
+- Line 148: type `core::types::storage_ids::VertexId` cannot be dereferenced: can't be dereferenced
+- Line 153: type `core::types::storage_ids::VertexId` cannot be dereferenced: can't be dereferenced
+- Line 158: type `core::types::storage_ids::VertexId` cannot be dereferenced: can't be dereferenced
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `Value`
+### warning: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
 
-**Total Occurrences**: 3  
-**Unique Files**: 3
+**Total Occurrences**: 222  
+**Unique Files**: 42
 
-#### `src\query\executor\graph_operations\graph_traversal\algorithms\bidirectional_bfs.rs`: 1 occurrences
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\multi_shortest_path.rs`: 25 occurrences
 
-- Line 8: unused import: `Value`
+- Line 123: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*src`
+- Line 125: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*src`
+- Line 126: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*src`
+- ... 22 more occurrences in this file
 
-#### `src\query\executor\factory\builders\traversal_builder.rs`: 1 occurrences
+#### `src\query\executor\graph_operations\graph_traversal\all_paths.rs`: 19 occurrences
 
-- Line 189: unused import: `crate::core::Value`
+- Line 88: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `v.vid`
+- Line 250: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- Line 257: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- ... 16 more occurrences in this file
 
-#### `src\query\executor\graph_operations\graph_traversal\algorithms\dijkstra.rs`: 1 occurrences
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\a_star.rs`: 17 occurrences
 
-- Line 9: unused import: `Value`
+- Line 122: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*current_id`
+- Line 128: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*end_id`
+- Line 185: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- ... 14 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\bfs_shortest.rs`: 17 occurrences
+
+- Line 181: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- Line 183: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- Line 215: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `dst`
+- ... 14 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\bidirectional_bfs.rs`: 16 occurrences
+
+- Line 71: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- Line 78: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- Line 85: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- ... 13 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\dijkstra.rs`: 13 occurrences
+
+- Line 96: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- Line 103: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- Line 110: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- ... 10 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\subgraph_executor.rs`: 11 occurrences
+
+- Line 113: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- Line 210: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- Line 213: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- ... 8 more occurrences in this file
+
+#### `src\transaction\undo_log.rs`: 11 occurrences
+
+- Line 156: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `self.vid`
+- Line 180: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `self.src_vid`
+- Line 182: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `self.dst_vid`
+- ... 8 more occurrences in this file
+
+#### `src\storage\engine\sync_wrapper.rs`: 10 occurrences
+
+- Line 192: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 220: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 234: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- ... 7 more occurrences in this file
+
+#### `src\storage\engine\graph_storage\writer.rs`: 9 occurrences
+
+- Line 42: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 63: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 82: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- ... 6 more occurrences in this file
+
+#### `src\storage\index\secondary\index_updater.rs`: 8 occurrences
+
+- Line 234: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- Line 235: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+- Line 281: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- ... 5 more occurrences in this file
+
+#### `src\core\npath.rs`: 5 occurrences
+
+- Line 467: unused import: `crate::core::Value`
+- Line 140: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `new_path.vertex.vid`
+- Line 249: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- ... 2 more occurrences in this file
+
+#### `src\storage\edge\edge_table.rs`: 5 occurrences
+
+- Line 353: redundant field names in struct initialization: help: replace it with: `src_vid`
+- Line 533: redundant field names in struct initialization: help: replace it with: `src_vid`
+- Line 275: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `nbr.neighbor`
+- ... 2 more occurrences in this file
+
+#### `src\query\executor\result_processing\topn.rs`: 4 occurrences
+
+- Line 782: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 805: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 860: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- ... 1 more occurrences in this file
+
+#### `src\core\vertex_edge_path.rs`: 4 occurrences
+
+- Line 216: this `impl` can be derived
+- Line 645: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `step.edge.src`
+- Line 646: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `step.edge.dst`
+- ... 1 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\traverse.rs`: 4 occurrences
+
+- Line 247: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*current_node`
+- Line 299: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 334: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `path.src.vid`
+- ... 1 more occurrences in this file
+
+#### `src\storage\edge\mutable_csr.rs`: 4 occurrences
+
+- Line 749: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `src_list[i]`
+- Line 751: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `dst_list[i]`
+- Line 768: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `src`
+- ... 1 more occurrences in this file
+
+#### `src\query\executor\graph_operations\graph_traversal\expand_all.rs`: 3 occurrences
+
+- Line 207: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `neighbor_id`
+- Line 226: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `neighbor_id`
+- Line 238: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `neighbor_id`
+
+#### `src\query\executor\data_modification\update.rs`: 3 occurrences
+
+- Line 223: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex_vid`
+- Line 290: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge_src`
+- Line 291: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge_dst`
+
+#### `src\storage\engine\graph_storage\index_manager.rs`: 3 occurrences
+
+- Line 94: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `vertex.vid`
+- Line 118: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- Line 119: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+
+#### `src\storage\edge\single_mutable_csr.rs`: 3 occurrences
+
+- Line 350: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `dst_list[i]`
+- Line 454: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `self.src`
+- Line 488: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `src`
+
+#### `src\sync\vector_sync.rs`: 2 occurrences
+
+- Line 384: the borrowed expression implements the required traits: help: change this to: `vertex.vid`
+- Line 442: the borrowed expression implements the required traits: help: change this to: `vertex.vid`
+
+#### `src\query\executor\admin\analyze.rs`: 2 occurrences
+
+- Line 159: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*edge.src()`
+- Line 160: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*edge.dst()`
+
+#### `src\query\executor\graph_operations\graph_traversal\algorithms\types.rs`: 2 occurrences
+
+- Line 47: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*dst`
+- Line 48: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*src`
+
+#### `src\storage\edge\single_immutable_csr.rs`: 2 occurrences
+
+- Line 109: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `dst_list[i]`
+- Line 254: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `src`
+
+#### `src\query\planning\statements\seeks\scan_seek.rs`: 2 occurrences
+
+- Line 66: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*vertex.vid()`
+- Line 90: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*vertex.vid()`
+
+#### `src\storage\index\secondary\index_data_manager.rs`: 2 occurrences
+
+- Line 612: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.src`
+- Line 613: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+
+#### `src\query\executor\expression\functions\builtin\graph.rs`: 2 occurrences
+
+- Line 227: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `e.src`
+- Line 245: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `e.dst`
+
+#### `src\storage\test_mock.rs`: 1 occurrences
+
+- Line 13: unused import: `NullType`
+
+#### `src\query\executor\result_processing\transformations\rollup_apply.rs`: 1 occurrences
+
+- Line 101: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `(*edge.dst())`
+
+#### `src\storage\edge\csr.rs`: 1 occurrences
+
+- Line 136: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `dst_list[i]`
+
+#### `src\query\planning\statements\seeks\index_seek.rs`: 1 occurrences
+
+- Line 39: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*vertex.vid()`
+
+#### `src\api\core\batch.rs`: 1 occurrences
+
+- Line 309: unused import: `crate::core::Value`
+
+#### `src\storage\engine\batch.rs`: 1 occurrences
+
+- Line 180: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `self.current_src`
+
+#### `src\storage\engine\graph_storage\type_utils.rs`: 1 occurrences
+
+- Line 38: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `record.vid`
+
+#### `src\query\planning\statements\paths\shortest_path_planner.rs`: 1 occurrences
+
+- Line 215: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*vertex.vid()`
+
+#### `src\query\planning\statements\seeks\variable_prop_index_seek.rs`: 1 occurrences
+
+- Line 304: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*vertex.vid()`
+
+#### `src\storage\index\primary\degree_index.rs`: 1 occurrences
+
+- Line 244: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*entry.key()`
+
+#### `src\query\executor\data_access\path.rs`: 1 occurrences
+
+- Line 70: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `edge.dst`
+
+#### `src\query\planning\statements\seeks\prop_index_seek.rs`: 1 occurrences
+
+- Line 306: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*vertex.vid()`
+
+#### `src\query\planning\statements\seeks\vertex_seek.rs`: 1 occurrences
+
+- Line 41: using `clone` on type `VertexId` which implements the `Copy` trait: help: try dereferencing it: `*vertex.vid()`
+
+#### `src\storage\edge\cache_optimized_csr.rs`: 1 occurrences
+
+- Line 825: using `clone` on type `VertexId` which implements the `Copy` trait: help: try removing the `clone` call: `dst`
 

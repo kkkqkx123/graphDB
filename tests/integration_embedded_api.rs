@@ -21,6 +21,7 @@ use graphdb::api::embedded::{
     BatchConfig, BatchError, BatchItemType, BatchResult, DatabaseConfig, GraphDatabase,
     QueryResult, ResultMetadata, Row, SyncMode, TransactionConfig,
 };
+use graphdb::core::types::VertexId;
 use graphdb::core::{Edge, Value, Vertex};
 use graphdb::storage::GraphStorage;
 
@@ -514,7 +515,7 @@ fn test_batch_inserter_add_vertex() {
     let session = db.session().expect("创建会话失败");
 
     let mut inserter = session.batch_inserter(100);
-    let vertex = Vertex::with_vid(Value::Int(1));
+    let vertex = Vertex::with_vid(VertexId::from_int64(1));
     inserter.add_vertex(vertex);
 
     assert_eq!(inserter.buffered_vertices(), 1);
@@ -529,8 +530,8 @@ fn test_batch_inserter_add_edge() {
 
     let mut inserter = session.batch_inserter(100);
     let edge = Edge::new(
-        Value::Int(1),
-        Value::Int(2),
+        VertexId::from_int64(1),
+        VertexId::from_int64(2),
         "follows".to_string(),
         0,
         HashMap::new(),
@@ -753,7 +754,7 @@ fn test_row_get_bool() {
 
 #[test]
 fn test_row_get_vertex() {
-    let vertex = Vertex::with_vid(Value::Int(1));
+    let vertex = Vertex::with_vid(VertexId::from_int64(1));
     let mut values = HashMap::new();
     values.insert("v".to_string(), Value::Vertex(Box::new(vertex)));
     let core_row = graphdb::api::core::Row { values };
@@ -766,8 +767,8 @@ fn test_row_get_vertex() {
 #[test]
 fn test_row_get_edge() {
     let edge = Edge::new(
-        Value::Int(1),
-        Value::Int(2),
+        VertexId::from_int64(1),
+        VertexId::from_int64(2),
         "follows".to_string(),
         0,
         HashMap::new(),

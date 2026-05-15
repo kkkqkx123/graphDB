@@ -153,7 +153,7 @@ pub struct InsertVertexUndo {
 
 impl InsertVertexUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.delete_vertex(VertexIdentifier::new(self.v_label, self.vid.clone()), ts)
+        graph.delete_vertex(VertexIdentifier::new(self.v_label, self.vid), ts)
     }
 
     pub fn description(&self) -> String {
@@ -177,9 +177,9 @@ impl InsertEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
         graph.delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
             src_label: self.src_label,
-            src_vid: self.src_vid.clone(),
+            src_vid: self.src_vid,
             dst_label: self.dst_label,
-            dst_vid: self.dst_vid.clone(),
+            dst_vid: self.dst_vid,
             edge_label: self.edge_label,
             oe_offset: self.oe_offset,
             ie_offset: self.ie_offset,
@@ -207,7 +207,7 @@ pub struct UpdateVertexPropUndo {
 impl UpdateVertexPropUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
         graph.undo_update_vertex_property(
-            VertexIdentifier::new(self.v_label, self.vid.clone()),
+            VertexIdentifier::new(self.v_label, self.vid),
             self.col_id,
             self.old_value.clone(),
             ts,
@@ -241,9 +241,9 @@ impl UpdateEdgePropUndo {
         graph.undo_update_edge_property(
             EdgeIdentifier::new(
                 self.src_label,
-                self.src_vid.clone(),
+                self.src_vid,
                 self.dst_label,
-                self.dst_vid.clone(),
+                self.dst_vid,
                 self.edge_label,
             ),
             self.oe_offset,
@@ -281,15 +281,15 @@ pub struct RemoveVertexUndo {
 
 impl RemoveVertexUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
-        graph.revert_delete_vertex(VertexIdentifier::new(self.v_label, self.vid.clone()), ts)?;
+        graph.revert_delete_vertex(VertexIdentifier::new(self.v_label, self.vid), ts)?;
 
         for (src_label, dst_label, edge_label, edges) in &self.related_edges {
             for edge in edges {
                 graph.revert_delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
                     src_label: *src_label,
-                    src_vid: edge.src_vid.clone(),
+                    src_vid: edge.src_vid,
                     dst_label: *dst_label,
-                    dst_vid: edge.dst_vid.clone(),
+                    dst_vid: edge.dst_vid,
                     edge_label: *edge_label,
                     oe_offset: edge.oe_offset,
                     ie_offset: edge.ie_offset,
@@ -327,9 +327,9 @@ impl RemoveEdgeUndo {
     pub fn undo<T: UndoTarget + ?Sized>(&self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
         graph.revert_delete_edge(EdgeDeletionContext::new(EdgeDeletionContextParams {
             src_label: self.src_label,
-            src_vid: self.src_vid.clone(),
+            src_vid: self.src_vid,
             dst_label: self.dst_label,
-            dst_vid: self.dst_vid.clone(),
+            dst_vid: self.dst_vid,
             edge_label: self.edge_label,
             oe_offset: self.oe_offset,
             ie_offset: self.ie_offset,
@@ -850,13 +850,13 @@ mod tests {
     fn test_undo_log_manager() {
         let mut manager = UndoLogManager::new();
 
-        manager.add_insert_vertex(1, 100);
+        manager.add_insert_vertex(1, VertexId::from_int64(100));
         manager.add_insert_edge(AddInsertEdgeParams {
             src_label: 1,
             dst_label: 2,
             edge_label: 3,
-            src_vid: 100,
-            dst_vid: 200,
+            src_vid: VertexId::from_int64(100),
+            dst_vid: VertexId::from_int64(200),
             oe_offset: 0,
             ie_offset: 0,
         });
@@ -879,7 +879,7 @@ mod tests {
     fn test_insert_vertex_undo() {
         let undo = InsertVertexUndo {
             v_label: 1,
-            vid: 100,
+            vid: VertexId::from_int64(100),
         };
 
         let target = MockUndoTarget;
@@ -892,8 +892,8 @@ mod tests {
             src_label: 1,
             dst_label: 2,
             edge_label: 3,
-            src_vid: 100,
-            dst_vid: 200,
+            src_vid: VertexId::from_int64(100),
+            dst_vid: VertexId::from_int64(200),
             oe_offset: 0,
             ie_offset: 0,
         };
@@ -906,7 +906,7 @@ mod tests {
     fn test_update_vertex_prop_undo() {
         let undo = UpdateVertexPropUndo {
             v_label: 1,
-            vid: 100,
+            vid: VertexId::from_int64(100),
             col_id: 0,
             old_value: PropertyValue::Int(42),
         };
@@ -919,9 +919,9 @@ mod tests {
     fn test_update_edge_prop_undo() {
         let undo = UpdateEdgePropUndo {
             src_label: 1,
-            src_vid: 100,
+            src_vid: VertexId::from_int64(100),
             dst_label: 2,
-            dst_vid: 200,
+            dst_vid: VertexId::from_int64(200),
             edge_label: 3,
             oe_offset: 0,
             ie_offset: 0,
@@ -970,14 +970,14 @@ mod tests {
     fn test_remove_vertex_undo() {
         let undo = RemoveVertexUndo {
             v_label: 1,
-            vid: 100,
+            vid: VertexId::from_int64(100),
             related_edges: vec![(
                 1,
                 2,
                 3,
                 vec![RelatedEdgeInfo {
-                    src_vid: 100,
-                    dst_vid: 200,
+                    src_vid: VertexId::from_int64(100),
+                    dst_vid: VertexId::from_int64(200),
                     oe_offset: 0,
                     ie_offset: 0,
                 }],
@@ -993,9 +993,9 @@ mod tests {
     fn test_remove_edge_undo() {
         let undo = RemoveEdgeUndo {
             src_label: 1,
-            src_vid: 100,
+            src_vid: VertexId::from_int64(100),
             dst_label: 2,
-            dst_vid: 200,
+            dst_vid: VertexId::from_int64(200),
             edge_label: 3,
             oe_offset: 0,
             ie_offset: 0,
@@ -1059,9 +1059,9 @@ mod tests {
     fn test_undo_order_is_lifo() {
         let mut manager = UndoLogManager::new();
 
-        manager.add_insert_vertex(1, 100);
-        manager.add_insert_vertex(1, 200);
-        manager.add_insert_vertex(1, 300);
+        manager.add_insert_vertex(1, VertexId::from_int64(100));
+        manager.add_insert_vertex(1, VertexId::from_int64(200));
+        manager.add_insert_vertex(1, VertexId::from_int64(300));
 
         assert_eq!(manager.len(), 3);
 
@@ -1082,13 +1082,13 @@ mod tests {
     fn test_undo_log_manager_clear() {
         let mut manager = UndoLogManager::new();
 
-        manager.add_insert_vertex(1, 100);
+        manager.add_insert_vertex(1, VertexId::from_int64(100));
         manager.add_insert_edge(AddInsertEdgeParams {
             src_label: 1,
             dst_label: 2,
             edge_label: 3,
-            src_vid: 100,
-            dst_vid: 200,
+            src_vid: VertexId::from_int64(100),
+            dst_vid: VertexId::from_int64(200),
             oe_offset: 0,
             ie_offset: 0,
         });
@@ -1146,7 +1146,7 @@ mod tests {
     fn test_undo_log_entry_enum() {
         let entry = UndoLogEntry::InsertVertex(InsertVertexUndo {
             v_label: 1,
-            vid: 100,
+            vid: VertexId::from_int64(100),
         });
 
         let target = MockUndoTarget;

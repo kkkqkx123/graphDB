@@ -1,6 +1,7 @@
 #[cfg(test)]
 #[allow(clippy::module_inception)]
 mod tests {
+    use crate::core::types::VertexId;
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;
     use crate::query::executor::base::Executor;
@@ -28,10 +29,10 @@ mod tests {
             let mut storage_lock = storage.write();
 
             // Create vertices
-            let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);
-            let vertex_b = Vertex::new(Value::String("B".to_string()), vec![]);
-            let vertex_c = Vertex::new(Value::String("C".to_string()), vec![]);
-            let vertex_d = Vertex::new(Value::String("D".to_string()), vec![]);
+            let vertex_a = Vertex::new(VertexId::from("A"), vec![]);
+            let vertex_b = Vertex::new(VertexId::from("B"), vec![]);
+            let vertex_c = Vertex::new(VertexId::from("C"), vec![]);
+            let vertex_d = Vertex::new(VertexId::from("D"), vec![]);
 
             let id_a = storage_lock
                 .insert_vertex(space, vertex_a)
@@ -48,22 +49,22 @@ mod tests {
 
             // Create an edge.
             let edge_ab = Edge::new(
-                id_a.clone(),
-                id_b.clone(),
+                id_a,
+                id_b,
                 "connect".to_string(),
                 0,
                 std::collections::HashMap::new(),
             );
             let edge_bc = Edge::new(
-                id_b.clone(),
-                id_c.clone(),
+                id_b,
+                id_c,
                 "connect".to_string(),
                 0,
                 std::collections::HashMap::new(),
             );
             let edge_ad = Edge::new(
-                id_a.clone(),
-                id_d.clone(),
+                id_a,
+                id_d,
                 "connect".to_string(),
                 0,
                 std::collections::HashMap::new(),
@@ -160,7 +161,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -173,7 +174,7 @@ mod tests {
             ShortestPathAlgorithmType::BFS,
         );
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -197,10 +198,10 @@ mod tests {
             let mut storage_lock = storage.write();
 
             // Create vertices
-            let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);
-            let vertex_b = Vertex::new(Value::String("B".to_string()), vec![]);
-            let vertex_c = Vertex::new(Value::String("C".to_string()), vec![]);
-            let vertex_d = Vertex::new(Value::String("D".to_string()), vec![]);
+            let vertex_a = Vertex::new(VertexId::from("A"), vec![]);
+            let vertex_b = Vertex::new(VertexId::from("B"), vec![]);
+            let vertex_c = Vertex::new(VertexId::from("C"), vec![]);
+            let vertex_d = Vertex::new(VertexId::from("D"), vec![]);
 
             let id_a = storage_lock
                 .insert_vertex(space, vertex_a)
@@ -219,8 +220,8 @@ mod tests {
             let mut props_ab = std::collections::HashMap::new();
             props_ab.insert("weight".to_string(), Value::Int(1));
             let edge_ab = Edge::new(
-                id_a.clone(),
-                id_b.clone(),
+                id_a,
+                id_b,
                 "connect".to_string(),
                 1, // ranking also set to 1 for testing
                 props_ab,
@@ -229,8 +230,8 @@ mod tests {
             let mut props_bc = std::collections::HashMap::new();
             props_bc.insert("weight".to_string(), Value::Int(2));
             let edge_bc = Edge::new(
-                id_b.clone(),
-                id_c.clone(),
+                id_b,
+                id_c,
                 "connect".to_string(),
                 2,
                 props_bc,
@@ -239,8 +240,8 @@ mod tests {
             let mut props_ad = std::collections::HashMap::new();
             props_ad.insert("weight".to_string(), Value::Int(5));
             let edge_ad = Edge::new(
-                id_a.clone(),
-                id_d.clone(),
+                id_a,
+                id_d,
                 "connect".to_string(),
                 5,
                 props_ad,
@@ -249,8 +250,8 @@ mod tests {
             let mut props_dc = std::collections::HashMap::new();
             props_dc.insert("weight".to_string(), Value::Int(1));
             let edge_dc = Edge::new(
-                id_d.clone(),
-                id_c.clone(),
+                id_d,
+                id_c,
                 "connect".to_string(),
                 1,
                 props_dc,
@@ -279,7 +280,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -294,7 +295,7 @@ mod tests {
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -307,7 +308,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -322,7 +323,7 @@ mod tests {
         )
         .with_weight_config(EdgeWeightConfig::Ranking);
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -336,7 +337,7 @@ mod tests {
 
         // Create an executor using the configuration from an unauthorized graph.
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -350,7 +351,7 @@ mod tests {
         )
         .with_weight_config(EdgeWeightConfig::Unweighted);
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -374,25 +375,25 @@ mod tests {
             props_a.insert("lat".to_string(), Value::Float(0.0));
             props_a.insert("lon".to_string(), Value::Float(0.0));
             let vertex_a =
-                Vertex::new_with_properties(Value::String("A".to_string()), vec![], props_a);
+                Vertex::new_with_properties(VertexId::from("A"), vec![], props_a);
 
             let mut props_b = std::collections::HashMap::new();
             props_b.insert("lat".to_string(), Value::Float(3.0));
             props_b.insert("lon".to_string(), Value::Float(4.0));
             let vertex_b =
-                Vertex::new_with_properties(Value::String("B".to_string()), vec![], props_b);
+                Vertex::new_with_properties(VertexId::from("B"), vec![], props_b);
 
             let mut props_c = std::collections::HashMap::new();
             props_c.insert("lat".to_string(), Value::Float(6.0));
             props_c.insert("lon".to_string(), Value::Float(8.0));
             let vertex_c =
-                Vertex::new_with_properties(Value::String("C".to_string()), vec![], props_c);
+                Vertex::new_with_properties(VertexId::from("C"), vec![], props_c);
 
             let mut props_d = std::collections::HashMap::new();
             props_d.insert("lat".to_string(), Value::Float(1.0));
             props_d.insert("lon".to_string(), Value::Float(1.0));
             let vertex_d =
-                Vertex::new_with_properties(Value::String("D".to_string()), vec![], props_d);
+                Vertex::new_with_properties(VertexId::from("D"), vec![], props_d);
 
             let id_a = storage_lock
                 .insert_vertex(space, vertex_a)
@@ -411,8 +412,8 @@ mod tests {
             let mut props_ab = std::collections::HashMap::new();
             props_ab.insert("weight".to_string(), Value::Int(5));
             let edge_ab = Edge::new(
-                id_a.clone(),
-                id_b.clone(),
+                id_a,
+                id_b,
                 "connect".to_string(),
                 5,
                 props_ab,
@@ -421,8 +422,8 @@ mod tests {
             let mut props_bc = std::collections::HashMap::new();
             props_bc.insert("weight".to_string(), Value::Int(5));
             let edge_bc = Edge::new(
-                id_b.clone(),
-                id_c.clone(),
+                id_b,
+                id_c,
                 "connect".to_string(),
                 5,
                 props_bc,
@@ -431,8 +432,8 @@ mod tests {
             let mut props_ad = std::collections::HashMap::new();
             props_ad.insert("weight".to_string(), Value::Int(2));
             let edge_ad = Edge::new(
-                id_a.clone(),
-                id_d.clone(),
+                id_a,
+                id_d,
                 "connect".to_string(),
                 2,
                 props_ad,
@@ -441,8 +442,8 @@ mod tests {
             let mut props_dc = std::collections::HashMap::new();
             props_dc.insert("weight".to_string(), Value::Int(8));
             let edge_dc = Edge::new(
-                id_d.clone(),
-                id_c.clone(),
+                id_d,
+                id_c,
                 "connect".to_string(),
                 8,
                 props_dc,
@@ -471,7 +472,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -490,7 +491,7 @@ mod tests {
             "lon".to_string(),
         ));
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -503,7 +504,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -519,7 +520,7 @@ mod tests {
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::Zero);
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -532,7 +533,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -548,7 +549,7 @@ mod tests {
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::ScaleFactor(0.5));
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -562,7 +563,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -577,7 +578,7 @@ mod tests {
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
-        dijkstra_executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        dijkstra_executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         dijkstra_executor.max_depth = Some(10);
 
         assert_eq!(dijkstra_executor.name(), "ShortestPathExecutor");
@@ -596,7 +597,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -611,7 +612,7 @@ mod tests {
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -633,7 +634,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = crate::query::executor::base::ShortestPathConfig {
-            start_vertex_ids: vec![Value::String("A".to_string())],
+            start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
         };
@@ -648,7 +649,7 @@ mod tests {
         )
         .with_weight_config(EdgeWeightConfig::Unweighted);
 
-        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.set_end_vertex_ids(vec![VertexId::from("C")]);
         executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");

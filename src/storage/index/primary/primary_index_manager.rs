@@ -221,47 +221,47 @@ mod tests {
     fn test_basic_operations() {
         let manager = PrimaryIndexManager::new();
 
-        manager.insert_edge(1, 100, 200, 10);
-        manager.insert_edge(2, 100, 300, 20);
-        manager.insert_edge(3, 200, 300, 30);
+        manager.insert_edge(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
+        manager.insert_edge(2, VertexId::from_u64(100), VertexId::from_u64(300), 20);
+        manager.insert_edge(3, VertexId::from_u64(200), VertexId::from_u64(300), 30);
 
         assert_eq!(manager.edge_count(), 3);
         assert_eq!(manager.vertex_count(), 3);
 
         let loc = manager.get_edge(1).expect("Should find edge 1");
-        assert_eq!(loc.src, 100);
-        assert_eq!(loc.dst, 200);
+        assert_eq!(loc.src, VertexId::from_u64(100));
+        assert_eq!(loc.dst, VertexId::from_u64(200));
         assert_eq!(loc.prop_offset, 10);
 
-        assert_eq!(manager.out_degree(100), 2);
-        assert_eq!(manager.in_degree(300), 2);
+        assert_eq!(manager.out_degree(VertexId::from_u64(100)), 2);
+        assert_eq!(manager.in_degree(VertexId::from_u64(300)), 2);
     }
 
     #[test]
     fn test_remove_edge() {
         let manager = PrimaryIndexManager::new();
 
-        manager.insert_edge(1, 100, 200, 10);
-        manager.insert_edge(2, 100, 300, 20);
+        manager.insert_edge(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
+        manager.insert_edge(2, VertexId::from_u64(100), VertexId::from_u64(300), 20);
 
         assert_eq!(manager.edge_count(), 2);
-        assert_eq!(manager.out_degree(100), 2);
+        assert_eq!(manager.out_degree(VertexId::from_u64(100)), 2);
 
         let removed = manager.remove_edge(1).expect("Should remove edge 1");
-        assert_eq!(removed.src, 100);
-        assert_eq!(removed.dst, 200);
+        assert_eq!(removed.src, VertexId::from_u64(100));
+        assert_eq!(removed.dst, VertexId::from_u64(200));
 
         assert_eq!(manager.edge_count(), 1);
-        assert_eq!(manager.out_degree(100), 1);
-        assert_eq!(manager.in_degree(200), 0);
+        assert_eq!(manager.out_degree(VertexId::from_u64(100)), 1);
+        assert_eq!(manager.in_degree(VertexId::from_u64(200)), 0);
     }
 
     #[test]
     fn test_stats() {
         let manager = PrimaryIndexManager::new();
 
-        manager.insert_edge(1, 100, 200, 10);
-        manager.insert_edge(2, 100, 300, 20);
+        manager.insert_edge(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
+        manager.insert_edge(2, VertexId::from_u64(100), VertexId::from_u64(300), 20);
 
         let stats = manager.stats();
         assert_eq!(stats.total_entries(), 5);
@@ -272,8 +272,8 @@ mod tests {
     fn test_clear() {
         let manager = PrimaryIndexManager::new();
 
-        manager.insert_edge(1, 100, 200, 10);
-        manager.insert_edge(2, 100, 300, 20);
+        manager.insert_edge(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
+        manager.insert_edge(2, VertexId::from_u64(100), VertexId::from_u64(300), 20);
 
         assert_eq!(manager.edge_count(), 2);
 

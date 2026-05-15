@@ -10,6 +10,7 @@
 
 mod common;
 
+use graphdb::core::types::VertexId;
 use graphdb::core::vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
 use graphdb::core::{List, NullType, Value};
 use graphdb::query::executor::expression::functions::FunctionRegistry;
@@ -25,7 +26,7 @@ fn create_test_vertex(vid: i64, tags: Vec<(&str, HashMap<&str, Value>)>) -> Vert
             Tag::new(name.to_string(), props)
         })
         .collect();
-    Vertex::new(Value::Int(vid as i32), tags)
+    Vertex::new(VertexId::from_int64(vid), tags)
 }
 
 /// Create edges for testing purposes.
@@ -39,8 +40,8 @@ fn create_test_edge(
     let props: HashMap<String, Value> =
         props.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
     Edge::new(
-        Value::Int(src as i32),
-        Value::Int(dst as i32),
+        VertexId::from_int64(src),
+        VertexId::from_int64(dst),
         edge_type.to_string(),
         rank,
         props,

@@ -68,23 +68,23 @@ impl<S: StorageClient> BidirectionalBFS<S> {
                 let (neighbor_id, weight) = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
                         if edge.dst == *node_id {
-                            (edge.src.clone(), edge.ranking as f64)
+                            (edge.src, edge.ranking as f64)
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
                         if edge.src == *node_id {
-                            (edge.dst.clone(), edge.ranking as f64)
+                            (edge.dst, edge.ranking as f64)
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
                         if edge.src == *node_id {
-                            (edge.dst.clone(), edge.ranking as f64)
+                            (edge.dst, edge.ranking as f64)
                         } else if edge.dst == *node_id {
-                            (edge.src.clone(), edge.ranking as f64)
+                            (edge.src, edge.ranking as f64)
                         } else {
                             return None;
                         }
@@ -128,8 +128,8 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                 let initial_npath = Arc::new(NPath::new(Arc::new(start_vertex)));
                 state
                     .left_queue
-                    .push_back((start_id.clone(), initial_npath.clone()));
-                visited_left.insert(start_id.clone(), initial_npath);
+                    .push_back((*start_id, initial_npath.clone()));
+                visited_left.insert(*start_id, initial_npath);
             }
         }
 
@@ -138,8 +138,8 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                 let initial_npath = Arc::new(NPath::new(Arc::new(end_vertex)));
                 state
                     .right_queue
-                    .push_back((end_id.clone(), initial_npath.clone()));
-                visited_right.insert(end_id.clone(), initial_npath);
+                    .push_back((*end_id, initial_npath.clone()));
+                visited_right.insert(*end_id, initial_npath);
             }
         }
 
@@ -196,10 +196,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
 
                         state
                             .left_queue
-                            .push_back((neighbor_id.clone(), new_npath.clone()));
-                        visited_left.insert(neighbor_id.clone(), new_npath);
+                            .push_back((neighbor_id, new_npath.clone()));
+                        visited_left.insert(neighbor_id, new_npath);
                         left_step_edges
-                            .insert(neighbor_id.clone(), vec![(edge, current_id.clone())]);
+                            .insert(neighbor_id, vec![(edge, current_id)]);
                     }
                 }
             }
@@ -243,10 +243,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
 
                         state
                             .right_queue
-                            .push_back((neighbor_id.clone(), new_npath.clone()));
-                        visited_right.insert(neighbor_id.clone(), new_npath);
+                            .push_back((neighbor_id, new_npath.clone()));
+                        visited_right.insert(neighbor_id, new_npath);
                         right_step_edges
-                            .insert(neighbor_id.clone(), vec![(edge, current_id.clone())]);
+                            .insert(neighbor_id, vec![(edge, current_id)]);
                     }
                 }
             }

@@ -331,8 +331,8 @@ mod tests {
         assert!(!csr.is_cache_optimized());
         assert_eq!(csr.csr_type(), CsrType::Mutable);
 
-        assert!(csr.insert_edge(0, 1, 100, 0, 1));
-        assert!(csr.has_edge(0, 1, 1));
+        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
@@ -345,8 +345,8 @@ mod tests {
         assert!(!csr.is_cache_optimized());
         assert_eq!(csr.csr_type(), CsrType::SingleMutable);
 
-        assert!(csr.insert_edge(0, 1, 100, 0, 1));
-        assert!(csr.has_edge(0, 1, 1));
+        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
@@ -359,18 +359,18 @@ mod tests {
         assert!(!csr.is_single());
         assert_eq!(csr.csr_type(), CsrType::CacheOptimized);
 
-        assert!(csr.insert_edge(0, 1, 100, 0, 1));
-        assert!(csr.has_edge(0, 1, 1));
+        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
     #[test]
     fn test_clone() {
         let mut csr1 = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100);
-        csr1.insert_edge(0, 1, 100, 0, 1);
+        csr1.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
 
         let csr2 = csr1.clone();
         assert_eq!(csr2.edge_count(), 1);
-        assert!(csr2.has_edge(0, 1, 1));
+        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
     }
 }

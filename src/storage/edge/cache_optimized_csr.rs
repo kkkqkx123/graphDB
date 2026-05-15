@@ -1043,7 +1043,7 @@ mod tests {
 
         // Insert many edges for one vertex
         for i in 0..100 {
-            csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(i), i, 0, 10);
+            csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(i as i64), i as u64, 0, 10);
         }
 
         // Test SIMD version

@@ -177,7 +177,7 @@ impl<'a> Iterator for EdgeBatchReader<'a> {
         let mut collected = 0;
 
         while self.current_src < capacity_vid && collected < self.batch_size {
-            let edges = self.table.out_edges(self.current_src.clone(), self.ts);
+            let edges = self.table.out_edges(self.current_src, self.ts);
             if !edges.is_empty() {
                 let remaining = self.batch_size - collected;
                 let to_take = edges.len().min(remaining);
@@ -412,8 +412,8 @@ mod tests {
             let src = i * 2;
             let dst = i * 2 + 1;
             let result = table.insert_edge(
-                src,
-                dst,
+                VertexId::from_u64(src),
+                VertexId::from_u64(dst),
                 &[("weight".to_string(), Value::Double(i as f64 * 0.1))],
                 100,
             );
@@ -443,8 +443,8 @@ mod tests {
                 let src = i * 2 + 1000;
                 let dst = i * 2 + 1 + 1000;
                 writer.insert_edge(
-                    src,
-                    dst,
+                    VertexId::from_u64(src),
+                    VertexId::from_u64(dst),
                     vec![("weight".to_string(), Value::Double(i as f64 * 0.1))],
                 );
             }

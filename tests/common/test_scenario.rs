@@ -3,6 +3,7 @@
 //! Provides a high-level API for writing integration tests with fluent interface
 
 use crate::common::TestResult;
+use graphdb::core::types::VertexId;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
@@ -503,8 +504,8 @@ impl TestScenario {
             .as_ref()
             .map(|s| s.space_name.clone())
             .unwrap_or_default();
-        let src_val = Value::Int(src as i32);
-        let dst_val = Value::Int(dst as i32);
+        let src_vid = VertexId::from_int64(src);
+        let dst_vid = VertexId::from_int64(dst);
         let found = {
             let storage_guard = self.storage.write();
             let edges = storage_guard
@@ -512,7 +513,7 @@ impl TestScenario {
                 .unwrap_or_default();
             edges
                 .iter()
-                .any(|e| *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type)
+                .any(|e| *e.src() == src_vid && *e.dst() == dst_vid && e.edge_type == edge_type)
         };
         assert!(
             found,
@@ -529,8 +530,8 @@ impl TestScenario {
             .as_ref()
             .map(|s| s.space_name.clone())
             .unwrap_or_default();
-        let src_val = Value::Int(src as i32);
-        let dst_val = Value::Int(dst as i32);
+        let src_vid = VertexId::from_int64(src);
+        let dst_vid = VertexId::from_int64(dst);
         let found = {
             let storage_guard = self.storage.write();
             let edges = storage_guard
@@ -538,7 +539,7 @@ impl TestScenario {
                 .unwrap_or_default();
             edges
                 .iter()
-                .any(|e| *e.src() == src_val && *e.dst() == dst_val && e.edge_type == edge_type)
+                .any(|e| *e.src() == src_vid && *e.dst() == dst_vid && e.edge_type == edge_type)
         };
         assert!(
             !found,

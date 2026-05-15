@@ -4,6 +4,7 @@
 
 use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::vertex_edge_path::Tag;
+use graphdb::core::types::VertexId;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
 use graphdb::storage::GraphStorage;
@@ -230,7 +231,7 @@ impl SyncTestHarness {
                         .on_vertex_change(
                             space_id,
                             tag_name,
-                            &vertex.vid,
+                            &Value::from(vertex.vid),
                             &properties,
                             ChangeType::Insert,
                         )
@@ -259,7 +260,7 @@ impl SyncTestHarness {
         let txn_id = self.current_txn_id.unwrap();
 
         // Check if vertex already exists
-        let vertex_id = vertex.vid.clone();
+        let vertex_id = vertex.vid;
         let exists = self.storage.get_vertex(space_name, &vertex_id)?.is_some();
 
         if exists {
@@ -273,7 +274,7 @@ impl SyncTestHarness {
                             txn_id,
                             space_id,
                             tag_name,
-                            &vertex_id,
+                            &Value::from(vertex_id),
                             &[(field_name.clone(), value.clone())],
                             graphdb::sync::coordinator::ChangeType::Delete,
                         )?;
@@ -289,7 +290,7 @@ impl SyncTestHarness {
                         txn_id,
                         space_id,
                         tag_name,
-                        &vertex_id,
+                        &Value::from(vertex_id),
                         &[(field_name.clone(), value.clone())],
                         graphdb::sync::coordinator::ChangeType::Insert,
                     )?;
@@ -315,7 +316,7 @@ impl SyncTestHarness {
                             .on_vertex_change(
                                 space_id,
                                 tag_name,
-                                &vertex.vid,
+                                &Value::from(vertex.vid),
                                 &properties,
                                 ChangeType::Insert,
                             )
@@ -382,7 +383,8 @@ impl SyncTestHarness {
         space_name: &str,
         vid: &Value,
     ) -> Result<Option<Vertex>, Box<dyn std::error::Error>> {
-        Ok(self.storage.get_vertex(space_name, vid)?)
+        let vertex_id = VertexId::try_from(vid)?;
+        Ok(self.storage.get_vertex(space_name, &vertex_id)?)
     }
 
     /// Assert vertex exists
@@ -452,7 +454,7 @@ pub fn create_test_vertex(vid: i64, tag_name: &str, props: Vec<(&str, Value)>) -
         properties.insert(k.to_string(), v);
     }
     let tag = Tag::new(tag_name.to_string(), properties);
-    Vertex::new(Value::Int(vid as i32), vec![tag])
+    Vertex::new(VertexId::from_int64(vid), vec![tag])
 }
 
 /// Helper function to create test vertex with vector
@@ -474,7 +476,7 @@ pub fn create_test_vertex_with_vector(
     properties.insert(vector_prop.0.to_string(), Value::Vector(vector_value));
 
     let tag = Tag::new(tag_name.to_string(), properties);
-    Vertex::new(Value::Int(vid as i32), vec![tag])
+    Vertex::new(VertexId::from_int64(vid), vec![tag])
 }
 
 /// Helper function to generate random vector

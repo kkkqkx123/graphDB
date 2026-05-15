@@ -950,7 +950,7 @@ mod tests {
 
         // Graph types
         use crate::core::vertex_edge_path::Vertex;
-        let vertex = Vertex::with_vid(crate::core::value::Value::Int(1));
+        let vertex = Vertex::with_vid(crate::core::types::VertexId::from_int64(1));
         assert_eq!(
             calculator.get_type_cost_factor(&Value::Vertex(Box::new(vertex))),
             calculator.config.graph_type_cost_factor

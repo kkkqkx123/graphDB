@@ -158,21 +158,21 @@ mod tests {
     fn test_basic_operations() {
         let index = EdgeIdIndex::new();
 
-        index.insert(1, 100, 200, 10);
-        index.insert(2, 100, 300, 20);
-        index.insert(3, 200, 300, 30);
+        index.insert(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
+        index.insert(2, VertexId::from_u64(100), VertexId::from_u64(300), 20);
+        index.insert(3, VertexId::from_u64(200), VertexId::from_u64(300), 30);
 
         assert_eq!(index.len(), 3);
         assert_eq!(index.edge_count(), 3);
 
         let loc = index.get(1).expect("Should find edge 1");
-        assert_eq!(loc.src, 100);
-        assert_eq!(loc.dst, 200);
+        assert_eq!(loc.src, VertexId::from_u64(100));
+        assert_eq!(loc.dst, VertexId::from_u64(200));
         assert_eq!(loc.prop_offset, 10);
 
         let loc = index.get(2).expect("Should find edge 2");
-        assert_eq!(loc.src, 100);
-        assert_eq!(loc.dst, 300);
+        assert_eq!(loc.src, VertexId::from_u64(100));
+        assert_eq!(loc.dst, VertexId::from_u64(300));
 
         assert!(index.contains(1));
         assert!(!index.contains(999));
@@ -182,12 +182,12 @@ mod tests {
     fn test_remove() {
         let index = EdgeIdIndex::new();
 
-        index.insert(1, 100, 200, 10);
+        index.insert(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
         assert_eq!(index.len(), 1);
 
         let removed = index.remove(1).expect("Should remove edge 1");
-        assert_eq!(removed.src, 100);
-        assert_eq!(removed.dst, 200);
+        assert_eq!(removed.src, VertexId::from_u64(100));
+        assert_eq!(removed.dst, VertexId::from_u64(200));
 
         assert_eq!(index.len(), 0);
         assert!(index.get(1).is_none());
@@ -197,7 +197,7 @@ mod tests {
     fn test_update_prop_offset() {
         let index = EdgeIdIndex::new();
 
-        index.insert(1, 100, 200, 10);
+        index.insert(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
 
         let updated = index.update_prop_offset(1, 99);
         assert!(updated);
@@ -213,14 +213,14 @@ mod tests {
     fn test_entries_by_src_dst() {
         let index = EdgeIdIndex::new();
 
-        index.insert(1, 100, 200, 10);
-        index.insert(2, 100, 300, 20);
-        index.insert(3, 200, 300, 30);
+        index.insert(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
+        index.insert(2, VertexId::from_u64(100), VertexId::from_u64(300), 20);
+        index.insert(3, VertexId::from_u64(200), VertexId::from_u64(300), 30);
 
-        let src_entries = index.entries_by_src(100);
+        let src_entries = index.entries_by_src(VertexId::from_u64(100));
         assert_eq!(src_entries.len(), 2);
 
-        let dst_entries = index.entries_by_dst(300);
+        let dst_entries = index.entries_by_dst(VertexId::from_u64(300));
         assert_eq!(dst_entries.len(), 2);
     }
 
@@ -228,8 +228,8 @@ mod tests {
     fn test_clear() {
         let index = EdgeIdIndex::new();
 
-        index.insert(1, 100, 200, 10);
-        index.insert(2, 100, 300, 20);
+        index.insert(1, VertexId::from_u64(100), VertexId::from_u64(200), 10);
+        index.insert(2, VertexId::from_u64(100), VertexId::from_u64(300), 20);
 
         assert_eq!(index.len(), 2);
 

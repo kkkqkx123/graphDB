@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn test_vertex_range_iterator() {
         let table = create_test_table();
-        let iter = VertexRangeIterator::new(&table, vec![1, 2], 100);
+        let iter = VertexRangeIterator::new(&table, vec![VertexId::from_int64(1), VertexId::from_int64(2)], 100);
         let vertices: Vec<_> = iter.collect();
 
         assert_eq!(vertices.len(), 2);

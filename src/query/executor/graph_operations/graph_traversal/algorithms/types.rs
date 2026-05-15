@@ -44,8 +44,8 @@ pub type Interims = HashMap<VertexId, HashMap<VertexId, Vec<Path>>>;
 pub fn create_termination_map(start_vids: &[VertexId], end_vids: &[VertexId]) -> TerminationMap {
     let mut map = HashMap::new();
     for src in start_vids {
-        let pairs: Vec<(VertexId, bool)> = end_vids.iter().map(|dst| (dst.clone(), true)).collect();
-        map.insert(src.clone(), pairs);
+        let pairs: Vec<(VertexId, bool)> = end_vids.iter().map(|dst| (*dst, true)).collect();
+        map.insert(*src, pairs);
     }
     map
 }

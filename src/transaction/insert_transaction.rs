@@ -417,7 +417,7 @@ mod tests {
             _properties: &[(String, Vec<u8>)],
             _ts: Timestamp,
         ) -> InsertTransactionResult<VertexId> {
-            Ok(1)
+            Ok(VertexId::from_int64(1))
         }
 
         fn add_edge(

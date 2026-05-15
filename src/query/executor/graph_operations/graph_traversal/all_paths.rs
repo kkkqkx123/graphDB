@@ -85,7 +85,7 @@ impl PathResultCache {
     fn generate_path_key(npath: &NPath) -> PathKey {
         npath
             .iter_vertices()
-            .map(|v| v.vid.clone())
+            .map(|v| v.vid)
             .collect()
     }
 
@@ -247,23 +247,23 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             .filter_map(|edge| match direction {
                 EdgeDirection::In => {
                     if edge.dst == *node_id {
-                        Some((edge.src.clone(), edge))
+                        Some((edge.src, edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
                     if edge.src == *node_id {
-                        Some((edge.dst.clone(), edge))
+                        Some((edge.dst, edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
                     if edge.src == *node_id {
-                        Some((edge.dst.clone(), edge))
+                        Some((edge.dst, edge))
                     } else if edge.dst == *node_id {
-                        Some((edge.src.clone(), edge))
+                        Some((edge.src, edge))
                     } else {
                         None
                     }
@@ -280,9 +280,9 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             if self.left_visited.contains(&current_id) {
                 continue;
             }
-            self.left_visited.insert(current_id.clone());
+            self.left_visited.insert(current_id);
             self.left_path_map
-                .insert(current_id.clone(), current_npath.clone());
+                .insert(current_id, current_npath.clone());
             self.nodes_visited += 1;
 
             // Check whether the limit has been reached.
@@ -324,7 +324,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                         }
                     }
 
-                    self.left_queue.push_back((neighbor_id.clone(), new_npath));
+                    self.left_queue.push_back((neighbor_id, new_npath));
                 }
             }
         }
@@ -339,9 +339,9 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             if self.right_visited.contains(&current_id) {
                 continue;
             }
-            self.right_visited.insert(current_id.clone());
+            self.right_visited.insert(current_id);
             self.right_path_map
-                .insert(current_id.clone(), current_npath.clone());
+                .insert(current_id, current_npath.clone());
             self.nodes_visited += 1;
 
             // Check whether the limit has been reached.
@@ -383,7 +383,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                         }
                     }
 
-                    self.right_queue.push_back((neighbor_id.clone(), new_npath));
+                    self.right_queue.push_back((neighbor_id, new_npath));
                 }
             }
         }
@@ -420,11 +420,11 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
         let left_vertices: std::collections::HashSet<_> = left_path
             .iter_vertices()
-            .map(|v| v.vid.clone())
+            .map(|v| v.vid)
             .collect();
         let right_vertices: std::collections::HashSet<_> = right_path
             .iter_vertices()
-            .map(|v| v.vid.clone())
+            .map(|v| v.vid)
             .collect();
 
         let common: Vec<_> = left_vertices.intersection(&right_vertices).collect();
@@ -432,7 +432,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             return None;
         }
 
-        let junction_id = common[0].clone();
+        let junction_id = *common[0];
 
         if left_path.end_vertex().vid != junction_id {
             return None;
@@ -457,10 +457,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             .collect();
 
         for (edge, _vertex) in right_steps {
-            let next_vid = edge.dst.clone();
+            let next_vid = edge.dst;
             let reversed_edge = Arc::new(Edge::new(
-                full_path.end_vertex().vid.clone(),
-                next_vid.clone(),
+                full_path.end_vertex().vid,
+                next_vid,
                 edge.edge_type.clone(),
                 edge.ranking,
                 edge.props.clone(),
@@ -493,7 +493,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         for left_id in &self.left_start_ids {
             if let Ok(Some(vertex)) = storage.get_vertex("default", left_id) {
                 let npath = Arc::new(NPath::new(Arc::new(vertex)));
-                self.left_queue.push_back((left_id.clone(), npath));
+                self.left_queue.push_back((*left_id, npath));
             }
         }
 
@@ -501,7 +501,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         for right_id in &self.right_start_ids {
             if let Ok(Some(vertex)) = storage.get_vertex("default", right_id) {
                 let npath = Arc::new(NPath::new(Arc::new(vertex)));
-                self.right_queue.push_back((right_id.clone(), npath));
+                self.right_queue.push_back((*right_id, npath));
             }
         }
 
@@ -637,8 +637,8 @@ mod tests {
     fn test_self_loop_dedup() {
         let mut dedup = SelfLoopDedup::with_loop(false);
         let edge = Edge::new(
-            Value::Int(1),
-            Value::Int(1),
+            VertexId::from_int64(1),
+            VertexId::from_int64(1),
             "friend".to_string(),
             0,
             HashMap::new(),

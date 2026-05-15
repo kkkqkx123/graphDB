@@ -36,7 +36,7 @@ impl SeekStrategy for IndexSeek {
             rows_scanned = vertices.len();
             for vertex in vertices {
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
-                    vertex_ids.push(Value::from(vertex.vid().clone()));
+                    vertex_ids.push(Value::from(*vertex.vid()));
                 }
             }
         }

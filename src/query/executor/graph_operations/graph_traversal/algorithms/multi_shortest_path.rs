@@ -120,19 +120,19 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
     fn init(&mut self) {
         for src in &self.start_vids {
-            let path = Path::new(Vertex::with_vid(src.clone()));
+            let path = Path::new(Vertex::with_vid(*src));
             let mut src_map = HashMap::new();
-            src_map.insert(src.clone(), vec![path.clone()]);
-            self.history_left_paths.insert(src.clone(), src_map);
+            src_map.insert(*src, vec![path.clone()]);
+            self.history_left_paths.insert(*src, src_map);
         }
 
         for dst in &self.end_vids {
-            let path = Path::new(Vertex::with_vid(dst.clone()));
+            let path = Path::new(Vertex::with_vid(*dst));
             let mut dst_map = HashMap::new();
-            dst_map.insert(dst.clone(), vec![path.clone()]);
+            dst_map.insert(*dst, vec![path.clone()]);
             self.history_right_paths
-                .insert(dst.clone(), dst_map.clone());
-            self.pre_right_paths.insert(dst.clone(), dst_map);
+                .insert(*dst, dst_map.clone());
+            self.pre_right_paths.insert(*dst, dst_map);
         }
     }
 
@@ -169,23 +169,23 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             .filter_map(|edge| match direction {
                 EdgeDirection::In => {
                     if edge.dst == *node_id {
-                        Some((edge.src.clone(), edge))
+                        Some((edge.src, edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
                     if edge.src == *node_id {
-                        Some((edge.dst.clone(), edge))
+                        Some((edge.dst, edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
                     if edge.src == *node_id {
-                        Some((edge.dst.clone(), edge))
+                        Some((edge.dst, edge))
                     } else if edge.dst == *node_id {
-                        Some((edge.src.clone(), edge))
+                        Some((edge.src, edge))
                     } else {
                         None
                     }
@@ -202,7 +202,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             .iter()
             .map(|p| {
                 let mut new_path = p.clone();
-                let dst_vertex = Vertex::with_vid(edge.dst.clone());
+                let dst_vertex = Vertex::with_vid(edge.dst);
                 new_path.steps.push(Step::new(
                     dst_vertex,
                     edge.edge_type.clone(),
@@ -235,7 +235,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         for vid in &expand_vids {
             let neighbors = self.get_neighbors(vid, self.edge_direction)?;
             self.stats.increment_edges_traversed(neighbors.len());
-            all_neighbors.push((vid.clone(), neighbors));
+            all_neighbors.push((*vid, neighbors));
         }
 
         for (vid, neighbors) in all_neighbors {
@@ -251,8 +251,8 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                 };
 
                 if self.step == 1 {
-                    let src_vertex = Vertex::with_vid(vid.clone());
-                    let dst_vertex = Vertex::with_vid(neighbor_id.clone());
+                    let src_vertex = Vertex::with_vid(vid);
+                    let dst_vertex = Vertex::with_vid(neighbor_id);
                     let path = Path {
                         src: Box::new(src_vertex),
                         steps: vec![Step::new(
@@ -264,9 +264,9 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                     };
 
                     let entry = current_paths
-                        .entry(neighbor_id.clone())
+                        .entry(neighbor_id)
                         .or_insert_with(HashMap::new);
-                    let src_paths = entry.entry(vid.clone()).or_insert_with(Vec::new);
+                    let src_paths = entry.entry(vid).or_insert_with(Vec::new);
                     src_paths.push(path);
                 } else {
                     if let Some(pre_paths) = history_paths.get(&vid) {
@@ -280,9 +280,9 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                             let new_paths = Self::create_paths(paths, &edge);
 
                             let entry = current_paths
-                                .entry(neighbor_id.clone())
+                                .entry(neighbor_id)
                                 .or_insert_with(HashMap::new);
-                            let src_paths = entry.entry(src_id.clone()).or_insert_with(Vec::new);
+                            let src_paths = entry.entry(*src_id).or_insert_with(Vec::new);
                             src_paths.extend(new_paths);
                         }
                     }
@@ -308,8 +308,8 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                     for (right_src, right_paths) in right_src_map {
                         if self.is_valid_pair(left_src, right_src) {
                             path_pairs.push((
-                                left_src.clone(),
-                                right_src.clone(),
+                                *left_src,
+                                *right_src,
                                 left_paths.clone(),
                                 right_paths.clone(),
                             ));
@@ -404,17 +404,17 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
     fn update_history(&mut self) {
         for (dst, src_map) in &self.left_paths {
-            let history_entry = self.history_left_paths.entry(dst.clone()).or_default();
+            let history_entry = self.history_left_paths.entry(*dst).or_default();
             for (src, paths) in src_map {
-                let src_entry = history_entry.entry(src.clone()).or_default();
+                let src_entry = history_entry.entry(*src).or_default();
                 src_entry.extend(paths.clone());
             }
         }
 
         for (dst, src_map) in &self.right_paths {
-            let history_entry = self.history_right_paths.entry(dst.clone()).or_default();
+            let history_entry = self.history_right_paths.entry(*dst).or_default();
             for (src, paths) in src_map {
-                let src_entry = history_entry.entry(src.clone()).or_default();
+                let src_entry = history_entry.entry(*src).or_default();
                 src_entry.extend(paths.clone());
             }
         }
@@ -526,6 +526,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for MultiShortestPathEx
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::VertexId;
     use crate::core::{Path, Value, Vertex};
     use crate::query::executor::base::ExecutorConfig;
     use crate::query::validator::context::ExpressionAnalysisContext;
@@ -533,64 +534,64 @@ mod tests {
 
     #[test]
     fn test_termination_map_creation() {
-        let start_vids = vec![Value::from("a"), Value::from("b")];
-        let end_vids = vec![Value::from("c"), Value::from("d")];
+        let start_vids = vec![VertexId::from("a"), VertexId::from("b")];
+        let end_vids = vec![VertexId::from("c"), VertexId::from("d")];
 
         let map = create_termination_map(&start_vids, &end_vids);
 
         assert_eq!(map.len(), 2);
-        assert!(map.contains_key(&Value::from("a")));
-        assert!(map.contains_key(&Value::from("b")));
+        assert!(map.contains_key(&VertexId::from("a")));
+        assert!(map.contains_key(&VertexId::from("b")));
 
         let a_pairs = map
-            .get(&Value::from("a"))
+            .get(&VertexId::from("a"))
             .expect("Failed to get pairs for 'a'");
         assert_eq!(a_pairs.len(), 2);
     }
 
     #[test]
     fn test_mark_path_found() {
-        let start_vids = vec![Value::from("a")];
-        let end_vids = vec![Value::from("b")];
+        let start_vids = vec![VertexId::from("a")];
+        let end_vids = vec![VertexId::from("b")];
 
         let mut map = create_termination_map(&start_vids, &end_vids);
 
         assert!(mark_path_found(
             &mut map,
-            &Value::from("a"),
-            &Value::from("b")
+            &VertexId::from("a"),
+            &VertexId::from("b")
         ));
 
         let pairs = map
-            .get(&Value::from("a"))
+            .get(&VertexId::from("a"))
             .expect("Failed to get pairs for 'a'");
         assert!(!pairs[0].1); // “The word ‘found’ should be marked as ‘false’.”
     }
 
     #[test]
     fn test_cleanup_termination_map() {
-        let start_vids = vec![Value::from("a")];
-        let end_vids = vec![Value::from("b"), Value::from("c")];
+        let start_vids = vec![VertexId::from("a")];
+        let end_vids = vec![VertexId::from("b"), VertexId::from("c")];
 
         let mut map = create_termination_map(&start_vids, &end_vids);
-        mark_path_found(&mut map, &Value::from("a"), &Value::from("b"));
+        mark_path_found(&mut map, &VertexId::from("a"), &VertexId::from("b"));
         cleanup_termination_map(&mut map);
 
         assert_eq!(map.len(), 1);
         let pairs = map
-            .get(&Value::from("a"))
+            .get(&VertexId::from("a"))
             .expect("Failed to get pairs for 'a'");
         assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0].0, Value::from("c"));
+        assert_eq!(pairs[0].0, VertexId::from("c"));
     }
 
     #[test]
     fn test_create_paths() {
-        let path = Path::new(Vertex::with_vid(Value::from("a")));
+        let path = Path::new(Vertex::with_vid(VertexId::from("a")));
 
         let edge = Edge::new(
-            Value::from("a"),
-            Value::from("b"),
+            VertexId::from("a"),
+            VertexId::from("b"),
             "edge".to_string(),
             0,
             HashMap::new(),
@@ -610,7 +611,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = MultiShortestPathConfig {
-            start_vids: vec![Value::from("a")],
+            start_vids: vec![VertexId::from("a")],
             direction: EdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
@@ -621,16 +622,16 @@ mod tests {
 
         // Create a path
         let path = Path {
-            src: Box::new(Vertex::with_vid(Value::from("a"))),
+            src: Box::new(Vertex::with_vid(VertexId::from("a"))),
             steps: vec![
                 Step::new(
-                    Vertex::with_vid(Value::from("b")),
+                    Vertex::with_vid(VertexId::from("b")),
                     "e".to_string(),
                     "e".to_string(),
                     0,
                 ),
                 Step::new(
-                    Vertex::with_vid(Value::from("c")),
+                    Vertex::with_vid(VertexId::from("c")),
                     "e".to_string(),
                     "e".to_string(),
                     0,

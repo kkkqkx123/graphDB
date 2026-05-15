@@ -63,7 +63,7 @@ impl ScanSeek {
             for vertex in vertices {
                 rows_scanned += 1;
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern, true) {
-                    vertex_ids.push(Value::from(vertex.vid().clone()));
+                    vertex_ids.push(Value::from(*vertex.vid()));
                 }
             }
         }
@@ -87,7 +87,7 @@ impl ScanSeek {
         for vertex in vertices {
             rows_scanned += 1;
             if self.vertex_matches_pattern(&vertex, &context.node_pattern, false) {
-                vertex_ids.push(Value::from(vertex.vid().clone()));
+                vertex_ids.push(Value::from(*vertex.vid()));
             }
         }
 

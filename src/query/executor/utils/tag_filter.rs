@@ -2,6 +2,7 @@
 //!
 //! Provide an advanced filtering function for vertex labels that supports the evaluation of complex expressions.
 
+use crate::core::types::VertexId;
 use crate::core::value::list::List;
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Expression;
@@ -98,7 +99,7 @@ mod tests {
     fn test_process_tag_filter_with_contains() {
         // Create test vertices.
         let vertex = Vertex::new(
-            Value::Int(1),
+            VertexId::from_int64(1),
             vec![
                 Tag::new("user".to_string(), std::collections::HashMap::new()),
                 Tag::new("admin".to_string(), std::collections::HashMap::new()),
@@ -118,7 +119,7 @@ mod tests {
     #[test]
     fn test_process_tag_filter_with_count() {
         let vertex = Vertex::new(
-            Value::Int(1),
+            VertexId::from_int64(1),
             vec![
                 Tag::new("user".to_string(), std::collections::HashMap::new()),
                 Tag::new("admin".to_string(), std::collections::HashMap::new()),

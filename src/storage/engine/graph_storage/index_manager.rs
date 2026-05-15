@@ -91,7 +91,7 @@ impl<'a> IndexManagerOps<'a> {
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            let vid_value = Value::from(vertex.vid.clone());
+            let vid_value = Value::from(vertex.vid);
             self.ctx.graph.update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
         }
 

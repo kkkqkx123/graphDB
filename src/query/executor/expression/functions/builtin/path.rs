@@ -3,6 +3,7 @@
 //! Provide functions for path operations, including nodes and relationships.
 
 use crate::core::error::ExpressionError;
+use crate::core::types::VertexId;
 use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;
@@ -98,7 +99,7 @@ mod tests {
 
     fn create_test_vertex_with_id(id: i64) -> Vertex {
         Vertex::new(
-            Value::BigInt(id),
+            VertexId::from_int64(id),
             vec![Tag::new("person".to_string(), HashMap::new())],
         )
     }
@@ -109,15 +110,15 @@ mod tests {
         let v3 = create_test_vertex_with_id(3);
 
         let e1 = Edge::new(
-            Value::Int(1),
-            Value::Int(2),
+            VertexId::from_int64(1),
+            VertexId::from_int64(2),
             "knows".to_string(),
             0,
             HashMap::new(),
         );
         let e2 = Edge::new(
-            Value::Int(2),
-            Value::Int(3),
+            VertexId::from_int64(2),
+            VertexId::from_int64(3),
             "follows".to_string(),
             0,
             HashMap::new(),
@@ -145,17 +146,17 @@ mod tests {
         if let Value::List(nodes) = result {
             assert_eq!(nodes.values.len(), 3);
             if let Value::Vertex(v) = &nodes.values[0] {
-                assert_eq!(*v.vid, Value::Int(1));
+                assert_eq!(v.vid.as_int64(), Some(1));
             } else {
                 panic!("The first node should be the vertex.");
             }
             if let Value::Vertex(v) = &nodes.values[1] {
-                assert_eq!(*v.vid, Value::Int(2));
+                assert_eq!(v.vid.as_int64(), Some(2));
             } else {
                 panic!("The second node should be the vertex.");
             }
             if let Value::Vertex(v) = &nodes.values[2] {
-                assert_eq!(*v.vid, Value::Int(3));
+                assert_eq!(v.vid.as_int64(), Some(3));
             } else {
                 panic!("The third node should be the vertex.");
             }

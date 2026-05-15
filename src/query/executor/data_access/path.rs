@@ -67,7 +67,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
                 let edges = storage.get_node_edges("default", &start_vid, direction)?;
 
                 for edge in edges {
-                    let neighbor_id = edge.dst.clone();
+                    let neighbor_id = edge.dst;
 
                     if let Some(ref _end_vertex) = self.end_vertex {
                         continue;

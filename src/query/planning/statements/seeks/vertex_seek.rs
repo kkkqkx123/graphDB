@@ -38,7 +38,7 @@ impl SeekStrategy for VertexSeek {
             if let Some(vertex) = storage.get_vertex("default", &vid)? {
                 rows_scanned = 1;
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
-                    vertex_ids.push(Value::from(vertex.vid().clone()));
+                    vertex_ids.push(Value::from(*vertex.vid()));
                 }
             }
         } else {

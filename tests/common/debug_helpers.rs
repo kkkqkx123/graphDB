@@ -118,8 +118,8 @@ fn format_value(value: &Value) -> String {
                 .collect();
             format!("{{{}}}", items.join(", "))
         }
-        Value::Vertex(v) => format!("Vertex({})", format_value(&v.vid)),
-        Value::Edge(e) => format!("Edge({} -> {})", format_value(&e.src), format_value(&e.dst)),
+        Value::Vertex(v) => format!("Vertex({})", v.vid),
+        Value::Edge(e) => format!("Edge({} -> {})", e.src, e.dst),
         Value::Path(p) => format!("Path({} steps)", p.steps.len()),
         Value::DataSet(d) => format!("DataSet({} rows)", d.rows.len()),
         _ => format!("{:?}", value),

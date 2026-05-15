@@ -93,23 +93,23 @@ impl<S: StorageClient> Dijkstra<S> {
                 let neighbor_id = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
                         if edge.dst == *node_id {
-                            edge.src.clone()
+                            edge.src
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
                         if edge.src == *node_id {
-                            edge.dst.clone()
+                            edge.dst
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
                         if edge.src == *node_id {
-                            edge.dst.clone()
+                            edge.dst
                         } else if edge.dst == *node_id {
-                            edge.src.clone()
+                            edge.src
                         } else {
                             return None;
                         }
@@ -137,11 +137,11 @@ impl<S: StorageClient> Dijkstra<S> {
         start_ids: &[VertexId],
     ) -> Result<Option<Path>, QueryError> {
         let mut path_edges: Vec<(VertexId, Edge)> = Vec::new();
-        let mut current = end_id.clone();
+        let mut current = *end_id;
 
         while let Some((prev_id, edge)) = previous_map.get(&current) {
-            path_edges.push((current.clone(), edge.clone()));
-            current = prev_id.clone();
+            path_edges.push((current, edge.clone()));
+            current = *prev_id;
 
             if start_ids.contains(&current) {
                 let start_vertex = match self.get_vertex(&current)? {
@@ -191,10 +191,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
         let mut priority_queue: BinaryHeap<Reverse<DistanceNode>> = BinaryHeap::new();
 
         for start_id in start_ids {
-            distance_map.insert(start_id.clone(), 0.0);
+            distance_map.insert(*start_id, 0.0);
             priority_queue.push(Reverse(DistanceNode {
                 distance: 0.0,
-                vertex_id: start_id.clone(),
+                vertex_id: *start_id,
             }));
         }
 
@@ -212,7 +212,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
             if visited_nodes.contains(&current.vertex_id) {
                 continue;
             }
-            visited_nodes.insert(current.vertex_id.clone());
+            visited_nodes.insert(current.vertex_id);
             self.stats.increment_nodes_visited();
 
             if end_ids.contains(&current.vertex_id) {
@@ -244,10 +244,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
                 let existing_distance = distance_map.get(&neighbor_id).unwrap_or(&f64::INFINITY);
 
                 if new_distance < *existing_distance {
-                    distance_map.insert(neighbor_id.clone(), new_distance);
+                    distance_map.insert(neighbor_id, new_distance);
                     previous_map.insert(
-                        neighbor_id.clone(),
-                        (current.vertex_id.clone(), edge.clone()),
+                        neighbor_id,
+                        (current.vertex_id, edge.clone()),
                     );
                     priority_queue.push(Reverse(DistanceNode {
                         distance: new_distance,

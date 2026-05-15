@@ -241,7 +241,7 @@ impl DegreeIndex {
     pub fn iter(&self) -> impl Iterator<Item = (VertexId, DegreeInfo)> + '_ {
         self.degrees
             .iter()
-            .map(|entry| (entry.key().clone(), *entry.value()))
+            .map(|entry| (*entry.key(), *entry.value()))
     }
 }
 
@@ -273,16 +273,16 @@ mod tests {
     fn test_basic_operations() {
         let index = DegreeIndex::new();
 
-        index.insert_edge(100, 200);
-        index.insert_edge(100, 300);
-        index.insert_edge(200, 300);
+        index.insert_edge(VertexId::from_u64(100), VertexId::from_u64(200));
+        index.insert_edge(VertexId::from_u64(100), VertexId::from_u64(300));
+        index.insert_edge(VertexId::from_u64(200), VertexId::from_u64(300));
 
-        assert_eq!(index.out_degree(100), 2);
-        assert_eq!(index.in_degree(100), 0);
-        assert_eq!(index.out_degree(200), 1);
-        assert_eq!(index.in_degree(200), 1);
-        assert_eq!(index.out_degree(300), 0);
-        assert_eq!(index.in_degree(300), 2);
+        assert_eq!(index.out_degree(VertexId::from_u64(100)), 2);
+        assert_eq!(index.in_degree(VertexId::from_u64(100)), 0);
+        assert_eq!(index.out_degree(VertexId::from_u64(200)), 1);
+        assert_eq!(index.in_degree(VertexId::from_u64(200)), 1);
+        assert_eq!(index.out_degree(VertexId::from_u64(300)), 0);
+        assert_eq!(index.in_degree(VertexId::from_u64(300)), 2);
 
         assert_eq!(index.total_out_edges(), 3);
         assert_eq!(index.total_in_edges(), 3);
@@ -304,30 +304,30 @@ mod tests {
     fn test_remove_edge() {
         let index = DegreeIndex::new();
 
-        index.insert_edge(100, 200);
-        index.insert_edge(100, 300);
+        index.insert_edge(VertexId::from_u64(100), VertexId::from_u64(200));
+        index.insert_edge(VertexId::from_u64(100), VertexId::from_u64(300));
 
-        assert_eq!(index.out_degree(100), 2);
+        assert_eq!(index.out_degree(VertexId::from_u64(100)), 2);
 
-        index.remove_edge(100, 200);
+        index.remove_edge(VertexId::from_u64(100), VertexId::from_u64(200));
 
-        assert_eq!(index.out_degree(100), 1);
-        assert_eq!(index.in_degree(200), 0);
+        assert_eq!(index.out_degree(VertexId::from_u64(100)), 1);
+        assert_eq!(index.in_degree(VertexId::from_u64(200)), 0);
     }
 
     #[test]
     fn test_set_degree() {
         let index = DegreeIndex::new();
 
-        index.set_degree(100, 5, 3);
+        index.set_degree(VertexId::from_u64(100), 5, 3);
 
-        let info = index.get(100).expect("Should have degree info");
+        let info = index.get(VertexId::from_u64(100)).expect("Should have degree info");
         assert_eq!(info.out_degree, 5);
         assert_eq!(info.in_degree, 3);
 
-        index.set_degree(100, 10, 6);
+        index.set_degree(VertexId::from_u64(100), 10, 6);
 
-        let info = index.get(100).expect("Should have degree info");
+        let info = index.get(VertexId::from_u64(100)).expect("Should have degree info");
         assert_eq!(info.out_degree, 10);
         assert_eq!(info.in_degree, 6);
     }
@@ -336,40 +336,40 @@ mod tests {
     fn test_vertices_filtering() {
         let index = DegreeIndex::new();
 
-        index.set_degree(100, 5, 0);
-        index.set_degree(200, 3, 3);
-        index.set_degree(300, 0, 5);
+        index.set_degree(VertexId::from_u64(100), 5, 0);
+        index.set_degree(VertexId::from_u64(200), 3, 3);
+        index.set_degree(VertexId::from_u64(300), 0, 5);
 
         let high_out = index.vertices_with_out_degree_at_least(4);
         assert_eq!(high_out.len(), 1);
-        assert!(high_out.contains(&100));
+        assert!(high_out.contains(&VertexId::from_u64(100)));
 
         let high_in = index.vertices_with_in_degree_at_least(4);
         assert_eq!(high_in.len(), 1);
-        assert!(high_in.contains(&300));
+        assert!(high_in.contains(&VertexId::from_u64(300)));
     }
 
     #[test]
     fn test_remove_vertex() {
         let index = DegreeIndex::new();
 
-        index.set_degree(100, 5, 3);
+        index.set_degree(VertexId::from_u64(100), 5, 3);
         assert_eq!(index.len(), 1);
 
-        let removed = index.remove_vertex(100).expect("Should remove vertex");
+        let removed = index.remove_vertex(VertexId::from_u64(100)).expect("Should remove vertex");
         assert_eq!(removed.out_degree, 5);
         assert_eq!(removed.in_degree, 3);
 
         assert_eq!(index.len(), 0);
-        assert!(index.get(100).is_none());
+        assert!(index.get(VertexId::from_u64(100)).is_none());
     }
 
     #[test]
     fn test_clear() {
         let index = DegreeIndex::new();
 
-        index.insert_edge(100, 200);
-        index.insert_edge(200, 300);
+        index.insert_edge(VertexId::from_u64(100), VertexId::from_u64(200));
+        index.insert_edge(VertexId::from_u64(200), VertexId::from_u64(300));
 
         assert_eq!(index.len(), 3);
 
