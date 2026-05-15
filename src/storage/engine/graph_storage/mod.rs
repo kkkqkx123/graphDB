@@ -30,7 +30,7 @@ use parking_lot::RwLock;
 
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
-    TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
+    TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::persistence_coordinator::{CheckpointInfo, CheckpointStats};
@@ -229,7 +229,7 @@ impl Default for GraphStorage {
 }
 
 impl StorageClient for GraphStorage {
-    fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
+    fn get_vertex(&self, space: &str, id: &VertexId) -> Result<Option<Vertex>, StorageError> {
         reader::GraphStorageReader::new(&self.ctx).get_vertex(space, id)
     }
 
@@ -254,8 +254,8 @@ impl StorageClient for GraphStorage {
     fn get_edge(
         &self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
@@ -265,7 +265,7 @@ impl StorageClient for GraphStorage {
     fn get_node_edges(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
         reader::GraphStorageReader::new(&self.ctx).get_node_edges(space, node_id, direction)
@@ -274,7 +274,7 @@ impl StorageClient for GraphStorage {
     fn get_node_edges_filtered<F>(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
         filter: Option<F>,
     ) -> Result<Vec<Edge>, StorageError>
@@ -292,7 +292,7 @@ impl StorageClient for GraphStorage {
         reader::GraphStorageReader::new(&self.ctx).scan_all_edges(space)
     }
 
-    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<VertexId, StorageError> {
         writer::GraphStorageWriter::new(&self.ctx).insert_vertex(space, vertex)
     }
 
@@ -300,11 +300,11 @@ impl StorageClient for GraphStorage {
         writer::GraphStorageWriter::new(&self.ctx).update_vertex(space, vertex)
     }
 
-    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError> {
         writer::GraphStorageWriter::new(&self.ctx).delete_vertex(space, id)
     }
 
-    fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex_with_edges(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError> {
         let reader = reader::GraphStorageReader::new(&self.ctx);
         writer::GraphStorageWriter::new(&self.ctx).delete_vertex_with_edges(space, id, &reader)
     }
@@ -313,14 +313,14 @@ impl StorageClient for GraphStorage {
         &mut self,
         space: &str,
         vertices: Vec<Vertex>,
-    ) -> Result<Vec<Value>, StorageError> {
+    ) -> Result<Vec<VertexId>, StorageError> {
         writer::GraphStorageWriter::new(&self.ctx).batch_insert_vertices(space, vertices)
     }
 
     fn delete_tags(
         &mut self,
         space: &str,
-        vertex_id: &Value,
+        vertex_id: &VertexId,
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
         writer::GraphStorageWriter::new(&self.ctx).delete_tags(space, vertex_id, tag_names)
@@ -333,8 +333,8 @@ impl StorageClient for GraphStorage {
     fn delete_edge(
         &mut self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         rank: i64,
     ) -> Result<(), StorageError> {

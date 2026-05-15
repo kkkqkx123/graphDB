@@ -3,6 +3,7 @@
 use crate::api::core::{BatchConfig, BatchOperation};
 use crate::api::core::{CoreError, CoreResult};
 use crate::api::server::batch::types::*;
+use crate::core::types::VertexId;
 use crate::core::{Edge, Value, Vertex};
 use crate::storage::StorageClient;
 use dashmap::DashMap;
@@ -206,11 +207,10 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         }
     }
 
-    /// Converting Vertex Data
     fn convert_vertex_data(&self, data: VertexData) -> Option<Vertex> {
-        let vid = json_to_value(data.vid)?;
+        let vid_value = json_to_value(data.vid)?;
+        let vid = value_to_vertex_id(&vid_value)?;
 
-        // Building a list of tags
         let tags: Vec<crate::core::vertex_edge_path::Tag> = data
             .tags
             .into_iter()
@@ -219,7 +219,6 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             })
             .collect();
 
-        // Converting Attributes
         let properties: std::collections::HashMap<String, Value> = data
             .properties
             .into_iter()
@@ -229,12 +228,12 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         Some(Vertex::new_with_properties(vid, tags, properties))
     }
 
-    /// Conversion side data
     fn convert_edge_data(&self, data: EdgeData) -> Option<Edge> {
-        let src_vid = json_to_value(data.src_vid)?;
-        let dst_vid = json_to_value(data.dst_vid)?;
+        let src_vid_value = json_to_value(data.src_vid)?;
+        let dst_vid_value = json_to_value(data.dst_vid)?;
+        let src_vid = value_to_vertex_id(&src_vid_value)?;
+        let dst_vid = value_to_vertex_id(&dst_vid_value)?;
 
-        // Converting Attributes
         let props: std::collections::HashMap<String, Value> = data
             .properties
             .into_iter()
@@ -245,13 +244,21 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             src_vid,
             dst_vid,
             data.edge_type,
-            0, // Ranking defaults to 0
+            0,
             props,
         ))
     }
 }
 
-/// Converting JSON Values to Core Value
+fn value_to_vertex_id(value: &Value) -> Option<VertexId> {
+    match value {
+        Value::Int(i) => Some(VertexId::from_int64(*i as i64)),
+        Value::BigInt(i) => Some(VertexId::from_int64(*i)),
+        Value::String(s) => Some(VertexId::from_string(s)),
+        _ => None,
+    }
+}
+
 fn json_to_value(json: serde_json::Value) -> Option<Value> {
     match json {
         serde_json::Value::Null => Some(Value::Null(crate::core::NullType::Null)),

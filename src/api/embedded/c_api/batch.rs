@@ -5,6 +5,7 @@
 use crate::api::embedded::c_api::error::{graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_batch_t, graphdb_session_t, graphdb_value_t};
+use crate::core::types::VertexId;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, Vertex};
 use std::collections::HashMap;
@@ -249,6 +250,10 @@ pub unsafe extern "C" fn graphdb_batch_add_vertex(
 
     // Convert C value to core Value
     let vid_value = unsafe { super::value::graphdb_value_to_core(vid) };
+    let vid_id = match value_to_vertex_id(&vid_value) {
+        Some(id) => id,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
 
     // Parse tags
     let tag_list = if tags.is_null() {
@@ -266,7 +271,7 @@ pub unsafe extern "C" fn graphdb_batch_add_vertex(
     };
 
     // Create vertex
-    let vertex = Vertex::new(vid_value, tag_list);
+    let vertex = Vertex::new(vid_id, tag_list);
     handle.buffer.push(BatchItem::Vertex(vertex));
 
     // Auto-flush if buffer is full
@@ -317,6 +322,14 @@ pub unsafe extern "C" fn graphdb_batch_add_edge(
     // Convert C values to core Values
     let src_value = unsafe { super::value::graphdb_value_to_core(src_vid) };
     let dst_value = unsafe { super::value::graphdb_value_to_core(dst_vid) };
+    let src_id = match value_to_vertex_id(&src_value) {
+        Some(id) => id,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
+    let dst_id = match value_to_vertex_id(&dst_value) {
+        Some(id) => id,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
 
     // Get edge type
     let edge_type_str = match CStr::from_ptr(edge_type).to_str() {
@@ -325,7 +338,7 @@ pub unsafe extern "C" fn graphdb_batch_add_edge(
     };
 
     // Create edge
-    let edge = Edge::new(src_value, dst_value, edge_type_str, 0, HashMap::new());
+    let edge = Edge::new(src_id, dst_id, edge_type_str, 0, HashMap::new());
     handle.buffer.push(BatchItem::Edge(edge));
 
     // Auto-flush if buffer is full
@@ -495,6 +508,16 @@ pub unsafe extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_
         .iter()
         .filter(|item| matches!(item, BatchItem::Edge(_)))
         .count() as c_int
+}
+
+fn value_to_vertex_id(value: &crate::core::Value) -> Option<VertexId> {
+    use crate::core::Value;
+    match value {
+        Value::Int(i) => Some(VertexId::from_int64(*i as i64)),
+        Value::BigInt(i) => Some(VertexId::from_int64(*i)),
+        Value::String(s) => Some(VertexId::from_string(s)),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

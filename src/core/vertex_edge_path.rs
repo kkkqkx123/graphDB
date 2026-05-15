@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::core::value::{NullType, Value};
+use crate::core::types::VertexId;
+use crate::core::value::Value;
 
 /// Represents a tag in the graph, similar to Nebula's Tag structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -52,10 +53,10 @@ impl Tag {
 /// Represents a vertex in the graph, similar to Nebula's Vertex structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Vertex {
-    pub vid: Box<Value>, // Vertex ID can now be any Value type, using Box to break cycles
-    pub id: i64,         // Internal integer ID for indexing and fast lookup
-    pub tags: Vec<Tag>,  // A vertex can have multiple tags
-    pub properties: HashMap<String, Value>, // Vertex properties
+    pub vid: VertexId,
+    pub id: i64,
+    pub tags: Vec<Tag>,
+    pub properties: HashMap<String, Value>,
 }
 
 // Implementing a hash function manually to handle the hashing of a HashMap
@@ -76,19 +77,18 @@ impl std::hash::Hash for Vertex {
 }
 
 impl Vertex {
-    pub fn new(vid: Value, tags: Vec<Tag>) -> Self {
+    pub fn new(vid: VertexId, tags: Vec<Tag>) -> Self {
         Self {
-            vid: Box::new(vid),
+            vid,
             id: 0,
             tags,
             properties: HashMap::new(),
         }
     }
 
-    /// Create a vertex with only the VID (simplified constructor)
-    pub fn with_vid(vid: Value) -> Self {
+    pub fn with_vid(vid: VertexId) -> Self {
         Self {
-            vid: Box::new(vid),
+            vid,
             id: 0,
             tags: Vec::new(),
             properties: HashMap::new(),
@@ -96,49 +96,42 @@ impl Vertex {
     }
 
     pub fn new_with_properties(
-        vid: Value,
+        vid: VertexId,
         tags: Vec<Tag>,
         properties: HashMap<String, Value>,
     ) -> Self {
         Self {
-            vid: Box::new(vid),
+            vid,
             id: 0,
             tags,
             properties,
         }
     }
 
-    /// Add a tag to the vertex
     pub fn add_tag(&mut self, tag: Tag) {
         self.tags.push(tag);
     }
 
-    /// Get vertex ID (internal integer ID)
     pub fn id(&self) -> i64 {
         self.id
     }
 
-    /// Get vertex VID (user-visible ID)
-    pub fn vid(&self) -> &Value {
+    pub fn vid(&self) -> &VertexId {
         &self.vid
     }
 
-    /// Get all tags
     pub fn tags(&self) -> &[Tag] {
         &self.tags
     }
 
-    /// Check if vertex has a specific tag
     pub fn has_tag(&self, tag_name: &str) -> bool {
         self.tags.iter().any(|tag| tag.name == tag_name)
     }
 
-    /// Get a specific tag by name
     pub fn get_tag(&self, tag_name: &str) -> Option<&Tag> {
         self.tags.iter().find(|tag| tag.name == tag_name)
     }
 
-    /// Get property value by tag name and property name
     pub fn get_property(&self, tag_name: &str, prop_name: &str) -> Option<&Value> {
         for tag in &self.tags {
             if tag.name == tag_name {
@@ -148,27 +141,22 @@ impl Vertex {
         None
     }
 
-    /// Get property value from any tag (searches all tags)
     pub fn get_property_any(&self, prop_name: &str) -> Option<&Value> {
         for tag in &self.tags {
             if let Some(value) = tag.properties.get(prop_name) {
                 return Some(value);
             }
         }
-        // Also check vertex-level properties
         self.properties.get(prop_name)
     }
 
-    /// Get all properties from all tags and vertex-level properties
     pub fn get_all_properties(&self) -> HashMap<String, &Value> {
         let mut all_props = HashMap::new();
 
-        // Add vertex-level properties
         for (name, value) in &self.properties {
             all_props.insert(name.clone(), value);
         }
 
-        // Add tag properties (later tags override earlier ones)
         for tag in &self.tags {
             for (name, value) in &tag.properties {
                 all_props.insert(name.clone(), value);
@@ -178,40 +166,32 @@ impl Vertex {
         all_props
     }
 
-    /// Get vertex-level properties
     pub fn vertex_properties(&self) -> &HashMap<String, Value> {
         &self.properties
     }
 
-    /// Set a vertex-level property
     pub fn set_vertex_property(&mut self, name: String, value: Value) {
         self.properties.insert(name, value);
     }
 
-    /// Remove a vertex-level property
     pub fn remove_vertex_property(&mut self, name: &str) -> Option<Value> {
         self.properties.remove(name)
     }
 
-    /// Get the number of tags
     pub fn tag_count(&self) -> usize {
         self.tags.len()
     }
 
-    /// Check if vertex has any properties
     pub fn has_properties(&self) -> bool {
         !self.properties.is_empty() || self.tags.iter().any(|tag| !tag.properties.is_empty())
     }
 
-    /// Auxiliary function for comparing attribute mappings
     fn cmp_properties(
         a: &HashMap<String, Value>,
         b: &HashMap<String, Value>,
     ) -> std::cmp::Ordering {
-        // First, compare the number of attributes.
         match a.len().cmp(&b.len()) {
             std::cmp::Ordering::Equal => {
-                // Compare the sorted key-value pairs.
                 let mut a_sorted: Vec<_> = a.iter().collect();
                 let mut b_sorted: Vec<_> = b.iter().collect();
                 a_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
@@ -236,7 +216,7 @@ impl Vertex {
 impl Default for Vertex {
     fn default() -> Self {
         Self {
-            vid: Box::new(Value::Null(NullType::NaN)),
+            vid: VertexId::new(),
             id: 0,
             tags: Vec::new(),
             properties: HashMap::new(),
@@ -287,21 +267,16 @@ impl PartialOrd for Vertex {
 }
 
 impl Vertex {
-    /// Estimating the memory usage of the vertex
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // Calculate the actual size of the vid (including the heap allocation for the Box and the content of the Value).
-        size += std::mem::size_of::<Box<Value>>() + self.vid.as_ref().estimated_size();
+        size += self.vid.len();
 
-        // Calculate the memory overhead for the capacity of VecTagName>
         size += self.tags.capacity() * std::mem::size_of::<Tag>();
 
         for tag in &self.tags {
-            // Calculate the actual size of a String (including heap allocation)
             size += std::mem::size_of::<String>() + tag.name.capacity();
 
-            // Calculating the capacity overhead of a HashMap
             size += tag.properties.capacity()
                 * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
 
@@ -311,7 +286,6 @@ impl Vertex {
             }
         }
 
-        // Calculating the capacity overhead of a HashMap<String, Value>
         size += self.properties.capacity()
             * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
 
@@ -327,42 +301,35 @@ impl Vertex {
 /// Represents an edge in the graph, similar to Nebula's Edge structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Edge {
-    pub src: Box<Value>, // Source vertex ID (can be any Value type, using Box to break cycles)
-    pub dst: Box<Value>, // Destination vertex ID (can be any Value type, using Box to break cycles)
-    pub edge_type: String, // Edge type name
-    pub ranking: i64,    // Edge ranking
-    pub id: i64,         // Internal integer ID for indexing and fast lookup
-    pub props: HashMap<String, Value>, // Edge properties
+    pub src: VertexId,
+    pub dst: VertexId,
+    pub edge_type: String,
+    pub ranking: i64,
+    pub id: i64,
+    pub props: HashMap<String, Value>,
 }
 
-/// For compatibility purposes, the `properties` field has been added.
 impl Edge {
-    /// Obtaining the properties of an edge
     pub fn properties(&self) -> &HashMap<String, Value> {
         &self.props
     }
 
-    /// Get source vertex ID
-    pub fn src(&self) -> &Value {
+    pub fn src(&self) -> &VertexId {
         &self.src
     }
 
-    /// Get destination vertex ID
-    pub fn dst(&self) -> &Value {
+    pub fn dst(&self) -> &VertexId {
         &self.dst
     }
 
-    /// Get edge type name
     pub fn edge_type(&self) -> &str {
         &self.edge_type
     }
 
-    /// Get edge ranking
     pub fn ranking(&self) -> i64 {
         self.ranking
     }
 
-    /// Get all edge properties
     pub fn get_all_properties(&self) -> &HashMap<String, Value> {
         &self.props
     }
@@ -397,11 +364,10 @@ impl Edge {
         !self.props.is_empty()
     }
 
-    /// Create a new edge with empty properties
-    pub fn new_empty(src: Value, dst: Value, edge_type: String, ranking: i64) -> Self {
+    pub fn new_empty(src: VertexId, dst: VertexId, edge_type: String, ranking: i64) -> Self {
         Self {
-            src: Box::new(src),
-            dst: Box::new(dst),
+            src,
+            dst,
             edge_type,
             ranking,
             id: 0,
@@ -409,7 +375,6 @@ impl Edge {
         }
     }
 
-    /// Get a string representation of the edge for debugging
     pub fn debug_string(&self) -> String {
         format!(
             "Edge({:?} -> {:?}, type: {}, ranking: {})",
@@ -417,18 +382,14 @@ impl Edge {
         )
     }
 
-    /// Estimate the memory usage of the edges.
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // Calculate the actual sizes of src and dst (including the heap allocation for the Box and the content of the Value).
-        size += std::mem::size_of::<Box<Value>>() + self.src.as_ref().estimated_size();
-        size += std::mem::size_of::<Box<Value>>() + self.dst.as_ref().estimated_size();
+        size += self.src.len();
+        size += self.dst.len();
 
-        // Calculate the actual size of edge_type (including heap allocation).
         size += std::mem::size_of::<String>() + self.edge_type.capacity();
 
-        // Calculating the capacity overhead of a HashMap
         size +=
             self.props.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
 
@@ -460,15 +421,15 @@ impl std::hash::Hash for Edge {
 
 impl Edge {
     pub fn new(
-        src: Value,
-        dst: Value,
+        src: VertexId,
+        dst: VertexId,
         edge_type: String,
         ranking: i64,
         props: HashMap<String, Value>,
     ) -> Self {
         Self {
-            src: Box::new(src),
-            dst: Box::new(dst),
+            src,
+            dst,
             edge_type,
             ranking,
             id: 0,
@@ -526,13 +487,10 @@ impl PartialOrd for Step {
 }
 
 impl Step {
-    /// Create a new step.
     pub fn new(dst: Vertex, edge_type: String, _edge_name: String, ranking: i64) -> Self {
-        // Create an empty edge, which will be filled in later when constructing the path.
-        use crate::core::NullType;
         let edge = Edge::new_empty(
-            Value::Null(NullType::Null),
-            Value::Null(NullType::Null),
+            VertexId::new(),
+            VertexId::new(),
             edge_type,
             ranking,
         );
@@ -542,7 +500,6 @@ impl Step {
         }
     }
 
-    /// Steps for creating a model with complete edge information
     pub fn new_with_edge(dst: Vertex, edge: Edge) -> Self {
         Self {
             dst: Box::new(dst),
@@ -550,13 +507,11 @@ impl Step {
         }
     }
 
-    /// Obtain the ID of the source vertex.
-    pub fn src_vid(&self) -> &Value {
+    pub fn src_vid(&self) -> &VertexId {
         &self.edge.src
     }
 
-    /// Obtain the ID of the target vertex.
-    pub fn dst_vid(&self) -> &Value {
+    pub fn dst_vid(&self) -> &VertexId {
         &self.dst.vid
     }
 
@@ -682,13 +637,13 @@ impl Path {
 
     /// Check for duplicate edges in the path
     pub fn has_duplicate_edges(&self) -> bool {
-        let mut seen_edges: std::collections::HashSet<(Value, Value, String)> =
+        let mut seen_edges: std::collections::HashSet<(VertexId, VertexId, String)> =
             std::collections::HashSet::new();
 
         for step in &self.steps {
             let edge_key = (
-                (*step.edge.src).clone(),
-                (*step.edge.dst).clone(),
+                step.edge.src.clone(),
+                step.edge.dst.clone(),
                 step.edge.edge_type.clone(),
             );
 
@@ -700,24 +655,19 @@ impl Path {
         false
     }
 
-    /// inversion path
     pub fn reverse(&mut self) {
         if self.steps.is_empty() {
             return;
         }
 
-        // Reverse the steps
         self.steps.reverse();
 
-        // Update the side direction at each step
         for step in &mut self.steps {
-            // Swap side src and dst
             std::mem::swap(&mut step.edge.src, &mut step.edge.dst);
         }
 
-        // Update the source vertex to the target vertex of the last step
         if let Some(last_step) = self.steps.first() {
-            *self.src = Vertex::new((*last_step.edge.src).clone(), vec![]);
+            *self.src = Vertex::new(last_step.edge.src.clone(), vec![]);
         }
     }
 

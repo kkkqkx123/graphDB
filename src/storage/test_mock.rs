@@ -7,7 +7,7 @@ use crate::core::error::StorageError;
 #[cfg(test)]
 use crate::core::types::{
     EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
-    TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
+    TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 #[cfg(test)]
 use crate::core::{Edge, EdgeDirection, NullType, RoleType, Value, Vertex};
@@ -52,7 +52,7 @@ impl Default for MockStorage {
 
 #[cfg(test)]
 impl StorageClient for MockStorage {
-    fn get_vertex(&self, _space: &str, _id: &Value) -> Result<Option<Vertex>, StorageError> {
+    fn get_vertex(&self, _space: &str, _id: &VertexId) -> Result<Option<Vertex>, StorageError> {
         Ok(None)
     }
 
@@ -77,8 +77,8 @@ impl StorageClient for MockStorage {
     fn get_edge(
         &self,
         _space: &str,
-        _src: &Value,
-        _dst: &Value,
+        _src: &VertexId,
+        _dst: &VertexId,
         _edge_type: &str,
         _rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
@@ -88,7 +88,7 @@ impl StorageClient for MockStorage {
     fn get_node_edges(
         &self,
         _space: &str,
-        _node_id: &Value,
+        _node_id: &VertexId,
         _direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
@@ -97,7 +97,7 @@ impl StorageClient for MockStorage {
     fn get_node_edges_filtered<F>(
         &self,
         _space: &str,
-        _node_id: &Value,
+        _node_id: &VertexId,
         _direction: EdgeDirection,
         _filter: Option<F>,
     ) -> Result<Vec<Edge>, StorageError>
@@ -119,15 +119,15 @@ impl StorageClient for MockStorage {
         Ok(Vec::new())
     }
 
-    fn insert_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<Value, StorageError> {
-        Ok(Value::Null(NullType::NaN))
+    fn insert_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<VertexId, StorageError> {
+        Ok(VertexId::new())
     }
 
     fn update_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<(), StorageError> {
         Ok(())
     }
 
-    fn delete_vertex(&mut self, _space: &str, _id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex(&mut self, _space: &str, _id: &VertexId) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -135,7 +135,7 @@ impl StorageClient for MockStorage {
         &mut self,
         _space: &str,
         _vertices: Vec<Vertex>,
-    ) -> Result<Vec<Value>, StorageError> {
+    ) -> Result<Vec<VertexId>, StorageError> {
         Ok(Vec::new())
     }
 
@@ -146,8 +146,8 @@ impl StorageClient for MockStorage {
     fn delete_edge(
         &mut self,
         _space: &str,
-        _src: &Value,
-        _dst: &Value,
+        _src: &VertexId,
+        _dst: &VertexId,
         _edge_type: &str,
         _rank: i64,
     ) -> Result<(), StorageError> {
@@ -432,14 +432,14 @@ impl StorageClient for MockStorage {
         }
     }
 
-    fn delete_vertex_with_edges(&mut self, _space: &str, _id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex_with_edges(&mut self, _space: &str, _id: &VertexId) -> Result<(), StorageError> {
         Ok(())
     }
 
     fn delete_tags(
         &mut self,
         _space: &str,
-        _vertex_id: &Value,
+        _vertex_id: &VertexId,
         _tag_names: &[String],
     ) -> Result<usize, StorageError> {
         Ok(0)

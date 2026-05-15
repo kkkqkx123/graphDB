@@ -29,8 +29,9 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use crate::core::types::VertexId;
 use crate::core::vertex_edge_path::Step;
-use crate::core::{Edge, Path, Value, Vertex};
+use crate::core::{Edge, Path, Vertex};
 
 /// NPath - path representation of a linked list structure
 ///
@@ -129,15 +130,14 @@ impl NPath {
         parent: Arc<NPath>,
         edge: Arc<Edge>,
         vertex: Arc<Vertex>,
-        seen_vertices: &mut HashSet<Value>,
+        seen_vertices: &mut HashSet<VertexId>,
     ) -> Option<Self> {
-        // Check for loop formation
-        if seen_vertices.contains(&vertex.vid.as_ref().clone()) {
+        if seen_vertices.contains(&vertex.vid) {
             return None;
         }
 
         let new_path = Self::extend(parent, edge, vertex);
-        seen_vertices.insert(new_path.vertex.vid.as_ref().clone());
+        seen_vertices.insert(new_path.vertex.vid.clone());
         Some(new_path)
     }
 
@@ -233,11 +233,8 @@ impl NPath {
         }
     }
 
-    /// Check whether a certain vertex is present (used for the noLoop check).
-    ///
-    /// 时间复杂度：O(n)，n为路径长度
-    pub fn contains_vertex(&self, vid: &Value) -> bool {
-        if self.vertex.vid.as_ref() == vid {
+    pub fn contains_vertex(&self, vid: &VertexId) -> bool {
+        if &self.vertex.vid == vid {
             return true;
         }
         if let Some(ref parent) = self.parent {
@@ -246,14 +243,11 @@ impl NPath {
         false
     }
 
-    /// Check whether a certain edge is present (deduplication check)
-    ///
-    /// 时间复杂度：O(n)，n为路径长度
-    pub fn contains_edge(&self, edge_key: &(Value, Value, String)) -> bool {
+    pub fn contains_edge(&self, edge_key: &(VertexId, VertexId, String)) -> bool {
         if let Some(ref edge) = self.edge {
             let key = (
-                (*edge.src).clone(),
-                (*edge.dst).clone(),
+                edge.src.clone(),
+                edge.dst.clone(),
                 edge.edge_type.clone(),
             );
             if &key == edge_key {
@@ -266,19 +260,15 @@ impl NPath {
         false
     }
 
-    /// Check whether there are common vertices with another path (used for checking the concatenation of bidirectional BFS paths).
-    ///
-    /// 时间复杂度：O(n*m)，建议先收集顶点再比较
     pub fn has_common_vertices(&self, other: &NPath) -> bool {
-        let self_vertices: HashSet<_> = self.iter_vertices().map(|v| v.vid.as_ref()).collect();
+        let self_vertices: HashSet<_> = self.iter_vertices().map(|v| &v.vid).collect();
         other
             .iter_vertices()
-            .any(|v| self_vertices.contains(v.vid.as_ref()))
+            .any(|v| self_vertices.contains(&v.vid))
     }
 
-    /// Collect all vertex IDs.
-    pub fn collect_vertex_ids(&self) -> Vec<Value> {
-        self.iter_vertices().map(|v| (*v.vid).clone()).collect()
+    pub fn collect_vertex_ids(&self) -> Vec<VertexId> {
+        self.iter_vertices().map(|v| v.vid.clone()).collect()
     }
 
     /// Collect all the edges.

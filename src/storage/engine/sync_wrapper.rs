@@ -3,6 +3,7 @@
 //! Decorator pattern implementation that wraps any StorageClient to automatically
 //! synchronize storage operations with external index systems (fulltext, vector).
 
+use crate::core::types::VertexId;
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::interface::StorageClient;
 use crate::storage::metadata::SchemaManager;
@@ -107,7 +108,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         self.inner.get_schema_manager()
     }
 
-    fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
+    fn get_vertex(&self, space: &str, id: &VertexId) -> Result<Option<Vertex>, StorageError> {
         self.inner.get_vertex(space, id)
     }
 
@@ -132,8 +133,8 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
     fn get_edge(
         &self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         rank: i64,
     ) -> Result<Option<Edge>, StorageError> {
@@ -143,7 +144,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
     fn get_node_edges(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: crate::core::EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
         self.inner.get_node_edges(space, node_id, direction)
@@ -152,7 +153,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
     fn get_node_edges_filtered<F>(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: crate::core::EdgeDirection,
         filter: Option<F>,
     ) -> Result<Vec<Edge>, StorageError>
@@ -171,7 +172,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         self.inner.scan_all_edges(space)
     }
 
-    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<VertexId, StorageError> {
         let result = self.inner.insert_vertex(space, vertex.clone())?;
 
         if self.enabled {

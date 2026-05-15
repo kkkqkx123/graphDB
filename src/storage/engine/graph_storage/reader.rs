@@ -2,6 +2,7 @@
 //!
 //! Provides read-only operations for the graph storage engine.
 
+use crate::core::types::VertexId;
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::metadata::Schema;
 
@@ -19,7 +20,7 @@ impl<'a> GraphStorageReader<'a> {
         Self { ctx }
     }
 
-    pub fn get_vertex(&self, space: &str, id: &Value) -> StorageResult<Option<Vertex>> {
+    pub fn get_vertex(&self, space: &str, id: &VertexId) -> StorageResult<Option<Vertex>> {
         let _space_info = self.ctx.schema_manager.get_space(space)?.ok_or_else(|| {
             StorageError::not_found(format!("Space {} not found", space))
         })?;
@@ -30,7 +31,7 @@ impl<'a> GraphStorageReader<'a> {
         }
 
         let ts = self.ctx.get_read_timestamp();
-        let id_str = value_to_string(id);
+        let id_str = id.to_string();
 
         for tag in &tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
@@ -112,8 +113,8 @@ impl<'a> GraphStorageReader<'a> {
     pub fn get_edge(
         &self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         _rank: i64,
     ) -> StorageResult<Option<Edge>> {
@@ -123,8 +124,8 @@ impl<'a> GraphStorageReader<'a> {
 
         let ts = self.ctx.get_read_timestamp();
 
-        let src_str = value_to_string(src);
-        let dst_str = value_to_string(dst);
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
 
         let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
@@ -144,7 +145,7 @@ impl<'a> GraphStorageReader<'a> {
     pub fn get_node_edges(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
     ) -> StorageResult<Vec<Edge>> {
         let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
@@ -153,7 +154,7 @@ impl<'a> GraphStorageReader<'a> {
         }
 
         let ts = self.ctx.get_read_timestamp();
-        let node_str = value_to_string(node_id);
+        let node_str = node_id.to_string();
         let mut edges = Vec::new();
 
         for edge_info in &edge_types {
@@ -232,7 +233,7 @@ impl<'a> GraphStorageReader<'a> {
     pub fn get_node_edges_filtered<F>(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
         filter: Option<F>,
     ) -> StorageResult<Vec<Edge>>

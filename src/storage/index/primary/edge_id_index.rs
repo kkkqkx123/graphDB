@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::core::types::{EdgeId, VertexId};
 use crate::storage::index::index_types::{PrimaryIndex, PropOffset};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EdgeLocation {
     pub src: VertexId,
     pub dst: VertexId,
@@ -111,14 +111,14 @@ impl EdgeIdIndex {
     pub fn iter(&self) -> impl Iterator<Item = (EdgeId, EdgeLocation)> + '_ {
         self.index
             .iter()
-            .map(|entry| (*entry.key(), *entry.value()))
+            .map(|entry| (*entry.key(), entry.value().clone()))
     }
 
     pub fn entries_by_src(&self, src: VertexId) -> Vec<(EdgeId, EdgeLocation)> {
         self.index
             .iter()
             .filter(|entry| entry.value().src == src)
-            .map(|entry| (*entry.key(), *entry.value()))
+            .map(|entry| (*entry.key(), entry.value().clone()))
             .collect()
     }
 
@@ -126,7 +126,7 @@ impl EdgeIdIndex {
         self.index
             .iter()
             .filter(|entry| entry.value().dst == dst)
-            .map(|entry| (*entry.key(), *entry.value()))
+            .map(|entry| (*entry.key(), entry.value().clone()))
             .collect()
     }
 }

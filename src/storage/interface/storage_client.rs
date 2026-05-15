@@ -1,6 +1,6 @@
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
-    TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
+    TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::metadata::{SchemaManager, Schema};
@@ -8,7 +8,7 @@ use crate::transaction::context::TransactionContext;
 use std::sync::Arc;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
-    fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError>;
+    fn get_vertex(&self, space: &str, id: &VertexId) -> Result<Option<Vertex>, StorageError>;
     fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError>;
     fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError>;
     fn scan_vertices_by_prop(
@@ -22,21 +22,21 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn get_edge(
         &self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         rank: i64,
     ) -> Result<Option<Edge>, StorageError>;
     fn get_node_edges(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError>;
     fn get_node_edges_filtered<F>(
         &self,
         space: &str,
-        node_id: &Value,
+        node_id: &VertexId,
         direction: EdgeDirection,
         filter: Option<F>,
     ) -> Result<Vec<Edge>, StorageError>
@@ -45,30 +45,20 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError>;
     fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
 
-    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError>;
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<VertexId, StorageError>;
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError>;
-    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError>;
-    fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError>;
+    fn delete_vertex(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError>;
+    fn delete_vertex_with_edges(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError>;
     fn batch_insert_vertices(
         &mut self,
         space: &str,
         vertices: Vec<Vertex>,
-    ) -> Result<Vec<Value>, StorageError>;
+    ) -> Result<Vec<VertexId>, StorageError>;
 
-    /// Deletes the specified label on a vertex
-    ///
-    /// # Arguments
-    /// * :: `space` -- space name
-    /// * `vertex_id` - vertex ID
-    /// * `tag_names` - list of tag names to be deleted
-    ///
-    /// # Returns
-    /// * `Ok(usize)` - Number of successfully deleted tags
-    /// * `Err(StorageError)` - Storage error
     fn delete_tags(
         &mut self,
         space: &str,
-        vertex_id: &Value,
+        vertex_id: &VertexId,
         tag_names: &[String],
     ) -> Result<usize, StorageError>;
 
@@ -76,8 +66,8 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn delete_edge(
         &mut self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         rank: i64,
     ) -> Result<(), StorageError>;

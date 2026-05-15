@@ -2,13 +2,12 @@
 //!
 //! Provides write operations for the graph storage engine.
 
-use crate::core::types::{InsertEdgeInfo, InsertVertexInfo, LabelId, UpdateInfo, UpdateOp, UpdateTarget};
+use crate::core::types::{InsertEdgeInfo, InsertVertexInfo, LabelId, UpdateInfo, UpdateOp, UpdateTarget, VertexId};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::property_graph::InsertEdgeParams;
 use crate::storage::metadata::index_manager::IndexMetadataManager;
 
 use super::context::GraphStorageContext;
-use super::type_utils::value_to_string;
 
 pub struct GraphStorageWriter<'a> {
     ctx: &'a GraphStorageContext,
@@ -19,7 +18,7 @@ impl<'a> GraphStorageWriter<'a> {
         Self { ctx }
     }
 
-    pub fn insert_vertex(&self, space: &str, vertex: Vertex) -> StorageResult<Value> {
+    pub fn insert_vertex(&self, space: &str, vertex: Vertex) -> StorageResult<VertexId> {
         let space_info = self.ctx.schema_manager.get_space(space)?.ok_or_else(|| {
             StorageError::not_found(format!("Space {} not found", space))
         })?;
@@ -30,7 +29,7 @@ impl<'a> GraphStorageWriter<'a> {
 
         for tag in &vertex.tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
-                let id_str = value_to_string(&vertex.vid);
+                let id_str = vertex.vid.to_string();
                 let props: Vec<(String, Value)> = tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
                 if self.ctx.graph.insert_vertex(label_id, &id_str, &props, ts).is_err() {
@@ -60,7 +59,7 @@ impl<'a> GraphStorageWriter<'a> {
             }
         }
 
-        Ok(*vertex.vid.clone())
+        Ok(vertex.vid.clone())
     }
 
     pub fn update_vertex(&self, space: &str, vertex: Vertex) -> StorageResult<()> {
@@ -69,7 +68,7 @@ impl<'a> GraphStorageWriter<'a> {
         })?;
 
         let ts = self.ctx.get_write_timestamp();
-        let id_str = value_to_string(&vertex.vid);
+        let id_str = vertex.vid.to_string();
 
         for tag in &vertex.tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
@@ -94,14 +93,14 @@ impl<'a> GraphStorageWriter<'a> {
         Ok(())
     }
 
-    pub fn delete_vertex(&self, space: &str, id: &Value) -> StorageResult<()> {
+    pub fn delete_vertex(&self, space: &str, id: &VertexId) -> StorageResult<()> {
         let space_info = self.ctx.schema_manager.get_space(space)?.ok_or_else(|| {
             StorageError::not_found(format!("Space {} not found", space))
         })?;
 
         let tags = self.ctx.schema_manager.list_tags(space)?;
         let ts = self.ctx.get_write_timestamp();
-        let id_str = value_to_string(id);
+        let id_str = id.to_string();
 
         for tag in &tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
@@ -124,7 +123,7 @@ impl<'a> GraphStorageWriter<'a> {
     pub fn delete_vertex_with_edges(
         &self,
         space: &str,
-        id: &Value,
+        id: &VertexId,
         reader: &super::reader::GraphStorageReader<'_>,
     ) -> StorageResult<()> {
         let edges = reader.get_node_edges(space, id, EdgeDirection::Both)?;
@@ -140,7 +139,7 @@ impl<'a> GraphStorageWriter<'a> {
         &self,
         space: &str,
         vertices: Vec<Vertex>,
-    ) -> StorageResult<Vec<Value>> {
+    ) -> StorageResult<Vec<VertexId>> {
         let mut ids = Vec::with_capacity(vertices.len());
         for vertex in vertices {
             let id = self.insert_vertex(space, vertex)?;
@@ -152,7 +151,7 @@ impl<'a> GraphStorageWriter<'a> {
     pub fn delete_tags(
         &self,
         space: &str,
-        vertex_id: &Value,
+        vertex_id: &VertexId,
         tag_names: &[String],
     ) -> StorageResult<usize> {
         let space_info = self.ctx.schema_manager.get_space(space)?.ok_or_else(|| {
@@ -162,7 +161,7 @@ impl<'a> GraphStorageWriter<'a> {
         let ts = self.ctx.get_write_timestamp();
         let mut deleted_count = 0;
 
-        let id_str = value_to_string(vertex_id);
+        let id_str = vertex_id.to_string();
 
         for tag_name in tag_names {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(tag_name) {
@@ -196,8 +195,8 @@ impl<'a> GraphStorageWriter<'a> {
                 if et.edge_type_name == edge.edge_type {
                     if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&et.src_tag_name) {
                         if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
-                            let src_str = value_to_string(&edge.src);
-                            let dst_str = value_to_string(&edge.dst);
+                            let src_str = edge.src.to_string();
+                            let dst_str = edge.dst.to_string();
                             let props: Vec<(String, Value)> =
                                 edge.props.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
@@ -234,8 +233,8 @@ impl<'a> GraphStorageWriter<'a> {
     pub fn delete_edge(
         &self,
         space: &str,
-        src: &Value,
-        dst: &Value,
+        src: &VertexId,
+        dst: &VertexId,
         edge_type: &str,
         _rank: i64,
     ) -> StorageResult<()> {
@@ -251,8 +250,8 @@ impl<'a> GraphStorageWriter<'a> {
                 if et.edge_type_name == edge_type {
                     if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&et.src_tag_name) {
                         if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
-                            let src_str = value_to_string(src);
-                            let dst_str = value_to_string(dst);
+                            let src_str = src.to_string();
+                            let dst_str = dst.to_string();
 
                             self.ctx.graph.delete_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)?;
 

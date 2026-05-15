@@ -332,7 +332,7 @@ mod tests {
     fn test_batch_operation_add_items() {
         let mut batch = BatchOperation::new(BatchConfig::default());
 
-        let vertex = Vertex::with_vid(Value::Int(1));
+        let vertex = Vertex::with_vid(crate::core::types::VertexId::from_int64(1));
         batch.add_vertex(vertex);
 
         assert_eq!(batch.len(), 1);
@@ -346,7 +346,7 @@ mod tests {
 
         assert!(!batch.should_flush());
 
-        let vertex = Vertex::with_vid(Value::Int(1));
+        let vertex = Vertex::with_vid(crate::core::types::VertexId::from_int64(1));
         batch.add_vertex(vertex.clone());
         batch.add_vertex(vertex);
 

@@ -241,7 +241,7 @@ impl DegreeIndex {
     pub fn iter(&self) -> impl Iterator<Item = (VertexId, DegreeInfo)> + '_ {
         self.degrees
             .iter()
-            .map(|entry| (*entry.key(), *entry.value()))
+            .map(|entry| (entry.key().clone(), *entry.value()))
     }
 }
 

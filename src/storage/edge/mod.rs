@@ -85,6 +85,7 @@ pub struct EdgeRecord {
     pub edge_id: EdgeId,
     pub src_vid: VertexId,
     pub dst_vid: VertexId,
+    pub ranking: i64,
     pub properties: Vec<(String, crate::core::Value)>,
 }
 
@@ -160,7 +161,7 @@ impl From<&crate::core::types::PropertyDef> for PropertyDef {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Nbr {
     pub neighbor: VertexId,
     pub edge_id: EdgeId,
@@ -188,7 +189,7 @@ impl Nbr {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ImmutableNbr {
     pub neighbor: VertexId,
     pub edge_id: EdgeId,
