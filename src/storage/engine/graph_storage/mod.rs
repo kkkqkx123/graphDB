@@ -38,7 +38,7 @@ use crate::storage::engine::{PersistenceConfig, PropertyGraph};
 use crate::storage::index::secondary::IndexGcManager;
 use crate::storage::interface::{StorageClient, StorageStats};
 use crate::storage::metadata::{SchemaManager, Schema};
-use crate::interfaces::TransactionContextProvider;
+use crate::interfaces::TransactionContextInfo;
 
 #[derive(Clone)]
 pub struct GraphStorage {
@@ -121,11 +121,11 @@ impl GraphStorage {
         self.ctx.extended_schema_manager.clone()
     }
 
-    pub fn get_transaction_context(&self) -> Option<Arc<dyn TransactionContextProvider>> {
+    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
         self.ctx.get_transaction_context()
     }
 
-    pub fn set_transaction_context(&self, context: Option<Arc<dyn TransactionContextProvider>>) {
+    pub fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
         self.ctx.set_transaction_context(context);
     }
 
@@ -633,11 +633,11 @@ impl StorageClient for GraphStorage {
         &self.ctx.db_path
     }
 
-    fn get_transaction_context(&self) -> Option<Arc<dyn TransactionContextProvider>> {
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
         self.ctx.get_transaction_context()
     }
 
-    fn set_transaction_context(&self, context: Option<Arc<dyn TransactionContextProvider>>) {
+    fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
         self.ctx.set_transaction_context(context);
     }
 

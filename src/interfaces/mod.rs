@@ -18,4 +18,4 @@ pub mod transaction_buffer;
 pub mod transaction_context;
 
 pub use transaction_buffer::TransactionBuffer;
-pub use transaction_context::TransactionContextProvider;
+pub use transaction_context::TransactionContextInfo;

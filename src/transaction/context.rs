@@ -522,20 +522,6 @@ impl TransactionContext {
     }
 }
 
-impl crate::interfaces::TransactionContextProvider for TransactionContext {
-    fn id(&self) -> u64 {
-        self.id
-    }
-
-    fn timestamp(&self) -> u32 {
-        self.start_timestamp
-    }
-
-    fn is_read_only(&self) -> bool {
-        self.read_only
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

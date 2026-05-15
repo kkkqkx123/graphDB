@@ -1,21 +1,31 @@
-//! Transaction Context Provider Interface
+//! Transaction Context Information
 //!
-//! Defines the interface for accessing transaction context information.
-//! This abstraction allows the storage layer to interact with transaction
-//! contexts without depending on the concrete transaction module types.
+//! Defines a simple data struct for transaction context information.
+//! This shared type allows the storage layer to access transaction metadata
+//! without depending on the concrete transaction module types.
 
-/// Provider for transaction context information.
+/// Transaction context information.
 ///
-/// This trait abstracts the transaction context interface so that
-/// the storage layer can access transaction metadata (like MVCC timestamps)
-/// without depending on the concrete transaction module implementation.
-pub trait TransactionContextProvider: Send + Sync {
-    /// Get the transaction ID
-    fn id(&self) -> u64;
+/// A simple data struct containing transaction metadata (MVCC timestamp, etc.).
+/// This is used by the storage layer instead of a trait object to avoid
+/// unnecessary dynamic dispatch, since there is only one implementation.
+#[derive(Debug, Clone)]
+pub struct TransactionContextInfo {
+    /// Transaction ID
+    pub id: u64,
+    /// MVCC timestamp associated with this transaction
+    pub timestamp: u32,
+    /// Whether this is a read-only transaction
+    pub is_read_only: bool,
+}
 
-    /// Get the MVCC timestamp associated with this transaction
-    fn timestamp(&self) -> u32;
-
-    /// Check if this is a read-only transaction
-    fn is_read_only(&self) -> bool;
+impl TransactionContextInfo {
+    /// Create a new TransactionContextInfo
+    pub fn new(id: u64, timestamp: u32, is_read_only: bool) -> Self {
+        Self {
+            id,
+            timestamp,
+            is_read_only,
+        }
+    }
 }

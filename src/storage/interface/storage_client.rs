@@ -3,7 +3,7 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::interfaces::TransactionContextProvider;
+use crate::interfaces::TransactionContextInfo;
 use crate::storage::metadata::{SchemaManager, Schema};
 use std::sync::Arc;
 
@@ -219,13 +219,13 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
 
     /// Get transaction context (for MVCC support)
     /// Default implementation returns None for storage clients that don't support transactions
-    fn get_transaction_context(&self) -> Option<Arc<dyn TransactionContextProvider>> {
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
         None
     }
 
     /// Set transaction context (for MVCC support)
     /// Default implementation does nothing for storage clients that don't support transactions
-    fn set_transaction_context(&self, _context: Option<Arc<dyn TransactionContextProvider>>) {}
+    fn set_transaction_context(&self, _context: Option<Arc<TransactionContextInfo>>) {}
 }
 
 /// Storing statistical information

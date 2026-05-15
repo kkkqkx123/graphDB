@@ -54,7 +54,7 @@ impl<S: StorageClient> SyncWrapper<S> {
     /// Get the current transaction ID from storage context.
     fn get_current_txn_id(&self) -> crate::core::types::TransactionId {
         if let Some(ctx) = self.inner.get_transaction_context() {
-            return ctx.id();
+            return ctx.id;
         }
         0
     }

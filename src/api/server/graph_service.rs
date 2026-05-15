@@ -6,6 +6,7 @@ use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
 use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
+use crate::interfaces::TransactionContextInfo;
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
 use crate::storage::{SchemaManager, StorageClient};
@@ -314,7 +315,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         };
 
         if let Some(ref ctx) = txn_context {
-            self.storage.set_transaction_context(Some(ctx.clone()));
+            let ctx_info = Arc::new(TransactionContextInfo::new(
+                ctx.id,
+                ctx.start_timestamp,
+                ctx.read_only,
+            ));
+            self.storage.set_transaction_context(Some(ctx_info));
         }
 
         // RAII guard ensures transaction context is cleared even if query panics

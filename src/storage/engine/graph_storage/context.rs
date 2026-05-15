@@ -16,7 +16,7 @@ use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
 use crate::storage::metadata::{
     ExtendedSchemaManager, IndexManager, SchemaManager,
 };
-use crate::interfaces::TransactionContextProvider;
+use crate::interfaces::TransactionContextInfo;
 use crate::core::mvcc::VersionManager;
 
 #[derive(Clone)]
@@ -27,7 +27,7 @@ pub struct GraphStorageContext {
     pub index_metadata_manager: Arc<IndexManager>,
     pub version_manager: Arc<VersionManager>,
     pub user_storage: Arc<UserStorage>,
-    pub current_txn_context: Arc<RwLock<Option<Arc<dyn TransactionContextProvider>>>>,
+    pub current_txn_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
     pub persistence: Option<Arc<RwLock<PersistenceCoordinator>>>,
     pub index_gc_manager: Option<Arc<IndexGcManager>>,
     pub fulltext_storage: Option<Arc<FulltextStorage>>,
@@ -163,7 +163,7 @@ impl GraphStorageContext {
 
     pub fn get_read_timestamp(&self) -> u32 {
         if let Some(txn_ctx) = self.current_txn_context.write().clone() {
-            txn_ctx.timestamp()
+            txn_ctx.timestamp
         } else {
             self.version_manager.read_timestamp()
         }
@@ -171,17 +171,17 @@ impl GraphStorageContext {
 
     pub fn get_write_timestamp(&self) -> u32 {
         if let Some(txn_ctx) = self.current_txn_context.write().clone() {
-            txn_ctx.timestamp()
+            txn_ctx.timestamp
         } else {
             self.version_manager.write_timestamp()
         }
     }
 
-    pub fn get_transaction_context(&self) -> Option<Arc<dyn TransactionContextProvider>> {
+    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
         self.current_txn_context.write().clone()
     }
 
-    pub fn set_transaction_context(&self, context: Option<Arc<dyn TransactionContextProvider>>) {
+    pub fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
         *self.current_txn_context.write() = context;
     }
 
