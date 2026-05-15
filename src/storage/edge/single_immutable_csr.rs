@@ -106,7 +106,7 @@ impl SingleImmutableCsr {
             let src = src_list[i].as_int64().unwrap_or(0) as usize;
             if src < self.vertex_capacity {
                 self.nbr_list[src] =
-                    ImmutableNbr::new(dst_list[i].clone(), edge_ids[i], prop_offsets[i]);
+                    ImmutableNbr::new(dst_list[i], edge_ids[i], prop_offsets[i]);
             }
         }
 
@@ -251,7 +251,7 @@ impl<'a> Iterator for SingleImmutableCsrIterator<'a> {
             let src = VertexId::from_int64(self.current_vertex as i64);
             self.current_vertex += 1;
 
-            if let Some(nbr) = self.csr.get_edge(src.clone()) {
+            if let Some(nbr) = self.csr.get_edge(src) {
                 return Some((src, nbr));
             }
         }

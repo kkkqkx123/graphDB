@@ -27,7 +27,7 @@ pub struct SyncCoordinator {
     fulltext_processors: DashMap<(u64, String, String), Arc<FulltextProcessor>>,
     vector_processors: DashMap<(u64, String, String), Arc<VectorProcessor>>,
     transaction_buffers:
-        DashMap<crate::transaction::types::TransactionId, Arc<TransactionBatchBuffer>>,
+        DashMap<crate::core::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
     vector_client_config: VectorClientConfig,
     metrics: Arc<SyncMetrics>,
@@ -267,7 +267,7 @@ impl SyncCoordinator {
     /// Buffered index operations
     pub fn buffer_operation(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
         ctx: ChangeContext,
     ) -> Result<(), SyncCoordinatorError> {
         // Creating Index Operations
@@ -290,7 +290,7 @@ impl SyncCoordinator {
     /// Get the count of buffered operations for a transaction
     pub fn transaction_buffer_count(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> usize {
         if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
             buffer.pending_count(txn_id)
@@ -302,7 +302,7 @@ impl SyncCoordinator {
     /// Prepare phase: validate all operations
     pub async fn prepare_transaction(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
         // Check if there is a buffer for this transaction
         if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
@@ -319,7 +319,7 @@ impl SyncCoordinator {
     /// Commit phase: Apply all operations with batch optimization
     pub async fn commit_transaction(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
         let start_time = Instant::now();
         self.metrics.record_active_transaction_start();
@@ -497,7 +497,7 @@ impl SyncCoordinator {
     /// Rollback phase: discard buffer
     pub async fn rollback_transaction(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
         if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
             let count = buffer.pending_count(txn_id);

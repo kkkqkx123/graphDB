@@ -52,7 +52,7 @@ impl<S: StorageClient> SyncWrapper<S> {
     }
 
     /// Get the current transaction ID from storage context.
-    fn get_current_txn_id(&self) -> crate::transaction::types::TransactionId {
+    fn get_current_txn_id(&self) -> crate::core::types::TransactionId {
         if let Some(ctx) = self.inner.get_transaction_context() {
             return ctx.id;
         }
@@ -189,7 +189,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
                         .collect();
 
                     if !props.is_empty() {
-                        let vid_value = Value::from(vertex.vid.clone());
+                        let vid_value = Value::from(vertex.vid);
                         sync_manager
                             .on_vertex_change_with_txn(
                                 txn_id,
@@ -217,7 +217,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
         let old_vertex = self
             .inner
             .get_vertex(space, &vertex.vid)?
-            .ok_or_else(|| StorageError::node_not_found(vertex.vid.clone()))?;
+            .ok_or_else(|| StorageError::node_not_found(vertex.vid))?;
 
         self.inner.update_vertex(space, vertex.clone())?;
 
@@ -231,7 +231,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
                     let changed_props = Self::detect_changed_properties(&old_vertex, &vertex);
 
                     if !changed_props.is_empty() {
-                        let vid_value = Value::from(vertex.vid.clone());
+                        let vid_value = Value::from(vertex.vid);
                         sync_manager
                             .on_vertex_change_with_txn(
                                 txn_id,
@@ -349,7 +349,7 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
                             .collect();
 
                         if !props.is_empty() {
-                            let vid_value = Value::from(vertex.vid.clone());
+                            let vid_value = Value::from(vertex.vid);
                             sync_manager
                                 .on_vertex_change_with_txn(
                                     txn_id,

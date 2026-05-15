@@ -350,7 +350,7 @@ impl EdgeTable {
 
                 return Some(EdgeRecord {
                     edge_id: nbr.edge_id,
-                    src_vid: src_vid,
+                    src_vid,
                     dst_vid: nbr.neighbor,
                     ranking: 0,
                     properties,
@@ -530,7 +530,7 @@ impl EdgeTable {
 
                 edges.push(EdgeRecord {
                     edge_id: nbr.edge_id,
-                    src_vid: src_vid,
+                    src_vid,
                     dst_vid: nbr.neighbor,
                     ranking: 0,
                     properties,

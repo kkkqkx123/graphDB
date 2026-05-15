@@ -231,8 +231,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         }
 
         if !index_props.is_empty() {
-            let src_value = Value::from(edge.src.clone());
-            let dst_value = Value::from(edge.dst.clone());
+            let src_value = Value::from(edge.src);
+            let dst_value = Value::from(edge.dst);
             self.index_data_manager.update_edge_indexes_mvcc(
                 self.space_id,
                 &src_value,
@@ -278,8 +278,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             .map(|idx| idx.name)
             .collect();
 
-        let src_value = Value::from(edge.src.clone());
-        let dst_value = Value::from(edge.dst.clone());
+        let src_value = Value::from(edge.src);
+        let dst_value = Value::from(edge.dst);
         self.index_data_manager.delete_edge_indexes_mvcc(
             self.space_id,
             &src_value,

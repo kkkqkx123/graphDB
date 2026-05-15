@@ -26,6 +26,9 @@ pub type EdgeId = u64;
 /// Column ID type for property columns
 pub type ColumnId = i32;
 
+/// Transaction ID type
+pub type TransactionId = u64;
+
 // ============================================================================
 // VertexId - Unified Byte Representation
 // ============================================================================

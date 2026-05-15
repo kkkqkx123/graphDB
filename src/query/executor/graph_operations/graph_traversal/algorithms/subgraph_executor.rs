@@ -410,7 +410,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for SubgraphExecutor<S>
 mod tests {
     use super::*;
     use crate::core::types::VertexId;
-    use crate::core::Value;
     use crate::storage::MockStorage;
 
     #[test]

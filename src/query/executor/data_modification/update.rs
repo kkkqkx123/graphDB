@@ -220,7 +220,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         update_result.returned_props = evaluated_props;
                     } else if self.insertable {
                         let new_vertex = crate::core::Vertex::new_with_properties(
-                            vertex_vid.clone(),
+                            vertex_vid,
                             Vec::new(),
                             update.properties.clone(),
                         );
@@ -246,8 +246,8 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 let should_update = if let Some(ref expression) = condition_expression {
                     self.evaluate_condition(
                         expression,
-                        update.src.clone(),
-                        Some(update.dst.clone()),
+                        update.src,
+                        Some(update.dst),
                         Some(&update.edge_type),
                         None,
                         &update.properties,
@@ -287,8 +287,8 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         update_result.returned_props = evaluated_props;
                     } else if self.insertable {
                         let new_edge = crate::core::Edge::new(
-                            edge_src.clone(),
-                            edge_dst.clone(),
+                            edge_src,
+                            edge_dst,
                             update.edge_type.clone(),
                             update.rank.unwrap_or(0),
                             update.properties.clone(),

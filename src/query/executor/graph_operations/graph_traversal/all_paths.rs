@@ -630,7 +630,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Edge, Value};
+    use crate::core::Edge;
     use std::collections::HashMap;
 
     #[test]

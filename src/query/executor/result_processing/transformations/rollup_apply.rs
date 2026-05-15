@@ -98,7 +98,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             match value {
                 Value::Edge(edge) => {
                     path.add_step(crate::core::vertex_edge_path::Step::new_with_edge(
-                        crate::core::vertex_edge_path::Vertex::with_vid((*edge.dst()).clone()),
+                        crate::core::vertex_edge_path::Vertex::with_vid(*edge.dst()),
                         (**edge).clone(),
                     ));
                 }

@@ -52,7 +52,7 @@ pub mod writer;
 
 pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointResult};
 pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};
-pub use crate::storage::metadata::{TableId as DirtyPageId, TableTracker as DirtyPageTracker, TableTrackerConfig as DirtyTrackerConfig, TableType};
+pub use crate::core::types::{TableId, TableTracker, TableTrackerConfig, TableType};
 pub use parser::{
     LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
     WalEntryIter, WalParser, WalParserFactory,

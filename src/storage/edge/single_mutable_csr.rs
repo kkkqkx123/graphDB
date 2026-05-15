@@ -347,7 +347,7 @@ impl SingleMutableCsr {
                 self.edge_count.fetch_add(1, Ordering::Relaxed);
             }
 
-            nbr.neighbor = dst_list[i].clone();
+            nbr.neighbor = dst_list[i];
             nbr.edge_id = edge_ids[i];
             nbr.prop_offset = prop_offsets[i];
             nbr.timestamp = ts;
@@ -451,7 +451,7 @@ impl<'a> Iterator for SingleCsrEdgeIterator<'a> {
         }
 
         self.consumed = true;
-        self.csr.get_edge(self.src.clone(), self.ts)
+        self.csr.get_edge(self.src, self.ts)
     }
 }
 
@@ -485,7 +485,7 @@ impl<'a> Iterator for SingleMutableCsrIterator<'a> {
             let src = VertexId::from_int64(self.current_vertex as i64);
             self.current_vertex += 1;
 
-            if let Some(nbr) = self.csr.get_edge(src.clone(), self.ts) {
+            if let Some(nbr) = self.csr.get_edge(src, self.ts) {
                 return Some((src, nbr));
             }
         }

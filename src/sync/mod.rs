@@ -38,7 +38,7 @@ pub use vector_sync::{
 #[derive(Debug, Clone)]
 pub struct PendingIndexUpdate {
     /// Transaction ID
-    pub txn_id: crate::transaction::types::TransactionId,
+    pub txn_id: crate::core::types::TransactionId,
     /// Space ID
     pub space_id: u64,
     /// Tag Name
@@ -55,7 +55,7 @@ pub struct PendingIndexUpdate {
 
 impl PendingIndexUpdate {
     pub fn new(
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
         space_id: u64,
         tag_name: String,
         field_name: String,

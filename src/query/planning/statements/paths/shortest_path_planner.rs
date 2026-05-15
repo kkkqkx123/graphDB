@@ -212,7 +212,7 @@ impl ShortestPathPlanner {
 
         for vertex in vertices {
             if self.vertex_matches_pattern(&vertex, pattern) {
-                matching.push(Value::from(vertex.vid().clone()));
+                matching.push(Value::from(vertex.vid()));
             }
         }
 

@@ -244,7 +244,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         for npath in &self.current_npaths {
             // Get the last node of the current path.
             let current_node = &npath.vertex().vid;
-            let current_node_value = Value::from(current_node.clone());
+            let current_node_value = Value::from(*current_node);
 
             // Obtaining neighbor nodes and edges
             let neighbors_with_edges = self.get_neighbors_with_edges(&current_node_value)?;
@@ -296,7 +296,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         self.visited_nodes.clear();
 
         for vertex in input_nodes {
-            let vid = vertex.vid.clone();
+            let vid = vertex.vid;
             let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
             self.current_npaths.push(initial_npath);
             self.visited_nodes.insert(Value::from(vid));
@@ -331,14 +331,14 @@ impl<S: StorageClient> TraverseExecutor<S> {
                 // Add a starting node.
                 if !visited_vertices.contains(&path.src.vid) {
                     vertices.push((*path.src).clone());
-                    visited_vertices.insert(path.src.vid.clone());
+                    visited_vertices.insert(path.src.vid);
                 }
 
                 // Add all nodes in the path.
                 for step in &path.steps {
                     if !visited_vertices.contains(&step.dst.vid) {
                         vertices.push((*step.dst).clone());
-                        visited_vertices.insert(step.dst.vid.clone());
+                        visited_vertices.insert(step.dst.vid);
                     }
                 }
             }

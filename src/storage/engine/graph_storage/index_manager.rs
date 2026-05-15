@@ -115,8 +115,8 @@ impl<'a> IndexManagerOps<'a> {
         for edge in edges {
             let props: Vec<(String, Value)> =
                 edge.props.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-            let src_value = Value::from(edge.src.clone());
-            let dst_value = Value::from(edge.dst.clone());
+            let src_value = Value::from(edge.src);
+            let dst_value = Value::from(edge.dst);
             self.ctx.graph.update_edge_indexes_mvcc(space_id, &src_value, &dst_value, &index.name, &props, ts)?;
         }
 

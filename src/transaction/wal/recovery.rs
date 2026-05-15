@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use postcard::from_bytes;
 
-use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::{
     DeleteEdgeRedo, DeleteVertexRedo, InsertEdgeRedo, InsertVertexRedo, LocalWalParser,
@@ -48,48 +47,7 @@ pub struct RecoveryStats {
 
 /// Trait for applying recovered operations to the storage engine.
 /// Implementors handle the actual data modifications during WAL replay.
-pub trait RecoveryApplier {
-    fn replay_insert_vertex(
-        &self,
-        label: LabelId,
-        oid: &[u8],
-        properties: &[(String, Vec<u8>)],
-        ts: Timestamp,
-    ) -> StorageResult<()>;
-
-    fn replay_insert_edge(
-        &self,
-        redo: &InsertEdgeRedo,
-        ts: Timestamp,
-    ) -> StorageResult<()>;
-
-    fn replay_update_vertex_prop(
-        &self,
-        label: LabelId,
-        oid: &[u8],
-        prop_name: &str,
-        value: &[u8],
-        ts: Timestamp,
-    ) -> StorageResult<()>;
-
-    fn replay_update_edge_prop(
-        &self,
-        redo: &UpdateEdgePropRedo,
-        ts: Timestamp,
-    ) -> StorageResult<()>;
-
-    fn replay_delete_vertex(&self, label: LabelId, oid: &[u8], ts: Timestamp) -> StorageResult<()>;
-
-    fn replay_delete_edge(
-        &self,
-        src_label: LabelId,
-        src_oid: &[u8],
-        dst_label: LabelId,
-        dst_oid: &[u8],
-        edge_label: LabelId,
-        ts: Timestamp,
-    ) -> StorageResult<()>;
-}
+pub use crate::core::wal::traits::RecoveryApplier;
 
 /// Recovery manager for crash recovery
 pub struct RecoveryManager {

@@ -156,8 +156,8 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
             let mut unique_dst = std::collections::HashSet::new();
 
             for edge in &edges {
-                unique_src.insert(edge.src().clone());
-                unique_dst.insert(edge.dst().clone());
+                unique_src.insert(*edge.src());
+                unique_dst.insert(*edge.dst());
             }
 
             stats.unique_src_vertices = unique_src.len() as u64;

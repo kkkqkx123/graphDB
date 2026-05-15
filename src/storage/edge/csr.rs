@@ -133,7 +133,7 @@ impl Csr {
                 let pos = current_pos[src] as usize;
                 if pos < new_edges.len() {
                     new_edges[pos] = ImmutableNbr::new(
-                        dst_list[i].clone(),
+                        dst_list[i],
                         edge_ids[i],
                         prop_offsets[i],
                     );

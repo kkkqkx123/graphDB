@@ -1,4 +1,5 @@
 pub mod error;
+pub mod mvcc;
 pub mod npath;
 pub mod session_stats;
 pub mod type_system;
@@ -9,6 +10,7 @@ pub mod vertex_edge_path;
 pub mod permission;
 pub mod stats;
 pub mod types;
+pub mod wal;
 
 // Error and result types
 pub use error::{

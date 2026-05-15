@@ -36,16 +36,7 @@ pub enum IsolationLevel {
 }
 
 /// Durability level for transactions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum DurabilityLevel {
-    /// No durability - data lost on crash
-    None,
-    /// Async WAL - may lose recent transactions on crash
-    #[default]
-    Async,
-    /// Sync WAL - guaranteed durability
-    Sync,
-}
+pub use crate::core::types::DurabilityLevel;
 
 /// Transaction configuration
 #[derive(Debug, Clone)]

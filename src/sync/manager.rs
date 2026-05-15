@@ -108,7 +108,7 @@ impl SyncManager {
     /// Vertex changes with transactions (synchronous buffering)
     pub fn on_vertex_change_with_txn(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
         space_id: u64,
         tag_name: &str,
         vertex_id: &Value,
@@ -159,7 +159,7 @@ impl SyncManager {
     /// Edge insertion (synchronous buffering)
     pub fn on_edge_insert(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
         space_id: u64,
         edge: &crate::core::Edge,
     ) -> Result<(), SyncError> {
@@ -215,7 +215,7 @@ impl SyncManager {
     /// Edge deletion (synchronized buffering)
     pub fn on_edge_delete(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
         space_id: u64,
         src: &Value,
         dst: &Value,
@@ -239,7 +239,7 @@ impl SyncManager {
 
     pub fn on_vector_change_with_context_buffered(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
         ctx: crate::sync::vector_sync::VectorChangeContext,
     ) -> Result<(), SyncError> {
         if let Some(ref vector_coord) = self.vector_coordinator {
@@ -275,7 +275,7 @@ impl SyncManager {
 
     pub async fn prepare_transaction(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         self.sync_coordinator.prepare_transaction(txn_id).await?;
         Ok(())
@@ -283,7 +283,7 @@ impl SyncManager {
 
     pub async fn commit_transaction(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         // Commit fulltext index
         self.sync_coordinator.commit_transaction(txn_id).await?;
@@ -301,7 +301,7 @@ impl SyncManager {
 
     pub async fn rollback_transaction(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         self.sync_coordinator.rollback_transaction(txn_id).await?;
 
@@ -325,7 +325,7 @@ impl SyncManager {
     /// Automatically detects tokio runtime context and handles appropriately.
     pub fn prepare_transaction_sync(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         self.execute_sync(|| self.prepare_transaction(txn_id))
     }
@@ -335,7 +335,7 @@ impl SyncManager {
     /// Automatically detects tokio runtime context and handles appropriately.
     pub fn commit_transaction_sync(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         self.execute_sync(|| self.commit_transaction(txn_id))
     }
@@ -345,7 +345,7 @@ impl SyncManager {
     /// Automatically detects tokio runtime context and handles appropriately.
     pub fn rollback_transaction_sync(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         self.execute_sync(|| self.rollback_transaction(txn_id))
     }
@@ -366,7 +366,7 @@ impl SyncManager {
     /// Commit vector index transaction
     pub async fn commit_vector_transaction(
         &self,
-        txn_id: crate::transaction::types::TransactionId,
+        txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord

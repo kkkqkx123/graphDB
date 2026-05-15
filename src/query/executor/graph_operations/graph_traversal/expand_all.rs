@@ -204,7 +204,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 let path_with_cycle = Arc::new(NPath::extend(
                     current_npath.clone(),
                     Arc::new(edge),
-                    Arc::new(Vertex::new(neighbor_id.clone(), Vec::new())),
+                    Arc::new(Vertex::new(neighbor_id, Vec::new())),
                 ));
                 all_npaths.push(path_with_cycle);
                 continue;
@@ -223,7 +223,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 Some(v) => v,
                 None => {
                     // Suspension edge processing: Create a vertex for an empty Tag, while retaining the VID (Video Identifier).
-                    Vertex::new(neighbor_id.clone(), Vec::new())
+                    Vertex::new(neighbor_id, Vec::new())
                 }
             };
 
@@ -235,7 +235,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             ));
 
             // Marked as visited
-            self.visited_nodes.insert(neighbor_id.clone());
+            self.visited_nodes.insert(neighbor_id);
 
             // Recursive expansion (continuing to expand in order to obtain more edges, even if the vertex is "hanging"/not directly connected to other nodes in the graph).
             let mut expanded_npaths =

@@ -10,7 +10,7 @@ use super::error::{BatchError, BatchResult};
 use super::trait_def::BatchProcessor;
 use crate::interfaces::TransactionBuffer;
 use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexKey, IndexOperation};
-use crate::transaction::types::TransactionId;
+use crate::core::types::TransactionId;
 
 pub struct GenericBatchProcessor<E: ExternalIndexClient> {
     engine: Arc<E>,

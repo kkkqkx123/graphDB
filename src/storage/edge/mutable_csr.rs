@@ -746,9 +746,9 @@ impl MutableCsr {
         let mut groups: HashMap<VertexId, Vec<(VertexId, EdgeId, u32)>> = HashMap::new();
         for i in 0..src_list.len() {
             groups
-                .entry(src_list[i].clone())
+                .entry(src_list[i])
                 .or_default()
-                .push((dst_list[i].clone(), edge_ids[i], prop_offsets[i]));
+                .push((dst_list[i], edge_ids[i], prop_offsets[i]));
         }
         
         // Calculate insertion positions and ensure capacity for each vertex
@@ -765,7 +765,7 @@ impl MutableCsr {
                 self.expand_vertex_capacity(src_idx);
             }
             
-            insert_positions.insert(src.clone(), self.adj_offsets[src_idx] + current_degree);
+            insert_positions.insert(src, self.adj_offsets[src_idx] + current_degree);
             total_new_edges += new_edges;
         }
         

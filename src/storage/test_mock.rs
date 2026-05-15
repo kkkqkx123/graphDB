@@ -2,15 +2,14 @@
 //!
 //! Provide a unified implementation of the Mock storage engine to avoid duplicating the implementation in various test modules.
 
-#[cfg(test)]
 use crate::core::error::StorageError;
 #[cfg(test)]
 use crate::core::types::{
     EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
-    TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
+    TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
 #[cfg(test)]
-use crate::core::{Edge, EdgeDirection, NullType, RoleType, Value, Vertex};
+use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
 #[cfg(test)]
 use crate::storage::interface::StorageClient;
 #[cfg(test)]

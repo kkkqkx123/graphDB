@@ -108,7 +108,7 @@ impl<'a> GraphStorageWriter<'a> {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
                 let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
 
-                let id_value = Value::from(id.clone());
+                let id_value = Value::from(id);
                 Self::delete_vertex_indexes(
                     &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
@@ -169,7 +169,7 @@ impl<'a> GraphStorageWriter<'a> {
         for tag_name in tag_names {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(tag_name) {
                 if self.ctx.graph.delete_vertex(label_id, &id_str, ts).is_ok() {
-                    let vertex_id_value = Value::from(vertex_id.clone());
+                    let vertex_id_value = Value::from(*vertex_id);
                     Self::delete_vertex_indexes(
                         &self.ctx.graph,
                         &self.ctx.index_metadata_manager,
@@ -214,8 +214,8 @@ impl<'a> GraphStorageWriter<'a> {
                                 ts,
                             })?;
 
-                            let src_value = Value::from(edge.src.clone());
-                            let dst_value = Value::from(edge.dst.clone());
+                            let src_value = Value::from(edge.src);
+                            let dst_value = Value::from(edge.dst);
                             Self::update_edge_indexes(EdgeIndexUpdateParams {
                                 graph: &self.ctx.graph,
                                 index_metadata_manager: &self.ctx.index_metadata_manager,

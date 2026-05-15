@@ -303,7 +303,7 @@ impl SeekStrategy for PropIndexSeek {
                 }
 
                 if matches_all {
-                    vertex_ids.push(Value::from(vertex.vid().clone()));
+                    vertex_ids.push(Value::from(*vertex.vid()));
                 }
             }
         }

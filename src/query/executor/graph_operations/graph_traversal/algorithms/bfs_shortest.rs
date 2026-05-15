@@ -178,9 +178,9 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             for edge in edges {
                 self.edges_traversed += 1;
                 let dst = if reverse {
-                    edge.src.clone()
+                    edge.src
                 } else {
-                    edge.dst.clone()
+                    edge.dst
                 };
 
                 let is_self_loop = edge.src == edge.dst;
@@ -212,7 +212,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                     }
                 }
 
-                if unique_dst.insert(dst.clone()) {
+                if unique_dst.insert(dst) {
                     current_edges.insert(dst, edge);
                 }
             }
@@ -226,11 +226,11 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         }
 
         // Mark the newly discovered vertex as having been visited.
-        let new_vids: Vec<VertexId> = unique_dst.iter().cloned().collect();
+        let new_vids: Vec<VertexId> = unique_dst.into_iter().collect();
         if reverse {
-            self.right_visited_vids.extend(new_vids.clone());
+            self.right_visited_vids.extend(new_vids);
         } else {
-            self.left_visited_vids.extend(new_vids.clone());
+            self.left_visited_vids.extend(new_vids);
         }
 
         self.nodes_visited += new_vids.len();
@@ -259,7 +259,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             let prev_right_edges = &self.all_right_edges[current_step - 2];
             for vid in left_edges.keys() {
                 if prev_right_edges.contains_key(vid) {
-                    meet_vids.insert(vid.clone());
+                    meet_vids.insert(*vid);
                 }
             }
         }
@@ -273,7 +273,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                 .expect("Right edges should not be empty");
             for vid in left_edges.keys() {
                 if right_edges.contains_key(vid) {
-                    meet_vids.insert(vid.clone());
+                    meet_vids.insert(*vid);
                 }
             }
         }
@@ -353,11 +353,11 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         for edge_layer in all_edges.iter().rev() {
             if let Some(edge) = edge_layer.get(&current_vid) {
                 let next_vid = if reverse {
-                    edge.dst.clone()
+                    edge.dst
                 } else {
-                    edge.src.clone()
+                    edge.src
                 };
-                steps.push((Vertex::new(next_vid.clone(), vec![]), edge.clone()));
+                steps.push((Vertex::new(next_vid, vec![]), edge.clone()));
                 current_vid = next_vid;
             } else {
                 break;
@@ -365,7 +365,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         }
 
         if steps.is_empty() {
-            return Some(Path::new(Vertex::new(meet_vid.clone(), vec![])));
+            return Some(Path::new(Vertex::new(*meet_vid, vec![])));
         }
 
         let mut path = Path::new(steps.last()?.0.clone());
@@ -394,13 +394,11 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
         self.terminate_early = false;
 
         // Initialization: Add the starting point and the ending point to the set of visited locations.
-        self.left_visited_vids.insert(self.start_vertex.clone());
-        self.right_visited_vids.insert(self.end_vertex.clone());
+        self.left_visited_vids.insert(self.start_vertex);
+        self.right_visited_vids.insert(self.end_vertex);
 
         // Bidirectional BFS main loop
         let max_steps = self.steps;
-        let start_vertex = self.start_vertex.clone();
-        let end_vertex = self.end_vertex.clone();
         let mut terminate_early = false;
 
         for current_step in 1..=max_steps {
@@ -410,7 +408,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
 
             // Expand from the starting direction.
             let left_vids: Vec<VertexId> = if current_step == 1 {
-                vec![start_vertex.clone()]
+                vec![self.start_vertex]
             } else {
                 let last_left_edges = self.all_left_edges.last();
                 match last_left_edges {
@@ -420,7 +418,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             };
 
             let right_vids: Vec<VertexId> = if current_step == 1 {
-                vec![end_vertex.clone()]
+                vec![self.end_vertex]
             } else {
                 let last_right_edges = self.all_right_edges.last();
                 match last_right_edges {

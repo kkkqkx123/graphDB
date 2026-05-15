@@ -1,4 +1,5 @@
 pub mod cluster;
+pub mod compact;
 pub mod data_modification;
 pub mod edge;
 pub mod expr;
@@ -9,6 +10,7 @@ pub mod metadata_version;
 pub mod operators;
 pub mod property;
 pub mod property_trait;
+pub mod property_value;
 pub mod query;
 pub mod schema_change;
 pub mod schema_trait;
@@ -16,7 +18,10 @@ pub mod space;
 pub mod space_name_validation;
 pub mod span;
 pub mod storage_ids;
+pub mod table_tracker;
 pub mod tag;
+pub mod transaction_config;
+pub mod undo;
 pub mod user;
 // Full-text search types
 pub mod fulltext_query;
@@ -197,6 +202,7 @@ pub use self::fulltext_query::{
     SortOrder,
 };
 pub use self::property::PropertyDef;
+pub use self::property_value::PropertyValue;
 pub use self::space::{EngineType, IsolationLevel, SpaceInfo, SpaceStatus, SpaceSummary};
 pub use self::tag::TagInfo;
 
@@ -205,6 +211,7 @@ pub use self::metadata_version::{MetadataVersion, SchemaHistory, SchemaVersion};
 
 // Exporting types from split submodules
 pub use self::cluster::ClusterInfo;
+pub use self::compact::{CompactConfig, CompactError, CompactResult, CompactStats, CompactTarget};
 pub use self::data_modification::{
     InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
 };
@@ -230,9 +237,12 @@ pub use self::span::{Position, Span, ToSpan};
 // Export storage identifier types for cross-module usage
 pub use self::storage_ids::{
     ColumnId, EdgeDeletionContext, EdgeDeletionContextParams, EdgeId, EdgeIdentifier, EdgeKey,
-    EdgeLocation, EdgeOperationContext, EdgePropertyUpdateContext, LabelId, Timestamp, VertexId,
-    VertexIdentifier,
+    EdgeLocation, EdgeOperationContext, EdgePropertyUpdateContext, LabelId, Timestamp,
+    TransactionId, VertexId, VertexIdentifier,
 };
+pub use self::table_tracker::{TableId, TableTracker, TableTrackerConfig, TableType};
+pub use self::transaction_config::{DurabilityLevel, TransactionIsolationLevel};
+pub use self::undo::{UndoLogError, UndoLogResult, UndoTarget};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;
 

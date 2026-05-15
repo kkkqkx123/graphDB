@@ -51,7 +51,7 @@ impl Tag {
 }
 
 /// Represents a vertex in the graph, similar to Nebula's Vertex structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Vertex {
     pub vid: VertexId,
     pub id: i64,
@@ -209,17 +209,6 @@ impl Vertex {
                 std::cmp::Ordering::Equal
             }
             ord => ord,
-        }
-    }
-}
-
-impl Default for Vertex {
-    fn default() -> Self {
-        Self {
-            vid: VertexId::new(),
-            id: 0,
-            tags: Vec::new(),
-            properties: HashMap::new(),
         }
     }
 }
@@ -642,8 +631,8 @@ impl Path {
 
         for step in &self.steps {
             let edge_key = (
-                step.edge.src.clone(),
-                step.edge.dst.clone(),
+                step.edge.src,
+                step.edge.dst,
                 step.edge.edge_type.clone(),
             );
 

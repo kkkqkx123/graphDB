@@ -18,7 +18,7 @@ use crate::storage::metadata::{
 };
 use crate::transaction::context::TransactionContext;
 use crate::transaction::undo_log::UndoLogManager;
-use crate::transaction::version_manager::VersionManager;
+use crate::core::mvcc::VersionManager;
 
 use super::transaction_support::TransactionSupport;
 

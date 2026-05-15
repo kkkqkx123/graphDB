@@ -169,7 +169,7 @@ impl TransactionContext {
             idle_timeout: config.idle_timeout,
             last_activity: AtomicCell::new(now),
             query_count: AtomicU64::new(0),
-            durability: DurabilityLevel::Immediate,
+            durability: DurabilityLevel::Sync,
             operation_logs: RwLock::new(Vec::new()),
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),

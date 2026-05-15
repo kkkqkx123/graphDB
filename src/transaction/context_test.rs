@@ -108,7 +108,7 @@ impl UndoTarget for MockUndoTarget {
 fn create_default_config(timeout: Duration) -> TransactionConfig {
     TransactionConfig {
         timeout,
-        durability: DurabilityLevel::Immediate,
+        durability: DurabilityLevel::Sync,
         isolation_level: crate::transaction::types::IsolationLevel::default(),
         query_timeout: None,
         statement_timeout: None,
@@ -128,7 +128,7 @@ fn test_transaction_context_creation() {
     assert_eq!(ctx.id, txn_id);
     assert_eq!(ctx.state(), TransactionState::Active);
     assert!(!ctx.read_only);
-    assert_eq!(ctx.durability, DurabilityLevel::Immediate);
+    assert_eq!(ctx.durability, DurabilityLevel::Sync);
 }
 
 #[test]
@@ -559,7 +559,7 @@ fn test_two_phase_commit_flag() {
     let timeout = Duration::from_secs(30);
     let config = TransactionConfig {
         timeout,
-        durability: DurabilityLevel::Immediate,
+        durability: DurabilityLevel::Sync,
         isolation_level: crate::transaction::types::IsolationLevel::default(),
         query_timeout: None,
         statement_timeout: None,

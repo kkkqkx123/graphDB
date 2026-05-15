@@ -119,13 +119,13 @@ impl<S: StorageClient> AStar<S> {
             return Ok(0.0);
         }
 
-        let current_value = Value::from(current_id.clone());
+        let current_value = Value::from(*current_id);
         let current_props = self.get_vertex_props(current_id)?;
 
         let min_h = end_ids
             .iter()
             .filter_map(|end_id| {
-                let end_value = Value::from(end_id.clone());
+                let end_value = Value::from(*end_id);
                 let end_props = self.get_vertex_props(end_id).ok()?;
                 Some(self.heuristic_config.evaluate(
                     &current_value,
@@ -182,23 +182,23 @@ impl<S: StorageClient> AStar<S> {
                 let neighbor_id = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
                         if edge.dst == *node_id {
-                            edge.src.clone()
+                            edge.src
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
                         if edge.src == *node_id {
-                            edge.dst.clone()
+                            edge.dst
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
                         if edge.src == *node_id {
-                            edge.dst.clone()
+                            edge.dst
                         } else if edge.dst == *node_id {
-                            edge.src.clone()
+                            edge.src
                         } else {
                             return None;
                         }
@@ -228,11 +228,11 @@ impl<S: StorageClient> AStar<S> {
         start_ids: &[VertexId],
     ) -> Result<Option<Path>, QueryError> {
         let mut path_edges: Vec<(VertexId, Edge)> = Vec::new();
-        let mut current = end_id.clone();
+        let mut current = *end_id;
 
         while let Some((prev_id, edge)) = previous_map.get(&current) {
-            path_edges.push((current.clone(), edge.clone()));
-            current = prev_id.clone();
+            path_edges.push((current, edge.clone()));
+            current = *prev_id;
 
             if start_ids.contains(&current) {
                 let start_vertex = match self.get_vertex(&current)? {
@@ -286,13 +286,13 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
         for start_id in start_ids {
             let h_cost = self.calculate_heuristic(start_id, end_ids)?;
 
-            g_cost_map.insert(start_id.clone(), 0.0);
-            open_set.insert(start_id.clone());
+            g_cost_map.insert(*start_id, 0.0);
+            open_set.insert(*start_id);
             priority_queue.push(Reverse(AStarNode {
                 g_cost: 0.0,
                 h_cost,
                 f_cost: h_cost,
-                vertex_id: start_id.clone(),
+                vertex_id: *start_id,
             }));
         }
 
@@ -311,7 +311,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
                 continue;
             }
 
-            closed_set.insert(current.vertex_id.clone());
+            closed_set.insert(current.vertex_id);
             open_set.remove(&current.vertex_id);
             self.stats.increment_nodes_visited();
 
@@ -347,10 +347,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
                 let existing_g_cost = g_cost_map.get(&neighbor_id).unwrap_or(&f64::INFINITY);
 
                 if tentative_g_cost < *existing_g_cost {
-                    g_cost_map.insert(neighbor_id.clone(), tentative_g_cost);
+                    g_cost_map.insert(neighbor_id, tentative_g_cost);
                     previous_map.insert(
-                        neighbor_id.clone(),
-                        (current.vertex_id.clone(), edge.clone()),
+                        neighbor_id,
+                        (current.vertex_id, edge.clone()),
                     );
 
                     let h_cost = self.calculate_heuristic(&neighbor_id, end_ids)?;
@@ -360,7 +360,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
                         g_cost: tentative_g_cost,
                         h_cost,
                         f_cost,
-                        vertex_id: neighbor_id,
+                        vertex_id,
                     }));
                     open_set.insert(current.vertex_id.clone());
                 }

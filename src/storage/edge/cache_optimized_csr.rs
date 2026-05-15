@@ -822,7 +822,7 @@ impl MutableCsrTrait for CacheOptimizedCsr {
             let offset = self.adj_offsets[src_idx];
 
             if degree < capacity {
-                self.neighbors[offset + degree] = dst.clone();
+                self.neighbors[offset + degree] = dst;
                 self.edge_ids[offset + degree] = edge_id;
                 self.prop_offsets[offset + degree] = prop_offset;
                 self.timestamps[offset + degree] = ts;

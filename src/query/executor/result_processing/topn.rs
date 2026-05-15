@@ -779,7 +779,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 if let Some(value) = vertex.get_property_any(name) {
                     Ok(value.clone())
                 } else if name == "vid" || name == "_vid" {
-                    Ok(Value::from(vertex.vid.clone()))
+                    Ok(Value::from(vertex.vid))
                 } else if name == "id" || name == "_id" {
                     Ok(Value::BigInt(vertex.id))
                 } else {
@@ -802,7 +802,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             Expression::Literal(value) => Ok(value.clone()),
             _ => {
                 let mut context = DefaultExpressionContext::new();
-                context.set_variable("vid".to_string(), Value::from(vertex.vid.clone()));
+                context.set_variable("vid".to_string(), Value::from(vertex.vid));
                 context.set_variable("id".to_string(), Value::BigInt(vertex.id));
 
                 for tag in &vertex.tags {

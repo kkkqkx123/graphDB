@@ -9,26 +9,13 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 /// Transaction ID
-pub type TransactionId = u64;
+pub use crate::core::types::TransactionId;
 
 /// Savepoint ID
 pub type SavepointId = u64;
 
 /// Transaction Isolation Level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum IsolationLevel {
-    /// Repeatable Read - all statements in the transaction see a snapshot as of the start of the transaction
-    #[default]
-    RepeatableRead,
-}
-
-impl fmt::Display for IsolationLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            IsolationLevel::RepeatableRead => write!(f, "REPEATABLE READ"),
-        }
-    }
-}
+pub use crate::core::types::TransactionIsolationLevel as IsolationLevel;
 
 /// Retry Configuration
 #[derive(Debug, Clone, Copy)]
@@ -226,7 +213,7 @@ impl Default for TransactionOptions {
         Self {
             timeout: None,
             read_only: false,
-            durability: DurabilityLevel::Immediate,
+            durability: DurabilityLevel::Sync,
             isolation_level: IsolationLevel::default(),
             query_timeout: None,
             statement_timeout: None,
@@ -286,13 +273,7 @@ impl TransactionOptions {
 }
 
 /// Durability Level
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DurabilityLevel {
-    /// No guarantee of immediate durability (high performance)
-    None,
-    /// Immediate durability (default)
-    Immediate,
-}
+pub use crate::core::types::DurabilityLevel;
 
 /// Transaction Configuration
 #[derive(Debug, Clone)]
@@ -311,7 +292,7 @@ impl Default for TransactionConfig {
     fn default() -> Self {
         Self {
             timeout: Duration::from_secs(30),
-            durability: DurabilityLevel::Immediate,
+            durability: DurabilityLevel::Sync,
             isolation_level: IsolationLevel::default(),
             query_timeout: None,
             statement_timeout: None,

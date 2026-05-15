@@ -306,7 +306,6 @@ impl Default for BatchOperationBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
 
     #[test]
     fn test_batch_config_default() {

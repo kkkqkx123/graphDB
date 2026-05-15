@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 use crate::sync::external_index::IndexOperation;
 use crate::sync::batch::error::BatchResult;
-use crate::transaction::types::TransactionId;
+use crate::core::types::TransactionId;
 
 /// Trait for transaction-aware buffering of index operations
 ///
