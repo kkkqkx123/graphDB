@@ -3,7 +3,7 @@
 //! Provides rollback functionality for transactions using both OperationLog and UndoLog mechanisms.
 //! The UndoLog-based rollback is the recommended approach for NeuG architecture.
 
-use crate::core::types::{LabelId, Timestamp};
+use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::StorageError;
 use crate::transaction::types::OperationLog;
 use crate::transaction::undo_log::{UndoLogEntry, UndoTarget};
@@ -231,7 +231,7 @@ impl RollbackHelper {
     pub fn create_insert_vertex_undo(label: LabelId, vid: u64) -> UndoLogEntry {
         UndoLogEntry::InsertVertex(InsertVertexUndo {
             v_label: label,
-            vid,
+            vid: VertexId::from_u64(vid),
         })
     }
 
@@ -250,8 +250,8 @@ impl RollbackHelper {
             src_label,
             dst_label,
             edge_label,
-            src_vid,
-            dst_vid,
+            src_vid: VertexId::from_u64(src_vid),
+            dst_vid: VertexId::from_u64(dst_vid),
             oe_offset,
             ie_offset,
         })
@@ -265,7 +265,7 @@ impl RollbackHelper {
     ) -> UndoLogEntry {
         UndoLogEntry::UpdateVertexProp(UpdateVertexPropUndo {
             v_label: label,
-            vid,
+            vid: VertexId::from_u64(vid),
             col_id,
             old_value,
         })
@@ -274,9 +274,9 @@ impl RollbackHelper {
     pub fn create_update_edge_prop_undo(params: CreateUpdateEdgePropUndoParams) -> UndoLogEntry {
         UndoLogEntry::UpdateEdgeProp(UpdateEdgePropUndo {
             src_label: params.src_label,
-            src_vid: params.src_vid,
+            src_vid: VertexId::from_u64(params.src_vid),
             dst_label: params.dst_label,
-            dst_vid: params.dst_vid,
+            dst_vid: VertexId::from_u64(params.dst_vid),
             edge_label: params.edge_label,
             oe_offset: params.oe_offset,
             ie_offset: params.ie_offset,
@@ -288,7 +288,7 @@ impl RollbackHelper {
     pub fn create_remove_vertex_undo(params: CreateRemoveVertexUndoParams) -> UndoLogEntry {
         UndoLogEntry::RemoveVertex(RemoveVertexUndo {
             v_label: params.label,
-            vid: params.vid,
+            vid: VertexId::from_u64(params.vid),
             related_edges: params.related_edges,
         })
     }
@@ -296,9 +296,9 @@ impl RollbackHelper {
     pub fn create_remove_edge_undo(params: CreateRemoveEdgeUndoParams) -> UndoLogEntry {
         UndoLogEntry::RemoveEdge(RemoveEdgeUndo {
             src_label: params.src_label,
-            src_vid: params.src_vid,
+            src_vid: VertexId::from_u64(params.src_vid),
             dst_label: params.dst_label,
-            dst_vid: params.dst_vid,
+            dst_vid: VertexId::from_u64(params.dst_vid),
             edge_label: params.edge_label,
             oe_offset: params.oe_offset,
             ie_offset: params.ie_offset,

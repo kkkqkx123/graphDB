@@ -203,7 +203,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
             edges
         };
 
-        let neighbors: Vec<(Value, Edge)> = filtered_edges
+        let neighbors: Vec<(VertexId, Edge)> = filtered_edges
             .into_iter()
             .filter_map(|edge| {
                 if edge.src == *node_id {
@@ -227,7 +227,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         }
 
         self.current_vids.clear();
-        let current_step_vids: Vec<Value> = self.next_vids.drain(..).collect();
+        let current_step_vids: Vec<VertexId> = self.next_vids.drain(..).collect();
 
         for vid in current_step_vids {
             // Skip the already visited vertices (unless it is a bidirectional edge and special handling is required).

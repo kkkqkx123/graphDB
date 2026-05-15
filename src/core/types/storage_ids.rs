@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::ops::{Add, AddAssign};
 
 use crate::core::Value;
 
@@ -29,42 +30,72 @@ pub type ColumnId = i32;
 // VertexId - Unified Byte Representation
 // ============================================================================
 
+/// Maximum size for VertexId in bytes
+/// Supports int64 (8 bytes) and small strings (up to 32 bytes)
+pub const VERTEX_ID_MAX_SIZE: usize = 32;
+
 /// Vertex identifier - unified byte representation
 ///
 /// This type can represent both integer and string vertex IDs,
 /// storing them as raw bytes for efficient storage and comparison.
-/// The byte representation is directly compatible with RocksDB keys.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct VertexId(Vec<u8>);
+/// Uses a fixed-size array to enable Copy trait and stack allocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct VertexId {
+    data: [u8; VERTEX_ID_MAX_SIZE],
+    len: u8,
+}
 
 impl VertexId {
     pub const fn new() -> Self {
-        VertexId(Vec::new())
+        VertexId {
+            data: [0; VERTEX_ID_MAX_SIZE],
+            len: 0,
+        }
     }
 
     pub fn from_int64(id: i64) -> Self {
-        VertexId(id.to_be_bytes().to_vec())
+        let bytes = id.to_be_bytes();
+        let mut data = [0u8; VERTEX_ID_MAX_SIZE];
+        data[..8].copy_from_slice(&bytes);
+        VertexId { data, len: 8 }
     }
 
     pub fn from_u64(id: u64) -> Self {
-        VertexId(id.to_be_bytes().to_vec())
+        let bytes = id.to_be_bytes();
+        let mut data = [0u8; VERTEX_ID_MAX_SIZE];
+        data[..8].copy_from_slice(&bytes);
+        VertexId { data, len: 8 }
     }
 
     pub fn from_string(s: impl Into<String>) -> Self {
-        VertexId(s.into().into_bytes())
+        let s = s.into();
+        let bytes = s.as_bytes();
+        let len = bytes.len().min(VERTEX_ID_MAX_SIZE);
+        let mut data = [0u8; VERTEX_ID_MAX_SIZE];
+        data[..len].copy_from_slice(&bytes[..len]);
+        VertexId {
+            data,
+            len: len as u8,
+        }
     }
 
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        VertexId(bytes)
+        let len = bytes.len().min(VERTEX_ID_MAX_SIZE);
+        let mut data = [0u8; VERTEX_ID_MAX_SIZE];
+        data[..len].copy_from_slice(&bytes[..len]);
+        VertexId {
+            data,
+            len: len as u8,
+        }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        &self.0
+        &self.data[..self.len as usize]
     }
 
     pub fn as_int64(&self) -> Option<i64> {
-        if self.0.len() == 8 {
-            let arr: [u8; 8] = self.0[..].try_into().ok()?;
+        if self.len == 8 {
+            let arr: [u8; 8] = self.data[..8].try_into().ok()?;
             Some(i64::from_be_bytes(arr))
         } else {
             None
@@ -72,8 +103,8 @@ impl VertexId {
     }
 
     pub fn as_u64(&self) -> Option<u64> {
-        if self.0.len() == 8 {
-            let arr: [u8; 8] = self.0[..].try_into().ok()?;
+        if self.len == 8 {
+            let arr: [u8; 8] = self.data[..8].try_into().ok()?;
             Some(u64::from_be_bytes(arr))
         } else {
             None
@@ -81,23 +112,23 @@ impl VertexId {
     }
 
     pub fn as_str(&self) -> Option<&str> {
-        std::str::from_utf8(&self.0).ok()
+        std::str::from_utf8(self.as_bytes()).ok()
     }
 
     pub fn is_int64(&self) -> bool {
-        self.0.len() == 8
+        self.len == 8
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.len as usize
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.len == 0
     }
 
     pub fn into_inner(self) -> Vec<u8> {
-        self.0
+        self.as_bytes().to_vec()
     }
 
     pub fn as_usize(&self) -> Option<usize> {
@@ -109,7 +140,7 @@ impl VertexId {
     }
 
     pub const fn const_default() -> Self {
-        VertexId(Vec::new())
+        Self::new()
     }
 }
 
@@ -120,7 +151,7 @@ impl fmt::Display for VertexId {
         } else if let Some(s) = self.as_str() {
             write!(f, "\"{}\"", s)
         } else {
-            write!(f, "{:?}", self.0)
+            write!(f, "{:?}", self.as_bytes())
         }
     }
 }
@@ -128,6 +159,32 @@ impl fmt::Display for VertexId {
 impl Default for VertexId {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl AsRef<[u8]> for VertexId {
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl Add<u64> for VertexId {
+    type Output = Self;
+
+    fn add(self, rhs: u64) -> Self::Output {
+        if let Some(id) = self.as_u64() {
+            Self::from_u64(id + rhs)
+        } else if let Some(id) = self.as_int64() {
+            Self::from_int64(id + rhs as i64)
+        } else {
+            panic!("Cannot add to non-integer VertexId");
+        }
+    }
+}
+
+impl AddAssign<u64> for VertexId {
+    fn add_assign(&mut self, rhs: u64) {
+        *self = *self + rhs;
     }
 }
 
@@ -184,7 +241,7 @@ impl From<VertexId> for Value {
 
 impl Ord for VertexId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
+        self.as_bytes().cmp(other.as_bytes())
     }
 }
 

@@ -534,7 +534,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
         self.undo_logs.add(RollbackHelper::create_update_vertex_prop_undo(
             label,
-            vid,
+            vid.as_u64().unwrap_or(0),
             0,
             old_value,
         ));
@@ -564,9 +564,9 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.undo_logs.add(RollbackHelper::create_update_edge_prop_undo(
             super::rollback::CreateUpdateEdgePropUndoParams {
                 src_label: param.src_label,
-                src_vid: param.src_vid,
+                src_vid: param.src_vid.as_u64().unwrap_or(0),
                 dst_label: param.dst_label,
-                dst_vid: param.dst_vid,
+                dst_vid: param.dst_vid.as_u64().unwrap_or(0),
                 edge_label: param.edge_label,
                 oe_offset: 0,
                 ie_offset: 0,
@@ -585,7 +585,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.undo_logs.add(RollbackHelper::create_remove_vertex_undo(
             super::rollback::CreateRemoveVertexUndoParams {
                 label,
-                vid,
+                vid: vid.as_u64().unwrap_or(0),
                 related_edges: related_edges
                     .iter()
                     .map(
@@ -625,9 +625,9 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.undo_logs.add(RollbackHelper::create_remove_edge_undo(
             super::rollback::CreateRemoveEdgeUndoParams {
                 src_label,
-                src_vid,
+                src_vid: src_vid.as_u64().unwrap_or(0),
                 dst_label,
-                dst_vid,
+                dst_vid: dst_vid.as_u64().unwrap_or(0),
                 edge_label,
                 oe_offset: 0,
                 ie_offset: 0,

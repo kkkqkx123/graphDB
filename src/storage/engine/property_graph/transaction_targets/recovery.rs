@@ -1,4 +1,4 @@
-use crate::core::types::{LabelId, Timestamp};
+use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult};
 use crate::interfaces::recovery::RecoveryApplier;
 use crate::transaction::codec::bytes_to_value;
@@ -73,9 +73,9 @@ impl RecoveryApplier for PropertyGraph {
 
         let params = AddEdgeParams {
             src_label: redo.src_label,
-            src_vid,
+            src_vid: VertexId::from_u64(src_vid),
             dst_label: redo.dst_label,
-            dst_vid,
+            dst_vid: VertexId::from_u64(dst_vid),
             edge_label: redo.edge_label,
         };
 
@@ -169,7 +169,7 @@ impl RecoveryApplier for PropertyGraph {
                 TransactionOps::delete_vertex(
                     &mut schema,
                     label,
-                    vertex.internal_id as u64,
+                    VertexId::from_u64(vertex.internal_id as u64),
                     ts,
                 )
                 .map_err(|e| StorageError::db_error(format!("Failed to replay delete vertex: {}", e)))?;
@@ -203,9 +203,9 @@ impl RecoveryApplier for PropertyGraph {
         if let (Some(src), Some(dst)) = (src, dst) {
             let params = DeleteEdgeParams {
                 src_label,
-                src_vid: src.internal_id as u64,
+                src_vid: VertexId::from_u64(src.internal_id as u64),
                 dst_label,
-                dst_vid: dst.internal_id as u64,
+                dst_vid: VertexId::from_u64(dst.internal_id as u64),
                 edge_label,
             };
 

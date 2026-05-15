@@ -181,6 +181,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 continue;
             }
 
+            let vid = VertexId::try_from(&vid).map_err(|e| DBError::storage(e.to_string()))?;
             let vertex = storage.get_vertex("default", &vid).map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {

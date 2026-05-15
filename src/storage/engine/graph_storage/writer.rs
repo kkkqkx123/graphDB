@@ -39,11 +39,12 @@ impl<'a> GraphStorageWriter<'a> {
                     return Err(StorageError::vertex_already_exists(id_str));
                 }
 
+                let vid_value = Value::from(vertex.vid.clone());
                 if let Err(e) = Self::update_vertex_indexes(
                     &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
                     space_info.space_id,
-                    &vertex.vid,
+                    &vid_value,
                     &tag.name,
                     &props,
                     ts,
@@ -78,11 +79,12 @@ impl<'a> GraphStorageWriter<'a> {
 
                 let props: Vec<(String, Value)> =
                     tag.properties.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+                let vid_value = Value::from(vertex.vid.clone());
                 Self::update_vertex_indexes(
                     &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
                     space_info.space_id,
-                    &vertex.vid,
+                    &vid_value,
                     &tag.name,
                     &props,
                     ts,
@@ -106,11 +108,12 @@ impl<'a> GraphStorageWriter<'a> {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
                 let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
 
+                let id_value = Value::from(id.clone());
                 Self::delete_vertex_indexes(
                     &self.ctx.graph,
                     &self.ctx.index_metadata_manager,
                     space_info.space_id,
-                    id,
+                    &id_value,
                     &tag.tag_name,
                     ts,
                 )?;
@@ -166,11 +169,12 @@ impl<'a> GraphStorageWriter<'a> {
         for tag_name in tag_names {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(tag_name) {
                 if self.ctx.graph.delete_vertex(label_id, &id_str, ts).is_ok() {
+                    let vertex_id_value = Value::from(vertex_id.clone());
                     Self::delete_vertex_indexes(
                         &self.ctx.graph,
                         &self.ctx.index_metadata_manager,
                         space_info.space_id,
-                        vertex_id,
+                        &vertex_id_value,
                         tag_name,
                         ts,
                     )?;
@@ -210,12 +214,14 @@ impl<'a> GraphStorageWriter<'a> {
                                 ts,
                             })?;
 
+                            let src_value = Value::from(edge.src.clone());
+                            let dst_value = Value::from(edge.dst.clone());
                             Self::update_edge_indexes(EdgeIndexUpdateParams {
                                 graph: &self.ctx.graph,
                                 index_metadata_manager: &self.ctx.index_metadata_manager,
                                 space_id: space_info.space_id,
-                                src: &edge.src,
-                                dst: &edge.dst,
+                                src: &src_value,
+                                dst: &dst_value,
                                 edge_type: &edge.edge_type,
                                 props: &props,
                                 ts,
@@ -255,12 +261,14 @@ impl<'a> GraphStorageWriter<'a> {
 
                             self.ctx.graph.delete_edge(edge_label_id, src_label_id, &src_str, dst_label_id, &dst_str, ts)?;
 
+                            let src_value = Value::from(src.clone());
+                            let dst_value = Value::from(dst.clone());
                             Self::delete_edge_indexes(
                                 &self.ctx.graph,
                                 &self.ctx.index_metadata_manager,
                                 space_info.space_id,
-                                src,
-                                dst,
+                                &src_value,
+                                &dst_value,
                                 edge_type,
                                 ts,
                             )?;
@@ -301,7 +309,9 @@ impl<'a> GraphStorageWriter<'a> {
         let ts = self.ctx.get_write_timestamp();
 
         if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&info.tag_name) {
-            let id_str = info.vertex_id.to_string();
+            let vid = VertexId::try_from(&info.vertex_id)
+                .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+            let id_str = vid.to_string();
 
             let result = self.ctx.graph.insert_vertex(label_id, &id_str, &info.props, ts);
             match result {
@@ -349,8 +359,12 @@ impl<'a> GraphStorageWriter<'a> {
         let ts = self.ctx.get_write_timestamp();
 
         if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(&info.edge_name) {
-            let src_id = info.src_vertex_id.to_string();
-            let dst_id = info.dst_vertex_id.to_string();
+            let src_vid = VertexId::try_from(&info.src_vertex_id)
+                .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+            let dst_vid = VertexId::try_from(&info.dst_vertex_id)
+                .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+            let src_id = src_vid.to_string();
+            let dst_id = dst_vid.to_string();
 
             let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
             for et in edge_types {
@@ -500,7 +514,9 @@ impl<'a> GraphStorageWriter<'a> {
         }
 
         if let Some(label_id) = self.ctx.graph.get_vertex_label_id(label) {
-            let id_str = id.to_string();
+            let vid = VertexId::try_from(id)
+                .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+            let id_str = vid.to_string();
             let value = match &info.update_op {
                 UpdateOp::Set => info.value.clone(),
                 UpdateOp::Add => {

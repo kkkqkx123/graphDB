@@ -54,7 +54,7 @@ impl<'a> TransactionalWriter<'a> {
             }
         }
 
-        Ok((*vertex.vid).clone())
+        Ok(Value::from(vertex.vid))
     }
 
     /// Batch insert vertices within a single transaction
@@ -103,7 +103,7 @@ impl<'a> TransactionalWriter<'a> {
                 }
             }
             if vertex_inserted {
-                inserted_ids.push((*vertex.vid).clone());
+                inserted_ids.push(Value::from(vertex.vid));
             }
         }
 

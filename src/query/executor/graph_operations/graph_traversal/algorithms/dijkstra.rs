@@ -6,7 +6,7 @@ use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::core::{Edge, Path, Step, Vertex};
 use crate::core::types::VertexId;
 use crate::query::QueryError;
 use crate::storage::StorageClient;

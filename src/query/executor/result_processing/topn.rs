@@ -776,11 +776,10 @@ impl<S: StorageClient> TopNExecutor<S> {
     ) -> DBResult<Value> {
         match expression {
             Expression::Variable(name) => {
-                // Try to obtain the value from the attribute.
                 if let Some(value) = vertex.get_property_any(name) {
                     Ok(value.clone())
                 } else if name == "vid" || name == "_vid" {
-                    Ok(*vertex.vid.clone())
+                    Ok(Value::from(vertex.vid.clone()))
                 } else if name == "id" || name == "_id" {
                     Ok(Value::BigInt(vertex.id))
                 } else {
@@ -802,12 +801,10 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
             Expression::Literal(value) => Ok(value.clone()),
             _ => {
-                // For complex expressions, use an expression evaluator.
                 let mut context = DefaultExpressionContext::new();
-                context.set_variable("vid".to_string(), *vertex.vid.clone());
+                context.set_variable("vid".to_string(), Value::from(vertex.vid.clone()));
                 context.set_variable("id".to_string(), Value::BigInt(vertex.id));
 
-                // Add all tag attributes to the context.
                 for tag in &vertex.tags {
                     for (prop_name, prop_value) in &tag.properties {
                         context.set_variable(prop_name.clone(), prop_value.clone());
@@ -830,9 +827,9 @@ impl<S: StorageClient> TopNExecutor<S> {
         match expression {
             Expression::Variable(name) => {
                 if name == "src" || name == "_src" {
-                    Ok(*edge.src.clone())
+                    Ok(Value::from(edge.src))
                 } else if name == "dst" || name == "_dst" {
-                    Ok(*edge.dst.clone())
+                    Ok(Value::from(edge.dst))
                 } else if name == "ranking" || name == "_ranking" {
                     Ok(Value::BigInt(edge.ranking))
                 } else if name == "edge_type" || name == "_type" {

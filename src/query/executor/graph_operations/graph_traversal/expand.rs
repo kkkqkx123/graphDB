@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::VertexId;
 use crate::core::Value;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
@@ -167,14 +168,17 @@ impl<S: StorageClient> ExpandExecutor<S> {
 
     fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
         let storage = self.base.get_storage().clone();
-        super::traversal_utils::get_neighbors(
+        let node_vid = VertexId::try_from(node_id)
+            .map_err(|e| QueryError::storage(e.to_string()))?;
+        let neighbors = super::traversal_utils::get_neighbors(
             &storage,
-            node_id,
+            &node_vid,
             self.edge_direction,
             &self.edge_types,
             self.with_loop,
         )
-        .map_err(|e| QueryError::storage(e.to_string()))
+        .map_err(|e| QueryError::storage(e.to_string()))?;
+        Ok(neighbors.into_iter().map(Value::from).collect())
     }
 
     /// Execute single-step expansion.
@@ -215,8 +219,10 @@ impl<S: StorageClient> ExpandExecutor<S> {
         let storage = self.get_storage().read();
 
         for node_id in expanded_nodes {
-            if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
-                vertices.push(vertex);
+            if let Ok(vid) = VertexId::try_from(&node_id) {
+                if let Ok(Some(vertex)) = storage.get_vertex("default", &vid) {
+                    vertices.push(vertex);
+                }
             }
         }
 
@@ -252,13 +258,13 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
         };
 
         // Extract the input node.
-        let input_nodes = match input_result {
+        let input_nodes: Vec<Value> = match input_result {
             ExecutionResult::DataSet(dataset) => dataset
                 .rows
                 .into_iter()
                 .flat_map(|row| row.into_iter())
                 .filter_map(|v| match v {
-                    Value::Vertex(vertex) => Some(*vertex.vid),
+                    Value::Vertex(vertex) => Some(Value::from(vertex.vid)),
                     _ => None,
                 })
                 .collect(),

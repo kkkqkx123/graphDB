@@ -989,7 +989,7 @@ impl MutableCsr {
                 let nbr = &self.nbr_list[start + read_idx];
                 if nbr.timestamp <= ts {
                     if write_idx != read_idx {
-                        self.nbr_list[start + write_idx] = self.nbr_list[start + read_idx];
+                        self.nbr_list[start + write_idx] = self.nbr_list[start + read_idx].clone();
                     }
                     write_idx += 1;
                 } else {

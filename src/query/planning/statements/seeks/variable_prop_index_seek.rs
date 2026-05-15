@@ -301,7 +301,7 @@ impl SeekStrategy for VariablePropIndexSeek {
                 }
 
                 if matches_all {
-                    vertex_ids.push(vertex.vid().clone());
+                    vertex_ids.push(Value::from(vertex.vid().clone()));
                 }
             }
         }

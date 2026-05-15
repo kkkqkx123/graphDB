@@ -91,7 +91,8 @@ impl<'a> IndexManagerOps<'a> {
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            self.ctx.graph.update_vertex_indexes_mvcc(space_id, &vertex.vid, &index.name, &props, ts)?;
+            let vid_value = Value::from(vertex.vid.clone());
+            self.ctx.graph.update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
         }
 
         Ok(true)
@@ -114,7 +115,9 @@ impl<'a> IndexManagerOps<'a> {
         for edge in edges {
             let props: Vec<(String, Value)> =
                 edge.props.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-            self.ctx.graph.update_edge_indexes_mvcc(space_id, &edge.src, &edge.dst, &index.name, &props, ts)?;
+            let src_value = Value::from(edge.src.clone());
+            let dst_value = Value::from(edge.dst.clone());
+            self.ctx.graph.update_edge_indexes_mvcc(space_id, &src_value, &dst_value, &index.name, &props, ts)?;
         }
 
         Ok(true)

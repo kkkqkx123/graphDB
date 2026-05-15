@@ -8,6 +8,7 @@
 //! Support for the shortest path with weights
 //! Improve the logic for path filtering.
 
+use crate::core::types::VertexId;
 use crate::core::Value;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::traversal::{AllPathsNode, ShortestPathNode};
@@ -129,8 +130,16 @@ impl PathPlanner {
             max_steps,
             false,
         );
-        all_paths_node.set_start_vertex_ids(start_vertex_ids);
-        all_paths_node.set_end_vertex_ids(end_vertex_ids);
+        let start_vids: Vec<VertexId> = start_vertex_ids
+            .iter()
+            .filter_map(|v| VertexId::try_from(v).ok())
+            .collect();
+        let end_vids: Vec<VertexId> = end_vertex_ids
+            .iter()
+            .filter_map(|v| VertexId::try_from(v).ok())
+            .collect();
+        all_paths_node.set_start_vertex_ids(start_vids);
+        all_paths_node.set_end_vertex_ids(end_vids);
 
         Ok(all_paths_node.into_enum())
     }

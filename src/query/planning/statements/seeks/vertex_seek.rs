@@ -4,6 +4,7 @@
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
+use crate::core::types::VertexId;
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::StorageClient;
 
@@ -32,18 +33,22 @@ impl SeekStrategy for VertexSeek {
         let mut rows_scanned = 0;
 
         if let Some(ref vid) = context.node_pattern.vid {
-            if let Some(vertex) = storage.get_vertex("default", vid)? {
+            let vid = VertexId::try_from(vid)
+                .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+            if let Some(vertex) = storage.get_vertex("default", &vid)? {
                 rows_scanned = 1;
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
-                    vertex_ids.push(vid.clone());
+                    vertex_ids.push(Value::from(vertex.vid().clone()));
                 }
             }
         } else {
-            for vid in &self.resolve_vertex_ids(context)? {
-                if let Some(vertex) = storage.get_vertex("default", vid)? {
+            for vid_val in &self.resolve_vertex_ids(context)? {
+                let vid = VertexId::try_from(vid_val)
+                    .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+                if let Some(vertex) = storage.get_vertex("default", &vid)? {
                     rows_scanned += 1;
                     if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
-                        vertex_ids.push(vid.clone());
+                        vertex_ids.push(vid_val.clone());
                     }
                 }
             }

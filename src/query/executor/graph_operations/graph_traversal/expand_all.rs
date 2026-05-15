@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
-use crate::core::types::ContextualExpression;
+use crate::core::types::{ContextualExpression, VertexId};
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
@@ -31,9 +31,9 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     // Path caching (converted during the final output process)
     path_cache: Vec<Path>,
     // Set of visited nodes, used to avoid loops.
-    pub visited_nodes: HashSet<Value>,
+    pub visited_nodes: HashSet<VertexId>,
     // Source vertex IDs for starting the expansion (from GO FROM clause)
-    pub src_vids: Vec<Value>,
+    pub src_vids: Vec<VertexId>,
     // Whether to include empty paths (paths with no edges) in the result
     pub include_empty_paths: bool,
     // Input variable name for getting input from ExecutionContext
@@ -49,7 +49,7 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     // Input dataset for joining with expansion results (for multi-hop MATCH)
     input_dataset: Option<DataSet>,
     // Mapping from input vertex VID to input row index
-    input_vertex_to_row: std::collections::HashMap<Value, usize>,
+    input_vertex_to_row: std::collections::HashMap<VertexId, usize>,
 }
 
 // Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
@@ -127,7 +127,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         }
     }
 
-    pub fn with_src_vids(mut self, src_vids: Vec<Value>) -> Self {
+    pub fn with_src_vids(mut self, src_vids: Vec<VertexId>) -> Self {
         self.src_vids = src_vids;
         self
     }
@@ -153,7 +153,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         self
     }
 
-    fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
+    fn get_neighbors_with_edges(&self, node_id: &VertexId) -> Result<Vec<(VertexId, Edge)>, QueryError> {
         let storage = self.base.get_storage().clone();
         let edge_types = if self.any_edge_type {
             None
@@ -528,13 +528,12 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                 if !dataset.rows.is_empty() {
                     // Create mapping from input vertex VID to row index
                     for (row_idx, row) in dataset.rows.iter().enumerate() {
-                        // Find the input vertex in this row
                         if let Some(ref input_var) = self.input_var {
                             if let Some(idx) = col_names.iter().position(|c| c == input_var) {
                                 if idx < row.len() {
                                     if let Value::Vertex(vertex) = &row[idx] {
                                         self.input_vertex_to_row
-                                            .insert((*vertex.vid).clone(), row_idx);
+                                            .insert(vertex.vid, row_idx);
                                     }
                                 }
                             }
@@ -595,16 +594,12 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         // Determine the maximum depth.
         let max_depth = self.max_depth.unwrap_or(3); // The default depth is 3.
 
-        // Generate a path for each input node.
         for vertex in input_nodes {
-            // Reset the access status
             self.visited_nodes.clear();
-            self.visited_nodes.insert((*vertex.vid).clone());
+            self.visited_nodes.insert(vertex.vid);
 
-            // Create the initial NPath.
             let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
 
-            // Recursive expansion of the path
             let mut expanded_npaths = self.expand_paths_recursive(&initial_npath, 0, max_depth)?;
             self.npath_cache.append(&mut expanded_npaths);
         }

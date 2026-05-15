@@ -231,10 +231,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         }
 
         if !index_props.is_empty() {
+            let src_value = Value::from(edge.src.clone());
+            let dst_value = Value::from(edge.dst.clone());
             self.index_data_manager.update_edge_indexes_mvcc(
                 self.space_id,
-                &edge.src,
-                &edge.dst,
+                &src_value,
+                &dst_value,
                 &index.name,
                 &index_props,
                 write_ts,
@@ -276,10 +278,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             .map(|idx| idx.name)
             .collect();
 
+        let src_value = Value::from(edge.src.clone());
+        let dst_value = Value::from(edge.dst.clone());
         self.index_data_manager.delete_edge_indexes_mvcc(
             self.space_id,
-            &edge.src,
-            &edge.dst,
+            &src_value,
+            &dst_value,
             &index_names,
             write_ts,
         )
@@ -656,8 +660,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                             self.undo_log.add(IndexUndoEntry::DeleteEdgeIndex {
                                 space_id,
                                 index_name: index.name.clone(),
-                                src: (*edge.src).clone(),
-                                dst: (*edge.dst).clone(),
+                                src: Value::from(edge.src.clone()),
+                                dst: Value::from(edge.dst.clone()),
                                 prop_name: field.name.clone(),
                                 prop_value: prop_value.clone(),
                             });
@@ -707,8 +711,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                             self.undo_log.add(IndexUndoEntry::InsertEdgeIndex {
                                 space_id,
                                 index_name: index.name.clone(),
-                                src: (*edge.src).clone(),
-                                dst: (*edge.dst).clone(),
+                                src: Value::from(edge.src.clone()),
+                                dst: Value::from(edge.dst.clone()),
                                 prop_name: field.name.clone(),
                                 prop_value: prop_value.clone(),
                             });

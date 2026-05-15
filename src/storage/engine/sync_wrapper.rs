@@ -189,12 +189,13 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
                         .collect();
 
                     if !props.is_empty() {
+                        let vid_value = Value::from(vertex.vid.clone());
                         sync_manager
                             .on_vertex_change_with_txn(
                                 txn_id,
                                 space_id,
                                 tag_name,
-                                &vertex.vid,
+                                &vid_value,
                                 &props,
                                 ChangeType::Insert,
                             )
@@ -230,12 +231,13 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
                     let changed_props = Self::detect_changed_properties(&old_vertex, &vertex);
 
                     if !changed_props.is_empty() {
+                        let vid_value = Value::from(vertex.vid.clone());
                         sync_manager
                             .on_vertex_change_with_txn(
                                 txn_id,
                                 space_id,
                                 tag_name,
-                                &vertex.vid,
+                                &vid_value,
                                 &changed_props,
                                 ChangeType::Update,
                             )
@@ -268,13 +270,14 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
 
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
+                    let id_value = Value::from(id.clone());
 
                     sync_manager
                         .on_vertex_change_with_txn(
                             txn_id,
                             space_id,
                             tag_name,
-                            id,
+                            &id_value,
                             &[],
                             ChangeType::Delete,
                         )
@@ -303,13 +306,14 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
 
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
+                    let id_value = Value::from(id.clone());
 
                     sync_manager
                         .on_vertex_change_with_txn(
                             txn_id,
                             space_id,
                             tag_name,
-                            id,
+                            &id_value,
                             &[],
                             ChangeType::Delete,
                         )
@@ -345,12 +349,13 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
                             .collect();
 
                         if !props.is_empty() {
+                            let vid_value = Value::from(vertex.vid.clone());
                             sync_manager
                                 .on_vertex_change_with_txn(
                                     txn_id,
                                     space_id,
                                     tag_name,
-                                    &vertex.vid,
+                                    &vid_value,
                                     &props,
                                     ChangeType::Insert,
                                 )
@@ -412,9 +417,11 @@ impl<S: StorageClient + 'static> StorageClient for SyncWrapper<S> {
             if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
+                    let src_value = Value::from(src.clone());
+                    let dst_value = Value::from(dst.clone());
 
                     sync_manager
-                        .on_edge_delete(txn_id, space_id, src, dst, edge_type)
+                        .on_edge_delete(txn_id, space_id, &src_value, &dst_value, edge_type)
                         .map_err(|e| {
                             StorageError::db_error(format!("Failed to sync edge delete: {}", e))
                         })?;

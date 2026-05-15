@@ -2,7 +2,7 @@
 //!
 //! Contains vertex and edge CRUD operations for PropertyGraph.
 
-use crate::core::types::{EdgeId, LabelId, Timestamp};
+use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeRecord;
 use crate::storage::vertex::VertexRecord;
@@ -47,7 +47,7 @@ pub fn get_vertex(
     if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id) {
         return Some(VertexRecord {
             internal_id: cached.internal_id,
-            vid: cached.internal_id as u64,
+            vid: VertexId::from_u64(cached.internal_id as u64),
             properties: cached.properties,
         });
     }
@@ -80,7 +80,7 @@ pub fn get_vertex_by_internal_id(
     if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id) {
         return Some(VertexRecord {
             internal_id: cached.internal_id,
-            vid: cached.internal_id as u64,
+            vid: VertexId::from_u64(cached.internal_id as u64),
             properties: cached.properties,
         });
     }

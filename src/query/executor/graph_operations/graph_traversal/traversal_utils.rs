@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Value};
+use crate::core::types::VertexId;
+use crate::core::Edge;
 use crate::query::executor::base::EdgeDirection;
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
@@ -35,11 +36,11 @@ use parking_lot::RwLock;
 /// ```
 pub fn get_neighbors<S: StorageClient>(
     storage: &Arc<RwLock<S>>,
-    node_id: &Value,
+    node_id: &VertexId,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
     allow_loop: bool,
-) -> DBResult<Vec<Value>> {
+) -> DBResult<Vec<VertexId>> {
     let storage_guard = storage.read();
 
     let edges = storage_guard
@@ -55,43 +56,40 @@ pub fn get_neighbors<S: StorageClient>(
         edges
     };
 
-    // Remove duplicates from self-loop edges: Use (edge_type, ranking) as the key.
     let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
-    let neighbors: Vec<Value> = filtered_edges
+    let neighbors: Vec<VertexId> = filtered_edges
         .into_iter()
         .filter_map(|edge| {
-            // Check whether it is a self-loop edge.
-            let is_self_loop = *edge.src == *edge.dst;
+            let is_self_loop = edge.src == edge.dst;
 
-            // If self-loop edges are not allowed, then deduplication should be performed.
             if is_self_loop && !allow_loop {
                 let key = (edge.edge_type.clone(), edge.ranking);
                 if !seen_self_loops.insert(key) {
-                    return None; // Duplicate self-loop edges should be skipped.
+                    return None;
                 }
             }
 
             match edge_direction {
                 EdgeDirection::In => {
-                    if *edge.dst == *node_id {
-                        Some((*edge.src).clone())
+                    if edge.dst == *node_id {
+                        Some(edge.src)
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
-                    if *edge.src == *node_id {
-                        Some((*edge.dst).clone())
+                    if edge.src == *node_id {
+                        Some(edge.dst)
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
-                    if *edge.src == *node_id {
-                        Some((*edge.dst).clone())
-                    } else if *edge.dst == *node_id {
-                        Some((*edge.src).clone())
+                    if edge.src == *node_id {
+                        Some(edge.dst)
+                    } else if edge.dst == *node_id {
+                        Some(edge.src)
                     } else {
                         None
                     }
@@ -118,11 +116,11 @@ pub fn get_neighbors<S: StorageClient>(
 /// List of tuples representing neighbor nodes and edges
 pub fn get_neighbors_with_edges<S: StorageClient>(
     storage: &Arc<RwLock<S>>,
-    node_id: &Value,
+    node_id: &VertexId,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
     allow_loop: bool,
-) -> DBResult<Vec<(Value, Edge)>> {
+) -> DBResult<Vec<(VertexId, Edge)>> {
     let storage_guard = storage.read();
 
     let edges = storage_guard
@@ -138,43 +136,40 @@ pub fn get_neighbors_with_edges<S: StorageClient>(
         edges
     };
 
-    // Remove duplicates from the self-loop edges.
     let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
-    let neighbors_with_edges: Vec<(Value, Edge)> = filtered_edges
+    let neighbors_with_edges: Vec<(VertexId, Edge)> = filtered_edges
         .into_iter()
         .filter_map(|edge| {
-            // Check whether it is a self-loop edge.
-            let is_self_loop = *edge.src == *edge.dst;
+            let is_self_loop = edge.src == edge.dst;
 
-            // If self-loop edges are not allowed, then deduplication should be performed.
             if is_self_loop && !allow_loop {
                 let key = (edge.edge_type.clone(), edge.ranking);
                 if !seen_self_loops.insert(key) {
-                    return None; // Duplicate self-loop edges should be skipped.
+                    return None;
                 }
             }
 
             match edge_direction {
                 EdgeDirection::In => {
-                    if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
+                    if edge.dst == *node_id {
+                        Some((edge.src, edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
+                    if edge.src == *node_id {
+                        Some((edge.dst, edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
-                    } else if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
+                    if edge.src == *node_id {
+                        Some((edge.dst, edge))
+                    } else if edge.dst == *node_id {
+                        Some((edge.src, edge))
                     } else {
                         None
                     }

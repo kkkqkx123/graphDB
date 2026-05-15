@@ -67,7 +67,7 @@ impl EdgeIdIndex {
     }
 
     pub fn get(&self, edge_id: EdgeId) -> Option<EdgeLocation> {
-        self.index.get(&edge_id).map(|v| *v)
+        self.index.get(&edge_id).map(|v| v.clone())
     }
 
     pub fn remove(&self, edge_id: EdgeId) -> Option<EdgeLocation> {

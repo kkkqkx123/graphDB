@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{Edge, NPath, Path, Value, Vertex};
+use crate::core::{Edge, NPath, Path, Vertex};
 use crate::core::types::VertexId;
 use crate::query::QueryError;
 use crate::storage::StorageClient;

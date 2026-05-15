@@ -189,7 +189,7 @@ impl Nbr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ImmutableNbr {
     pub neighbor: VertexId,
     pub edge_id: EdgeId,

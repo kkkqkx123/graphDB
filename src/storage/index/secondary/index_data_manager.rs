@@ -609,12 +609,14 @@ impl IndexDataManager for InMemoryIndexDataManager {
         index: &Index,
         edge: &Edge,
     ) -> Result<(), StorageError> {
+        let src_value = Value::from(edge.src.clone());
+        let dst_value = Value::from(edge.dst.clone());
         for field in &index.fields {
             if let Some(prop_value) = edge.props.get(&field.name) {
                 self.edge_manager.update_edge_indexes(
                     space_id,
-                    &edge.src,
-                    &edge.dst,
+                    &src_value,
+                    &dst_value,
                     &index.name,
                     &[(field.name.clone(), prop_value.clone())],
                 )?;

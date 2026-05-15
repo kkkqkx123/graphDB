@@ -73,16 +73,14 @@ impl EdgeSeek {
             return false;
         }
 
-        // Check source vertex ID
         if let Some(ref src_vid) = self.edge_pattern.src_vid {
-            if *edge.src != *src_vid {
+            if Value::from(edge.src) != *src_vid {
                 return false;
             }
         }
 
-        // Check destination vertex ID
         if let Some(ref dst_vid) = self.edge_pattern.dst_vid {
-            if *edge.dst != *dst_vid {
+            if Value::from(edge.dst) != *dst_vid {
                 return false;
             }
         }

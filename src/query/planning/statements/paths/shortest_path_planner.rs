@@ -3,6 +3,7 @@
 //! Responsible for planning shortest path queries, supporting algorithms such as BFS (Breadth-First Search).
 
 use crate::core::types::graph_schema::EdgeDirection;
+use crate::core::types::VertexId;
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::query::planning::statements::seeks::seek_strategy_base::{
     NodePattern, SeekStrategyContext, SeekStrategySelector, SeekStrategyType,
@@ -211,7 +212,7 @@ impl ShortestPathPlanner {
 
         for vertex in vertices {
             if self.vertex_matches_pattern(&vertex, pattern) {
-                matching.push(vertex.vid().clone());
+                matching.push(Value::from(vertex.vid().clone()));
             }
         }
 
@@ -265,13 +266,15 @@ impl ShortestPathPlanner {
                 continue;
             }
 
-            let edges = storage.get_node_edges("default", &current, config.direction)?;
+            let current_vid = VertexId::try_from(&current)
+                .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+            let edges = storage.get_node_edges("default", &current_vid, config.direction)?;
 
             for edge in edges {
-                let neighbor = if *edge.src == current {
-                    edge.dst.as_ref().clone()
+                let neighbor = if Value::from(edge.src) == current {
+                    Value::from(edge.dst)
                 } else {
-                    edge.src.as_ref().clone()
+                    Value::from(edge.src)
                 };
 
                 if !config.edge_types.is_empty() && !config.edge_types.contains(&edge.edge_type) {

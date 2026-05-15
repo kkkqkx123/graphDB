@@ -44,7 +44,7 @@ impl SelfLoopDedup {
     }
 
     fn should_include(&mut self, edge: &Edge) -> bool {
-        let is_self_loop = *edge.src == *edge.dst;
+        let is_self_loop = edge.src == edge.dst;
         if is_self_loop {
             if self.with_loop {
                 return true;
@@ -434,10 +434,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
         let junction_id = common[0].clone();
 
-        if left_path.end_vertex().vid != *junction_id {
+        if left_path.end_vertex().vid != junction_id {
             return None;
         }
-        if right_path.end_vertex().vid != *junction_id {
+        if right_path.end_vertex().vid != junction_id {
             return None;
         }
 

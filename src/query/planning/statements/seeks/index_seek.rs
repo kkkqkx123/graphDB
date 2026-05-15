@@ -4,7 +4,7 @@
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
-use crate::core::{StorageError, Vertex};
+use crate::core::{StorageError, Value, Vertex};
 use crate::storage::StorageClient;
 
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ impl SeekStrategy for IndexSeek {
             rows_scanned = vertices.len();
             for vertex in vertices {
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
-                    vertex_ids.push(vertex.vid().clone());
+                    vertex_ids.push(Value::from(vertex.vid().clone()));
                 }
             }
         }

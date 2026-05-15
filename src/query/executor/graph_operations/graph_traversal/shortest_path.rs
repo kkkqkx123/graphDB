@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
+use crate::core::types::VertexId;
 use crate::core::{Path, Value};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
@@ -28,8 +29,8 @@ use super::algorithms::{
 /// Responsible for managing the execution lifecycle of shortest path queries and invoking the specific algorithms for their implementation.
 pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    start_vertex_ids: Vec<Value>,
-    end_vertex_ids: Vec<Value>,
+    start_vertex_ids: Vec<VertexId>,
+    end_vertex_ids: Vec<VertexId>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
@@ -121,19 +122,19 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         self.algorithm_type = algorithm;
     }
 
-    pub fn get_start_vertex_ids(&self) -> &Vec<Value> {
+    pub fn get_start_vertex_ids(&self) -> &Vec<VertexId> {
         &self.start_vertex_ids
     }
 
-    pub fn get_end_vertex_ids(&self) -> &Vec<Value> {
+    pub fn get_end_vertex_ids(&self) -> &Vec<VertexId> {
         &self.end_vertex_ids
     }
 
-    pub fn set_start_vertex_ids(&mut self, ids: Vec<Value>) {
+    pub fn set_start_vertex_ids(&mut self, ids: Vec<VertexId>) {
         self.start_vertex_ids = ids;
     }
 
-    pub fn set_end_vertex_ids(&mut self, ids: Vec<Value>) {
+    pub fn set_end_vertex_ids(&mut self, ids: Vec<VertexId>) {
         self.end_vertex_ids = ids;
     }
 

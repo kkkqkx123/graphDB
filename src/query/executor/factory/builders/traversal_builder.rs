@@ -87,11 +87,16 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             space_id: node.space_id(),
             space_name,
         };
+        let src_vids: Vec<VertexId> = node
+            .src_vids()
+            .iter()
+            .filter_map(|v| VertexId::try_from(v).ok())
+            .collect();
         let mut executor = ExpandAllExecutor::with_context(
             params,
             context.clone(),
         )
-        .with_src_vids(node.src_vids().to_vec())
+        .with_src_vids(src_vids)
         .with_include_empty_paths(node.include_empty_paths())
         .with_filter(node.filter().cloned());
 
@@ -163,8 +168,16 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
 
-        let start_vertex_ids = node.start_vertex_ids().to_vec();
-        let end_vertex_ids = node.end_vertex_ids().to_vec();
+        let start_vertex_ids: Vec<VertexId> = node
+            .start_vertex_ids()
+            .iter()
+            .filter_map(|v| VertexId::try_from(v).ok())
+            .collect();
+        let end_vertex_ids: Vec<VertexId> = node
+            .end_vertex_ids()
+            .iter()
+            .filter_map(|v| VertexId::try_from(v).ok())
+            .collect();
 
         let mut executor = ShortestPathExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
@@ -186,7 +199,6 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::core::Value;
         use crate::query::executor::graph_operations::graph_traversal::algorithms::BFSShortestExecutor;
 
         // BFSShortestExecutor::new parameters: id, storage, steps, edge_types, with_cycle, max_depth, single_shortest, limit, start_vertex, end_vertex, expr_context
@@ -213,8 +225,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         //  Obtain the starting and ending point IDs from the input.
-        let start_vids: Vec<crate::core::Value> = Vec::new();
-        let _end_vids: Vec<crate::core::Value> = Vec::new();
+        let start_vids: Vec<crate::core::types::VertexId> = Vec::new();
+        let _end_vids: Vec<crate::core::types::VertexId> = Vec::new();
 
         let executor = MultiShortestPathExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),

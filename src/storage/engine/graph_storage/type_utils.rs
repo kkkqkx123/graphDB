@@ -35,7 +35,7 @@ pub fn value_to_string(value: &Value) -> String {
 }
 
 pub fn vertex_record_to_vertex(record: &VertexRecord, tag_name: &str) -> Vertex {
-    let vid = VertexId::from_string(&record.vid);
+    let vid = record.vid.clone();
     let properties: HashMap<String, Value> = record.properties.iter().cloned().collect();
 
     Vertex {

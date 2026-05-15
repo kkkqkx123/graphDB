@@ -191,7 +191,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
         }
 
         if self.get_vertex_index(label, oid).is_some() {
-            return Err(InsertTransactionError::VertexAlreadyExists(0));
+            return Err(InsertTransactionError::VertexAlreadyExists(VertexId::zero()));
         }
 
         let base = self
@@ -355,11 +355,11 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
                     let src_vid = self
                         .graph
                         .get_vertex_id(redo.src_label, &redo.src_oid, self.timestamp)
-                        .ok_or(InsertTransactionError::VertexNotFound(0))?;
+                        .ok_or(InsertTransactionError::VertexNotFound(VertexId::zero()))?;
                     let dst_vid = self
                         .graph
                         .get_vertex_id(redo.dst_label, &redo.dst_oid, self.timestamp)
-                        .ok_or(InsertTransactionError::VertexNotFound(0))?;
+                        .ok_or(InsertTransactionError::VertexNotFound(VertexId::zero()))?;
                     let edge_param = AddEdgeInsertParam {
                         src_label: redo.src_label,
                         src_vid,

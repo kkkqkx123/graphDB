@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::VertexId;
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
@@ -116,14 +117,17 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
     fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = self.base.get_storage().clone();
-        super::traversal_utils::get_neighbors_with_edges(
+        let node_vid = VertexId::try_from(node_id)
+            .map_err(|e| QueryError::storage(e.to_string()))?;
+        let neighbors = super::traversal_utils::get_neighbors_with_edges(
             &storage,
-            node_id,
+            &node_vid,
             self.edge_direction,
             &self.edge_types,
-            false, // By default, self-looping edges are not allowed.
+            false,
         )
-        .map_err(|e| QueryError::storage(e.to_string()))
+        .map_err(|e| QueryError::storage(e.to_string()))?;
+        Ok(neighbors.into_iter().map(|(vid, edge)| (Value::from(vid), edge)).collect())
     }
 
     /// Check whether the conditions are met.
@@ -240,15 +244,18 @@ impl<S: StorageClient> TraverseExecutor<S> {
         for npath in &self.current_npaths {
             // Get the last node of the current path.
             let current_node = &npath.vertex().vid;
+            let current_node_value = Value::from(current_node.clone());
 
             // Obtaining neighbor nodes and edges
-            let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
+            let neighbors_with_edges = self.get_neighbors_with_edges(&current_node_value)?;
 
             for (neighbor_id, edge) in neighbors_with_edges {
                 // Obtain the complete information of the neighboring nodes.
+                let neighbor_vid = VertexId::try_from(&neighbor_id)
+                    .map_err(|e| QueryError::storage(e.to_string()))?;
                 let storage = self.get_storage().read();
                 let neighbor_vertex = storage
-                    .get_vertex("default", &neighbor_id)
+                    .get_vertex("default", &neighbor_vid)
                     .map_err(|e| QueryError::storage(e.to_string()))?;
 
                 if let Some(vertex) = neighbor_vertex {
@@ -288,12 +295,11 @@ impl<S: StorageClient> TraverseExecutor<S> {
         self.completed_paths.clear();
         self.visited_nodes.clear();
 
-        // Create an initial NPath for each input node.
         for vertex in input_nodes {
             let vid = vertex.vid.clone();
             let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
             self.current_npaths.push(initial_npath);
-            self.visited_nodes.insert(*vid);
+            self.visited_nodes.insert(Value::from(vid));
         }
 
         Ok(())
