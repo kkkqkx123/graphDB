@@ -1,6 +1,6 @@
 use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult};
-use crate::interfaces::recovery::RecoveryApplier;
+use crate::core::wal::traits::RecoveryApplier;
 use crate::transaction::codec::bytes_to_value;
 use crate::transaction::wal::{InsertEdgeRedo, UpdateEdgePropRedo};
 

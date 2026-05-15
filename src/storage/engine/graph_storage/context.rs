@@ -16,11 +16,8 @@ use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
 use crate::storage::metadata::{
     ExtendedSchemaManager, IndexManager, SchemaManager,
 };
-use crate::transaction::context::TransactionContext;
-use crate::transaction::undo_log::UndoLogManager;
+use crate::interfaces::TransactionContextProvider;
 use crate::core::mvcc::VersionManager;
-
-use super::transaction_support::TransactionSupport;
 
 #[derive(Clone)]
 pub struct GraphStorageContext {
@@ -30,16 +27,12 @@ pub struct GraphStorageContext {
     pub index_metadata_manager: Arc<IndexManager>,
     pub version_manager: Arc<VersionManager>,
     pub user_storage: Arc<UserStorage>,
-    pub current_txn_context: Arc<RwLock<Option<Arc<TransactionContext>>>>,
+    pub current_txn_context: Arc<RwLock<Option<Arc<dyn TransactionContextProvider>>>>,
     pub persistence: Option<Arc<RwLock<PersistenceCoordinator>>>,
     pub index_gc_manager: Option<Arc<IndexGcManager>>,
     pub fulltext_storage: Option<Arc<FulltextStorage>>,
     pub work_dir: Option<PathBuf>,
     pub db_path: String,
-    /// Transaction support for undo log management
-    pub txn_support: Arc<RwLock<TransactionSupport>>,
-    /// Undo log manager for transaction rollback
-    pub undo_logs: Arc<RwLock<UndoLogManager>>,
 }
 
 impl GraphStorageContext {
@@ -64,8 +57,6 @@ impl GraphStorageContext {
             fulltext_storage: None,
             work_dir: None,
             db_path: String::new(),
-            txn_support: Arc::new(RwLock::new(TransactionSupport::new())),
-            undo_logs: Arc::new(RwLock::new(UndoLogManager::new())),
         }
     }
 
@@ -104,8 +95,6 @@ impl GraphStorageContext {
             fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
-            txn_support: Arc::new(RwLock::new(TransactionSupport::new())),
-            undo_logs: Arc::new(RwLock::new(UndoLogManager::new())),
         }
     }
 
@@ -135,8 +124,6 @@ impl GraphStorageContext {
             fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
-            txn_support: Arc::new(RwLock::new(TransactionSupport::new())),
-            undo_logs: Arc::new(RwLock::new(UndoLogManager::new())),
         })
     }
 
@@ -190,11 +177,11 @@ impl GraphStorageContext {
         }
     }
 
-    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+    pub fn get_transaction_context(&self) -> Option<Arc<dyn TransactionContextProvider>> {
         self.current_txn_context.write().clone()
     }
 
-    pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
+    pub fn set_transaction_context(&self, context: Option<Arc<dyn TransactionContextProvider>>) {
         *self.current_txn_context.write() = context;
     }
 
@@ -223,32 +210,6 @@ impl GraphStorageContext {
 
     pub fn is_fulltext_enabled(&self) -> bool {
         self.fulltext_storage.is_some()
-    }
-
-    /// Begin a transaction
-    pub fn begin_transaction(&self) {
-        self.txn_support.write().begin();
-    }
-
-    /// Commit the current transaction
-    pub fn commit_transaction(&self) {
-        self.txn_support.write().commit();
-    }
-
-    /// Rollback the current transaction
-    pub fn rollback_transaction(&self, ts: u32) -> crate::core::StorageResult<()> {
-        let mut txn = self.txn_support.write();
-        txn.rollback(&self.graph, ts)
-    }
-
-    /// Check if in a transaction
-    pub fn is_in_transaction(&self) -> bool {
-        self.txn_support.write().is_in_transaction()
-    }
-
-    /// Get undo log count
-    pub fn undo_log_count(&self) -> usize {
-        self.txn_support.write().undo_log_count()
     }
 }
 

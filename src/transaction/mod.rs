@@ -55,7 +55,7 @@ pub use cleaner::TransactionCleaner;
 pub use compact_transaction::{
     CompactTransaction, CompactTransactionError, CompactTransactionResult,
 };
-pub use crate::interfaces::CompactTarget;
+pub use crate::core::types::CompactTarget;
 pub use context::TransactionContext;
 pub use types::*;
 pub use error::{TransactionError, TransactionErrorKind, TransactionResult};

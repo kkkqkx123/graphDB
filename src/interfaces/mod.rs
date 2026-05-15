@@ -14,12 +14,8 @@
 //! 3. **Re-export Pattern**: Some types are re-exported from their original location for convenience
 //! 4. **Gradual Migration**: Existing code can continue to work while we migrate to the new structure
 
-pub mod compact;
-pub mod recovery;
 pub mod transaction_buffer;
-pub mod undo;
+pub mod transaction_context;
 
-pub use compact::{CompactConfig, CompactStats, CompactTarget};
-pub use recovery::RecoveryApplier;
 pub use transaction_buffer::TransactionBuffer;
-pub use undo::{PropertyValue, UndoLogEntry, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget};
+pub use transaction_context::TransactionContextProvider;

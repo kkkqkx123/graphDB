@@ -8,8 +8,8 @@ use std::path::Path;
 use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::persistence_coordinator::{CheckpointData, CheckpointInfo, CheckpointStats};
+use crate::core::types::CompactTarget;
 use crate::transaction::compact_transaction::CompactTransaction;
-use crate::interfaces::CompactTarget;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryManager, RecoveryStats};
 use crate::transaction::wal::writer::WalWriter;
 

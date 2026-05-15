@@ -20,7 +20,7 @@ mod writer;
 pub use context::GraphStorageContext;
 pub use persistence::PersistenceOps;
 pub use transaction_config::{DurabilityLevel, IsolationLevel, TransactionConfig, WalSyncMode};
-pub use transaction_support::{TransactionSupport, execute_in_transaction, with_rollback};
+pub use transaction_support::{execute_in_transaction, with_rollback};
 pub use transactional_writer::TransactionalWriter;
 
 use std::path::{Path, PathBuf};
@@ -38,7 +38,7 @@ use crate::storage::engine::{PersistenceConfig, PropertyGraph};
 use crate::storage::index::secondary::IndexGcManager;
 use crate::storage::interface::{StorageClient, StorageStats};
 use crate::storage::metadata::{SchemaManager, Schema};
-use crate::transaction::context::TransactionContext;
+use crate::interfaces::TransactionContextProvider;
 
 #[derive(Clone)]
 pub struct GraphStorage {
@@ -121,11 +121,11 @@ impl GraphStorage {
         self.ctx.extended_schema_manager.clone()
     }
 
-    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+    pub fn get_transaction_context(&self) -> Option<Arc<dyn TransactionContextProvider>> {
         self.ctx.get_transaction_context()
     }
 
-    pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
+    pub fn set_transaction_context(&self, context: Option<Arc<dyn TransactionContextProvider>>) {
         self.ctx.set_transaction_context(context);
     }
 
@@ -633,11 +633,11 @@ impl StorageClient for GraphStorage {
         &self.ctx.db_path
     }
 
-    fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+    fn get_transaction_context(&self) -> Option<Arc<dyn TransactionContextProvider>> {
         self.ctx.get_transaction_context()
     }
 
-    fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
+    fn set_transaction_context(&self, context: Option<Arc<dyn TransactionContextProvider>>) {
         self.ctx.set_transaction_context(context);
     }
 

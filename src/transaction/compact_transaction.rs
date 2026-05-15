@@ -9,8 +9,7 @@ use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::types::WalHeader;
 use super::wal::Timestamp;
 use super::wal::writer::WalWriter;
-use crate::interfaces::compact::{CompactConfig, CompactError, CompactStats};
-use crate::interfaces::CompactTarget;
+use crate::core::types::{CompactConfig, CompactError, CompactStats, CompactTarget};
 
 /// Compact transaction error
 #[derive(Debug, Clone, thiserror::Error)]
@@ -170,7 +169,7 @@ impl<'a, T: CompactTarget + ?Sized> Drop for CompactTransaction<'a, T> {
 mod tests {
     use super::super::wal::writer::DummyWalWriter;
     use super::*;
-    use crate::interfaces::compact::{CompactConfig, CompactResult};
+    use crate::core::types::{CompactConfig, CompactResult};
 
     struct MockCompactTarget;
 

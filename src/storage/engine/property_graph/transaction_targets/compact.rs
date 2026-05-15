@@ -1,4 +1,4 @@
-use crate::interfaces::compact::{CompactConfig, CompactResult, CompactStats, CompactTarget};
+use crate::core::types::{CompactConfig, CompactResult, CompactStats, CompactTarget};
 use crate::core::types::{LabelId, Timestamp};
 
 use super::super::PropertyGraph;
