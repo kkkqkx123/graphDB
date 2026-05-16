@@ -20,6 +20,7 @@ use moka::sync::Cache;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::core::stats::StatsManager;
 use super::config::{CachePriority, CteCacheConfig};
 use super::stats::CteCacheStats;
 
@@ -164,6 +165,8 @@ pub struct CteCacheManager {
     config: Arc<std::sync::RwLock<CteCacheConfig>>,
     /// Statistics
     stats: Arc<CteCacheStats>,
+    /// Stats manager for reporting cache metrics
+    stats_manager: std::sync::RwLock<Option<Arc<StatsManager>>>,
 }
 
 impl CteCacheManager {
@@ -191,6 +194,19 @@ impl CteCacheManager {
             cache,
             config: Arc::new(std::sync::RwLock::new(config.clone())),
             stats,
+            stats_manager: std::sync::RwLock::new(None),
+        }
+    }
+
+    pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
+        self.stats_manager = std::sync::RwLock::new(Some(stats_manager));
+        self
+    }
+
+    /// Set the stats manager after creation
+    pub fn set_stats_manager(&self, stats_manager: Arc<StatsManager>) {
+        if let Ok(mut guard) = self.stats_manager.write() {
+            *guard = Some(stats_manager);
         }
     }
 
@@ -413,9 +429,19 @@ impl CteCacheManager {
 
         if let Some(entry) = self.cache.get(&cte_hash) {
             self.stats.counters.record_hit();
+            if let Ok(ref sm_guard) = self.stats_manager.read() {
+                if let Some(ref sm) = **sm_guard {
+                    sm.record_cache_hit(0, true);
+                }
+            }
             Some(entry.data.clone())
         } else {
             self.stats.counters.record_miss();
+            if let Ok(ref sm_guard) = self.stats_manager.read() {
+                if let Some(ref sm) = **sm_guard {
+                    sm.record_cache_hit(0, false);
+                }
+            }
             None
         }
     }

@@ -10,10 +10,13 @@ use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
 use crate::core::{StorageError, StorageResult, Value};
+use crate::core::stats::StatsManager;
 use super::edge_index_manager::EdgeIndexManager;
 use super::key_codec::{deserialize_value, serialize_value};
 use super::vertex_index_manager::VertexIndexManager;
 use std::path::Path;
+use std::sync::Arc;
+use std::time::Instant;
 
 pub type Timestamp = u32;
 
@@ -355,6 +358,7 @@ pub trait IndexDataManager {
 pub struct InMemoryIndexDataManager {
     vertex_manager: VertexIndexManager,
     edge_manager: EdgeIndexManager,
+    stats_manager: Option<Arc<StatsManager>>,
 }
 
 impl InMemoryIndexDataManager {
@@ -362,7 +366,13 @@ impl InMemoryIndexDataManager {
         Self {
             vertex_manager: VertexIndexManager::new(),
             edge_manager: EdgeIndexManager::new(),
+            stats_manager: None,
         }
+    }
+
+    pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
+        self.stats_manager = Some(stats_manager);
+        self
     }
 
     pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
@@ -451,10 +461,16 @@ impl InMemoryIndexDataManager {
     pub fn rebuild_stats(&self) -> RebuildStats {
         let vertex_estimate = self.vertex_manager.entry_count();
         let edge_estimate = self.edge_manager.entry_count();
-        RebuildStats {
+        let stats = RebuildStats {
             vertex_entries: vertex_estimate.0 + vertex_estimate.1,
             edge_entries: edge_estimate.0 + edge_estimate.1,
+        };
+        if let Some(ref sm) = self.stats_manager {
+            let total_entries = stats.total_entries() as u64;
+            let estimated_bytes = total_entries * 128;
+            sm.set_index_memory_usage(estimated_bytes);
         }
+        stats
     }
 }
 
@@ -513,8 +529,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        self.vertex_manager
-            .update_vertex_indexes_mvcc(space_id, vertex_id, index_name, props, write_ts)
+        let start = Instant::now();
+        let result = self
+            .vertex_manager
+            .update_vertex_indexes_mvcc(space_id, vertex_id, index_name, props, write_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_write(latency_us);
+        }
+        result
     }
 
     fn update_edge_indexes_mvcc(
@@ -526,8 +549,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        self.edge_manager
-            .update_edge_indexes_mvcc(space_id, src, dst, index_name, props, write_ts)
+        let start = Instant::now();
+        let result = self
+            .edge_manager
+            .update_edge_indexes_mvcc(space_id, src, dst, index_name, props, write_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_write(latency_us);
+        }
+        result
     }
 
     fn delete_vertex_indexes_mvcc(
@@ -584,8 +614,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        self.vertex_manager
-            .lookup_tag_index_mvcc(space_id, index, value, read_ts)
+        let start = Instant::now();
+        let result = self
+            .vertex_manager
+            .lookup_tag_index_mvcc(space_id, index, value, read_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_scan(latency_us);
+        }
+        result
     }
 
     fn lookup_edge_index_mvcc(
@@ -595,8 +632,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<Value>, StorageError> {
-        self.edge_manager
-            .lookup_edge_index_mvcc(space_id, index, value, read_ts)
+        let start = Instant::now();
+        let result = self
+            .edge_manager
+            .lookup_edge_index_mvcc(space_id, index, value, read_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_scan(latency_us);
+        }
+        result
     }
 
     fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
@@ -667,8 +711,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        self.vertex_manager
-            .update_vertex_indexes_native_mvcc(space_id, vertex_id, index_name, props, write_ts)
+        let start = Instant::now();
+        let result = self
+            .vertex_manager
+            .update_vertex_indexes_native_mvcc(space_id, vertex_id, index_name, props, write_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_write(latency_us);
+        }
+        result
     }
 
     fn delete_vertex_indexes_native_mvcc(
@@ -688,8 +739,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<u64>, StorageError> {
-        self.vertex_manager
-            .lookup_tag_index_native_mvcc(space_id, index, value, read_ts)
+        let start = Instant::now();
+        let result = self
+            .vertex_manager
+            .lookup_tag_index_native_mvcc(space_id, index, value, read_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_scan(latency_us);
+        }
+        result
     }
 
     fn update_edge_indexes_native_mvcc(
@@ -701,8 +759,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        self.edge_manager
-            .update_edge_indexes_native_mvcc(space_id, src, dst, index_name, props, write_ts)
+        let start = Instant::now();
+        let result = self
+            .edge_manager
+            .update_edge_indexes_native_mvcc(space_id, src, dst, index_name, props, write_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_write(latency_us);
+        }
+        result
     }
 
     fn delete_edge_indexes_native_mvcc(
@@ -724,8 +789,15 @@ impl IndexDataManager for InMemoryIndexDataManager {
         value: &Value,
         read_ts: Timestamp,
     ) -> Result<Vec<(u64, u64)>, StorageError> {
-        self.edge_manager
-            .lookup_edge_index_native_mvcc(space_id, index, value, read_ts)
+        let start = Instant::now();
+        let result = self
+            .edge_manager
+            .lookup_edge_index_native_mvcc(space_id, index, value, read_ts);
+        if let Some(ref sm) = self.stats_manager {
+            let latency_us = start.elapsed().as_micros() as u64;
+            sm.record_index_scan(latency_us);
+        }
+        result
     }
 }
 

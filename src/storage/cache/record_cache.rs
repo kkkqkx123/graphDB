@@ -39,6 +39,7 @@ use std::sync::Arc;
 use moka::sync::Cache;
 use parking_lot::RwLock;
 
+use crate::core::stats::StatsManager;
 use crate::storage::memory::MemoryTracker;
 
 use super::types::*;
@@ -57,6 +58,7 @@ pub struct RecordCache {
     memory_tracker: Option<Arc<MemoryTracker>>,
     memory_pressure_config: MemoryPressureConfig,
     original_max_memory: usize,
+    stats_manager: Option<Arc<StatsManager>>,
 }
 
 struct CacheMemoryAllocation {
@@ -117,6 +119,7 @@ impl RecordCache {
             memory_tracker: None,
             memory_pressure_config: MemoryPressureConfig::default(),
             original_max_memory,
+            stats_manager: None,
         }
     }
 
@@ -216,6 +219,11 @@ impl RecordCache {
         self
     }
 
+    pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
+        self.stats_manager = Some(stats_manager);
+        self
+    }
+
     pub fn set_memory_pressure_config(&mut self, config: MemoryPressureConfig) {
         self.memory_pressure_config = config;
     }
@@ -230,7 +238,7 @@ impl RecordCache {
 
     pub fn get_id_index(&self, label_id: u32, external_id: &str) -> Option<u32> {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
-        match self.id_index_cache.get(&key) {
+        let result = match self.id_index_cache.get(&key) {
             Some(internal_id) => {
                 self.id_index_stats.record_hit();
                 Some(internal_id)
@@ -239,7 +247,11 @@ impl RecordCache {
                 self.id_index_stats.record_miss();
                 None
             }
+        };
+        if let Some(ref sm) = self.stats_manager {
+            sm.record_storage_cache_hit(result.is_some());
         }
+        result
     }
 
     pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32) {
@@ -264,7 +276,7 @@ impl RecordCache {
     // ==================== Vertex Operations ====================
 
     pub fn get_vertex(&self, key: &VertexCacheKey) -> Option<CachedVertex> {
-        match self.vertex_cache.get(key) {
+        let result = match self.vertex_cache.get(key) {
             Some(vertex) => {
                 self.vertex_stats.record_hit();
                 Some(vertex)
@@ -273,7 +285,11 @@ impl RecordCache {
                 self.vertex_stats.record_miss();
                 None
             }
+        };
+        if let Some(ref sm) = self.stats_manager {
+            sm.record_storage_cache_hit(result.is_some());
         }
+        result
     }
 
     pub fn insert_vertex(&self, key: VertexCacheKey, vertex: CachedVertex) {

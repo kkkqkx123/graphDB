@@ -188,6 +188,9 @@ impl SyncCoordinator {
         if let Some(ref sm) = self.stats_manager {
             let latency_ms = start.elapsed().as_millis() as u64;
             sm.record_sync_operation(latency_ms, result.is_ok());
+            if result.is_err() {
+                sm.record_sync_error();
+            }
         }
 
         result
@@ -292,6 +295,15 @@ impl SyncCoordinator {
         // Adding operations to the buffer
         futures::executor::block_on(buffer.prepare(txn_id, operation))
             .map_err(SyncCoordinatorError::BatchError)?;
+
+        if let Some(ref sm) = self.stats_manager {
+            let total_depth: u64 = self
+                .transaction_buffers
+                .iter()
+                .map(|entry| entry.value().pending_count(*entry.key()) as u64)
+                .sum();
+            sm.set_sync_queue_depth(total_depth);
+        }
 
         Ok(())
     }
@@ -449,6 +461,14 @@ impl SyncCoordinator {
             }
 
             log::debug!("Transaction {:?} committed with batch optimization", txn_id);
+            if let Some(ref sm) = self.stats_manager {
+                let total_depth: u64 = self
+                    .transaction_buffers
+                    .iter()
+                    .map(|entry| entry.value().pending_count(*entry.key()) as u64)
+                    .sum();
+                sm.set_sync_queue_depth(total_depth);
+            }
             Ok(())
         } else {
             Ok(())
@@ -473,6 +493,14 @@ impl SyncCoordinator {
                 .rollback(txn_id)
                 .await
                 .map_err(SyncCoordinatorError::BatchError)?;
+            if let Some(ref sm) = self.stats_manager {
+                let total_depth: u64 = self
+                    .transaction_buffers
+                    .iter()
+                    .map(|entry| entry.value().pending_count(*entry.key()) as u64)
+                    .sum();
+                sm.set_sync_queue_depth(total_depth);
+            }
         }
         Ok(())
     }

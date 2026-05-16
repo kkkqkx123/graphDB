@@ -177,14 +177,29 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         auto_cleanup: true,
         write_lock_timeout: std::time::Duration::from_secs(10),
     };
-    let transaction_manager = Arc::new(TransactionManager::new(txn_config));
-    info!("Transaction manager initialized");
+
+    // Create shared StatsManager for all components (before TransactionManager to enable wiring)
+    let slow_query_config = config.to_slow_query_config();
+    let stats_manager = Arc::new(
+        crate::core::stats::StatsManager::with_slow_query_logger(
+            config.monitoring.clone(),
+            slow_query_config,
+        )
+        .expect("Failed to create StatsManager with slow query logger"),
+    );
+
+    let transaction_manager = Arc::new(TransactionManager::with_stats_manager(
+        txn_config,
+        stats_manager.clone(),
+    ));
+    info!("Transaction manager initialized with StatsManager");
 
     // Create Tokio runtime for async initialization
-    let graph_service = GraphService::<SyncWrapper<GraphStorage>>::new_with_transaction_manager(
+    let graph_service = GraphService::<SyncWrapper<GraphStorage>>::new_with_transaction_manager_and_stats(
         config.clone(),
         storage.clone(),
         transaction_manager.clone(),
+        stats_manager.clone(),
     )
     .await;
     info!("Graph service initialized with transaction management");

@@ -250,6 +250,11 @@ impl OptimizerEngine {
         &self.cte_cache_manager
     }
 
+    /// Set the stats manager on the CTE cache manager
+    pub fn set_cte_cache_stats_manager(&self, stats_manager: Arc<crate::core::stats::StatsManager>) {
+        self.cte_cache_manager.set_stats_manager(stats_manager);
+    }
+
     /// Update the Cost Model Configuration
     ///
     /// Updating the configuration will recreate the cost calculator, but it will not affect the existing decision cache.

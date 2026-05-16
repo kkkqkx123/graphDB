@@ -15,6 +15,7 @@ use parking_lot::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use crate::core::stats::StatsManager;
 use super::config::{CacheAllocations, CacheManagerConfig, CteCacheConfig, PlanCacheConfig};
 use super::cte_cache::CteCacheManager;
 use super::invalidation::{
@@ -96,6 +97,13 @@ impl CacheManager {
     /// Obtaining the CTE cache
     pub fn cte_cache(&self) -> Arc<CteCacheManager> {
         self.cte_cache.clone()
+    }
+
+    /// Wire the stats manager to all caches
+    pub fn with_stats_manager(self, stats_manager: Arc<StatsManager>) -> Self {
+        self.plan_cache.set_stats_manager(stats_manager.clone());
+        self.cte_cache.set_stats_manager(stats_manager);
+        self
     }
 
     /// Get the invalidation manager

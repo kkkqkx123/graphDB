@@ -82,8 +82,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
         let object_pool = Arc::new(ThreadSafeExecutorPool::new(ObjectPoolConfig::default()));
-        let plan_cache = Arc::new(QueryPlanCache::default());
+        let plan_cache = Arc::new(QueryPlanCache::default().with_stats_manager(stats_manager.clone()));
         let param_handler = ParameterizedQueryHandler::default();
+
+        optimizer_engine.set_cte_cache_stats_manager(stats_manager.clone());
 
         log::info!("Query pipeline manager created, using optimizer engine and query plan cache");
 
@@ -114,8 +116,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
         let object_pool = Arc::new(ThreadSafeExecutorPool::new(ObjectPoolConfig::default()));
-        let plan_cache = Arc::new(QueryPlanCache::new(plan_cache_config));
+        let plan_cache = Arc::new(QueryPlanCache::new(plan_cache_config).with_stats_manager(stats_manager.clone()));
         let param_handler = ParameterizedQueryHandler::default();
+
+        optimizer_engine.set_cte_cache_stats_manager(stats_manager.clone());
 
         log::info!(
             "Query pipeline manager created, using optimizer engine and custom query plan cache"
@@ -379,13 +383,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.parse_us = parse_start.elapsed().as_micros() as u64;
-                profile.mark_failed_with_info(ErrorInfo::new(
+                let error_info = ErrorInfo::new(
                     ErrorType::ParseError,
                     QueryPhase::Parse,
                     e.to_string(),
-                ));
+                );
+                profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_query_profile(profile.clone());
+                self.stats_manager.record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -400,13 +405,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             Ok(info) => info,
             Err(e) => {
                 profile.stages.validate_us = validate_start.elapsed().as_micros() as u64;
-                profile.mark_failed_with_info(ErrorInfo::new(
+                let error_info = ErrorInfo::new(
                     ErrorType::ValidationError,
                     QueryPhase::Validate,
                     e.to_string(),
-                ));
+                );
+                profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_query_profile(profile.clone());
+                self.stats_manager.record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -444,13 +450,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.plan_us = plan_start.elapsed().as_micros() as u64;
-                profile.mark_failed_with_info(ErrorInfo::new(
+                let error_info = ErrorInfo::new(
                     ErrorType::PlanningError,
                     QueryPhase::Plan,
                     e.to_string(),
-                ));
+                );
+                profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_query_profile(profile.clone());
+                self.stats_manager.record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -464,13 +471,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.optimize_us = optimize_start.elapsed().as_micros() as u64;
-                profile.mark_failed_with_info(ErrorInfo::new(
+                let error_info = ErrorInfo::new(
                     ErrorType::OptimizationError,
                     QueryPhase::Optimize,
                     e.to_string(),
-                ));
+                );
+                profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_query_profile(profile.clone());
+                self.stats_manager.record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -486,13 +494,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.execute_us = execute_start.elapsed().as_micros() as u64;
-                profile.mark_failed_with_info(ErrorInfo::new(
+                let error_info = ErrorInfo::new(
                     ErrorType::ExecutionError,
                     QueryPhase::Execute,
                     e.to_string(),
-                ));
+                );
+                profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_query_profile(profile.clone());
+                self.stats_manager.record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };

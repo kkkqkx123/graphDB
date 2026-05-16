@@ -19,6 +19,7 @@ use moka::sync::Cache;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::core::stats::StatsManager;
 use crate::query::planning::plan::ExecutionPlan;
 
 use super::config::{CachePriority, PlanCacheConfig};
@@ -190,6 +191,8 @@ pub struct QueryPlanCache {
     config: PlanCacheConfig,
     /// Statistics
     stats: Arc<PlanCacheStats>,
+    /// Stats manager for reporting cache metrics
+    stats_manager: std::sync::RwLock<Option<Arc<StatsManager>>>,
 }
 
 impl std::fmt::Debug for QueryPlanCache {
@@ -221,6 +224,21 @@ impl QueryPlanCache {
             cache,
             config,
             stats,
+            stats_manager: std::sync::RwLock::new(None),
+        }
+    }
+
+    pub fn with_stats_manager(self, stats_manager: Arc<StatsManager>) -> Self {
+        if let Ok(mut guard) = self.stats_manager.write() {
+            *guard = Some(stats_manager);
+        }
+        self
+    }
+
+    /// Set the stats manager after creation
+    pub fn set_stats_manager(&self, stats_manager: Arc<StatsManager>) {
+        if let Ok(mut guard) = self.stats_manager.write() {
+            *guard = Some(stats_manager);
         }
     }
 
@@ -244,14 +262,29 @@ impl QueryPlanCache {
                     plan.query_template
                 );
                 self.stats.counters.record_miss();
+                if let Ok(ref sm_guard) = self.stats_manager.read() {
+                    if let Some(ref sm) = **sm_guard {
+                        sm.record_cache_hit(0, false);
+                    }
+                }
                 return None;
             }
 
             self.stats.counters.record_hit();
+            if let Ok(ref sm_guard) = self.stats_manager.read() {
+                if let Some(ref sm) = **sm_guard {
+                    sm.record_cache_hit(0, true);
+                }
+            }
             return Some(plan);
         }
 
         self.stats.counters.record_miss();
+        if let Ok(ref sm_guard) = self.stats_manager.read() {
+            if let Some(ref sm) = **sm_guard {
+                sm.record_cache_hit(0, false);
+            }
+        }
         None
     }
 

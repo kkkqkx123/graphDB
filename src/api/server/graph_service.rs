@@ -51,12 +51,12 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
     /// Create a new GraphService (without a transaction manager, for use in a production environment).
     pub async fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, true).await
+        Self::create_service(config, storage, None, true, None).await
     }
 
     /// Create a new GraphService (without a transaction manager and without starting any background tasks, for testing purposes).
     pub async fn new_for_test(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, false).await
+        Self::create_service(config, storage, None, false, None).await
     }
 
     /// Use the transaction manager to create a GraphService.
@@ -65,7 +65,17 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         storage: Arc<S>,
         transaction_manager: Arc<TransactionManager>,
     ) -> Arc<Self> {
-        Self::create_service(config, storage, Some(transaction_manager), true).await
+        Self::create_service(config, storage, Some(transaction_manager), true, None).await
+    }
+
+    /// Use the transaction manager and external StatsManager to create a GraphService.
+    pub async fn new_with_transaction_manager_and_stats(
+        config: Config,
+        storage: Arc<S>,
+        transaction_manager: Arc<TransactionManager>,
+        stats_manager: Arc<StatsManager>,
+    ) -> Arc<Self> {
+        Self::create_service(config, storage, Some(transaction_manager), true, Some(stats_manager)).await
     }
 
     /// Internal constructor: Extracts the common logic
@@ -77,6 +87,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         storage: Arc<S>,
         transaction_manager: Option<Arc<TransactionManager>>,
         start_cleanup_task: bool,
+        external_stats_manager: Option<Arc<StatsManager>>,
     ) -> Arc<Self> {
         let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
         let session_manager = GraphSessionManager::new(
@@ -92,11 +103,16 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let schema_manager: Option<Arc<SchemaManager>> = storage.get_schema_manager();
 
         // Create StatsManager with slow query logger FIRST (shared across all components)
-        let slow_query_config = config.to_slow_query_config();
-        let stats_manager = Arc::new(
-            StatsManager::with_slow_query_logger(config.monitoring.clone(), slow_query_config)
-                .expect("Failed to create StatsManager with slow query logger"),
-        );
+        // Use external StatsManager if provided (e.g., from api/mod.rs for TransactionManager wiring)
+        let stats_manager = if let Some(ext_stats) = external_stats_manager {
+            ext_stats
+        } else {
+            let slow_query_config = config.to_slow_query_config();
+            Arc::new(
+                StatsManager::with_slow_query_logger(config.monitoring.clone(), slow_query_config)
+                    .expect("Failed to create StatsManager with slow query logger"),
+            )
+        };
 
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(

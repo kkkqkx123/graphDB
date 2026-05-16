@@ -87,6 +87,7 @@ pub enum MetricType {
     IndexLookupLatencyUs,
     IndexMemoryUsage,
     IndexWriteOps,
+    IndexWriteLatencyUs,
 }
 
 /// metric
@@ -889,8 +890,9 @@ impl StatsManager {
         self.add_value_with_amount(MetricType::IndexLookupLatencyUs, latency_us);
     }
 
-    pub fn record_index_write(&self) {
+    pub fn record_index_write(&self, latency_us: u64) {
         self.add_value(MetricType::IndexWriteOps);
+        self.add_value_with_amount(MetricType::IndexWriteLatencyUs, latency_us);
     }
 
     pub fn set_index_memory_usage(&self, bytes: u64) {
