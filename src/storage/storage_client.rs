@@ -2,12 +2,13 @@ use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
-use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::core::types::TransactionContextInfo;
+use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::metadata::{SchemaManager, Schema};
 use std::sync::Arc;
 
-pub trait StorageClient: Send + Sync + std::fmt::Debug {
+/// Read-only data and schema operations.
+pub trait StorageReader: Send + Sync + std::fmt::Debug {
     fn get_vertex(&self, space: &str, id: &VertexId) -> Result<Option<Vertex>, StorageError>;
     fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError>;
     fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError>;
@@ -33,129 +34,8 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         node_id: &VertexId,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError>;
-    fn get_node_edges_filtered<F>(
-        &self,
-        space: &str,
-        node_id: &VertexId,
-        direction: EdgeDirection,
-        filter: Option<F>,
-    ) -> Result<Vec<Edge>, StorageError>
-    where
-        F: Fn(&Edge) -> bool;
     fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError>;
     fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
-
-    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<VertexId, StorageError>;
-    fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError>;
-    fn delete_vertex(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError>;
-    fn delete_vertex_with_edges(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError>;
-    fn batch_insert_vertices(
-        &mut self,
-        space: &str,
-        vertices: Vec<Vertex>,
-    ) -> Result<Vec<VertexId>, StorageError>;
-
-    fn delete_tags(
-        &mut self,
-        space: &str,
-        vertex_id: &VertexId,
-        tag_names: &[String],
-    ) -> Result<usize, StorageError>;
-
-    fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError>;
-    fn delete_edge(
-        &mut self,
-        space: &str,
-        src: &VertexId,
-        dst: &VertexId,
-        edge_type: &str,
-        rank: i64,
-    ) -> Result<(), StorageError>;
-    fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError>;
-
-    fn create_space(&mut self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
-    fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;
-    fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError>;
-    fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>;
-    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;
-    fn get_space_id(&self, space: &str) -> Result<u64, StorageError>;
-    fn space_exists(&self, space: &str) -> bool;
-    fn clear_space(&mut self, space: &str) -> Result<bool, StorageError>;
-    fn alter_space_comment(&mut self, space_id: u64, comment: String)
-        -> Result<bool, StorageError>;
-
-    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<u32, StorageError>;
-    fn alter_tag(
-        &mut self,
-        space: &str,
-        tag: &str,
-        additions: Vec<PropertyDef>,
-        deletions: Vec<String>,
-    ) -> Result<bool, StorageError>;
-    fn get_tag(&self, space: &str, tag: &str) -> Result<Option<TagInfo>, StorageError>;
-    fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError>;
-    fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError>;
-
-    fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<u32, StorageError>;
-    fn alter_edge_type(
-        &mut self,
-        space: &str,
-        edge_type: &str,
-        additions: Vec<PropertyDef>,
-        deletions: Vec<String>,
-    ) -> Result<bool, StorageError>;
-    fn get_edge_type(
-        &self,
-        space: &str,
-        edge_type: &str,
-    ) -> Result<Option<EdgeTypeInfo>, StorageError>;
-    fn drop_edge_type(&mut self, space: &str, edge_type: &str) -> Result<bool, StorageError>;
-    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError>;
-
-    fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
-    fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-    fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
-    fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
-    fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-
-    fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
-    fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
-    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
-    fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-
-    fn insert_vertex_data(
-        &mut self,
-        space: &str,
-        info: &InsertVertexInfo,
-    ) -> Result<bool, StorageError>;
-    fn insert_edge_data(
-        &mut self,
-        space: &str,
-        info: &InsertEdgeInfo,
-    ) -> Result<bool, StorageError>;
-    fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError>;
-    fn delete_edge_data(
-        &mut self,
-        space: &str,
-        src: &str,
-        dst: &str,
-        rank: i64,
-    ) -> Result<bool, StorageError>;
-    fn update_data(&mut self, space: &str, space_id: u64, info: &UpdateInfo) -> Result<bool, StorageError>;
-
-    fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError>;
-
-    fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError>;
-    fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError>;
-    fn drop_user(&mut self, username: &str) -> Result<bool, StorageError>;
-    fn grant_role(
-        &mut self,
-        username: &str,
-        space_id: u64,
-        role: RoleType,
-    ) -> Result<bool, StorageError>;
-    fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError>;
 
     fn lookup_index(
         &self,
@@ -194,38 +74,189 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         edge_type: &str,
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>;
 
+    fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError>;
+    fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>;
+    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;
+    fn get_space_id(&self, space: &str) -> Result<u64, StorageError>;
+    fn space_exists(&self, space: &str) -> bool;
+
+    fn get_tag(&self, space: &str, tag: &str) -> Result<Option<TagInfo>, StorageError>;
+    fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError>;
+
+    fn get_edge_type(
+        &self,
+        space: &str,
+        edge_type: &str,
+    ) -> Result<Option<EdgeTypeInfo>, StorageError>;
+    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError>;
+
+    fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
+    fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
+
+    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
+    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
+}
+
+/// Write operations for vertex and edge data.
+pub trait StorageWriter: Send + Sync + std::fmt::Debug {
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<VertexId, StorageError>;
+    fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError>;
+    fn delete_vertex(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError>;
+    fn delete_vertex_with_edges(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError>;
+    fn batch_insert_vertices(
+        &mut self,
+        space: &str,
+        vertices: Vec<Vertex>,
+    ) -> Result<Vec<VertexId>, StorageError>;
+    fn delete_tags(
+        &mut self,
+        space: &str,
+        vertex_id: &VertexId,
+        tag_names: &[String],
+    ) -> Result<usize, StorageError>;
+
+    fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError>;
+    fn delete_edge(
+        &mut self,
+        space: &str,
+        src: &VertexId,
+        dst: &VertexId,
+        edge_type: &str,
+        rank: i64,
+    ) -> Result<(), StorageError>;
+    fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError>;
+
+    fn insert_vertex_data(
+        &mut self,
+        space: &str,
+        info: &InsertVertexInfo,
+    ) -> Result<bool, StorageError>;
+    fn insert_edge_data(
+        &mut self,
+        space: &str,
+        info: &InsertEdgeInfo,
+    ) -> Result<bool, StorageError>;
+    fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError>;
+    fn delete_edge_data(
+        &mut self,
+        space: &str,
+        src: &str,
+        dst: &str,
+        rank: i64,
+    ) -> Result<bool, StorageError>;
+    fn update_data(
+        &mut self,
+        space: &str,
+        space_id: u64,
+        info: &UpdateInfo,
+    ) -> Result<bool, StorageError>;
+}
+
+/// Schema/space/tag/edge-type/index DDL operations.
+pub trait StorageSchemaOps: Send + Sync + std::fmt::Debug {
+    fn create_space(&mut self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
+    fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;
+    fn clear_space(&mut self, space: &str) -> Result<bool, StorageError>;
+    fn alter_space_comment(
+        &mut self,
+        space_id: u64,
+        comment: String,
+    ) -> Result<bool, StorageError>;
+
+    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<u32, StorageError>;
+    fn alter_tag(
+        &mut self,
+        space: &str,
+        tag: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    ) -> Result<bool, StorageError>;
+    fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError>;
+
+    fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<u32, StorageError>;
+    fn alter_edge_type(
+        &mut self,
+        space: &str,
+        edge_type: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    ) -> Result<bool, StorageError>;
+    fn drop_edge_type(&mut self, space: &str, edge_type: &str) -> Result<bool, StorageError>;
+
+    fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
+    fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+    fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+
+    fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
+    fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+    fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+}
+
+/// Authentication and authorization operations.
+pub trait StorageAuthOps: Send + Sync + std::fmt::Debug {
+    fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError>;
+    fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError>;
+    fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError>;
+    fn drop_user(&mut self, username: &str) -> Result<bool, StorageError>;
+    fn grant_role(
+        &mut self,
+        username: &str,
+        space_id: u64,
+        role: RoleType,
+    ) -> Result<bool, StorageError>;
+    fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError>;
+}
+
+/// Administrative operations: persistence, stats, maintenance, optional components.
+pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
     fn load_from_disk(&mut self) -> Result<(), StorageError>;
     fn save_to_disk(&self) -> Result<(), StorageError>;
     fn get_storage_stats(&self) -> StorageStats;
 
-    // Hanging Edge Detection and Repair Tool
     fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
     fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError>;
 
-    /// Get database file path
     fn get_db_path(&self) -> &str;
 
-    /// Get sync manager (if available)
-    /// Default implementation returns None for storage clients that don't support sync
-    fn get_sync_manager(&self) -> Option<std::sync::Arc<crate::sync::SyncManager>> {
+    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
         None
     }
-
-    /// Get schema manager (if available)
-    /// Default implementation returns None for storage clients that don't have schema manager
     fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
         None
     }
-
-    /// Get transaction context (for MVCC support)
-    /// Default implementation returns None for storage clients that don't support transactions
     fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
         None
     }
-
-    /// Set transaction context (for MVCC support)
-    /// Default implementation does nothing for storage clients that don't support transactions
     fn set_transaction_context(&self, _context: Option<Arc<TransactionContextInfo>>) {}
+}
+
+/// Combined storage interface with full read/write/schema/auth/admin capabilities.
+///
+/// This supertrait is the union of all narrower traits.
+/// Consumers that need selective access can use the individual subtrait bounds instead.
+pub trait StorageClient:
+    StorageReader
+    + StorageWriter
+    + StorageSchemaOps
+    + StorageAuthOps
+    + StorageAdmin
+    + Send
+    + Sync
+    + std::fmt::Debug
+{
+}
+
+/// Auto-blanket: any type implementing all subtraits automatically implements `StorageClient`.
+impl<T> StorageClient for T where
+    T: StorageReader
+        + StorageWriter
+        + StorageSchemaOps
+        + StorageAuthOps
+        + StorageAdmin
+        + Send
+        + Sync
+        + std::fmt::Debug
+{
 }
 
 /// Storing statistical information

@@ -7,7 +7,7 @@ mod common;
 use common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::{DataType, VertexId};
 use graphdb::core::Value;
-use graphdb::storage::StorageClient;
+use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
 use std::collections::HashMap;
 
 /// TC-001: Transaction vertex insert sync

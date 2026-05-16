@@ -3,7 +3,7 @@
 //! Provides maintenance operations like stats and dangling edge detection.
 
 use crate::core::{Edge, StorageError, StorageResult};
-use crate::storage::interface::StorageStats;
+use crate::storage::StorageStats;
 
 use super::context::GraphStorageContext;
 use super::type_utils::edge_record_to_edge;

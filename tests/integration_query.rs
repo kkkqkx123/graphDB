@@ -23,7 +23,7 @@ use graphdb::query::validator::validator_trait::StatementType;
 use graphdb::query::validator::Validator;
 use graphdb::query::QueryContext;
 use graphdb::query::QueryRequestContext;
-use graphdb::storage::StorageClient;
+use graphdb::storage::StorageSchemaOps;
 use std::sync::Arc;
 
 /// Creating a query context for testing

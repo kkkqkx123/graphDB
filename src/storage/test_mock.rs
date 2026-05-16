@@ -11,7 +11,9 @@ use crate::core::types::{
 #[cfg(test)]
 use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
 #[cfg(test)]
-use crate::storage::interface::StorageClient;
+use crate::storage::{
+    StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageWriter,
+};
 #[cfg(test)]
 use crate::storage::metadata::Schema;
 #[cfg(test)]
@@ -50,7 +52,7 @@ impl Default for MockStorage {
 }
 
 #[cfg(test)]
-impl StorageClient for MockStorage {
+impl StorageReader for MockStorage {
     fn get_vertex(&self, _space: &str, _id: &VertexId) -> Result<Option<Vertex>, StorageError> {
         Ok(None)
     }
@@ -93,19 +95,6 @@ impl StorageClient for MockStorage {
         Ok(Vec::new())
     }
 
-    fn get_node_edges_filtered<F>(
-        &self,
-        _space: &str,
-        _node_id: &VertexId,
-        _direction: EdgeDirection,
-        _filter: Option<F>,
-    ) -> Result<Vec<Edge>, StorageError>
-    where
-        F: Fn(&Edge) -> bool,
-    {
-        Ok(Vec::new())
-    }
-
     fn scan_edges_by_type(
         &self,
         _space: &str,
@@ -116,185 +105,6 @@ impl StorageClient for MockStorage {
 
     fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
-    }
-
-    fn insert_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<VertexId, StorageError> {
-        Ok(VertexId::new())
-    }
-
-    fn update_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn delete_vertex(&mut self, _space: &str, _id: &VertexId) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn batch_insert_vertices(
-        &mut self,
-        _space: &str,
-        _vertices: Vec<Vertex>,
-    ) -> Result<Vec<VertexId>, StorageError> {
-        Ok(Vec::new())
-    }
-
-    fn insert_edge(&mut self, _space: &str, _edge: Edge) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn delete_edge(
-        &mut self,
-        _space: &str,
-        _src: &VertexId,
-        _dst: &VertexId,
-        _edge_type: &str,
-        _rank: i64,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn create_space(&mut self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn drop_space(&mut self, _space: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn get_space(&self, _space: &str) -> Result<Option<SpaceInfo>, StorageError> {
-        Ok(None)
-    }
-
-    fn get_space_by_id(&self, _space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
-        Ok(None)
-    }
-
-    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
-        Ok(Vec::new())
-    }
-
-    fn get_space_id(&self, _space: &str) -> Result<u64, StorageError> {
-        Ok(1)
-    }
-
-    fn space_exists(&self, _space: &str) -> bool {
-        false
-    }
-
-    fn clear_space(&mut self, _space: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn alter_space_comment(
-        &mut self,
-        _space_id: u64,
-        _comment: String,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<u32, StorageError> {
-        Ok(1)
-    }
-
-    fn alter_tag(
-        &mut self,
-        _space: &str,
-        _tag: &str,
-        _additions: Vec<PropertyDef>,
-        _deletions: Vec<String>,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn get_tag(&self, _space: &str, _tag: &str) -> Result<Option<TagInfo>, StorageError> {
-        Ok(None)
-    }
-
-    fn drop_tag(&mut self, _space: &str, _tag: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn list_tags(&self, _space: &str) -> Result<Vec<TagInfo>, StorageError> {
-        Ok(Vec::new())
-    }
-
-    fn create_edge_type(
-        &mut self,
-        _space: &str,
-        _info: &EdgeTypeSchema,
-    ) -> Result<u32, StorageError> {
-        Ok(1)
-    }
-
-    fn alter_edge_type(
-        &mut self,
-        _space: &str,
-        _edge_type: &str,
-        _additions: Vec<PropertyDef>,
-        _deletions: Vec<String>,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn get_edge_type(
-        &self,
-        _space: &str,
-        _edge_type: &str,
-    ) -> Result<Option<EdgeTypeSchema>, StorageError> {
-        Ok(None)
-    }
-
-    fn drop_edge_type(&mut self, _space: &str, _edge_type: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
-        Ok(Vec::new())
-    }
-
-    fn create_tag_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn drop_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
-        Ok(None)
-    }
-
-    fn list_tag_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
-        Ok(Vec::new())
-    }
-
-    fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn create_edge_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn drop_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn get_edge_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
-        Ok(None)
-    }
-
-    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
-        Ok(Vec::new())
-    }
-
-    fn rebuild_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
-        Ok(true)
     }
 
     fn lookup_index(
@@ -313,69 +123,6 @@ impl StorageClient for MockStorage {
         _value: &Value,
     ) -> Result<Vec<(Value, f32)>, StorageError> {
         Ok(Vec::new())
-    }
-
-    fn insert_vertex_data(
-        &mut self,
-        _space: &str,
-        _info: &InsertVertexInfo,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn insert_edge_data(
-        &mut self,
-        _space: &str,
-        _info: &InsertEdgeInfo,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn delete_edge_data(
-        &mut self,
-        _space: &str,
-        _src: &str,
-        _dst: &str,
-        _rank: i64,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn update_data(&mut self, _space: &str, _space_id: u64, _info: &UpdateInfo) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn create_user(&mut self, _info: &UserInfo) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn alter_user(&mut self, _info: &UserAlterInfo) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn drop_user(&mut self, _username: &str) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn grant_role(
-        &mut self,
-        _username: &str,
-        _space_id: u64,
-        _role: RoleType,
-    ) -> Result<bool, StorageError> {
-        Ok(true)
-    }
-
-    fn revoke_role(&mut self, _username: &str, _space_id: u64) -> Result<bool, StorageError> {
-        Ok(true)
     }
 
     fn get_vertex_with_schema(
@@ -413,26 +160,87 @@ impl StorageClient for MockStorage {
         Ok(Vec::new())
     }
 
-    fn load_from_disk(&mut self) -> Result<(), StorageError> {
+    fn get_space(&self, _space: &str) -> Result<Option<SpaceInfo>, StorageError> {
+        Ok(None)
+    }
+
+    fn get_space_by_id(&self, _space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
+        Ok(None)
+    }
+
+    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn get_space_id(&self, _space: &str) -> Result<u64, StorageError> {
+        Ok(1)
+    }
+
+    fn space_exists(&self, _space: &str) -> bool {
+        false
+    }
+
+    fn get_tag(&self, _space: &str, _tag: &str) -> Result<Option<TagInfo>, StorageError> {
+        Ok(None)
+    }
+
+    fn list_tags(&self, _space: &str) -> Result<Vec<TagInfo>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn get_edge_type(
+        &self,
+        _space: &str,
+        _edge_type: &str,
+    ) -> Result<Option<EdgeTypeSchema>, StorageError> {
+        Ok(None)
+    }
+
+    fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
+        Ok(None)
+    }
+
+    fn list_tag_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn get_edge_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
+        Ok(None)
+    }
+
+    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
+        Ok(Vec::new())
+    }
+}
+
+#[cfg(test)]
+impl StorageWriter for MockStorage {
+    fn insert_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<VertexId, StorageError> {
+        Ok(VertexId::new())
+    }
+
+    fn update_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<(), StorageError> {
         Ok(())
     }
 
-    fn save_to_disk(&self) -> Result<(), StorageError> {
+    fn delete_vertex(&mut self, _space: &str, _id: &VertexId) -> Result<(), StorageError> {
         Ok(())
-    }
-
-    fn get_storage_stats(&self) -> crate::storage::interface::StorageStats {
-        crate::storage::interface::StorageStats {
-            total_vertices: 0,
-            total_edges: 0,
-            total_spaces: 0,
-            total_tags: 0,
-            total_edge_types: 0,
-        }
     }
 
     fn delete_vertex_with_edges(&mut self, _space: &str, _id: &VertexId) -> Result<(), StorageError> {
         Ok(())
+    }
+
+    fn batch_insert_vertices(
+        &mut self,
+        _space: &str,
+        _vertices: Vec<Vertex>,
+    ) -> Result<Vec<VertexId>, StorageError> {
+        Ok(Vec::new())
     }
 
     fn delete_tags(
@@ -442,6 +250,199 @@ impl StorageClient for MockStorage {
         _tag_names: &[String],
     ) -> Result<usize, StorageError> {
         Ok(0)
+    }
+
+    fn insert_edge(&mut self, _space: &str, _edge: Edge) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn delete_edge(
+        &mut self,
+        _space: &str,
+        _src: &VertexId,
+        _dst: &VertexId,
+        _edge_type: &str,
+        _rank: i64,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn insert_vertex_data(
+        &mut self,
+        _space: &str,
+        _info: &InsertVertexInfo,
+    ) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn insert_edge_data(
+        &mut self,
+        _space: &str,
+        _info: &InsertEdgeInfo,
+    ) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn delete_edge_data(
+        &mut self,
+        _space: &str,
+        _src: &str,
+        _dst: &str,
+        _rank: i64,
+    ) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn update_data(&mut self, _space: &str, _space_id: u64, _info: &UpdateInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+}
+
+#[cfg(test)]
+impl StorageSchemaOps for MockStorage {
+    fn create_space(&mut self, _space: &mut SpaceInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn drop_space(&mut self, _space: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn clear_space(&mut self, _space: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn alter_space_comment(
+        &mut self,
+        _space_id: u64,
+        _comment: String,
+    ) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<u32, StorageError> {
+        Ok(1)
+    }
+
+    fn alter_tag(
+        &mut self,
+        _space: &str,
+        _tag: &str,
+        _additions: Vec<PropertyDef>,
+        _deletions: Vec<String>,
+    ) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn drop_tag(&mut self, _space: &str, _tag: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn create_edge_type(
+        &mut self,
+        _space: &str,
+        _info: &EdgeTypeSchema,
+    ) -> Result<u32, StorageError> {
+        Ok(1)
+    }
+
+    fn alter_edge_type(
+        &mut self,
+        _space: &str,
+        _edge_type: &str,
+        _additions: Vec<PropertyDef>,
+        _deletions: Vec<String>,
+    ) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn drop_edge_type(&mut self, _space: &str, _edge_type: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn create_tag_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn drop_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn create_edge_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn drop_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn rebuild_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+}
+
+#[cfg(test)]
+impl StorageAuthOps for MockStorage {
+    fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn create_user(&mut self, _info: &UserInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn alter_user(&mut self, _info: &UserAlterInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn drop_user(&mut self, _username: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn grant_role(
+        &mut self,
+        _username: &str,
+        _space_id: u64,
+        _role: RoleType,
+    ) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn revoke_role(&mut self, _username: &str, _space_id: u64) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+}
+
+#[cfg(test)]
+impl StorageAdmin for MockStorage {
+    fn load_from_disk(&mut self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn save_to_disk(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn get_storage_stats(&self) -> crate::storage::StorageStats {
+        crate::storage::StorageStats {
+            total_vertices: 0,
+            total_edges: 0,
+            total_spaces: 0,
+            total_tags: 0,
+            total_edge_types: 0,
+        }
     }
 
     fn find_dangling_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {

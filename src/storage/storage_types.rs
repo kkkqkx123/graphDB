@@ -4,11 +4,6 @@ use crate::core::types::PropertyDef;
 use crate::core::DataType;
 use crate::core::Value;
 
-// Re-export core layer types to avoid duplicate definitions
-pub use crate::core::types::{
-    InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
-};
-
 /// Field Definitions
 #[derive(Debug, Clone)]
 pub struct FieldDef {

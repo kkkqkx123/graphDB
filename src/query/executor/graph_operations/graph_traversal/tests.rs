@@ -14,7 +14,7 @@ mod tests {
     use crate::query::executor::graph_operations::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::graph_operations::graph_traversal::traverse::TraverseExecutorParams;
     use crate::query::validator::context::ExpressionAnalysisContext;
-    use crate::storage::{MockStorage, StorageClient};
+    use crate::storage::{MockStorage, StorageWriter};
     use parking_lot::RwLock;
     use std::sync::Arc;
 

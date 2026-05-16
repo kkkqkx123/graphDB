@@ -8,7 +8,7 @@ use graphdb::core::types::VertexId;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
 use graphdb::storage::GraphStorage;
-use graphdb::storage::StorageClient;
+use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;

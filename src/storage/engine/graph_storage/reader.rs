@@ -230,23 +230,6 @@ impl<'a> GraphStorageReader<'a> {
         Ok(edges)
     }
 
-    pub fn get_node_edges_filtered<F>(
-        &self,
-        space: &str,
-        node_id: &VertexId,
-        direction: EdgeDirection,
-        filter: Option<F>,
-    ) -> StorageResult<Vec<Edge>>
-    where
-        F: Fn(&Edge) -> bool,
-    {
-        let edges = self.get_node_edges(space, node_id, direction)?;
-        match filter {
-            Some(f) => Ok(edges.into_iter().filter(f).collect()),
-            None => Ok(edges),
-        }
-    }
-
     pub fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> StorageResult<Vec<Edge>> {
         let edge_info = self.ctx.schema_manager.get_edge_type(space, edge_type)?.ok_or_else(|| {
             StorageError::not_found(format!("Edge type {} not found in space {}", edge_type, space))

@@ -8,7 +8,7 @@ use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use graphdb::storage::GraphStorage;
-use graphdb::storage::StorageClient;
+use graphdb::storage::StorageReader;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;

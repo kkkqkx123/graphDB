@@ -15,8 +15,9 @@ pub mod edge;
 pub mod engine;
 pub mod extend;
 pub mod index;
-pub mod interface;
 pub mod iterator;
+pub mod storage_client;
+pub mod storage_types;
 pub mod memory;
 pub mod metadata;
 pub mod params;
@@ -25,9 +26,13 @@ pub mod vertex;
 #[cfg(test)]
 pub mod test_mock;
 
-pub use interface::{
-    ColumnDef, EncodingFormat, FieldDef, GeoShape, InsertEdgeInfo, InsertVertexInfo,
-    StorageClient, StorageStats, UpdateInfo, UpdateOp, UpdateTarget,
+pub use storage_client::{
+    StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
+    StorageWriter,
+};
+pub use storage_types::{ColumnDef, EncodingFormat, FieldDef, GeoShape};
+pub use crate::core::types::{
+    InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
 };
 pub use engine::graph_storage::GraphStorage;
 pub use engine::sync_wrapper::SyncWrapper;
