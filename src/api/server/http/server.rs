@@ -39,9 +39,11 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         txn_manager: Arc<TransactionManager>,
         config: &Config,
     ) -> Self {
+        // Use the shared StatsManager from GraphService
+        let stats_manager = graph_service.get_stats_manager().clone();
         Self {
             graph_service: graph_service.clone(),
-            query_api: QueryApi::new(storage.clone()),
+            query_api: QueryApi::new(storage.clone(), stats_manager),
             txn_manager: txn_manager.clone(),
             txn_api: TransactionApi::new(txn_manager),
             schema_api: SchemaApi::new(storage.clone()),

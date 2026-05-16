@@ -6,7 +6,7 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, SchemaApi, SpaceConfig};
 use crate::api::embedded::config::DatabaseConfig;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
-use crate::core::Value;
+use crate::core::{StatsManager, Value};
 use crate::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
 use crate::storage::{GraphStorage, StorageClient};
 use crate::sync::{SyncConfig, SyncManager};
@@ -185,13 +185,17 @@ impl GraphDatabase<GraphStorage> {
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
 
+        // Create shared StatsManager for all components
+        let stats_manager = Arc::new(StatsManager::new());
+
         let query_api = if let Some(ref sync) = sync_manager {
             Arc::new(RwLock::new(QueryApi::with_sync_manager(
                 storage.clone(),
+                stats_manager.clone(),
                 sync.clone(),
             )))
         } else {
-            Arc::new(RwLock::new(QueryApi::new(storage.clone())))
+            Arc::new(RwLock::new(QueryApi::new(storage.clone(), stats_manager.clone())))
         };
         let schema_api = SchemaApi::new(storage.clone());
 
@@ -202,6 +206,7 @@ impl GraphDatabase<GraphStorage> {
             storage,
             fulltext_manager,
             sync_manager,
+            stats_manager,
         });
 
         Ok(Self { inner, config })
@@ -339,7 +344,8 @@ impl GraphDatabase<MockStorage> {
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
 
-        let query_api = Arc::new(RwLock::new(QueryApi::new(storage.clone())));
+        let stats_manager = Arc::new(StatsManager::new());
+        let query_api = Arc::new(RwLock::new(QueryApi::new(storage.clone(), stats_manager.clone())));
         let schema_api = SchemaApi::new(storage.clone());
 
         let inner = Arc::new(GraphDatabaseInner {
@@ -349,6 +355,7 @@ impl GraphDatabase<MockStorage> {
             storage,
             fulltext_manager: None,
             sync_manager: None,
+            stats_manager,
         });
 
         Ok(Self {

@@ -6,7 +6,7 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi}
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
-use crate::core::SessionStatistics;
+use crate::core::{SessionStatistics, StatsManager};
 use crate::core::Value;
 use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
 use crate::search::FulltextIndexManager;
@@ -65,6 +65,7 @@ pub(crate) struct GraphDatabaseInner<S: StorageClient + Clone + 'static> {
     pub(crate) storage: Arc<RwLock<S>>,
     pub(crate) fulltext_manager: Option<Arc<FulltextIndexManager>>,
     pub(crate) sync_manager: Option<Arc<SyncManager>>,
+    pub(crate) stats_manager: Arc<StatsManager>,
 }
 
 impl<S: StorageClient + Clone + 'static> Session<S> {

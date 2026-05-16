@@ -17,6 +17,7 @@ use super::rollback::UndoLogRollback;
 use super::types::*;
 use super::undo_log::UndoTarget;
 use crate::core::mvcc::{VersionManager, VersionManagerConfig};
+use crate::core::stats::StatsManager;
 
 /// Transaction Manager
 ///
@@ -83,6 +84,28 @@ impl TransactionManager {
         }
     }
 
+    /// Create a new transaction manager with StatsManager integration
+    pub fn with_stats_manager(
+        config: TransactionManagerConfig,
+        stats_manager: Arc<StatsManager>,
+    ) -> Self {
+        let stats = Arc::new(TransactionStats::with_stats_manager(stats_manager));
+        let monitor = TransactionMonitor::new(Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(None, None, Arc::clone(&stats));
+        let version_manager = Arc::new(VersionManager::new());
+
+        Self {
+            version_manager,
+            config,
+            active_transactions: DashMap::new(),
+            id_generator: AtomicU64::new(1),
+            stats,
+            shutdown_flag: AtomicU64::new(0),
+            monitor,
+            cleaner,
+        }
+    }
+
     /// Get the version manager
     pub fn version_manager(&self) -> &Arc<VersionManager> {
         &self.version_manager
@@ -123,8 +146,7 @@ impl TransactionManager {
         let context = Arc::new(TransactionContext::new_readonly(txn_id, timestamp, config));
 
         self.active_transactions.insert(txn_id, context);
-        self.stats.increment_total();
-        self.stats.increment_active();
+        self.stats.record_txn_begin();
 
         Ok(txn_id)
     }
@@ -164,8 +186,7 @@ impl TransactionManager {
         let context = Arc::new(TransactionContext::new(txn_id, timestamp, config));
 
         self.active_transactions.insert(txn_id, context);
-        self.stats.increment_total();
-        self.stats.increment_active();
+        self.stats.record_txn_begin();
 
         Ok(txn_id)
     }
@@ -204,8 +225,7 @@ impl TransactionManager {
         let context = Arc::new(TransactionContext::new(txn_id, timestamp, config));
 
         self.active_transactions.insert(txn_id, context);
-        self.stats.increment_total();
-        self.stats.increment_active();
+        self.stats.record_txn_begin();
 
         Ok(txn_id)
     }
@@ -277,8 +297,7 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Committed)?;
 
-        self.stats.decrement_active();
-        self.stats.increment_committed();
+        self.stats.record_txn_commit();
 
         Ok(())
     }
@@ -361,8 +380,7 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Aborted)?;
 
-        self.stats.decrement_active();
-        self.stats.increment_aborted();
+        self.stats.record_txn_rollback();
 
         Ok(())
     }

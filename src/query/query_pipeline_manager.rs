@@ -24,7 +24,9 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
 use crate::core::error::{DBError, DBResult, QueryError};
-use crate::core::{ErrorInfo, ErrorType, QueryMetrics, QueryPhase, QueryProfile, StatsManager};
+use crate::core::{
+    ErrorInfo, ErrorType, MetricType, QueryMetrics, QueryPhase, QueryProfile, StatsManager,
+};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
 use crate::query::executor::explain::{ExplainExecutor, ExplainMode, ProfileExecutor};
 use crate::query::executor::factory::ExecutorFactory;
@@ -343,6 +345,23 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_text: &str,
         session_id: i64,
     ) -> DBResult<(ExecutionResult, QueryMetrics, QueryProfile)> {
+        // Increment query counters
+        self.stats_manager.add_value(MetricType::NumQueries);
+        self.stats_manager.add_value(MetricType::NumActiveQueries);
+
+        // RAII guard to ensure NumActiveQueries is decremented on all exit paths
+        struct ActiveQueryGuard {
+            stats_manager: Arc<StatsManager>,
+        }
+        impl Drop for ActiveQueryGuard {
+            fn drop(&mut self) {
+                self.stats_manager.dec_value(MetricType::NumActiveQueries);
+            }
+        }
+        let _guard = ActiveQueryGuard {
+            stats_manager: self.stats_manager.clone(),
+        };
+
         let total_start = Instant::now();
         let mut metrics = QueryMetrics::new();
         let mut profile = QueryProfile::new(session_id, query_text.to_string());
@@ -370,6 +389,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 return Err(e);
             }
         };
+
+        // Record query type counter based on statement type
+        self.record_query_type_counter(parser_result.ast.stmt());
 
         let validate_start = Instant::now();
         let validation_info = match self
@@ -492,6 +514,26 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         parser
             .parse()
             .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))
+    }
+
+    /// Record query type counter based on statement type
+    fn record_query_type_counter(&self, stmt: &crate::query::parser::ast::Stmt) {
+        use crate::query::parser::ast::Stmt;
+        let metric_type = match stmt {
+            Stmt::Match(_) => Some(MetricType::NumMatchQueries),
+            Stmt::Create(_) => Some(MetricType::NumCreateQueries),
+            Stmt::Update(_) => Some(MetricType::NumUpdateQueries),
+            Stmt::Delete(_) => Some(MetricType::NumDeleteQueries),
+            Stmt::Insert(_) => Some(MetricType::NumInsertQueries),
+            Stmt::Go(_) => Some(MetricType::NumGoQueries),
+            Stmt::Fetch(_) => Some(MetricType::NumFetchQueries),
+            Stmt::Lookup(_) => Some(MetricType::NumLookupQueries),
+            Stmt::Show(_) => Some(MetricType::NumShowQueries),
+            _ => None,
+        };
+        if let Some(metric) = metric_type {
+            self.stats_manager.add_value(metric);
+        }
     }
 
     /// Verify the query and return the verification information (using the provided QueryContext).

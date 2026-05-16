@@ -85,16 +85,23 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             session_idle_timeout,
         );
 
-        // Decide whether to start the background task for session cleanup based on the parameters.
         if start_cleanup_task {
             session_manager.start_cleanup_task().await;
         }
 
         let schema_manager: Option<Arc<SchemaManager>> = storage.get_schema_manager();
 
+        // Create StatsManager with slow query logger FIRST (shared across all components)
+        let slow_query_config = config.to_slow_query_config();
+        let stats_manager = Arc::new(
+            StatsManager::with_slow_query_logger(config.monitoring.clone(), slow_query_config)
+                .expect("Failed to create StatsManager with slow query logger"),
+        );
+
         let (query_api, vector_api) = if config.vector.enabled {
             match QueryApi::with_vector_search(
                 Arc::new(RwLock::new((*storage).clone())),
+                stats_manager.clone(),
                 config.vector.clone(),
                 schema_manager.clone(),
             )
@@ -116,32 +123,32 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                         e
                     );
                     let api = if let Some(sm) = schema_manager.clone() {
-                        QueryApi::with_schema_manager(Arc::new(RwLock::new((*storage).clone())), sm)
+                        QueryApi::with_schema_manager(
+                            Arc::new(RwLock::new((*storage).clone())),
+                            stats_manager.clone(),
+                            sm,
+                        )
                     } else {
-                        QueryApi::new(Arc::new(RwLock::new((*storage).clone())))
+                        QueryApi::new(Arc::new(RwLock::new((*storage).clone())), stats_manager.clone())
                     };
                     (Arc::new(RwLock::new(api)), None)
                 }
             }
         } else {
             let api = if let Some(sm) = schema_manager {
-                QueryApi::with_schema_manager(Arc::new(RwLock::new((*storage).clone())), sm)
+                QueryApi::with_schema_manager(
+                    Arc::new(RwLock::new((*storage).clone())),
+                    stats_manager.clone(),
+                    sm,
+                )
             } else {
-                QueryApi::new(Arc::new(RwLock::new((*storage).clone())))
+                QueryApi::new(Arc::new(RwLock::new((*storage).clone())), stats_manager.clone())
             };
             (Arc::new(RwLock::new(api)), None)
         };
 
         let authenticator = AuthenticatorFactory::create_default(&config.server.auth);
         let permission_manager = Arc::new(PermissionManager::new());
-
-        // Create StatsManager with slow query logger
-        let slow_query_config = config.to_slow_query_config();
-
-        let server_stats_manager = Arc::new(
-            StatsManager::with_slow_query_logger(config.monitoring.clone(), slow_query_config)
-                .expect("Failed to create StatsManager with slow query logger"),
-        );
 
         // Create sync API if storage supports it
         let sync_api = storage
@@ -153,7 +160,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             query_api,
             authenticator,
             permission_manager,
-            stats_manager: server_stats_manager,
+            stats_manager,
             storage,
             vector_api,
             sync_api,

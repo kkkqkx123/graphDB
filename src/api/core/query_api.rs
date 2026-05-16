@@ -24,9 +24,8 @@ pub struct QueryApi<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + Clone + 'static> QueryApi<S> {
-    /// Create a new QueryApi instance
-    pub fn new(storage: Arc<RwLock<S>>) -> Self {
-        let stats_manager = Arc::new(StatsManager::new());
+    /// Create a new QueryApi instance with external StatsManager
+    pub fn new(storage: Arc<RwLock<S>>, stats_manager: Arc<StatsManager>) -> Self {
         let optimizer_engine = Arc::new(OptimizerEngine::default());
         Self {
             pipeline_manager: QueryPipelineManager::with_optimizer(
@@ -38,8 +37,11 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     }
 
     /// Create a new QueryApi instance with sync manager support
-    pub fn with_sync_manager(storage: Arc<RwLock<S>>, sync_manager: Arc<SyncManager>) -> Self {
-        let stats_manager = Arc::new(StatsManager::new());
+    pub fn with_sync_manager(
+        storage: Arc<RwLock<S>>,
+        stats_manager: Arc<StatsManager>,
+        sync_manager: Arc<SyncManager>,
+    ) -> Self {
         let optimizer_engine = Arc::new(OptimizerEngine::default());
         Self {
             pipeline_manager: QueryPipelineManager::with_optimizer(
@@ -54,9 +56,9 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// Create a new QueryApi instance with schema manager support
     pub fn with_schema_manager(
         storage: Arc<RwLock<S>>,
+        stats_manager: Arc<StatsManager>,
         schema_manager: Arc<SchemaManager>,
     ) -> Self {
-        let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
         Self {
             pipeline_manager: QueryPipelineManager::with_optimizer(
@@ -71,10 +73,10 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// Create a new QueryApi instance with vector search support
     pub async fn with_vector_search(
         storage: Arc<RwLock<S>>,
+        stats_manager: Arc<StatsManager>,
         vector_config: VectorClientConfig,
         schema_manager: Option<Arc<SchemaManager>>,
     ) -> Result<Self, String> {
-        let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
 
         // Create vector manager

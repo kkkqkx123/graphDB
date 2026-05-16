@@ -16,11 +16,12 @@ pub mod engine;
 pub mod extend;
 pub mod index;
 pub mod iterator;
-pub mod storage_client;
-pub mod storage_types;
 pub mod memory;
 pub mod metadata;
+pub mod metrics;
 pub mod params;
+pub mod storage_client;
+pub mod storage_types;
 pub mod vertex;
 
 #[cfg(test)]

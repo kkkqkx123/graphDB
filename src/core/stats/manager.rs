@@ -63,6 +63,30 @@ pub enum MetricType {
     SearchErrorIoError,
     SearchErrorSerialization,
     SearchErrorInternal,
+    // Storage metrics
+    StorageReadOps,
+    StorageWriteOps,
+    StorageReadLatencyUs,
+    StorageWriteLatencyUs,
+    StorageErrors,
+    StorageCacheHitCount,
+    StorageCacheMissCount,
+    // Transaction metrics
+    TxnBeginCount,
+    TxnCommitCount,
+    TxnRollbackCount,
+    TxnActiveCount,
+    TxnConflictCount,
+    // Sync metrics
+    SyncOperations,
+    SyncLatencyMs,
+    SyncErrors,
+    SyncQueueDepth,
+    // Index metrics
+    IndexScanCount,
+    IndexLookupLatencyUs,
+    IndexMemoryUsage,
+    IndexWriteOps,
 }
 
 /// metric
@@ -395,6 +419,14 @@ impl StatsManager {
         if let Some(metric) = self.metrics.get(&metric_type) {
             metric.decrement();
         }
+    }
+
+    pub fn set_value(&self, metric_type: MetricType, value: u64) {
+        let metric = self
+            .metrics
+            .entry(metric_type)
+            .or_insert_with(|| Arc::new(MetricValue::new(0)));
+        metric.set(value);
     }
 
     pub fn add_space_metric(&self, space_name: &str, metric_type: MetricType) {
@@ -780,6 +812,89 @@ impl StatsManager {
             self.add_value(MetricType::SearchCacheMissCount);
             self.add_space_metric(&space_key, MetricType::SearchCacheMissCount);
         }
+    }
+
+    // ========== Storage Metrics ==========
+
+    /// Record a storage read operation
+    pub fn record_storage_read(&self, latency_us: u64, success: bool) {
+        self.add_value(MetricType::StorageReadOps);
+        self.add_value_with_amount(MetricType::StorageReadLatencyUs, latency_us);
+        if !success {
+            self.add_value(MetricType::StorageErrors);
+        }
+    }
+
+    /// Record a storage write operation
+    pub fn record_storage_write(&self, latency_us: u64, success: bool) {
+        self.add_value(MetricType::StorageWriteOps);
+        self.add_value_with_amount(MetricType::StorageWriteLatencyUs, latency_us);
+        if !success {
+            self.add_value(MetricType::StorageErrors);
+        }
+    }
+
+    /// Record storage cache hit or miss
+    pub fn record_storage_cache_hit(&self, hit: bool) {
+        if hit {
+            self.add_value(MetricType::StorageCacheHitCount);
+        } else {
+            self.add_value(MetricType::StorageCacheMissCount);
+        }
+    }
+
+    // ========== Transaction Metrics ==========
+
+    /// Record transaction begin
+    pub fn record_txn_begin(&self) {
+        self.add_value(MetricType::TxnBeginCount);
+        self.add_value(MetricType::TxnActiveCount);
+    }
+
+    /// Record transaction commit
+    pub fn record_txn_commit(&self) {
+        self.add_value(MetricType::TxnCommitCount);
+        self.dec_value(MetricType::TxnActiveCount);
+    }
+
+    /// Record transaction rollback
+    pub fn record_txn_rollback(&self) {
+        self.add_value(MetricType::TxnRollbackCount);
+        self.dec_value(MetricType::TxnActiveCount);
+    }
+
+    /// Record transaction conflict
+    pub fn record_txn_conflict(&self) {
+        self.add_value(MetricType::TxnConflictCount);
+    }
+
+    pub fn record_sync_operation(&self, latency_ms: u64, success: bool) {
+        self.add_value(MetricType::SyncOperations);
+        self.add_value_with_amount(MetricType::SyncLatencyMs, latency_ms);
+        if !success {
+            self.add_value(MetricType::SyncErrors);
+        }
+    }
+
+    pub fn record_sync_error(&self) {
+        self.add_value(MetricType::SyncErrors);
+    }
+
+    pub fn set_sync_queue_depth(&self, depth: u64) {
+        self.set_value(MetricType::SyncQueueDepth, depth);
+    }
+
+    pub fn record_index_scan(&self, latency_us: u64) {
+        self.add_value(MetricType::IndexScanCount);
+        self.add_value_with_amount(MetricType::IndexLookupLatencyUs, latency_us);
+    }
+
+    pub fn record_index_write(&self) {
+        self.add_value(MetricType::IndexWriteOps);
+    }
+
+    pub fn set_index_memory_usage(&self, bytes: u64) {
+        self.set_value(MetricType::IndexMemoryUsage, bytes);
     }
 
     /// Classify a SearchError into a specific MetricType for error tracking

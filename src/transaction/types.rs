@@ -4,9 +4,12 @@
 
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
+
+use crate::core::stats::{MetricType, StatsManager};
 
 /// Transaction ID
 pub use crate::core::types::TransactionId;
@@ -369,7 +372,7 @@ impl Default for TransactionManagerConfig {
 }
 
 /// Transaction Statistics
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TransactionStats {
     /// Total transactions
     pub total_transactions: AtomicU64,
@@ -381,11 +384,37 @@ pub struct TransactionStats {
     pub aborted_transactions: AtomicU64,
     /// Timeout transactions
     pub timeout_transactions: AtomicU64,
+    /// Optional StatsManager for unified metrics
+    stats_manager: Option<Arc<StatsManager>>,
+}
+
+impl Default for TransactionStats {
+    fn default() -> Self {
+        Self {
+            total_transactions: AtomicU64::new(0),
+            active_transactions: AtomicU64::new(0),
+            committed_transactions: AtomicU64::new(0),
+            aborted_transactions: AtomicU64::new(0),
+            timeout_transactions: AtomicU64::new(0),
+            stats_manager: None,
+        }
+    }
 }
 
 impl TransactionStats {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_stats_manager(stats_manager: Arc<StatsManager>) -> Self {
+        Self {
+            total_transactions: AtomicU64::new(0),
+            active_transactions: AtomicU64::new(0),
+            committed_transactions: AtomicU64::new(0),
+            aborted_transactions: AtomicU64::new(0),
+            timeout_transactions: AtomicU64::new(0),
+            stats_manager: Some(stats_manager),
+        }
     }
 
     pub fn increment_total(&self) {
@@ -410,6 +439,36 @@ impl TransactionStats {
 
     pub fn increment_timeout(&self) {
         self.timeout_transactions.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_txn_begin(&self) {
+        self.increment_total();
+        self.increment_active();
+        if let Some(ref sm) = self.stats_manager {
+            sm.record_txn_begin();
+        }
+    }
+
+    pub fn record_txn_commit(&self) {
+        self.decrement_active();
+        self.increment_committed();
+        if let Some(ref sm) = self.stats_manager {
+            sm.record_txn_commit();
+        }
+    }
+
+    pub fn record_txn_rollback(&self) {
+        self.decrement_active();
+        self.increment_aborted();
+        if let Some(ref sm) = self.stats_manager {
+            sm.record_txn_rollback();
+        }
+    }
+
+    pub fn record_txn_conflict(&self) {
+        if let Some(ref sm) = self.stats_manager {
+            sm.add_value(MetricType::TxnConflictCount);
+        }
     }
 }
 

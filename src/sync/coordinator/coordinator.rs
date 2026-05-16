@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
 use tracing::{debug, warn};
 
 use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
+use crate::core::stats::StatsManager;
 use crate::search::manager::FulltextIndexManager;
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
@@ -30,6 +31,7 @@ pub struct SyncCoordinator {
     config: BatchConfig,
     vector_client_config: VectorClientConfig,
     dead_letter_queue: Arc<DeadLetterQueue>,
+    stats_manager: Option<Arc<StatsManager>>,
 }
 
 impl std::fmt::Debug for SyncCoordinator {
@@ -55,6 +57,7 @@ impl SyncCoordinator {
             config,
             vector_client_config: VectorClientConfig::default(),
             dead_letter_queue,
+            stats_manager: None,
         }
     }
 
@@ -63,6 +66,11 @@ impl SyncCoordinator {
         vector_manager: Arc<vector_client::VectorManager>,
     ) -> Self {
         self.vector_manager = Some(vector_manager);
+        self
+    }
+
+    pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
+        self.stats_manager = Some(stats_manager);
         self
     }
 
@@ -150,30 +158,39 @@ impl SyncCoordinator {
     }
 
     pub async fn on_change(&self, ctx: ChangeContext) -> Result<(), SyncCoordinatorError> {
+        let start = Instant::now();
         let operation = self.create_operation(&ctx)?;
 
-        match ctx.index_type {
-            IndexType::Fulltext => {
-                if let Some(processor) = self.get_or_create_fulltext_processor(
-                    ctx.space_id,
-                    &ctx.tag_name,
-                    &ctx.field_name,
-                ) {
-                    processor.add(operation).await?;
+        let result = async {
+            match ctx.index_type {
+                IndexType::Fulltext => {
+                    if let Some(processor) = self.get_or_create_fulltext_processor(
+                        ctx.space_id,
+                        &ctx.tag_name,
+                        &ctx.field_name,
+                    ) {
+                        processor.add(operation).await?;
+                    }
+                }
+                IndexType::Vector => {
+                    if let Some(processor) = self.get_or_create_vector_processor(
+                        ctx.space_id,
+                        &ctx.tag_name,
+                        &ctx.field_name,
+                    ) {
+                        processor.add(operation).await?;
+                    }
                 }
             }
-            IndexType::Vector => {
-                if let Some(processor) = self.get_or_create_vector_processor(
-                    ctx.space_id,
-                    &ctx.tag_name,
-                    &ctx.field_name,
-                ) {
-                    processor.add(operation).await?;
-                }
-            }
+            Ok::<(), SyncCoordinatorError>(())
+        }.await;
+
+        if let Some(ref sm) = self.stats_manager {
+            let latency_ms = start.elapsed().as_millis() as u64;
+            sm.record_sync_operation(latency_ms, result.is_ok());
         }
 
-        Ok(())
+        result
     }
 
     fn create_operation(

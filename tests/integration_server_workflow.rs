@@ -52,9 +52,10 @@ fn test_query_api_with_graph_storage_schema_manager() {
     let test_storage = TestStorage::new().expect("Failed to create test storage");
     let storage = test_storage.storage();
     let schema_manager = test_storage.schema_manager();
+    let stats_manager = Arc::new(StatsManager::new());
 
     // Create QueryApi with schema_manager
-    let query_api = QueryApi::with_schema_manager(storage, schema_manager);
+    let query_api = QueryApi::with_schema_manager(storage, stats_manager, schema_manager);
 
     // QueryApi should be created successfully
     // We cannot easily test execution here without full setup,
@@ -176,9 +177,10 @@ fn test_complete_storage_to_query_workflow() {
     let test_storage = TestStorage::new().expect("Failed to create test storage");
     let storage = test_storage.storage();
     let schema_manager = test_storage.schema_manager();
+    let stats_manager = Arc::new(StatsManager::new());
 
     // Step 2: Create QueryApi with schema_manager
-    let mut query_api = QueryApi::with_schema_manager(storage, schema_manager);
+    let mut query_api = QueryApi::with_schema_manager(storage, stats_manager, schema_manager);
 
     // Step 3: Execute a query request
     let request = graphdb::api::core::types::QueryRequest {
