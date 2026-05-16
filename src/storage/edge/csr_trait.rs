@@ -87,10 +87,7 @@ pub trait ImmutableCsrTrait: CsrBase {
 pub enum CsrType {
     Mutable,
     SingleMutable,
-    CacheOptimized,
     Immutable,
-    SingleImmutable,
-    Empty,
 }
 
 impl CsrType {
@@ -99,10 +96,8 @@ impl CsrType {
             (EdgeStrategy::Multiple, false) => CsrType::Mutable,
             (EdgeStrategy::Multiple, true) => CsrType::Immutable,
             (EdgeStrategy::Single, false) => CsrType::SingleMutable,
-            (EdgeStrategy::Single, true) => CsrType::SingleImmutable,
-            (EdgeStrategy::CacheOptimized, false) => CsrType::CacheOptimized,
-            (EdgeStrategy::CacheOptimized, true) => CsrType::Immutable,
-            (EdgeStrategy::None, _) => CsrType::Empty,
+            (EdgeStrategy::Single, true) => CsrType::Immutable,
+            (EdgeStrategy::None, _) => CsrType::Immutable,
         }
     }
 }
@@ -116,10 +111,8 @@ mod tests {
         assert_eq!(CsrType::from_strategy(EdgeStrategy::Multiple, false), CsrType::Mutable);
         assert_eq!(CsrType::from_strategy(EdgeStrategy::Multiple, true), CsrType::Immutable);
         assert_eq!(CsrType::from_strategy(EdgeStrategy::Single, false), CsrType::SingleMutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::Single, true), CsrType::SingleImmutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::CacheOptimized, false), CsrType::CacheOptimized);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::CacheOptimized, true), CsrType::Immutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::None, false), CsrType::Empty);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::None, true), CsrType::Empty);
+        assert_eq!(CsrType::from_strategy(EdgeStrategy::Single, true), CsrType::Immutable);
+        assert_eq!(CsrType::from_strategy(EdgeStrategy::None, false), CsrType::Immutable);
+        assert_eq!(CsrType::from_strategy(EdgeStrategy::None, true), CsrType::Immutable);
     }
 }

@@ -33,7 +33,7 @@
 //! use graphdb::transaction::VersionManager;
 //!
 //! let version_manager = Arc::new(VersionManager::new());
-//! let index_manager = InMemoryIndexDataManager::new();
+//! let index_manager = IndexDataManagerImpl::new();
 //!
 //! let config = IndexGcConfig::default();
 //! let gc_manager = IndexGcManager::new(index_manager, version_manager, config);
@@ -51,7 +51,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use super::index_data_manager::{GcStats, InMemoryIndexDataManager, Timestamp};
+use super::index_data_manager::{GcStats, IndexDataManagerImpl, Timestamp};
 use crate::core::mvcc::VersionManager;
 
 /// GC manager configuration
@@ -128,7 +128,7 @@ pub struct IndexGcStats {
 /// Manages background garbage collection for index tombstones.
 /// Uses incremental GC to avoid blocking normal operations.
 pub struct IndexGcManager {
-    index_manager: InMemoryIndexDataManager,
+    index_manager: IndexDataManagerImpl,
     version_manager: Arc<VersionManager>,
     config: IndexGcConfig,
     last_gc_ts: AtomicU32,
@@ -140,7 +140,7 @@ pub struct IndexGcManager {
 impl IndexGcManager {
     /// Create a new GC manager
     pub fn new(
-        index_manager: InMemoryIndexDataManager,
+        index_manager: IndexDataManagerImpl,
         version_manager: Arc<VersionManager>,
         config: IndexGcConfig,
     ) -> Self {
@@ -157,7 +157,7 @@ impl IndexGcManager {
 
     /// Create a new GC manager with default configuration
     pub fn with_defaults(
-        index_manager: InMemoryIndexDataManager,
+        index_manager: IndexDataManagerImpl,
         version_manager: Arc<VersionManager>,
     ) -> Self {
         Self::new(index_manager, version_manager, IndexGcConfig::default())
@@ -347,7 +347,7 @@ mod tests {
     #[test]
     fn test_gc_manager_creation() {
         let version_manager = Arc::new(VersionManager::new());
-        let index_manager = InMemoryIndexDataManager::new();
+        let index_manager = IndexDataManagerImpl::new();
         let gc_manager = IndexGcManager::with_defaults(index_manager, version_manager);
 
         assert!(!gc_manager.is_running());
@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn test_gc_pass_empty() {
         let version_manager = Arc::new(VersionManager::new());
-        let index_manager = InMemoryIndexDataManager::new();
+        let index_manager = IndexDataManagerImpl::new();
         let gc_manager = IndexGcManager::with_defaults(index_manager, version_manager);
 
         let stats = gc_manager.run_gc_pass();
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn test_gc_stats() {
         let version_manager = Arc::new(VersionManager::new());
-        let index_manager = InMemoryIndexDataManager::new();
+        let index_manager = IndexDataManagerImpl::new();
         let gc_manager = IndexGcManager::with_defaults(index_manager, version_manager);
 
         let stats = gc_manager.get_stats();

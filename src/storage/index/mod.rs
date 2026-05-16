@@ -39,7 +39,7 @@
 //! - `secondary`: Secondary indexes (Property-based)
 //!   - `vertex_index_manager`: BTreeMap-based vertex index management
 //!   - `edge_index_manager`: BTreeMap-based edge index management
-//!   - `index_data_manager`: `IndexDataManager` trait and `InMemoryIndexDataManager` implementation
+//!   - `index_data_manager`: `IndexDataManager` trait and `IndexDataManagerImpl` implementation
 //!   - `index_updater`: Automatic index maintenance during DML operations
 //!   - `key_codec`: Index key encoding/decoding and compression utilities
 //!   - `index_gc_manager`: Background GC for tombstone cleanup

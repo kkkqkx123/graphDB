@@ -194,47 +194,8 @@ impl MutableCsr {
         }
     }
 
-    /// Insert an edge
+    /// Insert an edge with automatic capacity expansion
     pub fn insert_edge(
-        &mut self,
-        src: VertexId,
-        dst: VertexId,
-        edge_id: EdgeId,
-        prop_offset: u32,
-        ts: Timestamp,
-    ) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-
-        if src_idx >= self.vertex_capacity {
-            self.ensure_vertex_capacity(src_idx + 1);
-        }
-
-        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
-
-        let degree = self.degrees[src_idx] as usize;
-        let capacity = self.capacities[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
-
-        for i in 0..degree {
-            let nbr = &self.nbr_list[offset + i];
-            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP {
-                return false;
-            }
-        }
-
-        if degree >= capacity {
-            return false;
-        }
-
-        self.nbr_list[offset + degree] = Nbr::new(dst, edge_id, prop_offset, ts);
-        self.degrees[src_idx] += 1;
-        self.edge_count.fetch_add(1, Ordering::Relaxed);
-        true
-    }
-
-    /// Insert edge with automatic capacity expansion
-    /// Note: This method may need to release and reacquire locks during expansion
-    pub fn insert_edge_with_expand(
         &mut self,
         src: VertexId,
         dst: VertexId,
@@ -282,6 +243,19 @@ impl MutableCsr {
         }
 
         true
+    }
+
+    /// Insert edge with automatic capacity expansion (alias for insert_edge)
+    /// Kept for backward compatibility
+    pub fn insert_edge_with_expand(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        edge_id: EdgeId,
+        prop_offset: u32,
+        ts: Timestamp,
+    ) -> bool {
+        self.insert_edge(src, dst, edge_id, prop_offset, ts)
     }
 
     /// Expand capacity for a specific vertex (requires exclusive access)

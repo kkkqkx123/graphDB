@@ -548,8 +548,19 @@ impl MutableCsrTrait for SingleMutableCsr {
     }
 
     fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        let dst = VertexId::from_u64(edge_id);
-        SingleMutableCsr::revert_delete(self, src, dst, ts)
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
+        if src_idx >= self.vertex_capacity {
+            return false;
+        }
+
+        let nbr = &mut self.nbr_list[src_idx];
+        if nbr.timestamp != INVALID_TIMESTAMP || nbr.edge_id != edge_id {
+            return false;
+        }
+
+        nbr.timestamp = ts;
+        self.edge_count.fetch_add(1, Ordering::Relaxed);
+        true
     }
 
     fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {

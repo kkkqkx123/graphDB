@@ -355,13 +355,13 @@ pub trait IndexDataManager {
 }
 
 #[derive(Clone)]
-pub struct InMemoryIndexDataManager {
+pub struct IndexDataManagerImpl {
     vertex_manager: VertexIndexManager,
     edge_manager: EdgeIndexManager,
     stats_manager: Option<Arc<StatsManager>>,
 }
 
-impl InMemoryIndexDataManager {
+impl IndexDataManagerImpl {
     pub fn new() -> Self {
         Self {
             vertex_manager: VertexIndexManager::new(),
@@ -514,13 +514,13 @@ impl GcStats {
     }
 }
 
-impl Default for InMemoryIndexDataManager {
+impl Default for IndexDataManagerImpl {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl IndexDataManager for InMemoryIndexDataManager {
+impl IndexDataManager for IndexDataManagerImpl {
     fn update_vertex_indexes_mvcc(
         &self,
         space_id: u64,
@@ -829,15 +829,15 @@ mod tests {
     fn test_serialize_deserialize_value() {
         let value = Value::String("test".to_string());
         let bytes =
-            InMemoryIndexDataManager::serialize_value(&value).expect("serialize should succeed");
-        let decoded = InMemoryIndexDataManager::deserialize_value(&bytes)
+            IndexDataManagerImpl::serialize_value(&value).expect("serialize should succeed");
+        let decoded = IndexDataManagerImpl::deserialize_value(&bytes)
             .expect("deserialize should succeed");
         assert_eq!(value, decoded);
     }
 
     #[test]
     fn test_update_and_lookup_vertex_index() {
-        let manager = InMemoryIndexDataManager::new();
+        let manager = IndexDataManagerImpl::new();
 
         let space_id = 1u64;
         let vertex_id = Value::Int(1);

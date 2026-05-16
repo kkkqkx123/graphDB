@@ -12,7 +12,7 @@ mod vertex_index_manager;
 
 pub use edge_index_manager::EdgeIndexManager;
 pub use index_data_manager::{
-    GcStats, InMemoryIndexDataManager, IndexDataManager, IndexEntry, Timestamp,
+    GcStats, IndexDataManagerImpl, IndexDataManager, IndexEntry, Timestamp,
     INVALID_TIMESTAMP, MAX_TIMESTAMP,
 };
 pub use index_gc_manager::{IndexGcConfig, IndexGcManager};

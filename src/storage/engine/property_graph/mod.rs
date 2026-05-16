@@ -33,7 +33,7 @@ use super::edge::EdgeOps;
 use super::query::QueryOps;
 use super::schema::SchemaOps;
 use super::wal_manager::WalManager;
-use crate::storage::index::secondary::{InMemoryIndexDataManager, GcStats};
+use crate::storage::index::secondary::{IndexDataManagerImpl, GcStats};
 use crate::storage::metadata::{TableId, TableTracker, TableTrackerConfig, TableType};
 
 pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
@@ -48,7 +48,7 @@ pub struct PropertyGraph {
     pub(crate) config: PropertyGraphConfig,
     pub(crate) is_open: AtomicBool,
     pub(crate) last_compacted_vertices: Mutex<Vec<(LabelId, Vec<String>)>>,
-    pub(crate) index_data_manager: RwLock<InMemoryIndexDataManager>,
+    pub(crate) index_data_manager: RwLock<IndexDataManagerImpl>,
 }
 
 impl std::fmt::Debug for PropertyGraph {
@@ -128,7 +128,7 @@ impl PropertyGraph {
             config,
             is_open: AtomicBool::new(true),
             last_compacted_vertices: Mutex::new(Vec::new()),
-            index_data_manager: RwLock::new(InMemoryIndexDataManager::new()),
+            index_data_manager: RwLock::new(IndexDataManagerImpl::new()),
         }
     }
 
@@ -582,7 +582,7 @@ impl PropertyGraph {
 
     // ==================== Index Operations ====================
 
-    pub fn index_data_manager(&self) -> &RwLock<InMemoryIndexDataManager> {
+    pub fn index_data_manager(&self) -> &RwLock<IndexDataManagerImpl> {
         &self.index_data_manager
     }
 
