@@ -43,8 +43,6 @@ impl OperationTimer {
 
     pub fn record_completion(&self) {
         let latency = self.start.elapsed().as_micros() as usize;
-        metrics::counter!("inversearch_storage_operations_total").increment(1);
-        metrics::histogram!("inversearch_storage_latency_micros").record(latency as f64);
         self.operation_count.fetch_add(1, Ordering::Relaxed);
         self.total_latency.fetch_add(latency, Ordering::Relaxed);
     }
@@ -76,14 +74,11 @@ impl MetricsCollector {
 
     pub fn record_operation(&self, start: Instant) {
         let latency = start.elapsed().as_micros() as usize;
-        metrics::counter!("inversearch_storage_operations_total").increment(1);
-        metrics::histogram!("inversearch_storage_latency_micros").record(latency as f64);
         self.operation_count.fetch_add(1, Ordering::Relaxed);
         self.total_latency.fetch_add(latency, Ordering::Relaxed);
     }
 
     pub fn record_error(&self) {
-        metrics::counter!("inversearch_storage_errors_total").increment(1);
         self.error_count.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -109,7 +104,6 @@ impl MetricsCollector {
     }
 
     pub fn get_metrics(&self, memory_usage: usize) -> StorageMetrics {
-        metrics::gauge!("inversearch_storage_memory_usage").set(memory_usage as f64);
         StorageMetrics {
             operation_count: self.get_operation_count(),
             average_latency: self.get_average_latency(),

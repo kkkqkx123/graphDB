@@ -282,55 +282,6 @@ impl GlobalCacheStatsSnapshot {
     }
 }
 
-/// Metrics recorder using the `metrics` crate
-pub struct MetricsRecorder {
-    prefix: &'static str,
-}
-
-impl std::fmt::Debug for MetricsRecorder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MetricsRecorder")
-            .field("prefix", &self.prefix)
-            .finish()
-    }
-}
-
-impl MetricsRecorder {
-    pub fn new(prefix: &'static str) -> Self {
-        Self { prefix }
-    }
-
-    pub fn record_hit(&self) {
-        metrics::counter!(format!("{}_hits_total", self.prefix)).increment(1);
-    }
-
-    pub fn record_miss(&self) {
-        metrics::counter!(format!("{}_misses_total", self.prefix)).increment(1);
-    }
-
-    pub fn record_eviction(&self) {
-        metrics::counter!(format!("{}_evictions_total", self.prefix)).increment(1);
-    }
-
-    pub fn record_expiration(&self) {
-        metrics::counter!(format!("{}_expirations_total", self.prefix)).increment(1);
-    }
-
-    pub fn update_entries(&self, count: usize) {
-        metrics::gauge!(format!("{}_entries", self.prefix)).set(count as f64);
-    }
-
-    pub fn update_bytes(&self, bytes: usize) {
-        metrics::gauge!(format!("{}_bytes", self.prefix)).set(bytes as f64);
-    }
-}
-
-impl Default for MetricsRecorder {
-    fn default() -> Self {
-        Self::new("graphdb_cache")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

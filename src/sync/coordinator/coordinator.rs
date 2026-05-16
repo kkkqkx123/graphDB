@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use dashmap::DashMap;
 use tracing::{debug, warn};
@@ -15,7 +15,6 @@ use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLette
 use crate::sync::external_index::{
     FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient, VectorClientConfig,
 };
-use crate::sync::metrics::SyncMetrics;
 use crate::sync::retry::{default_local_retry_config, default_remote_retry_config, with_retry};
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
@@ -30,7 +29,6 @@ pub struct SyncCoordinator {
         DashMap<crate::core::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
     vector_client_config: VectorClientConfig,
-    metrics: Arc<SyncMetrics>,
     dead_letter_queue: Arc<DeadLetterQueue>,
 }
 
@@ -46,7 +44,6 @@ impl std::fmt::Debug for SyncCoordinator {
 
 impl SyncCoordinator {
     pub fn new(fulltext_manager: Arc<FulltextIndexManager>, config: BatchConfig) -> Self {
-        let metrics = Arc::new(SyncMetrics::new());
         let dead_letter_queue = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
 
         Self {
@@ -57,7 +54,6 @@ impl SyncCoordinator {
             transaction_buffers: DashMap::new(),
             config,
             vector_client_config: VectorClientConfig::default(),
-            metrics,
             dead_letter_queue,
         }
     }
@@ -73,10 +69,6 @@ impl SyncCoordinator {
     pub fn with_vector_client_config(mut self, config: VectorClientConfig) -> Self {
         self.vector_client_config = config;
         self
-    }
-
-    pub fn metrics(&self) -> &Arc<SyncMetrics> {
-        &self.metrics
     }
 
     pub fn dead_letter_queue(&self) -> &Arc<DeadLetterQueue> {
@@ -321,9 +313,6 @@ impl SyncCoordinator {
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
-        let start_time = Instant::now();
-        self.metrics.record_active_transaction_start();
-
         let result = if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
             // Get all cached operations (grouped by key)
             let grouped_ops = buffer
@@ -358,20 +347,6 @@ impl SyncCoordinator {
 
             // Second pass: process vector batches with aggregation (remote index - more retries)
             for (key, operations) in vector_batches {
-                for op in &operations {
-                    match op {
-                        IndexOperation::Insert { .. } => {
-                            self.metrics.record_index_operation("insert");
-                        }
-                        IndexOperation::Update { .. } => {
-                            self.metrics.record_index_operation("update");
-                        }
-                        IndexOperation::Delete { .. } => {
-                            self.metrics.record_index_operation("delete");
-                        }
-                    }
-                }
-
                 let retry_config = default_remote_retry_config();
 
                 if let Some(processor) = self.get_or_create_vector_processor(
@@ -381,7 +356,6 @@ impl SyncCoordinator {
                 ) {
                     let ops_clone = operations.clone();
                     let retry_config_clone = retry_config.clone();
-                    let metrics_clone = self.metrics.clone();
                     let dlq_clone = self.dead_letter_queue.clone();
 
                     match with_retry(
@@ -391,11 +365,9 @@ impl SyncCoordinator {
                     .await
                     {
                         Ok(_) => {
-                            metrics_clone.record_retry_success();
                             debug!("Vector batch committed successfully");
                         }
                         Err(e) => {
-                            metrics_clone.record_retry_failure();
                             warn!("Vector batch failed after retries: {:?}", e);
                             for op in operations {
                                 let entry = DeadLetterEntry::new(
@@ -418,20 +390,6 @@ impl SyncCoordinator {
 
             // Third pass: process full-text batches with aggregation (local index - fewer retries)
             for (key, operations) in fulltext_batches {
-                for op in &operations {
-                    match op {
-                        IndexOperation::Insert { .. } => {
-                            self.metrics.record_index_operation("insert");
-                        }
-                        IndexOperation::Update { .. } => {
-                            self.metrics.record_index_operation("update");
-                        }
-                        IndexOperation::Delete { .. } => {
-                            self.metrics.record_index_operation("delete");
-                        }
-                    }
-                }
-
                 let retry_config = default_local_retry_config();
 
                 if let Some(processor) = self.get_or_create_fulltext_processor(
@@ -441,7 +399,6 @@ impl SyncCoordinator {
                 ) {
                     let ops_clone = operations.clone();
                     let retry_config_clone = retry_config.clone();
-                    let metrics_clone = self.metrics.clone();
                     let dlq_clone = self.dead_letter_queue.clone();
 
                     match with_retry(
@@ -451,11 +408,9 @@ impl SyncCoordinator {
                     .await
                     {
                         Ok(_) => {
-                            metrics_clone.record_retry_success();
                             debug!("Fulltext batch committed successfully");
                         }
                         Err(e) => {
-                            metrics_clone.record_retry_failure();
                             warn!("Fulltext batch failed after retries: {:?}", e);
                             for op in operations {
                                 let entry = DeadLetterEntry::new(
@@ -481,15 +436,6 @@ impl SyncCoordinator {
         } else {
             Ok(())
         };
-
-        // Recording of indicators
-        self.metrics.record_active_transaction_end();
-        self.metrics.record_processing_time(start_time.elapsed());
-
-        match &result {
-            Ok(_) => self.metrics.record_transaction_commit(),
-            Err(_) => self.metrics.record_transaction_rollback(),
-        }
 
         result
     }

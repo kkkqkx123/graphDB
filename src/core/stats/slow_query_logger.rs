@@ -3,7 +3,6 @@
 //! Independent slow query log file with async writing and log rotation.
 
 use chrono::Local;
-use metrics::{counter, histogram};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, OpenOptions};
@@ -115,42 +114,6 @@ impl SlowQueryLogger {
 
     /// Log a slow query
     pub fn log(&self, profile: &QueryProfile) {
-        // Report telemetry metrics
-        let duration_secs = profile.total_duration_us as f64 / 1_000_000.0;
-        counter!("graphdb_slow_query_total").increment(1);
-        histogram!("graphdb_slow_query_duration_seconds").record(duration_secs);
-
-        // Report by query type
-        if let Some(query_type) = self.extract_query_type(&profile.query_text) {
-            counter!("graphdb_slow_query_by_type_total", "type" => query_type).increment(1);
-        }
-
-        // Report by status
-        let status_str = match profile.status {
-            QueryStatus::Success => "success",
-            QueryStatus::Failed => "failed",
-        };
-        counter!("graphdb_slow_query_by_status_total", "status" => status_str.to_string())
-            .increment(1);
-
-        // Report slow query errors
-        if profile.status == QueryStatus::Failed {
-            if let Some(ref error_info) = profile.error_info {
-                let error_type_str = error_info.error_type.to_string();
-                let error_phase_str = error_info.error_phase.to_string();
-
-                counter!("graphdb_slow_query_error_total",
-                    "type" => error_type_str.clone(),
-                    "phase" => error_phase_str.clone()
-                )
-                .increment(1);
-
-                // Also record to global metrics
-                crate::core::stats::global_metrics::metrics()
-                    .record_slow_query_error(&error_type_str, &error_phase_str);
-            }
-        }
-
         // Write to log file asynchronously
         if let Some(ref tx) = self.tx {
             let log_entry = if self.config.json_format {

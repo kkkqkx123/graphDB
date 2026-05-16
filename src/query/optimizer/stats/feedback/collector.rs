@@ -47,7 +47,6 @@ impl ExecutionFeedbackCollector {
     }
 
     pub fn record_rows(&self, rows: u64) {
-        metrics::histogram!("graphdb_optimizer_feedback_rows").record(rows as f64);
         self.counters.actual_rows.fetch_add(rows, Ordering::Relaxed);
     }
 
@@ -57,8 +56,6 @@ impl ExecutionFeedbackCollector {
             .read()
             .map(|start| start.elapsed().as_micros() as u64)
             .unwrap_or(0);
-        metrics::histogram!("graphdb_optimizer_feedback_duration_seconds")
-            .record(elapsed as f64 / 1_000_000.0);
         self.counters
             .execution_time_us
             .store(elapsed, Ordering::Relaxed);

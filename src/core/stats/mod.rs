@@ -9,7 +9,6 @@
 //! - `error_stats`: error statistics
 //! - `manager`: unified manager
 //! - `latency_histogram`: latency percentile calculations
-//! - `global_metrics`: Prometheus-style global metrics
 //!
 //! ## QueryMetrics vs QueryProfile
 //!
@@ -27,7 +26,6 @@
 
 pub mod aggregated_stats;
 pub mod error_stats;
-pub mod global_metrics;
 pub mod latency_histogram;
 pub mod manager;
 pub mod metrics;
@@ -40,7 +38,6 @@ pub use aggregated_stats::{AggregatedQueryStats, AggregatedStatsManager, QueryPa
 pub use error_stats::{
     ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase, RecentError,
 };
-pub use global_metrics::{metrics, GlobalMetrics};
 pub use latency_histogram::LatencyHistogram;
 pub use manager::{MetricType, MetricValue, StatsManager};
 pub use metrics::QueryMetrics;

@@ -49,8 +49,6 @@ pub use crate::intersect::{
 
 pub use crate::keystore::{DocId, KeystoreMap, KeystoreSet};
 
-pub use crate::metrics::Metrics;
-
 pub use crate::resolver::{
     combine_search_results, exclusion, intersect_and, resolve_default, union_op, xor_op, Enricher,
     FieldSelector, Handler, HighlightConfig, MetadataSource, Resolver, ResolverError,

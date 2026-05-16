@@ -14,7 +14,6 @@ pub mod highlight;
 pub mod index;
 pub mod intersect;
 pub mod keystore;
-pub mod metrics;
 pub mod resolver;
 pub mod search;
 pub mod serialize;
@@ -96,7 +95,6 @@ pub use highlight::{
 pub use index::{Register, ScoreFn, TokenizeMode as IndexTokenizeMode};
 pub use intersect::SuggestionEngine;
 pub use keystore::{DocId, KeystoreMap, KeystoreSet};
-pub use metrics::Metrics;
 pub use resolver::{
     combine_search_results, exclusion, intersect_and, resolve_default, union_op, xor_op, Enricher,
     FieldSelector, Handler, HighlightConfig, MetadataSource, Resolver, ResolverError,

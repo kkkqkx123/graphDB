@@ -1,7 +1,6 @@
 //! Storage Iterator - provides configuration and utilities for storage iteration
 //!
 //! Offer:
-//! - IterStats: Iterator statistics (records to metrics crate)
 //! - IterConfig: Iterator configuration
 //! - IterError: Iterator error types
 
@@ -35,39 +34,6 @@ impl From<IterError> for StorageError {
     }
 }
 
-/// Iterator statistics using metrics crate
-///
-/// All metrics are recorded via the `metrics` crate.
-/// No internal counters are maintained to avoid double recording.
-#[derive(Debug, Clone, Default)]
-pub struct IterStats;
-
-impl IterStats {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn record_scan(&self) {
-        metrics::counter!("graphdb_storage_iter_items_scanned_total").increment(1);
-    }
-
-    pub fn record_return(&self) {
-        metrics::counter!("graphdb_storage_iter_items_returned_total").increment(1);
-    }
-
-    pub fn record_seek(&self) {
-        metrics::counter!("graphdb_storage_iter_seek_operations_total").increment(1);
-    }
-
-    pub fn record_cache_hit(&self) {
-        metrics::counter!("graphdb_storage_iter_cache_hits_total").increment(1);
-    }
-
-    pub fn record_cache_miss(&self) {
-        metrics::counter!("graphdb_storage_iter_cache_misses_total").increment(1);
-    }
-}
-
 /// Iterator Configuration
 #[derive(Debug, Clone)]
 pub struct IterConfig {
@@ -91,17 +57,6 @@ impl Default for IterConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_iter_stats() {
-        let stats = IterStats::new();
-        stats.record_scan();
-        stats.record_scan();
-        stats.record_return();
-        stats.record_seek();
-        stats.record_cache_hit();
-        stats.record_cache_miss();
-    }
 
     #[test]
     fn test_iter_config() {

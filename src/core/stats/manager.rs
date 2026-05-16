@@ -182,10 +182,6 @@ impl StatsManager {
     }
 
     fn write_slow_query_log(&self, profile: &QueryProfile) {
-        // Record to global metrics
-        let duration_secs = profile.total_duration_us as f64 / 1_000_000.0;
-        crate::core::stats::global_metrics::metrics().record_slow_query(duration_secs);
-
         // Record to aggregated stats
         self.aggregated_stats.record_query(profile, true);
 
@@ -441,10 +437,6 @@ impl StatsManager {
 
     pub fn record_error(&self, error_type: ErrorType, phase: QueryPhase) {
         self.error_stats.record_error(error_type, phase);
-
-        // Record to global metrics
-        crate::core::stats::global_metrics::metrics()
-            .record_error(&error_type.to_string(), &phase.to_string());
     }
 
     pub fn get_error_count(&self, error_type: ErrorType) -> u64 {

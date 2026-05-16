@@ -181,37 +181,6 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     info!("Transaction manager initialized");
 
     // Create Tokio runtime for async initialization
-    // Initialize telemetry recorder and set as global
-    let telemetry_recorder = Arc::new(crate::api::core::telemetry::TelemetryRecorder::new());
-    if let Err(e) = crate::api::core::telemetry::set_global_recorder((*telemetry_recorder).clone())
-    {
-        error!("Failed to set global telemetry recorder: {}", e);
-    } else {
-        info!("Telemetry recorder initialized");
-    }
-
-    // Start telemetry server if enabled
-    let _telemetry_handle = if config.server.telemetry.enabled {
-        let telemetry_config = crate::api::server::telemetry_server::TelemetryConfig {
-            bind_address: config.server.telemetry.bind_address.clone(),
-            port: config.server.telemetry.port,
-            max_histogram_entries: config.server.telemetry.max_histogram_entries,
-            cleanup_interval_secs: config.server.telemetry.cleanup_interval_secs,
-        };
-        let telemetry_server = crate::api::server::telemetry_server::TelemetryServer::new(
-            telemetry_config,
-            telemetry_recorder.clone(),
-        );
-        info!(
-            "Starting telemetry server on {}:{}",
-            config.server.telemetry.bind_address, config.server.telemetry.port
-        );
-        Some(telemetry_server.spawn())
-    } else {
-        info!("Telemetry server disabled");
-        None
-    };
-
     let graph_service = GraphService::<SyncWrapper<GraphStorage>>::new_with_transaction_manager(
         config.clone(),
         storage.clone(),

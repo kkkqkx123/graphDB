@@ -2,7 +2,6 @@
 
 pub mod config;
 pub mod grpc;
-pub mod metrics;
 pub mod proto;
 
 pub use config::{ServerConfig, ServiceConfig};

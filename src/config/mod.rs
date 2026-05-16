@@ -68,8 +68,6 @@ pub use server::grpc::GrpcConfig;
 pub use server::http::HttpServerConfig;
 #[cfg(feature = "server")]
 pub use server::security::{AuditConfig, PasswordPolicyConfig, SecurityConfig, SslConfig};
-#[cfg(feature = "server")]
-pub use server::telemetry::TelemetryConfig;
 
 use crate::search::config::FulltextConfig;
 use vector_client::VectorClientConfig;

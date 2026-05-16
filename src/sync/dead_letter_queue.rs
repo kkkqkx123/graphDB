@@ -2,7 +2,6 @@
 //!
 //! Stores operations that failed after all retry attempts for later analysis and recovery.
 
-use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use parking_lot::Mutex;
@@ -92,7 +91,6 @@ impl Default for DeadLetterQueueConfig {
 pub struct DeadLetterQueue {
     entries: Mutex<Vec<DeadLetterEntry>>,
     config: DeadLetterQueueConfig,
-    metrics: Option<Arc<crate::sync::metrics::SyncMetrics>>,
 }
 
 impl DeadLetterQueue {
@@ -100,7 +98,6 @@ impl DeadLetterQueue {
         Self {
             entries: Mutex::new(Vec::with_capacity(config.max_size)),
             config,
-            metrics: None,
         }
     }
 
@@ -110,11 +107,6 @@ impl DeadLetterQueue {
 
     pub fn get_cleanup_interval(&self) -> Duration {
         self.config.max_age / 2
-    }
-
-    pub fn with_metrics(mut self, metrics: Arc<crate::sync::metrics::SyncMetrics>) -> Self {
-        self.metrics = Some(metrics);
-        self
     }
 
     /// Add an entry to the dead letter queue
@@ -131,10 +123,6 @@ impl DeadLetterQueue {
         }
 
         entries.push(entry);
-
-        if let Some(metrics) = &self.metrics {
-            metrics.record_dead_letter();
-        }
 
         log::warn!("Added entry to dead letter queue (size: {})", entries.len());
     }
@@ -169,9 +157,6 @@ impl DeadLetterQueue {
         let mut entries = self.entries.lock();
         if index < entries.len() {
             let entry = entries.remove(index);
-            if let Some(metrics) = &self.metrics {
-                metrics.remove_dead_letter();
-            }
             Some(entry)
         } else {
             None
@@ -200,13 +185,6 @@ impl DeadLetterQueue {
 
         if removed > 0 {
             log::info!("Cleaned up {} old dead letter entries", removed);
-
-            // Update metrics
-            if let Some(metrics) = &self.metrics {
-                for _ in 0..removed {
-                    metrics.remove_dead_letter();
-                }
-            }
         }
 
         removed
@@ -227,12 +205,6 @@ impl DeadLetterQueue {
         let mut entries = self.entries.lock();
         let count = entries.len();
         entries.clear();
-
-        if let Some(metrics) = &self.metrics {
-            for _ in 0..count {
-                metrics.remove_dead_letter();
-            }
-        }
 
         log::info!("Cleared {} entries from dead letter queue", count);
     }

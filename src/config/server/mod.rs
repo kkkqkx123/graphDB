@@ -9,7 +9,6 @@ pub mod connection_pool;
 pub mod grpc;
 pub mod http;
 pub mod security;
-pub mod telemetry;
 
 pub use auth::*;
 pub use bootstrap::*;
@@ -17,7 +16,6 @@ pub use connection_pool::*;
 pub use grpc::*;
 pub use http::*;
 pub use security::*;
-pub use telemetry::*;
 
 use serde::{Deserialize, Serialize};
 
@@ -42,10 +40,6 @@ pub struct ServerConfig {
     #[serde(default)]
     pub bootstrap: BootstrapConfig,
 
-    /// Telemetry configuration
-    #[serde(default)]
-    pub telemetry: TelemetryConfig,
-
     /// Connection pool configuration
     #[serde(default)]
     pub connection_pool: ConnectionPoolConfig,
@@ -66,7 +60,6 @@ impl ServerConfig {
         self.grpc.validate()?;
         self.http.validate()?;
         self.auth.validate()?;
-        self.telemetry.validate()?;
         self.connection_pool.validate()?;
         self.security.validate()?;
         Ok(())
@@ -83,7 +76,6 @@ mod tests {
         assert!(config.grpc.enabled);
         assert!(config.http.enabled);
         assert!(config.auth.enable_authorize);
-        assert!(config.telemetry.enabled);
     }
 
     #[test]

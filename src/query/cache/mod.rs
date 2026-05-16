@@ -41,7 +41,7 @@ pub use config::{
 // Re-export stats types
 pub use stats::{
     CacheStats, CteCacheStats, CteCacheStatsSnapshot, GlobalCacheStatsSnapshot, MemoryStats,
-    MetricsRecorder, PlanCacheStats, PlanCacheStatsSnapshot,
+    PlanCacheStats, PlanCacheStatsSnapshot,
 };
 
 // Re-export invalidation types

@@ -8,7 +8,6 @@ pub mod coordinator;
 pub mod dead_letter_queue;
 pub mod external_index;
 pub mod manager;
-pub mod metrics;
 pub mod retry;
 pub mod vector_sync;
 
@@ -26,7 +25,6 @@ pub use coordinator::{
 pub use dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
 pub use manager::{SyncError, SyncManager};
-pub use metrics::SyncMetrics;
 pub use retry::{with_retry, RetryConfig};
 pub use vector_sync::{
     PendingVectorUpdate, SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation,

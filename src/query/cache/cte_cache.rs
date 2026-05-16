@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::config::{CachePriority, CteCacheConfig};
-use super::stats::{CteCacheStats, MetricsRecorder};
+use super::stats::CteCacheStats;
 
 /// CTE cache entries
 #[derive(Debug, Clone)]
@@ -164,8 +164,6 @@ pub struct CteCacheManager {
     config: Arc<std::sync::RwLock<CteCacheConfig>>,
     /// Statistics
     stats: Arc<CteCacheStats>,
-    /// Metrics recorder
-    metrics: MetricsRecorder,
 }
 
 impl CteCacheManager {
@@ -188,13 +186,11 @@ impl CteCacheManager {
             .build();
 
         let stats = Arc::new(CteCacheStats::new(config.max_size));
-        let metrics = MetricsRecorder::new("graphdb_cte_cache");
 
         Self {
             cache,
             config: Arc::new(std::sync::RwLock::new(config.clone())),
             stats,
-            metrics,
         }
     }
 
@@ -417,11 +413,9 @@ impl CteCacheManager {
 
         if let Some(entry) = self.cache.get(&cte_hash) {
             self.stats.counters.record_hit();
-            self.metrics.record_hit();
             Some(entry.data.clone())
         } else {
             self.stats.counters.record_miss();
-            self.metrics.record_miss();
             None
         }
     }
@@ -444,7 +438,6 @@ impl CteCacheManager {
 
         if removed {
             self.stats.counters.record_eviction();
-            self.metrics.record_eviction();
             self.update_stats();
         }
 
@@ -497,8 +490,6 @@ impl CteCacheManager {
     pub fn clear(&self) {
         self.cache.invalidate_all();
         self.stats.reset();
-        self.metrics.update_entries(0);
-        self.metrics.update_bytes(0);
     }
 
     /// Obtain statistical information
@@ -512,8 +503,6 @@ impl CteCacheManager {
         let current_entries = self.cache.entry_count() as usize;
         let current_memory = self.estimate_current_memory();
         self.stats.memory.update(current_memory, current_entries);
-        self.metrics.update_entries(current_entries);
-        self.metrics.update_bytes(current_memory);
     }
 
     /// Estimate current memory usage

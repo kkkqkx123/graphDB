@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use crate::query::planning::plan::ExecutionPlan;
 
 use super::config::{CachePriority, PlanCacheConfig};
-use super::stats::{MetricsRecorder, PlanCacheStats};
+use super::stats::PlanCacheStats;
 
 /// Parameter location information
 #[derive(Debug, Clone)]
@@ -190,8 +190,6 @@ pub struct QueryPlanCache {
     config: PlanCacheConfig,
     /// Statistics
     stats: Arc<PlanCacheStats>,
-    /// Metrics recorder
-    metrics: MetricsRecorder,
 }
 
 impl std::fmt::Debug for QueryPlanCache {
@@ -218,13 +216,11 @@ impl QueryPlanCache {
             .build();
 
         let stats = Arc::new(PlanCacheStats::new(config.memory_budget));
-        let metrics = MetricsRecorder::new("graphdb_plan_cache");
 
         Self {
             cache,
             config,
             stats,
-            metrics,
         }
     }
 
@@ -248,17 +244,14 @@ impl QueryPlanCache {
                     plan.query_template
                 );
                 self.stats.counters.record_miss();
-                self.metrics.record_miss();
                 return None;
             }
 
             self.stats.counters.record_hit();
-            self.metrics.record_hit();
             return Some(plan);
         }
 
         self.stats.counters.record_miss();
-        self.metrics.record_miss();
         None
     }
 
@@ -314,13 +307,11 @@ impl QueryPlanCache {
 
         if !is_update {
             self.stats.record_query_size(query_bytes);
-            self.metrics.update_bytes(query_bytes);
         }
 
         let current_entries = self.cache.entry_count() as usize;
         let current_memory = self.estimate_current_memory();
         self.stats.memory.update(current_memory, current_entries);
-        self.metrics.update_entries(current_entries);
     }
 
     /// Calculate priority based on query characteristics
@@ -514,7 +505,6 @@ impl QueryPlanCache {
 
         if removed {
             self.stats.counters.record_eviction();
-            self.metrics.record_eviction();
             self.update_stats();
         }
 
@@ -536,7 +526,6 @@ impl QueryPlanCache {
     pub fn increment_eviction_count(&self, count: u64) {
         for _ in 0..count {
             self.stats.counters.record_eviction();
-            self.metrics.record_eviction();
         }
     }
 
@@ -544,8 +533,6 @@ impl QueryPlanCache {
     pub fn clear(&self) {
         self.cache.invalidate_all();
         self.stats.reset();
-        self.metrics.update_entries(0);
-        self.metrics.update_bytes(0);
     }
 
     /// Obtain statistical information
@@ -584,7 +571,6 @@ impl QueryPlanCache {
         let current_entries = self.cache.entry_count() as usize;
         let current_memory = self.estimate_current_memory();
         self.stats.memory.update(current_memory, current_entries);
-        self.metrics.update_entries(current_entries);
     }
 }
 

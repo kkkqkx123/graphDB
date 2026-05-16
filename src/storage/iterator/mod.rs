@@ -45,7 +45,7 @@ pub use predicate::{
     CompareOp, CompoundPredicate, Expression, LogicalOp, PredicateEnum, PredicateOptimizer,
     PushdownResult, SimplePredicate,
 };
-pub use storage_iter::{IterConfig, IterError, IterStats};
+pub use storage_iter::{IterConfig, IterError};
 pub use vertex_iter::{VertexFilterIterator, VertexRangeIterator, VertexScanIterator, VertexTableScanIterator};
 
 use crate::core::Value;
