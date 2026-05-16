@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -22,7 +23,7 @@ pub struct FulltextIndexManager {
     default_engine: EngineType,
     config: FulltextConfig,
     schema_manager: Option<Arc<SchemaManager>>,
-    stats_manager: Option<Arc<StatsManager>>,
+    stats_manager: Mutex<Option<Arc<StatsManager>>>,
 }
 
 impl FulltextIndexManager {
@@ -40,7 +41,7 @@ impl FulltextIndexManager {
             default_engine: config.default_engine,
             config,
             schema_manager: None,
-            stats_manager: None,
+            stats_manager: Mutex::new(None),
         };
 
         manager.discover_existing_indexes()?;
@@ -245,12 +246,41 @@ impl FulltextIndexManager {
     }
 
     pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
-        self.stats_manager = Some(stats_manager);
+        *self.stats_manager.get_mut() = Some(stats_manager);
         self
     }
 
     pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_manager = Some(schema_manager);
+    }
+
+    /// Inject StatsManager after construction and re-wrap all existing engines.
+    ///
+    /// This is used when StatsManager is created after FulltextIndexManager
+    /// (e.g., during service startup). Existing engines that are not already
+    /// wrapped by MetricsSearchEngine will be re-wrapped to enable metrics collection.
+    pub fn set_stats_manager(&self, stats_manager: Arc<StatsManager>) {
+        *self.stats_manager.lock() = Some(stats_manager);
+
+        let keys: Vec<IndexKey> = self.engines.iter().map(|e| e.key().clone()).collect();
+        for key in keys {
+            if let Some(metadata) = self.metadata.get(&key) {
+                if let Some((_, engine)) = self.engines.remove(&key) {
+                    if !engine.is_metrics_wrapped() {
+                        let wrapped = self.wrap_engine(
+                            engine,
+                            metadata.engine_type,
+                            metadata.space_id,
+                            &metadata.tag_name,
+                            &metadata.field_name,
+                        );
+                        self.engines.insert(key, wrapped);
+                    } else {
+                        self.engines.insert(key, engine);
+                    }
+                }
+            }
+        }
     }
 
     fn wrap_engine(
@@ -261,7 +291,7 @@ impl FulltextIndexManager {
         tag_name: &str,
         field_name: &str,
     ) -> Arc<dyn SearchEngine> {
-        if let Some(ref stats_manager) = self.stats_manager {
+        if let Some(ref stats_manager) = *self.stats_manager.lock() {
             let index_name = format!("{}_{}_{}", space_id, tag_name, field_name);
             let wrapped = MetricsSearchEngine::new(
                 engine,

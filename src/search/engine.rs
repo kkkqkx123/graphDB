@@ -8,6 +8,10 @@ pub trait SearchEngine: Send + Sync + std::fmt::Debug {
 
     fn version(&self) -> &str;
 
+    fn is_metrics_wrapped(&self) -> bool {
+        false
+    }
+
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError>;
 
     async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError>;

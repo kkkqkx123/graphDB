@@ -189,6 +189,14 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     .await;
     info!("Graph service initialized with transaction management");
 
+    // Inject StatsManager into FulltextIndexManager to enable search metrics
+    if let Some(sync_api) = graph_service.sync_api() {
+        let fulltext_manager = sync_api.sync_manager().fulltext_manager();
+        let stats_manager = graph_service.get_stats_manager().clone();
+        fulltext_manager.set_stats_manager(stats_manager);
+        info!("StatsManager injected into FulltextIndexManager for search metrics");
+    }
+
     // Create HTTP server
     let http_server = Arc::new(HttpServer::new(
         graph_service,

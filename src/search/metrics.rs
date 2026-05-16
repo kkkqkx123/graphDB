@@ -52,16 +52,33 @@ impl SearchEngine for MetricsSearchEngine {
         self.inner.version()
     }
 
+    fn is_metrics_wrapped(&self) -> bool {
+        true
+    }
+
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
         let start = Instant::now();
         let result = self.inner.index(doc_id, content).await;
         let latency_ms = start.elapsed().as_millis() as u64;
-        self.stats_manager.record_index_operation(
-            self.space_id,
-            &self.index_name,
-            latency_ms,
-            result.is_ok(),
-        );
+        match &result {
+            Ok(_) => {
+                self.stats_manager.record_index_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    true,
+                );
+            }
+            Err(e) => {
+                self.stats_manager.record_index_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    false,
+                );
+                self.stats_manager.record_index_error(self.space_id, &self.index_name, e);
+            }
+        }
         result
     }
 
@@ -69,12 +86,25 @@ impl SearchEngine for MetricsSearchEngine {
         let start = Instant::now();
         let result = self.inner.index_batch(docs).await;
         let latency_ms = start.elapsed().as_millis() as u64;
-        self.stats_manager.record_index_operation(
-            self.space_id,
-            &self.index_name,
-            latency_ms,
-            result.is_ok(),
-        );
+        match &result {
+            Ok(_) => {
+                self.stats_manager.record_index_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    true,
+                );
+            }
+            Err(e) => {
+                self.stats_manager.record_index_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    false,
+                );
+                self.stats_manager.record_index_error(self.space_id, &self.index_name, e);
+            }
+        }
         result
     }
 
@@ -96,13 +126,14 @@ impl SearchEngine for MetricsSearchEngine {
                     results.len() as u64,
                 );
             }
-            Err(_) => {
+            Err(e) => {
                 self.stats_manager.record_search(
                     self.space_id,
                     &self.index_name,
                     latency_ms,
                     false,
                 );
+                self.stats_manager.record_search_error(self.space_id, &self.index_name, e);
             }
         }
 
@@ -113,12 +144,25 @@ impl SearchEngine for MetricsSearchEngine {
         let start = Instant::now();
         let result = self.inner.delete(doc_id).await;
         let latency_ms = start.elapsed().as_millis() as u64;
-        self.stats_manager.record_delete_operation(
-            self.space_id,
-            &self.index_name,
-            latency_ms,
-            result.is_ok(),
-        );
+        match &result {
+            Ok(_) => {
+                self.stats_manager.record_delete_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    true,
+                );
+            }
+            Err(e) => {
+                self.stats_manager.record_delete_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    false,
+                );
+                self.stats_manager.record_delete_error(self.space_id, &self.index_name, e);
+            }
+        }
         result
     }
 
@@ -126,12 +170,25 @@ impl SearchEngine for MetricsSearchEngine {
         let start = Instant::now();
         let result = self.inner.delete_batch(doc_ids).await;
         let latency_ms = start.elapsed().as_millis() as u64;
-        self.stats_manager.record_delete_operation(
-            self.space_id,
-            &self.index_name,
-            latency_ms,
-            result.is_ok(),
-        );
+        match &result {
+            Ok(_) => {
+                self.stats_manager.record_delete_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    true,
+                );
+            }
+            Err(e) => {
+                self.stats_manager.record_delete_operation(
+                    self.space_id,
+                    &self.index_name,
+                    latency_ms,
+                    false,
+                );
+                self.stats_manager.record_delete_error(self.space_id, &self.index_name, e);
+            }
+        }
         result
     }
 

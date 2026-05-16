@@ -57,6 +57,12 @@ pub enum MetricType {
     SearchResultCount,
     SearchCacheHitCount,
     SearchCacheMissCount,
+    // Classified search errors
+    SearchErrorIndexNotFound,
+    SearchErrorEngineError,
+    SearchErrorIoError,
+    SearchErrorSerialization,
+    SearchErrorInternal,
 }
 
 /// metric
@@ -130,9 +136,11 @@ impl MetricValue {
 pub struct StatsManager {
     metrics: Arc<DashMap<MetricType, Arc<MetricValue>>>,
     space_metrics: Arc<DashMap<String, SpaceMetrics>>,
+    index_metrics: Arc<DashMap<String, SpaceMetrics>>,
     last_query_metrics: Arc<RwLock<Option<QueryMetrics>>>,
     query_profiles: Arc<RwLock<VecDeque<QueryProfile>>>,
     query_latency_histogram: Arc<RwLock<LatencyHistogram>>,
+    search_latency_histogram: Arc<RwLock<LatencyHistogram>>,
     config: crate::config::MonitoringConfig,
     error_stats: ErrorStatsManager,
     slow_query_logger: Option<Arc<SlowQueryLogger>>,
@@ -149,9 +157,11 @@ impl StatsManager {
         Self {
             metrics: Arc::new(DashMap::new()),
             space_metrics: Arc::new(DashMap::new()),
+            index_metrics: Arc::new(DashMap::new()),
             last_query_metrics: Arc::new(RwLock::new(None)),
             query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(cache_size))),
             query_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
+            search_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
             config,
             error_stats: ErrorStatsManager::new(),
             slow_query_logger: None,
@@ -170,9 +180,11 @@ impl StatsManager {
         Ok(Self {
             metrics: Arc::new(DashMap::new()),
             space_metrics: Arc::new(DashMap::new()),
+            index_metrics: Arc::new(DashMap::new()),
             last_query_metrics: Arc::new(RwLock::new(None)),
             query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(cache_size))),
             query_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
+            search_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
             config,
             error_stats: ErrorStatsManager::new(),
             slow_query_logger: Some(logger),
@@ -407,6 +419,28 @@ impl StatsManager {
         metric.add(amount);
     }
 
+    pub fn add_index_metric(&self, index_name: &str, metric_type: MetricType) {
+        let index_map = self
+            .index_metrics
+            .entry(index_name.to_string())
+            .or_insert_with(|| Arc::new(DashMap::new()));
+        let metric = index_map
+            .entry(metric_type)
+            .or_insert_with(|| Arc::new(MetricValue::new(0)));
+        metric.increment();
+    }
+
+    pub fn add_index_metric_with_amount(&self, index_name: &str, metric_type: MetricType, amount: u64) {
+        let index_map = self
+            .index_metrics
+            .entry(index_name.to_string())
+            .or_insert_with(|| Arc::new(DashMap::new()));
+        let metric = index_map
+            .entry(metric_type)
+            .or_insert_with(|| Arc::new(MetricValue::new(0)));
+        metric.add(amount);
+    }
+
     pub fn dec_space_metric(&self, space_name: &str, metric_type: MetricType) {
         if let Some(space_map) = self.space_metrics.get(space_name) {
             if let Some(metric) = space_map.get(&metric_type) {
@@ -423,6 +457,21 @@ impl StatsManager {
         self.space_metrics
             .get(space_name)
             .and_then(|space_map| space_map.get(&metric_type).map(|metric| metric.get()))
+    }
+
+    pub fn get_index_value(&self, index_name: &str, metric_type: MetricType) -> Option<u64> {
+        self.index_metrics
+            .get(index_name)
+            .and_then(|index_map| index_map.get(&metric_type).map(|metric| metric.get()))
+    }
+
+    pub fn get_all_index_metrics(&self, index_name: &str) -> Option<HashMap<MetricType, u64>> {
+        self.index_metrics.get(index_name).map(|index_map| {
+            index_map
+                .iter()
+                .map(|entry| (*entry.key(), entry.value().get()))
+                .collect()
+        })
     }
 
     pub fn get_all_metrics(&self) -> HashMap<MetricType, u64> {
@@ -547,6 +596,17 @@ impl StatsManager {
         )
     }
 
+    /// Get search latency percentiles (avg, p50, p95, p99) in microseconds
+    pub fn get_search_latency_percentiles(&self) -> (u64, u64, u64, u64) {
+        let histogram = self.search_latency_histogram.write();
+        (
+            histogram.avg(),
+            histogram.p50(),
+            histogram.p95(),
+            histogram.p99(),
+        )
+    }
+
     /// Get latency histogram report
     pub fn get_latency_report(&self) -> String {
         let histogram = self.query_latency_histogram.write();
@@ -645,62 +705,132 @@ impl StatsManager {
     // ============================================================================
 
     /// Record a search query operation
-    pub fn record_search(&self, space_id: u64, _index_name: &str, latency_ms: u64, success: bool) {
+    pub fn record_search(&self, space_id: u64, index_name: &str, latency_ms: u64, success: bool) {
         let space_key = format!("space_{}", space_id);
         self.add_value(MetricType::NumSearchQueries);
         self.add_space_metric(&space_key, MetricType::NumSearchQueries);
+        self.add_index_metric(index_name, MetricType::NumSearchQueries);
 
         if !success {
             self.add_value(MetricType::NumSearchErrors);
             self.add_space_metric(&space_key, MetricType::NumSearchErrors);
+            self.add_index_metric(index_name, MetricType::NumSearchErrors);
         }
 
         self.add_value_with_amount(MetricType::SearchLatencyMs, latency_ms);
         self.add_space_metric_with_amount(&space_key, MetricType::SearchLatencyMs, latency_ms);
+        self.add_index_metric_with_amount(index_name, MetricType::SearchLatencyMs, latency_ms);
+
+        {
+            let mut histogram = self.search_latency_histogram.write();
+            histogram.record_micros(latency_ms * 1000);
+        }
     }
 
     /// Record an index operation
-    pub fn record_index_operation(&self, space_id: u64, _index_name: &str, latency_ms: u64, success: bool) {
+    pub fn record_index_operation(&self, space_id: u64, index_name: &str, latency_ms: u64, success: bool) {
         let space_key = format!("space_{}", space_id);
         self.add_value(MetricType::NumIndexOperations);
         self.add_space_metric(&space_key, MetricType::NumIndexOperations);
+        self.add_index_metric(index_name, MetricType::NumIndexOperations);
 
         if !success {
             self.add_value(MetricType::NumIndexErrors);
             self.add_space_metric(&space_key, MetricType::NumIndexErrors);
+            self.add_index_metric(index_name, MetricType::NumIndexErrors);
         }
 
         self.add_value_with_amount(MetricType::IndexLatencyMs, latency_ms);
         self.add_space_metric_with_amount(&space_key, MetricType::IndexLatencyMs, latency_ms);
+        self.add_index_metric_with_amount(index_name, MetricType::IndexLatencyMs, latency_ms);
     }
 
     /// Record a delete operation
-    pub fn record_delete_operation(&self, space_id: u64, _index_name: &str, latency_ms: u64, success: bool) {
+    pub fn record_delete_operation(&self, space_id: u64, index_name: &str, latency_ms: u64, success: bool) {
         let space_key = format!("space_{}", space_id);
         self.add_value(MetricType::NumDeleteOperations);
         self.add_space_metric(&space_key, MetricType::NumDeleteOperations);
+        self.add_index_metric(index_name, MetricType::NumDeleteOperations);
 
         if !success {
             self.add_value(MetricType::NumDeleteErrors);
             self.add_space_metric(&space_key, MetricType::NumDeleteErrors);
+            self.add_index_metric(index_name, MetricType::NumDeleteErrors);
         }
 
         self.add_value_with_amount(MetricType::DeleteLatencyMs, latency_ms);
         self.add_space_metric_with_amount(&space_key, MetricType::DeleteLatencyMs, latency_ms);
+        self.add_index_metric_with_amount(index_name, MetricType::DeleteLatencyMs, latency_ms);
     }
 
     /// Record search result count
-    pub fn record_search_result_count(&self, _space_id: u64, count: u64) {
+    pub fn record_search_result_count(&self, space_id: u64, count: u64) {
+        let space_key = format!("space_{}", space_id);
         self.add_value_with_amount(MetricType::SearchResultCount, count);
+        self.add_space_metric_with_amount(&space_key, MetricType::SearchResultCount, count);
     }
 
     /// Record cache hit or miss
-    pub fn record_cache_hit(&self, _space_id: u64, hit: bool) {
+    pub fn record_cache_hit(&self, space_id: u64, hit: bool) {
+        let space_key = format!("space_{}", space_id);
         if hit {
             self.add_value(MetricType::SearchCacheHitCount);
+            self.add_space_metric(&space_key, MetricType::SearchCacheHitCount);
         } else {
             self.add_value(MetricType::SearchCacheMissCount);
+            self.add_space_metric(&space_key, MetricType::SearchCacheMissCount);
         }
+    }
+
+    /// Classify a SearchError into a specific MetricType for error tracking
+    fn classify_search_error(error: &crate::search::error::SearchError) -> MetricType {
+        use crate::search::error::SearchError;
+        match error {
+            SearchError::IndexNotFound(_) | SearchError::FieldNotFound(_) => {
+                MetricType::SearchErrorIndexNotFound
+            }
+            SearchError::EngineNotFound(_)
+            | SearchError::EngineUnavailable
+            | SearchError::IndexCorrupted(_)
+            | SearchError::Bm25Error(_)
+            | SearchError::InversearchError(_) => MetricType::SearchErrorEngineError,
+            SearchError::IoError(_) => MetricType::SearchErrorIoError,
+            SearchError::SerializationError(_)
+            | SearchError::QueryParseError(_)
+            | SearchError::InvalidDocId(_) => MetricType::SearchErrorSerialization,
+            SearchError::SpaceNotFound(_)
+            | SearchError::TagNotFound(_)
+            | SearchError::IndexAlreadyExists(_)
+            | SearchError::ConfigError(_)
+            | SearchError::Internal(_) => MetricType::SearchErrorInternal,
+        }
+    }
+
+    /// Record a classified search error
+    pub fn record_search_error(&self, space_id: u64, index_name: &str, error: &crate::search::error::SearchError) {
+        let metric_type = Self::classify_search_error(error);
+        let space_key = format!("space_{}", space_id);
+        self.add_value(metric_type);
+        self.add_space_metric(&space_key, metric_type);
+        self.add_index_metric(index_name, metric_type);
+    }
+
+    /// Record a classified index operation error
+    pub fn record_index_error(&self, space_id: u64, index_name: &str, error: &crate::search::error::SearchError) {
+        let metric_type = Self::classify_search_error(error);
+        let space_key = format!("space_{}", space_id);
+        self.add_value(metric_type);
+        self.add_space_metric(&space_key, metric_type);
+        self.add_index_metric(index_name, metric_type);
+    }
+
+    /// Record a classified delete operation error
+    pub fn record_delete_error(&self, space_id: u64, index_name: &str, error: &crate::search::error::SearchError) {
+        let metric_type = Self::classify_search_error(error);
+        let space_key = format!("space_{}", space_id);
+        self.add_value(metric_type);
+        self.add_space_metric(&space_key, metric_type);
+        self.add_index_metric(index_name, metric_type);
     }
 }
 

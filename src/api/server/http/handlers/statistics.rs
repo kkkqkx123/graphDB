@@ -356,6 +356,9 @@ pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
         0.0
     };
 
+    let (search_avg_us, search_p50_us, search_p95_us, search_p99_us) =
+        stats_manager.get_search_latency_percentiles();
+
     Ok(JsonResponse(serde_json::json!({
         "search": {
             "total_queries": num_search_queries,
@@ -363,6 +366,12 @@ pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
             "total_latency_ms": search_latency_ms,
             "avg_latency_ms": avg_search_latency_ms,
             "total_results": search_result_count,
+            "latency_percentiles_us": {
+                "avg": search_avg_us,
+                "p50": search_p50_us,
+                "p95": search_p95_us,
+                "p99": search_p99_us,
+            },
         },
         "index": {
             "total_operations": num_index_operations,

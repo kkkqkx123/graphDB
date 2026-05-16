@@ -3,6 +3,7 @@ use parking_lot::Mutex;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
+use crate::core::stats::StatsManager;
 use crate::search::engine::SearchEngine;
 use crate::search::metadata::IndexKey;
 
@@ -12,6 +13,8 @@ pub struct IndexCache {
     cache: Mutex<LruCache<IndexKey, Arc<dyn SearchEngine>>>,
     /// Maximum number of cached indexes
     max_indexes: usize,
+    /// Optional stats manager for cache hit/miss tracking
+    stats_manager: Option<Arc<StatsManager>>,
 }
 
 impl IndexCache {
@@ -20,13 +23,24 @@ impl IndexCache {
         Self {
             cache: Mutex::new(LruCache::new(cache_size)),
             max_indexes,
+            stats_manager: None,
         }
+    }
+
+    /// Set stats manager for cache hit/miss tracking
+    pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
+        self.stats_manager = Some(stats_manager);
+        self
     }
 
     /// Get index from cache (with cache hit tracking)
     pub fn get(&self, key: &IndexKey) -> Option<Arc<dyn SearchEngine>> {
         let mut cache = self.cache.lock();
-        cache.get(key).cloned()
+        let result = cache.get(key).cloned();
+        if let Some(ref stats_manager) = self.stats_manager {
+            stats_manager.record_cache_hit(0, result.is_some());
+        }
+        result
     }
 
     /// Insert index into cache
