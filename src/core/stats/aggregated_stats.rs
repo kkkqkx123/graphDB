@@ -340,6 +340,7 @@ impl Default for AggregatedStatsConfig {
 }
 
 /// Aggregated statistics manager
+#[derive(Debug)]
 pub struct AggregatedStatsManager {
     /// Aggregated stats by query pattern
     stats: DashMap<QueryPattern, AggregatedQueryStats>,

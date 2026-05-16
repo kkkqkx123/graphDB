@@ -25,7 +25,7 @@ use super::{
         function::{info as function_info, list, register, unregister},
         health, query, schema,
         session::{create as create_session, delete_session, get_session},
-        statistics::{database, queries, session, system},
+        statistics::{database, queries, search as search_stats, session, system},
         stream::execute_stream,
         sync, transaction, vector,
     },
@@ -73,6 +73,7 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/statistics/queries", get(queries))
         .route("/statistics/database", get(database))
         .route("/statistics/system", get(system))
+        .route("/statistics/search", get(search_stats))
         // Configure management routing.
         .route("/config", get(get_config).put(update_config))
         .route(

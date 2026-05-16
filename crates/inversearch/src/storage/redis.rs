@@ -10,6 +10,7 @@ use crate::error::Result;
 use crate::r#type::{DocId, EnrichedSearchResults, SearchResults};
 use crate::storage::common::r#trait::StorageInterface;
 use crate::storage::common::types::StorageInfo;
+use crate::storage::common::StorageMetrics;
 use crate::Index;
 use bb8::Pool;
 use redis::{aio::MultiplexedConnection, Client as RedisClient};
@@ -602,35 +603,5 @@ impl RedisStorage {
         let latency = start_time.elapsed().as_micros() as u64;
         self.operation_count.fetch_add(1, Ordering::Relaxed);
         self.total_latency.fetch_add(latency, Ordering::Relaxed);
-    }
-}
-
-/// Storage Performance Metrics
-#[derive(Debug, Clone, Default)]
-pub struct StorageMetrics {
-    pub operation_count: usize,
-    pub average_latency: usize, // microsecond
-    pub memory_usage: usize,
-    pub error_count: usize,
-    pub connection_errors: usize,
-    pub serialization_errors: usize,
-    pub deserialization_errors: usize,
-}
-
-impl StorageMetrics {
-    /// Creating empty indicators
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Reset all indicators
-    pub fn reset(&mut self) {
-        self.operation_count = 0;
-        self.average_latency = 0;
-        self.memory_usage = 0;
-        self.error_count = 0;
-        self.connection_errors = 0;
-        self.serialization_errors = 0;
-        self.deserialization_errors = 0;
     }
 }

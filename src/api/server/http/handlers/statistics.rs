@@ -194,6 +194,41 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
         0.0
     };
 
+    // Obtain search metrics
+    let num_search_queries = stats_manager
+        .get_value(MetricType::NumSearchQueries)
+        .unwrap_or(0);
+    let num_search_errors = stats_manager
+        .get_value(MetricType::NumSearchErrors)
+        .unwrap_or(0);
+    let search_latency_ms = stats_manager
+        .get_value(MetricType::SearchLatencyMs)
+        .unwrap_or(0);
+    let num_index_operations = stats_manager
+        .get_value(MetricType::NumIndexOperations)
+        .unwrap_or(0);
+    let num_delete_operations = stats_manager
+        .get_value(MetricType::NumDeleteOperations)
+        .unwrap_or(0);
+    let cache_hit_count = stats_manager
+        .get_value(MetricType::SearchCacheHitCount)
+        .unwrap_or(0);
+    let cache_miss_count = stats_manager
+        .get_value(MetricType::SearchCacheMissCount)
+        .unwrap_or(0);
+
+    let avg_search_latency_ms = if num_search_queries > 0 {
+        search_latency_ms as f64 / num_search_queries as f64
+    } else {
+        0.0
+    };
+
+    let search_cache_hit_rate = if cache_hit_count + cache_miss_count > 0 {
+        cache_hit_count as f64 / (cache_hit_count + cache_miss_count) as f64
+    } else {
+        0.0
+    };
+
     Ok(JsonResponse(serde_json::json!({
         "spaces": {
             "count": storage_stats.total_spaces,
@@ -212,6 +247,16 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
             "queries_per_second": qps,
             "avg_latency_ms": avg_latency_ms,
             "cache_hit_rate": 0.0, // It is necessary to check whether the cache layer support is available.
+        },
+        "search": {
+            "total_queries": num_search_queries,
+            "total_errors": num_search_errors,
+            "avg_latency_ms": avg_search_latency_ms,
+            "total_index_operations": num_index_operations,
+            "total_delete_operations": num_delete_operations,
+            "cache_hit_count": cache_hit_count,
+            "cache_miss_count": cache_miss_count,
+            "cache_hit_rate": search_cache_hit_rate,
         },
     })))
 }
@@ -240,6 +285,101 @@ pub async fn system<S: StorageClient + Clone + Send + Sync + 'static>(
             "active": active_connections,
             "total": active_connections,
             "max": max_connections,
+        },
+    })))
+}
+
+/// Obtain search statistics
+pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
+    State(state): State<AppState<S>>,
+) -> Result<JsonResponse<serde_json::Value>, HttpError> {
+    let stats_manager = state.server.get_stats_manager();
+
+    let num_search_queries = stats_manager
+        .get_value(MetricType::NumSearchQueries)
+        .unwrap_or(0);
+    let num_search_errors = stats_manager
+        .get_value(MetricType::NumSearchErrors)
+        .unwrap_or(0);
+    let search_latency_ms = stats_manager
+        .get_value(MetricType::SearchLatencyMs)
+        .unwrap_or(0);
+    let num_index_operations = stats_manager
+        .get_value(MetricType::NumIndexOperations)
+        .unwrap_or(0);
+    let num_index_errors = stats_manager
+        .get_value(MetricType::NumIndexErrors)
+        .unwrap_or(0);
+    let index_latency_ms = stats_manager
+        .get_value(MetricType::IndexLatencyMs)
+        .unwrap_or(0);
+    let num_delete_operations = stats_manager
+        .get_value(MetricType::NumDeleteOperations)
+        .unwrap_or(0);
+    let num_delete_errors = stats_manager
+        .get_value(MetricType::NumDeleteErrors)
+        .unwrap_or(0);
+    let delete_latency_ms = stats_manager
+        .get_value(MetricType::DeleteLatencyMs)
+        .unwrap_or(0);
+    let search_result_count = stats_manager
+        .get_value(MetricType::SearchResultCount)
+        .unwrap_or(0);
+    let cache_hit_count = stats_manager
+        .get_value(MetricType::SearchCacheHitCount)
+        .unwrap_or(0);
+    let cache_miss_count = stats_manager
+        .get_value(MetricType::SearchCacheMissCount)
+        .unwrap_or(0);
+
+    let avg_search_latency_ms = if num_search_queries > 0 {
+        search_latency_ms as f64 / num_search_queries as f64
+    } else {
+        0.0
+    };
+
+    let avg_index_latency_ms = if num_index_operations > 0 {
+        index_latency_ms as f64 / num_index_operations as f64
+    } else {
+        0.0
+    };
+
+    let avg_delete_latency_ms = if num_delete_operations > 0 {
+        delete_latency_ms as f64 / num_delete_operations as f64
+    } else {
+        0.0
+    };
+
+    let cache_hit_rate = if cache_hit_count + cache_miss_count > 0 {
+        cache_hit_count as f64 / (cache_hit_count + cache_miss_count) as f64
+    } else {
+        0.0
+    };
+
+    Ok(JsonResponse(serde_json::json!({
+        "search": {
+            "total_queries": num_search_queries,
+            "total_errors": num_search_errors,
+            "total_latency_ms": search_latency_ms,
+            "avg_latency_ms": avg_search_latency_ms,
+            "total_results": search_result_count,
+        },
+        "index": {
+            "total_operations": num_index_operations,
+            "total_errors": num_index_errors,
+            "total_latency_ms": index_latency_ms,
+            "avg_latency_ms": avg_index_latency_ms,
+        },
+        "delete": {
+            "total_operations": num_delete_operations,
+            "total_errors": num_delete_errors,
+            "total_latency_ms": delete_latency_ms,
+            "avg_latency_ms": avg_delete_latency_ms,
+        },
+        "cache": {
+            "hit_count": cache_hit_count,
+            "miss_count": cache_miss_count,
+            "hit_rate": cache_hit_rate,
         },
     })))
 }

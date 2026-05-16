@@ -2,11 +2,13 @@ use dashmap::DashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::core::stats::StatsManager;
 use crate::search::config::FulltextConfig;
 use crate::search::engine::{EngineType, SearchEngine};
 use crate::search::error::SearchError;
 use crate::search::factory::SearchEngineFactory;
 use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
+use crate::search::metrics::MetricsSearchEngine;
 use crate::search::result::{IndexStats, SearchResult};
 use crate::storage::metadata::SchemaManager;
 
@@ -20,6 +22,7 @@ pub struct FulltextIndexManager {
     default_engine: EngineType,
     config: FulltextConfig,
     schema_manager: Option<Arc<SchemaManager>>,
+    stats_manager: Option<Arc<StatsManager>>,
 }
 
 impl FulltextIndexManager {
@@ -37,6 +40,7 @@ impl FulltextIndexManager {
             default_engine: config.default_engine,
             config,
             schema_manager: None,
+            stats_manager: None,
         };
 
         manager.discover_existing_indexes()?;
@@ -111,6 +115,8 @@ impl FulltextIndexManager {
         )
         .ok()?;
 
+        let engine = self.wrap_engine(engine, EngineType::Bm25, space_id, &tag_name, &field_name);
+
         let key = IndexKey::new(space_id, &tag_name, &field_name);
         let metadata = IndexMetadata {
             index_id: dir_name.to_string(),
@@ -144,6 +150,8 @@ impl FulltextIndexManager {
             &self.config,
         )
         .ok()?;
+
+        let engine = self.wrap_engine(engine, EngineType::Inversearch, space_id, &tag_name, &field_name);
 
         let key = IndexKey::new(space_id, &tag_name, &field_name);
         let metadata = IndexMetadata {
@@ -187,6 +195,14 @@ impl FulltextIndexManager {
             &self.config,
         )?;
 
+        let engine = self.wrap_engine(
+            engine,
+            metadata.engine_type,
+            metadata.space_id,
+            &metadata.tag_name,
+            &metadata.field_name,
+        );
+
         self.engines.insert(key.clone(), engine);
         self.metadata.insert(key, metadata.clone());
 
@@ -228,8 +244,36 @@ impl FulltextIndexManager {
         self
     }
 
+    pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
+        self.stats_manager = Some(stats_manager);
+        self
+    }
+
     pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_manager = Some(schema_manager);
+    }
+
+    fn wrap_engine(
+        &self,
+        engine: Arc<dyn SearchEngine>,
+        engine_type: EngineType,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+    ) -> Arc<dyn SearchEngine> {
+        if let Some(ref stats_manager) = self.stats_manager {
+            let index_name = format!("{}_{}_{}", space_id, tag_name, field_name);
+            let wrapped = MetricsSearchEngine::new(
+                engine,
+                Arc::clone(stats_manager),
+                engine_type,
+                space_id,
+                index_name,
+            );
+            Arc::new(wrapped)
+        } else {
+            engine
+        }
     }
 
     fn validate_space_exists(&self, space_id: u64) -> Result<(), SearchError> {
@@ -327,6 +371,8 @@ impl FulltextIndexManager {
 
         let engine =
             SearchEngineFactory::from_config(engine_type, &index_id, &storage_path, &self.config)?;
+
+        let engine = self.wrap_engine(engine, engine_type, space_id, tag_name, field_name);
 
         let metadata = IndexMetadata {
             index_id: index_id.clone(),

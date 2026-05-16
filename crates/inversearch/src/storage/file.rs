@@ -41,6 +41,9 @@ impl FileStorage {
             average_latency: base.get_average_latency(),
             memory_usage: base.get_memory_usage(),
             error_count: 0,
+            connection_errors: 0,
+            serialization_errors: 0,
+            deserialization_errors: 0,
         }
     }
 

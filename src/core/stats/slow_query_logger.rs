@@ -52,6 +52,7 @@ impl Default for SlowQueryConfig {
 }
 
 /// Slow query logger
+#[derive(Debug)]
 pub struct SlowQueryLogger {
     config: SlowQueryConfig,
     tx: Option<mpsc::Sender<String>>,

@@ -30,7 +30,7 @@ pub use schema::{
     list_spaces, list_tags,
 };
 pub use session::{create as create_session, delete_session, get_session};
-pub use statistics::{database, queries, session, system};
+pub use statistics::{database, queries, search as search_stats, session, system};
 pub use stream::{execute_stream, StreamQueryRequest};
 pub use sync::status;
 pub use transaction::{begin, commit, rollback};

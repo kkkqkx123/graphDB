@@ -190,7 +190,8 @@ pub struct ErrorSummary {
     pub errors_by_phase: HashMap<QueryPhase, u64>,
 }
 
-/// Error Statistics Manager
+/// Error statistics manager
+#[derive(Debug)]
 pub struct ErrorStatsManager {
     error_counts: [AtomicU64; ERROR_TYPE_COUNT],
     error_by_phase: [AtomicU64; QUERY_PHASE_COUNT],

@@ -11,6 +11,9 @@ pub struct StorageMetrics {
     pub average_latency: usize,
     pub memory_usage: usize,
     pub error_count: usize,
+    pub connection_errors: usize,
+    pub serialization_errors: usize,
+    pub deserialization_errors: usize,
 }
 
 impl StorageMetrics {
@@ -23,6 +26,9 @@ impl StorageMetrics {
         self.average_latency = 0;
         self.memory_usage = 0;
         self.error_count = 0;
+        self.connection_errors = 0;
+        self.serialization_errors = 0;
+        self.deserialization_errors = 0;
     }
 }
 
@@ -57,6 +63,9 @@ pub struct MetricsCollector {
     operation_count: AtomicUsize,
     total_latency: AtomicUsize,
     error_count: AtomicUsize,
+    connection_errors: AtomicUsize,
+    serialization_errors: AtomicUsize,
+    deserialization_errors: AtomicUsize,
 }
 
 impl MetricsCollector {
@@ -65,6 +74,9 @@ impl MetricsCollector {
             operation_count: AtomicUsize::new(0),
             total_latency: AtomicUsize::new(0),
             error_count: AtomicUsize::new(0),
+            connection_errors: AtomicUsize::new(0),
+            serialization_errors: AtomicUsize::new(0),
+            deserialization_errors: AtomicUsize::new(0),
         }
     }
 
@@ -79,6 +91,21 @@ impl MetricsCollector {
     }
 
     pub fn record_error(&self) {
+        self.error_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_connection_error(&self) {
+        self.connection_errors.fetch_add(1, Ordering::Relaxed);
+        self.error_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_serialization_error(&self) {
+        self.serialization_errors.fetch_add(1, Ordering::Relaxed);
+        self.error_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_deserialization_error(&self) {
+        self.deserialization_errors.fetch_add(1, Ordering::Relaxed);
         self.error_count.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -103,12 +130,27 @@ impl MetricsCollector {
         self.error_count.load(Ordering::Relaxed)
     }
 
+    pub fn get_connection_errors(&self) -> usize {
+        self.connection_errors.load(Ordering::Relaxed)
+    }
+
+    pub fn get_serialization_errors(&self) -> usize {
+        self.serialization_errors.load(Ordering::Relaxed)
+    }
+
+    pub fn get_deserialization_errors(&self) -> usize {
+        self.deserialization_errors.load(Ordering::Relaxed)
+    }
+
     pub fn get_metrics(&self, memory_usage: usize) -> StorageMetrics {
         StorageMetrics {
             operation_count: self.get_operation_count(),
             average_latency: self.get_average_latency(),
             memory_usage,
             error_count: self.get_error_count(),
+            connection_errors: self.get_connection_errors(),
+            serialization_errors: self.get_serialization_errors(),
+            deserialization_errors: self.get_deserialization_errors(),
         }
     }
 
@@ -116,6 +158,9 @@ impl MetricsCollector {
         self.operation_count.store(0, Ordering::Relaxed);
         self.total_latency.store(0, Ordering::Relaxed);
         self.error_count.store(0, Ordering::Relaxed);
+        self.connection_errors.store(0, Ordering::Relaxed);
+        self.serialization_errors.store(0, Ordering::Relaxed);
+        self.deserialization_errors.store(0, Ordering::Relaxed);
     }
 }
 

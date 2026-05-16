@@ -44,9 +44,23 @@ pub enum MetricType {
     NumFetchQueries,
     NumLookupQueries,
     NumShowQueries,
+    // Search metrics
+    NumSearchQueries,
+    NumSearchErrors,
+    SearchLatencyMs,
+    NumIndexOperations,
+    NumIndexErrors,
+    IndexLatencyMs,
+    NumDeleteOperations,
+    NumDeleteErrors,
+    DeleteLatencyMs,
+    SearchResultCount,
+    SearchCacheHitCount,
+    SearchCacheMissCount,
 }
 
 /// metric
+#[derive(Debug)]
 pub struct MetricValue {
     pub value: AtomicU64,
     pub timestamp: AtomicU64,
@@ -112,6 +126,7 @@ impl MetricValue {
 /// Statistics Manager
 ///
 /// Unified management of query metrics, query profiling and error statistics.
+#[derive(Debug)]
 pub struct StatsManager {
     metrics: Arc<DashMap<MetricType, Arc<MetricValue>>>,
     space_metrics: Arc<DashMap<String, SpaceMetrics>>,
@@ -381,6 +396,17 @@ impl StatsManager {
         metric.increment();
     }
 
+    pub fn add_space_metric_with_amount(&self, space_name: &str, metric_type: MetricType, amount: u64) {
+        let space_map = self
+            .space_metrics
+            .entry(space_name.to_string())
+            .or_insert_with(|| Arc::new(DashMap::new()));
+        let metric = space_map
+            .entry(metric_type)
+            .or_insert_with(|| Arc::new(MetricValue::new(0)));
+        metric.add(amount);
+    }
+
     pub fn dec_space_metric(&self, space_name: &str, metric_type: MetricType) {
         if let Some(space_map) = self.space_metrics.get(space_name) {
             if let Some(metric) = space_map.get(&metric_type) {
@@ -612,6 +638,69 @@ impl StatsManager {
     /// Cleanup expired aggregated statistics
     pub fn cleanup_aggregated_stats(&self) {
         self.aggregated_stats.cleanup();
+    }
+
+    // ============================================================================
+    // Search Metrics
+    // ============================================================================
+
+    /// Record a search query operation
+    pub fn record_search(&self, space_id: u64, _index_name: &str, latency_ms: u64, success: bool) {
+        let space_key = format!("space_{}", space_id);
+        self.add_value(MetricType::NumSearchQueries);
+        self.add_space_metric(&space_key, MetricType::NumSearchQueries);
+
+        if !success {
+            self.add_value(MetricType::NumSearchErrors);
+            self.add_space_metric(&space_key, MetricType::NumSearchErrors);
+        }
+
+        self.add_value_with_amount(MetricType::SearchLatencyMs, latency_ms);
+        self.add_space_metric_with_amount(&space_key, MetricType::SearchLatencyMs, latency_ms);
+    }
+
+    /// Record an index operation
+    pub fn record_index_operation(&self, space_id: u64, _index_name: &str, latency_ms: u64, success: bool) {
+        let space_key = format!("space_{}", space_id);
+        self.add_value(MetricType::NumIndexOperations);
+        self.add_space_metric(&space_key, MetricType::NumIndexOperations);
+
+        if !success {
+            self.add_value(MetricType::NumIndexErrors);
+            self.add_space_metric(&space_key, MetricType::NumIndexErrors);
+        }
+
+        self.add_value_with_amount(MetricType::IndexLatencyMs, latency_ms);
+        self.add_space_metric_with_amount(&space_key, MetricType::IndexLatencyMs, latency_ms);
+    }
+
+    /// Record a delete operation
+    pub fn record_delete_operation(&self, space_id: u64, _index_name: &str, latency_ms: u64, success: bool) {
+        let space_key = format!("space_{}", space_id);
+        self.add_value(MetricType::NumDeleteOperations);
+        self.add_space_metric(&space_key, MetricType::NumDeleteOperations);
+
+        if !success {
+            self.add_value(MetricType::NumDeleteErrors);
+            self.add_space_metric(&space_key, MetricType::NumDeleteErrors);
+        }
+
+        self.add_value_with_amount(MetricType::DeleteLatencyMs, latency_ms);
+        self.add_space_metric_with_amount(&space_key, MetricType::DeleteLatencyMs, latency_ms);
+    }
+
+    /// Record search result count
+    pub fn record_search_result_count(&self, _space_id: u64, count: u64) {
+        self.add_value_with_amount(MetricType::SearchResultCount, count);
+    }
+
+    /// Record cache hit or miss
+    pub fn record_cache_hit(&self, _space_id: u64, hit: bool) {
+        if hit {
+            self.add_value(MetricType::SearchCacheHitCount);
+        } else {
+            self.add_value(MetricType::SearchCacheMissCount);
+        }
     }
 }
 
