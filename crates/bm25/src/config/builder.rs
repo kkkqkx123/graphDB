@@ -736,8 +736,6 @@ pub enum StorageType {
     /// Tantivy local file storage
     #[default]
     Tantivy,
-    /// Redis remote storage
-    Redis,
 }
 
 /// Tantivy storage configuration
@@ -756,38 +754,12 @@ impl Default for TantivyStorageConfig {
     }
 }
 
-/// Redis storage configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RedisStorageConfig {
-    pub url: String,
-    pub pool_size: u32,
-    pub connection_timeout_secs: u64,
-    pub key_prefix: String,
-    pub min_idle: Option<u32>,
-    pub max_lifetime_secs: Option<u64>,
-}
-
-impl Default for RedisStorageConfig {
-    fn default() -> Self {
-        Self {
-            url: "redis://127.0.0.1:6379".to_string(),
-            pool_size: 10,
-            connection_timeout_secs: 5,
-            key_prefix: "bm25".to_string(),
-            min_idle: Some(2),
-            max_lifetime_secs: Some(60),
-        }
-    }
-}
-
 /// Storage configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
     pub storage_type: StorageType,
     #[serde(default)]
     pub tantivy: TantivyStorageConfig,
-    #[serde(default)]
-    pub redis: RedisStorageConfig,
 }
 
 impl Default for StorageConfig {
@@ -795,7 +767,6 @@ impl Default for StorageConfig {
         Self {
             storage_type: StorageType::Tantivy,
             tantivy: TantivyStorageConfig::default(),
-            redis: RedisStorageConfig::default(),
         }
     }
 }
@@ -812,19 +783,12 @@ impl StorageConfig {
 pub struct StorageConfigBuilder {
     storage_type: StorageType,
     tantivy: TantivyStorageConfig,
-    redis: RedisStorageConfig,
 }
 
 impl StorageConfigBuilder {
     /// Create a new builder with default values
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Set storage type
-    pub fn storage_type(mut self, storage_type: StorageType) -> Self {
-        self.storage_type = storage_type;
-        self
     }
 
     /// Set Tantivy storage configuration
@@ -845,36 +809,11 @@ impl StorageConfigBuilder {
         self
     }
 
-    /// Set Redis storage configuration
-    pub fn redis_config(mut self, config: RedisStorageConfig) -> Self {
-        self.redis = config;
-        self
-    }
-
-    /// Set Redis URL
-    pub fn redis_url(mut self, url: String) -> Self {
-        self.redis.url = url;
-        self
-    }
-
-    /// Set Redis pool size
-    pub fn redis_pool_size(mut self, size: u32) -> Self {
-        self.redis.pool_size = size;
-        self
-    }
-
-    /// Set Redis key prefix
-    pub fn redis_key_prefix(mut self, prefix: String) -> Self {
-        self.redis.key_prefix = prefix;
-        self
-    }
-
     /// Build the final StorageConfig
     pub fn build(self) -> StorageConfig {
         StorageConfig {
             storage_type: self.storage_type,
             tantivy: self.tantivy,
-            redis: self.redis,
         }
     }
 }
@@ -884,7 +823,6 @@ impl Default for StorageConfigBuilder {
         Self {
             storage_type: StorageType::Tantivy,
             tantivy: TantivyStorageConfig::default(),
-            redis: RedisStorageConfig::default(),
         }
     }
 }
@@ -899,32 +837,16 @@ mod storage_builder_tests {
         assert_eq!(config.storage_type, StorageType::Tantivy);
         assert_eq!(config.tantivy.index_path, "./index");
         assert_eq!(config.tantivy.writer_memory_mb, 50);
-        assert_eq!(config.redis.pool_size, 10);
     }
 
     #[test]
     fn test_storage_builder_tantivy() {
         let config = StorageConfig::builder()
-            .storage_type(StorageType::Tantivy)
             .tantivy_index_path("/data/index".to_string())
             .tantivy_writer_memory_mb(100)
             .build();
         assert_eq!(config.storage_type, StorageType::Tantivy);
         assert_eq!(config.tantivy.index_path, "/data/index");
         assert_eq!(config.tantivy.writer_memory_mb, 100);
-    }
-
-    #[test]
-    fn test_storage_builder_redis() {
-        let config = StorageConfig::builder()
-            .storage_type(StorageType::Redis)
-            .redis_url("redis://localhost:6379".to_string())
-            .redis_pool_size(20)
-            .redis_key_prefix("mybm25".to_string())
-            .build();
-        assert_eq!(config.storage_type, StorageType::Redis);
-        assert_eq!(config.redis.url, "redis://localhost:6379");
-        assert_eq!(config.redis.pool_size, 20);
-        assert_eq!(config.redis.key_prefix, "mybm25");
     }
 }

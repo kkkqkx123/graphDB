@@ -25,7 +25,7 @@ mod validator;
 pub use builder::{
     Bm25ConfigBuilder, IndexManagerConfigBuilder, SearchConfigBuilder, StorageConfigBuilder,
 };
-pub use builder::{RedisStorageConfig, StorageConfig, StorageType, TantivyStorageConfig};
+pub use builder::{StorageConfig, StorageType, TantivyStorageConfig};
 pub use loader::{ConfigFormat, ConfigLoader, EnvLoader, FileLoader, LoaderError, LoaderResult};
 pub use validator::{ConfigValidator, ValidationError, ValidationResult};
 

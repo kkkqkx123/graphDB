@@ -90,7 +90,6 @@ impl AsyncResolver {
     }
 }
 
-#[cfg(feature = "async")]
 impl AsyncResolver {
     pub async fn search_with_query(
         &mut self,

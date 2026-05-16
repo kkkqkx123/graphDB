@@ -50,8 +50,8 @@ prost = { version = "0.13", optional = true }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"], optional = true }
 async-trait = { version = "0.1", optional = true }
 
-bm25-service = { path = "crates/bm25", default-features = false, features = ["embedded", "storage-tantivy"], optional = true }
-inversearch-service = { path = "crates/inversearch", default-features = false, features = ["embedded", "store"], optional = true }
+bm25-service = { path = "crates/bm25", optional = true }
+inversearch-service = { path = "crates/inversearch", optional = true }
 tantivy = { version = "0.24", optional = true }
 vector-client = { path = "crates/vector-client", features = ["qdrant"], optional = true }
 

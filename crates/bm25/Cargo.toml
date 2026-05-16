@@ -7,26 +7,6 @@ edition = "2021"
 name = "bm25_service"
 path = "src/lib.rs"
 
-[[bin]]
-name = "bm25-server"
-path = "src/main.rs"
-required-features = ["service"]
-
-[features]
-default = ["embedded", "storage-tantivy"]
-embedded = []
-service = [
-    "tonic",
-    "prost",
-    "tokio/full",
-    "tracing",
-    "tracing-subscriber",
-    "prost-build",
-    "tonic-build",
-]
-storage-tantivy = ["async-trait"]
-storage-redis = ["redis", "async-trait", "bb8"]
-
 [dependencies]
 tantivy = "0.24"
 jieba-rs = "0.7"
@@ -38,21 +18,8 @@ anyhow = "1.0"
 thiserror = "1.0"
 num_cpus = "1.16"
 toml = "0.8"
-
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
-
-tonic = { version = "0.12", optional = true }
-prost = { version = "0.13", optional = true }
-redis = { version = "0.29", features = ["tokio-comp", "connection-manager", "aio"], optional = true }
-bb8 = { version = "0.8", optional = true }
-
-tracing = { version = "0.1", optional = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
-async-trait = { version = "0.1", optional = true }
-
-[build-dependencies]
-prost-build = { version = "0.13", optional = true }
-tonic-build = { version = "0.12", optional = true }
+async-trait = "0.1"
 
 [dev-dependencies]
 tempfile = "3.10"

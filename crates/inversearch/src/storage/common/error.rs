@@ -15,11 +15,6 @@ pub enum StorageError {
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
-    /// Redis errors (only available when using Redis features)
-    #[cfg(feature = "store-redis")]
-    #[error("Redis error: {0}")]
-    Redis(#[from] redis::RedisError),
-
     /// Storage not open
     #[error("Storage is not open")]
     NotOpen,

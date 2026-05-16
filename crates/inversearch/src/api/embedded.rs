@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-/// Embedded search result - simplified for library users
 #[derive(Debug, Clone)]
 pub struct EmbeddedSearchResult {
     pub id: DocId,
@@ -19,7 +18,6 @@ pub struct EmbeddedSearchResult {
     pub highlights: Option<Vec<String>>,
 }
 
-/// Embedded index statistics
 #[derive(Debug, Clone)]
 pub struct EmbeddedIndexStats {
     pub document_count: usize,
@@ -27,14 +25,12 @@ pub struct EmbeddedIndexStats {
     pub index_path: Option<String>,
 }
 
-/// Batch operation type
 #[derive(Debug, Clone)]
 pub enum EmbeddedBatchOperation {
     Add { id: DocId, content: String },
     Remove { id: DocId },
 }
 
-/// Batch operation result
 #[derive(Debug, Clone)]
 pub struct EmbeddedBatchResult {
     pub success_count: usize,
@@ -42,7 +38,6 @@ pub struct EmbeddedBatchResult {
     pub errors: Vec<String>,
 }
 
-/// Embedded index - high-level API for library users
 pub struct EmbeddedIndex {
     index: Index,
     config: EmbeddedConfig,
@@ -50,18 +45,15 @@ pub struct EmbeddedIndex {
 }
 
 impl EmbeddedIndex {
-    /// Create a new index with default configuration
     pub fn create() -> Result<Self> {
         Self::with_config(EmbeddedConfig::default())
     }
 
-    /// Create a new index at the specified path
     pub fn create_at(path: impl Into<PathBuf>) -> Result<Self> {
         let config = EmbeddedConfig::builder().path(path).build();
         Self::with_config(config)
     }
 
-    /// Create a new index with custom configuration
     pub fn with_config(config: EmbeddedConfig) -> Result<Self> {
         let index_options = config.to_index_options();
         let index = Index::new(index_options)?;
@@ -73,18 +65,15 @@ impl EmbeddedIndex {
         })
     }
 
-    /// Create a builder for configuring the index
     pub fn builder() -> EmbeddedIndexBuilder {
         EmbeddedIndexBuilder::new()
     }
 
-    /// Open an existing index from path
     pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
         let config = EmbeddedConfig::builder().path(path).build();
         Self::with_config(config)
     }
 
-    /// Add a document
     pub fn add(&mut self, id: DocId, content: impl Into<String>) -> Result<()> {
         let content = content.into();
         if self.config.store_documents {
@@ -93,7 +82,6 @@ impl EmbeddedIndex {
         self.index.add(id, &content, false)
     }
 
-    /// Add a document with fields
     pub fn add_with_fields(&mut self, id: DocId, fields: Vec<(String, String)>) -> Result<()> {
         let content = fields
             .iter()
@@ -106,7 +94,6 @@ impl EmbeddedIndex {
         self.index.add(id, &content, false)
     }
 
-    /// Update a document (remove then add)
     pub fn update(&mut self, id: DocId, content: impl Into<String>) -> Result<()> {
         let content = content.into();
         if self.config.store_documents {
@@ -115,7 +102,6 @@ impl EmbeddedIndex {
         self.index.update(id, &content)
     }
 
-    /// Remove a document
     pub fn remove(&mut self, id: DocId) -> Result<()> {
         if self.config.store_documents {
             self.document_store.remove(&id);
@@ -123,23 +109,19 @@ impl EmbeddedIndex {
         self.index.remove(id, false)
     }
 
-    /// Get a document by ID
     pub fn get(&self, id: DocId) -> Option<&str> {
         self.document_store.get(&id).map(|s| s.as_str())
     }
 
-    /// Check if a document exists
     pub fn contains(&self, id: DocId) -> bool {
         self.index.contains(id)
     }
 
-    /// Search with default limit
     pub fn search(&self, query: impl Into<String>) -> Result<Vec<EmbeddedSearchResult>> {
         let limit = self.config.default_search_limit;
         self.search_with_limit(query, limit)
     }
 
-    /// Search with custom limit
     pub fn search_with_limit(
         &self,
         query: impl Into<String>,
@@ -177,7 +159,6 @@ impl EmbeddedIndex {
         Ok(embedded_results)
     }
 
-    /// Get index statistics
     pub fn stats(&self) -> EmbeddedIndexStats {
         EmbeddedIndexStats {
             document_count: self.index.document_count(),
@@ -190,33 +171,27 @@ impl EmbeddedIndex {
         }
     }
 
-    /// Clear all documents from the index
     pub fn clear(&mut self) {
         self.index.clear();
         self.document_store.clear();
     }
 
-    /// Create a batch operation builder
     pub fn batch(&mut self) -> EmbeddedBatch<'_> {
         EmbeddedBatch::new(self)
     }
 
-    /// Get the internal index (for advanced usage)
     pub fn inner(&self) -> &Index {
         &self.index
     }
 
-    /// Get the mutable internal index (for advanced usage)
     pub fn inner_mut(&mut self) -> &mut Index {
         &mut self.index
     }
 
-    /// Get the configuration
     pub fn config(&self) -> &EmbeddedConfig {
         &self.config
     }
 
-    /// Save the index to the configured path
     pub fn save(&self) -> Result<()> {
         let path = self.config.index_path.as_ref().ok_or_else(|| {
             crate::error::InversearchError::Config("No index path configured".to_string())
@@ -224,7 +199,6 @@ impl EmbeddedIndex {
         self.save_to(path)
     }
 
-    /// Save the index to a specific path
     pub fn save_to(&self, path: impl AsRef<std::path::Path>) -> Result<()> {
         let path = path.as_ref();
 
@@ -277,7 +251,6 @@ impl EmbeddedIndex {
         Ok(())
     }
 
-    /// Load an index from the configured path
     pub fn load(&mut self) -> Result<()> {
         let path = self.config.index_path.clone().ok_or_else(|| {
             crate::error::InversearchError::Config("No index path configured".to_string())
@@ -285,7 +258,6 @@ impl EmbeddedIndex {
         self.load_from(path)
     }
 
-    /// Load an index from a specific path
     pub fn load_from(&mut self, path: impl AsRef<std::path::Path>) -> Result<()> {
         let path = path.as_ref();
 
@@ -344,7 +316,6 @@ impl EmbeddedIndex {
         Ok(())
     }
 
-    /// Open an existing index from path (loads from disk if exists)
     pub fn open_or_create(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
 
@@ -365,7 +336,6 @@ struct IndexFileMetadata {
     config: EmbeddedConfig,
 }
 
-/// Builder for creating EmbeddedIndex
 pub struct EmbeddedIndexBuilder {
     config: EmbeddedConfig,
 }
@@ -443,14 +413,12 @@ impl Default for EmbeddedIndexBuilder {
     }
 }
 
-/// Batch operation builder
 pub struct EmbeddedBatch<'a> {
     index: &'a mut EmbeddedIndex,
     operations: Vec<EmbeddedBatchOperation>,
 }
 
 impl<'a> EmbeddedBatch<'a> {
-    /// Create a new batch
     pub fn new(index: &'a mut EmbeddedIndex) -> Self {
         Self {
             index,
@@ -458,7 +426,6 @@ impl<'a> EmbeddedBatch<'a> {
         }
     }
 
-    /// Add an add operation
     pub fn add(mut self, id: DocId, content: impl Into<String>) -> Self {
         self.operations.push(EmbeddedBatchOperation::Add {
             id,
@@ -467,13 +434,11 @@ impl<'a> EmbeddedBatch<'a> {
         self
     }
 
-    /// Add a remove operation
     pub fn remove(mut self, id: DocId) -> Self {
         self.operations.push(EmbeddedBatchOperation::Remove { id });
         self
     }
 
-    /// Execute all operations
     pub fn execute(self) -> EmbeddedBatchResult {
         let mut success_count = 0;
         let mut failed_count = 0;

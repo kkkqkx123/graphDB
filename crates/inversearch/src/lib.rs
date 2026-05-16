@@ -25,7 +25,12 @@ pub mod r#type;
 pub mod api;
 
 // Re-export core types for backward compatibility
-pub use api::core;
+pub use api::embedded;
+
+pub use api::embedded::{
+    EmbeddedBatch, EmbeddedBatchOperation, EmbeddedBatchResult, EmbeddedIndex,
+    EmbeddedIndexBuilder, EmbeddedIndexStats, EmbeddedSearchResult,
+};
 
 // Core types - always available
 pub use crate::{
@@ -35,29 +40,6 @@ pub use crate::{
 
 // Re-export types from r#type module
 pub use crate::r#type::SearchOptions;
-
-// Embedded API - available when "embedded" feature is enabled
-#[cfg(feature = "embedded")]
-pub use api::embedded;
-
-#[cfg(feature = "embedded")]
-pub use api::embedded::{
-    EmbeddedBatch, EmbeddedBatchOperation, EmbeddedBatchResult, EmbeddedIndex,
-    EmbeddedIndexBuilder, EmbeddedIndexStats, EmbeddedSearchResult,
-};
-
-// Server API - available when "service" feature is enabled
-#[cfg(feature = "service")]
-pub mod proto;
-
-#[cfg(feature = "service")]
-pub mod service;
-
-#[cfg(feature = "service")]
-pub use api::server;
-
-#[cfg(feature = "service")]
-pub use api::server::{run_server, InversearchService, ServerConfig, ServiceConfig};
 
 // Re-export document types
 pub use document::{
@@ -79,8 +61,7 @@ pub use compress::{
     CompressCache, RadixTable, DEFAULT_CACHE_SIZE,
 };
 pub use config::{
-    Config, EmbeddedConfig, EmbeddedConfigBuilder, StorageBackend, StorageConfig,
-    StorageConfigBuilder, TokenizeMode,
+    Config, EmbeddedConfig, EmbeddedConfigBuilder, StorageBackend, StorageConfig, TokenizeMode,
 };
 pub use encoder::Encoder;
 pub use error::{
@@ -113,21 +94,8 @@ pub use storage::factory::StorageFactory;
 pub use storage::manager::{DefaultStorage, StorageManager, StorageManagerBuilder};
 pub use storage::persistence::{BackupInfo, IndexMetadata, IndexSnapshot, PersistenceManager};
 
-// Storage backends - conditionally available
-#[cfg(feature = "store-file")]
-pub use storage::file::FileStorage;
-
-#[cfg(feature = "store-redis")]
-pub use storage::redis::RedisStorage;
-
-#[cfg(feature = "store-wal")]
-pub use storage::wal::{IndexChange, WALManager, WALStorage};
-
-#[cfg(feature = "store-wal")]
-pub use config::WALConfig as StorageWalConfig;
-
-#[cfg(feature = "store-cold-warm-cache")]
-pub use storage::cold_warm_cache::{ColdWarmCacheConfig, ColdWarmCacheManager};
+// Storage backends
+pub use storage::memory::MemoryStorage;
 
 pub use async_::{AsyncIndex, AsyncIndexTask, AsyncSearchTask};
 // Export specific types from r#type module to avoid conflicts

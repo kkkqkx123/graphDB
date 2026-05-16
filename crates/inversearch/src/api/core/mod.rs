@@ -81,15 +81,5 @@ pub use crate::r#type::{
     MergedDocumentSearchResults, SearchOptions, SearchResults, TagOption,
 };
 
-// Storage backends - conditionally available
-#[cfg(feature = "store-file")]
-pub use crate::storage::file::FileStorage;
-
-#[cfg(feature = "store-redis")]
-pub use crate::storage::redis::RedisStorage;
-
-#[cfg(feature = "store-wal")]
-pub use crate::storage::wal::{IndexChange, WALManager, WALStorage};
-
-#[cfg(feature = "store-cold-warm-cache")]
+// Storage backends
 pub use crate::storage::cold_warm_cache::{ColdWarmCacheConfig, ColdWarmCacheManager};

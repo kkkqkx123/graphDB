@@ -7,19 +7,9 @@ edition = "2021"
 name = "inversearch_service"
 path = "src/lib.rs"
 
-[[bin]]
-name = "inversearch-server"
-path = "src/main.rs"
-required-features = ["service"]
-
 [dependencies]
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "fs", "io-util", "sync", "time"] }
-tonic = { version = "0.12", optional = true }
-prost = { version = "0.13", optional = true }
-redis = { version = "0.29", features = ["tokio-comp", "connection-manager", "aio"], optional = true }
-bb8 = { version = "0.8", optional = true }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 postcard = { version = "1.1", features = ["use-std"] }
@@ -41,20 +31,6 @@ lz4_flex = "0.11"
 ciborium = "0.2"
 dashmap = "6.1"
 
-[build-dependencies]
-prost-build = { version = "0.13", optional = true }
-tonic-build = { version = "0.12", optional = true }
-
 [dev-dependencies]
 tempfile = "3.10"
 criterion = "0.5"
-
-[features]
-default = ["embedded", "store"]
-embedded = []
-service = ["tonic", "prost", "prost-build", "tonic-build", "tracing-subscriber"]
-store = ["store-cold-warm-cache"]
-store-cold-warm-cache = ["store-wal", "store-file"]
-store-file = []
-store-redis = ["redis", "bb8"]
-store-wal = []

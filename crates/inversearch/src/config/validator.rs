@@ -192,63 +192,7 @@ impl ConfigValidator for CacheConfig {
 impl ConfigValidator for StorageConfig {
     fn validate(&self) -> ValidationResult<()> {
         if self.enabled {
-            // Validate storage-specific configurations
-            #[cfg(feature = "store-redis")]
-            if let Some(redis_config) = &self.redis {
-                if redis_config.url.is_empty() {
-                    return Err(ValidationError::InvalidValue {
-                        field: "storage.redis.url".to_string(),
-                        value: "empty".to_string(),
-                        reason: "Redis URL cannot be empty".to_string(),
-                    });
-                }
-
-                if redis_config.pool_size == 0 {
-                    return Err(ValidationError::InvalidValue {
-                        field: "storage.redis.pool_size".to_string(),
-                        value: redis_config.pool_size.to_string(),
-                        reason: "pool size must be positive".to_string(),
-                    });
-                }
-            }
-
-            #[cfg(feature = "store-file")]
-            if let Some(file_config) = &self.file {
-                if file_config.base_path.is_empty() {
-                    return Err(ValidationError::InvalidValue {
-                        field: "storage.file.base_path".to_string(),
-                        value: "empty".to_string(),
-                        reason: "base path cannot be empty".to_string(),
-                    });
-                }
-
-                if file_config.save_interval_secs == 0 {
-                    return Err(ValidationError::InvalidValue {
-                        field: "storage.file.save_interval_secs".to_string(),
-                        value: file_config.save_interval_secs.to_string(),
-                        reason: "save interval must be positive".to_string(),
-                    });
-                }
-            }
-
-            #[cfg(feature = "store-wal")]
-            if let Some(wal_config) = &self.wal {
-                if wal_config.base_path.is_empty() {
-                    return Err(ValidationError::InvalidValue {
-                        field: "storage.wal.base_path".to_string(),
-                        value: "empty".to_string(),
-                        reason: "base path cannot be empty".to_string(),
-                    });
-                }
-
-                if wal_config.max_wal_size == 0 {
-                    return Err(ValidationError::InvalidValue {
-                        field: "storage.wal.max_wal_size".to_string(),
-                        value: wal_config.max_wal_size.to_string(),
-                        reason: "max WAL size must be positive".to_string(),
-                    });
-                }
-            }
+            // No storage-specific configurations to validate
         }
 
         Ok(())
