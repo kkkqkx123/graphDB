@@ -26,12 +26,22 @@ impl SpinLock {
     }
 
     pub fn lock(&self) {
-        while self
-            .locked
-            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_err()
-        {
-            std::hint::spin_loop();
+        let mut backoff = 1;
+        loop {
+            if self
+                .locked
+                .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+                .is_ok()
+            {
+                return;
+            }
+            std::thread::yield_now();
+            if backoff <= 1024 {
+                for _ in 0..backoff {
+                    std::hint::spin_loop();
+                }
+                backoff *= 2;
+            }
         }
     }
 

@@ -2,6 +2,7 @@
 //!
 //! Combines out/in CSRs and property storage for edge management.
 
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -52,6 +53,8 @@ pub struct EdgeTable {
     edge_id_counter: AtomicU64,
     is_open: bool,
     property_cache: Option<Arc<EdgePropertyCache>>,
+    edge_id_to_src: HashMap<EdgeId, (VertexId, VertexId)>,
+    active_vertices: HashSet<VertexId>,
 }
 
 impl EdgeTable {
@@ -88,6 +91,8 @@ impl EdgeTable {
             edge_id_counter: AtomicU64::new(0),
             is_open: true,
             property_cache: None,
+            edge_id_to_src: HashMap::new(),
+            active_vertices: HashSet::new(),
         }
     }
 
@@ -162,7 +167,20 @@ impl EdgeTable {
         }
 
         if self.schema.ie_strategy != EdgeStrategy::None {
-            self.in_csr.insert_edge(dst, src, edge_id, prop_offset, ts);
+            if !self.in_csr.insert_edge(dst, src, edge_id, prop_offset, ts) {
+                self.out_csr.delete_edge(src, edge_id, ts);
+                self.properties.delete(prop_offset);
+                return Err(StorageError::edge_already_exists(format!(
+                    "{} -> {}",
+                    dst, src
+                )));
+            }
+        }
+
+        self.edge_id_to_src.insert(edge_id, (src, dst));
+        self.active_vertices.insert(src);
+        if self.schema.ie_strategy != EdgeStrategy::None {
+            self.active_vertices.insert(dst);
         }
 
         Ok(edge_id)
@@ -191,6 +209,8 @@ impl EdgeTable {
             if prop_offset > 0 {
                 self.properties.delete(prop_offset);
             }
+
+            self.edge_id_to_src.remove(&edge_id);
 
             if let Some(ref cache) = self.property_cache {
                 cache.invalidate(edge_id);
@@ -259,29 +279,34 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
-        let mut found = false;
-        for src in 0..self.out_csr.vertex_capacity() {
-            let src_vid = VertexId::from_int64(src as i64);
-            let edges: Vec<_> = self
-                .out_csr
-                .edges_of(src_vid, ts)
-                .into_iter()
-                .filter(|nbr| nbr.edge_id == edge_id)
-                .collect();
+        let (src, dst) = match self.edge_id_to_src.get(&edge_id) {
+            Some(&(src, dst)) => (src, dst),
+            None => return Ok(false),
+        };
 
-            for nbr in edges {
-                self.out_csr.delete_edge(src_vid, edge_id, ts);
-                self.in_csr
-                    .delete_edge_by_dst(nbr.neighbor, src_vid, ts);
+        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
+            let prop_offset = nbr.prop_offset;
 
-                if nbr.prop_offset > 0 {
-                    self.properties.delete(nbr.prop_offset);
-                }
-                found = true;
+            self.out_csr.delete_edge(src, edge_id, ts);
+
+            if self.schema.ie_strategy != EdgeStrategy::None {
+                self.in_csr.delete_edge_by_dst(dst, src, ts);
             }
+
+            if prop_offset > 0 {
+                self.properties.delete(prop_offset);
+            }
+
+            self.edge_id_to_src.remove(&edge_id);
+
+            if let Some(ref cache) = self.property_cache {
+                cache.invalidate(edge_id);
+            }
+
+            return Ok(true);
         }
 
-        Ok(found)
+        Ok(false)
     }
 
     pub fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<EdgeRecord> {
@@ -326,39 +351,31 @@ impl EdgeTable {
             return None;
         }
 
-        for src in 0..self.out_csr.vertex_capacity() {
-            let src_vid = VertexId::from_int64(src as i64);
-            if let Some(nbr) = self
-                .out_csr
-                .edges_of(src_vid, ts)
-                .iter()
-                .find(|nbr| nbr.edge_id == edge_id)
-            {
-                let properties = if nbr.prop_offset > 0 {
-                    self.properties
-                        .get(nbr.prop_offset)
-                        .map(|props| {
-                            props
-                                .into_iter()
-                                .filter_map(|(k, v)| v.map(|v| (k, v)))
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
+        let (src, dst) = self.edge_id_to_src.get(&edge_id).copied()?;
 
-                return Some(EdgeRecord {
-                    edge_id: nbr.edge_id,
-                    src_vid,
-                    dst_vid: nbr.neighbor,
-                    ranking: 0,
-                    properties,
-                });
-            }
-        }
+        let nbr = self.out_csr.get_edge(src, dst, ts)?;
 
-        None
+        let properties = if nbr.prop_offset > 0 {
+            self.properties
+                .get(nbr.prop_offset)
+                .map(|props| {
+                    props
+                        .into_iter()
+                        .filter_map(|(k, v)| v.map(|v| (k, v)))
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        Some(EdgeRecord {
+            edge_id: nbr.edge_id,
+            src_vid: src,
+            dst_vid: dst,
+            ranking: 0,
+            properties,
+        })
     }
 
     pub fn update_properties(
@@ -511,8 +528,7 @@ impl EdgeTable {
         }
 
         let mut edges = Vec::new();
-        for src in 0..self.out_csr.vertex_capacity() {
-            let src_vid = VertexId::from_int64(src as i64);
+        for &src_vid in &self.active_vertices {
             for nbr in self.out_csr.edges_of(src_vid, ts) {
                 let properties = if nbr.prop_offset > 0 {
                     self.properties
@@ -687,6 +703,8 @@ impl EdgeTable {
         self.in_csr.clear();
         self.properties.clear();
         self.edge_id_counter.store(0, Ordering::Relaxed);
+        self.edge_id_to_src.clear();
+        self.active_vertices.clear();
     }
 
     pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
@@ -709,6 +727,9 @@ impl EdgeTable {
 
         let edge_id = self.edge_id_counter.load(Ordering::Relaxed);
         meta_file.write_all(&edge_id.to_le_bytes())?;
+
+        let is_open_flag: u8 = if self.is_open { 1 } else { 0 };
+        meta_file.write_all(&is_open_flag.to_le_bytes())?;
 
         let out_csr_path = path.join("out_csr.bin");
         self.flush_csr(&self.out_csr, &out_csr_path)?;
@@ -782,6 +803,11 @@ impl EdgeTable {
         meta_file.read_exact(&mut edge_id_bytes)?;
         self.edge_id_counter
             .store(u64::from_le_bytes(edge_id_bytes), Ordering::Relaxed);
+
+        let mut is_open_bytes = [0u8; 1];
+        if meta_file.read_exact(&mut is_open_bytes).is_ok() {
+            self.is_open = is_open_bytes[0] != 0;
+        }
 
         let out_csr_path = path.join("out_csr.bin");
         Self::load_csr_static(&mut self.out_csr, &out_csr_path)?;

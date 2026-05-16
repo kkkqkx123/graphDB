@@ -41,6 +41,7 @@ pub use edge_table::{
 pub use mutable_csr::{LoadFromPartsParams, MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator};
 pub use mutable_csr_variant::{CsrEdgeIterator, CsrIterator, MutableCsrVariant};
 pub use property_table::PropertyTable;
+pub use property_table::{PROP_OFFSET_NONE, prop_index_to_offset, prop_offset_to_index};
 pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
 
 pub use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};

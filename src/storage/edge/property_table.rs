@@ -6,6 +6,24 @@ use std::collections::HashMap;
 
 use crate::core::{DataType, StorageError, StorageResult, Value};
 
+/// Sentinel value meaning "no properties"
+pub const PROP_OFFSET_NONE: u32 = 0;
+
+/// Convert a property offset to a row index
+/// Offset 0 is the sentinel for "no properties", so row index = offset - 1
+pub fn prop_offset_to_index(offset: u32) -> Option<usize> {
+    if offset == PROP_OFFSET_NONE {
+        return None;
+    }
+    Some((offset - 1) as usize)
+}
+
+/// Convert a row index to a property offset
+/// Row index 0 corresponds to offset 1 (since offset 0 is the sentinel)
+pub fn prop_index_to_offset(index: usize) -> u32 {
+    (index + 1) as u32
+}
+
 #[derive(Debug, Clone)]
 pub struct PropertySchema {
     pub name: String,
@@ -70,7 +88,6 @@ pub struct PropertyTable {
     name_to_index: HashMap<String, usize>,
     rows: Vec<PropertyRow>,
     free_list: Vec<u32>,
-    next_offset: u32,
 }
 
 impl PropertyTable {
@@ -80,7 +97,6 @@ impl PropertyTable {
             name_to_index: HashMap::new(),
             rows: Vec::new(),
             free_list: Vec::new(),
-            next_offset: 1,
         }
     }
 
@@ -90,7 +106,6 @@ impl PropertyTable {
             name_to_index: HashMap::new(),
             rows: Vec::with_capacity(capacity),
             free_list: Vec::new(),
-            next_offset: 1,
         }
     }
 
@@ -112,8 +127,7 @@ impl PropertyTable {
             free
         } else {
             self.rows.push(PropertyRow::new(self.schema.len()));
-            self.next_offset = self.rows.len() as u32;
-            self.next_offset
+            prop_index_to_offset(self.rows.len() - 1)
         };
 
         self.update(offset, values)?;
@@ -121,12 +135,12 @@ impl PropertyTable {
     }
 
     pub fn update(&mut self, offset: u32, values: &[(String, Value)]) -> StorageResult<()> {
-        let offset_idx = offset as usize;
-        if offset_idx == 0 || offset_idx > self.rows.len() {
+        let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
+        if row_idx >= self.rows.len() {
             return Err(StorageError::invalid_offset(offset));
         }
 
-        let row = &mut self.rows[offset_idx - 1];
+        let row = &mut self.rows[row_idx];
         for (name, value) in values {
             if let Some(&col_idx) = self.name_to_index.get(name) {
                 row.set(col_idx, Some(value.clone()));
@@ -137,12 +151,12 @@ impl PropertyTable {
     }
 
     pub fn get(&self, offset: u32) -> Option<Vec<(String, Option<Value>)>> {
-        let offset_idx = offset as usize;
-        if offset_idx == 0 || offset_idx > self.rows.len() {
+        let row_idx = prop_offset_to_index(offset)?;
+        if row_idx >= self.rows.len() {
             return None;
         }
 
-        let row = &self.rows[offset_idx - 1];
+        let row = &self.rows[row_idx];
         Some(
             self.schema
                 .iter()
@@ -154,13 +168,12 @@ impl PropertyTable {
 
     pub fn get_property(&self, offset: u32, name: &str) -> Option<Value> {
         let col_idx = *self.name_to_index.get(name)?;
-        let offset_idx = offset as usize;
-
-        if offset_idx == 0 || offset_idx > self.rows.len() {
+        let row_idx = prop_offset_to_index(offset)?;
+        if row_idx >= self.rows.len() {
             return None;
         }
 
-        self.rows[offset_idx - 1].get(col_idx).cloned()
+        self.rows[row_idx].get(col_idx).cloned()
     }
 
     pub fn set_property(
@@ -174,12 +187,12 @@ impl PropertyTable {
             .get(name)
             .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
 
-        let offset_idx = offset as usize;
-        if offset_idx == 0 || offset_idx > self.rows.len() {
+        let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
+        if row_idx >= self.rows.len() {
             return Err(StorageError::invalid_offset(offset));
         }
 
-        self.rows[offset_idx - 1].set(col_idx, value);
+        self.rows[row_idx].set(col_idx, value);
         Ok(())
     }
 
@@ -190,8 +203,8 @@ impl PropertyTable {
         value: Option<Value>,
     ) -> StorageResult<()> {
         let col_idx = prop_id as usize;
-        let offset_idx = offset as usize;
-        if offset_idx == 0 || offset_idx > self.rows.len() {
+        let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
+        if row_idx >= self.rows.len() {
             return Err(StorageError::invalid_offset(offset));
         }
 
@@ -199,15 +212,14 @@ impl PropertyTable {
             return Err(StorageError::column_not_found(format!("prop_id={}", prop_id)));
         }
 
-        self.rows[offset_idx - 1].set(col_idx, value);
+        self.rows[row_idx].set(col_idx, value);
         Ok(())
     }
 
     pub fn get_property_by_id(&self, offset: u32, prop_id: i32) -> Option<Value> {
         let col_idx = prop_id as usize;
-        let offset_idx = offset as usize;
-
-        if offset_idx == 0 || offset_idx > self.rows.len() {
+        let row_idx = prop_offset_to_index(offset)?;
+        if row_idx >= self.rows.len() {
             return None;
         }
 
@@ -215,7 +227,7 @@ impl PropertyTable {
             return None;
         }
 
-        self.rows[offset_idx - 1].get(col_idx).cloned()
+        self.rows[row_idx].get(col_idx).cloned()
     }
 
     pub fn get_property_type(&self, prop_id: i32) -> Option<DataType> {
@@ -223,12 +235,15 @@ impl PropertyTable {
     }
 
     pub fn delete(&mut self, offset: u32) -> bool {
-        let offset_idx = offset as usize;
-        if offset_idx == 0 || offset_idx > self.rows.len() {
+        let row_idx = match prop_offset_to_index(offset) {
+            Some(idx) => idx,
+            None => return false,
+        };
+        if row_idx >= self.rows.len() {
             return false;
         }
 
-        self.rows[offset_idx - 1] = PropertyRow::new(self.schema.len());
+        self.rows[row_idx] = PropertyRow::new(self.schema.len());
         self.free_list.push(offset);
         true
     }
@@ -252,7 +267,6 @@ impl PropertyTable {
     pub fn clear(&mut self) {
         self.rows.clear();
         self.free_list.clear();
-        self.next_offset = 0;
     }
 
     pub fn has_property(&self, name: &str) -> bool {
@@ -295,8 +309,6 @@ impl PropertyTable {
         for offset in &self.free_list {
             result.extend_from_slice(&offset.to_le_bytes());
         }
-
-        result.extend_from_slice(&self.next_offset.to_le_bytes());
 
         result
     }
@@ -402,7 +414,8 @@ impl PropertyTable {
         }
 
         if offset + 4 <= data.len() {
-            self.next_offset =
+            // Skip the old next_offset field for backward compatibility
+            let _old_next_offset =
                 u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
         }
     }
@@ -410,20 +423,18 @@ impl PropertyTable {
     pub fn compact(&mut self, valid_offsets: &std::collections::HashSet<u32>) {
         let mut new_rows = Vec::new();
         let mut offset_mapping = std::collections::HashMap::new();
-        let mut new_offset = 1u32;
 
         for (idx, row) in self.rows.iter().enumerate() {
-            let old_offset = (idx + 1) as u32;
+            let old_offset = prop_index_to_offset(idx);
             if valid_offsets.contains(&old_offset) {
+                let new_offset = prop_index_to_offset(new_rows.len());
                 offset_mapping.insert(old_offset, new_offset);
                 new_rows.push(row.clone());
-                new_offset += 1;
             }
         }
 
         self.rows = new_rows;
         self.free_list.clear();
-        self.next_offset = new_offset;
     }
 
     pub fn memory_size(&self) -> usize {
