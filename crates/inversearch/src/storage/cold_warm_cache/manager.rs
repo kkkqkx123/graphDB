@@ -16,6 +16,7 @@ use crate::storage::common::{
 };
 use crate::{Index, StorageInterface};
 use dashmap::DashMap;
+use memmap2::Mmap;
 use postcard::{from_bytes, to_allocvec};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -93,17 +94,23 @@ impl WarmCacheEntry {
     }
 
     async fn load(&self) -> Result<FileStorageData> {
-        let file_data = load_from_file(&self.file_path).await?;
-        let data = if self.compressed {
-            let bytes = to_allocvec(&file_data)?;
+        let file = tokio_fs::File::open(&self.file_path).await?;
+        let std_file = file.into_std().await;
+        let mmap = unsafe { Mmap::map(&std_file) }
+            .map_err(|e| crate::error::StorageError::Generic(e.to_string()))?;
+
+        let data: FileStorageData = from_bytes(&mmap[..])
+            .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
+
+        if self.compressed {
+            let bytes = to_allocvec(&data)?;
             let decompressed = decompress_data(&bytes)?;
             let decompressed_data = from_bytes::<FileStorageData>(&decompressed)
                 .map_err(|e| crate::error::StorageError::Deserialization(e.to_string()))?;
-            decompressed_data
+            Ok(decompressed_data)
         } else {
-            file_data
-        };
-        Ok(data)
+            Ok(data)
+        }
     }
 }
 
@@ -342,32 +349,23 @@ impl WALManager {
     }
 
     async fn read_wal_file(&self, path: &PathBuf) -> Result<Vec<WALEntry>> {
-        // Check if file exists and get its size first
         let metadata = match tokio_fs::metadata(path).await {
             Ok(m) => m,
             Err(_) => return Ok(Vec::new()),
         };
 
-        // Handle empty WAL files
         if metadata.len() == 0 {
             return Ok(Vec::new());
         }
 
-        let file_data = load_from_file(path).await?;
-        let bytes = to_allocvec(&file_data)?;
+        let bytes = tokio_fs::read(path).await?;
         let mut entries = Vec::new();
         let mut offset = 0;
 
-        while offset < bytes.len() {
-            if offset + 4 > bytes.len() {
-                break;
-            }
-            let len = u32::from_le_bytes([
-                bytes[offset],
-                bytes[offset + 1],
-                bytes[offset + 2],
-                bytes[offset + 3],
-            ]) as usize;
+        while offset + 4 <= bytes.len() {
+            let len = u32::from_le_bytes(
+                bytes[offset..offset + 4].try_into().unwrap()
+            ) as usize;
             offset += 4;
 
             if offset + len > bytes.len() {
@@ -457,6 +455,49 @@ impl CacheStats {
         self.merge_count.store(0, Ordering::Relaxed);
         self.cleanup_count.store(0, Ordering::Relaxed);
     }
+
+    pub fn snapshot(&self) -> CacheStatsSnapshot {
+        CacheStatsSnapshot {
+            hot_hit: self.hot_hit.load(Ordering::Relaxed),
+            warm_hit: self.warm_hit.load(Ordering::Relaxed),
+            cold_hit: self.cold_hit.load(Ordering::Relaxed),
+            miss: self.miss.load(Ordering::Relaxed),
+            evict_to_warm: self.evict_to_warm.load(Ordering::Relaxed),
+            evict_to_cold: self.evict_to_cold.load(Ordering::Relaxed),
+            wal_writes: self.wal_writes.load(Ordering::Relaxed),
+            wal_rotations: self.wal_rotations.load(Ordering::Relaxed),
+            checkpoint_count: self.checkpoint_count.load(Ordering::Relaxed),
+            flush_count: self.flush_count.load(Ordering::Relaxed),
+            merge_count: self.merge_count.load(Ordering::Relaxed),
+            cleanup_count: self.cleanup_count.load(Ordering::Relaxed),
+            total_hits: self.total_hits(),
+            hit_rate: self.hit_rate(),
+            hot_hit_rate: self.hot_hit_rate(),
+            warm_hit_rate: self.warm_hit_rate(),
+            cold_hit_rate: self.cold_hit_rate(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CacheStatsSnapshot {
+    pub hot_hit: u64,
+    pub warm_hit: u64,
+    pub cold_hit: u64,
+    pub miss: u64,
+    pub evict_to_warm: u64,
+    pub evict_to_cold: u64,
+    pub wal_writes: u64,
+    pub wal_rotations: u64,
+    pub checkpoint_count: u64,
+    pub flush_count: u64,
+    pub merge_count: u64,
+    pub cleanup_count: u64,
+    pub total_hits: u64,
+    pub hit_rate: f64,
+    pub hot_hit_rate: f64,
+    pub warm_hit_rate: f64,
+    pub cold_hit_rate: f64,
 }
 
 #[allow(dead_code)]
@@ -512,6 +553,10 @@ impl ColdWarmCacheManager {
 
         manager.recover().await?;
 
+        if manager.config.warmup_enabled {
+            manager.warmup().await?;
+        }
+
         let manager_arc = Arc::new(manager);
         let bg_manager = BackgroundTaskManager::new(manager_arc.clone());
         *manager_arc.background_tasks.lock().await = Some(bg_manager);
@@ -533,6 +578,39 @@ impl ColdWarmCacheManager {
                 }
             }
         }
+        Ok(())
+    }
+
+    async fn warmup(&self) -> Result<()> {
+        let mut cold_entries: Vec<(String, std::path::PathBuf, u64)> = Vec::new();
+
+        let mut entries = tokio_fs::read_dir(&self.config.cold_storage_path).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "cold") {
+                if let Some(stem) = path.file_stem() {
+                    let name = stem.to_string_lossy().to_string();
+                    if let Ok(meta) = tokio_fs::metadata(&path).await {
+                        cold_entries.push((name, path, meta.len()));
+                    }
+                }
+            }
+        }
+
+        cold_entries.sort_by(|a, b| b.2.cmp(&a.2));
+
+        let warmup_count = cold_entries.len().min(self.config.warmup_max_entries);
+        for (name, path, _size) in cold_entries.into_iter().take(warmup_count) {
+            if self.hot_cache.contains_key(&name) || self.warm_cache.contains_key(&name) {
+                continue;
+            }
+
+            let file_data = load_from_file(&path).await?;
+            let data: IndexData = file_data.into();
+            self.persist_to_warm(&name, &data).await?;
+        }
+
+        tracing::info!("Warmup completed: loaded {} entries into warm cache", warmup_count);
         Ok(())
     }
 
@@ -1006,8 +1084,17 @@ impl ColdWarmCacheManager {
 
 #[async_trait::async_trait]
 impl StorageInterface for ColdWarmCacheManager {
-    async fn mount(&self, _index: &Index) -> Result<()> {
-        Ok(())
+    async fn mount(&self, index: &Index) -> Result<()> {
+        let index_name = "default";
+        let data = IndexData {
+            data: index.map.index.values()
+                .flat_map(|m| m.iter())
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+            context_data: HashMap::new(),
+            documents: index.documents.clone(),
+        };
+        self.insert_index(index_name, data).await
     }
 
     async fn open(&self) -> Result<()> {
@@ -1022,31 +1109,191 @@ impl StorageInterface for ColdWarmCacheManager {
         self.clear().await
     }
 
-    async fn commit(&self, _index: &Index, _replace: bool, _append: bool) -> Result<()> {
-        Ok(())
+    async fn commit(&self, index: &Index, _replace: bool, _append: bool) -> Result<()> {
+        let index_name = "default";
+        let data = IndexData {
+            data: index.map.index.values()
+                .flat_map(|m| m.iter())
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+            context_data: HashMap::new(),
+            documents: index.documents.clone(),
+        };
+
+        if self.hot_cache.contains_key(index_name)
+            || self.warm_cache.contains_key(index_name)
+            || self.cold_storage.contains_key(index_name)
+        {
+            self.update_index(index_name, data).await
+        } else {
+            self.insert_index(index_name, data).await
+        }
     }
 
     async fn get(
         &self,
-        _key: &str,
-        _ctx: Option<&str>,
-        _limit: usize,
-        _offset: usize,
+        key: &str,
+        ctx: Option<&str>,
+        limit: usize,
+        offset: usize,
         _resolve: bool,
         _enrich: bool,
     ) -> Result<SearchResults> {
-        Ok(vec![])
+        let mut all_results = Vec::new();
+
+        // Collect all index names from all tiers
+        let mut index_names: Vec<String> = Vec::new();
+        for entry in self.hot_cache.iter() {
+            index_names.push(entry.key().clone());
+        }
+        for entry in self.warm_cache.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+        for entry in self.cold_storage.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+
+        for name in index_names {
+            if let Some(index_data) = self.get_index(&name).await? {
+                let results = if let Some(ctx_key) = ctx {
+                    index_data.context_data
+                        .get(ctx_key)
+                        .and_then(|m| m.get(key))
+                        .cloned()
+                        .unwrap_or_default()
+                } else {
+                    index_data.data
+                        .get(key)
+                        .cloned()
+                        .unwrap_or_default()
+                };
+                all_results.extend(results);
+            }
+        }
+
+        all_results.sort();
+        all_results.dedup();
+
+        let total = all_results.len();
+        let start = offset.min(total);
+        let end = (offset + limit).min(total);
+        Ok(all_results[start..end].to_vec())
     }
 
-    async fn enrich(&self, _ids: &[DocId]) -> Result<EnrichedSearchResults> {
-        Ok(vec![])
+    async fn enrich(&self, ids: &[DocId]) -> Result<EnrichedSearchResults> {
+        let mut results = EnrichedSearchResults::new();
+
+        let mut index_names: Vec<String> = Vec::new();
+        for entry in self.hot_cache.iter() {
+            index_names.push(entry.key().clone());
+        }
+        for entry in self.warm_cache.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+        for entry in self.cold_storage.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+
+        for name in index_names {
+            if let Some(index_data) = self.get_index(&name).await? {
+                for &id in ids {
+                    if let Some(content) = index_data.documents.get(&id) {
+                        results.push(crate::r#type::EnrichedSearchResult {
+                            id,
+                            doc: Some(serde_json::json!({
+                                "content": content,
+                                "id": id
+                            })),
+                            highlight: None,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(results)
     }
 
-    async fn has(&self, _id: DocId) -> Result<bool> {
+    async fn has(&self, id: DocId) -> Result<bool> {
+        let mut index_names: Vec<String> = Vec::new();
+        for entry in self.hot_cache.iter() {
+            index_names.push(entry.key().clone());
+        }
+        for entry in self.warm_cache.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+        for entry in self.cold_storage.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+
+        for name in index_names {
+            if let Ok(Some(index_data)) = self.get_index(&name).await {
+                if index_data.documents.contains_key(&id) {
+                    return Ok(true);
+                }
+                for doc_ids in index_data.data.values() {
+                    if doc_ids.contains(&id) {
+                        return Ok(true);
+                    }
+                }
+                for ctx_map in index_data.context_data.values() {
+                    for doc_ids in ctx_map.values() {
+                        if doc_ids.contains(&id) {
+                            return Ok(true);
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(false)
     }
 
-    async fn remove(&self, _ids: &[DocId]) -> Result<()> {
+    async fn remove(&self, ids: &[DocId]) -> Result<()> {
+        let mut index_names: Vec<String> = Vec::new();
+        for entry in self.hot_cache.iter() {
+            index_names.push(entry.key().clone());
+        }
+        for entry in self.warm_cache.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+        for entry in self.cold_storage.iter() {
+            if !index_names.contains(entry.key()) {
+                index_names.push(entry.key().clone());
+            }
+        }
+
+        for name in index_names {
+            if let Ok(Some(mut index_data)) = self.get_index(&name).await {
+                for &id in ids {
+                    index_data.documents.remove(&id);
+                    for doc_ids in index_data.data.values_mut() {
+                        doc_ids.retain(|&doc_id| doc_id != id);
+                    }
+                    for ctx_map in index_data.context_data.values_mut() {
+                        for doc_ids in ctx_map.values_mut() {
+                            doc_ids.retain(|&doc_id| doc_id != id);
+                        }
+                    }
+                }
+                self.update_index(&name, index_data).await?;
+            }
+        }
+
         Ok(())
     }
 
@@ -1055,12 +1302,20 @@ impl StorageInterface for ColdWarmCacheManager {
     }
 
     async fn info(&self) -> Result<StorageInfo> {
+        let doc_count: usize = {
+            let mut count = 0;
+            for entry in self.hot_cache.iter() {
+                count += entry.data.documents.len();
+            }
+            count
+        };
+
         Ok(StorageInfo {
             name: "ColdWarmCache".to_string(),
             version: "1.0".to_string(),
             size: self.hot_cache_size.load(Ordering::Relaxed) as u64,
-            document_count: self.hot_cache.len(),
-            index_count: 1,
+            document_count: doc_count,
+            index_count: self.hot_cache.len(),
             is_connected: true,
         })
     }

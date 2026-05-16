@@ -230,6 +230,9 @@ impl Default for CacheConfig {
 pub struct StorageConfig {
     pub enabled: bool,
     pub backend: StorageBackend,
+    pub base_path: Option<std::path::PathBuf>,
+    pub wal_dir: Option<std::path::PathBuf>,
+    pub enable_wal: bool,
 }
 
 impl Default for StorageConfig {
@@ -237,6 +240,9 @@ impl Default for StorageConfig {
         StorageConfig {
             enabled: false,
             backend: StorageBackend::ColdWarmCache,
+            base_path: None,
+            wal_dir: None,
+            enable_wal: true,
         }
     }
 }

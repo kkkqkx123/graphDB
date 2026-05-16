@@ -24,6 +24,8 @@ pub struct ColdWarmCacheConfig {
     pub write_buffer_size: usize,
     pub read_ahead_enabled: bool,
     pub pre_fetch_enabled: bool,
+    pub warmup_enabled: bool,
+    pub warmup_max_entries: usize,
 }
 
 impl Default for ColdWarmCacheConfig {
@@ -48,6 +50,8 @@ impl Default for ColdWarmCacheConfig {
             write_buffer_size: 4 * 1024 * 1024,
             read_ahead_enabled: true,
             pre_fetch_enabled: true,
+            warmup_enabled: true,
+            warmup_max_entries: 100,
         }
     }
 }

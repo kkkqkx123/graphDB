@@ -3,10 +3,11 @@
 //! Define the core traits and abstract interfaces of the BM25 storage module
 
 use crate::error::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Term statistics
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Bm25Stats {
     /// Term Frequency
     pub tf: HashMap<String, f32>,

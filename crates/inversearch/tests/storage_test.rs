@@ -135,7 +135,7 @@ mod memory_tests {
 
         storage.open().await.expect("open should succeed");
 
-        let index = Index::new(IndexOptions::default()).expect("create index should succeed");
+        let mut index = Index::new(IndexOptions::default()).expect("create index should succeed");
         index
             .add(1, "hello world", false)
             .expect("add should succeed");
@@ -167,7 +167,7 @@ mod memory_tests {
 
         storage.open().await.expect("open should succeed");
 
-        let index = Index::new(IndexOptions::default()).expect("create index should succeed");
+        let mut index = Index::new(IndexOptions::default()).expect("create index should succeed");
         index
             .add(1, "test content", false)
             .expect("add should succeed");
@@ -193,7 +193,7 @@ mod memory_tests {
 
         storage.open().await.expect("open should succeed");
 
-        let index = Index::new(IndexOptions::default()).expect("create index should succeed");
+        let mut index = Index::new(IndexOptions::default()).expect("create index should succeed");
         index.add(1, "doc1", false).expect("add should succeed");
         index.add(2, "doc2", false).expect("add should succeed");
         storage
@@ -215,7 +215,7 @@ mod memory_tests {
 
         storage.open().await.expect("open should succeed");
 
-        let index = Index::new(IndexOptions::default()).expect("create index should succeed");
+        let mut index = Index::new(IndexOptions::default()).expect("create index should succeed");
         index
             .add(1, "content one", false)
             .expect("add should succeed");
@@ -239,16 +239,18 @@ mod memory_tests {
 
 mod file_tests {
     use super::*;
+    use inversearch_service::index::IndexOptions;
     use inversearch_service::storage::file::FileStorage;
 
     #[tokio::test]
     async fn test_file_storage_basic() {
         let temp_dir = TempDir::new().expect("create temp dir should succeed");
-        let storage = FileStorage::new(temp_dir.path());
+        let file_path = temp_dir.path().join("index.bin");
+        let storage = FileStorage::new(&file_path);
 
         storage.open().await.expect("open should succeed");
 
-        let index = Index::new(IndexOptions::default()).expect("create index should succeed");
+        let mut index = Index::new(IndexOptions::default()).expect("create index should succeed");
         index
             .add(1, "hello world", false)
             .expect("add should succeed");
@@ -268,21 +270,19 @@ mod file_tests {
         assert_eq!(results.len(), 1);
         assert!(results.contains(&1));
 
-        storage.save_to_file().await.expect("save should succeed");
-
         storage.close().await.expect("close should succeed");
     }
 
     #[tokio::test]
     async fn test_file_storage_persistence() {
         let temp_dir = TempDir::new().expect("create temp dir should succeed");
-        let path = temp_dir.path().to_path_buf();
+        let file_path = temp_dir.path().join("persist.bin");
 
         {
-            let storage = FileStorage::new(&path);
+            let storage = FileStorage::new(&file_path);
             storage.open().await.expect("open should succeed");
 
-            let index = Index::new(IndexOptions::default()).expect("create index should succeed");
+            let mut index = Index::new(IndexOptions::default()).expect("create index should succeed");
             index
                 .add(1, "persistent data", false)
                 .expect("add should succeed");
@@ -295,7 +295,7 @@ mod file_tests {
         }
 
         {
-            let storage = FileStorage::new(&path);
+            let storage = FileStorage::new(&file_path);
             storage.open().await.expect("open should succeed");
 
             let results = storage
@@ -312,11 +312,12 @@ mod file_tests {
     #[tokio::test]
     async fn test_file_storage_size() {
         let temp_dir = TempDir::new().expect("create temp dir should succeed");
-        let storage = FileStorage::new(temp_dir.path());
+        let file_path = temp_dir.path().join("size_test.bin");
+        let storage = FileStorage::new(&file_path);
 
         storage.open().await.expect("open should succeed");
 
-        let index = Index::new(IndexOptions::default()).expect("create index should succeed");
+        let mut index = Index::new(IndexOptions::default()).expect("create index should succeed");
         index
             .add(1, "test content", false)
             .expect("add should succeed");

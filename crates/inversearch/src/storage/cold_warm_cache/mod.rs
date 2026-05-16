@@ -26,4 +26,4 @@ pub mod config;
 pub mod manager;
 
 pub use config::{ColdWarmCacheConfig, WALConfig};
-pub use manager::{CacheStats, ColdWarmCacheManager, IndexData, WALEntry, WALManager};
+pub use manager::{CacheStats, CacheStatsSnapshot, ColdWarmCacheManager, IndexData, WALEntry, WALManager};

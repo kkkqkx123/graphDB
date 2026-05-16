@@ -266,6 +266,7 @@ fn test_config_from_toml_string() {
         [storage]
         enabled = true
         backend = "coldwarmcache"
+        enable_wal = false
         
         [storage.file]
         base_path = "./data"
@@ -311,6 +312,7 @@ fn test_config_from_toml_with_validation() {
         [storage]
         enabled = false
         backend = "coldwarmcache"
+        enable_wal = false
         
         [logging]
         level = "info"
@@ -346,6 +348,7 @@ fn test_invalid_config_rejection() {
         [storage]
         enabled = false
         backend = "coldwarmcache"
+        enable_wal = false
         
         [logging]
         level = "info"

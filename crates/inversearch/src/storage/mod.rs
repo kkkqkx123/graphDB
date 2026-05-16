@@ -1,6 +1,7 @@
 pub mod common;
 pub mod cold_warm_cache;
 pub mod factory;
+pub mod file;
 pub mod memory;
 pub mod manager;
 pub mod persistence;
@@ -14,5 +15,5 @@ pub use common::{
 };
 
 pub use factory::StorageFactory;
-pub use manager::{DefaultStorage, StorageManager, StorageManagerBuilder};
+pub use manager::{StorageManager, StorageManagerBuilder};
 pub use persistence::{BackupInfo, IndexMetadata, IndexSnapshot, PersistenceManager};

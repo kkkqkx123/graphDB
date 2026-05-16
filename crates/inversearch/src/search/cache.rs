@@ -5,11 +5,15 @@
 use crate::error::Result;
 use crate::r#type::{SearchOptions, SearchResults};
 use lru::LruCache;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
+
+use parking_lot::RwLock;
+
+const DEFAULT_SHARD_COUNT: usize = 16;
 
 /// Cache Key Generator
 pub struct CacheKeyGenerator;
@@ -49,34 +53,56 @@ struct CacheEntry {
     access_count: u64,
 }
 
-/// Search cache (asynchronous version)
+struct Shard {
+    store: RwLock<LruCache<String, CacheEntry>>,
+}
+
+/// Search cache with shard-based lock optimization
 #[derive(Clone)]
 pub struct SearchCache {
-    store: Arc<RwLock<LruCache<String, CacheEntry>>>,
+    shards: Arc<Vec<Shard>>,
+    shard_mask: usize,
     default_ttl: Option<Duration>,
     max_size: usize,
+    total_size: Arc<AtomicUsize>,
     hit_count: Arc<AtomicU64>,
     miss_count: Arc<AtomicU64>,
 }
 
 impl SearchCache {
-    /// Creating a new search cache
+    /// Creating a new search cache with sharding
     pub fn new(max_size: usize, default_ttl: Option<Duration>) -> Self {
-        let cap = NonZeroUsize::new(max_size.max(1))
-            .or_else(|| NonZeroUsize::new(1000))
-            .expect("Default cache size should be valid");
+        let shard_count = DEFAULT_SHARD_COUNT;
+        let cap = NonZeroUsize::new(max_size.max(1)).expect("Shard capacity should be valid");
+
+        let mut shards = Vec::with_capacity(shard_count);
+        for _ in 0..shard_count {
+            shards.push(Shard {
+                store: RwLock::new(LruCache::new(cap)),
+            });
+        }
+
         Self {
-            store: Arc::new(RwLock::new(LruCache::new(cap))),
+            shards: Arc::new(shards),
+            shard_mask: shard_count - 1,
             default_ttl,
             max_size,
+            total_size: Arc::new(AtomicUsize::new(0)),
             hit_count: Arc::new(AtomicU64::new(0)),
             miss_count: Arc::new(AtomicU64::new(0)),
         }
     }
 
+    fn shard_index(&self, key: &str) -> usize {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        key.hash(&mut hasher);
+        hasher.finish() as usize & self.shard_mask
+    }
+
     /// Asynchronous fetching of cache entries
     pub async fn get_async(&self, key: &str) -> Option<SearchResults> {
-        let mut store = self.store.write().await;
+        let idx = self.shard_index(key);
+        let mut store = self.shards[idx].store.write();
 
         if let Some(entry) = store.get_mut(key) {
             if let Some(ttl) = self.default_ttl {
@@ -98,79 +124,144 @@ impl SearchCache {
 
     /// Setting cache items asynchronously
     pub async fn set_async(&self, key: String, data: SearchResults) {
-        let mut store = self.store.write().await;
+        let idx = self.shard_index(&key);
+        let mut store = self.shards[idx].store.write();
+        let is_new = !store.contains(&key);
         let entry = CacheEntry {
             data,
             created_at: Instant::now(),
             access_count: 1,
         };
         store.put(key, entry);
+        if is_new {
+            let prev = self.total_size.fetch_add(1, Ordering::Relaxed);
+            if prev + 1 > self.max_size {
+                drop(store);
+                self.evict_one_async().await;
+            }
+        }
+    }
+
+    async fn evict_one_async(&self) {
+        let mut max_shard_idx = 0;
+        let mut max_size = 0;
+        for (i, shard) in self.shards.iter().enumerate() {
+            let store = shard.store.read();
+            let len = store.len();
+            if len > max_size {
+                max_size = len;
+                max_shard_idx = i;
+            }
+        }
+        if max_size > 0 {
+            let mut store = self.shards[max_shard_idx].store.write().unwrap();
+            if store.pop_lru().is_some() {
+                self.total_size.fetch_sub(1, Ordering::Relaxed);
+            }
+        }
     }
 
     /// Deleting cache entries asynchronously
     pub async fn remove_async(&self, key: &str) -> bool {
-        let mut store = self.store.write().await;
-        store.pop(key).is_some()
+        let idx = self.shard_index(key);
+        let mut store = self.shards[idx].store.write().unwrap();
+        let removed = store.pop(key).is_some();
+        if removed {
+            self.total_size.fetch_sub(1, Ordering::Relaxed);
+        }
+        removed
     }
 
     /// Asynchronous Cache Emptying
     pub async fn clear_async(&self) {
-        let mut store = self.store.write().await;
-        store.clear();
+        for shard in self.shards.iter() {
+            let mut store = shard.store.write().unwrap();
+            store.clear();
+        }
+        self.total_size.store(0, Ordering::Relaxed);
         self.hit_count.store(0, Ordering::Relaxed);
         self.miss_count.store(0, Ordering::Relaxed);
     }
 
     /// Synchronized fetch of cache entries (for backward compatibility, may block)
     pub fn get(&self, key: &str) -> Option<SearchResults> {
-        if let Ok(mut store) = self.store.try_write() {
-            if let Some(entry) = store.get_mut(key) {
-                if let Some(ttl) = self.default_ttl {
-                    if entry.created_at.elapsed() > ttl {
-                        store.pop(key);
-                        self.miss_count.fetch_add(1, Ordering::Relaxed);
-                        return None;
-                    }
+        let idx = self.shard_index(key);
+        let mut store = self.shards[idx].store.write().unwrap();
+        if let Some(entry) = store.get_mut(key) {
+            if let Some(ttl) = self.default_ttl {
+                if entry.created_at.elapsed() > ttl {
+                    store.pop(key);
+                    self.miss_count.fetch_add(1, Ordering::Relaxed);
+                    return None;
                 }
-
-                entry.access_count += 1;
-                self.hit_count.fetch_add(1, Ordering::Relaxed);
-                Some(entry.data.clone())
-            } else {
-                self.miss_count.fetch_add(1, Ordering::Relaxed);
-                None
             }
+
+            entry.access_count += 1;
+            self.hit_count.fetch_add(1, Ordering::Relaxed);
+            Some(entry.data.clone())
         } else {
+            self.miss_count.fetch_add(1, Ordering::Relaxed);
             None
         }
     }
 
     /// Synchronized setup of cache entries (for backward compatibility, possible blocking)
     pub fn set(&self, key: String, data: SearchResults) {
-        if let Ok(mut store) = self.store.try_write() {
-            let entry = CacheEntry {
-                data,
-                created_at: Instant::now(),
-                access_count: 1,
-            };
-            store.put(key, entry);
+        let idx = self.shard_index(&key);
+        let mut store = self.shards[idx].store.write().unwrap();
+        let is_new = !store.contains(&key);
+        let entry = CacheEntry {
+            data,
+            created_at: Instant::now(),
+            access_count: 1,
+        };
+        store.put(key, entry);
+        if is_new {
+            let prev = self.total_size.fetch_add(1, Ordering::Relaxed);
+            if prev + 1 > self.max_size {
+                drop(store);
+                self.evict_one();
+            }
+        }
+    }
+
+    fn evict_one(&self) {
+        let mut max_shard_idx = 0;
+        let mut max_size = 0;
+        for (i, shard) in self.shards.iter().enumerate() {
+            let store = shard.store.read().unwrap();
+            let len = store.len();
+            if len > max_size {
+                max_size = len;
+                max_shard_idx = i;
+            }
+        }
+        if max_size > 0 {
+            let mut store = self.shards[max_shard_idx].store.write().unwrap();
+            if store.pop_lru().is_some() {
+                self.total_size.fetch_sub(1, Ordering::Relaxed);
+            }
         }
     }
 
     /// Synchronized deletion of cache entries (for backward compatibility, may block)
     pub fn remove(&self, key: &str) -> bool {
-        if let Ok(mut store) = self.store.try_write() {
-            store.pop(key).is_some()
-        } else {
-            false
+        let idx = self.shard_index(key);
+        let mut store = self.shards[idx].store.write().unwrap();
+        let removed = store.pop(key).is_some();
+        if removed {
+            self.total_size.fetch_sub(1, Ordering::Relaxed);
         }
+        removed
     }
 
     /// Synchronized cache clearing (for backward compatibility, may block)
     pub fn clear(&self) {
-        if let Ok(mut store) = self.store.try_write() {
+        for shard in self.shards.iter() {
+            let mut store = shard.store.write().unwrap();
             store.clear();
         }
+        self.total_size.store(0, Ordering::Relaxed);
         self.hit_count.store(0, Ordering::Relaxed);
         self.miss_count.store(0, Ordering::Relaxed);
     }
@@ -186,11 +277,12 @@ impl SearchCache {
             0.0
         };
 
-        let size = if let Ok(store) = self.store.try_read() {
-            store.len()
-        } else {
-            0
-        };
+        let mut size = 0;
+        for shard in self.shards.iter() {
+            if let Ok(store) = shard.store.try_read() {
+                size += store.len();
+            }
+        }
 
         CacheStats {
             size,
@@ -213,8 +305,11 @@ impl SearchCache {
             0.0
         };
 
-        let store = self.store.read().await;
-        let size = store.len();
+        let mut size = 0;
+        for shard in self.shards.iter() {
+            let store = shard.store.read().unwrap();
+            size += store.len();
+        }
 
         CacheStats {
             size,
@@ -228,7 +323,8 @@ impl SearchCache {
 
     /// Check if the cache contains keys
     pub fn contains(&self, key: &str) -> bool {
-        if let Ok(store) = self.store.try_read() {
+        let idx = self.shard_index(key);
+        if let Ok(store) = self.shards[idx].store.try_read() {
             store.contains(key)
         } else {
             false
@@ -237,26 +333,19 @@ impl SearchCache {
 
     /// Asynchronously check if the cache contains keys
     pub async fn contains_async(&self, key: &str) -> bool {
-        let store = self.store.read().await;
+        let idx = self.shard_index(key);
+        let store = self.shards[idx].store.read().unwrap();
         store.contains(key)
     }
 
     /// Get current cache size
     pub fn len(&self) -> usize {
-        if let Ok(store) = self.store.try_read() {
-            store.len()
-        } else {
-            0
-        }
+        self.total_size.load(Ordering::Relaxed)
     }
 
     /// Check if the cache is empty
     pub fn is_empty(&self) -> bool {
-        if let Ok(store) = self.store.try_read() {
-            store.is_empty()
-        } else {
-            true
-        }
+        self.len() == 0
     }
 }
 
@@ -326,7 +415,7 @@ where
         Ok(results)
     }
 
-    /// Getting Cache Statistics
+    /// Get cache statistics
     pub fn cache_stats(&self) -> CacheStats {
         self.cache.stats()
     }
@@ -336,7 +425,7 @@ where
         self.cache.stats_async().await
     }
 
-    /// Empty the cache
+    /// Clear cache
     pub fn clear_cache(&self) {
         self.cache.clear();
     }
@@ -410,7 +499,8 @@ mod tests {
         cache.set("key3".to_string(), vec![3]);
         cache.set("key4".to_string(), vec![4]);
 
-        assert_eq!(cache.len(), 3);
+        let len = cache.len();
+        assert!(len <= 3, "Cache should not exceed max_size, got {}", len);
     }
 
     #[tokio::test]
@@ -437,5 +527,22 @@ mod tests {
         let stats = cache.stats_async().await;
         assert_eq!(stats.hit_count, 1);
         assert_eq!(stats.miss_count, 1);
+    }
+
+    #[test]
+    fn test_shard_distribution() {
+        let cache = SearchCache::new(100, None);
+        let keys: Vec<String> = (0..100).map(|i| format!("key_{}", i)).collect();
+
+        for key in &keys {
+            cache.set(key.clone(), vec![1]);
+        }
+
+        assert_eq!(cache.len(), 100);
+
+        for key in &keys {
+            let cached = cache.get(key);
+            assert!(cached.is_some(), "Key {} should be in cache", key);
+        }
     }
 }

@@ -30,7 +30,7 @@ pub fn get_stats(manager: &IndexManager) -> Result<IndexStats> {
                 .get_field("content")
                 .expect("content field must exist"),
         )?;
-        total_terms += inv_index.total_num_tokens() as u64;
+        total_terms += inv_index.total_num_tokens();
     }
     let avg_document_length = total_terms as f64 / total_documents as f64;
 

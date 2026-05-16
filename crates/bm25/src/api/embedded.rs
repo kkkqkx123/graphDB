@@ -276,7 +276,7 @@ impl Bm25Index {
                     if content.is_some() {
                         let mut snippet_gen =
                             SnippetGenerator::create(&searcher, &*query, self.schema.content)
-                                .map_err(|e| crate::error::Bm25Error::TantivyError(e.into()))?;
+                                .map_err(crate::error::Bm25Error::TantivyError)?;
                         snippet_gen.set_max_num_chars(100);
 
                         let snippet = snippet_gen.snippet_from_doc(&doc);
