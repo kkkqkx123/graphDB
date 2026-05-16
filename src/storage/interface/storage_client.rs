@@ -3,7 +3,7 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::interfaces::TransactionContextInfo;
+use crate::core::types::TransactionContextInfo;
 use crate::storage::metadata::{SchemaManager, Schema};
 use std::sync::Arc;
 

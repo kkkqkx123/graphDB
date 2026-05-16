@@ -11,4 +11,4 @@ pub use processor::GenericBatchProcessor;
 pub use processor::TransactionBatchBuffer;
 pub use trait_def::BatchProcessor;
 
-pub use crate::interfaces::transaction_buffer::TransactionBuffer;
+

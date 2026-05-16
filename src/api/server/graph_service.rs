@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
 use crate::core::stats::StatsManager;
 use crate::core::{MetricType, Permission};
-use crate::interfaces::TransactionContextInfo;
+use crate::core::types::TransactionContextInfo;
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
 use crate::storage::{SchemaManager, StorageClient};

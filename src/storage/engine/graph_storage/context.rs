@@ -16,7 +16,7 @@ use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
 use crate::storage::metadata::{
     ExtendedSchemaManager, IndexManager, SchemaManager,
 };
-use crate::interfaces::TransactionContextInfo;
+use crate::core::types::TransactionContextInfo;
 use crate::core::mvcc::VersionManager;
 
 #[derive(Clone)]

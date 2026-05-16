@@ -21,6 +21,7 @@ pub mod storage_ids;
 pub mod table_tracker;
 pub mod tag;
 pub mod transaction_config;
+pub mod transaction_context;
 pub mod undo;
 pub mod user;
 // Full-text search types
@@ -242,6 +243,7 @@ pub use self::storage_ids::{
 };
 pub use self::table_tracker::{TableId, TableTracker, TableTrackerConfig, TableType};
 pub use self::transaction_config::{DurabilityLevel, TransactionIsolationLevel};
+pub use self::transaction_context::TransactionContextInfo;
 pub use self::undo::{UndoLogError, UndoLogResult, UndoTarget};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;

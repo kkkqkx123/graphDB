@@ -10,7 +10,7 @@ use crate::search::manager::FulltextIndexManager;
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
 };
-use crate::interfaces::TransactionBuffer;
+
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 use crate::sync::external_index::{
     FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient, VectorClientConfig,

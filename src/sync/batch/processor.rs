@@ -8,7 +8,6 @@ use super::buffer::BatchBuffer;
 use super::config::BatchConfig;
 use super::error::{BatchError, BatchResult};
 use super::trait_def::BatchProcessor;
-use crate::interfaces::TransactionBuffer;
 use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexKey, IndexOperation};
 use crate::core::types::TransactionId;
 
@@ -312,11 +311,13 @@ impl TransactionBatchBuffer {
             Ok(Vec::new())
         }
     }
-}
 
-#[async_trait]
-impl TransactionBuffer for TransactionBatchBuffer {
-    async fn prepare(&self, txn_id: TransactionId, operation: IndexOperation) -> BatchResult<()> {
+    /// Buffer an operation for the given transaction
+    pub async fn prepare(
+        &self,
+        txn_id: TransactionId,
+        operation: IndexOperation,
+    ) -> BatchResult<()> {
         let txn_buffer = self.pending.entry(txn_id).or_default();
 
         let key = match &operation {
@@ -330,23 +331,14 @@ impl TransactionBuffer for TransactionBatchBuffer {
         Ok(())
     }
 
-    async fn commit(&self, txn_id: TransactionId) -> BatchResult<()> {
-        if let Some((_, txn_buffer)) = self.pending.remove(&txn_id) {
-            let count: usize = txn_buffer.iter().map(|e| e.value().operations.len()).sum();
-            log::debug!(
-                "TransactionBatchBuffer::commit called for {} operations",
-                count
-            );
-        }
-        Ok(())
-    }
-
-    async fn rollback(&self, txn_id: TransactionId) -> BatchResult<()> {
+    /// Rollback the transaction by discarding all buffered operations
+    pub async fn rollback(&self, txn_id: TransactionId) -> BatchResult<()> {
         self.pending.remove(&txn_id);
         Ok(())
     }
 
-    fn pending_count(&self, txn_id: TransactionId) -> usize {
+    /// Get the number of pending operations for a transaction
+    pub fn pending_count(&self, txn_id: TransactionId) -> usize {
         self.pending
             .get(&txn_id)
             .map(|txn_buffer| txn_buffer.iter().map(|e| e.value().operations.len()).sum())

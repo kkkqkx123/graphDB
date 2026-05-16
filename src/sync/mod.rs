@@ -15,7 +15,6 @@ pub mod vector_sync;
 pub use crate::search::SyncConfig;
 pub use batch::{
     BatchConfig, BatchError, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
-    TransactionBuffer,
 };
 pub use circuit_breaker::{
     with_circuit_breaker, CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError,

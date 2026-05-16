@@ -29,6 +29,4 @@ pub trait BatchProcessor: Send + Sync + std::fmt::Debug {
     async fn stop_background_task(&self);
 }
 
-// NOTE: TransactionBuffer trait has been moved to crate::interfaces::transaction_buffer
-// This module now re-exports it for backward compatibility
-pub use crate::interfaces::transaction_buffer::TransactionBuffer;
+

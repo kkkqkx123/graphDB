@@ -38,7 +38,7 @@ use crate::storage::engine::{PersistenceConfig, PropertyGraph};
 use crate::storage::index::secondary::IndexGcManager;
 use crate::storage::interface::{StorageClient, StorageStats};
 use crate::storage::metadata::{SchemaManager, Schema};
-use crate::interfaces::TransactionContextInfo;
+use crate::core::types::TransactionContextInfo;
 
 #[derive(Clone)]
 pub struct GraphStorage {
