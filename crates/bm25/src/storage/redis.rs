@@ -13,14 +13,15 @@
 //! - Dynamic batch resizing
 
 use crate::error::{Bm25Error, Result};
+use crate::storage::common::metrics::{ErrorType, StorageMetrics, StorageMetricsCollector};
 use crate::storage::common::r#trait::{Bm25Stats, StorageInterface};
 use crate::storage::common::types::StorageInfo;
 use bb8::Pool;
 use redis::{aio::MultiplexedConnection, Client as RedisClient};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 /// Redis Connection Pool Manager
 pub struct RedisConnectionManager {
@@ -80,24 +81,15 @@ impl Default for RedisStorageConfig {
     }
 }
 
-/// Error Type Statistics
-#[derive(Debug, Default)]
-pub struct ErrorStats {
-    pub connection_errors: AtomicU64,
-    pub serialization_errors: AtomicU64,
-    pub deserialization_errors: AtomicU64,
-    pub timeout_errors: AtomicU64,
-    pub other_errors: AtomicU64,
-}
+use std::time::Duration;
 
 /// Redis Storage Implementation
 pub struct RedisStorage {
     pool: Pool<RedisConnectionManager>,
     key_prefix: String,
     memory_usage: Arc<AtomicUsize>,
-    operation_count: Arc<AtomicU64>,
-    total_latency: Arc<AtomicU64>,
-    error_stats: Arc<ErrorStats>,
+    /// Unified metrics collector replacing individual atomic fields
+    metrics: Arc<StorageMetricsCollector>,
 }
 
 impl std::fmt::Debug for RedisStorage {
@@ -105,7 +97,7 @@ impl std::fmt::Debug for RedisStorage {
         f.debug_struct("RedisStorage")
             .field("key_prefix", &self.key_prefix)
             .field("memory_usage", &self.memory_usage.load(Ordering::Relaxed))
-            .field("operation_count", &self.operation_count.load(Ordering::Relaxed))
+            .field("operation_count", &self.metrics.get_operation_count())
             .finish()
     }
 }
@@ -143,9 +135,7 @@ impl RedisStorage {
             pool,
             key_prefix,
             memory_usage: Arc::new(AtomicUsize::new(0)),
-            operation_count: Arc::new(AtomicU64::new(0)),
-            total_latency: Arc::new(AtomicU64::new(0)),
-            error_stats: Arc::new(ErrorStats::default()),
+            metrics: Arc::new(StorageMetricsCollector::default()),
         })
     }
 
@@ -163,9 +153,7 @@ impl RedisStorage {
 
     async fn get_connection(&self) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>> {
         self.pool.get().await.map_err(|e| {
-            self.error_stats
-                .connection_errors
-                .fetch_add(1, Ordering::Relaxed);
+            self.metrics.record_error(ErrorType::Connection);
             Bm25Error::StorageError(e.to_string())
         })
     }
@@ -188,9 +176,7 @@ impl RedisStorage {
                 .query_async(&mut *conn)
                 .await
                 .map_err(|e| {
-                    self.error_stats
-                        .connection_errors
-                        .fetch_add(1, Ordering::Relaxed);
+                    self.metrics.record_error(ErrorType::Connection);
                     Bm25Error::StorageError(e.to_string())
                 })?;
 
@@ -219,6 +205,8 @@ impl RedisStorage {
 
     /// Optimized memory usage calculation
     async fn update_memory_usage(&self) -> Result<()> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
 
         // Use the Redis INFO memory command to get overall memory usage
@@ -227,15 +215,15 @@ impl RedisStorage {
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.error_stats
-                    .connection_errors
-                    .fetch_add(1, Ordering::Relaxed);
+                self.metrics.record_error(ErrorType::Connection);
                 Bm25Error::StorageError(e.to_string())
             })?;
 
         // Parsing the used_memory field
         let memory = self.parse_redis_memory_info(&info);
         self.memory_usage.store(memory, Ordering::Relaxed);
+        
+        self.metrics.record_operation(start);
         Ok(())
     }
 
@@ -250,56 +238,47 @@ impl RedisStorage {
         0
     }
 
-    fn record_error(&self, error_type: &str) {
-        match error_type {
-            "connection" => {
-                self.error_stats
-                    .connection_errors
-                    .fetch_add(1, Ordering::Relaxed);
-            }
-            "serialization" => {
-                self.error_stats
-                    .serialization_errors
-                    .fetch_add(1, Ordering::Relaxed);
-            }
-            "deserialization" => {
-                self.error_stats
-                    .deserialization_errors
-                    .fetch_add(1, Ordering::Relaxed);
-            }
-            "timeout" => {
-                self.error_stats
-                    .timeout_errors
-                    .fetch_add(1, Ordering::Relaxed);
-            }
-            _ => {
-                self.error_stats
-                    .other_errors
-                    .fetch_add(1, Ordering::Relaxed);
-            }
-        }
+    /// Record an error of the specified type
+    fn record_error(&self, error_type: ErrorType) {
+        self.metrics.record_error(error_type);
+    }
+
+    /// Gets operation statistics and performance metrics
+    ///
+    /// Returns a snapshot of current storage metrics including
+    /// operation counts, latencies, and error statistics.
+    pub fn get_operation_stats(&self) -> StorageMetrics {
+        self.metrics.get_metrics(self.memory_usage.load(Ordering::Relaxed) as u64)
     }
 }
 
 #[async_trait::async_trait]
 impl StorageInterface for RedisStorage {
     async fn init(&mut self) -> Result<()> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
-        let _: () = redis::cmd("PING")
+        let _: String = redis::cmd("PING")
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.record_error("connection");
+                self.record_error(ErrorType::Connection);
                 Bm25Error::StorageError(e.to_string())
             })?;
+        
+        self.metrics.record_operation(start);
         Ok(())
     }
 
     async fn close(&mut self) -> Result<()> {
+        let start = Instant::now();
+        self.metrics.record_operation(start);
         Ok(())
     }
 
     async fn commit_stats(&mut self, term: &str, tf: f32, df: u64) -> Result<()> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
 
         let mut pipe = redis::pipe();
@@ -314,14 +293,17 @@ impl StorageInterface for RedisStorage {
         pipe.cmd("SET").arg(self.make_df_key(term)).arg(df as usize);
 
         let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
-            self.record_error("connection");
+            self.record_error(ErrorType::Connection);
             Bm25Error::StorageError(e.to_string())
         })?;
 
+        self.metrics.record_operation(start);
         Ok(())
     }
 
     async fn commit_batch(&mut self, stats: &Bm25Stats) -> Result<()> {
+        let start = Instant::now();
+        
         if stats.tf.is_empty() && stats.df.is_empty() {
             return Ok(());
         }
@@ -345,17 +327,20 @@ impl StorageInterface for RedisStorage {
         }
 
         let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
-            self.record_error("connection");
+            self.record_error(ErrorType::Connection);
             Bm25Error::StorageError(e.to_string())
         })?;
 
         // Update memory usage
         self.update_memory_usage().await?;
 
+        self.metrics.record_operation(start);
         Ok(())
     }
 
     async fn get_stats(&self, term: &str) -> Result<Option<Bm25Stats>> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
 
         let tf: Option<f32> = redis::cmd("HGET")
@@ -385,6 +370,8 @@ impl StorageInterface for RedisStorage {
             df_map.insert(term.to_string(), df_val);
         }
 
+        self.metrics.record_operation(start);
+        
         Ok(Some(Bm25Stats {
             tf: tf_map,
             df: df_map,
@@ -394,6 +381,8 @@ impl StorageInterface for RedisStorage {
     }
 
     async fn get_df(&self, term: &str) -> Result<Option<u64>> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
 
         let df: Option<u64> = redis::cmd("GET")
@@ -401,15 +390,19 @@ impl StorageInterface for RedisStorage {
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.record_error("connection");
+                self.record_error(ErrorType::Connection);
                 Bm25Error::StorageError(e.to_string())
             })
             .unwrap_or(None);
 
+        self.metrics.record_operation(start);
+        
         Ok(df)
     }
 
     async fn get_tf(&self, term: &str, doc_id: &str) -> Result<Option<f32>> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
 
         // Get the TF value for a specific doc_id from the hash
@@ -419,15 +412,19 @@ impl StorageInterface for RedisStorage {
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.record_error("connection");
+                self.record_error(ErrorType::Connection);
                 Bm25Error::StorageError(e.to_string())
             })
             .unwrap_or(None);
 
+        self.metrics.record_operation(start);
+        
         Ok(tf)
     }
 
     async fn clear(&mut self) -> Result<()> {
+        let start = Instant::now();
+        
         let pattern = format!("{}:*", self.key_prefix);
         let keys = self.scan_keys(&pattern).await?;
 
@@ -438,15 +435,18 @@ impl StorageInterface for RedisStorage {
                 .query_async(&mut *conn)
                 .await
                 .map_err(|e| {
-                    self.record_error("connection");
+                    self.record_error(ErrorType::Connection);
                     Bm25Error::StorageError(e.to_string())
                 })?;
         }
 
+        self.metrics.record_operation(start);
         Ok(())
     }
 
     async fn info(&self) -> Result<StorageInfo> {
+        let start = Instant::now();
+        
         let pattern = format!("{}:*", self.key_prefix);
         let _keys = self.scan_keys(&pattern).await?;
 
@@ -456,6 +456,8 @@ impl StorageInterface for RedisStorage {
         // Using Memory Usage
         let total_size = self.memory_usage.load(Ordering::Relaxed) as u64;
 
+        self.metrics.record_operation(start);
+        
         Ok(StorageInfo {
             name: "RedisStorage".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -467,17 +469,25 @@ impl StorageInterface for RedisStorage {
     }
 
     async fn health_check(&self) -> Result<bool> {
-        match self.pool.get().await {
+        let start = Instant::now();
+        
+        let healthy = match self.pool.get().await {
             Ok(mut conn) => {
                 let result: std::result::Result<String, redis::RedisError> =
                     redis::cmd("PING").query_async(&mut *conn).await;
-                Ok(result.is_ok())
+                result.is_ok()
             }
-            Err(_) => Ok(false),
-        }
+            Err(_) => false,
+        };
+
+        self.metrics.record_operation(start);
+        
+        Ok(healthy)
     }
 
     async fn delete_doc_stats(&mut self, doc_id: &str) -> Result<()> {
+        let start = Instant::now();
+        
         // Deleting a TF statistic for a specific document requires that the doc_id be removed from all lexical items
         // This is a time-consuming operation that requires scanning all TF keys
         let pattern = format!("{}:tf:*", self.key_prefix);
@@ -493,17 +503,18 @@ impl StorageInterface for RedisStorage {
             }
 
             let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
-                self.record_error("connection");
+                self.record_error(ErrorType::Connection);
                 Bm25Error::StorageError(e.to_string())
             })?;
         }
 
+        self.metrics.record_operation(start);
         Ok(())
     }
 }
 
 impl RedisStorage {
-    /// health checkup
+    /// Health checkup
     pub async fn health_check(&self) -> Result<bool> {
         match self.pool.get().await {
             Ok(mut conn) => {
@@ -520,63 +531,10 @@ impl RedisStorage {
         self.memory_usage.load(Ordering::Relaxed)
     }
 
-    /// Get Operation Statistics
-    pub fn get_operation_stats(&self) -> StorageMetrics {
-        let operation_count = self.operation_count.load(Ordering::Relaxed) as usize;
-        let total_latency = self.total_latency.load(Ordering::Relaxed) as usize;
-        let avg_latency = if operation_count > 0 {
-            total_latency / operation_count
-        } else {
-            0
-        };
-
-        StorageMetrics {
-            operation_count,
-            average_latency: avg_latency,
-            memory_usage: self.get_memory_usage(),
-            error_count: self.get_total_errors(),
-            connection_errors: self.error_stats.connection_errors.load(Ordering::Relaxed) as usize,
-            serialization_errors: self
-                .error_stats
-                .serialization_errors
-                .load(Ordering::Relaxed) as usize,
-            deserialization_errors: self
-                .error_stats
-                .deserialization_errors
-                .load(Ordering::Relaxed) as usize,
-        }
-    }
-
-    fn get_total_errors(&self) -> usize {
-        (self.error_stats.connection_errors.load(Ordering::Relaxed)
-            + self
-                .error_stats
-                .serialization_errors
-                .load(Ordering::Relaxed)
-            + self
-                .error_stats
-                .deserialization_errors
-                .load(Ordering::Relaxed)
-            + self.error_stats.timeout_errors.load(Ordering::Relaxed)
-            + self.error_stats.other_errors.load(Ordering::Relaxed)) as usize
-    }
-
-    /// Record operation start time (internal use)
-    #[allow(dead_code)]
-    fn record_operation_start(&self) -> Instant {
-        Instant::now()
-    }
-
-    /// Record operation completion (internal use)
-    #[allow(dead_code)]
-    fn record_operation_completion(&self, start_time: Instant) {
-        let latency = start_time.elapsed().as_micros() as u64;
-        self.operation_count.fetch_add(1, Ordering::Relaxed);
-        self.total_latency.fetch_add(latency, Ordering::Relaxed);
-    }
-
     /// Submit document-specific TF statistics (Redis-specific method)
     pub async fn commit_doc_tf(&mut self, term: &str, doc_id: &str, tf: f32) -> Result<()> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
 
         let _: () = redis::cmd("HINCRBYFLOAT")
@@ -586,10 +544,11 @@ impl RedisStorage {
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.record_error("connection");
+                self.record_error(ErrorType::Connection);
                 Bm25Error::StorageError(e.to_string())
             })?;
 
+        self.metrics.record_operation(start);
         Ok(())
     }
 
@@ -599,6 +558,8 @@ impl RedisStorage {
         term: &str,
         doc_tfs: &[(String, f32)],
     ) -> Result<()> {
+        let start = Instant::now();
+        
         if doc_tfs.is_empty() {
             return Ok(());
         }
@@ -614,15 +575,18 @@ impl RedisStorage {
         }
 
         let _: () = pipe.query_async(&mut *conn).await.map_err(|e| {
-            self.record_error("connection");
+            self.record_error(ErrorType::Connection);
             Bm25Error::StorageError(e.to_string())
         })?;
 
+        self.metrics.record_operation(start);
         Ok(())
     }
 
     /// Get the TF of all documents under the term (Redis-specific method)
     pub async fn get_all_doc_tf(&self, term: &str) -> Result<HashMap<String, f32>> {
+        let start = Instant::now();
+        
         let mut conn = self.get_connection().await?;
 
         let tf_map: HashMap<String, f32> = redis::cmd("HGETALL")
@@ -630,41 +594,13 @@ impl RedisStorage {
             .query_async(&mut *conn)
             .await
             .map_err(|e| {
-                self.record_error("connection");
+                self.record_error(ErrorType::Connection);
                 Bm25Error::StorageError(e.to_string())
             })
             .unwrap_or_default();
 
+        self.metrics.record_operation(start);
+        
         Ok(tf_map)
-    }
-}
-
-/// Storage Performance Metrics
-#[derive(Debug, Clone, Default)]
-pub struct StorageMetrics {
-    pub operation_count: usize,
-    pub average_latency: usize, // microsecond
-    pub memory_usage: usize,
-    pub error_count: usize,
-    pub connection_errors: usize,
-    pub serialization_errors: usize,
-    pub deserialization_errors: usize,
-}
-
-impl StorageMetrics {
-    /// Creating empty indicators
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Reset all indicators
-    pub fn reset(&mut self) {
-        self.operation_count = 0;
-        self.average_latency = 0;
-        self.memory_usage = 0;
-        self.error_count = 0;
-        self.connection_errors = 0;
-        self.serialization_errors = 0;
-        self.deserialization_errors = 0;
     }
 }
