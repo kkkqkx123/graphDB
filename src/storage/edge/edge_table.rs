@@ -141,6 +141,19 @@ impl EdgeTable {
             ));
         }
 
+        for (name, value) in property_values {
+            let prop_def = self.schema.properties.iter()
+                .find(|p| &p.name == name)
+                .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
+
+            if value.data_type() != prop_def.data_type {
+                return Err(StorageError::type_mismatch(
+                    prop_def.data_type.clone(),
+                    value.data_type(),
+                ));
+            }
+        }
+
         let edge_id = self.edge_id_counter.fetch_add(1, Ordering::Relaxed);
 
         let prop_offset = if !property_values.is_empty() {
@@ -616,9 +629,9 @@ impl EdgeTable {
                 .set_property_by_id(nbr.prop_offset, params.col_id, Some(params.value.clone()))?;
 
             if self.schema.ie_strategy != EdgeStrategy::None {
-                if let Some(_ie_nbr) = self.in_csr.get_edge(params.dst, params.src, params.ts) {
-                    self.properties
-                        .set_property_by_id(_ie_nbr.prop_offset, params.col_id, Some(params.value.clone()))?;
+                if let Some(ie_nbr) = self.in_csr.get_edge(params.dst, params.src, params.ts) {
+                    debug_assert_eq!(nbr.prop_offset, ie_nbr.prop_offset,
+                        "out_csr and in_csr should share the same prop_offset");
                 }
             }
             return Ok(true);
@@ -893,6 +906,14 @@ impl EdgeTable {
         for (_, nbr) in self.out_csr.iter(ts) {
             if nbr.prop_offset > 0 {
                 valid_offsets.insert(nbr.prop_offset);
+            }
+        }
+
+        if self.schema.ie_strategy != EdgeStrategy::None {
+            for (_, nbr) in self.in_csr.iter(ts) {
+                if nbr.prop_offset > 0 {
+                    valid_offsets.insert(nbr.prop_offset);
+                }
             }
         }
 

@@ -202,6 +202,11 @@ impl PropertyTable {
         prop_id: i32,
         value: Option<Value>,
     ) -> StorageResult<()> {
+        if prop_id < 0 {
+            return Err(StorageError::invalid_input(format!(
+                "prop_id cannot be negative: {}", prop_id
+            )));
+        }
         let col_idx = prop_id as usize;
         let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
         if row_idx >= self.rows.len() {
@@ -217,6 +222,9 @@ impl PropertyTable {
     }
 
     pub fn get_property_by_id(&self, offset: u32, prop_id: i32) -> Option<Value> {
+        if prop_id < 0 {
+            return None;
+        }
         let col_idx = prop_id as usize;
         let row_idx = prop_offset_to_index(offset)?;
         if row_idx >= self.rows.len() {

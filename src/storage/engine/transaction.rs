@@ -108,10 +108,10 @@ impl TransactionOps {
             .ok_or(InsertTransactionError::LabelNotFound(params.dst_label))?;
 
         let src_external = src_table
-            .get_external_id(params.src_vid.as_int64().unwrap_or(0) as u32)
+            .get_external_id(params.src_vid.as_int64().unwrap_or(0) as u32, ts)
             .ok_or(InsertTransactionError::VertexNotFound(params.src_vid))?;
         let dst_external = dst_table
-            .get_external_id(params.dst_vid.as_int64().unwrap_or(0) as u32)
+            .get_external_id(params.dst_vid.as_int64().unwrap_or(0) as u32, ts)
             .ok_or(InsertTransactionError::VertexNotFound(params.dst_vid))?;
 
         let props: Vec<(String, Value)> = properties
@@ -150,11 +150,11 @@ impl TransactionOps {
         schema_ops: &SchemaOps,
         label: TxnLabelId,
         vid: TxnVertexId,
-        _ts: Timestamp,
+        ts: Timestamp,
     ) -> Option<Vec<u8>> {
         schema_ops
             .get_vertex_table(label)?
-            .get_external_id(vid.as_int64().unwrap_or(0) as u32)
+            .get_external_id(vid.as_int64().unwrap_or(0) as u32, ts)
             .map(|s| s.into_bytes())
     }
 

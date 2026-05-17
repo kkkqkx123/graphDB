@@ -95,6 +95,19 @@ impl VertexTable {
             return Err(StorageError::storage_not_open());
         }
 
+        for (name, value) in properties {
+            let prop_def = self.schema.properties.iter()
+                .find(|p| &p.name == name)
+                .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
+
+            if value.data_type() != prop_def.data_type {
+                return Err(StorageError::type_mismatch(
+                    prop_def.data_type.clone(),
+                    value.data_type(),
+                ));
+            }
+        }
+
         if self.id_indexer.contains(&external_id.to_string()) {
             let internal_id = self
                 .id_indexer
@@ -355,7 +368,10 @@ impl VertexTable {
         }
     }
 
-    pub fn get_external_id(&self, internal_id: u32) -> Option<String> {
+    pub fn get_external_id(&self, internal_id: u32, ts: Timestamp) -> Option<String> {
+        if !self.is_open || !self.timestamps.is_valid(internal_id, ts) {
+            return None;
+        }
         self.id_indexer.get_key(internal_id).cloned()
     }
 
