@@ -15,6 +15,7 @@ use super::types::{
 pub struct AnonMmap {
     base: MmapBase,
     config: ContainerConfig,
+    allocation_count: u64,
 }
 
 impl AnonMmap {
@@ -29,6 +30,7 @@ impl AnonMmap {
     pub fn with_config(config: ContainerConfig) -> ContainerResult<Self> {
         let mut base = MmapBase::new();
         let capacity = config.initial_capacity;
+        let mut allocation_count = 0;
 
         if capacity > 0 {
             let layout = Layout::from_size_align(capacity, 8)
@@ -39,9 +41,10 @@ impl AnonMmap {
 
             base.data = data.as_ptr();
             base.capacity = capacity;
+            allocation_count = 1;
         }
 
-        Ok(Self { base, config })
+        Ok(Self { base, config, allocation_count })
     }
 
     pub fn as_slice(&self) -> &[u8] {
@@ -61,26 +64,44 @@ impl AnonMmap {
     }
 
     pub fn write_at(&mut self, offset: usize, data: &[u8]) -> ContainerResult<()> {
+        if data.is_empty() {
+            return Ok(());
+        }
+
         let end = offset + data.len();
         if end > self.base.size {
             self.resize(end)?;
         }
 
-        if !self.base.data.is_null() && end <= self.base.capacity {
-            unsafe {
-                std::ptr::copy_nonoverlapping(data.as_ptr(), self.base.data.add(offset), data.len());
-            }
+        if self.base.data.is_null() {
+            return Err(ContainerError::NotInitialized);
+        }
+
+        if end > self.base.capacity {
+            return Err(ContainerError::InvalidSize(format!(
+                "Write of {} bytes at offset {} exceeds capacity {}",
+                data.len(),
+                offset,
+                self.base.capacity
+            )));
+        }
+
+        unsafe {
+            std::ptr::copy_nonoverlapping(data.as_ptr(), self.base.data.add(offset), data.len());
         }
         Ok(())
     }
 
     pub fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
         if offset + len > self.base.size {
-            return Err(ContainerError::InvalidOperation("Read out of bounds".to_string()));
+            return Err(ContainerError::InvalidSize(format!(
+                "Read of {} bytes at offset {} exceeds size {}",
+                len, offset, self.base.size
+            )));
         }
 
         if self.base.data.is_null() {
-            return Ok(vec![0u8; len]);
+            return Err(ContainerError::NotInitialized);
         }
 
         let mut result = vec![0u8; len];
@@ -148,6 +169,7 @@ impl IDataContainer for AnonMmap {
         self.base.data = new_data.as_ptr();
         self.base.capacity = new_capacity;
         self.base.size = new_size;
+        self.allocation_count += 1;
         Ok(())
     }
 
@@ -168,7 +190,7 @@ impl IDataContainer for AnonMmap {
             capacity: self.base.capacity,
             used: self.base.size,
             is_huge_page: self.base.is_huge_page,
-            allocation_count: 0,
+            allocation_count: self.allocation_count,
         }
     }
 
@@ -193,6 +215,7 @@ impl Drop for AnonMmap {
 pub struct HugePageMmap {
     base: MmapBase,
     config: ContainerConfig,
+    allocation_count: u64,
 }
 
 impl HugePageMmap {
@@ -207,6 +230,7 @@ impl HugePageMmap {
     pub fn with_config(config: ContainerConfig) -> ContainerResult<Self> {
         let mut base = MmapBase::new();
         let capacity = MmapBase::align_to_huge_page(config.initial_capacity, config.huge_page_size);
+        let mut allocation_count = 0;
 
         if capacity > 0 {
             let ptr = match MmapBase::allocate_huge_pages(capacity) {
@@ -225,9 +249,10 @@ impl HugePageMmap {
 
             base.data = ptr;
             base.capacity = capacity;
+            allocation_count = 1;
         }
 
-        Ok(Self { base, config })
+        Ok(Self { base, config, allocation_count })
     }
 
     pub fn as_slice(&self) -> &[u8] {
@@ -247,26 +272,44 @@ impl HugePageMmap {
     }
 
     pub fn write_at(&mut self, offset: usize, data: &[u8]) -> ContainerResult<()> {
+        if data.is_empty() {
+            return Ok(());
+        }
+
         let end = offset + data.len();
         if end > self.base.size {
             self.resize(end)?;
         }
 
-        if !self.base.data.is_null() && end <= self.base.capacity {
-            unsafe {
-                std::ptr::copy_nonoverlapping(data.as_ptr(), self.base.data.add(offset), data.len());
-            }
+        if self.base.data.is_null() {
+            return Err(ContainerError::NotInitialized);
+        }
+
+        if end > self.base.capacity {
+            return Err(ContainerError::InvalidSize(format!(
+                "Write of {} bytes at offset {} exceeds capacity {}",
+                data.len(),
+                offset,
+                self.base.capacity
+            )));
+        }
+
+        unsafe {
+            std::ptr::copy_nonoverlapping(data.as_ptr(), self.base.data.add(offset), data.len());
         }
         Ok(())
     }
 
     pub fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
         if offset + len > self.base.size {
-            return Err(ContainerError::InvalidOperation("Read out of bounds".to_string()));
+            return Err(ContainerError::InvalidSize(format!(
+                "Read of {} bytes at offset {} exceeds size {}",
+                len, offset, self.base.size
+            )));
         }
 
         if self.base.data.is_null() {
-            return Ok(vec![0u8; len]);
+            return Err(ContainerError::NotInitialized);
         }
 
         let mut result = vec![0u8; len];
@@ -348,6 +391,7 @@ impl IDataContainer for HugePageMmap {
         self.base.capacity = new_capacity;
         self.base.size = new_size;
         self.base.is_huge_page = new_is_huge_page;
+        self.allocation_count += 1;
         Ok(())
     }
 
@@ -373,7 +417,7 @@ impl IDataContainer for HugePageMmap {
             capacity: self.base.capacity,
             used: self.base.size,
             is_huge_page: self.base.is_huge_page,
-            allocation_count: 0,
+            allocation_count: self.allocation_count,
         }
     }
 
@@ -417,6 +461,80 @@ mod tests {
     }
 
     #[test]
+    fn test_anon_mmap_empty_write() {
+        let mut container = AnonMmap::new(1024).expect("Failed to create container");
+        container.write_at(0, b"").expect("Empty write should succeed");
+        assert_eq!(container.size(), 0);
+    }
+
+    #[test]
+    fn test_anon_mmap_read_out_of_bounds() {
+        let container = AnonMmap::new(1024).expect("Failed to create container");
+        let result = container.read_at(0, 2048);
+        assert!(result.is_err());
+        match result {
+            Err(ContainerError::InvalidSize(_)) => {}
+            _ => panic!("Expected InvalidSize error"),
+        }
+    }
+
+    #[test]
+    fn test_anon_mmap_write_exceeds_capacity() {
+        let mut container = AnonMmap::new(100).expect("Failed to create container");
+        let large_data = vec![0u8; 200];
+        let result = container.write_at(0, &large_data);
+        assert!(result.is_ok(), "Write should trigger auto-resize");
+        assert!(container.capacity() >= 200);
+    }
+
+    #[test]
+    fn test_anon_mmap_zero_capacity() {
+        let container = AnonMmap::new(0).expect("Failed to create zero-capacity container");
+        assert_eq!(container.capacity(), 0);
+        assert_eq!(container.size(), 0);
+        assert!(!container.is_open());
+    }
+
+    #[test]
+    fn test_anon_mmap_stats() {
+        let mut container = AnonMmap::new(1024).expect("Failed to create container");
+        let stats = container.stats();
+        assert_eq!(stats.capacity, 1024);
+        assert_eq!(stats.allocation_count, 1);
+
+        container.resize(2048).expect("Failed to resize");
+        let stats = container.stats();
+        assert!(stats.capacity >= 2048);
+        assert_eq!(stats.allocation_count, 2);
+    }
+
+    #[test]
+    fn test_anon_mmap_close_and_reopen() {
+        let mut container = AnonMmap::new(1024).expect("Failed to create container");
+        container.write_at(0, b"data").expect("Failed to write");
+        assert!(container.is_open());
+
+        container.close();
+        assert!(!container.is_open());
+        assert_eq!(container.size(), 0);
+        assert_eq!(container.capacity(), 0);
+    }
+
+    #[test]
+    fn test_anon_mmap_boundary_write() {
+        let mut container = AnonMmap::new(10).expect("Failed to create container");
+        container.write_at(0, b"AAAAA").expect("Failed to write prefix");
+        container.write_at(5, b"hello").expect("Failed to write at offset 5");
+        assert_eq!(container.size(), 10);
+
+        let data = container.read_at(5, 5).expect("Failed to read");
+        assert_eq!(&data, b"hello");
+
+        let prefix = container.read_at(0, 5).expect("Failed to read prefix");
+        assert_eq!(&prefix, b"AAAAA");
+    }
+
+    #[test]
     fn test_huge_page_mmap() {
         let config = ContainerConfig {
             initial_capacity: 1024,
@@ -431,5 +549,67 @@ mod tests {
         container.write_at(0, b"test").expect("Failed to write");
         let data = container.read_at(0, 4).expect("Failed to read");
         assert_eq!(&data, b"test");
+    }
+
+    #[test]
+    fn test_huge_page_mmap_stats() {
+        let config = ContainerConfig {
+            initial_capacity: 1024,
+            memory_level: MemoryLevel::HugePagePreferred,
+            huge_page_fallback: true,
+            ..Default::default()
+        };
+
+        let mut container = HugePageMmap::with_config(config).expect("Failed to create container");
+        let stats = container.stats();
+        assert_eq!(stats.allocation_count, 1);
+
+        let huge_page_size = ContainerConfig::default().huge_page_size;
+        let resize_size = huge_page_size * 2 + 1;
+        container.resize(resize_size).expect("Failed to resize");
+        let stats = container.stats();
+        assert_eq!(stats.allocation_count, 2);
+    }
+
+    #[test]
+    fn test_huge_page_mmap_empty_write() {
+        let config = ContainerConfig {
+            initial_capacity: 1024,
+            memory_level: MemoryLevel::HugePagePreferred,
+            huge_page_fallback: true,
+            ..Default::default()
+        };
+
+        let mut container = HugePageMmap::with_config(config).expect("Failed to create container");
+        container.write_at(0, b"").expect("Empty write should succeed");
+        assert_eq!(container.size(), 0);
+    }
+
+    #[test]
+    fn test_huge_page_mmap_read_out_of_bounds() {
+        let config = ContainerConfig {
+            initial_capacity: 1024,
+            memory_level: MemoryLevel::HugePagePreferred,
+            huge_page_fallback: true,
+            ..Default::default()
+        };
+
+        let container = HugePageMmap::with_config(config).expect("Failed to create container");
+        let result = container.read_at(0, 2048);
+        assert!(result.is_err());
+        match result {
+            Err(ContainerError::InvalidSize(_)) => {}
+            _ => panic!("Expected InvalidSize error"),
+        }
+    }
+
+    #[test]
+    fn test_anon_mmap_send_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+        assert_send::<AnonMmap>();
+        assert_sync::<AnonMmap>();
+        assert_send::<HugePageMmap>();
+        assert_sync::<HugePageMmap>();
     }
 }

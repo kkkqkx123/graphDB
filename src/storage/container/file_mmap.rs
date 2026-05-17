@@ -17,6 +17,7 @@ pub struct FileMmap {
     file: Option<File>,
     mmap: Option<memmap2::MmapMut>,
     config: ContainerConfig,
+    allocation_count: u64,
 }
 
 impl FileMmap {
@@ -62,6 +63,7 @@ impl FileMmap {
             file: Some(file),
             mmap: Some(mmap),
             config,
+            allocation_count: 1,
         })
     }
 
@@ -100,6 +102,7 @@ impl FileMmap {
             file: Some(file),
             mmap: Some(mmap),
             config: ContainerConfig::default(),
+            allocation_count: 1,
         })
     }
 
@@ -122,6 +125,10 @@ impl FileMmap {
     }
 
     pub fn write_at(&mut self, offset: usize, data: &[u8]) -> ContainerResult<()> {
+        if data.is_empty() {
+            return Ok(());
+        }
+
         let start = FileHeader::SIZE + offset;
         let end = start + data.len();
 
@@ -130,14 +137,20 @@ impl FileMmap {
         }
 
         if let Some(ref mut mmap) = self.mmap {
-            if end <= mmap.len() {
-                mmap[start..end].copy_from_slice(data);
-                if offset + data.len() > self.base.size {
-                    self.base.size = offset + data.len();
-                    self.update_header()?;
-                }
-                return Ok(());
+            if end > mmap.len() {
+                return Err(ContainerError::InvalidSize(format!(
+                    "Write of {} bytes at offset {} exceeds capacity {}",
+                    data.len(),
+                    offset,
+                    self.base.capacity.saturating_sub(FileHeader::SIZE)
+                )));
             }
+            mmap[start..end].copy_from_slice(data);
+            if offset + data.len() > self.base.size {
+                self.base.size = offset + data.len();
+                self.update_header()?;
+            }
+            return Ok(());
         }
 
         Err(ContainerError::NotInitialized)
@@ -148,9 +161,15 @@ impl FileMmap {
         let end = start + len;
 
         if let Some(ref mmap) = self.mmap {
-            if end <= mmap.len() {
-                return Ok(mmap[start..end].to_vec());
+            if end > mmap.len() {
+                return Err(ContainerError::InvalidSize(format!(
+                    "Read of {} bytes at offset {} exceeds capacity {}",
+                    len,
+                    offset,
+                    self.base.capacity.saturating_sub(FileHeader::SIZE)
+                )));
             }
+            return Ok(mmap[start..end].to_vec());
         }
 
         Err(ContainerError::NotInitialized)
@@ -261,10 +280,14 @@ impl IDataContainer for FileMmap {
 
         self.base.size = new_size;
         self.update_header()?;
+        self.allocation_count += 1;
         Ok(())
     }
 
     fn close(&mut self) {
+        if let Err(e) = self.sync() {
+            log::warn!("Failed to sync before close: {}", e);
+        }
         if let Some(mmap) = self.mmap.take() {
             drop(mmap);
         }
@@ -278,7 +301,7 @@ impl IDataContainer for FileMmap {
             capacity: self.base.capacity,
             used: self.base.size,
             is_huge_page: false,
-            allocation_count: 0,
+            allocation_count: self.allocation_count,
         }
     }
 
@@ -340,5 +363,105 @@ mod tests {
         let mut container = FileMmap::create(&path, 100).expect("Failed to create container");
         assert!(container.resize(1000).is_ok());
         assert!(container.capacity() >= 1000 + FileHeader::SIZE);
+    }
+
+    #[test]
+    fn test_file_mmap_empty_write() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test.mmap");
+
+        let mut container = FileMmap::create(&path, 1024).expect("Failed to create container");
+        container.write_at(0, b"").expect("Empty write should succeed");
+        assert_eq!(container.size(), 0);
+    }
+
+    #[test]
+    fn test_file_mmap_read_out_of_bounds() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test.mmap");
+
+        let container = FileMmap::create(&path, 100).expect("Failed to create container");
+        let result = container.read_at(0, 200);
+        assert!(result.is_err());
+        match result {
+            Err(ContainerError::InvalidSize(_)) => {}
+            _ => panic!("Expected InvalidSize error"),
+        }
+    }
+
+    #[test]
+    fn test_file_mmap_write_exceeds_capacity() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test.mmap");
+
+        let mut container = FileMmap::create(&path, 100).expect("Failed to create container");
+        let large_data = vec![0xABu8; 500];
+        container.write_at(0, &large_data).expect("Write should trigger auto-resize");
+        let data = container.read_at(0, 500).expect("Failed to read");
+        assert_eq!(data, large_data);
+    }
+
+    #[test]
+    fn test_file_mmap_stats() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test.mmap");
+
+        let mut container = FileMmap::create(&path, 1024).expect("Failed to create container");
+        let stats = container.stats();
+        assert_eq!(stats.allocation_count, 1);
+
+        container.resize(4096).expect("Failed to resize");
+        let stats = container.stats();
+        assert_eq!(stats.allocation_count, 2);
+    }
+
+    #[test]
+    fn test_file_mmap_close_sync() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test.mmap");
+
+        let mut container = FileMmap::create(&path, 1024).expect("Failed to create container");
+        container.write_at(0, b"persist").expect("Failed to write");
+        container.close();
+
+        let container = FileMmap::open(&path).expect("Failed to reopen");
+        let data = container.read_at(0, 7).expect("Failed to read");
+        assert_eq!(&data, b"persist");
+    }
+
+    #[test]
+    fn test_file_mmap_dump() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test.mmap");
+        let dump_path = temp_dir.path().join("dump.mmap");
+
+        let mut container = FileMmap::create(&path, 1024).expect("Failed to create container");
+        container.write_at(0, b"dump test").expect("Failed to write");
+        container.dump(&dump_path).expect("Failed to dump");
+
+        let loaded = FileMmap::open(&dump_path).expect("Failed to open dump");
+        let data = loaded.read_at(0, 9).expect("Failed to read");
+        assert_eq!(&data, b"dump test");
+    }
+
+    #[test]
+    fn test_file_mmap_boundary_write() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test.mmap");
+
+        let mut container = FileMmap::create(&path, 20).expect("Failed to create container");
+        container.write_at(10, b"boundary").expect("Failed to write at offset 10");
+        assert_eq!(container.size(), 18);
+
+        let data = container.read_at(10, 8).expect("Failed to read");
+        assert_eq!(&data, b"boundary");
+    }
+
+    #[test]
+    fn test_file_mmap_send_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+        assert_send::<FileMmap>();
+        assert_sync::<FileMmap>();
     }
 }

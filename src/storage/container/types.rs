@@ -225,7 +225,7 @@ impl FileHeader {
         if bytes.len() < Self::SIZE {
             return None;
         }
-        let header: FileHeader = unsafe { std::ptr::read(bytes.as_ptr() as *const FileHeader) };
+        let header: FileHeader = unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const FileHeader) };
         if header.magic != Self::MAGIC {
             return None;
         }
