@@ -157,7 +157,8 @@ impl RecordCache {
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
                 let cause = EvictionCause::from(cause);
-                if let Some(ref callback) = *eviction_callback.read() {
+                let callback = eviction_callback.read().clone();
+                if let Some(ref callback) = callback {
                     callback("vertex", cause);
                 }
             });
@@ -186,7 +187,8 @@ impl RecordCache {
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
                 let cause = EvictionCause::from(cause);
-                if let Some(ref callback) = *eviction_callback.read() {
+                let callback = eviction_callback.read().clone();
+                if let Some(ref callback) = callback {
                     callback("id_index", cause);
                 }
             });
@@ -225,7 +227,8 @@ impl RecordCache {
     }
 
     fn notify_eviction(&self, cache_type: &str, cause: EvictionCause) {
-        if let Some(ref callback) = *self.eviction_callback.read() {
+        let callback = self.eviction_callback.read().clone();
+        if let Some(ref callback) = callback {
             callback(cache_type, cause);
         }
     }
@@ -233,7 +236,7 @@ impl RecordCache {
     // ==================== ID Index Operations ====================
 
     pub fn get_id_index(&self, label_id: u32, external_id: &str) -> Option<u32> {
-        let key = IdIndexCacheKey::new(label_id, external_id.to_string());
+        let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
         let result = match self.id_index_cache.get(&key) {
             Some(internal_id) => {
                 self.id_index_stats.record_hit();
@@ -251,12 +254,12 @@ impl RecordCache {
     }
 
     pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32) {
-        let key = IdIndexCacheKey::new(label_id, external_id.to_string());
+        let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
         self.id_index_cache.insert(key, internal_id);
     }
 
     pub fn remove_id_index(&self, label_id: u32, external_id: &str) {
-        let key = IdIndexCacheKey::new(label_id, external_id.to_string());
+        let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
         if self.id_index_cache.remove(&key).is_some() {
             self.notify_eviction("id_index", EvictionCause::Explicit);
         }
@@ -286,7 +289,7 @@ impl RecordCache {
     }
 
     pub fn remove_vertex(&self, key: &VertexCacheKey) {
-        if let Some(vertex) = self.vertex_cache.remove(key) {
+        if let Some(_vertex) = self.vertex_cache.remove(key) {
             self.notify_eviction("vertex", EvictionCause::Explicit);
         }
     }
@@ -341,6 +344,7 @@ impl RecordCache {
         let total_hits = vertex_snapshot.hits + id_index_snapshot.hits;
         let total_misses = vertex_snapshot.misses + id_index_snapshot.misses;
         let total_evictions = vertex_snapshot.evictions + id_index_snapshot.evictions;
+        let total_operations = total_hits + total_misses + total_evictions;
 
         RecordCacheStats {
             vertex: vertex_snapshot,
@@ -350,6 +354,11 @@ impl RecordCache {
             total_evictions,
             hit_rate: if total_hits + total_misses > 0 {
                 total_hits as f64 / (total_hits + total_misses) as f64
+            } else {
+                0.0
+            },
+            eviction_rate: if total_operations > 0 {
+                total_evictions as f64 / total_operations as f64
             } else {
                 0.0
             },
@@ -425,7 +434,7 @@ impl RecordCache {
                     }
                 }
                 CacheKeyRef::IdIndex(label_id, external_id) => {
-                    let cache_key = IdIndexCacheKey::new(*label_id, external_id.to_string());
+                    let cache_key = IdIndexCacheKey::new(*label_id, Arc::from(*external_id));
                     if self.id_index_cache.remove(&cache_key).is_some() {
                         invalidated += 1;
                     }
@@ -456,12 +465,12 @@ impl RecordCache {
 
     fn reduce_memory(&self, factor: f32) {
         let new_max = (self.original_max_memory as f64 * factor as f64) as usize;
-        self.current_max_memory.store(new_max, Ordering::Relaxed);
+        self.current_max_memory.fetch_min(new_max, Ordering::Relaxed);
     }
 
     pub fn restore_memory(&self) {
         self.current_max_memory
-            .store(self.original_max_memory, Ordering::Relaxed);
+            .fetch_max(self.original_max_memory, Ordering::Relaxed);
     }
 }
 

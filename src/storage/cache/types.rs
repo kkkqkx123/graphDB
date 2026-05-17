@@ -76,11 +76,11 @@ impl VertexCacheKey {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdIndexCacheKey {
     pub label_id: u32,
-    pub external_id: String,
+    pub external_id: Arc<str>,
 }
 
 impl IdIndexCacheKey {
-    pub fn new(label_id: u32, external_id: String) -> Self {
+    pub fn new(label_id: u32, external_id: Arc<str>) -> Self {
         Self {
             label_id,
             external_id,

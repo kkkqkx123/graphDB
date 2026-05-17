@@ -30,6 +30,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use dashmap::DashMap;
 use lru::LruCache;
 use parking_lot::Mutex;
 
@@ -176,19 +177,18 @@ pub struct EdgePropertyCache {
     config: EdgePropertyCacheConfig,
     cache: Mutex<LruCache<EdgePropertyKey, CachedEdgeProperty>>,
     stats: Arc<EdgePropertyCacheStats>,
-    access_tracker: Mutex<lru::LruCache<EdgePropertyKey, u32>>,
+    access_tracker: Arc<DashMap<EdgePropertyKey, u32>>,
 }
 
 impl EdgePropertyCache {
     pub fn new(config: EdgePropertyCacheConfig) -> Self {
         let cache = LruCache::new(std::num::NonZeroUsize::new(config.max_entries).unwrap());
-        let access_tracker = LruCache::new(std::num::NonZeroUsize::new(config.max_entries * 2).unwrap());
 
         Self {
             config,
             cache: Mutex::new(cache),
             stats: Arc::new(EdgePropertyCacheStats::default()),
-            access_tracker: Mutex::new(access_tracker),
+            access_tracker: Arc::new(DashMap::new()),
         }
     }
 
@@ -247,15 +247,16 @@ impl EdgePropertyCache {
 
         let key = EdgePropertyKey::new(edge_id, prop_name);
 
-        {
-            let mut tracker = self.access_tracker.lock();
-            if let Some(&count) = tracker.get(&key) {
-                if count < self.config.min_access_frequency {
-                    return false;
-                }
-            } else {
+        // Track access to ensure frequently written properties are also cached
+        self.track_access(&key);
+
+        // Check if this property is accessed frequently enough
+        if let Some(count) = self.access_tracker.get(&key) {
+            if *count < self.config.min_access_frequency {
                 return false;
             }
+        } else {
+            return false;
         }
 
         let mut cache = self.cache.lock();
@@ -291,16 +292,9 @@ impl EdgePropertyCache {
                 self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
             }
         }
+        drop(cache);
 
-        let mut tracker = self.access_tracker.lock();
-        let tracker_keys: Vec<_> = tracker
-            .iter()
-            .filter(|(k, _)| k.edge_id == edge_id)
-            .map(|(k, _)| *k)
-            .collect();
-        for key in tracker_keys {
-            tracker.pop(&key);
-        }
+        self.access_tracker.retain(|k, _| k.edge_id != edge_id);
     }
 
     pub fn invalidate_property(&self, edge_id: EdgeId, prop_name: &str) {
@@ -316,9 +310,9 @@ impl EdgePropertyCache {
             self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
             self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
         }
+        drop(cache);
 
-        let mut tracker = self.access_tracker.lock();
-        tracker.pop(&key);
+        self.access_tracker.remove(&key);
     }
 
     pub fn clear(&self) {
@@ -327,8 +321,7 @@ impl EdgePropertyCache {
         cache.clear();
         drop(cache);
 
-        let mut tracker = self.access_tracker.lock();
-        tracker.clear();
+        self.access_tracker.clear();
 
         self.stats.current_entries.store(0, Ordering::Relaxed);
         self.stats.current_memory.store(0, Ordering::Relaxed);
@@ -336,9 +329,8 @@ impl EdgePropertyCache {
     }
 
     fn track_access(&self, key: &EdgePropertyKey) {
-        let mut tracker = self.access_tracker.lock();
-        let count = tracker.get(key).copied().unwrap_or(0) + 1;
-        tracker.put(*key, count);
+        let mut entry = self.access_tracker.entry(*key).or_insert(0);
+        *entry += 1;
     }
 
     fn evict_if_needed(&self, cache: &mut LruCache<EdgePropertyKey, CachedEdgeProperty>) {
@@ -374,13 +366,9 @@ impl EdgePropertyCache {
         }
 
         let key = EdgePropertyKey::new(edge_id, prop_name);
-        let mut tracker = self.access_tracker.lock();
-
-        if let Some(&count) = tracker.get(&key) {
-            count >= self.config.min_access_frequency
-        } else {
-            false
-        }
+        self.access_tracker
+            .get(&key)
+            .map_or(false, |count| *count >= self.config.min_access_frequency)
     }
 }
 

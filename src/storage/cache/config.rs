@@ -69,7 +69,7 @@ impl Default for RecordCacheConfig {
             memory_ratio: (70, 30),
             ttl: Some(Duration::from_secs(3600)),
             tti: Some(Duration::from_secs(300)),
-            high_priority_ratio: 0.0,
+            high_priority_ratio: 0.1,
         }
     }
 }

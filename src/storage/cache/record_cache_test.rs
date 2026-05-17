@@ -387,7 +387,7 @@ fn test_handle_memory_pressure() {
         max_memory: 1024 * 1024,
         ..Default::default()
     };
-    let mut cache = RecordCache::with_config(config)
+    let cache = RecordCache::with_config(config)
         .with_memory_pressure_config(MemoryPressureConfig {
             enabled: true,
             ..Default::default()
