@@ -126,6 +126,12 @@ pub struct TransactionCacheSnapshot {
     entries: Vec<CacheSnapshotEntry>,
 }
 
+impl Default for TransactionCacheSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransactionCacheSnapshot {
     pub fn new() -> Self {
         Self {

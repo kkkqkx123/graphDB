@@ -130,29 +130,6 @@ impl SlowQueryLogger {
         }
     }
 
-    /// Extract query type from query text
-    fn extract_query_type(&self, query_text: &str) -> Option<String> {
-        let query_text = query_text.trim();
-        let first_word = query_text.split_whitespace().next()?.to_uppercase();
-
-        // Handle special query types
-        match first_word.as_str() {
-            "MATCH" | "OPTIONAL" => Some("MATCH".to_string()),
-            "CREATE" => Some("CREATE".to_string()),
-            "MERGE" => Some("MERGE".to_string()),
-            "DELETE" => Some("DELETE".to_string()),
-            "SET" | "REMOVE" => Some("UPDATE".to_string()),
-            "INSERT" => Some("INSERT".to_string()),
-            "UPDATE" => Some("UPDATE".to_string()),
-            "GO" => Some("GO".to_string()),
-            "FETCH" => Some("FETCH".to_string()),
-            "LOOKUP" => Some("LOOKUP".to_string()),
-            "SHOW" => Some("SHOW".to_string()),
-            "FIND" => Some("FIND".to_string()),
-            _ => Some("OTHER".to_string()),
-        }
-    }
-
     /// Update configuration
     pub fn update_config(&mut self, config: SlowQueryConfig) {
         self.config = config;

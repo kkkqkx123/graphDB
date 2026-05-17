@@ -157,7 +157,11 @@ impl RecordCache {
     ) -> Cache<VertexCacheKey, CachedVertex> {
         let mut builder = Cache::builder()
             .max_capacity(max_capacity)
-            .weigher(|_key: &VertexCacheKey, value: &CachedVertex| value.estimated_size())
+            .weigher(|_key: &VertexCacheKey, value: &CachedVertex| {
+                let key_size = std::mem::size_of::<VertexCacheKey>() as u32;
+                let value_size = value.estimated_size();
+                key_size.wrapping_add(value_size)
+            })
             .support_invalidation_closures()
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
@@ -186,7 +190,11 @@ impl RecordCache {
     ) -> Cache<IdIndexCacheKey, u32> {
         let mut builder = Cache::builder()
             .max_capacity(max_capacity)
-            .weigher(|_key: &IdIndexCacheKey, _value: &u32| std::mem::size_of::<u32>() as u32)
+            .weigher(|key: &IdIndexCacheKey, _value: &u32| {
+                let key_size = std::mem::size_of::<IdIndexCacheKey>() + key.external_id.len();
+                let value_size = std::mem::size_of::<u32>();
+                (key_size + value_size) as u32
+            })
             .support_invalidation_closures()
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
@@ -502,37 +510,39 @@ impl RecordCache {
         match level {
             MemoryPressureLevel::Normal => {}
             MemoryPressureLevel::Warning => {
-                self.reduce_memory(self.memory_pressure_config.reduction_factor);
                 let factor = self.memory_pressure_config.reduction_factor;
-                let retain_ratio = factor.max(0.1);
-                let vertex_target = (self.vertex_cache.entry_count() as f64 * retain_ratio) as u64;
-                let id_index_target = (self.id_index_cache.entry_count() as f64 * retain_ratio) as u64;
+                let retain_ratio = factor.max(0.1_f32);
+
+                let vertex_target = (self.vertex_cache.entry_count() as f32 * retain_ratio) as u64;
+                let id_index_target = (self.id_index_cache.entry_count() as f32 * retain_ratio) as u64;
 
                 let vertex_count = AtomicU64::new(0);
-                let _ = self.vertex_cache.invalidate_entries_if(|_, _| {
+                let _ = self.vertex_cache.invalidate_entries_if(move |_, _| {
                     let c = vertex_count.fetch_add(1, Ordering::Relaxed);
                     c >= vertex_target
                 });
 
                 let id_index_count = AtomicU64::new(0);
-                let _ = self.id_index_cache.invalidate_entries_if(|_, _| {
+                let _ = self.id_index_cache.invalidate_entries_if(move |_, _| {
                     let c = id_index_count.fetch_add(1, Ordering::Relaxed);
                     c >= id_index_target
                 });
 
                 self.vertex_cache.run_pending_tasks();
                 self.id_index_cache.run_pending_tasks();
+
+                let mut config = self.config.lock();
+                let new_max = (config.max_memory as f64 * factor as f64) as usize;
+                config.max_memory = new_max;
+                self.current_max_memory.store(new_max, Ordering::Relaxed);
             }
             MemoryPressureLevel::Critical => {
                 self.clear();
+                let mut config = self.config.lock();
+                config.max_memory = 0;
+                self.current_max_memory.store(0, Ordering::Relaxed);
             }
         }
-    }
-
-    fn reduce_memory(&self, factor: f32) {
-        let current = self.current_max_memory.load(Ordering::Relaxed);
-        let new_max = (current as f64 * factor as f64) as usize;
-        self.current_max_memory.fetch_min(new_max, Ordering::Relaxed);
     }
 
     pub fn restore_memory(&self) {

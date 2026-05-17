@@ -166,15 +166,15 @@ impl EdgeTable {
             )));
         }
 
-        if self.schema.ie_strategy != EdgeStrategy::None {
-            if !self.in_csr.insert_edge(dst, src, edge_id, prop_offset, ts) {
-                self.out_csr.delete_edge(src, edge_id, ts);
-                self.properties.delete(prop_offset);
-                return Err(StorageError::edge_already_exists(format!(
-                    "{} -> {}",
-                    dst, src
-                )));
-            }
+        if self.schema.ie_strategy != EdgeStrategy::None
+            && !self.in_csr.insert_edge(dst, src, edge_id, prop_offset, ts)
+        {
+            self.out_csr.delete_edge(src, edge_id, ts);
+            self.properties.delete(prop_offset);
+            return Err(StorageError::edge_already_exists(format!(
+                "{} -> {}",
+                dst, src
+            )));
         }
 
         self.edge_id_to_src.insert(edge_id, (src, dst));

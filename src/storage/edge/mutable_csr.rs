@@ -443,7 +443,7 @@ impl MutableCsr {
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                result.push(nbr.clone());
+                result.push(*nbr);
             }
         }
         result
@@ -490,7 +490,7 @@ impl MutableCsr {
             
             let nbr = &self.nbr_list[offset + i];
             if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                result.push(nbr.clone());
+                result.push(*nbr);
             }
         }
         result
@@ -574,7 +574,7 @@ impl MutableCsr {
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return Some(nbr.clone());
+                return Some(*nbr);
             }
         }
         None
@@ -593,7 +593,7 @@ impl MutableCsr {
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.edge_id == edge_id && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return Some(nbr.clone());
+                return Some(*nbr);
             }
         }
         None
@@ -627,7 +627,7 @@ impl MutableCsr {
                 let nbr = &self.nbr_list[offset + read_idx];
                 if nbr.timestamp != INVALID_TIMESTAMP {
                     if write_idx != read_idx {
-                        self.nbr_list[offset + write_idx] = nbr.clone();
+                        self.nbr_list[offset + write_idx] = *nbr;
                     }
                     write_idx += 1;
                 }
@@ -973,7 +973,7 @@ impl MutableCsr {
                 let nbr = &self.nbr_list[start + read_idx];
                 if nbr.timestamp <= ts {
                     if write_idx != read_idx {
-                        self.nbr_list[start + write_idx] = self.nbr_list[start + read_idx].clone();
+                        self.nbr_list[start + write_idx] = self.nbr_list[start + read_idx];
                     }
                     write_idx += 1;
                 } else {
@@ -1061,7 +1061,7 @@ impl<'a> Iterator for MutableCsrIterator<'a> {
             let offset = self.csr.adj_offsets[self.current_vertex];
 
             while self.current_edge < degree {
-                let nbr = self.csr.nbr_list[offset + self.current_edge].clone();
+                let nbr = self.csr.nbr_list[offset + self.current_edge];
                 self.current_edge += 1;
 
                 if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
@@ -1109,7 +1109,7 @@ impl<'a> Iterator for MutableCsrEdgeIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.current < self.degree {
-            let nbr = self.csr.nbr_list[self.offset + self.current].clone();
+            let nbr = self.csr.nbr_list[self.offset + self.current];
             self.current += 1;
 
             if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {

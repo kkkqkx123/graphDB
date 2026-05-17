@@ -249,22 +249,23 @@ impl EdgePropertyCache {
 
         let key = EdgePropertyKey::new(edge_id, prop_name);
 
-        // Check if this property is read frequently enough to warrant caching
-        if let Some(count) = self.read_tracker.get(&key) {
-            if *count < self.config.min_access_frequency {
-                return false;
-            }
-        } else {
+        let mut cache = self.cache.lock();
+
+        // Check if this property is read frequently enough to warrant caching.
+        // Performed under cache lock to prevent TOCTOU races between check and insert.
+        let should_cache = self
+            .read_tracker
+            .get(&key)
+            .is_some_and(|count| *count >= self.config.min_access_frequency);
+        if !should_cache {
             return false;
         }
-
-        let mut cache = self.cache.lock();
 
         if let Some(old) = cache.put(key, CachedEdgeProperty::new(value)) {
             self.stats.current_memory.fetch_sub(old.size, Ordering::Relaxed);
         } else {
             self.stats.current_entries.fetch_add(1, Ordering::Relaxed);
-            self.edge_index.entry(edge_id).or_insert_with(Vec::new).push(key);
+            self.edge_index.entry(edge_id).or_default().push(key);
         }
         self.stats.current_memory.fetch_add(size, Ordering::Relaxed);
 
@@ -280,7 +281,7 @@ impl EdgePropertyCache {
 
         let mut cache = self.cache.lock();
 
-        if let Some(keys, _) = self.edge_index.remove(&edge_id) {
+        if let Some((_, keys)) = self.edge_index.remove(&edge_id) {
             for key in keys {
                 if let Some(entry) = cache.pop(&key) {
                     self.stats.evictions.fetch_add(1, Ordering::Relaxed);
@@ -352,6 +353,10 @@ impl EdgePropertyCache {
                     self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
                     if let Some(mut keys) = self.edge_index.get_mut(&key.edge_id) {
                         keys.retain(|k| *k != key);
+                        if keys.is_empty() {
+                            drop(keys);
+                            self.edge_index.remove(&key.edge_id);
+                        }
                     }
                 } else {
                     break;
@@ -376,7 +381,7 @@ impl EdgePropertyCache {
         let key = EdgePropertyKey::new(edge_id, prop_name);
         self.read_tracker
             .get(&key)
-            .map_or(false, |count| *count >= self.config.min_access_frequency)
+            .is_some_and(|count| *count >= self.config.min_access_frequency)
     }
 }
 

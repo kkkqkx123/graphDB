@@ -260,7 +260,7 @@ impl SingleMutableCsr {
             return None;
         }
 
-        Some(nbr.clone())
+        Some(*nbr)
     }
 
     pub fn get_edge_by_dst(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
