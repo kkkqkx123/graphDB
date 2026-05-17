@@ -49,12 +49,12 @@
 //! container.verify_integrity()?;
 //! ```
 
-mod mmap;
+mod container_trait;
 mod persistent;
 mod types;
 mod volatile;
 
-pub use mmap::{FileHeader, IDataContainer};
+pub use container_trait::{FileHeader, IDataContainer};
 pub use persistent::PersistentContainer;
 pub use volatile::VolatileContainer;
 pub use types::{
@@ -62,6 +62,7 @@ pub use types::{
     DEFAULT_HUGE_PAGE_SIZE,
 };
 
+use std::io::Read;
 use std::path::Path;
 
 /// Open a data container based on storage backend
@@ -98,39 +99,53 @@ pub fn open_container<P: AsRef<Path>>(
 /// Open container from existing file (for recovery)
 ///
 /// Loads data from an existing file. For Persistent backend, opens the file directly.
-/// For Volatile backend, loads file content into memory.
+/// For Volatile backend, reads file content into memory without intermediate mmap.
 pub fn open_container_from_file<P: AsRef<Path>>(
     backend: StorageBackend,
     path: P,
 ) -> ContainerResult<Box<dyn IDataContainer>> {
-    let persistent = PersistentContainer::open(&path)?;
-    let file_size = persistent.size();
-
     match backend {
-        StorageBackend::Persistent => Ok(Box::new(persistent)),
+        StorageBackend::Persistent => {
+            let persistent = PersistentContainer::open(&path)?;
+            Ok(Box::new(persistent))
+        }
         StorageBackend::Volatile { .. } => {
-            if file_size == 0 {
+            let path = path.as_ref();
+            let mut file = std::fs::File::open(path)?;
+            let metadata = file.metadata()?;
+            let file_size = metadata.len() as usize;
+
+            if file_size < FileHeader::SIZE {
                 return Ok(Box::new(VolatileContainer::new(0)?));
             }
 
-            let src_ptr = persistent.data();
-            if src_ptr.is_null() {
-                return Err(ContainerError::InvalidOperation(
-                    "Source file has null data pointer".to_string(),
-                ));
+            // Read header to determine data size
+            let mut header_buf = vec![0u8; FileHeader::SIZE];
+            file.read_exact(&mut header_buf)?;
+
+            let header = FileHeader::from_bytes(&header_buf).ok_or_else(|| {
+                ContainerError::InvalidHeader("Failed to parse header".to_string())
+            })?;
+
+            let data_size = header.data_size as usize;
+            let mut container = VolatileContainer::new(data_size)?;
+
+            if data_size > 0 {
+                container.resize(data_size)?;
+                let ptr = container.data_mut();
+                if ptr.is_null() {
+                    return Err(ContainerError::NotInitialized);
+                }
+                let data_slice = unsafe { std::slice::from_raw_parts_mut(ptr, data_size) };
+                file.read_exact(data_slice)?;
             }
 
-            let mut container = VolatileContainer::new(file_size)?;
-            container.resize(file_size)?;
+            log::info!(
+                "Loaded volatile container from {} ({} bytes data)",
+                path.display(),
+                data_size
+            );
 
-            let dst_ptr = container.data_mut();
-            if dst_ptr.is_null() {
-                return Err(ContainerError::NotInitialized);
-            }
-
-            unsafe {
-                std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, file_size);
-            }
             Ok(Box::new(container))
         }
     }

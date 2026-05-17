@@ -15,6 +15,7 @@
 //!
 //! - File header stores magic number, version, data size, and checksum
 //! - Checksum is computed using MD5 for data integrity verification
+//! - Checksum computation is deferred to sync time for performance
 
 use std::fs::{File, OpenOptions};
 use std::io::Write as IoWrite;
@@ -47,28 +48,39 @@ pub struct PersistentContainer {
     file: File,
     path: PathBuf,
     size: usize,
-    capacity: usize,
+    /// Total mmap capacity including FileHeader::SIZE
+    mmap_capacity: usize,
     config: ContainerConfig,
     allocation_count: u64,
+    /// Tracks whether data has been modified since last checksum update.
+    /// Checksum is only recomputed on sync, verify, or close.
+    dirty: bool,
 }
 
 impl PersistentContainer {
+    /// Returns the data-only capacity (excluding header)
+    fn data_capacity(&self) -> usize {
+        self.mmap_capacity.saturating_sub(FileHeader::SIZE)
+    }
+
     pub fn create<P: AsRef<Path>>(path: P, capacity: usize) -> ContainerResult<Self> {
-        Self::with_config(
+        let result = Self::with_config(
             path,
             ContainerConfig {
                 initial_capacity: capacity,
                 storage_backend: StorageBackend::Persistent,
                 ..Default::default()
             },
-        )
+        );
+        if result.is_ok() {
+            log::info!("Created persistent container with capacity {} bytes", capacity);
+        }
+        result
     }
 
     pub fn with_config<P: AsRef<Path>>(path: P, config: ContainerConfig) -> ContainerResult<Self> {
         let path = path.as_ref().to_path_buf();
         
-        // Use growth factor to pre-allocate space, reducing future resize operations
-        // This is especially important for Windows/macOS where resize is expensive
         let growth_factor = config.growth_factor.max(1.0);
         let preallocated_size = ((config.initial_capacity as f64) * growth_factor) as usize;
         let total_size = FileHeader::SIZE + preallocated_size;
@@ -97,9 +109,10 @@ impl PersistentContainer {
             file,
             path,
             size: 0,
-            capacity: total_size,
+            mmap_capacity: total_size,
             config,
             allocation_count: 1,
+            dirty: false,
         })
     }
 
@@ -129,17 +142,21 @@ impl PersistentContainer {
             0
         };
 
+        log::info!("Opened persistent container from {} ({} bytes data)", path.display(), size);
+
         Ok(Self {
             mmap,
             file,
             path,
             size,
-            capacity: file_size,
+            mmap_capacity: file_size,
             config: ContainerConfig::default(),
             allocation_count: 1,
+            dirty: false,
         })
     }
 
+    /// Write data at offset (internal method, offset is data-relative)
     pub fn write_at(&mut self, offset: usize, data: &[u8]) -> ContainerResult<()> {
         if data.is_empty() {
             return Ok(());
@@ -148,18 +165,19 @@ impl PersistentContainer {
         let start = FileHeader::SIZE + offset;
         let end = start + data.len();
 
-        if end > self.capacity {
+        if end > self.mmap_capacity {
             self.do_resize(end - FileHeader::SIZE)?;
         }
 
         self.mmap[start..end].copy_from_slice(data);
         if offset + data.len() > self.size {
             self.size = offset + data.len();
-            self.update_header()?;
         }
+        self.dirty = true;
         Ok(())
     }
 
+    /// Read data at offset (internal method, offset is data-relative)
     pub fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
         if offset + len > self.size {
             return Err(ContainerError::InvalidSize(format!(
@@ -173,11 +191,32 @@ impl PersistentContainer {
         Ok(self.mmap[start..end].to_vec())
     }
 
-    fn update_header(&mut self) -> ContainerResult<()> {
-        // Compute checksum for data integrity
-        let data = &self.mmap[FileHeader::SIZE..FileHeader::SIZE + self.size];
-        let header = FileHeader::with_checksum(self.size as u64, data);
-        self.mmap[..FileHeader::SIZE].copy_from_slice(header.as_bytes());
+    /// Update checksum in header if data is dirty, then clear dirty flag
+    fn sync_checksum(&mut self) -> ContainerResult<()> {
+        if !self.dirty {
+            return Ok(());
+        }
+        if self.size > 0 {
+            let data = &self.mmap[FileHeader::SIZE..FileHeader::SIZE + self.size];
+            let header = FileHeader::with_checksum(self.size as u64, data);
+            self.mmap[..FileHeader::SIZE].copy_from_slice(header.as_bytes());
+        }
+        self.dirty = false;
+        Ok(())
+    }
+
+    /// Flush mmap to disk (read-only, no checksum update)
+    fn do_sync(&self) -> ContainerResult<()> {
+        self.mmap.flush()?;
+        self.file.sync_all()?;
+        Ok(())
+    }
+
+    /// Sync checksum and flush to disk (mutating)
+    fn do_sync_with_checksum(&mut self) -> ContainerResult<()> {
+        self.sync_checksum()?;
+        self.mmap.flush()?;
+        self.file.sync_all()?;
         Ok(())
     }
 
@@ -208,7 +247,15 @@ impl PersistentContainer {
             .truncate(true)
             .open(path)?;
 
-        let header = FileHeader::new(self.size as u64);
+        let header = if self.dirty {
+            // Compute fresh checksum for export
+            let data = &self.mmap[FileHeader::SIZE..FileHeader::SIZE + self.size];
+            FileHeader::with_checksum(self.size as u64, data)
+        } else {
+            // Use existing header
+            FileHeader::from_bytes(&self.mmap[..FileHeader::SIZE])
+                .unwrap_or_else(|| FileHeader::new(self.size as u64))
+        };
         file.write_all(header.as_bytes())?;
 
         if self.size > 0 {
@@ -226,9 +273,9 @@ impl PersistentContainer {
     fn do_resize(&mut self, new_size: usize) -> ContainerResult<()> {
         let new_capacity = FileHeader::SIZE + new_size;
 
-        if new_capacity <= self.capacity {
+        if new_capacity <= self.mmap_capacity {
             self.size = new_size;
-            self.update_header()?;
+            self.dirty = true;
             return Ok(());
         }
 
@@ -239,42 +286,49 @@ impl PersistentContainer {
         }
 
         let growth_capacity =
-            ((self.capacity as f64 * self.config.growth_factor) as usize).max(new_capacity);
+            ((self.mmap_capacity as f64 * self.config.growth_factor) as usize).max(new_capacity);
 
-        // Set file size first and check for errors
+        log::info!(
+            "Resizing mmap from {} to {} bytes",
+            self.mmap_capacity, growth_capacity
+        );
+
         if let Err(e) = self.file.set_len(growth_capacity as u64) {
-            // Provide more specific error messages
             return match e.kind() {
-                std::io::ErrorKind::StorageFull => Err(ContainerError::DiskFull),
+                std::io::ErrorKind::StorageFull => {
+                    log::error!("Disk full when resizing to {} bytes", growth_capacity);
+                    Err(ContainerError::DiskFull)
+                }
                 std::io::ErrorKind::PermissionDenied => {
+                    log::error!("Permission denied when resizing: {}", e);
                     Err(ContainerError::PermissionDenied(e.to_string()))
                 }
-                _ => Err(ContainerError::IoError(e)),
+                _ => {
+                    log::error!("IO error when resizing: {}", e);
+                    Err(ContainerError::IoError(e))
+                }
             };
         }
 
-        // Use platform-specific resize implementation
-        resize_mmap(&mut self.mmap, &self.file, growth_capacity)?;
+        resize_mmap(&mut self.mmap, &self.file, growth_capacity)
+            .map_err(|e| {
+                log::error!("Failed to remap mmap to {} bytes: {}", growth_capacity, e);
+                e
+            })?;
 
-        self.capacity = growth_capacity;
+        self.mmap_capacity = growth_capacity;
         self.size = new_size;
-        self.update_header()?;
         self.allocation_count += 1;
+        self.dirty = true;
         Ok(())
     }
 
     fn do_close(&mut self) {
-        if let Err(e) = self.do_sync() {
+        if let Err(e) = self.do_sync_with_checksum() {
             log::warn!("Failed to sync before close: {}", e);
         }
         self.size = 0;
-        self.capacity = 0;
-    }
-
-    fn do_sync(&self) -> ContainerResult<()> {
-        self.mmap.flush()?;
-        self.file.sync_all()?;
-        Ok(())
+        self.mmap_capacity = 0;
     }
 }
 
@@ -298,11 +352,12 @@ impl super::IDataContainer for PersistentContainer {
     }
 
     fn capacity(&self) -> usize {
-        self.capacity
+        // Return data-only capacity (excluding header) for consistency with VolatileContainer
+        self.data_capacity()
     }
 
     fn is_open(&self) -> bool {
-        self.capacity > 0
+        self.mmap_capacity > 0
     }
 
     fn sync(&self) -> ContainerResult<()> {
@@ -319,7 +374,7 @@ impl super::IDataContainer for PersistentContainer {
 
     fn stats(&self) -> ContainerStats {
         ContainerStats {
-            capacity: self.capacity,
+            capacity: self.data_capacity(),
             used: self.size,
             is_huge_page: false,
             allocation_count: self.allocation_count,
@@ -336,6 +391,16 @@ impl super::IDataContainer for PersistentContainer {
 
     fn verify_integrity(&self) -> ContainerResult<()> {
         PersistentContainer::verify_integrity(self)
+    }
+
+    fn write_at(&mut self, offset: usize, buf: &[u8]) -> ContainerResult<()> {
+        // Delegate to the direct method which handles FileHeader offset internally
+        self.write_at(offset, buf)
+    }
+
+    fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
+        // Delegate to the direct method which handles FileHeader offset internally
+        self.read_at(offset, len)
     }
 
     fn write_batch(&mut self, operations: &[(usize, &[u8])]) -> ContainerResult<usize> {
@@ -366,9 +431,9 @@ impl super::IDataContainer for PersistentContainer {
             }
         }
 
-        // Update size and header only once at the end
+        // Update size and mark dirty (checksum deferred)
         self.size = max_end;
-        self.update_header()?;
+        self.dirty = true;
 
         Ok(total_written)
     }
@@ -402,7 +467,7 @@ impl Drop for PersistentContainer {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use crate::storage::container::mmap::IDataContainer;
+    use crate::storage::container::container_trait::IDataContainer;
 
     #[test]
     fn test_persistent_container_create() {
@@ -443,7 +508,8 @@ mod tests {
         let mut container =
             PersistentContainer::create(&path, 100).expect("Failed to create container");
         assert!(container.resize(1000).is_ok());
-        assert!(container.capacity() >= 1000 + FileHeader::SIZE);
+        // capacity() now returns data-only capacity (without header)
+        assert!(container.capacity() >= 1000);
     }
 
     #[test]
@@ -507,7 +573,6 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test_prealloc.mmap");
 
-        // With growth_factor of 2.0, initial_capacity of 1024 should be preallocated to ~2048
         let container =
             PersistentContainer::with_config(
                 &path,
@@ -519,8 +584,8 @@ mod tests {
                 },
             ).expect("Failed to create container");
 
-        // Capacity should be preallocated (header + preallocated data)
-        assert!(container.capacity() >= FileHeader::SIZE + 1024);
+        // capacity() returns data-only capacity
+        assert!(container.capacity() >= 1024);
     }
 
     #[test]
@@ -552,5 +617,24 @@ mod tests {
         assert_eq!(&results[0], b"first");
         assert_eq!(&results[1], b"second");
         assert_eq!(&results[2], b"third");
+    }
+
+    #[test]
+    fn test_persistent_container_deferred_checksum() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test_deferred.mmap");
+
+        let mut container =
+            PersistentContainer::create(&path, 1024).expect("Failed to create container");
+        assert!(!container.dirty, "Fresh container should not be dirty");
+
+        container.write_at(0, b"data").expect("Failed to write");
+        assert!(container.dirty, "After write, container should be dirty");
+
+        container.sync().expect("Failed to sync");
+        assert!(!container.dirty, "After sync, container should not be dirty");
+
+        let reopened = PersistentContainer::open(&path).expect("Failed to reopen");
+        reopened.verify_integrity().expect("Checksum should be valid");
     }
 }

@@ -28,7 +28,7 @@
 use super::types::{
     ContainerConfig, ContainerError, ContainerResult, ContainerStats, StorageBackend,
 };
-use crate::storage::container::mmap::IDataContainer;
+use crate::storage::container::container_trait::IDataContainer;
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -351,7 +351,7 @@ fn align_to_huge_page(size: usize, huge_page_size: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::container::mmap::IDataContainer;
+    use crate::storage::container::container_trait::IDataContainer;
 
     #[test]
     fn test_volatile_container_basic() {
