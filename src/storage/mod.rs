@@ -61,9 +61,6 @@ pub use container::{
     VolatileContainer, DEFAULT_HUGE_PAGE_SIZE,
 };
 
-#[allow(deprecated)]
-pub use container::{AnonMmap, FileMmap, HugePageMmap};
-
 pub use engine::config::FlushConfig;
 
 pub use vertex::{

@@ -47,12 +47,6 @@ pub use types::{
     DEFAULT_HUGE_PAGE_SIZE,
 };
 
-#[allow(deprecated)]
-pub use persistent::FileMmap;
-
-#[allow(deprecated)]
-pub use volatile::{AnonMmap, HugePageMmap};
-
 use std::path::Path;
 
 /// Open a data container based on storage backend

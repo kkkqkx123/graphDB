@@ -2,6 +2,14 @@
 //!
 //! Memory-mapped file container for persistent storage.
 //! This is the default storage backend for database operations.
+//!
+//! # Platform-Specific Behavior
+//!
+//! Memory map resizing is handled differently on each platform:
+//!
+//! - **Linux**: Uses `mremap(2)` for efficient in-place expansion
+//! - **Windows**: Recreates the entire mapping (no mremap equivalent)
+//! - **macOS**: Recreates the entire mapping (no mremap equivalent)
 
 use std::fs::{File, OpenOptions};
 use std::io::Write as IoWrite;
@@ -11,13 +19,27 @@ use super::types::{
     ContainerConfig, ContainerError, ContainerResult, ContainerStats, FileHeader, StorageBackend,
 };
 
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "macos")]
+mod macos;
+
+#[cfg(target_os = "linux")]
+use linux::resize_mmap;
+#[cfg(target_os = "windows")]
+use windows::resize_mmap;
+#[cfg(target_os = "macos")]
+use macos::resize_mmap;
+
 /// Persistent container backed by memory-mapped file
 ///
 /// Data is automatically synced to disk via mmap.
 /// This is the default and recommended storage backend for database operations.
 pub struct PersistentContainer {
-    mmap: Option<memmap2::MmapMut>,
-    file: Option<File>,
+    mmap: memmap2::MmapMut,
+    file: File,
     path: PathBuf,
     size: usize,
     capacity: usize,
@@ -60,8 +82,8 @@ impl PersistentContainer {
         mmap[..FileHeader::SIZE].copy_from_slice(header.as_bytes());
 
         Ok(Self {
-            mmap: Some(mmap),
-            file: Some(file),
+            mmap,
+            file,
             path,
             size: 0,
             capacity: total_size,
@@ -97,32 +119,14 @@ impl PersistentContainer {
         };
 
         Ok(Self {
-            mmap: Some(mmap),
-            file: Some(file),
+            mmap,
+            file,
             path,
             size,
             capacity: file_size,
             config: ContainerConfig::default(),
             allocation_count: 1,
         })
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        if let Some(ref mmap) = self.mmap {
-            if mmap.len() > FileHeader::SIZE {
-                return &mmap[FileHeader::SIZE..FileHeader::SIZE + self.size];
-            }
-        }
-        &[]
-    }
-
-    pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        if let Some(ref mut mmap) = self.mmap {
-            if mmap.len() > FileHeader::SIZE {
-                return &mut mmap[FileHeader::SIZE..FileHeader::SIZE + self.size];
-            }
-        }
-        &mut []
     }
 
     pub fn write_at(&mut self, offset: usize, data: &[u8]) -> ContainerResult<()> {
@@ -137,50 +141,30 @@ impl PersistentContainer {
             self.do_resize(end - FileHeader::SIZE)?;
         }
 
-        if let Some(ref mut mmap) = self.mmap {
-            if end > mmap.len() {
-                return Err(ContainerError::InvalidSize(format!(
-                    "Write of {} bytes at offset {} exceeds capacity {}",
-                    data.len(),
-                    offset,
-                    self.capacity.saturating_sub(FileHeader::SIZE)
-                )));
-            }
-            mmap[start..end].copy_from_slice(data);
-            if offset + data.len() > self.size {
-                self.size = offset + data.len();
-                self.update_header()?;
-            }
-            return Ok(());
+        self.mmap[start..end].copy_from_slice(data);
+        if offset + data.len() > self.size {
+            self.size = offset + data.len();
+            self.update_header()?;
         }
-
-        Err(ContainerError::NotInitialized)
+        Ok(())
     }
 
     pub fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
-        let start = FileHeader::SIZE + offset;
-        let end = start + len;
-
-        if let Some(ref mmap) = self.mmap {
-            if end > mmap.len() {
-                return Err(ContainerError::InvalidSize(format!(
-                    "Read of {} bytes at offset {} exceeds capacity {}",
-                    len,
-                    offset,
-                    self.capacity.saturating_sub(FileHeader::SIZE)
-                )));
-            }
-            return Ok(mmap[start..end].to_vec());
+        if offset + len > self.size {
+            return Err(ContainerError::InvalidSize(format!(
+                "Read of {} bytes at offset {} exceeds size {}",
+                len, offset, self.size
+            )));
         }
 
-        Err(ContainerError::NotInitialized)
+        let start = FileHeader::SIZE + offset;
+        let end = start + len;
+        Ok(self.mmap[start..end].to_vec())
     }
 
     fn update_header(&mut self) -> ContainerResult<()> {
-        if let Some(ref mut mmap) = self.mmap {
-            let header = FileHeader::new(self.size as u64);
-            mmap[..FileHeader::SIZE].copy_from_slice(header.as_bytes());
-        }
+        let header = FileHeader::new(self.size as u64);
+        self.mmap[..FileHeader::SIZE].copy_from_slice(header.as_bytes());
         Ok(())
     }
 
@@ -196,10 +180,8 @@ impl PersistentContainer {
         let header = FileHeader::new(self.size as u64);
         file.write_all(header.as_bytes())?;
 
-        if let Some(ref mmap) = self.mmap {
-            if self.size > 0 {
-                file.write_all(&mmap[FileHeader::SIZE..FileHeader::SIZE + self.size])?;
-            }
+        if self.size > 0 {
+            file.write_all(&self.mmap[FileHeader::SIZE..FileHeader::SIZE + self.size])?;
         }
 
         file.sync_all()?;
@@ -228,18 +210,12 @@ impl PersistentContainer {
         let growth_capacity =
             ((self.capacity as f64 * self.config.growth_factor) as usize).max(new_capacity);
 
-        if let Some(ref file) = self.file {
-            file.set_len(growth_capacity as u64)?;
+        self.file.set_len(growth_capacity as u64)?;
 
-            let mmap = unsafe {
-                memmap2::MmapMut::map_mut(file)
-                    .map_err(|e| ContainerError::MappingFailed(e.to_string()))?
-            };
+        // Use platform-specific resize implementation
+        resize_mmap(&mut self.mmap, &self.file, growth_capacity)?;
 
-            self.mmap = Some(mmap);
-            self.capacity = growth_capacity;
-        }
-
+        self.capacity = growth_capacity;
         self.size = new_size;
         self.update_header()?;
         self.allocation_count += 1;
@@ -250,40 +226,28 @@ impl PersistentContainer {
         if let Err(e) = self.do_sync() {
             log::warn!("Failed to sync before close: {}", e);
         }
-        if let Some(mmap) = self.mmap.take() {
-            drop(mmap);
-        }
-        self.file = None;
         self.size = 0;
         self.capacity = 0;
     }
 
     fn do_sync(&self) -> ContainerResult<()> {
-        if let Some(ref mmap) = self.mmap {
-            mmap.flush()?;
-        }
-        if let Some(ref file) = self.file {
-            file.sync_all()?;
-        }
+        self.mmap.flush()?;
+        self.file.sync_all()?;
         Ok(())
     }
 }
 
 impl super::IDataContainer for PersistentContainer {
     fn data(&self) -> *const u8 {
-        if let Some(ref mmap) = self.mmap {
-            if mmap.len() > FileHeader::SIZE {
-                return mmap[FileHeader::SIZE..].as_ptr();
-            }
+        if self.mmap.len() > FileHeader::SIZE {
+            return self.mmap[FileHeader::SIZE..].as_ptr();
         }
         std::ptr::null()
     }
 
     fn data_mut(&mut self) -> *mut u8 {
-        if let Some(ref mut mmap) = self.mmap {
-            if mmap.len() > FileHeader::SIZE {
-                return mmap[FileHeader::SIZE..].as_mut_ptr();
-            }
+        if self.mmap.len() > FileHeader::SIZE {
+            return self.mmap[FileHeader::SIZE..].as_mut_ptr();
         }
         std::ptr::null_mut()
     }
@@ -297,7 +261,7 @@ impl super::IDataContainer for PersistentContainer {
     }
 
     fn is_open(&self) -> bool {
-        self.mmap.is_some()
+        self.capacity > 0
     }
 
     fn sync(&self) -> ContainerResult<()> {
@@ -335,9 +299,6 @@ impl Drop for PersistentContainer {
         self.do_close();
     }
 }
-
-#[deprecated(since = "0.2.0", note = "Use PersistentContainer instead")]
-pub type FileMmap = PersistentContainer;
 
 #[cfg(test)]
 mod tests {
@@ -430,8 +391,6 @@ mod tests {
     #[test]
     fn test_persistent_container_send_sync() {
         fn assert_send<T: Send>() {}
-        fn assert_sync<T: Sync>() {}
         assert_send::<PersistentContainer>();
-        assert_sync::<PersistentContainer>();
     }
 }

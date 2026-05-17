@@ -11,7 +11,9 @@ pub use super::types::FileHeader;
 /// Trait for data containers
 ///
 /// Provides a unified interface for both persistent and volatile storage.
-pub trait IDataContainer: Send + Sync {
+/// NOTE: This trait only requires Send, not Sync. Containers are not intended
+/// to be shared across threads directly; thread safety is managed by upper layers.
+pub trait IDataContainer: Send {
     // === Core methods (must implement) ===
 
     /// Get the data pointer
@@ -135,12 +137,5 @@ pub trait IDataContainer: Send + Sync {
         } else {
             unsafe { std::slice::from_raw_parts_mut(self.data_mut(), self.size()) }
         }
-    }
-
-    // === Deprecated methods for backward compatibility ===
-
-    #[deprecated(since = "0.2.0", note = "Use file_path instead")]
-    fn path(&self) -> Option<&Path> {
-        self.file_path()
     }
 }
