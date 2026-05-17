@@ -33,6 +33,8 @@ pub mod mutable_csr_variant;
 pub mod property_table;
 pub mod single_mutable_csr;
 
+pub use crate::storage::storage_types::StoragePropertyDef as PropertyDef;
+
 pub use csr::Csr;
 pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
 pub use edge_table::{
@@ -99,47 +101,6 @@ impl EdgeSchema {
             properties,
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct PropertyDef {
-    pub name: String,
-    pub data_type: crate::core::DataType,
-    pub nullable: bool,
-    pub default_value: Option<crate::core::Value>,
-}
-
-impl PropertyDef {
-    pub fn new(name: String, data_type: crate::core::DataType) -> Self {
-        Self {
-            name,
-            data_type,
-            nullable: false,
-            default_value: None,
-        }
-    }
-}
-
-impl From<crate::core::types::PropertyDef> for PropertyDef {
-    fn from(prop: crate::core::types::PropertyDef) -> Self {
-        Self {
-            name: prop.name,
-            data_type: prop.data_type,
-            nullable: prop.nullable,
-            default_value: prop.default,
-        }
-    }
-}
-
-impl From<&crate::core::types::PropertyDef> for PropertyDef {
-    fn from(prop: &crate::core::types::PropertyDef) -> Self {
-        Self {
-            name: prop.name.clone(),
-            data_type: prop.data_type.clone(),
-            nullable: prop.nullable,
-            default_value: prop.default.clone(),
         }
     }
 }

@@ -1,8 +1,61 @@
 //! Types of data operations at the storage level
 
-use crate::core::types::PropertyDef;
+use crate::core::types::PropertyDef as CorePropertyDef;
 use crate::core::DataType;
 use crate::core::Value;
+
+/// Storage-level property definition.
+/// Combines features from both vertex and edge property definitions.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StoragePropertyDef {
+    pub name: String,
+    pub data_type: DataType,
+    pub nullable: bool,
+    pub default_value: Option<Value>,
+}
+
+impl StoragePropertyDef {
+    pub fn new(name: String, data_type: DataType) -> Self {
+        Self {
+            name,
+            data_type,
+            nullable: false,
+            default_value: None,
+        }
+    }
+
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        self.nullable = nullable;
+        self
+    }
+
+    pub fn default_value(mut self, value: Value) -> Self {
+        self.default_value = Some(value);
+        self
+    }
+}
+
+impl From<CorePropertyDef> for StoragePropertyDef {
+    fn from(prop: CorePropertyDef) -> Self {
+        Self {
+            name: prop.name,
+            data_type: prop.data_type,
+            nullable: prop.nullable,
+            default_value: prop.default,
+        }
+    }
+}
+
+impl From<&CorePropertyDef> for StoragePropertyDef {
+    fn from(prop: &CorePropertyDef) -> Self {
+        Self {
+            name: prop.name.clone(),
+            data_type: prop.data_type.clone(),
+            nullable: prop.nullable,
+            default_value: prop.default.clone(),
+        }
+    }
+}
 
 /// Field Definitions
 #[derive(Debug, Clone)]
@@ -91,8 +144,8 @@ impl FieldDef {
     }
 }
 
-impl From<PropertyDef> for FieldDef {
-    fn from(prop: PropertyDef) -> Self {
+impl From<CorePropertyDef> for FieldDef {
+    fn from(prop: CorePropertyDef) -> Self {
         Self {
             name: prop.name,
             field_type: prop.data_type,

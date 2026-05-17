@@ -265,10 +265,21 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
+        let edge_id = self.out_csr.find_deleted_edge(src, dst);
         let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset, ts);
 
         if reverted && self.schema.ie_strategy != EdgeStrategy::None {
             self.in_csr.revert_delete_by_offset(dst, ie_offset, ts);
+        }
+
+        if reverted {
+            if let Some(eid) = edge_id {
+                self.edge_id_to_src.insert(eid, (src, dst));
+                self.active_vertices.insert(src);
+                if self.schema.ie_strategy != EdgeStrategy::None {
+                    self.active_vertices.insert(dst);
+                }
+            }
         }
 
         Ok(reverted)
@@ -635,6 +646,15 @@ impl EdgeTable {
             } else {
                 false
             };
+
+            if reverted_out || reverted_in {
+                self.edge_id_to_src.insert(eid, (src, dst));
+                self.active_vertices.insert(src);
+                if self.schema.ie_strategy != EdgeStrategy::None {
+                    self.active_vertices.insert(dst);
+                }
+            }
+
             return Ok(reverted_out || reverted_in);
         }
 

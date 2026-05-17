@@ -205,13 +205,6 @@ impl PersistentContainer {
         Ok(())
     }
 
-    /// Flush mmap to disk (read-only, no checksum update)
-    fn do_sync(&self) -> ContainerResult<()> {
-        self.mmap.flush()?;
-        self.file.sync_all()?;
-        Ok(())
-    }
-
     /// Sync checksum and flush to disk (mutating)
     fn do_sync_with_checksum(&mut self) -> ContainerResult<()> {
         self.sync_checksum()?;
@@ -360,8 +353,8 @@ impl super::IDataContainer for PersistentContainer {
         self.mmap_capacity > 0
     }
 
-    fn sync(&self) -> ContainerResult<()> {
-        self.do_sync()
+    fn sync(&mut self) -> ContainerResult<()> {
+        self.do_sync_with_checksum()
     }
 
     fn resize(&mut self, new_size: usize) -> ContainerResult<()> {
@@ -609,7 +602,7 @@ mod tests {
         ];
 
         let written = container.write_batch(&operations).expect("Batch write failed");
-        assert_eq!(written, 15); // 5 + 6 + 4
+        assert_eq!(written, 16); // 5 + 6 + 5 = 16
 
         let results = container
             .read_batch(&[(0, 5), (10, 6), (20, 5)])

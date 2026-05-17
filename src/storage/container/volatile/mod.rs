@@ -241,7 +241,7 @@ impl super::IDataContainer for VolatileContainer {
         !self.data.is_empty() || self.data.capacity() > 0
     }
 
-    fn sync(&self) -> ContainerResult<()> {
+    fn sync(&mut self) -> ContainerResult<()> {
         Ok(())
     }
 
@@ -423,7 +423,7 @@ mod tests {
         ];
 
         let written = container.write_batch(&operations).expect("Batch write failed");
-        assert_eq!(written, 15); // 5 + 6 + 4
+        assert_eq!(written, 16); // 5 + 6 + 5 = 16
 
         let results = container
             .read_batch(&[(0, 5), (10, 6), (20, 5)])

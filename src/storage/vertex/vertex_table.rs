@@ -558,11 +558,21 @@ impl VertexTable {
             file.write_all(&(name_bytes.len() as u32).to_le_bytes())?;
             file.write_all(name_bytes)?;
 
-            let data = col.data();
-            file.write_all(&(data.len() as u32).to_le_bytes())?;
-            file.write_all(data)?;
+            let (data, offsets, bitmap) = col.get_flush_data();
 
-            if let Some(bitmap) = col.null_bitmap() {
+            let row_count = offsets.len().max(if data.is_empty() { 0 } else { col.len() });
+            file.write_all(&(row_count as u32).to_le_bytes())?;
+
+            file.write_all(&(data.len() as u32).to_le_bytes())?;
+            file.write_all(&data)?;
+
+            let offsets_count = offsets.len() as u32;
+            file.write_all(&offsets_count.to_le_bytes())?;
+            for &off in &offsets {
+                file.write_all(&off.to_le_bytes())?;
+            }
+
+            if let Some(bitmap) = bitmap {
                 file.write_all(&[1u8])?;
                 let bitmap_bytes = bitmap.as_raw_slice();
                 let bitmap_bit_len = bitmap.len() as u32;
@@ -690,12 +700,27 @@ impl VertexTable {
             let name = String::from_utf8(name_bytes)
                 .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
+            let mut row_count_bytes = [0u8; 4];
+            file.read_exact(&mut row_count_bytes)?;
+            let _row_count = u32::from_le_bytes(row_count_bytes) as usize;
+
             let mut data_len_bytes = [0u8; 4];
             file.read_exact(&mut data_len_bytes)?;
             let data_len = u32::from_le_bytes(data_len_bytes) as usize;
 
             let mut data = vec![0u8; data_len];
             file.read_exact(&mut data)?;
+
+            let mut offsets_count_bytes = [0u8; 4];
+            file.read_exact(&mut offsets_count_bytes)?;
+            let offsets_count = u32::from_le_bytes(offsets_count_bytes) as usize;
+
+            let mut offsets = Vec::with_capacity(offsets_count);
+            for _ in 0..offsets_count {
+                let mut off_bytes = [0u8; 8];
+                file.read_exact(&mut off_bytes)?;
+                offsets.push(u64::from_le_bytes(off_bytes));
+            }
 
             let mut has_bitmap_bytes = [0u8; 1];
             file.read_exact(&mut has_bitmap_bytes)?;
@@ -718,7 +743,7 @@ impl VertexTable {
                 (None, 0)
             };
 
-            self.columns.load_column_from_raw(&name, data, null_bitmap_raw, bitmap_bit_len)?;
+            self.columns.load_column_from_raw(&name, data, offsets, null_bitmap_raw, bitmap_bit_len)?;
         }
 
         Ok(())

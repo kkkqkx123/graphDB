@@ -16,6 +16,8 @@ pub mod id_indexer;
 pub mod vertex_table;
 pub mod vertex_timestamp;
 
+pub use crate::storage::storage_types::StoragePropertyDef as PropertyDef;
+
 pub use column_store::{Column, ColumnStore};
 pub use encoding::{EncodingStats, EncodingType, select_encoding};
 pub use id_indexer::IdIndexer;
@@ -57,57 +59,6 @@ impl VertexSchema {
             label_name: tag.tag_name.clone(),
             properties,
             primary_key_index,
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PropertyDef {
-    pub name: String,
-    pub data_type: crate::core::DataType,
-    pub nullable: bool,
-    pub default_value: Option<crate::core::Value>,
-}
-
-impl PropertyDef {
-    pub fn new(name: String, data_type: crate::core::DataType) -> Self {
-        Self {
-            name,
-            data_type,
-            nullable: false,
-            default_value: None,
-        }
-    }
-
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
-        self
-    }
-
-    pub fn default(mut self, value: crate::core::Value) -> Self {
-        self.default_value = Some(value);
-        self
-    }
-}
-
-impl From<crate::core::types::PropertyDef> for PropertyDef {
-    fn from(prop: crate::core::types::PropertyDef) -> Self {
-        Self {
-            name: prop.name,
-            data_type: prop.data_type,
-            nullable: prop.nullable,
-            default_value: prop.default,
-        }
-    }
-}
-
-impl From<&crate::core::types::PropertyDef> for PropertyDef {
-    fn from(prop: &crate::core::types::PropertyDef) -> Self {
-        Self {
-            name: prop.name.clone(),
-            data_type: prop.data_type.clone(),
-            nullable: prop.nullable,
-            default_value: prop.default.clone(),
         }
     }
 }

@@ -190,33 +190,41 @@ impl Column {
     }
 
     fn write_fixed_value(&mut self, offset: usize, value: &Value) -> StorageResult<()> {
-        match (&self.data_type, value) {
+        Self::write_fixed_value_to_slice(&mut self.data, offset, &self.data_type, value)
+    }
+
+    fn write_fixed_value_to_slice(
+        data: &mut [u8],
+        offset: usize,
+        data_type: &DataType,
+        value: &Value,
+    ) -> StorageResult<()> {
+        match (data_type, value) {
             (DataType::Bool, Value::Bool(b)) => {
-                self.data[offset] = if *b { 1 } else { 0 };
+                data[offset] = if *b { 1 } else { 0 };
             }
             (DataType::SmallInt, Value::SmallInt(i)) => {
-                self.data[offset..offset + 2].copy_from_slice(&i.to_le_bytes());
+                data[offset..offset + 2].copy_from_slice(&i.to_le_bytes());
             }
             (DataType::Int, Value::Int(i)) => {
-                self.data[offset..offset + 4].copy_from_slice(&i.to_le_bytes());
+                data[offset..offset + 4].copy_from_slice(&i.to_le_bytes());
             }
             (DataType::BigInt, Value::BigInt(i)) => {
-                self.data[offset..offset + 8].copy_from_slice(&i.to_le_bytes());
+                data[offset..offset + 8].copy_from_slice(&i.to_le_bytes());
             }
             (DataType::Float, Value::Float(f)) => {
-                self.data[offset..offset + 4].copy_from_slice(&f.to_le_bytes());
+                data[offset..offset + 4].copy_from_slice(&f.to_le_bytes());
             }
             (DataType::Double, Value::Double(d)) => {
-                self.data[offset..offset + 8].copy_from_slice(&d.to_le_bytes());
+                data[offset..offset + 8].copy_from_slice(&d.to_le_bytes());
             }
             (DataType::Date, Value::Date(d)) => {
-                self.data[offset..offset + 4].copy_from_slice(&d.year.to_le_bytes());
-                self.data[offset + 4..offset + 8].copy_from_slice(&d.month.to_le_bytes());
-                self.data[offset + 8..offset + 12].copy_from_slice(&d.day.to_le_bytes());
+                data[offset..offset + 4].copy_from_slice(&d.year.to_le_bytes());
+                data[offset + 4..offset + 8].copy_from_slice(&d.month.to_le_bytes());
+                data[offset + 8..offset + 12].copy_from_slice(&d.day.to_le_bytes());
             }
             _ => {
-                return Err(StorageError::type_mismatch(self.data_type.clone(), value.data_type(),
-                ));
+                return Err(StorageError::type_mismatch(data_type.clone(), value.data_type()));
             }
         }
         Ok(())
@@ -346,8 +354,12 @@ impl Column {
     }
 
     pub fn resize(&mut self, new_count: usize) {
-        let element_size = Self::element_size(&self.data_type);
-        self.data.resize(new_count * element_size, 0);
+        if self.is_variable_length() {
+            self.offsets.resize(new_count, self.data.len());
+        } else {
+            let element_size = Self::element_size(&self.data_type);
+            self.data.resize(new_count * element_size, 0);
+        }
         if let Some(ref mut bitmap) = self.null_bitmap {
             bitmap.resize(new_count, false);
         }
@@ -366,22 +378,90 @@ impl Column {
         self.null_bitmap.as_ref().map(|b| b.as_raw_slice())
     }
 
-    pub fn load_data(&mut self, data: Vec<u8>, null_bitmap: Option<BitVec<u8, Lsb0>>) {
+    pub fn load_data(&mut self, data: Vec<u8>, offsets: Option<Vec<usize>>, null_bitmap: Option<BitVec<u8, Lsb0>>) {
         self.data = data;
+        if let Some(offs) = offsets {
+            self.offsets = offs;
+            self.row_count = self.offsets.len();
+        } else {
+            self.offsets.clear();
+            let element_size = Self::element_size(&self.data_type);
+            self.row_count = self.data.len() / element_size.max(1);
+        }
         self.null_bitmap = null_bitmap;
-        let element_size = Self::element_size(&self.data_type);
-        self.row_count = self.data.len() / element_size.max(1);
     }
 
-    pub fn load_data_from_raw(&mut self, data: Vec<u8>, null_bitmap_raw: Option<Vec<u8>>, bitmap_bit_len: usize) {
+    pub fn load_data_from_raw(&mut self, data: Vec<u8>, offsets: Vec<u64>, null_bitmap_raw: Option<Vec<u8>>, bitmap_bit_len: usize) {
         self.data = data;
         self.null_bitmap = null_bitmap_raw.map(|raw| {
             let mut bv = BitVec::from_vec(raw);
             bv.resize(bitmap_bit_len, false);
             bv
         });
-        let element_size = Self::element_size(&self.data_type);
-        self.row_count = self.data.len() / element_size.max(1);
+        if !offsets.is_empty() {
+            self.offsets = offsets.into_iter().map(|o| o as usize).collect();
+            self.row_count = self.offsets.len();
+        } else {
+            self.offsets.clear();
+            let element_size = Self::element_size(&self.data_type);
+            self.row_count = self.data.len() / element_size.max(1);
+        }
+    }
+
+    pub fn get_flush_data(&self) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>) {
+        if !self.encoding.is_encoded() {
+            let offsets: Vec<u64> = if self.is_variable_length() {
+                self.offsets.iter().map(|&o| o as u64).collect()
+            } else {
+                Vec::new()
+            };
+            return (self.data.clone(), offsets, self.null_bitmap.clone());
+        }
+
+        let row_count = self.row_count;
+        let mut new_data = Vec::new();
+        let mut new_offsets = Vec::new();
+        let mut new_bitmap = self.null_bitmap.as_ref().map(|_| BitVec::with_capacity(row_count));
+
+        for i in 0..row_count {
+            let value = self.encoding.get(i);
+            match value {
+                Some(v) => {
+                    if let Some(ref mut bm) = new_bitmap {
+                        bm.push(false);
+                    }
+                    if self.is_variable_length() {
+                        new_offsets.push(new_data.len() as u64);
+                        match &v {
+                            Value::String(s) => {
+                                let bytes = s.as_bytes();
+                                new_data.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
+                                new_data.extend_from_slice(bytes);
+                            }
+                            _ => {
+                                new_offsets.pop();
+                                new_offsets.push(u64::MAX);
+                            }
+                        }
+                    } else {
+                        let element_size = Self::element_size(&self.data_type);
+                        let start = new_data.len();
+                        new_data.resize(start + element_size, 0);
+                        let _ = Self::write_fixed_value_to_slice(&mut new_data, start, &self.data_type, &v);
+                    }
+                }
+                None => {
+                    if let Some(ref mut bm) = new_bitmap {
+                        bm.push(true);
+                    }
+                    if self.is_variable_length() {
+                        new_offsets.push(u64::MAX);
+                    }
+                }
+            }
+        }
+
+        (new_data, new_offsets, new_bitmap)
     }
 
     pub fn encoding_type(&self) -> EncodingType {
@@ -918,10 +998,11 @@ impl ColumnStore {
         &mut self,
         name: &str,
         data: Vec<u8>,
+        offsets: Option<Vec<usize>>,
         null_bitmap: Option<BitVec<u8, Lsb0>>,
     ) -> StorageResult<()> {
         if let Some(col) = self.get_column_mut(name) {
-            col.load_data(data, null_bitmap);
+            col.load_data(data, offsets, null_bitmap);
             Ok(())
         } else {
             Err(StorageError::column_not_found(name.to_string()))
@@ -932,11 +1013,12 @@ impl ColumnStore {
         &mut self,
         name: &str,
         data: Vec<u8>,
+        offsets: Vec<u64>,
         null_bitmap_raw: Option<Vec<u8>>,
         bitmap_bit_len: usize,
     ) -> StorageResult<()> {
         if let Some(col) = self.get_column_mut(name) {
-            col.load_data_from_raw(data, null_bitmap_raw, bitmap_bit_len);
+            col.load_data_from_raw(data, offsets, null_bitmap_raw, bitmap_bit_len);
             Ok(())
         } else {
             Err(StorageError::column_not_found(name.to_string()))

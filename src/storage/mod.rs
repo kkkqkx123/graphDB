@@ -31,7 +31,7 @@ pub use storage_client::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
     StorageWriter,
 };
-pub use storage_types::{ColumnDef, EncodingFormat, FieldDef, GeoShape};
+pub use storage_types::{ColumnDef, EncodingFormat, FieldDef, GeoShape, StoragePropertyDef};
 pub use crate::core::types::{
     InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
 };

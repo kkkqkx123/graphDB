@@ -37,7 +37,7 @@ pub trait IDataContainer: Send {
     // === Persistence methods ===
 
     /// Sync data to disk (no-op for volatile containers)
-    fn sync(&self) -> ContainerResult<()>;
+    fn sync(&mut self) -> ContainerResult<()>;
 
     /// Get storage backend type
     fn storage_backend(&self) -> StorageBackend;
