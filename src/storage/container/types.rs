@@ -105,10 +105,10 @@ impl ContainerConfig {
 }
 
 /// Container error type
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ContainerError {
     #[error("IO error: {0}")]
-    IoError(String),
+    IoError(#[from] std::io::Error),
 
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
@@ -130,12 +130,6 @@ pub enum ContainerError {
 
     #[error("Huge pages not available")]
     HugePagesNotAvailable,
-}
-
-impl From<std::io::Error> for ContainerError {
-    fn from(e: std::io::Error) -> Self {
-        ContainerError::IoError(e.to_string())
-    }
 }
 
 /// Container result type
@@ -196,6 +190,11 @@ pub struct FileHeader {
     /// Reserved for future use
     pub reserved: [u8; 32],
 }
+
+const _: () = {
+    assert!(std::mem::size_of::<FileHeader>() == 64);
+    assert!(std::mem::align_of::<FileHeader>() == 8);
+};
 
 impl FileHeader {
     pub const MAGIC: u32 = 0x47444243;

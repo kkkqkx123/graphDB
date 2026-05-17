@@ -102,13 +102,46 @@ impl CachedVertex {
 
         size += self.external_id.capacity();
 
-        size += self.properties.capacity() * std::mem::size_of::<(String, Value)>();
-
         for (name, value) in &self.properties {
             size += name.capacity();
             size += value.estimated_size();
         }
 
         size as u32
+    }
+}
+
+/// Snapshot entry for transaction rollback
+#[derive(Debug, Clone)]
+pub enum CacheSnapshotEntry {
+    /// Previous vertex value before modification
+    Vertex(VertexCacheKey, Option<CachedVertex>),
+    /// Previous ID index value before modification
+    IdIndex(IdIndexCacheKey, Option<u32>),
+}
+
+/// Transaction-level cache snapshot for rollback support
+#[derive(Debug)]
+pub struct TransactionCacheSnapshot {
+    entries: Vec<CacheSnapshotEntry>,
+}
+
+impl TransactionCacheSnapshot {
+    pub fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+
+    pub fn record_vertex(&mut self, key: VertexCacheKey, old_value: Option<CachedVertex>) {
+        self.entries.push(CacheSnapshotEntry::Vertex(key, old_value));
+    }
+
+    pub fn record_id_index(&mut self, key: IdIndexCacheKey, old_value: Option<u32>) {
+        self.entries.push(CacheSnapshotEntry::IdIndex(key, old_value));
+    }
+
+    pub fn into_entries(self) -> Vec<CacheSnapshotEntry> {
+        self.entries
     }
 }

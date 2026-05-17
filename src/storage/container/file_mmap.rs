@@ -239,8 +239,7 @@ impl IDataContainer for FileMmap {
 
     fn sync(&self) -> ContainerResult<()> {
         if let Some(ref mmap) = self.mmap {
-            mmap.flush()
-                .map_err(|e| ContainerError::IoError(e.to_string()))?;
+            mmap.flush()?;
         }
         if let Some(ref file) = self.file {
             file.sync_all()?;
@@ -257,14 +256,14 @@ impl IDataContainer for FileMmap {
             return Ok(());
         }
 
-        let growth_capacity =
-            ((self.base.capacity as f64 * self.config.growth_factor) as usize).max(new_capacity);
-
-        if self.config.max_capacity > 0 && growth_capacity > self.config.max_capacity + FileHeader::SIZE {
+        if self.config.max_capacity > 0 && new_size > self.config.max_capacity {
             return Err(ContainerError::InvalidSize(
                 "Exceeds maximum capacity".to_string(),
             ));
         }
+
+        let growth_capacity =
+            ((self.base.capacity as f64 * self.config.growth_factor) as usize).max(new_capacity);
 
         if let Some(ref file) = self.file {
             file.set_len(growth_capacity as u64)?;

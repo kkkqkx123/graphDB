@@ -482,3 +482,203 @@ fn test_invalidate_by_label() {
     assert_eq!(cache.get_id_index(1, "user_001"), None, "ID index 1,user_001 should be invalidated");
     assert_eq!(cache.get_id_index(2, "user_002"), Some(200), "ID index 2,user_002 should still be cached");
 }
+
+#[test]
+fn test_memory_overflow_eviction() {
+    let config = RecordCacheConfig {
+        max_memory: 512,
+        ..Default::default()
+    };
+    let cache = RecordCache::with_config(config);
+
+    for i in 0..200u32 {
+        let key = VertexCacheKey::new(1, i);
+        let vertex = CachedVertex {
+            internal_id: i,
+            external_id: format!("v{}", i),
+            properties: vec![("data".to_string(), Value::String("x".repeat(100)))],
+        };
+        cache.insert_vertex(key, vertex);
+    }
+
+    let stats = cache.stats();
+    assert!(
+        stats.memory_usage <= stats.max_memory + 1024,
+        "Memory usage {} should not significantly exceed max_memory {}",
+        stats.memory_usage,
+        stats.max_memory
+    );
+    assert!(stats.vertex.evictions > 0, "Evictions should have occurred");
+}
+
+#[test]
+fn test_transaction_rollback_vertex() {
+    let cache = RecordCache::new();
+
+    let key = VertexCacheKey::new(1, 100);
+    let original_vertex = CachedVertex {
+        internal_id: 100,
+        external_id: "original".to_string(),
+        properties: vec![("name".to_string(), Value::String("Alice".to_string()))],
+    };
+    cache.insert_vertex(key, original_vertex.clone());
+
+    cache.begin_transaction();
+
+    let modified_vertex = CachedVertex {
+        internal_id: 100,
+        external_id: "modified".to_string(),
+        properties: vec![("name".to_string(), Value::String("Bob".to_string()))],
+    };
+    cache.insert_vertex(key, modified_vertex);
+
+    let cached = cache.get_vertex(&key);
+    assert_eq!(cached.unwrap().external_id, "modified");
+
+    cache.rollback_transaction();
+
+    let rolled_back = cache.get_vertex(&key);
+    assert!(rolled_back.is_some());
+    assert_eq!(rolled_back.unwrap().external_id, "original");
+}
+
+#[test]
+fn test_transaction_rollback_new_vertex() {
+    let cache = RecordCache::new();
+
+    cache.begin_transaction();
+
+    let key = VertexCacheKey::new(1, 999);
+    let vertex = CachedVertex {
+        internal_id: 999,
+        external_id: "new_vertex".to_string(),
+        properties: vec![],
+    };
+    cache.insert_vertex(key, vertex);
+
+    assert!(cache.get_vertex(&key).is_some());
+
+    cache.rollback_transaction();
+
+    assert!(cache.get_vertex(&key).is_none(), "New vertex should be removed after rollback");
+}
+
+#[test]
+fn test_transaction_rollback_id_index() {
+    let cache = RecordCache::new();
+
+    cache.insert_id_index(1, "user_001", 100);
+
+    cache.begin_transaction();
+    cache.insert_id_index(1, "user_001", 200);
+    assert_eq!(cache.get_id_index(1, "user_001"), Some(200));
+
+    cache.rollback_transaction();
+    assert_eq!(cache.get_id_index(1, "user_001"), Some(100));
+}
+
+#[test]
+fn test_transaction_commit() {
+    let cache = RecordCache::new();
+
+    cache.begin_transaction();
+    cache.insert_id_index(1, "user_001", 100);
+    cache.commit_transaction();
+
+    assert_eq!(cache.get_id_index(1, "user_001"), Some(100));
+}
+
+#[test]
+fn test_runtime_config_update() {
+    let cache = RecordCache::new();
+
+    assert_eq!(cache.max_memory(), 128 * 1024 * 1024);
+
+    cache.set_max_memory(64 * 1024 * 1024);
+    assert_eq!(cache.max_memory(), 64 * 1024 * 1024);
+
+    cache.set_memory_ratio(80, 20);
+    assert_eq!(cache.config().memory_ratio, (80, 20));
+}
+
+#[test]
+fn test_cache_stats_with_uptime() {
+    let cache = RecordCache::new();
+
+    let stats = cache.stats();
+    assert!(stats.memory_fragmentation_estimate >= 0.0);
+}
+
+#[test]
+fn test_edge_property_cache_read_tracking() {
+    let config = EdgePropertyCacheConfig::enabled();
+    let cache = EdgePropertyCache::new(config);
+
+    // Simulate reads (not writes) to meet access frequency threshold
+    for _ in 0..10 {
+        cache.get(1, "frequent_read");
+    }
+
+    // Now put should succeed because reads were tracked
+    assert!(cache.put(1, "frequent_read", Value::Int(42)));
+
+    // Property that was never read should not be cached
+    assert!(!cache.put(1, "never_read", Value::Int(0)));
+}
+
+#[test]
+fn test_concurrent_cache_access() {
+    use std::thread;
+
+    let cache = Arc::new(RecordCache::new());
+    let mut handles = vec![];
+
+    for t in 0..4 {
+        let cache = cache.clone();
+        let handle = thread::spawn(move || {
+            for i in 0..100u32 {
+                let key = VertexCacheKey::new(t, i);
+                let vertex = CachedVertex {
+                    internal_id: i,
+                    external_id: format!("t{}_v{}", t, i),
+                    properties: vec![],
+                };
+                cache.insert_vertex(key, vertex);
+                let _ = cache.get_vertex(&key);
+            }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().expect("Thread should not panic");
+    }
+
+    let stats = cache.stats();
+    assert!(stats.total_hits + stats.total_misses > 0);
+}
+
+#[test]
+fn test_estimated_size_accuracy() {
+    let vertex = CachedVertex {
+        internal_id: 1,
+        external_id: "test_vertex".to_string(),
+        properties: vec![
+            ("name".to_string(), Value::String("Alice".to_string())),
+            ("age".to_string(), Value::Int(30)),
+        ],
+    };
+
+    let estimated = vertex.estimated_size();
+    let base_size = std::mem::size_of::<CachedVertex>() as u32;
+    let external_cap = vertex.external_id.capacity() as u32;
+    let mut property_size = 0u32;
+    for (name, value) in &vertex.properties {
+        property_size += name.capacity() as u32;
+        property_size += value.estimated_size() as u32;
+    }
+
+    assert_eq!(estimated, base_size + external_cap + property_size);
+    assert!(estimated > 0);
+    assert!(estimated < 1000, "Estimated size should be reasonable for small vertex");
+}

@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use super::types::{ContainerStats, MemoryLevel};
+use super::types::{ContainerError, ContainerResult, ContainerStats, MemoryLevel};
 
 pub use super::types::FileHeader;
 
@@ -49,6 +49,54 @@ pub trait IDataContainer: Send + Sync {
     fn is_huge_page(&self) -> bool {
         self.stats().is_huge_page
     }
+}
+
+// --- Common container operations (shared by AnonMmap and HugePageMmap) ---
+
+pub(crate) fn checked_read_at(
+    data: *const u8,
+    size: usize,
+    offset: usize,
+    len: usize,
+) -> ContainerResult<Vec<u8>> {
+    if data.is_null() {
+        return Err(ContainerError::NotInitialized);
+    }
+    if offset + len > size {
+        return Err(ContainerError::InvalidSize(format!(
+            "Read of {} bytes at offset {} exceeds size {}",
+            len, offset, size
+        )));
+    }
+    let mut result = vec![0u8; len];
+    unsafe {
+        std::ptr::copy_nonoverlapping(data.add(offset), result.as_mut_ptr(), len);
+    }
+    Ok(result)
+}
+
+pub(crate) fn checked_write_at(
+    data: *mut u8,
+    capacity: usize,
+    offset: usize,
+    buf: &[u8],
+) -> ContainerResult<()> {
+    if data.is_null() {
+        return Err(ContainerError::NotInitialized);
+    }
+    let end = offset + buf.len();
+    if end > capacity {
+        return Err(ContainerError::InvalidSize(format!(
+            "Write of {} bytes at offset {} exceeds capacity {}",
+            buf.len(),
+            offset,
+            capacity
+        )));
+    }
+    unsafe {
+        std::ptr::copy_nonoverlapping(buf.as_ptr(), data.add(offset), buf.len());
+    }
+    Ok(())
 }
 
 /// Base mmap container (internal implementation)

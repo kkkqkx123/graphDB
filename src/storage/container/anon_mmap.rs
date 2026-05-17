@@ -6,7 +6,7 @@
 use std::alloc::{alloc, dealloc, Layout};
 use std::ptr::NonNull;
 
-use super::mmap::{IDataContainer, MmapBase};
+use super::mmap::{checked_read_at, checked_write_at, IDataContainer, MmapBase};
 use super::types::{
     ContainerConfig, ContainerError, ContainerResult, ContainerStats, MemoryLevel,
 };
@@ -67,48 +67,15 @@ impl AnonMmap {
         if data.is_empty() {
             return Ok(());
         }
-
         let end = offset + data.len();
         if end > self.base.size {
             self.resize(end)?;
         }
-
-        if self.base.data.is_null() {
-            return Err(ContainerError::NotInitialized);
-        }
-
-        if end > self.base.capacity {
-            return Err(ContainerError::InvalidSize(format!(
-                "Write of {} bytes at offset {} exceeds capacity {}",
-                data.len(),
-                offset,
-                self.base.capacity
-            )));
-        }
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(data.as_ptr(), self.base.data.add(offset), data.len());
-        }
-        Ok(())
+        checked_write_at(self.base.data, self.base.capacity, offset, data)
     }
 
     pub fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
-        if offset + len > self.base.size {
-            return Err(ContainerError::InvalidSize(format!(
-                "Read of {} bytes at offset {} exceeds size {}",
-                len, offset, self.base.size
-            )));
-        }
-
-        if self.base.data.is_null() {
-            return Err(ContainerError::NotInitialized);
-        }
-
-        let mut result = vec![0u8; len];
-        unsafe {
-            std::ptr::copy_nonoverlapping(self.base.data.add(offset), result.as_mut_ptr(), len);
-        }
-        Ok(result)
+        checked_read_at(self.base.data, self.base.size, offset, len)
     }
 }
 
@@ -161,8 +128,9 @@ impl IDataContainer for AnonMmap {
         if !self.base.data.is_null() && self.base.size > 0 {
             unsafe {
                 std::ptr::copy_nonoverlapping(self.base.data, new_data.as_ptr(), self.base.size);
-                let old_layout = Layout::from_size_align_unchecked(self.base.capacity, 8);
-                dealloc(self.base.data, old_layout);
+                if let Ok(old_layout) = Layout::from_size_align(self.base.capacity, 8) {
+                    dealloc(self.base.data, old_layout);
+                }
             }
         }
 
@@ -175,9 +143,10 @@ impl IDataContainer for AnonMmap {
 
     fn close(&mut self) {
         if !self.base.data.is_null() && self.base.capacity > 0 {
-            unsafe {
-                let layout = Layout::from_size_align_unchecked(self.base.capacity, 8);
-                dealloc(self.base.data, layout);
+            if let Ok(layout) = Layout::from_size_align(self.base.capacity, 8) {
+                unsafe {
+                    dealloc(self.base.data, layout);
+                }
             }
             self.base.data = std::ptr::null_mut();
         }
@@ -275,48 +244,15 @@ impl HugePageMmap {
         if data.is_empty() {
             return Ok(());
         }
-
         let end = offset + data.len();
         if end > self.base.size {
             self.resize(end)?;
         }
-
-        if self.base.data.is_null() {
-            return Err(ContainerError::NotInitialized);
-        }
-
-        if end > self.base.capacity {
-            return Err(ContainerError::InvalidSize(format!(
-                "Write of {} bytes at offset {} exceeds capacity {}",
-                data.len(),
-                offset,
-                self.base.capacity
-            )));
-        }
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(data.as_ptr(), self.base.data.add(offset), data.len());
-        }
-        Ok(())
+        checked_write_at(self.base.data, self.base.capacity, offset, data)
     }
 
     pub fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
-        if offset + len > self.base.size {
-            return Err(ContainerError::InvalidSize(format!(
-                "Read of {} bytes at offset {} exceeds size {}",
-                len, offset, self.base.size
-            )));
-        }
-
-        if self.base.data.is_null() {
-            return Err(ContainerError::NotInitialized);
-        }
-
-        let mut result = vec![0u8; len];
-        unsafe {
-            std::ptr::copy_nonoverlapping(self.base.data.add(offset), result.as_mut_ptr(), len);
-        }
-        Ok(result)
+        checked_read_at(self.base.data, self.base.size, offset, len)
     }
 }
 
@@ -357,7 +293,8 @@ impl IDataContainer for HugePageMmap {
             ));
         }
 
-        let new_capacity = MmapBase::align_to_huge_page(new_size, self.config.huge_page_size);
+        let growth_size = ((self.base.capacity as f64 * self.config.growth_factor) as usize).max(new_size);
+        let new_capacity = MmapBase::align_to_huge_page(growth_size, self.config.huge_page_size);
         let mut new_is_huge_page = true;
 
         let new_ptr = match MmapBase::allocate_huge_pages(new_capacity) {
@@ -380,9 +317,10 @@ impl IDataContainer for HugePageMmap {
             if self.base.is_huge_page {
                 MmapBase::deallocate_huge_pages(self.base.data, self.base.capacity);
             } else {
-                unsafe {
-                    let old_layout = Layout::from_size_align_unchecked(self.base.capacity, 8);
-                    dealloc(self.base.data, old_layout);
+                if let Ok(old_layout) = Layout::from_size_align(self.base.capacity, 8) {
+                    unsafe {
+                        dealloc(self.base.data, old_layout);
+                    }
                 }
             }
         }
@@ -400,9 +338,10 @@ impl IDataContainer for HugePageMmap {
             if self.base.is_huge_page {
                 MmapBase::deallocate_huge_pages(self.base.data, self.base.capacity);
             } else {
-                unsafe {
-                    let layout = Layout::from_size_align_unchecked(self.base.capacity, 8);
-                    dealloc(self.base.data, layout);
+                if let Ok(layout) = Layout::from_size_align(self.base.capacity, 8) {
+                    unsafe {
+                        dealloc(self.base.data, layout);
+                    }
                 }
             }
             self.base.data = std::ptr::null_mut();

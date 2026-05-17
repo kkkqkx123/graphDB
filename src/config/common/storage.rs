@@ -444,4 +444,25 @@ mod tests {
         };
         assert!(enabled_config.is_edge_cache_enabled());
     }
+
+    #[test]
+    fn test_edge_property_cache_config_conversion_coverage() {
+        let config = EdgePropertyCacheConfig {
+            enabled: true,
+            max_entries: 50000,
+            max_memory: 50 * 1024 * 1024,
+            ttl_secs: 600,
+            min_access_frequency: 10,
+            max_property_size: 2048,
+        };
+
+        let cache_config: crate::storage::cache::EdgePropertyCacheConfig = config.into();
+
+        assert!(cache_config.enabled);
+        assert_eq!(cache_config.max_entries, 50000);
+        assert_eq!(cache_config.max_memory, 50 * 1024 * 1024);
+        assert_eq!(cache_config.ttl, std::time::Duration::from_secs(600));
+        assert_eq!(cache_config.min_access_frequency, 10);
+        assert_eq!(cache_config.max_property_size, 2048);
+    }
 }

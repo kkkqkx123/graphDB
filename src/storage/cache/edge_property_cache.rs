@@ -177,7 +177,8 @@ pub struct EdgePropertyCache {
     config: EdgePropertyCacheConfig,
     cache: Mutex<LruCache<EdgePropertyKey, CachedEdgeProperty>>,
     stats: Arc<EdgePropertyCacheStats>,
-    access_tracker: Arc<DashMap<EdgePropertyKey, u32>>,
+    read_tracker: Arc<DashMap<EdgePropertyKey, u32>>,
+    edge_index: Arc<DashMap<EdgeId, Vec<EdgePropertyKey>>>,
 }
 
 impl EdgePropertyCache {
@@ -188,7 +189,8 @@ impl EdgePropertyCache {
             config,
             cache: Mutex::new(cache),
             stats: Arc::new(EdgePropertyCacheStats::default()),
-            access_tracker: Arc::new(DashMap::new()),
+            read_tracker: Arc::new(DashMap::new()),
+            edge_index: Arc::new(DashMap::new()),
         }
     }
 
@@ -230,7 +232,7 @@ impl EdgePropertyCache {
         }
 
         drop(cache);
-        self.track_access(&key);
+        self.track_read(&key);
         self.stats.misses.fetch_add(1, Ordering::Relaxed);
         None
     }
@@ -247,11 +249,8 @@ impl EdgePropertyCache {
 
         let key = EdgePropertyKey::new(edge_id, prop_name);
 
-        // Track access to ensure frequently written properties are also cached
-        self.track_access(&key);
-
-        // Check if this property is accessed frequently enough
-        if let Some(count) = self.access_tracker.get(&key) {
+        // Check if this property is read frequently enough to warrant caching
+        if let Some(count) = self.read_tracker.get(&key) {
             if *count < self.config.min_access_frequency {
                 return false;
             }
@@ -265,6 +264,7 @@ impl EdgePropertyCache {
             self.stats.current_memory.fetch_sub(old.size, Ordering::Relaxed);
         } else {
             self.stats.current_entries.fetch_add(1, Ordering::Relaxed);
+            self.edge_index.entry(edge_id).or_insert_with(Vec::new).push(key);
         }
         self.stats.current_memory.fetch_add(size, Ordering::Relaxed);
 
@@ -279,22 +279,19 @@ impl EdgePropertyCache {
         }
 
         let mut cache = self.cache.lock();
-        let keys_to_remove: Vec<_> = cache
-            .iter()
-            .filter(|(k, _)| k.edge_id == edge_id)
-            .map(|(k, _)| *k)
-            .collect();
 
-        for key in keys_to_remove {
-            if let Some(entry) = cache.pop(&key) {
-                self.stats.evictions.fetch_add(1, Ordering::Relaxed);
-                self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
-                self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+        if let Some(keys, _) = self.edge_index.remove(&edge_id) {
+            for key in keys {
+                if let Some(entry) = cache.pop(&key) {
+                    self.stats.evictions.fetch_add(1, Ordering::Relaxed);
+                    self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
+                    self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+                }
             }
         }
         drop(cache);
 
-        self.access_tracker.retain(|k, _| k.edge_id != edge_id);
+        self.read_tracker.retain(|k, _| k.edge_id != edge_id);
     }
 
     pub fn invalidate_property(&self, edge_id: EdgeId, prop_name: &str) {
@@ -312,7 +309,14 @@ impl EdgePropertyCache {
         }
         drop(cache);
 
-        self.access_tracker.remove(&key);
+        self.read_tracker.remove(&key);
+        if let Some(mut keys) = self.edge_index.get_mut(&edge_id) {
+            keys.retain(|k| *k != key);
+            if keys.is_empty() {
+                drop(keys);
+                self.edge_index.remove(&edge_id);
+            }
+        }
     }
 
     pub fn clear(&self) {
@@ -321,15 +325,16 @@ impl EdgePropertyCache {
         cache.clear();
         drop(cache);
 
-        self.access_tracker.clear();
+        self.read_tracker.clear();
+        self.edge_index.clear();
 
         self.stats.current_entries.store(0, Ordering::Relaxed);
         self.stats.current_memory.store(0, Ordering::Relaxed);
         self.stats.evictions.fetch_add(entries as u64, Ordering::Relaxed);
     }
 
-    fn track_access(&self, key: &EdgePropertyKey) {
-        let mut entry = self.access_tracker.entry(*key).or_insert(0);
+    fn track_read(&self, key: &EdgePropertyKey) {
+        let mut entry = self.read_tracker.entry(*key).or_insert(0);
         *entry += 1;
     }
 
@@ -340,11 +345,14 @@ impl EdgePropertyCache {
             let mut freed = 0;
 
             while freed < (current_memory - target_memory) {
-                if let Some((_, entry)) = cache.pop_lru() {
+                if let Some((key, entry)) = cache.pop_lru() {
                     freed += entry.size;
                     self.stats.evictions.fetch_add(1, Ordering::Relaxed);
                     self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
                     self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+                    if let Some(mut keys) = self.edge_index.get_mut(&key.edge_id) {
+                        keys.retain(|k| *k != key);
+                    }
                 } else {
                     break;
                 }
@@ -366,7 +374,7 @@ impl EdgePropertyCache {
         }
 
         let key = EdgePropertyKey::new(edge_id, prop_name);
-        self.access_tracker
+        self.read_tracker
             .get(&key)
             .map_or(false, |count| *count >= self.config.min_access_frequency)
     }

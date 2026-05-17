@@ -34,11 +34,12 @@
 //! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
 //!    with direct offset access.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 
 use moka::sync::Cache;
-use parking_lot::RwLock;
+use parking_lot::Mutex;
 
 use crate::core::stats::CacheStats;
 use crate::core::stats::StatsManager;
@@ -52,14 +53,16 @@ use super::batch::*;
 pub struct RecordCache {
     vertex_cache: Cache<VertexCacheKey, CachedVertex>,
     id_index_cache: Cache<IdIndexCacheKey, u32>,
-    config: RecordCacheConfig,
+    config: Mutex<RecordCacheConfig>,
     vertex_stats: Arc<CacheStats>,
     id_index_stats: Arc<CacheStats>,
-    eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
+    eviction_callback: Arc<Mutex<Option<EvictionCallback>>>,
     memory_pressure_config: MemoryPressureConfig,
     original_max_memory: usize,
     current_max_memory: AtomicUsize,
     stats_manager: Option<Arc<StatsManager>>,
+    transaction_snapshot: Arc<Mutex<Option<TransactionCacheSnapshot>>>,
+    created_at: Instant,
 }
 
 struct CacheMemoryAllocation {
@@ -90,7 +93,7 @@ impl RecordCache {
         let vertex_stats = Arc::new(CacheStats::new());
         let id_index_stats = Arc::new(CacheStats::new());
 
-        let eviction_callback = Arc::new(RwLock::new(None::<EvictionCallback>));
+        let eviction_callback = Arc::new(Mutex::new(None::<EvictionCallback>));
 
         let vertex_cache = Self::build_vertex_cache(
             memory_allocation.vertex_memory,
@@ -113,7 +116,7 @@ impl RecordCache {
         Self {
             vertex_cache,
             id_index_cache,
-            config,
+            config: Mutex::new(config),
             vertex_stats,
             id_index_stats,
             eviction_callback,
@@ -121,6 +124,8 @@ impl RecordCache {
             original_max_memory,
             current_max_memory: AtomicUsize::new(original_max_memory),
             stats_manager: None,
+            transaction_snapshot: Arc::new(Mutex::new(None)),
+            created_at: Instant::now(),
         }
     }
 
@@ -146,7 +151,7 @@ impl RecordCache {
     fn build_vertex_cache(
         max_capacity: u64,
         stats: Arc<CacheStats>,
-        eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
+        eviction_callback: Arc<Mutex<Option<EvictionCallback>>>,
         ttl: Option<std::time::Duration>,
         tti: Option<std::time::Duration>,
     ) -> Cache<VertexCacheKey, CachedVertex> {
@@ -157,8 +162,7 @@ impl RecordCache {
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
                 let cause = EvictionCause::from(cause);
-                let callback = eviction_callback.read().clone();
-                if let Some(ref callback) = callback {
+                if let Some(ref callback) = *eviction_callback.lock() {
                     callback("vertex", cause);
                 }
             });
@@ -176,7 +180,7 @@ impl RecordCache {
     fn build_id_index_cache(
         max_capacity: u64,
         stats: Arc<CacheStats>,
-        eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
+        eviction_callback: Arc<Mutex<Option<EvictionCallback>>>,
         ttl: Option<std::time::Duration>,
         tti: Option<std::time::Duration>,
     ) -> Cache<IdIndexCacheKey, u32> {
@@ -187,8 +191,7 @@ impl RecordCache {
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
                 let cause = EvictionCause::from(cause);
-                let callback = eviction_callback.read().clone();
-                if let Some(ref callback) = callback {
+                if let Some(ref callback) = *eviction_callback.lock() {
                     callback("id_index", cause);
                 }
             });
@@ -204,12 +207,12 @@ impl RecordCache {
     }
 
     pub fn with_eviction_callback(self, callback: EvictionCallback) -> Self {
-        *self.eviction_callback.write() = Some(callback);
+        *self.eviction_callback.lock() = Some(callback);
         self
     }
 
     pub fn set_eviction_callback(&self, callback: EvictionCallback) {
-        *self.eviction_callback.write() = Some(callback);
+        *self.eviction_callback.lock() = Some(callback);
     }
 
     pub fn with_memory_pressure_config(mut self, config: MemoryPressureConfig) -> Self {
@@ -227,8 +230,7 @@ impl RecordCache {
     }
 
     fn notify_eviction(&self, cache_type: &str, cause: EvictionCause) {
-        let callback = self.eviction_callback.read().clone();
-        if let Some(ref callback) = callback {
+        if let Some(ref callback) = *self.eviction_callback.lock() {
             callback(cache_type, cause);
         }
     }
@@ -255,11 +257,19 @@ impl RecordCache {
 
     pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32) {
         let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
+        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
+            let old_value = self.id_index_cache.get(&key);
+            snapshot.record_id_index(key.clone(), old_value);
+        }
         self.id_index_cache.insert(key, internal_id);
     }
 
     pub fn remove_id_index(&self, label_id: u32, external_id: &str) {
         let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
+        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
+            let old_value = self.id_index_cache.get(&key);
+            snapshot.record_id_index(key.clone(), old_value);
+        }
         if self.id_index_cache.remove(&key).is_some() {
             self.notify_eviction("id_index", EvictionCause::Explicit);
         }
@@ -285,10 +295,18 @@ impl RecordCache {
     }
 
     pub fn insert_vertex(&self, key: VertexCacheKey, vertex: CachedVertex) {
+        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
+            let old_value = self.vertex_cache.get(&key);
+            snapshot.record_vertex(key, old_value);
+        }
         self.vertex_cache.insert(key, vertex);
     }
 
     pub fn remove_vertex(&self, key: &VertexCacheKey) {
+        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
+            let old_value = self.vertex_cache.get(key);
+            snapshot.record_vertex(*key, old_value);
+        }
         if let Some(_vertex) = self.vertex_cache.remove(key) {
             self.notify_eviction("vertex", EvictionCause::Explicit);
         }
@@ -330,21 +348,39 @@ impl RecordCache {
     }
 
     pub fn stats(&self) -> RecordCacheStats {
+        let vertex_weighted = self.vertex_cache.weighted_size();
+        let id_index_weighted = self.id_index_cache.weighted_size();
+
         let vertex_snapshot = CacheTypeStatsSnapshot::from_stats(
             &self.vertex_stats,
             self.vertex_cache.entry_count(),
-            self.vertex_cache.weighted_size(),
+            vertex_weighted,
         );
         let id_index_snapshot = CacheTypeStatsSnapshot::from_stats(
             &self.id_index_stats,
             self.id_index_cache.entry_count(),
-            self.id_index_cache.weighted_size(),
+            id_index_weighted,
         );
 
         let total_hits = vertex_snapshot.hits + id_index_snapshot.hits;
         let total_misses = vertex_snapshot.misses + id_index_snapshot.misses;
         let total_evictions = vertex_snapshot.evictions + id_index_snapshot.evictions;
         let total_operations = total_hits + total_misses + total_evictions;
+
+        let memory_usage = (vertex_weighted + id_index_weighted) as usize;
+        let max_memory = self.current_max_memory.load(Ordering::Relaxed);
+
+        // Estimate memory fragmentation: ratio of weighted size to expected size
+        let vertex_count = self.vertex_cache.entry_count();
+        let id_index_count = self.id_index_cache.entry_count();
+        let expected_vertex_memory = vertex_count * std::mem::size_of::<CachedVertex>() as u64;
+        let expected_id_index_memory = id_index_count * std::mem::size_of::<IdIndexCacheKey>() as u64;
+        let fragmentation = if expected_vertex_memory + expected_id_index_memory > 0 {
+            1.0 - (expected_vertex_memory + expected_id_index_memory) as f64
+                / (vertex_weighted + id_index_weighted).max(1) as f64
+        } else {
+            0.0
+        };
 
         RecordCacheStats {
             vertex: vertex_snapshot,
@@ -362,8 +398,12 @@ impl RecordCache {
             } else {
                 0.0
             },
-            memory_usage: self.memory_usage(),
-            max_memory: self.current_max_memory.load(Ordering::Relaxed),
+            memory_usage,
+            max_memory,
+            uptime_seconds: self.created_at.elapsed().as_secs(),
+            memory_fragmentation_estimate: fragmentation,
+            vertex_memory_bytes: vertex_weighted,
+            id_index_memory_bytes: id_index_weighted,
         }
     }
 
@@ -410,15 +450,22 @@ impl RecordCache {
 
     pub fn insert_vertices_batch(&self, entries: Vec<(VertexCacheKey, CachedVertex)>) -> BatchInsertResult {
         let mut total_size = 0usize;
+        let mut pre_checked = Vec::with_capacity(entries.len());
 
         for (key, vertex) in entries {
             let size = vertex.estimated_size() as usize;
             total_size += size;
+            pre_checked.push((key, vertex, size));
+        }
+
+        let mut inserted = 0usize;
+        for (key, vertex, _size) in pre_checked {
             self.vertex_cache.insert(key, vertex);
+            inserted += 1;
         }
 
         BatchInsertResult {
-            inserted: self.vertex_cache.entry_count() as usize,
+            inserted,
             total_size,
         }
     }
@@ -456,6 +503,25 @@ impl RecordCache {
             MemoryPressureLevel::Normal => {}
             MemoryPressureLevel::Warning => {
                 self.reduce_memory(self.memory_pressure_config.reduction_factor);
+                let factor = self.memory_pressure_config.reduction_factor;
+                let retain_ratio = factor.max(0.1);
+                let vertex_target = (self.vertex_cache.entry_count() as f64 * retain_ratio) as u64;
+                let id_index_target = (self.id_index_cache.entry_count() as f64 * retain_ratio) as u64;
+
+                let vertex_count = AtomicU64::new(0);
+                let _ = self.vertex_cache.invalidate_entries_if(|_, _| {
+                    let c = vertex_count.fetch_add(1, Ordering::Relaxed);
+                    c >= vertex_target
+                });
+
+                let id_index_count = AtomicU64::new(0);
+                let _ = self.id_index_cache.invalidate_entries_if(|_, _| {
+                    let c = id_index_count.fetch_add(1, Ordering::Relaxed);
+                    c >= id_index_target
+                });
+
+                self.vertex_cache.run_pending_tasks();
+                self.id_index_cache.run_pending_tasks();
             }
             MemoryPressureLevel::Critical => {
                 self.clear();
@@ -464,13 +530,70 @@ impl RecordCache {
     }
 
     fn reduce_memory(&self, factor: f32) {
-        let new_max = (self.original_max_memory as f64 * factor as f64) as usize;
+        let current = self.current_max_memory.load(Ordering::Relaxed);
+        let new_max = (current as f64 * factor as f64) as usize;
         self.current_max_memory.fetch_min(new_max, Ordering::Relaxed);
     }
 
     pub fn restore_memory(&self) {
         self.current_max_memory
             .fetch_max(self.original_max_memory, Ordering::Relaxed);
+    }
+
+    // ==================== Runtime Configuration ====================
+
+    pub fn update_config(&self, new_config: RecordCacheConfig) {
+        let mut config = self.config.lock();
+        config.max_memory = new_config.max_memory;
+        config.memory_ratio = new_config.memory_ratio;
+        config.high_priority_ratio = new_config.high_priority_ratio;
+        self.current_max_memory
+            .store(new_config.max_memory, Ordering::Relaxed);
+    }
+
+    pub fn set_max_memory(&self, max_memory: usize) {
+        self.config.lock().max_memory = max_memory;
+        self.current_max_memory.store(max_memory, Ordering::Relaxed);
+    }
+
+    pub fn set_memory_ratio(&self, vertex_ratio: u32, id_index_ratio: u32) {
+        self.config.lock().memory_ratio = (vertex_ratio, id_index_ratio);
+    }
+
+    pub fn config(&self) -> RecordCacheConfig {
+        self.config.lock().clone()
+    }
+
+    // ==================== Transaction Support ====================
+
+    pub fn begin_transaction(&self) {
+        *self.transaction_snapshot.lock() = Some(TransactionCacheSnapshot::new());
+    }
+
+    pub fn commit_transaction(&self) {
+        *self.transaction_snapshot.lock() = None;
+    }
+
+    pub fn rollback_transaction(&self) {
+        let snapshot = self.transaction_snapshot.lock().take();
+        if let Some(snapshot) = snapshot {
+            for entry in snapshot.into_entries() {
+                match entry {
+                    CacheSnapshotEntry::Vertex(key, Some(old_value)) => {
+                        self.vertex_cache.insert(key, old_value);
+                    }
+                    CacheSnapshotEntry::Vertex(key, None) => {
+                        self.vertex_cache.remove(&key);
+                    }
+                    CacheSnapshotEntry::IdIndex(key, Some(old_value)) => {
+                        self.id_index_cache.insert(key, old_value);
+                    }
+                    CacheSnapshotEntry::IdIndex(key, None) => {
+                        self.id_index_cache.remove(&key);
+                    }
+                }
+            }
+        }
     }
 }
 
