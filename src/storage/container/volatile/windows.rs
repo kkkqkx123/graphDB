@@ -63,9 +63,6 @@ impl LargePageRegion {
         0
     }
 
-    pub fn is_empty(&self) -> bool {
-        true
-    }
 }
 
 impl Drop for LargePageRegion {

@@ -14,6 +14,13 @@
 //! For database systems, **persistence is mandatory by default**.
 //! Volatile storage is only for special cases like temporary data, caches, or testing.
 //!
+//! ## Features
+//!
+//! - **Data Integrity**: MD5 checksum verification for persistent containers
+//! - **Pre-allocation**: Persistent containers pre-allocate space using growth factor
+//! - **Batch Operations**: Optimized `write_batch` and `read_batch` methods
+//! - **Cross-platform**: Platform-specific optimizations for resize operations
+//!
 //! ## Usage
 //!
 //! ```rust,ignore
@@ -32,6 +39,14 @@
 //!
 //! // Open container based on storage backend
 //! let container = open_container(StorageBackend::Persistent, Some("data.bin"), 1024)?;
+//!
+//! // Batch operations for better performance
+//! let mut container = PersistentContainer::create("data.bin", 4096)?;
+//! container.write_batch(&vec![(0, b"data1"), (100, b"data2")])?;
+//! let results = container.read_batch(&vec![(0, 5), (100, 5)])?;
+//!
+//! // Verify data integrity
+//! container.verify_integrity()?;
 //! ```
 
 mod mmap;

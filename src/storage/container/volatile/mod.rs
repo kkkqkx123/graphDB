@@ -267,6 +267,72 @@ impl super::IDataContainer for VolatileContainer {
             prefer_huge_pages: self.is_huge_page,
         }
     }
+
+    fn write_batch(&mut self, operations: &[(usize, &[u8])]) -> ContainerResult<usize> {
+        if operations.is_empty() {
+            return Ok(0);
+        }
+
+        // Find the maximum offset
+        let max_end = operations
+            .iter()
+            .map(|(offset, data)| offset + data.len())
+            .max()
+            .unwrap_or(0);
+
+        // Resize if needed
+        if max_end > self.size() {
+            self.do_resize(max_end)?;
+        }
+
+        // Get the data pointer
+        let ptr = self.data_mut();
+        if ptr.is_null() {
+            return Err(ContainerError::NotInitialized);
+        }
+
+        // Perform all writes
+        let mut total_written = 0;
+        for (offset, data) in operations {
+            if !data.is_empty() {
+                unsafe {
+                    std::ptr::copy_nonoverlapping(data.as_ptr(), ptr.add(*offset), data.len());
+                }
+                total_written += data.len();
+            }
+        }
+
+        Ok(total_written)
+    }
+
+    fn read_batch(&self, operations: &[(usize, usize)]) -> ContainerResult<Vec<Vec<u8>>> {
+        let ptr = self.data();
+        if ptr.is_null() {
+            return Err(ContainerError::NotInitialized);
+        }
+
+        let size = self.size();
+        let mut results = Vec::with_capacity(operations.len());
+
+        for (offset, len) in operations {
+            if offset + len > size {
+                return Err(ContainerError::InvalidSize(format!(
+                    "Read at offset {} with len {} exceeds size {}",
+                    offset,
+                    len,
+                    size
+                )));
+            }
+
+            let mut result = vec![0u8; *len];
+            unsafe {
+                std::ptr::copy_nonoverlapping(ptr.add(*offset), result.as_mut_ptr(), *len);
+            }
+            results.push(result);
+        }
+
+        Ok(results)
+    }
 }
 
 unsafe impl Send for VolatileContainer {}
@@ -344,5 +410,26 @@ mod tests {
     fn test_volatile_container_send_sync() {
         fn assert_send<T: Send>() {}
         assert_send::<VolatileContainer>();
+    }
+
+    #[test]
+    fn test_volatile_container_batch_write() {
+        let mut container = VolatileContainer::new(1024).expect("Failed to create container");
+
+        let operations = vec![
+            (0, b"first".as_slice()),
+            (10, b"second".as_slice()),
+            (20, b"third".as_slice()),
+        ];
+
+        let written = container.write_batch(&operations).expect("Batch write failed");
+        assert_eq!(written, 15); // 5 + 6 + 4
+
+        let results = container
+            .read_batch(&[(0, 5), (10, 6), (20, 5)])
+            .expect("Batch read failed");
+        assert_eq!(&results[0], b"first");
+        assert_eq!(&results[1], b"second");
+        assert_eq!(&results[2], b"third");
     }
 }

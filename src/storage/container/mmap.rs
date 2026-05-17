@@ -42,6 +42,13 @@ pub trait IDataContainer: Send {
     /// Get storage backend type
     fn storage_backend(&self) -> StorageBackend;
 
+    // === Integrity methods ===
+
+    /// Verify data integrity using checksum (default: no-op)
+    fn verify_integrity(&self) -> ContainerResult<()> {
+        Ok(())
+    }
+
     // === Default implementations ===
 
     /// Check if the container is open
@@ -67,6 +74,40 @@ pub trait IDataContainer: Send {
     /// Check if using huge pages
     fn is_huge_page(&self) -> bool {
         self.stats().is_huge_page
+    }
+
+    // === Batch operations for improved performance ===
+
+    /// Write multiple data chunks at different offsets in a single operation
+    ///
+    /// This is more efficient than multiple `write_at` calls as it minimizes
+    /// internal overhead and can be optimized by the implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `operations` - Slice of (offset, data) tuples
+    ///
+    /// # Returns
+    ///
+    /// Total bytes written, or error if any operation fails
+    fn write_batch(&mut self, operations: &[(usize, &[u8])]) -> ContainerResult<usize> {
+        let mut total_written = 0;
+        for (offset, data) in operations {
+            self.write_at(*offset, data)?;
+            total_written += data.len();
+        }
+        Ok(total_written)
+    }
+
+    /// Read multiple data chunks at different offsets in a single operation
+    ///
+    /// Returns a vector of results, one for each operation in order.
+    fn read_batch(&self, operations: &[(usize, usize)]) -> ContainerResult<Vec<Vec<u8>>> {
+        let mut results = Vec::with_capacity(operations.len());
+        for (offset, len) in operations {
+            results.push(self.read_at(*offset, *len)?);
+        }
+        Ok(results)
     }
 
     /// Read data at offset

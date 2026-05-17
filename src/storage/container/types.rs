@@ -4,6 +4,8 @@
 
 use std::fmt;
 
+use md5::{Digest, Md5};
+
 /// Default huge page size (2MB)
 pub const DEFAULT_HUGE_PAGE_SIZE: usize = 2 * 1024 * 1024;
 
@@ -137,6 +139,18 @@ pub enum ContainerError {
 
     #[error("Huge pages not available")]
     HugePagesNotAvailable,
+
+    #[error("Checksum verification failed")]
+    ChecksumMismatch,
+
+    #[error("Permission denied: {0}")]
+    PermissionDenied(String),
+
+    #[error("Disk full")]
+    DiskFull,
+
+    #[error("Invalid file header: {0}")]
+    InvalidHeader(String),
 }
 
 /// Container result type
@@ -218,6 +232,31 @@ impl FileHeader {
         }
     }
 
+    /// Create a new header with checksum calculated from data
+    pub fn with_checksum(data_size: u64, data: &[u8]) -> Self {
+        let mut header = Self::new(data_size);
+        header.checksum = Self::compute_checksum(data);
+        header
+    }
+
+    /// Compute MD5 checksum for data
+    pub fn compute_checksum(data: &[u8]) -> [u8; 16] {
+        let mut hasher = Md5::new();
+        hasher.update(data);
+        hasher.finalize().into()
+    }
+
+    /// Verify the data against the stored checksum
+    pub fn verify_checksum(&self, data: &[u8]) -> bool {
+        self.checksum == Self::compute_checksum(data)
+    }
+
+    /// Check if the header has a valid checksum
+    pub fn has_valid_checksum(&self) -> bool {
+        // A zero checksum means no checksum was computed
+        self.checksum != [0u8; 16]
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
             std::slice::from_raw_parts(
@@ -286,6 +325,31 @@ mod tests {
         assert!(parsed.is_some());
         let parsed = parsed.unwrap();
         assert_eq!(parsed.data_size, 1024);
+    }
+
+    #[test]
+    fn test_file_header_checksum() {
+        let data = b"test data for checksum verification";
+        let header = FileHeader::with_checksum(data.len() as u64, data);
+        
+        assert!(header.has_valid_checksum());
+        assert!(header.verify_checksum(data));
+        
+        // Verify that different data fails checksum
+        let different_data = b"different data";
+        assert!(!header.verify_checksum(different_data));
+        
+        // Verify compute_checksum is consistent
+        let checksum1 = FileHeader::compute_checksum(data);
+        let checksum2 = FileHeader::compute_checksum(data);
+        assert_eq!(checksum1, checksum2);
+    }
+
+    #[test]
+    fn test_file_header_zero_checksum() {
+        // Header without checksum (zero checksum) should report as invalid
+        let header = FileHeader::new(100);
+        assert!(!header.has_valid_checksum());
     }
 
     #[test]

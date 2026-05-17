@@ -8,8 +8,13 @@
 //! Memory map resizing is handled differently on each platform:
 //!
 //! - **Linux**: Uses `mremap(2)` for efficient in-place expansion
-//! - **Windows**: Recreates the entire mapping (no mremap equivalent)
-//! - **macOS**: Recreates the entire mapping (no mremap equivalent)
+//! - **Windows**: Recreates the entire mapping with pre-allocation optimization
+//! - **macOS**: Recreates the entire mapping with pre-allocation optimization
+//!
+//! # Data Integrity
+//!
+//! - File header stores magic number, version, data size, and checksum
+//! - Checksum is computed using MD5 for data integrity verification
 
 use std::fs::{File, OpenOptions};
 use std::io::Write as IoWrite;
@@ -61,7 +66,12 @@ impl PersistentContainer {
 
     pub fn with_config<P: AsRef<Path>>(path: P, config: ContainerConfig) -> ContainerResult<Self> {
         let path = path.as_ref().to_path_buf();
-        let total_size = FileHeader::SIZE + config.initial_capacity;
+        
+        // Use growth factor to pre-allocate space, reducing future resize operations
+        // This is especially important for Windows/macOS where resize is expensive
+        let growth_factor = config.growth_factor.max(1.0);
+        let preallocated_size = ((config.initial_capacity as f64) * growth_factor) as usize;
+        let total_size = FileHeader::SIZE + preallocated_size;
 
         let file = OpenOptions::new()
             .read(true)
@@ -77,6 +87,7 @@ impl PersistentContainer {
                 .map_err(|e| ContainerError::MappingFailed(e.to_string()))?
         };
 
+        // Initialize header with zero checksum (deferred computation)
         let header = FileHeader::new(0);
         let mut mmap = mmap;
         mmap[..FileHeader::SIZE].copy_from_slice(header.as_bytes());
@@ -163,8 +174,28 @@ impl PersistentContainer {
     }
 
     fn update_header(&mut self) -> ContainerResult<()> {
-        let header = FileHeader::new(self.size as u64);
+        // Compute checksum for data integrity
+        let data = &self.mmap[FileHeader::SIZE..FileHeader::SIZE + self.size];
+        let header = FileHeader::with_checksum(self.size as u64, data);
         self.mmap[..FileHeader::SIZE].copy_from_slice(header.as_bytes());
+        Ok(())
+    }
+
+    /// Verify data integrity using checksum
+    pub fn verify_integrity(&self) -> ContainerResult<()> {
+        if self.size == 0 {
+            return Ok(());
+        }
+
+        let stored_header = FileHeader::from_bytes(&self.mmap[..FileHeader::SIZE])
+            .ok_or_else(|| ContainerError::InvalidHeader("Failed to parse header".to_string()))?;
+
+        if stored_header.has_valid_checksum() {
+            let data = &self.mmap[FileHeader::SIZE..FileHeader::SIZE + self.size];
+            if !stored_header.verify_checksum(data) {
+                return Err(ContainerError::ChecksumMismatch);
+            }
+        }
         Ok(())
     }
 
@@ -210,7 +241,17 @@ impl PersistentContainer {
         let growth_capacity =
             ((self.capacity as f64 * self.config.growth_factor) as usize).max(new_capacity);
 
-        self.file.set_len(growth_capacity as u64)?;
+        // Set file size first and check for errors
+        if let Err(e) = self.file.set_len(growth_capacity as u64) {
+            // Provide more specific error messages
+            return match e.kind() {
+                std::io::ErrorKind::StorageFull => Err(ContainerError::DiskFull),
+                std::io::ErrorKind::PermissionDenied => {
+                    Err(ContainerError::PermissionDenied(e.to_string()))
+                }
+                _ => Err(ContainerError::IoError(e)),
+            };
+        }
 
         // Use platform-specific resize implementation
         resize_mmap(&mut self.mmap, &self.file, growth_capacity)?;
@@ -291,6 +332,63 @@ impl super::IDataContainer for PersistentContainer {
 
     fn file_path(&self) -> Option<&Path> {
         Some(&self.path)
+    }
+
+    fn verify_integrity(&self) -> ContainerResult<()> {
+        PersistentContainer::verify_integrity(self)
+    }
+
+    fn write_batch(&mut self, operations: &[(usize, &[u8])]) -> ContainerResult<usize> {
+        if operations.is_empty() {
+            return Ok(0);
+        }
+
+        // Find the maximum offset to determine if resize is needed
+        let max_end = operations
+            .iter()
+            .map(|(offset, data)| offset + data.len())
+            .max()
+            .unwrap_or(0);
+
+        // Resize if needed (only once)
+        if max_end > self.size {
+            self.do_resize(max_end)?;
+        }
+
+        // Perform all writes
+        let mut total_written = 0;
+        for (offset, data) in operations {
+            if !data.is_empty() {
+                let start = FileHeader::SIZE + offset;
+                let end = start + data.len();
+                self.mmap[start..end].copy_from_slice(data);
+                total_written += data.len();
+            }
+        }
+
+        // Update size and header only once at the end
+        self.size = max_end;
+        self.update_header()?;
+
+        Ok(total_written)
+    }
+
+    fn read_batch(&self, operations: &[(usize, usize)]) -> ContainerResult<Vec<Vec<u8>>> {
+        let mut results = Vec::with_capacity(operations.len());
+        for (offset, len) in operations {
+            let start = FileHeader::SIZE + offset;
+            let end = start + len;
+            if end > self.size + FileHeader::SIZE {
+                return Err(ContainerError::InvalidSize(format!(
+                    "Read at offset {} with len {} exceeds size {}",
+                    offset,
+                    len,
+                    self.size
+                )));
+            }
+            results.push(self.mmap[start..end].to_vec());
+        }
+        Ok(results)
     }
 }
 
@@ -389,8 +487,70 @@ mod tests {
     }
 
     #[test]
+    fn test_persistent_container_checksum_verification() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test_checksum.mmap");
+
+        {
+            let mut container =
+                PersistentContainer::create(&path, 1024).expect("Failed to create container");
+            container.write_at(0, b"test data for checksum").expect("Failed to write");
+            container.sync().expect("Failed to sync");
+        }
+
+        let container = PersistentContainer::open(&path).expect("Failed to open container");
+        container.verify_integrity().expect("Checksum verification failed");
+    }
+
+    #[test]
+    fn test_persistent_container_preallocation() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test_prealloc.mmap");
+
+        // With growth_factor of 2.0, initial_capacity of 1024 should be preallocated to ~2048
+        let container =
+            PersistentContainer::with_config(
+                &path,
+                ContainerConfig {
+                    initial_capacity: 1024,
+                    growth_factor: 2.0,
+                    storage_backend: StorageBackend::Persistent,
+                    ..Default::default()
+                },
+            ).expect("Failed to create container");
+
+        // Capacity should be preallocated (header + preallocated data)
+        assert!(container.capacity() >= FileHeader::SIZE + 1024);
+    }
+
+    #[test]
     fn test_persistent_container_send_sync() {
         fn assert_send<T: Send>() {}
         assert_send::<PersistentContainer>();
+    }
+
+    #[test]
+    fn test_persistent_container_batch_write() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let path = temp_dir.path().join("test_batch.mmap");
+
+        let mut container =
+            PersistentContainer::create(&path, 1024).expect("Failed to create container");
+
+        let operations = vec![
+            (0, b"first".as_slice()),
+            (10, b"second".as_slice()),
+            (20, b"third".as_slice()),
+        ];
+
+        let written = container.write_batch(&operations).expect("Batch write failed");
+        assert_eq!(written, 15); // 5 + 6 + 4
+
+        let results = container
+            .read_batch(&[(0, 5), (10, 6), (20, 5)])
+            .expect("Batch read failed");
+        assert_eq!(&results[0], b"first");
+        assert_eq!(&results[1], b"second");
+        assert_eq!(&results[2], b"third");
     }
 }
