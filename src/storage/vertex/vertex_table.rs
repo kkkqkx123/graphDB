@@ -10,27 +10,21 @@ use super::{
     VertexTimestamp,
 };
 use crate::core::{StorageError, StorageResult, Value};
+use crate::storage::container::StorageBackend;
 
 #[derive(Debug, Clone)]
 pub struct VertexTableConfig {
     pub initial_capacity: usize,
-    pub memory_level: MemoryLevel,
+    pub storage_backend: StorageBackend,
 }
 
 impl Default for VertexTableConfig {
     fn default() -> Self {
         Self {
             initial_capacity: 4096,
-            memory_level: MemoryLevel::InMemory,
+            storage_backend: StorageBackend::Persistent,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MemoryLevel {
-    InMemory,
-    SyncToFile,
-    HugePagePreferred,
 }
 
 #[derive(Debug)]
@@ -75,7 +69,7 @@ impl VertexTable {
     pub fn open<P: AsRef<Path>>(
         &mut self,
         _path: P,
-        _memory_level: MemoryLevel,
+        _storage_backend: StorageBackend,
     ) -> StorageResult<()> {
         self.is_open = true;
         Ok(())

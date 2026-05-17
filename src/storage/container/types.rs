@@ -7,29 +7,36 @@ use std::fmt;
 /// Default huge page size (2MB)
 pub const DEFAULT_HUGE_PAGE_SIZE: usize = 2 * 1024 * 1024;
 
-/// Memory level for storage operations
+/// Storage backend strategy
+///
+/// For database systems, persistence is mandatory by default.
+/// Volatile storage is only for special cases like temporary data, caches, or testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum MemoryLevel {
-    /// Pure in-memory storage using anonymous mmap
-    InMemory,
-    /// In-memory with sync to file (MAP_SHARED)
+pub enum StorageBackend {
+    /// Persistent storage (default for database)
+    /// Data is synced to disk via mmap
     #[default]
-    SyncToFile,
-    /// Prefer huge pages for large allocations
-    HugePagePreferred,
+    Persistent,
+    
+    /// Volatile in-memory storage
+    /// Used for: temp tables, caches, testing
+    Volatile {
+        /// Use huge pages if available (Linux only)
+        prefer_huge_pages: bool,
+    },
 }
 
-impl MemoryLevel {
+impl StorageBackend {
+    pub fn is_persistent(&self) -> bool {
+        matches!(self, StorageBackend::Persistent)
+    }
+
+    pub fn is_volatile(&self) -> bool {
+        matches!(self, StorageBackend::Volatile { .. })
+    }
+
     pub fn prefers_huge_pages(&self) -> bool {
-        matches!(self, MemoryLevel::HugePagePreferred)
-    }
-
-    pub fn requires_persistence(&self) -> bool {
-        matches!(self, MemoryLevel::SyncToFile)
-    }
-
-    pub fn is_in_memory(&self) -> bool {
-        matches!(self, MemoryLevel::InMemory)
+        matches!(self, StorageBackend::Volatile { prefer_huge_pages: true })
     }
 }
 
@@ -42,9 +49,9 @@ pub struct ContainerConfig {
     pub max_capacity: usize,
     /// Growth factor for resizing
     pub growth_factor: f64,
-    /// Memory level
-    pub memory_level: MemoryLevel,
-    /// Huge page size (for HugePagePreferred)
+    /// Storage backend
+    pub storage_backend: StorageBackend,
+    /// Huge page size (for Volatile with huge pages)
     pub huge_page_size: usize,
     /// Fallback to regular pages if huge pages unavailable
     pub huge_page_fallback: bool,
@@ -56,7 +63,7 @@ impl Default for ContainerConfig {
             initial_capacity: 4 * 1024 * 1024,
             max_capacity: 0,
             growth_factor: 2.0,
-            memory_level: MemoryLevel::default(),
+            storage_backend: StorageBackend::default(),
             huge_page_size: DEFAULT_HUGE_PAGE_SIZE,
             huge_page_fallback: true,
         }
@@ -83,8 +90,8 @@ impl ContainerConfig {
         self
     }
 
-    pub fn with_memory_level(mut self, level: MemoryLevel) -> Self {
-        self.memory_level = level;
+    pub fn with_storage_backend(mut self, backend: StorageBackend) -> Self {
+        self.storage_backend = backend;
         self
     }
 
@@ -243,21 +250,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_memory_level() {
-        assert!(MemoryLevel::HugePagePreferred.prefers_huge_pages());
-        assert!(!MemoryLevel::InMemory.prefers_huge_pages());
-        assert!(MemoryLevel::SyncToFile.requires_persistence());
-        assert!(MemoryLevel::InMemory.is_in_memory());
+    fn test_storage_backend() {
+        assert!(StorageBackend::Persistent.is_persistent());
+        assert!(!StorageBackend::Persistent.is_volatile());
+        
+        let volatile = StorageBackend::Volatile { prefer_huge_pages: true };
+        assert!(volatile.is_volatile());
+        assert!(volatile.prefers_huge_pages());
+        
+        let volatile_no_hp = StorageBackend::Volatile { prefer_huge_pages: false };
+        assert!(!volatile_no_hp.prefers_huge_pages());
     }
 
     #[test]
     fn test_container_config() {
         let config = ContainerConfig::new()
             .with_initial_capacity(1024)
-            .with_memory_level(MemoryLevel::HugePagePreferred);
+            .with_storage_backend(StorageBackend::Volatile { prefer_huge_pages: true });
 
         assert_eq!(config.initial_capacity, 1024);
-        assert_eq!(config.memory_level, MemoryLevel::HugePagePreferred);
+        assert!(config.storage_backend.is_volatile());
     }
 
     #[test]

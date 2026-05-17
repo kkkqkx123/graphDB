@@ -56,10 +56,13 @@ pub use crate::core::StorageResult;
 pub use compression::CompressionType;
 
 pub use container::{
-    open_container, open_container_from_file, AnonMmap, ContainerConfig, ContainerError,
-    ContainerResult, ContainerStats, FileHeader, FileMmap, HugePageMmap, IDataContainer,
-    MemoryLevel, DEFAULT_HUGE_PAGE_SIZE,
+    open_container, open_container_from_file, ContainerConfig, ContainerError, ContainerResult,
+    ContainerStats, FileHeader, IDataContainer, PersistentContainer, StorageBackend,
+    VolatileContainer, DEFAULT_HUGE_PAGE_SIZE,
 };
+
+#[allow(deprecated)]
+pub use container::{AnonMmap, FileMmap, HugePageMmap};
 
 pub use engine::config::FlushConfig;
 

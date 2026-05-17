@@ -1,15 +1,19 @@
-//! Base MMap Container
+//! Data Container Trait
 //!
-//! Core memory-mapped container functionality and trait definitions.
+//! Core trait definition for storage containers.
 
-use std::path::PathBuf;
+use std::path::Path;
 
-use super::types::{ContainerError, ContainerResult, ContainerStats, MemoryLevel};
+use super::types::{ContainerError, ContainerResult, ContainerStats, StorageBackend};
 
 pub use super::types::FileHeader;
 
 /// Trait for data containers
+///
+/// Provides a unified interface for both persistent and volatile storage.
 pub trait IDataContainer: Send + Sync {
+    // === Core methods (must implement) ===
+
     /// Get the data pointer
     fn data(&self) -> *const u8;
 
@@ -22,26 +26,39 @@ pub trait IDataContainer: Send + Sync {
     /// Get the capacity
     fn capacity(&self) -> usize;
 
-    /// Check if the container is open
-    fn is_open(&self) -> bool;
-
-    /// Sync data to disk
-    fn sync(&self) -> crate::storage::container::ContainerResult<()>;
-
     /// Resize the container
-    fn resize(&mut self, new_size: usize) -> crate::storage::container::ContainerResult<()>;
+    fn resize(&mut self, new_size: usize) -> ContainerResult<()>;
 
     /// Close the container
     fn close(&mut self);
 
-    /// Get container statistics
-    fn stats(&self) -> ContainerStats;
+    // === Persistence methods ===
 
-    /// Get memory level
-    fn memory_level(&self) -> MemoryLevel;
+    /// Sync data to disk (no-op for volatile containers)
+    fn sync(&self) -> ContainerResult<()>;
+
+    /// Get storage backend type
+    fn storage_backend(&self) -> StorageBackend;
+
+    // === Default implementations ===
+
+    /// Check if the container is open
+    fn is_open(&self) -> bool {
+        !self.data().is_null()
+    }
+
+    /// Get container statistics
+    fn stats(&self) -> ContainerStats {
+        ContainerStats {
+            capacity: self.capacity(),
+            used: self.size(),
+            is_huge_page: false,
+            allocation_count: 0,
+        }
+    }
 
     /// Get the file path (if file-backed)
-    fn path(&self) -> Option<&std::path::Path> {
+    fn file_path(&self) -> Option<&Path> {
         None
     }
 
@@ -49,124 +66,81 @@ pub trait IDataContainer: Send + Sync {
     fn is_huge_page(&self) -> bool {
         self.stats().is_huge_page
     }
-}
 
-// --- Common container operations (shared by AnonMmap and HugePageMmap) ---
+    /// Read data at offset
+    fn read_at(&self, offset: usize, len: usize) -> ContainerResult<Vec<u8>> {
+        let data = self.data();
+        let size = self.size();
 
-pub(crate) fn checked_read_at(
-    data: *const u8,
-    size: usize,
-    offset: usize,
-    len: usize,
-) -> ContainerResult<Vec<u8>> {
-    if data.is_null() {
-        return Err(ContainerError::NotInitialized);
-    }
-    if offset + len > size {
-        return Err(ContainerError::InvalidSize(format!(
-            "Read of {} bytes at offset {} exceeds size {}",
-            len, offset, size
-        )));
-    }
-    let mut result = vec![0u8; len];
-    unsafe {
-        std::ptr::copy_nonoverlapping(data.add(offset), result.as_mut_ptr(), len);
-    }
-    Ok(result)
-}
-
-pub(crate) fn checked_write_at(
-    data: *mut u8,
-    capacity: usize,
-    offset: usize,
-    buf: &[u8],
-) -> ContainerResult<()> {
-    if data.is_null() {
-        return Err(ContainerError::NotInitialized);
-    }
-    let end = offset + buf.len();
-    if end > capacity {
-        return Err(ContainerError::InvalidSize(format!(
-            "Write of {} bytes at offset {} exceeds capacity {}",
-            buf.len(),
-            offset,
-            capacity
-        )));
-    }
-    unsafe {
-        std::ptr::copy_nonoverlapping(buf.as_ptr(), data.add(offset), buf.len());
-    }
-    Ok(())
-}
-
-/// Base mmap container (internal implementation)
-pub(crate) struct MmapBase {
-    pub(crate) path: Option<PathBuf>,
-    pub(crate) data: *mut u8,
-    pub(crate) size: usize,
-    pub(crate) capacity: usize,
-    pub(crate) is_huge_page: bool,
-}
-
-impl MmapBase {
-    pub(crate) fn new() -> Self {
-        Self {
-            path: None,
-            data: std::ptr::null_mut(),
-            size: 0,
-            capacity: 0,
-            is_huge_page: false,
+        if data.is_null() {
+            return Err(ContainerError::NotInitialized);
         }
-    }
-
-    pub(crate) fn align_to_huge_page(size: usize, huge_page_size: usize) -> usize {
-        let mask = huge_page_size - 1;
-        (size + mask) & !mask
-    }
-
-    #[cfg(target_os = "linux")]
-    pub(crate) fn allocate_huge_pages(size: usize) -> crate::storage::container::ContainerResult<*mut u8> {
-        use std::ptr::null_mut;
-        const MAP_HUGETLB: i32 = 0x40000;
-
-        let ptr = unsafe {
-            libc::mmap(
-                null_mut(),
-                size,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | MAP_HUGETLB,
-                -1,
-                0,
-            )
-        };
-
-        if ptr == libc::MAP_FAILED {
-            return Err(crate::storage::container::ContainerError::HugePagesNotAvailable);
+        if offset + len > size {
+            return Err(ContainerError::InvalidSize(format!(
+                "Read of {} bytes at offset {} exceeds size {}",
+                len, offset, size
+            )));
         }
-        Ok(ptr as *mut u8)
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    pub(crate) fn allocate_huge_pages(_size: usize) -> crate::storage::container::ContainerResult<*mut u8> {
-        Err(crate::storage::container::ContainerError::HugePagesNotAvailable)
-    }
-
-    #[cfg(target_os = "linux")]
-    pub(crate) fn deallocate_huge_pages(ptr: *mut u8, size: usize) {
+        let mut result = vec![0u8; len];
         unsafe {
-            libc::munmap(ptr as *mut _, size);
+            std::ptr::copy_nonoverlapping(data.add(offset), result.as_mut_ptr(), len);
+        }
+        Ok(result)
+    }
+
+    /// Write data at offset
+    fn write_at(&mut self, offset: usize, buf: &[u8]) -> ContainerResult<()> {
+        if buf.is_empty() {
+            return Ok(());
+        }
+
+        let end = offset + buf.len();
+        if end > self.size() {
+            self.resize(end)?;
+        }
+
+        let data = self.data_mut();
+        let capacity = self.capacity();
+
+        if data.is_null() {
+            return Err(ContainerError::NotInitialized);
+        }
+        if end > capacity {
+            return Err(ContainerError::InvalidSize(format!(
+                "Write of {} bytes at offset {} exceeds capacity {}",
+                buf.len(),
+                offset,
+                capacity
+            )));
+        }
+        unsafe {
+            std::ptr::copy_nonoverlapping(buf.as_ptr(), data.add(offset), buf.len());
+        }
+        Ok(())
+    }
+
+    /// Get data as slice
+    fn as_slice(&self) -> &[u8] {
+        if self.data().is_null() || self.size() == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(self.data(), self.size()) }
         }
     }
 
-    #[cfg(not(target_os = "linux"))]
-    pub(crate) fn deallocate_huge_pages(_ptr: *mut u8, _size: usize) {}
-}
+    /// Get data as mutable slice
+    fn as_mut_slice(&mut self) -> &mut [u8] {
+        if self.data().is_null() || self.size() == 0 {
+            &mut []
+        } else {
+            unsafe { std::slice::from_raw_parts_mut(self.data_mut(), self.size()) }
+        }
+    }
 
-impl Default for MmapBase {
-    fn default() -> Self {
-        Self::new()
+    // === Deprecated methods for backward compatibility ===
+
+    #[deprecated(since = "0.2.0", note = "Use file_path instead")]
+    fn path(&self) -> Option<&Path> {
+        self.file_path()
     }
 }
-
-unsafe impl Send for MmapBase {}
-unsafe impl Sync for MmapBase {}
