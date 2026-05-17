@@ -103,7 +103,7 @@ pub struct EdgePropertyCacheConfig {
     pub max_entries: usize,
     pub max_memory: usize,
     pub ttl: Duration,
-    pub min_access_frequency: u64,
+    pub min_access_frequency: u32,
     pub max_property_size: usize,
 }
 
@@ -176,7 +176,7 @@ pub struct EdgePropertyCache {
     config: EdgePropertyCacheConfig,
     cache: Mutex<LruCache<EdgePropertyKey, CachedEdgeProperty>>,
     stats: Arc<EdgePropertyCacheStats>,
-    access_tracker: Mutex<lru::LruCache<EdgePropertyKey, u64>>,
+    access_tracker: Mutex<lru::LruCache<EdgePropertyKey, u32>>,
 }
 
 impl EdgePropertyCache {

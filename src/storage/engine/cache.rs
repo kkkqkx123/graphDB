@@ -22,7 +22,8 @@
 //!    with direct offset access.
 
 use std::sync::Arc;
-use std::sync::Mutex;
+
+use parking_lot::RwLock;
 
 use crate::core::types::{EdgeId, LabelId};
 use crate::core::Value;
@@ -35,7 +36,7 @@ use crate::storage::memory::SharedMemoryTracker;
 /// Manager for storage caches
 pub struct CacheManager {
     pub record_cache: Option<SharedRecordCache>,
-    pub edge_property_cache: Mutex<Option<Arc<EdgePropertyCache>>>,
+    pub edge_property_cache: RwLock<Option<Arc<EdgePropertyCache>>>,
     pub memory_tracker: Option<SharedMemoryTracker>,
 }
 
@@ -47,8 +48,7 @@ impl CacheManager {
                 ..Default::default()
             };
             Some(SharedRecordCache::new(
-                RecordCache::with_config(config)
-                    .with_memory_tracker(memory_tracker.clone()),
+                RecordCache::with_config(config),
             ))
         } else {
             None
@@ -56,23 +56,23 @@ impl CacheManager {
 
         Self {
             record_cache,
-            edge_property_cache: Mutex::new(None),
+            edge_property_cache: RwLock::new(None),
             memory_tracker: Some(memory_tracker),
         }
     }
 
     pub fn with_edge_property_cache(self, config: EdgePropertyCacheConfig) -> Self {
         if config.enabled {
-            *self.edge_property_cache.lock().unwrap() = Some(Arc::new(EdgePropertyCache::new(config)));
+            *self.edge_property_cache.write() = Some(Arc::new(EdgePropertyCache::new(config)));
         }
         self
     }
 
     pub fn set_edge_property_cache(&self, config: EdgePropertyCacheConfig) {
         if config.enabled {
-            *self.edge_property_cache.lock().unwrap() = Some(Arc::new(EdgePropertyCache::new(config)));
+            *self.edge_property_cache.write() = Some(Arc::new(EdgePropertyCache::new(config)));
         } else {
-            *self.edge_property_cache.lock().unwrap() = None;
+            *self.edge_property_cache.write() = None;
         }
     }
 
@@ -81,7 +81,7 @@ impl CacheManager {
     }
 
     pub fn edge_property_cache(&self) -> Option<Arc<EdgePropertyCache>> {
-        self.edge_property_cache.lock().unwrap().clone()
+        self.edge_property_cache.read().clone()
     }
 
     pub fn memory_tracker(&self) -> Option<&SharedMemoryTracker> {
@@ -96,8 +96,7 @@ impl CacheManager {
 
     pub fn edge_cache_stats(&self) -> Option<Arc<EdgePropertyCacheStats>> {
         self.edge_property_cache
-            .lock()
-            .unwrap()
+            .read()
             .as_ref()
             .map(|c: &Arc<EdgePropertyCache>| c.stats())
     }
@@ -112,7 +111,7 @@ impl CacheManager {
         if let Some(ref record_cache) = self.record_cache {
             record_cache.clear();
         }
-        if let Some(ref edge_cache) = *self.edge_property_cache.lock().unwrap() {
+        if let Some(ref edge_cache) = *self.edge_property_cache.read() {
             edge_cache.clear();
         }
     }
@@ -179,29 +178,27 @@ impl CacheManager {
 
     pub fn get_edge_property(&self, edge_id: EdgeId, prop_name: &str) -> Option<Value> {
         self.edge_property_cache
-            .lock()
-            .unwrap()
+            .read()
             .as_ref()
             .and_then(|c| c.get(edge_id, prop_name))
     }
 
     pub fn cache_edge_property(&self, edge_id: EdgeId, prop_name: &str, value: Value) -> bool {
         self.edge_property_cache
-            .lock()
-            .unwrap()
+            .read()
             .as_ref()
             .map(|c| c.put(edge_id, prop_name, value))
             .unwrap_or(false)
     }
 
     pub fn invalidate_edge(&self, edge_id: EdgeId) {
-        if let Some(ref cache) = *self.edge_property_cache.lock().unwrap() {
+        if let Some(ref cache) = *self.edge_property_cache.read() {
             cache.invalidate(edge_id);
         }
     }
 
     pub fn invalidate_edge_property(&self, edge_id: EdgeId, prop_name: &str) {
-        if let Some(ref cache) = *self.edge_property_cache.lock().unwrap() {
+        if let Some(ref cache) = *self.edge_property_cache.read() {
             cache.invalidate_property(edge_id, prop_name);
         }
     }

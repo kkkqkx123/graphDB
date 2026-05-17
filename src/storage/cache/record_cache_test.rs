@@ -238,7 +238,7 @@ fn test_eviction_callback() {
 
 #[test]
 fn test_cache_type_stats() {
-    let stats = CacheTypeStats::new();
+    let stats = crate::core::stats::CacheStats::new();
 
     stats.record_hit();
     stats.record_hit();
@@ -446,107 +446,6 @@ fn test_memory_pressure_config() {
 
     let stats = cache.stats();
     assert!(stats.vertex.hits >= 10, "Should have at least 10 hits, got {}", stats.vertex.hits);
-}
-
-#[test]
-fn test_hit_rate_predictor_basic() {
-    let mut predictor = HitRatePredictor::new(1000, 1024 * 1024);
-
-    for i in 0..100 {
-        let access = CacheAccess {
-            cache_type: CacheAccessType::Vertex,
-            key_hash: i as u64,
-            size: 1024,
-            timestamp: std::time::Instant::now(),
-        };
-        predictor.record_access(access);
-    }
-
-    assert_eq!(predictor.access_count(), 100);
-}
-
-#[test]
-fn test_hit_rate_predictor_prediction() {
-    let mut predictor = HitRatePredictor::new(1000, 1024 * 1024);
-
-    for i in 0..10 {
-        for _ in 0..10 {
-            let access = CacheAccess {
-                cache_type: CacheAccessType::Vertex,
-                key_hash: i as u64,
-                size: 1024,
-                timestamp: std::time::Instant::now(),
-            };
-            predictor.record_access(access);
-        }
-    }
-
-    let result = predictor.predict_for_capacity(10 * 1024);
-    assert!(result.predicted_hit_rate > 0.0);
-    assert_eq!(result.recommended_capacity, 10 * 1024);
-
-    let result = predictor.predict_for_capacity(5 * 1024);
-    assert!(result.predicted_hit_rate >= 0.0);
-}
-
-#[test]
-fn test_hit_rate_predictor_optimal_capacity() {
-    let mut predictor = HitRatePredictor::new(1000, 1024 * 1024);
-
-    for i in 0..20 {
-        for _ in 0..5 {
-            let access = CacheAccess {
-                cache_type: CacheAccessType::Vertex,
-                key_hash: i as u64,
-                size: 1024,
-                timestamp: std::time::Instant::now(),
-            };
-            predictor.record_access(access);
-        }
-    }
-
-    let result = predictor.find_optimal_capacity(0.5);
-    assert!(result.is_some());
-
-    let result = result.unwrap();
-    assert!(result.predicted_hit_rate >= 0.5);
-}
-
-#[test]
-fn test_hit_rate_predictor_clear() {
-    let mut predictor = HitRatePredictor::new(100, 1024 * 1024);
-
-    for i in 0..50 {
-        let access = CacheAccess {
-            cache_type: CacheAccessType::Vertex,
-            key_hash: i as u64,
-            size: 1024,
-            timestamp: std::time::Instant::now(),
-        };
-        predictor.record_access(access);
-    }
-
-    assert_eq!(predictor.access_count(), 50);
-
-    predictor.clear_history();
-    assert_eq!(predictor.access_count(), 0);
-}
-
-#[test]
-fn test_hit_rate_predictor_history_limit() {
-    let mut predictor = HitRatePredictor::new(10, 1024 * 1024);
-
-    for i in 0..20 {
-        let access = CacheAccess {
-            cache_type: CacheAccessType::Vertex,
-            key_hash: i as u64,
-            size: 1024,
-            timestamp: std::time::Instant::now(),
-        };
-        predictor.record_access(access);
-    }
-
-    assert_eq!(predictor.access_count(), 10);
 }
 
 #[test]

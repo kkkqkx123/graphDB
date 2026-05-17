@@ -1,6 +1,7 @@
 //! Storage configuration
 
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 /// Edge property cache configuration
 ///
@@ -29,7 +30,7 @@ pub struct EdgePropertyCacheConfig {
 
     /// Minimum access frequency to cache
     #[serde(default = "default_min_access_frequency")]
-    pub min_access_frequency: u64,
+    pub min_access_frequency: u32,
 
     /// Maximum property size to cache (bytes)
     #[serde(default = "default_max_property_size")]
@@ -48,7 +49,7 @@ fn default_edge_cache_ttl() -> u64 {
     300 // 5 minutes
 }
 
-fn default_min_access_frequency() -> u64 {
+fn default_min_access_frequency() -> u32 {
     5
 }
 
@@ -102,6 +103,19 @@ impl EdgePropertyCacheConfig {
             return Err("ttl_secs must be greater than 0".to_string());
         }
         Ok(())
+    }
+}
+
+impl From<EdgePropertyCacheConfig> for crate::storage::cache::EdgePropertyCacheConfig {
+    fn from(config: EdgePropertyCacheConfig) -> Self {
+        Self {
+            enabled: config.enabled,
+            max_entries: config.max_entries,
+            max_memory: config.max_memory,
+            ttl: Duration::from_secs(config.ttl_secs),
+            min_access_frequency: config.min_access_frequency,
+            max_property_size: config.max_property_size,
+        }
     }
 }
 

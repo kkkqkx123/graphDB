@@ -2,62 +2,7 @@
 //!
 //! Statistics tracking for cache performance monitoring.
 
-use std::sync::atomic::{AtomicU64, Ordering};
-
-/// Per-cache-type statistics
-#[derive(Debug, Default)]
-pub struct CacheTypeStats {
-    pub hits: AtomicU64,
-    pub misses: AtomicU64,
-    pub evictions: AtomicU64,
-}
-
-impl CacheTypeStats {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn record_hit(&self) {
-        self.hits.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_miss(&self) {
-        self.misses.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_eviction(&self) {
-        self.evictions.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn hits(&self) -> u64 {
-        self.hits.load(Ordering::Relaxed)
-    }
-
-    pub fn misses(&self) -> u64 {
-        self.misses.load(Ordering::Relaxed)
-    }
-
-    pub fn evictions(&self) -> u64 {
-        self.evictions.load(Ordering::Relaxed)
-    }
-
-    pub fn hit_rate(&self) -> f64 {
-        let hits = self.hits();
-        let misses = self.misses();
-        let total = hits + misses;
-        if total > 0 {
-            hits as f64 / total as f64
-        } else {
-            0.0
-        }
-    }
-
-    pub fn reset(&self) {
-        self.hits.store(0, Ordering::Relaxed);
-        self.misses.store(0, Ordering::Relaxed);
-        self.evictions.store(0, Ordering::Relaxed);
-    }
-}
+use crate::core::stats::CacheStats;
 
 /// Snapshot of per-cache-type statistics
 #[derive(Debug, Clone, Copy)]
@@ -71,7 +16,7 @@ pub struct CacheTypeStatsSnapshot {
 }
 
 impl CacheTypeStatsSnapshot {
-    pub fn from_stats(stats: &CacheTypeStats, count: u64, memory_bytes: u64) -> Self {
+    pub fn from_stats(stats: &CacheStats, count: u64, memory_bytes: u64) -> Self {
         Self {
             hits: stats.hits(),
             misses: stats.misses(),

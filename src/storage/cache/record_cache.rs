@@ -34,13 +34,14 @@
 //! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
 //!    with direct offset access.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use moka::sync::Cache;
 use parking_lot::RwLock;
 
+use crate::core::stats::CacheStats;
 use crate::core::stats::StatsManager;
-use crate::storage::memory::MemoryTracker;
 
 use super::types::*;
 use super::stats::*;
@@ -52,12 +53,12 @@ pub struct RecordCache {
     vertex_cache: Cache<VertexCacheKey, CachedVertex>,
     id_index_cache: Cache<IdIndexCacheKey, u32>,
     config: RecordCacheConfig,
-    vertex_stats: Arc<CacheTypeStats>,
-    id_index_stats: Arc<CacheTypeStats>,
+    vertex_stats: Arc<CacheStats>,
+    id_index_stats: Arc<CacheStats>,
     eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
-    memory_tracker: Option<Arc<MemoryTracker>>,
     memory_pressure_config: MemoryPressureConfig,
     original_max_memory: usize,
+    current_max_memory: AtomicUsize,
     stats_manager: Option<Arc<StatsManager>>,
 }
 
@@ -86,8 +87,8 @@ impl RecordCache {
     pub fn with_config(config: RecordCacheConfig) -> Self {
         let memory_allocation = Self::calculate_memory_allocation(&config);
 
-        let vertex_stats = Arc::new(CacheTypeStats::new());
-        let id_index_stats = Arc::new(CacheTypeStats::new());
+        let vertex_stats = Arc::new(CacheStats::new());
+        let id_index_stats = Arc::new(CacheStats::new());
 
         let eviction_callback = Arc::new(RwLock::new(None::<EvictionCallback>));
 
@@ -116,9 +117,9 @@ impl RecordCache {
             vertex_stats,
             id_index_stats,
             eviction_callback,
-            memory_tracker: None,
             memory_pressure_config: MemoryPressureConfig::default(),
             original_max_memory,
+            current_max_memory: AtomicUsize::new(original_max_memory),
             stats_manager: None,
         }
     }
@@ -144,7 +145,7 @@ impl RecordCache {
 
     fn build_vertex_cache(
         max_capacity: u64,
-        stats: Arc<CacheTypeStats>,
+        stats: Arc<CacheStats>,
         eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
         ttl: Option<std::time::Duration>,
         tti: Option<std::time::Duration>,
@@ -173,7 +174,7 @@ impl RecordCache {
 
     fn build_id_index_cache(
         max_capacity: u64,
-        stats: Arc<CacheTypeStats>,
+        stats: Arc<CacheStats>,
         eviction_callback: Arc<RwLock<Option<EvictionCallback>>>,
         ttl: Option<std::time::Duration>,
         tti: Option<std::time::Duration>,
@@ -198,11 +199,6 @@ impl RecordCache {
         }
 
         builder.build()
-    }
-
-    pub fn with_memory_tracker(mut self, tracker: Arc<MemoryTracker>) -> Self {
-        self.memory_tracker = Some(tracker);
-        self
     }
 
     pub fn with_eviction_callback(self, callback: EvictionCallback) -> Self {
@@ -257,19 +253,12 @@ impl RecordCache {
     pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32) {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         self.id_index_cache.insert(key, internal_id);
-
-        if let Some(ref tracker) = self.memory_tracker {
-            tracker.try_allocate_cache(std::mem::size_of::<u32>());
-        }
     }
 
     pub fn remove_id_index(&self, label_id: u32, external_id: &str) {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         if self.id_index_cache.remove(&key).is_some() {
             self.notify_eviction("id_index", EvictionCause::Explicit);
-            if let Some(ref tracker) = self.memory_tracker {
-                tracker.release_cache(std::mem::size_of::<u32>());
-            }
         }
     }
 
@@ -293,21 +282,12 @@ impl RecordCache {
     }
 
     pub fn insert_vertex(&self, key: VertexCacheKey, vertex: CachedVertex) {
-        let size = vertex.estimated_size() as usize;
         self.vertex_cache.insert(key, vertex);
-
-        if let Some(ref tracker) = self.memory_tracker {
-            tracker.try_allocate_cache(size);
-        }
     }
 
     pub fn remove_vertex(&self, key: &VertexCacheKey) {
         if let Some(vertex) = self.vertex_cache.remove(key) {
             self.notify_eviction("vertex", EvictionCause::Explicit);
-            let size = vertex.estimated_size() as usize;
-            if let Some(ref tracker) = self.memory_tracker {
-                tracker.release_cache(size);
-            }
         }
     }
 
@@ -343,7 +323,7 @@ impl RecordCache {
     }
 
     pub fn max_memory(&self) -> usize {
-        self.config.max_memory
+        self.current_max_memory.load(Ordering::Relaxed)
     }
 
     pub fn stats(&self) -> RecordCacheStats {
@@ -374,22 +354,23 @@ impl RecordCache {
                 0.0
             },
             memory_usage: self.memory_usage(),
-            max_memory: self.config.max_memory,
+            max_memory: self.current_max_memory.load(Ordering::Relaxed),
         }
     }
 
     pub fn utilization(&self) -> f32 {
-        if self.config.max_memory == 0 {
+        let max_memory = self.current_max_memory.load(Ordering::Relaxed);
+        if max_memory == 0 {
             return 0.0;
         }
-        self.memory_usage() as f32 / self.config.max_memory as f32
+        self.memory_usage() as f32 / max_memory as f32
     }
 
-    pub fn vertex_stats(&self) -> &CacheTypeStats {
+    pub fn vertex_stats(&self) -> &CacheStats {
         &self.vertex_stats
     }
 
-    pub fn id_index_stats(&self) -> &CacheTypeStats {
+    pub fn id_index_stats(&self) -> &CacheStats {
         &self.id_index_stats
     }
 
@@ -427,10 +408,6 @@ impl RecordCache {
             self.vertex_cache.insert(key, vertex);
         }
 
-        if let Some(ref tracker) = self.memory_tracker {
-            tracker.try_allocate_cache(total_size);
-        }
-
         BatchInsertResult {
             inserted: self.vertex_cache.entry_count() as usize,
             total_size,
@@ -461,7 +438,7 @@ impl RecordCache {
 
     // ==================== Memory Pressure ====================
 
-    pub fn handle_memory_pressure(&mut self, level: MemoryPressureLevel) {
+    pub fn handle_memory_pressure(&self, level: MemoryPressureLevel) {
         if !self.memory_pressure_config.enabled {
             return;
         }
@@ -477,13 +454,14 @@ impl RecordCache {
         }
     }
 
-    fn reduce_memory(&mut self, factor: f32) {
+    fn reduce_memory(&self, factor: f32) {
         let new_max = (self.original_max_memory as f64 * factor as f64) as usize;
-        self.config.max_memory = new_max;
+        self.current_max_memory.store(new_max, Ordering::Relaxed);
     }
 
-    pub fn restore_memory(&mut self) {
-        self.config.max_memory = self.original_max_memory;
+    pub fn restore_memory(&self) {
+        self.current_max_memory
+            .store(self.original_max_memory, Ordering::Relaxed);
     }
 }
 

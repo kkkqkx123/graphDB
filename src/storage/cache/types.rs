@@ -98,12 +98,17 @@ pub struct CachedVertex {
 
 impl CachedVertex {
     pub fn estimated_size(&self) -> u32 {
-        let mut size = std::mem::size_of::<u32>() * 2;
-        size += self.external_id.len();
+        let mut size = std::mem::size_of::<Self>();
+
+        size += self.external_id.capacity();
+
+        size += self.properties.capacity() * std::mem::size_of::<(String, Value)>();
+
         for (name, value) in &self.properties {
-            size += name.len();
+            size += name.capacity();
             size += value.estimated_size();
         }
+
         size as u32
     }
 }

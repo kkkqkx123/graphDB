@@ -36,7 +36,6 @@ mod types;
 mod stats;
 mod config;
 mod batch;
-mod predictor;
 mod record_cache;
 mod edge_property_cache;
 
@@ -44,10 +43,9 @@ mod edge_property_cache;
 mod record_cache_test;
 
 pub use types::*;
-pub use stats::{CacheTypeStats, CacheTypeStatsSnapshot, RecordCacheStats};
+pub use stats::{CacheTypeStatsSnapshot, RecordCacheStats};
 pub use config::*;
 pub use batch::*;
-pub use predictor::*;
 pub use record_cache::{RecordCache, SharedRecordCache};
 pub use edge_property_cache::{
     CachedEdgeProperty, EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats,
