@@ -12,9 +12,9 @@ mod vertex_index_manager;
 
 pub use edge_index_manager::EdgeIndexManager;
 pub use index_data_manager::{
-    GcStats, IndexDataManagerImpl, IndexDataManager, IndexEntry, Timestamp,
-    INVALID_TIMESTAMP, MAX_TIMESTAMP,
+    GcStats, IndexDataManagerImpl, IndexDataManager, IndexEntry,
 };
+pub use crate::core::types::{INVALID_TIMESTAMP, MAX_TIMESTAMP, Timestamp};
 pub use index_gc_manager::{IndexGcConfig, IndexGcManager};
 pub use index_updater::{IndexUndoEntry, IndexUndoLog, IndexUpdateContext, IndexUpdater};
 pub use key_codec::{

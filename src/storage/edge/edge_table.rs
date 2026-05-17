@@ -211,16 +211,11 @@ impl EdgeTable {
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
             let edge_id = nbr.edge_id;
-            let prop_offset = nbr.prop_offset;
 
             self.out_csr.delete_edge(src, edge_id, ts);
 
             if self.schema.ie_strategy != EdgeStrategy::None {
                 self.in_csr.delete_edge_by_dst(dst, src, ts);
-            }
-
-            if prop_offset > 0 {
-                self.properties.delete(prop_offset);
             }
 
             self.edge_id_to_src.remove(&edge_id);
@@ -247,17 +242,11 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
-        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
-            let prop_offset = nbr.prop_offset;
-
+        if self.out_csr.get_edge(src, dst, ts).is_some() {
             self.out_csr.delete_edge_by_offset(src, oe_offset, ts);
 
             if self.schema.ie_strategy != EdgeStrategy::None {
                 self.in_csr.delete_edge_by_offset(dst, ie_offset, ts);
-            }
-
-            if prop_offset > 0 {
-                self.properties.delete(prop_offset);
             }
 
             return Ok(true);
@@ -308,17 +297,11 @@ impl EdgeTable {
             None => return Ok(false),
         };
 
-        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
-            let prop_offset = nbr.prop_offset;
-
+        if self.out_csr.get_edge(src, dst, ts).is_some() {
             self.out_csr.delete_edge(src, edge_id, ts);
 
             if self.schema.ie_strategy != EdgeStrategy::None {
                 self.in_csr.delete_edge_by_dst(dst, src, ts);
-            }
-
-            if prop_offset > 0 {
-                self.properties.delete(prop_offset);
             }
 
             self.edge_id_to_src.remove(&edge_id);
@@ -551,33 +534,7 @@ impl EdgeTable {
             return Vec::new();
         }
 
-        let mut edges = Vec::new();
-        for &src_vid in &self.active_vertices {
-            for nbr in self.out_csr.edges_of(src_vid, ts) {
-                let properties = if nbr.prop_offset > 0 {
-                    self.properties
-                        .get(nbr.prop_offset)
-                        .map(|props| {
-                            props
-                                .into_iter()
-                                .filter_map(|(k, v)| v.map(|v| (k, v)))
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
-
-                edges.push(EdgeRecord {
-                    edge_id: nbr.edge_id,
-                    src_vid,
-                    dst_vid: nbr.neighbor,
-                    ranking: 0,
-                    properties,
-                });
-            }
-        }
-        edges
+        self.iter(ts).collect()
     }
 
     pub fn add_property(
@@ -773,6 +730,12 @@ impl EdgeTable {
         let props_path = path.join("properties.bin");
         self.flush_properties(&props_path)?;
 
+        let active_vertices_path = path.join("active_vertices.bin");
+        self.flush_active_vertices(&active_vertices_path)?;
+
+        let edge_id_to_src_path = path.join("edge_id_to_src.bin");
+        self.flush_edge_id_to_src(&edge_id_to_src_path)?;
+
         Ok(())
     }
 
@@ -798,6 +761,44 @@ impl EdgeTable {
         let data = self.properties.dump();
         file.write_all(&(data.len() as u64).to_le_bytes())?;
         file.write_all(&data)?;
+
+        Ok(())
+    }
+
+    fn flush_active_vertices(&self, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file = File::create(path)?;
+
+        file.write_all(&(self.active_vertices.len() as u64).to_le_bytes())?;
+        for vertex_id in &self.active_vertices {
+            let bytes = vertex_id.as_bytes();
+            file.write_all(&(bytes.len() as u8).to_le_bytes())?;
+            file.write_all(bytes)?;
+        }
+
+        Ok(())
+    }
+
+    fn flush_edge_id_to_src(&self, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file = File::create(path)?;
+
+        file.write_all(&(self.edge_id_to_src.len() as u64).to_le_bytes())?;
+        for (edge_id, (src, dst)) in &self.edge_id_to_src {
+            file.write_all(&edge_id.to_le_bytes())?;
+            
+            let src_bytes = src.as_bytes();
+            file.write_all(&(src_bytes.len() as u8).to_le_bytes())?;
+            file.write_all(src_bytes)?;
+            
+            let dst_bytes = dst.as_bytes();
+            file.write_all(&(dst_bytes.len() as u8).to_le_bytes())?;
+            file.write_all(dst_bytes)?;
+        }
 
         Ok(())
     }
@@ -851,6 +852,12 @@ impl EdgeTable {
         let props_path = path.join("properties.bin");
         self.load_properties(&props_path)?;
 
+        let active_vertices_path = path.join("active_vertices.bin");
+        self.load_active_vertices(&active_vertices_path)?;
+
+        let edge_id_to_src_path = path.join("edge_id_to_src.bin");
+        self.load_edge_id_to_src(&edge_id_to_src_path)?;
+
         self.is_open = true;
         Ok(())
     }
@@ -887,6 +894,66 @@ impl EdgeTable {
         file.read_exact(&mut data)?;
 
         self.properties.load(&data);
+
+        Ok(())
+    }
+
+    fn load_active_vertices(&mut self, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(path)?;
+
+        let mut len_bytes = [0u8; 8];
+        file.read_exact(&mut len_bytes)?;
+        let len = u64::from_le_bytes(len_bytes) as usize;
+
+        self.active_vertices.clear();
+        for _ in 0..len {
+            let mut len_byte = [0u8; 1];
+            file.read_exact(&mut len_byte)?;
+            let vertex_len = len_byte[0] as usize;
+            
+            let mut vertex_bytes = vec![0u8; vertex_len];
+            file.read_exact(&mut vertex_bytes)?;
+            self.active_vertices.insert(VertexId::from_bytes(vertex_bytes));
+        }
+
+        Ok(())
+    }
+
+    fn load_edge_id_to_src(&mut self, path: &Path) -> StorageResult<()> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(path)?;
+
+        let mut len_bytes = [0u8; 8];
+        file.read_exact(&mut len_bytes)?;
+        let len = u64::from_le_bytes(len_bytes) as usize;
+
+        self.edge_id_to_src.clear();
+        for _ in 0..len {
+            let mut edge_id_bytes = [0u8; 8];
+            file.read_exact(&mut edge_id_bytes)?;
+            let edge_id = u64::from_le_bytes(edge_id_bytes);
+
+            let mut src_len_byte = [0u8; 1];
+            file.read_exact(&mut src_len_byte)?;
+            let src_len = src_len_byte[0] as usize;
+            let mut src_bytes = vec![0u8; src_len];
+            file.read_exact(&mut src_bytes)?;
+            let src = VertexId::from_bytes(src_bytes);
+
+            let mut dst_len_byte = [0u8; 1];
+            file.read_exact(&mut dst_len_byte)?;
+            let dst_len = dst_len_byte[0] as usize;
+            let mut dst_bytes = vec![0u8; dst_len];
+            file.read_exact(&mut dst_bytes)?;
+            let dst = VertexId::from_bytes(dst_bytes);
+
+            self.edge_id_to_src.insert(edge_id, (src, dst));
+        }
 
         Ok(())
     }
@@ -1111,5 +1178,77 @@ mod tests {
 
         let edge = table.get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100).unwrap();
         assert_eq!(edge.properties.len(), 1);
+    }
+
+    #[test]
+    fn test_flush_load_roundtrip() {
+        use std::fs;
+
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema);
+
+        let ts = 100u32;
+        let _edge_id_1 = table
+            .insert_edge(
+                VertexId::from_int64(1),
+                VertexId::from_int64(2),
+                &[("weight".to_string(), Value::Double(1.5))],
+                ts,
+            )
+            .unwrap();
+
+        let edge_id_2 = table
+            .insert_edge(
+                VertexId::from_int64(1),
+                VertexId::from_int64(3),
+                &[("weight".to_string(), Value::Double(2.5))],
+                ts,
+            )
+            .unwrap();
+
+        let _edge_id_3 = table
+            .insert_edge(
+                VertexId::from_int64(2),
+                VertexId::from_int64(3),
+                &[("weight".to_string(), Value::Double(3.5))],
+                ts,
+            )
+            .unwrap();
+
+        let temp_dir = std::env::temp_dir().join("edge_table_test_flush_load");
+        let _ = fs::remove_dir_all(&temp_dir);
+
+        table.flush(&temp_dir).expect("flush should succeed");
+
+        let mut loaded_table = EdgeTable::new(create_test_schema());
+        loaded_table.load(&temp_dir).expect("load should succeed");
+
+        assert_eq!(
+            loaded_table.out_degree(VertexId::from_int64(1), ts),
+            2,
+            "scan should work after load"
+        );
+        assert_eq!(
+            loaded_table.out_degree(VertexId::from_int64(2), ts),
+            1,
+            "scan should work after load"
+        );
+
+        assert!(
+            loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(2), ts),
+            "get_edge should work after load"
+        );
+
+        let deleted = loaded_table
+            .delete_edge_by_id(edge_id_2, ts + 1)
+            .expect("delete_edge_by_id should work after load");
+        assert!(deleted, "delete_edge_by_id should find the edge");
+
+        assert!(
+            !loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), ts + 1),
+            "deleted edge should not be visible"
+        );
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

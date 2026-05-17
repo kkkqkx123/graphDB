@@ -6,9 +6,9 @@
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 //! Supports optional key compression for memory efficiency.
 
-use crate::core::types::Index;
+use crate::core::types::{Index, MAX_TIMESTAMP, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
-use super::index_data_manager::{IndexEntry, Timestamp, MAX_TIMESTAMP};
+use super::index_data_manager::IndexEntry;
 use super::key_codec::{
     deserialize_value, serialize_value, CompressionConfig, IndexCompressor, SecondaryIndexKey, KeyBuilder,
     KeyParser,

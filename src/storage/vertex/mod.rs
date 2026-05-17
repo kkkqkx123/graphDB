@@ -24,10 +24,9 @@ pub use id_indexer::IdIndexer;
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
 
-pub use crate::core::types::{LabelId, Timestamp, VertexId};
-
-pub const INVALID_TIMESTAMP: u32 = u32::MAX;
-pub const MAX_TIMESTAMP: u32 = u32::MAX - 1;
+pub use crate::core::types::{
+    INVALID_TIMESTAMP, LabelId, MAX_TIMESTAMP, Timestamp, VertexId,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VertexStatus {

@@ -6,7 +6,7 @@
 //! Supports persistence through flush/load operations.
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 
-use crate::core::types::Index;
+use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
 use crate::core::{StorageError, StorageResult, Value};
@@ -18,10 +18,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
-pub type Timestamp = u32;
 
-pub const INVALID_TIMESTAMP: Timestamp = u32::MAX;
-pub const MAX_TIMESTAMP: Timestamp = u32::MAX - 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexEntry {

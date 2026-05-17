@@ -46,10 +46,10 @@ pub use property_table::PropertyTable;
 pub use property_table::{PROP_OFFSET_NONE, prop_index_to_offset, prop_offset_to_index};
 pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
 
-pub use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
+pub use crate::core::types::{
+    EdgeId, INVALID_TIMESTAMP, LabelId, MAX_TIMESTAMP, Timestamp, VertexId,
+};
 
-pub const INVALID_TIMESTAMP: u32 = u32::MAX;
-pub const MAX_TIMESTAMP: u32 = u32::MAX - 1;
 pub const INVALID_EDGE_ID: u64 = u64::MAX;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

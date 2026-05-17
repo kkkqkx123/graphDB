@@ -50,9 +50,10 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-
-use super::index_data_manager::{GcStats, IndexDataManagerImpl, Timestamp};
+use crate::core::types::Timestamp;
 use crate::core::mvcc::VersionManager;
+
+use super::index_data_manager::{GcStats, IndexDataManagerImpl};
 
 /// GC manager configuration
 #[derive(Debug, Clone)]
