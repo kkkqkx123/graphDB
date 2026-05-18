@@ -3,7 +3,6 @@
 //! Combines out/in CSRs and property storage for edge management.
 //! Uses EdgeOffset (CSR-native offset) instead of global EdgeId for edge identification.
 
-use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -13,7 +12,7 @@ use super::{
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::cache::EdgePropertyCache;
-use crate::storage::storage_types::EdgeOffset;
+use crate::storage::storage_types::{EdgeOffset, PropertyId};
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -252,7 +251,7 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
-        let edge_id = self.out_csr.find_deleted_edge(src, dst);
+        let _edge_id = self.out_csr.find_deleted_edge(src, dst);
         let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset.as_i32(), ts);
 
         if reverted && self.schema.ie_strategy != EdgeStrategy::None {
@@ -262,7 +261,7 @@ impl EdgeTable {
         Ok(reverted)
     }
 
-    pub fn delete_edge_by_id(&mut self, _edge_id: u64, ts: Timestamp) -> StorageResult<bool> {
+    pub fn delete_edge_by_id(&mut self, _edge_id: u64, _ts: Timestamp) -> StorageResult<bool> {
         Err(StorageError::invalid_operation(
             "delete_edge_by_id is not supported. Use delete_edge or delete_edge_by_offset instead.".to_string(),
         ))
@@ -371,7 +370,7 @@ impl EdgeTable {
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
             for (prop_id, value) in values {
                 let prop_id = crate::storage::storage_types::PropertyId::new(*prop_id);
-                self.properties.set_property_by_id(nbr.prop_offset, prop_id, Some(value))?;
+                self.properties.set_property_by_id(nbr.prop_offset, prop_id, Some(value.clone()))?;
             }
 
             if let Some(ref cache) = self.property_cache {
@@ -575,7 +574,7 @@ impl EdgeTable {
 
         if let Some(nbr) = self.out_csr.get_edge(params.src, params.dst, params.ts) {
             self.properties
-                .set_property_by_id(nbr.prop_offset, params.col_id, Some(params.value.clone()))?;
+                .set_property_by_id(nbr.prop_offset, PropertyId(params.prop_id), Some(params.value.clone()))?;
 
             if self.schema.ie_strategy != EdgeStrategy::None {
                 if let Some(ie_nbr) = self.in_csr.get_edge(params.dst, params.src, params.ts) {
@@ -598,6 +597,12 @@ impl EdgeTable {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
+
+        let eid = self.out_csr.find_deleted_edge(src, dst);
+        let eid = match eid {
+            Some(id) => id,
+            None => return Ok(false),
+        };
 
         let reverted = self.out_csr.revert_delete(src, eid, ts);
 
@@ -688,9 +693,6 @@ impl EdgeTable {
         let label_name_bytes = self.label_name.as_bytes();
         meta_file.write_all(&(label_name_bytes.len() as u32).to_le_bytes())?;
         meta_file.write_all(label_name_bytes)?;
-
-        let edge_id = self.edge_id_counter.load(Ordering::Relaxed);
-        meta_file.write_all(&edge_id.to_le_bytes())?;
 
         let is_open_flag: u8 = if self.is_open { 1 } else { 0 };
         meta_file.write_all(&is_open_flag.to_le_bytes())?;
@@ -821,10 +823,8 @@ impl EdgeTable {
     }
 
     pub fn compact_csr(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
-        let removed_count = self.out_csr.compact_with_ts(ts, reserve_ratio)
-            + self.in_csr.compact_with_ts(ts, reserve_ratio);
-
-        removed_count
+        self.out_csr.compact_with_ts(ts, reserve_ratio)
+            + self.in_csr.compact_with_ts(ts, reserve_ratio)
     }
 
     pub fn compact_properties(&mut self, ts: Timestamp) {
@@ -982,7 +982,7 @@ mod tests {
         assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100));
 
         let edge = table.get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100).unwrap();
-        assert_eq!(edge.edge_id, edge_id);
+        assert_eq!(edge.edge_id, edge_id.0 as u64);
         assert_eq!(edge.src_vid, VertexId::from_int64(0));
         assert_eq!(edge.dst_vid, VertexId::from_int64(1));
     }
@@ -1055,7 +1055,7 @@ mod tests {
             )
             .unwrap();
 
-        let edge_id_2 = table
+        let _edge_id_2 = table
             .insert_edge(
                 VertexId::from_int64(1),
                 VertexId::from_int64(3),
@@ -1098,9 +1098,9 @@ mod tests {
         );
 
         let deleted = loaded_table
-            .delete_edge_by_id(edge_id_2, ts + 1)
-            .expect("delete_edge_by_id should work after load");
-        assert!(deleted, "delete_edge_by_id should find the edge");
+            .delete_edge(VertexId::from_int64(1), VertexId::from_int64(3), ts + 1)
+            .expect("delete_edge should work after load");
+        assert!(deleted, "delete_edge should find the edge");
 
         assert!(
             !loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), ts + 1),

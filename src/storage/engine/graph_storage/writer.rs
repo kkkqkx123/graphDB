@@ -394,13 +394,12 @@ impl<'a> GraphStorageWriter<'a> {
                                     })?;
                                     return Ok(true);
                                 }
-                                Err(ref e)
-                                    if e.kind()
-                                        == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists =>
-                                {
-                                    return Ok(false);
+                                Err(e) => {
+                                    if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists {
+                                        return Ok(false);
+                                    }
+                                    return Err(e);
                                 }
-                                Err(e) => return Err(e),
                             }
                         }
                     }

@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
+use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::{
     EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
     PropertyDef as EdgePropertyDef,
 };
+use crate::storage::storage_types::EdgeOffset;
 
 use super::schema::SchemaOps;
 
@@ -208,7 +209,7 @@ impl EdgeOps {
         properties: &[(String, Value)],
         ts: Timestamp,
         vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
-    ) -> StorageResult<EdgeId> {
+    ) -> StorageResult<EdgeOffset> {
         let src_table = vertex_tables.get(&params.src_label).ok_or_else(|| {
             StorageError::label_not_found(format!("source vertex label {}", params.src_label))
         })?;

@@ -140,7 +140,7 @@ impl OverflowStore {
 
     pub fn memory_size(&self) -> usize {
         let mut total = std::mem::size_of::<Self>();
-        for (_key, value) in &self.data {
+        for value in self.data.values() {
             total += std::mem::size_of::<u64>() + value.len();
         }
         total
@@ -1183,7 +1183,7 @@ mod tests {
 
         for i in 0..25 {
             table
-                .insert(&[("id".to_string(), Value::Int(i as i32))])
+                .insert(&[("id".to_string(), Value::Int(i))])
                 .unwrap();
         }
 
@@ -1208,7 +1208,7 @@ mod tests {
                 .unwrap();
         }
 
-        assert!(table.apply_encoding(0, EncodingType::Rle).is_ok());
+        assert!(table.apply_encoding(PropertyId(0), EncodingType::Rle).is_ok());
     }
 
     #[test]
@@ -1219,7 +1219,7 @@ mod tests {
         let offsets: Vec<u32> = (0..15)
             .map(|i| {
                 table
-                    .insert(&[("id".to_string(), Value::Int(i as i32))])
+                    .insert(&[("id".to_string(), Value::Int(i))])
                     .unwrap()
             })
             .collect();

@@ -92,7 +92,7 @@ fn test_create_edge() {
     let edge = graph
         .get_edge(knows_label, person_label, "alice", person_label, "bob", 100)
         .unwrap();
-    assert_eq!(edge.edge_id, edge_id);
+    assert_eq!(edge.edge_id, edge_id.0 as u64);
 }
 
 #[test]

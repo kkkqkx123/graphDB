@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use parking_lot::{Mutex, RwLock};
 
-use crate::core::types::{EdgeId, LabelId, Timestamp};
+use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{
@@ -23,6 +23,7 @@ use crate::storage::edge::{
 };
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
+use crate::storage::storage_types::EdgeOffset;
 use crate::storage::vertex::PropertyDef as VertexPropertyDef;
 use crate::storage::vertex::VertexRecord;
 use crate::transaction::wal::writer::WalWriter;
@@ -366,7 +367,7 @@ impl PropertyGraph {
 
     // ==================== Edge Operations ====================
 
-    pub fn insert_edge(&self, params: InsertEdgeParams) -> StorageResult<EdgeId> {
+    pub fn insert_edge(&self, params: InsertEdgeParams) -> StorageResult<EdgeOffset> {
         core_ops::insert_edge(self, params)
     }
 

@@ -1,6 +1,7 @@
-use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
+use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::Value;
 use crate::storage::edge::UpdateEdgePropertyByOffsetParams;
+use crate::storage::storage_types::EdgeOffset;
 use crate::transaction::insert_transaction::{
     InsertTransactionError, InsertTransactionResult,
 };
@@ -97,7 +98,7 @@ impl TransactionOps {
         params: AddEdgeParams,
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
-    ) -> InsertTransactionResult<EdgeId> {
+    ) -> InsertTransactionResult<EdgeOffset> {
         let src_label_id = params.src_label;
         let dst_label_id = params.dst_label;
         let src_table = schema_ops
@@ -292,7 +293,13 @@ impl TransactionOps {
         );
         if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
             table
-                .revert_delete_edge_by_offset(params.src_vid, params.dst_vid, oe_offset, ie_offset, ts)
+                .revert_delete_edge_by_offset(
+                    params.src_vid,
+                    params.dst_vid,
+                    crate::storage::storage_types::EdgeOffset(oe_offset),
+                    crate::storage::storage_types::EdgeOffset(ie_offset),
+                    ts,
+                )
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -368,7 +375,7 @@ impl TransactionOps {
         params: UpdateEdgePropertyUndoParams,
         oe_offset: i32,
         ie_offset: i32,
-        col_id: i32,
+        prop_id: u16,
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
@@ -387,9 +394,9 @@ impl TransactionOps {
             .update_edge_property_by_offset(UpdateEdgePropertyByOffsetParams {
                 src: params.src_vid,
                 dst: params.dst_vid,
-                oe_offset,
-                ie_offset,
-                col_id,
+                oe_offset: crate::storage::storage_types::EdgeOffset(oe_offset),
+                ie_offset: crate::storage::storage_types::EdgeOffset(ie_offset),
+                prop_id,
                 value,
                 ts,
             })

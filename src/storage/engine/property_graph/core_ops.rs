@@ -2,10 +2,11 @@
 //!
 //! Contains vertex and edge CRUD operations for PropertyGraph.
 
-use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId};
+use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeRecord;
 use crate::storage::vertex::VertexRecord;
+use crate::storage::storage_types::EdgeOffset;
 
 use super::super::edge::{EdgeOperationParams, EdgeTraversalParams};
 use super::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
@@ -129,7 +130,7 @@ pub fn update_vertex_property(
         .update_vertex_property(label, external_id, property_name, value, ts)
 }
 
-pub fn insert_edge(graph: &PropertyGraph, params: InsertEdgeParams) -> StorageResult<EdgeId> {
+pub fn insert_edge(graph: &PropertyGraph, params: InsertEdgeParams) -> StorageResult<EdgeOffset> {
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }

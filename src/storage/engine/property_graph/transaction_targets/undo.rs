@@ -118,7 +118,7 @@ impl UndoTarget for PropertyGraph {
                 params,
                 oe_offset,
                 ie_offset,
-                col_id,
+                col_id as u16,
                 value,
                 ts,
             )?;
