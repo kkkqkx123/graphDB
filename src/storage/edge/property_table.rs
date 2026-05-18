@@ -11,7 +11,7 @@ use crate::core::{DataType, DateValue, NullType, StorageError, StorageResult, Va
 use crate::storage::storage_types::PropertyId;
 use crate::storage::utils::NameIndexer;
 use crate::storage::vertex::column_store::Column;
-use crate::storage::vertex::encoding::EncodingType;
+use crate::storage::vertex::encoding::{CompressionConfig, CompressionSelector, EncodingType};
 
 /// Sentinel value meaning "no properties"
 pub const PROP_OFFSET_NONE: u32 = 0;
@@ -359,6 +359,44 @@ impl PropertyTable {
         prop_id
     }
 
+    pub fn rename_property(&mut self, old_name: &str, new_name: &str) -> StorageResult<()> {
+        let col_idx = self
+            .name_indexer
+            .get_id(old_name)
+            .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?
+            .as_usize();
+
+        if let Some(schema) = self.schema.get_mut(col_idx) {
+            schema.name = new_name.to_string();
+        }
+        if let Some(column) = self.columns.get_mut(col_idx) {
+            column.name = new_name.to_string();
+        }
+
+        self.name_indexer.remove(old_name);
+        self.name_indexer.register(new_name.to_string());
+
+        Ok(())
+    }
+
+    pub fn remove_property(&mut self, name: &str) -> StorageResult<()> {
+        let col_idx = self
+            .name_indexer
+            .get_id(name)
+            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?
+            .as_usize();
+
+        self.schema.remove(col_idx);
+        self.columns.remove(col_idx);
+        self.name_indexer.remove(name);
+
+        for (idx, schema) in self.schema.iter_mut().enumerate() {
+            schema.prop_id = idx as i32;
+        }
+
+        Ok(())
+    }
+
     pub fn apply_encoding(
         &mut self,
         prop_id: PropertyId,
@@ -384,6 +422,63 @@ impl PropertyTable {
 
         if let Some(schema) = self.schema.get_mut(col_idx) {
             schema.encoding = Some(encoding);
+        }
+
+        Ok(())
+    }
+
+    pub fn auto_apply_encodings(
+        &mut self,
+        config: Option<CompressionConfig>,
+    ) -> StorageResult<()> {
+        let selector = match config {
+            Some(c) => CompressionSelector::with_config(c),
+            None => CompressionSelector::new(),
+        };
+
+        for (col_idx, col) in self.columns.iter_mut().enumerate() {
+            if col.is_empty() {
+                continue;
+            }
+
+            let stats = col.compute_stats();
+            let encoding = selector.select(&stats);
+
+            match encoding {
+                EncodingType::Fsst => {
+                    if col.data_type == DataType::String {
+                        col.apply_fsst_encoding(1024)?;
+                        if let Some(schema) = self.schema.get_mut(col_idx) {
+                            schema.encoding = Some(EncodingType::Fsst);
+                        }
+                    }
+                }
+                EncodingType::Dictionary => {
+                    col.apply_dictionary_encoding()?;
+                    if let Some(schema) = self.schema.get_mut(col_idx) {
+                        schema.encoding = Some(EncodingType::Dictionary);
+                    }
+                }
+                EncodingType::Rle => {
+                    col.apply_rle_encoding()?;
+                    if let Some(schema) = self.schema.get_mut(col_idx) {
+                        schema.encoding = Some(EncodingType::Rle);
+                    }
+                }
+                EncodingType::BitPacking => {
+                    col.apply_bitpacking_encoding()?;
+                    if let Some(schema) = self.schema.get_mut(col_idx) {
+                        schema.encoding = Some(EncodingType::BitPacking);
+                    }
+                }
+                EncodingType::Alp => {
+                    col.apply_alp_encoding()?;
+                    if let Some(schema) = self.schema.get_mut(col_idx) {
+                        schema.encoding = Some(EncodingType::Alp);
+                    }
+                }
+                EncodingType::None => {}
+            }
         }
 
         Ok(())

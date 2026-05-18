@@ -6,9 +6,9 @@
 mod core_ops;
 mod flush;
 mod index_mvcc;
-mod transaction_targets;
 mod type_ops;
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -18,19 +18,15 @@ use parking_lot::{Mutex, RwLock};
 use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
-use crate::storage::edge::{EdgeRecord, EdgeStrategy, PropertyDef as EdgePropertyDef};
+use crate::storage::edge::{EdgeRecord, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::storage_types::EdgeOffset;
-use crate::storage::vertex::PropertyDef as VertexPropertyDef;
-use crate::storage::vertex::VertexRecord;
+use crate::storage::vertex::{PropertyDef as VertexPropertyDef, VertexRecord, VertexTable};
 use crate::transaction::wal::writer::WalWriter;
 
 use super::cache::CacheManager;
 use super::config::PropertyGraphConfig;
-use super::edge::EdgeOps;
-use super::query::QueryOps;
-use super::schema::SchemaOps;
 use super::wal_manager::WalManager;
 use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl};
 use crate::storage::metadata::{TableId, TableTracker, TableTrackerConfig, TableType};
@@ -38,8 +34,12 @@ use crate::storage::metadata::{TableId, TableTracker, TableTrackerConfig, TableT
 pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
 
 pub struct PropertyGraph {
-    pub(crate) schema_ops: RwLock<SchemaOps>,
-    pub(crate) edge_ops: RwLock<EdgeOps>,
+    pub(crate) vertex_tables: RwLock<HashMap<LabelId, VertexTable>>,
+    pub(crate) edge_tables: RwLock<HashMap<(LabelId, LabelId, LabelId), EdgeTable>>,
+    pub(crate) vertex_label_names: RwLock<HashMap<String, LabelId>>,
+    pub(crate) edge_label_names: RwLock<HashMap<String, LabelId>>,
+    pub(crate) vertex_label_counter: RwLock<LabelId>,
+    pub(crate) edge_label_counter: RwLock<LabelId>,
     pub(crate) cache_manager: CacheManager,
     pub(crate) wal_manager: Mutex<WalManager>,
     pub(crate) table_tracker: Arc<TableTracker>,
@@ -52,15 +52,17 @@ pub struct PropertyGraph {
 
 impl std::fmt::Debug for PropertyGraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let schema = self.schema_ops.read();
-        let edge = self.edge_ops.read();
+        let vertex_tables = self.vertex_tables.read();
+        let edge_tables = self.edge_tables.read();
+        let vertex_label_names = self.vertex_label_names.read();
+        let edge_label_names = self.edge_label_names.read();
         f.debug_struct("PropertyGraph")
-            .field("vertex_tables", &schema.vertex_tables)
-            .field("edge_tables", &edge.edge_tables)
-            .field("vertex_label_names", &schema.vertex_label_names)
-            .field("edge_label_names", &edge.edge_label_names)
-            .field("vertex_label_counter", &schema.vertex_label_counter)
-            .field("edge_label_counter", &edge.edge_label_counter)
+            .field("vertex_tables", &vertex_tables)
+            .field("edge_tables", &edge_tables)
+            .field("vertex_label_names", &vertex_label_names)
+            .field("edge_label_names", &edge_label_names)
+            .field("vertex_label_counter", &self.vertex_label_counter.read())
+            .field("edge_label_counter", &self.edge_label_counter.read())
             .field("config", &self.config)
             .field("is_open", &self.is_open.load(Ordering::Relaxed))
             .finish_non_exhaustive()
@@ -116,8 +118,12 @@ impl PropertyGraph {
         }));
 
         Self {
-            schema_ops: RwLock::new(SchemaOps::new()),
-            edge_ops: RwLock::new(EdgeOps::new()),
+            vertex_tables: RwLock::new(HashMap::new()),
+            edge_tables: RwLock::new(HashMap::new()),
+            vertex_label_names: RwLock::new(HashMap::new()),
+            edge_label_names: RwLock::new(HashMap::new()),
+            vertex_label_counter: RwLock::new(0),
+            edge_label_counter: RwLock::new(0),
             cache_manager,
             wal_manager: Mutex::new(WalManager::new()),
             table_tracker,
@@ -238,14 +244,14 @@ impl PropertyGraph {
     pub fn close(&self) {
         self.is_open.store(false, Ordering::Release);
         {
-            let mut schema = self.schema_ops.write();
-            for table in schema.vertex_tables.values_mut() {
+            let mut vertex_tables = self.vertex_tables.write();
+            for table in vertex_tables.values_mut() {
                 table.close();
             }
         }
         {
-            let mut edge = self.edge_ops.write();
-            for table in edge.edge_tables.values_mut() {
+            let mut edge_tables = self.edge_tables.write();
+            for table in edge_tables.values_mut() {
                 table.close();
             }
         }
@@ -359,9 +365,8 @@ impl PropertyGraph {
     }
 
     pub fn vertex_label_ids(&self) -> Vec<LabelId> {
-        self.schema_ops
+        self.vertex_tables
             .read()
-            .vertex_tables
             .keys()
             .copied()
             .collect()
@@ -432,57 +437,67 @@ impl PropertyGraph {
         if !self.is_open.load(Ordering::Acquire) {
             return None;
         }
-        let schema = self.schema_ops.read();
-        QueryOps::scan_vertices(&schema.vertex_tables, label, ts).map(|iter| iter.collect())
+        let vertex_tables = self.vertex_tables.read();
+        vertex_tables.get(&label).map(|t| t.scan(ts).collect())
     }
 
     pub fn vertex_count(&self, label: LabelId, ts: Timestamp) -> usize {
         if !self.is_open.load(Ordering::Acquire) {
             return 0;
         }
-        let schema = self.schema_ops.read();
-        QueryOps::vertex_count(&schema.vertex_tables, label, ts)
+        let vertex_tables = self.vertex_tables.read();
+        vertex_tables
+            .get(&label)
+            .map(|t| t.vertex_count(ts))
+            .unwrap_or(0)
     }
 
     pub fn edge_count(&self, edge_label: LabelId) -> u64 {
-        self.edge_ops.read().edge_count(edge_label)
+        self.edge_tables
+            .read()
+            .values()
+            .filter_map(|t| {
+                if t.label() == edge_label {
+                    Some(t.edge_count())
+                } else {
+                    None
+                }
+            })
+            .sum()
     }
 
     // ==================== Label Access ====================
 
     pub fn vertex_label_names(&self) -> Vec<String> {
-        let schema = self.schema_ops.read();
-        schema
-            .vertex_label_names()
-            .into_iter()
+        self.vertex_label_names
+            .read()
+            .keys()
             .map(|s| s.to_string())
             .collect()
     }
 
     pub fn edge_label_names(&self) -> Vec<String> {
-        let edge = self.edge_ops.read();
-        edge.edge_label_names()
-            .into_iter()
+        self.edge_label_names
+            .read()
+            .keys()
             .map(|s| s.to_string())
             .collect()
     }
 
     pub fn get_vertex_label_id(&self, name: &str) -> Option<LabelId> {
-        let schema = self.schema_ops.read();
-        schema.get_vertex_label_id(name)
+        self.vertex_label_names.read().get(name).copied()
     }
 
     pub fn get_edge_label_id(&self, name: &str) -> Option<LabelId> {
-        let edge = self.edge_ops.read();
-        edge.get_edge_label_id(name)
+        self.edge_label_names.read().get(name).copied()
     }
 
     // ==================== Table Access ====================
 
     pub fn get_vertex_table_opt(&self, label: LabelId) -> Option<String> {
-        let schema = self.schema_ops.read();
-        schema
-            .get_vertex_table(label)
+        self.vertex_tables
+            .read()
+            .get(&label)
             .map(|t| t.label_name().to_string())
     }
 
@@ -493,27 +508,29 @@ impl PropertyGraph {
         edge_label: LabelId,
         ts: Timestamp,
     ) -> Vec<EdgeRecord> {
-        let edge = self.edge_ops.read();
-        edge.get_edge_table(src_label, dst_label, edge_label)
+        self.edge_tables
+            .read()
+            .get(&(src_label, dst_label, edge_label))
             .map(|t| t.scan(ts))
             .unwrap_or_default()
     }
 
     pub fn scan_edges_by_label(&self, edge_label: LabelId, ts: Timestamp) -> Vec<EdgeRecord> {
-        let edge = self.edge_ops.read();
-        edge.get_edge_table_by_label(edge_label)
+        self.edge_tables
+            .read()
+            .values()
+            .find(|t| t.label() == edge_label)
             .map(|t| t.scan(ts))
             .unwrap_or_default()
     }
 
     pub fn total_vertex_count(&self) -> usize {
-        let schema = self.schema_ops.read();
-        schema.vertex_tables.values().map(|t| t.total_count()).sum()
+        self.vertex_tables.read().values().map(|t| t.total_count()).sum()
     }
 
     pub fn total_edge_count(&self) -> usize {
-        let edge = self.edge_ops.read();
-        edge.edge_tables
+        self.edge_tables
+            .read()
             .values()
             .map(|t| t.edge_count() as usize)
             .sum()
@@ -523,9 +540,9 @@ impl PropertyGraph {
         &self,
         ts: Timestamp,
     ) -> Vec<(LabelId, LabelId, LabelId, EdgeRecord)> {
-        let edge = self.edge_ops.read();
+        let edge_tables = self.edge_tables.read();
         let mut records = Vec::new();
-        for ((src_label, dst_label, edge_label), table) in &edge.edge_tables {
+        for ((src_label, dst_label, edge_label), table) in &*edge_tables {
             for edge_record in table.scan(ts) {
                 records.push((*src_label, *dst_label, *edge_label, edge_record));
             }
@@ -567,8 +584,8 @@ impl PropertyGraph {
         }
 
         {
-            let mut schema = self.schema_ops.write();
-            if let Some(table) = schema.vertex_tables.get_mut(&label) {
+            let mut vertex_tables = self.vertex_tables.write();
+            if let Some(table) = vertex_tables.get_mut(&label) {
                 table.compact();
             }
         }
@@ -583,9 +600,8 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> Vec<crate::storage::vertex::IdKey> {
         let removed = {
-            let mut schema = self.schema_ops.write();
-            schema
-                .vertex_tables
+            let mut vertex_tables = self.vertex_tables.write();
+            vertex_tables
                 .get_mut(&label)
                 .map(|table| table.compact_with_ts_collect(ts))
                 .unwrap_or_default()

@@ -3,6 +3,8 @@
 //! Core transaction operations for vertex and edge manipulation.
 //! These operations are used by the transaction system for insert, delete, and update operations.
 
+use std::collections::HashMap;
+
 use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::Value;
 use crate::storage::edge::UpdateEdgePropertyByOffsetParams;
@@ -13,8 +15,8 @@ use crate::transaction::insert_transaction::{
 use crate::transaction::codec::{bytes_to_value, property_value_to_value};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult};
 
-use super::schema::SchemaOps;
-use super::edge::{EdgeOps, EdgeOperationParams};
+use crate::storage::edge::EdgeTable;
+use crate::storage::vertex::VertexTable;
 
 /// Parameters for add_edge operation
 pub struct AddEdgeParams {
@@ -72,7 +74,7 @@ pub struct TransactionOps;
 
 impl TransactionOps {
     pub fn add_vertex(
-        schema_ops: &mut SchemaOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
@@ -86,27 +88,29 @@ impl TransactionOps {
             .filter_map(|(k, v)| bytes_to_value(v).map(|val| (k.clone(), val)))
             .collect();
 
-        let internal_id = schema_ops
-            .insert_vertex(label, external_id, &props, ts)
+        let table = vertex_tables
+            .get_mut(&label)
+            .ok_or(InsertTransactionError::LabelNotFound(label))?;
+
+        let internal_id = table
+            .insert(external_id, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
         Ok(VertexId::from_int64(internal_id as i64))
     }
 
     pub fn add_edge(
-        edge_ops: &mut EdgeOps,
-        schema_ops: &SchemaOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
+        vertex_tables: &HashMap<LabelId, VertexTable>,
         params: AddEdgeParams,
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<EdgeOffset> {
-        let src_label_id = params.src_label;
-        let dst_label_id = params.dst_label;
-        let src_table = schema_ops
-            .get_vertex_table(src_label_id)
+        let src_table = vertex_tables
+            .get(&params.src_label)
             .ok_or(InsertTransactionError::LabelNotFound(params.src_label))?;
-        let dst_table = schema_ops
-            .get_vertex_table(dst_label_id)
+        let dst_table = vertex_tables
+            .get(&params.dst_label)
             .ok_or(InsertTransactionError::LabelNotFound(params.dst_label))?;
 
         let src_external = src_table
@@ -121,50 +125,48 @@ impl TransactionOps {
             .filter_map(|(k, v)| bytes_to_value(v).map(|val| (k.clone(), val)))
             .collect();
 
-        let src_id_str = match &src_external {
+        let _src_id_str = match &src_external {
             crate::storage::vertex::IdKey::Text(s) => s.clone(),
             crate::storage::vertex::IdKey::Int(i) => i.to_string(),
         };
-        let dst_id_str = match &dst_external {
+        let _dst_id_str = match &dst_external {
             crate::storage::vertex::IdKey::Text(s) => s.clone(),
             crate::storage::vertex::IdKey::Int(i) => i.to_string(),
         };
 
-        let edge_op_params = EdgeOperationParams {
-            edge_label: params.edge_label,
-            src_label: params.src_label,
-            src_id: &src_id_str,
-            dst_label: params.dst_label,
-            dst_id: &dst_id_str,
-        };
+        let key = (params.src_label, params.dst_label, params.edge_label);
+        let edge_table = edge_tables
+            .get_mut(&key)
+            .ok_or(InsertTransactionError::LabelNotFound(params.edge_label))?;
 
-        let edge_id = edge_ops
-            .insert_edge(edge_op_params, &props, ts, schema_ops.vertex_tables())
+        let edge_id = edge_table
+            .insert_edge(params.src_vid, params.dst_vid, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
         Ok(edge_id)
     }
 
     pub fn get_vertex_id(
-        schema_ops: &SchemaOps,
+        vertex_tables: &HashMap<LabelId, VertexTable>,
         label: LabelId,
         oid: &[u8],
         ts: Timestamp,
     ) -> Option<VertexId> {
         let external_id = std::str::from_utf8(oid).ok()?;
-        schema_ops
-            .get_vertex_internal_id(label, external_id, ts)
+        vertex_tables
+            .get(&label)?
+            .get_internal_id(external_id, ts)
             .map(|id| VertexId::from_int64(id as i64))
     }
 
     pub fn get_vertex_oid(
-        schema_ops: &SchemaOps,
+        vertex_tables: &HashMap<LabelId, VertexTable>,
         label: LabelId,
         vid: VertexId,
         ts: Timestamp,
     ) -> Option<Vec<u8>> {
-        schema_ops
-            .get_vertex_table(label)?
+        vertex_tables
+            .get(&label)?
             .get_external_id(vid.as_int64().unwrap_or(0) as u32, ts)
             .map(|id_key| match id_key {
                 crate::storage::vertex::IdKey::Text(s) => s.into_bytes(),
@@ -172,9 +174,12 @@ impl TransactionOps {
             })
     }
 
-    pub fn get_vertex_property_types(schema_ops: &SchemaOps, label: LabelId) -> Vec<String> {
-        schema_ops
-            .get_vertex_table(label)
+    pub fn get_vertex_property_types(
+        vertex_tables: &HashMap<LabelId, VertexTable>,
+        label: LabelId,
+    ) -> Vec<String> {
+        vertex_tables
+            .get(&label)
             .map(|t| {
                 t.schema()
                     .properties
@@ -186,13 +191,12 @@ impl TransactionOps {
     }
 
     pub fn get_edge_property_types(
-        edge_ops: &EdgeOps,
-        _src_label: LabelId,
-        _dst_label: LabelId,
+        edge_tables: &HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
         edge_label: LabelId,
     ) -> Vec<String> {
-        edge_ops
-            .get_edge_table_by_label(edge_label)
+        edge_tables
+            .values()
+            .find(|t| t.label() == edge_label)
             .map(|t| {
                 t.schema()
                     .properties
@@ -203,38 +207,53 @@ impl TransactionOps {
             .unwrap_or_default()
     }
 
-    pub fn vertex_label_num(schema_ops: &SchemaOps) -> usize {
-        schema_ops.vertex_tables.len()
+    pub fn vertex_label_num(vertex_tables: &HashMap<LabelId, VertexTable>) -> usize {
+        vertex_tables.len()
     }
 
-    pub fn lid_num(schema_ops: &SchemaOps, label: LabelId) -> usize {
-        schema_ops
-            .get_vertex_table(label)
+    pub fn lid_num(vertex_tables: &HashMap<LabelId, VertexTable>, label: LabelId) -> usize {
+        vertex_tables
+            .get(&label)
             .map(|t| t.total_count())
             .unwrap_or(0)
     }
 
     pub fn delete_vertex_type(
-        schema_ops: &mut SchemaOps,
-        edge_ops: &mut EdgeOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
+        vertex_label_names: &mut HashMap<String, LabelId>,
+        edge_label_names: &mut HashMap<String, LabelId>,
         label: LabelId,
     ) -> UndoLogResult<()> {
-        let label_name = schema_ops
-            .get_vertex_table(label)
+        let label_name = vertex_tables
+            .get(&label)
             .map(|t| t.label_name().to_string());
 
         if let Some(name) = label_name {
-            schema_ops.vertex_label_names.remove(&name);
+            vertex_label_names.remove(&name);
         }
 
-        schema_ops.vertex_tables.remove(&label);
-        edge_ops.drop_edges_for_vertex_label(label);
+        vertex_tables.remove(&label);
+
+        let mut removed_edge_keys = Vec::new();
+        for (key, table) in &*edge_tables {
+            let (src, dst, _edge) = *key;
+            if src == label || dst == label {
+                let edge_name = table.label_name().to_string();
+                edge_label_names.remove(&edge_name);
+                removed_edge_keys.push(*key);
+            }
+        }
+        for key in removed_edge_keys {
+            edge_tables.remove(&key);
+        }
 
         Ok(())
     }
 
     pub fn delete_edge_type(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
+        edge_label_names: &mut HashMap<String, LabelId>,
         params: DeleteEdgeTypeParams,
     ) -> UndoLogResult<()> {
         let key = (
@@ -242,17 +261,21 @@ impl TransactionOps {
             params.dst_label,
             params.edge_label,
         );
-        edge_ops.edge_tables.remove(&key);
+        if let Some(table) = edge_tables.get(&key) {
+            let label_name = table.label_name().to_string();
+            edge_label_names.remove(&label_name);
+        }
+        edge_tables.remove(&key);
         Ok(())
     }
 
     pub fn delete_vertex(
-        schema_ops: &mut SchemaOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
         vid: VertexId,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        if let Some(table) = schema_ops.vertex_tables.get_mut(&label) {
+        if let Some(table) = vertex_tables.get_mut(&label) {
             table
                 .delete_by_internal_id(vid.as_int64().unwrap_or(0) as u32, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
@@ -261,7 +284,7 @@ impl TransactionOps {
     }
 
     pub fn delete_edge(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
         params: DeleteEdgeParams,
         oe_offset: i32,
         ie_offset: i32,
@@ -272,7 +295,7 @@ impl TransactionOps {
             params.dst_label,
             params.edge_label,
         );
-        if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
+        if let Some(table) = edge_tables.get_mut(&key) {
             table
                 .delete_edge_by_offset(params.src_vid, params.dst_vid, oe_offset, ie_offset, ts)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
@@ -281,7 +304,7 @@ impl TransactionOps {
     }
 
     pub fn revert_delete_edge(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
         params: RevertDeleteEdgeParams,
         oe_offset: i32,
         ie_offset: i32,
@@ -292,7 +315,7 @@ impl TransactionOps {
             params.dst_label,
             params.edge_label,
         );
-        if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
+        if let Some(table) = edge_tables.get_mut(&key) {
             table
                 .revert_delete_edge_by_offset(
                     params.src_vid,
@@ -307,7 +330,7 @@ impl TransactionOps {
     }
 
     pub fn insert_vertex_undo(
-        schema_ops: &mut SchemaOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
         external_id: &str,
         properties: &[(String, PropertyValue)],
@@ -318,14 +341,18 @@ impl TransactionOps {
             .map(|(k, v)| (k.clone(), property_value_to_value(v.clone())))
             .collect();
 
-        schema_ops
-            .insert_vertex(label, external_id, &props, ts)
+        let table = vertex_tables
+            .get_mut(&label)
+            .ok_or(UndoLogError::LabelNotFound(label))?;
+
+        table
+            .insert(external_id, &props, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }
 
     pub fn insert_edge_undo(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
         params: InsertEdgeUndoParams,
         properties: &[(String, PropertyValue)],
         ts: Timestamp,
@@ -340,8 +367,7 @@ impl TransactionOps {
             params.dst_label,
             params.edge_label,
         );
-        let table = edge_ops
-            .edge_tables
+        let table = edge_tables
             .get_mut(&key)
             .ok_or(UndoLogError::LabelNotFound(params.edge_label))?;
 
@@ -351,18 +377,39 @@ impl TransactionOps {
         Ok(())
     }
 
+    pub fn update_vertex_property(
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        label: LabelId,
+        external_id: &str,
+        prop_name: &str,
+        value: &Value,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let table = vertex_tables
+            .get_mut(&label)
+            .ok_or(UndoLogError::LabelNotFound(label))?;
+
+        let internal_id = table
+            .get_internal_id(external_id, ts)
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        table
+            .update_property(internal_id, prop_name, value, ts)
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        Ok(())
+    }
+
     pub fn update_vertex_property_undo(
-        schema_ops: &mut SchemaOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
         vid: VertexId,
         col_id: i32,
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let table = schema_ops
-            .vertex_tables
+        let table = vertex_tables
             .get_mut(&label)
-            .ok_or(UndoLogError::LabelNotFound(0))?;
+            .ok_or(UndoLogError::LabelNotFound(label))?;
 
         let value = property_value_to_value(old_value);
         table
@@ -371,8 +418,47 @@ impl TransactionOps {
         Ok(())
     }
 
+    pub fn update_edge_property(
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
+        vertex_tables: &HashMap<LabelId, VertexTable>,
+        params: crate::storage::engine::edge::EdgeOperationParams,
+        prop_name: &str,
+        value: &Value,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let src_table = vertex_tables
+            .get(&params.src_label)
+            .ok_or(UndoLogError::LabelNotFound(params.src_label))?;
+        let dst_table = vertex_tables
+            .get(&params.dst_label)
+            .ok_or(UndoLogError::LabelNotFound(params.dst_label))?;
+
+        let src_internal = src_table
+            .get_internal_id(params.src_id, ts)
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+        let dst_internal = dst_table
+            .get_internal_id(params.dst_id, ts)
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        let key = (params.src_label, params.dst_label, params.edge_label);
+        let table = edge_tables
+            .get_mut(&key)
+            .ok_or(UndoLogError::LabelNotFound(params.edge_label))?;
+
+        table
+            .update_edge_property(
+                VertexId::from_int64(src_internal as i64),
+                VertexId::from_int64(dst_internal as i64),
+                prop_name,
+                value,
+                ts,
+            )
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        Ok(())
+    }
+
     pub fn update_edge_property_undo(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
         params: UpdateEdgePropertyUndoParams,
         oe_offset: i32,
         ie_offset: i32,
@@ -385,8 +471,7 @@ impl TransactionOps {
             params.dst_label,
             params.edge_label,
         );
-        let table = edge_ops
-            .edge_tables
+        let table = edge_tables
             .get_mut(&key)
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
@@ -406,107 +491,191 @@ impl TransactionOps {
     }
 
     pub fn create_vertex_type_undo(
-        schema_ops: &mut SchemaOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        vertex_label_names: &mut HashMap<String, LabelId>,
+        vertex_label_counter: &mut LabelId,
         name: &str,
-        label: LabelId,
     ) -> UndoLogResult<()> {
-        schema_ops.vertex_label_names.insert(name.to_string(), label);
-        schema_ops.vertex_label_counter = schema_ops.vertex_label_counter.max(label + 1);
+        let label = *vertex_label_counter;
+        vertex_label_names.insert(name.to_string(), label);
+        *vertex_label_counter = (*vertex_label_counter).max(label + 1);
+
+        let schema = crate::storage::vertex::VertexSchema {
+            label_id: label,
+            label_name: name.to_string(),
+            properties: Vec::new(),
+            primary_key_index: 0,
+        };
+
+        let table = VertexTable::new(label, name.to_string(), schema);
+        vertex_tables.insert(label, table);
+
         Ok(())
     }
 
     pub fn create_edge_type_undo(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
+        edge_label_names: &mut HashMap<String, LabelId>,
+        edge_label_counter: &mut LabelId,
+        vertex_tables: &HashMap<LabelId, VertexTable>,
         name: &str,
-        label: LabelId,
+        src_label_name: &str,
+        dst_label_name: &str,
     ) -> UndoLogResult<()> {
-        edge_ops.edge_label_names.insert(name.to_string(), label);
-        edge_ops.edge_label_counter = edge_ops.edge_label_counter.max(label + 1);
+        let src_label_id = vertex_tables
+            .values()
+            .find(|t| t.label_name() == src_label_name)
+            .map(|t| t.label())
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+        let dst_label_id = vertex_tables
+            .values()
+            .find(|t| t.label_name() == dst_label_name)
+            .map(|t| t.label())
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        let label = *edge_label_counter;
+        edge_label_names.insert(name.to_string(), label);
+        *edge_label_counter = (*edge_label_counter).max(label + 1);
+
+        let schema = crate::storage::edge::EdgeSchema {
+            label_id: label,
+            label_name: name.to_string(),
+            src_label: src_label_id,
+            dst_label: dst_label_id,
+            properties: Vec::new(),
+            oe_strategy: crate::storage::edge::EdgeStrategy::Multiple,
+            ie_strategy: crate::storage::edge::EdgeStrategy::Multiple,
+        };
+
+        let table = crate::storage::edge::EdgeTable::new(schema)
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        let key = (src_label_id, dst_label_id, label);
+        edge_tables.insert(key, table);
+
         Ok(())
     }
 
     pub fn revert_rename_vertex_properties(
-        schema_ops: &mut SchemaOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        vertex_label_names: &mut HashMap<String, LabelId>,
         label: &str,
-        _current_names: &[String],
-        _original_names: &[String],
+        current_names: &[String],
+        original_names: &[String],
     ) -> UndoLogResult<()> {
-        let label_id = schema_ops
-            .vertex_label_names
+        let label_id = vertex_label_names
             .get(label)
             .copied()
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
-        if let Some(table) = schema_ops.vertex_tables.get_mut(&label_id) {
+        if let Some(table) = vertex_tables.get_mut(&label_id) {
             let mut new_schema = table.schema().clone();
-            for (current, original) in _current_names.iter().zip(_original_names.iter()) {
+            for (current, original) in current_names.iter().zip(original_names.iter()) {
                 if let Some(prop) = new_schema.properties.iter_mut().find(|p| p.name == *current) {
                     prop.name = original.clone();
                 }
             }
+            table.set_schema(new_schema);
         }
 
         Ok(())
     }
 
     pub fn revert_rename_edge_properties(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
+        edge_label_names: &mut HashMap<String, LabelId>,
         src_label: &str,
         dst_label: &str,
         edge_label: &str,
-        schema_ops: &SchemaOps,
-        _current_names: &[String],
-        _original_names: &[String],
+        vertex_tables: &HashMap<LabelId, VertexTable>,
+        current_names: &[String],
+        original_names: &[String],
     ) -> UndoLogResult<()> {
-        let src_label_id = schema_ops
-            .vertex_label_names
-            .get(src_label)
-            .copied()
+        let src_label_id = vertex_tables
+            .values()
+            .find(|t| t.label_name() == src_label)
+            .map(|t| t.label())
             .ok_or(UndoLogError::LabelNotFound(0))?;
-        let dst_label_id = schema_ops
-            .vertex_label_names
-            .get(dst_label)
-            .copied()
+        let dst_label_id = vertex_tables
+            .values()
+            .find(|t| t.label_name() == dst_label)
+            .map(|t| t.label())
             .ok_or(UndoLogError::LabelNotFound(0))?;
-        let edge_label_id = edge_ops
-            .edge_label_names
+        let edge_label_id = edge_label_names
             .get(edge_label)
             .copied()
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let key = (src_label_id, dst_label_id, edge_label_id);
-        if let Some(table) = edge_ops.edge_tables.get_mut(&key) {
+        if let Some(table) = edge_tables.get_mut(&key) {
             let mut new_schema = table.schema().clone();
-            for (current, original) in _current_names.iter().zip(_original_names.iter()) {
+            for (current, original) in current_names.iter().zip(original_names.iter()) {
                 if let Some(prop) = new_schema.properties.iter_mut().find(|p| p.name == *current) {
                     prop.name = original.clone();
                 }
             }
+            table.set_schema(new_schema);
         }
 
         Ok(())
     }
 
     pub fn revert_delete_vertex_properties(
-        schema_ops: &mut SchemaOps,
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        vertex_label_names: &mut HashMap<String, LabelId>,
         label_name: &str,
         prop_names: &[String],
     ) -> UndoLogResult<()> {
-        schema_ops
-            .revert_delete_vertex_properties(label_name, prop_names)
-            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))
+        let label_id = vertex_label_names
+            .get(label_name)
+            .copied()
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        let table = vertex_tables
+            .get_mut(&label_id)
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        let mut schema = table.schema().clone();
+        for prop_name in prop_names {
+            schema.properties.retain(|p| p.name != *prop_name);
+        }
+
+        Ok(())
     }
 
     pub fn revert_delete_edge_properties(
-        edge_ops: &mut EdgeOps,
+        edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
+        edge_label_names: &mut HashMap<String, LabelId>,
         src_label: &str,
         dst_label: &str,
         edge_label: &str,
-        schema_ops: &SchemaOps,
+        vertex_tables: &HashMap<LabelId, VertexTable>,
         prop_names: &[String],
     ) -> UndoLogResult<()> {
-        edge_ops
-            .revert_delete_edge_properties(src_label, dst_label, edge_label, schema_ops, prop_names)
-            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))
+        let src_label_id = vertex_tables
+            .values()
+            .find(|t| t.label_name() == src_label)
+            .map(|t| t.label())
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+        let dst_label_id = vertex_tables
+            .values()
+            .find(|t| t.label_name() == dst_label)
+            .map(|t| t.label())
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+        let edge_label_id = edge_label_names
+            .get(edge_label)
+            .copied()
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        let key = (src_label_id, dst_label_id, edge_label_id);
+        let table = edge_tables
+            .get_mut(&key)
+            .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        let mut schema = table.schema().clone();
+        for prop_name in prop_names {
+            schema.properties.retain(|p| p.name != *prop_name);
+        }
+
+        Ok(())
     }
 }

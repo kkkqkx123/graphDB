@@ -1,21 +1,26 @@
 use crate::core::types::{ColumnId, LabelId, Timestamp};
 use crate::core::types::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
-use crate::storage::edge::EdgeStrategy;
-use crate::storage::engine::edge::CreateEdgeTypeParams;
-use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
-
-use super::super::PropertyGraph;
+use crate::storage::engine::property_graph::PropertyGraph;
 use crate::storage::engine::transaction::{
     DeleteEdgeParams, DeleteEdgeTypeParams, RevertDeleteEdgeParams, TransactionOps,
     UpdateEdgePropertyUndoParams,
 };
+use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 
 impl UndoTarget for PropertyGraph {
     fn delete_vertex_type(&self, label: LabelId) -> UndoLogResult<()> {
         {
-            let mut schema = self.schema_ops.write();
-            let mut edge = self.edge_ops.write();
-            TransactionOps::delete_vertex_type(&mut schema, &mut edge, label)?;
+            let mut vertex_tables = self.vertex_tables.write();
+            let mut edge_tables = self.edge_tables.write();
+            let mut vertex_label_names = self.vertex_label_names.write();
+            let mut edge_label_names = self.edge_label_names.write();
+            TransactionOps::delete_vertex_type(
+                &mut vertex_tables,
+                &mut edge_tables,
+                &mut vertex_label_names,
+                &mut edge_label_names,
+                label,
+            )?;
         }
         self.mark_vertex_modified(label);
         Ok(())
@@ -28,8 +33,9 @@ impl UndoTarget for PropertyGraph {
             edge_label: edge_key.edge_label,
         };
         {
-            let mut edge = self.edge_ops.write();
-            TransactionOps::delete_edge_type(&mut edge, params)?;
+            let mut edge_tables = self.edge_tables.write();
+            let mut edge_label_names = self.edge_label_names.write();
+            TransactionOps::delete_edge_type(&mut edge_tables, &mut edge_label_names, params)?;
         }
         self.mark_edge_modified(edge_key.edge_label);
         Ok(())
@@ -37,8 +43,8 @@ impl UndoTarget for PropertyGraph {
 
     fn delete_vertex(&self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
         {
-            let mut schema = self.schema_ops.write();
-            TransactionOps::delete_vertex(&mut schema, vertex.label, vertex.vid, ts)?;
+            let mut vertex_tables = self.vertex_tables.write();
+            TransactionOps::delete_vertex(&mut vertex_tables, vertex.label, vertex.vid, ts)?;
         }
         self.mark_vertex_modified(vertex.label);
         Ok(())
@@ -53,9 +59,9 @@ impl UndoTarget for PropertyGraph {
             edge_label: edge_ctx.edge_id.edge_label,
         };
         {
-            let mut edge = self.edge_ops.write();
+            let mut edge_tables = self.edge_tables.write();
             TransactionOps::delete_edge(
-                &mut edge,
+                &mut edge_tables,
                 params,
                 edge_ctx.oe_offset,
                 edge_ctx.ie_offset,
@@ -74,9 +80,9 @@ impl UndoTarget for PropertyGraph {
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         {
-            let mut schema = self.schema_ops.write();
+            let mut vertex_tables = self.vertex_tables.write();
             TransactionOps::update_vertex_property_undo(
-                &mut schema,
+                &mut vertex_tables,
                 vertex.label,
                 vertex.vid,
                 col_id,
@@ -105,9 +111,9 @@ impl UndoTarget for PropertyGraph {
             edge_label: edge_id.edge_label,
         };
         {
-            let mut edge = self.edge_ops.write();
+            let mut edge_tables = self.edge_tables.write();
             TransactionOps::update_edge_property_undo(
-                &mut edge,
+                &mut edge_tables,
                 params,
                 oe_offset,
                 ie_offset,
@@ -129,8 +135,8 @@ impl UndoTarget for PropertyGraph {
             edge_label: vertex.label,
         };
         {
-            let mut edge = self.edge_ops.write();
-            TransactionOps::revert_delete_edge(&mut edge, params, 0, 0, ts)?;
+            let mut edge_tables = self.edge_tables.write();
+            TransactionOps::revert_delete_edge(&mut edge_tables, params, 0, 0, ts)?;
         }
         self.mark_vertex_modified(vertex.label);
         Ok(())
@@ -145,9 +151,9 @@ impl UndoTarget for PropertyGraph {
             dst_vid: edge_ctx.edge_id.dst_vid,
         };
         {
-            let mut edge = self.edge_ops.write();
+            let mut edge_tables = self.edge_tables.write();
             TransactionOps::revert_delete_edge(
-                &mut edge,
+                &mut edge_tables,
                 params,
                 edge_ctx.oe_offset,
                 edge_ctx.ie_offset,
@@ -164,9 +170,15 @@ impl UndoTarget for PropertyGraph {
         prop_names: &[String],
     ) -> UndoLogResult<()> {
         let label_id = {
-            let mut schema = self.schema_ops.write();
-            TransactionOps::revert_delete_vertex_properties(&mut schema, label_name, prop_names)?;
-            schema.vertex_label_names.get(label_name).copied()
+            let mut vertex_tables = self.vertex_tables.write();
+            let mut vertex_label_names = self.vertex_label_names.write();
+            TransactionOps::revert_delete_vertex_properties(
+                &mut vertex_tables,
+                &mut vertex_label_names,
+                label_name,
+                prop_names,
+            )?;
+            vertex_label_names.get(label_name).copied()
         };
         if let Some(label) = label_id {
             self.mark_vertex_modified(label);
@@ -182,12 +194,19 @@ impl UndoTarget for PropertyGraph {
         prop_names: &[String],
     ) -> UndoLogResult<()> {
         let edge_label_id = {
-            let schema = self.schema_ops.read();
-            let mut edge = self.edge_ops.write();
+            let vertex_tables = self.vertex_tables.read();
+            let mut edge_tables = self.edge_tables.write();
+            let mut edge_label_names = self.edge_label_names.write();
             TransactionOps::revert_delete_edge_properties(
-                &mut edge, src_label, dst_label, edge_label, &schema, prop_names,
+                &mut edge_tables,
+                &mut edge_label_names,
+                src_label,
+                dst_label,
+                edge_label,
+                &vertex_tables,
+                prop_names,
             )?;
-            edge.edge_label_names.get(edge_label).copied()
+            edge_label_names.get(edge_label).copied()
         };
         if let Some(label) = edge_label_id {
             self.mark_edge_modified(label);
@@ -198,9 +217,16 @@ impl UndoTarget for PropertyGraph {
     fn revert_delete_vertex_label(&self, label_name: &str) -> UndoLogResult<()> {
         let label;
         {
-            let mut schema = self.schema_ops.write();
-            label = schema.vertex_label_counter;
-            TransactionOps::create_vertex_type_undo(&mut schema, label_name, label)?;
+            let mut vertex_tables = self.vertex_tables.write();
+            let mut vertex_label_names = self.vertex_label_names.write();
+            let mut vertex_label_counter = self.vertex_label_counter.write();
+            label = *vertex_label_counter;
+            TransactionOps::create_vertex_type_undo(
+                &mut vertex_tables,
+                &mut vertex_label_names,
+                &mut vertex_label_counter,
+                label_name,
+            )?;
         }
         self.mark_vertex_modified(label);
         Ok(())
@@ -212,35 +238,22 @@ impl UndoTarget for PropertyGraph {
         dst_label: &str,
         edge_label: &str,
     ) -> UndoLogResult<()> {
-        let (src_label_id, dst_label_id);
-        {
-            let schema = self.schema_ops.read();
-            src_label_id = schema
-                .vertex_label_names
-                .get(src_label)
-                .copied()
-                .ok_or(UndoLogError::LabelNotFound(0))?;
-            dst_label_id = schema
-                .vertex_label_names
-                .get(dst_label)
-                .copied()
-                .ok_or(UndoLogError::LabelNotFound(0))?;
-        }
-
-        let params = CreateEdgeTypeParams {
-            name: edge_label,
-            src_label: src_label_id,
-            dst_label: dst_label_id,
-            properties: Vec::new(),
-            oe_strategy: EdgeStrategy::None,
-            ie_strategy: EdgeStrategy::None,
-        };
         let edge_label_id = {
-            let schema = self.schema_ops.read();
-            let mut edge = self.edge_ops.write();
-            edge.create_edge_type(params, &schema.vertex_tables)
-                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
-            edge.edge_label_names
+            let vertex_tables = self.vertex_tables.read();
+            let mut edge_tables = self.edge_tables.write();
+            let mut edge_label_names = self.edge_label_names.write();
+            let mut edge_label_counter = self.edge_label_counter.write();
+            TransactionOps::create_edge_type_undo(
+                &mut edge_tables,
+                &mut edge_label_names,
+                &mut edge_label_counter,
+                &vertex_tables,
+                edge_label,
+                src_label,
+                dst_label,
+            )
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+            edge_label_names
                 .get(edge_label)
                 .copied()
                 .ok_or(UndoLogError::LabelNotFound(0))?
@@ -257,14 +270,16 @@ impl UndoTarget for PropertyGraph {
         original_names: &[String],
     ) -> UndoLogResult<()> {
         let label_id = {
-            let mut schema = self.schema_ops.write();
+            let mut vertex_tables = self.vertex_tables.write();
+            let mut vertex_label_names = self.vertex_label_names.write();
             TransactionOps::revert_rename_vertex_properties(
-                &mut schema,
+                &mut vertex_tables,
+                &mut vertex_label_names,
                 label,
                 current_names,
                 original_names,
             )?;
-            schema.vertex_label_names.get(label).copied()
+            vertex_label_names.get(label).copied()
         };
         if let Some(label_id) = label_id {
             self.mark_vertex_modified(label_id);
@@ -281,18 +296,20 @@ impl UndoTarget for PropertyGraph {
         original_names: &[String],
     ) -> UndoLogResult<()> {
         let edge_label_id = {
-            let schema = self.schema_ops.read();
-            let mut edge = self.edge_ops.write();
+            let vertex_tables = self.vertex_tables.read();
+            let mut edge_tables = self.edge_tables.write();
+            let mut edge_label_names = self.edge_label_names.write();
             TransactionOps::revert_rename_edge_properties(
-                &mut edge,
+                &mut edge_tables,
+                &mut edge_label_names,
                 src_label,
                 dst_label,
                 edge_label,
-                &schema,
+                &vertex_tables,
                 current_names,
                 original_names,
             )?;
-            edge.edge_label_names.get(edge_label).copied()
+            edge_label_names.get(edge_label).copied()
         };
         if let Some(label) = edge_label_id {
             self.mark_edge_modified(label);

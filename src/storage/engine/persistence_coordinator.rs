@@ -1,7 +1,32 @@
 //! Persistence Coordinator
 //!
-//! Coordinates WAL, checkpoint, and snapshot operations for data persistence.
-//! This module integrates CheckpointManager for unified checkpoint management.
+//! Unified coordinator for the persistence responsibility chain:
+//!
+//! ```text
+//! Write Operations
+//!     ↓
+//! WAL (Write-Ahead Log) - Guarantees durability
+//!     ↓
+//! Memory (RAM) - Provides fast access
+//!     ↓
+//! Flush (Periodic) - Writes memory data to disk
+//!     ↓
+//! Checkpoint (Periodic) - Creates consistent snapshots
+//!     ↓
+//! Snapshot (Manual) - User-triggered full backup
+//! ```
+//!
+//! Responsibilities:
+//! - WalManager: WAL log management, ensures write-ahead logging
+//! - PropertyGraph::flush(): Memory-to-disk flushing (triggered by coordinator)
+//! - CheckpointManager: Checkpoint creation and recovery
+//! - SnapshotManager: Full backup management
+//!
+//! Usage:
+//! 1. Write operations go through WAL first
+//! 2. Periodic flush is triggered by the coordinator based on thresholds
+//! 3. Checkpoints are created periodically or on demand
+//! 4. Snapshots are user-triggered for full backups
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -444,6 +469,36 @@ impl PersistenceCoordinator {
         self.checkpoint_manager
             .write()
             .unregister_transaction(tx_id);
+    }
+
+    /// Trigger a flush operation through the persistence chain
+    ///
+    /// This method coordinates the flush operation:
+    /// 1. Sync WAL to ensure all logged operations are persisted
+    /// 2. Flush memory tables to disk via the provided flush function
+    /// 3. Reset timers and counters
+    pub fn trigger_flush<F>(&self, flush_fn: F) -> StorageResult<FlushStats>
+    where
+        F: FnOnce() -> StorageResult<(usize, u64)>,
+    {
+        let start = Instant::now();
+
+        let (flushed_tables, flushed_bytes) = flush_fn()?;
+
+        let wal_entries = {
+            let wal = self.wal_manager.read();
+            wal.current_lsn().into()
+        };
+
+        *self.pending_wal_entries.write() = 0;
+        *self.last_flush_time.write() = Instant::now();
+
+        Ok(FlushStats {
+            flushed_tables,
+            flushed_bytes,
+            duration: start.elapsed(),
+            wal_entries_flushed: wal_entries,
+        })
     }
 }
 

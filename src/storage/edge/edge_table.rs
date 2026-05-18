@@ -653,6 +653,10 @@ impl EdgeTable {
         &self.schema
     }
 
+    pub fn set_schema(&mut self, schema: EdgeSchema) {
+        self.schema = schema;
+    }
+
     pub fn is_open(&self) -> bool {
         self.is_open
     }

@@ -11,7 +11,6 @@ pub mod property_graph;
 #[cfg(test)]
 pub mod property_graph_tests;
 pub mod query;
-pub mod schema;
 pub mod snapshot_manager;
 pub mod sync_wrapper;
 pub mod transaction;

@@ -28,8 +28,8 @@ pub fn flush(graph: &PropertyGraph) -> StorageResult<()> {
     fs::create_dir_all(&vertex_dir)?;
 
     {
-        let schema = graph.schema_ops.read();
-        for (label_id, table) in &schema.vertex_tables {
+        let vertex_tables = graph.vertex_tables.read();
+        for (label_id, table) in &*vertex_tables {
             let table_dir = vertex_dir.join(format!("label_{}", label_id));
             table.flush(&table_dir)?;
         }
@@ -39,8 +39,8 @@ pub fn flush(graph: &PropertyGraph) -> StorageResult<()> {
     fs::create_dir_all(&edge_dir)?;
 
     {
-        let edge = graph.edge_ops.read();
-        for ((src_label, dst_label, edge_label), table) in &edge.edge_tables {
+        let edge_tables = graph.edge_tables.read();
+        for ((src_label, dst_label, edge_label), table) in &*edge_tables {
             let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
             table.flush(&table_dir)?;
         }
@@ -65,14 +65,14 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
     fs::create_dir_all(&data_dir)?;
 
     let mut flushed_labels = std::collections::HashSet::new();
-    let schema = graph.schema_ops.read();
-    let edge = graph.edge_ops.read();
+    let vertex_tables = graph.vertex_tables.read();
+    let edge_tables = graph.edge_tables.read();
 
     for table_id in &modified_tables {
         match table_id.table_type {
             TableType::Vertex => {
                 if flushed_labels.insert(("vertex", table_id.label_id)) {
-                    if let Some(table) = schema.vertex_tables.get(&table_id.label_id) {
+                    if let Some(table) = vertex_tables.get(&table_id.label_id) {
                         let vertex_dir = data_dir.join("vertices");
                         let table_dir = vertex_dir.join(format!("label_{}", table_id.label_id));
                         table.flush(&table_dir)?;
@@ -81,7 +81,7 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
             }
             TableType::Edge => {
                 if flushed_labels.insert(("edge", table_id.label_id)) {
-                    for ((src, dst, label), table) in &edge.edge_tables {
+                    for ((src, dst, label), table) in &*edge_tables {
                         if *label == table_id.label_id {
                             let edge_dir = data_dir.join("edges");
                             let table_dir = edge_dir.join(format!("{}_{}_{}", src, dst, label));
@@ -94,8 +94,6 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
             TableType::Property => {}
         }
     }
-    drop(schema);
-    drop(edge);
 
     graph.wal_manager.lock().sync()?;
 
@@ -109,8 +107,8 @@ pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageRes
     fs::create_dir_all(&vertex_dir)?;
 
     {
-        let schema = graph.schema_ops.read();
-        for (label_id, table) in &schema.vertex_tables {
+        let vertex_tables = graph.vertex_tables.read();
+        for (label_id, table) in &*vertex_tables {
             let table_dir = vertex_dir.join(format!("label_{}", label_id));
             table.flush(&table_dir)?;
         }
@@ -120,8 +118,8 @@ pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageRes
     fs::create_dir_all(&edge_dir)?;
 
     {
-        let edge = graph.edge_ops.read();
-        for ((src_label, dst_label, edge_label), table) in &edge.edge_tables {
+        let edge_tables = graph.edge_tables.read();
+        for ((src_label, dst_label, edge_label), table) in &*edge_tables {
             let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
             table.flush(&table_dir)?;
         }
@@ -162,7 +160,7 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
 
     let vertex_dir = data_dir.join("vertices");
     if vertex_dir.exists() {
-        let mut schema = graph.schema_ops.write();
+        let mut vertex_tables = graph.vertex_tables.write();
         for entry in fs::read_dir(&vertex_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -171,7 +169,7 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
                     if let Some(name_str) = dir_name.to_str() {
                         if let Some(label_str) = name_str.strip_prefix("label_") {
                             if let Ok(label_id) = label_str.parse::<LabelId>() {
-                                if let Some(table) = schema.vertex_tables.get_mut(&label_id) {
+                                if let Some(table) = vertex_tables.get_mut(&label_id) {
                                     table.load(&path)?;
                                 }
                             }
@@ -180,12 +178,11 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
                 }
             }
         }
-        drop(schema);
     }
 
     let edge_dir = data_dir.join("edges");
     if edge_dir.exists() {
-        let mut edge = graph.edge_ops.write();
+        let mut edge_tables = graph.edge_tables.write();
         for entry in fs::read_dir(&edge_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -200,7 +197,7 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
                                 parts[2].parse::<LabelId>(),
                             ) {
                                 let key = (src_label, dst_label, edge_label);
-                                if let Some(table) = edge.edge_tables.get_mut(&key) {
+                                if let Some(table) = edge_tables.get_mut(&key) {
                                     table.load(&path)?;
                                 }
                             }
@@ -209,7 +206,6 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
                 }
             }
         }
-        drop(edge);
     }
 
     Ok(())
@@ -222,7 +218,7 @@ pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> 
 
     let vertex_dir = data_dir.join("vertices");
     if vertex_dir.exists() {
-        let mut schema = graph.schema_ops.write();
+        let mut vertex_tables = graph.vertex_tables.write();
         for entry in fs::read_dir(&vertex_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -231,7 +227,7 @@ pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> 
                     if let Some(name_str) = dir_name.to_str() {
                         if let Some(label_str) = name_str.strip_prefix("label_") {
                             if let Ok(label_id) = label_str.parse::<LabelId>() {
-                                if let Some(table) = schema.vertex_tables.get_mut(&label_id) {
+                                if let Some(table) = vertex_tables.get_mut(&label_id) {
                                     table.load(&path)?;
                                 }
                             }
@@ -240,12 +236,11 @@ pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> 
                 }
             }
         }
-        drop(schema);
     }
 
     let edge_dir = data_dir.join("edges");
     if edge_dir.exists() {
-        let mut edge = graph.edge_ops.write();
+        let mut edge_tables = graph.edge_tables.write();
         for entry in fs::read_dir(&edge_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -260,7 +255,7 @@ pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> 
                                 parts[2].parse::<LabelId>(),
                             ) {
                                 let key = (src_label, dst_label, edge_label);
-                                if let Some(table) = edge.edge_tables.get_mut(&key) {
+                                if let Some(table) = edge_tables.get_mut(&key) {
                                     table.load(&path)?;
                                 }
                             }
@@ -269,7 +264,6 @@ pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> 
                 }
             }
         }
-        drop(edge);
     }
 
     let index_dir = data_dir.join("indexes");

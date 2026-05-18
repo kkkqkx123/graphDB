@@ -116,6 +116,19 @@ impl NameIndexer {
         self.next_id = 0;
     }
 
+    /// Remove a name from the indexer.
+    /// Returns true if the name was found and removed.
+    pub fn remove(&mut self, name: &str) -> bool {
+        if let Some(id) = self.name_to_id.remove(name) {
+            if id.as_usize() < self.id_to_name.len() {
+                self.id_to_name[id.as_usize()] = None;
+            }
+            true
+        } else {
+            false
+        }
+    }
+
     /// Estimate memory usage in bytes.
     pub fn memory_size(&self) -> usize {
         let mut total = std::mem::size_of::<Self>();

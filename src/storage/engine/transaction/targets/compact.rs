@@ -1,7 +1,6 @@
 use crate::core::types::{CompactConfig, CompactResult, CompactStats, CompactTarget};
 use crate::core::types::{LabelId, Timestamp};
-
-use super::super::PropertyGraph;
+use crate::storage::engine::property_graph::PropertyGraph;
 
 impl CompactTarget for PropertyGraph {
     fn compact(&self, config: &CompactConfig, ts: Timestamp) -> CompactResult<()> {
@@ -19,12 +18,11 @@ impl CompactTarget for PropertyGraph {
 
         let vertex_labels: Vec<LabelId>;
         {
-            let mut schema = self.schema_ops.write();
-            vertex_labels = schema.vertex_tables.keys().copied().collect();
+            let mut vertex_tables = self.vertex_tables.write();
+            vertex_labels = vertex_tables.keys().copied().collect();
 
             for &label_id in &vertex_labels {
-                let table = schema
-                    .vertex_tables
+                let table = vertex_tables
                     .get_mut(&label_id)
                     .expect("label must exist");
                 let removed = table.compact_with_ts_collect(ts);
@@ -48,12 +46,12 @@ impl CompactTarget for PropertyGraph {
 
         let edge_keys: Vec<(LabelId, LabelId, LabelId)>;
         {
-            let mut edge = self.edge_ops.write();
-            edge_keys = edge.edge_tables.keys().copied().collect();
+            let mut edge_tables = self.edge_tables.write();
+            edge_keys = edge_tables.keys().copied().collect();
 
             if config.enable_structure_compaction {
                 for &key in &edge_keys {
-                    let table = edge.edge_tables.get_mut(&key).expect("edge key must exist");
+                    let table = edge_tables.get_mut(&key).expect("edge key must exist");
                     let removed = table.compact_csr(ts, config.reserve_ratio);
                     total_edges_removed += removed;
                 }
@@ -65,7 +63,7 @@ impl CompactTarget for PropertyGraph {
             }
 
             for &key in &edge_keys {
-                let table = edge.edge_tables.get_mut(&key).expect("edge key must exist");
+                let table = edge_tables.get_mut(&key).expect("edge key must exist");
                 table.compact_properties(ts);
             }
         }
@@ -106,14 +104,14 @@ impl PropertyGraph {
         let mut total = 0usize;
 
         {
-            let schema = self.schema_ops.read();
-            for table in schema.vertex_tables.values() {
+            let vertex_tables = self.vertex_tables.read();
+            for table in vertex_tables.values() {
                 total += table.memory_size();
             }
         }
         {
-            let edge = self.edge_ops.read();
-            for table in edge.edge_tables.values() {
+            let edge_tables = self.edge_tables.read();
+            for table in edge_tables.values() {
                 total += table.memory_size();
             }
         }
@@ -125,14 +123,14 @@ impl PropertyGraph {
         let mut total = 0usize;
 
         {
-            let schema = self.schema_ops.read();
-            for table in schema.vertex_tables.values() {
+            let vertex_tables = self.vertex_tables.read();
+            for table in vertex_tables.values() {
                 total += table.used_memory_size();
             }
         }
         {
-            let edge = self.edge_ops.read();
-            for table in edge.edge_tables.values() {
+            let edge_tables = self.edge_tables.read();
+            for table in edge_tables.values() {
                 total += table.used_memory_size();
             }
         }

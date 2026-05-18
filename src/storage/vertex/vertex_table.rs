@@ -465,6 +465,10 @@ impl VertexTable {
         &self.schema
     }
 
+    pub fn set_schema(&mut self, schema: VertexSchema) {
+        self.schema = schema;
+    }
+
     pub fn is_open(&self) -> bool {
         self.is_open
     }
