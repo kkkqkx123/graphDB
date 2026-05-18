@@ -11,7 +11,7 @@ use crate::storage::metadata::{TableId, TableType};
 
 use super::{PropertyGraph, DATA_FORMAT_VERSION};
 
-pub fn flush(graph: &PropertyGraph) -> StorageResult<()> {
+pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
     use std::fs;
     use std::io::Write;
 

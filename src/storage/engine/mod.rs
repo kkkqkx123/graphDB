@@ -1,7 +1,7 @@
 //! Storage Engine Module
 
 pub mod batch;
-pub mod cache;
+pub mod cache_manager;
 pub mod config;
 pub mod edge;
 pub mod graph_storage;
@@ -20,7 +20,7 @@ pub use batch::{
     batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
     VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE,
 };
-pub use cache::CacheManager;
+pub use cache_manager::CacheManager;
 pub use config::PropertyGraphConfig;
 pub use persistence_coordinator::{
     CheckpointData, CheckpointInfo, CheckpointStats, PersistenceConfig, PersistenceCoordinator,

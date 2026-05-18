@@ -133,6 +133,15 @@ impl StoragePropertyDef {
         self.default_value = Some(value);
         self
     }
+
+    pub fn from_core(prop: &CorePropertyDef) -> Self {
+        Self {
+            name: prop.name.clone(),
+            data_type: prop.data_type.clone(),
+            nullable: prop.nullable,
+            default_value: prop.default.clone(),
+        }
+    }
 }
 
 impl From<CorePropertyDef> for StoragePropertyDef {

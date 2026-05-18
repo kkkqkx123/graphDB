@@ -1,6 +1,7 @@
 use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::StorageError;
-use crate::storage::{FieldDef, Schema};
+use crate::storage::metadata::Schema;
+use crate::storage::storage_types::FieldDef;
 use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;

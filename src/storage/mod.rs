@@ -19,7 +19,6 @@ pub mod index;
 pub mod memory;
 pub mod metadata;
 pub mod metrics;
-pub mod params;
 pub mod storage_client;
 pub mod storage_types;
 pub mod utils;
@@ -48,9 +47,7 @@ pub use cache::{
 
 pub use extend::FulltextStorage;
 
-pub use index::*;
 pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryStats, MemoryTracker};
-pub use metadata::*;
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
@@ -66,13 +63,13 @@ pub use container::{
 pub use engine::config::FlushConfig;
 
 pub use vertex::{
-    Column, ColumnStore, IdIndexer, LabelId, PropertyDef as VertexPropertyDef, Timestamp, VertexId,
-    VertexRecord, VertexSchema, VertexTable, VertexTimestamp,
+    Column, ColumnStore, IdIndexer, LabelId, Timestamp, VertexId, VertexRecord, VertexSchema,
+    VertexTable, VertexTimestamp,
 };
 
 pub use edge::{
     Csr, EdgeDirection, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, ImmutableNbr,
-    MutableCsr, Nbr, PropertyDef as EdgePropertyDef, PropertyTable,
+    MutableCsr, Nbr, PropertyTable,
 };
 
 pub use crate::core::types::{

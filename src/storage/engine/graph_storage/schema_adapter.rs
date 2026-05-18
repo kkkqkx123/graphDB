@@ -5,6 +5,9 @@
 
 use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::{StorageError, StorageResult};
+use crate::storage::edge::EdgeStrategy;
+use crate::storage::engine::edge::CreateEdgeTypeParams;
+use crate::storage::storage_types::StoragePropertyDef;
 
 use super::context::GraphStorageContext;
 
@@ -83,8 +86,8 @@ impl<'a> SchemaAdapterOps<'a> {
     pub fn create_tag(&self, space: &str, tag: &TagInfo) -> StorageResult<u32> {
         let tag_id = self.ctx.schema_manager.create_tag(space, tag)?;
 
-        let properties: Vec<crate::storage::vertex::PropertyDef> =
-            tag.properties.iter().map(|p| p.into()).collect();
+        let properties: Vec<StoragePropertyDef> =
+            tag.properties.iter().map(StoragePropertyDef::from_core).collect();
 
         let primary_key = tag
             .properties
@@ -149,11 +152,8 @@ impl<'a> SchemaAdapterOps<'a> {
                 ))
             })?;
 
-        let properties: Vec<crate::storage::edge::PropertyDef> =
-            edge_type.properties.iter().map(|p| p.into()).collect();
-
-        use crate::storage::edge::EdgeStrategy;
-        use crate::storage::engine::edge::CreateEdgeTypeParams;
+        let properties: Vec<StoragePropertyDef> =
+            edge_type.properties.iter().map(StoragePropertyDef::from_core).collect();
         self.ctx.graph.create_edge_type_with_id(
             CreateEdgeTypeParams {
                 name: &edge_type.edge_type_name,

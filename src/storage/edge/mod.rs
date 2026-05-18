@@ -33,7 +33,10 @@ pub mod mutable_csr_variant;
 pub mod property_table;
 pub mod single_mutable_csr;
 
-pub use crate::storage::storage_types::StoragePropertyDef as PropertyDef;
+use crate::core::types::EdgeTypeInfo;
+use crate::core::{Edge, Value};
+use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::utils::props_to_map;
 
 pub use csr::Csr;
 pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
@@ -72,15 +75,14 @@ pub struct EdgeRecord {
     pub edge_id: EdgeId,
     pub src_vid: VertexId,
     pub dst_vid: VertexId,
-    pub properties: Vec<(String, crate::core::Value)>,
+    pub properties: Vec<(String, Value)>,
 }
 
-impl From<&EdgeRecord> for crate::core::Edge {
+impl From<&EdgeRecord> for Edge {
     fn from(record: &EdgeRecord) -> Self {
-        let props: std::collections::HashMap<String, crate::core::Value> =
-            record.properties.iter().cloned().collect();
+        let props = props_to_map(&record.properties);
 
-        crate::core::Edge {
+        Edge {
             src: record.src_vid,
             dst: record.dst_vid,
             edge_type: String::new(),
@@ -92,11 +94,11 @@ impl From<&EdgeRecord> for crate::core::Edge {
 }
 
 impl EdgeRecord {
-    pub fn into_edge_with_type(self, edge_type: &str) -> crate::core::Edge {
-        let props: std::collections::HashMap<String, crate::core::Value> =
+    pub fn into_edge_with_type(self, edge_type: &str) -> Edge {
+        let props: std::collections::HashMap<String, Value> =
             self.properties.into_iter().collect();
 
-        crate::core::Edge {
+        Edge {
             src: self.src_vid,
             dst: self.dst_vid,
             edge_type: edge_type.to_string(),
@@ -113,19 +115,19 @@ pub struct EdgeSchema {
     pub label_name: String,
     pub src_label: LabelId,
     pub dst_label: LabelId,
-    pub properties: Vec<PropertyDef>,
+    pub properties: Vec<StoragePropertyDef>,
     pub oe_strategy: EdgeStrategy,
     pub ie_strategy: EdgeStrategy,
 }
 
 impl EdgeSchema {
     pub fn from_edge_type_info(
-        edge_type: &crate::core::types::EdgeTypeInfo,
+        edge_type: &EdgeTypeInfo,
         label_id: LabelId,
         src_label: LabelId,
         dst_label: LabelId,
     ) -> Self {
-        let properties: Vec<PropertyDef> = edge_type.properties.iter().map(|p| p.into()).collect();
+        let properties: Vec<StoragePropertyDef> = edge_type.properties.iter().map(StoragePropertyDef::from_core).collect();
         Self {
             label_id,
             label_name: edge_type.edge_type_name.clone(),

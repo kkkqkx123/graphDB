@@ -1,12 +1,13 @@
 use crate::core::types::LabelId;
-use crate::storage::edge::{PropertyDef as EdgePropertyDef, EdgeStrategy};
+use crate::storage::edge::EdgeStrategy;
+use crate::storage::storage_types::StoragePropertyDef;
 
 /// Parameters for creating an edge type
 pub struct CreateEdgeTypeParams<'a> {
     pub name: &'a str,
     pub src_label: LabelId,
     pub dst_label: LabelId,
-    pub properties: Vec<EdgePropertyDef>,
+    pub properties: Vec<StoragePropertyDef>,
     pub oe_strategy: EdgeStrategy,
     pub ie_strategy: EdgeStrategy,
 }

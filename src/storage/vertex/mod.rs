@@ -16,13 +16,18 @@ pub mod id_indexer;
 pub mod vertex_table;
 pub mod vertex_timestamp;
 
-pub use crate::storage::storage_types::StoragePropertyDef as PropertyDef;
+use crate::storage::storage_types::StoragePropertyDef;
 
 pub use column_store::{Column, ColumnStore};
 pub use encoding::{select_encoding, EncodingStats, EncodingType};
 pub use id_indexer::{IdIndexer, IdKey};
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
+
+use crate::core::Value;
+use crate::core::vertex_edge_path::Tag;
+use crate::core::types::TagInfo;
+use crate::storage::utils::props_to_map;
 
 pub use crate::core::types::{LabelId, Timestamp, VertexId, INVALID_TIMESTAMP, MAX_TIMESTAMP};
 
@@ -36,18 +41,17 @@ pub enum VertexStatus {
 pub struct VertexRecord {
     pub vid: VertexId,
     pub internal_id: u32,
-    pub properties: Vec<(String, crate::core::Value)>,
+    pub properties: Vec<(String, Value)>,
 }
 
 impl From<&VertexRecord> for crate::core::Vertex {
     fn from(record: &VertexRecord) -> Self {
-        let properties: std::collections::HashMap<String, crate::core::Value> =
-            record.properties.iter().cloned().collect();
+        let properties = props_to_map(&record.properties);
 
         crate::core::Vertex {
             vid: record.vid,
             id: record.internal_id as i64,
-            tags: vec![crate::core::vertex_edge_path::Tag {
+            tags: vec![Tag {
                 name: String::new(),
                 properties: properties.clone(),
             }],
@@ -58,13 +62,13 @@ impl From<&VertexRecord> for crate::core::Vertex {
 
 impl VertexRecord {
     pub fn into_vertex_with_tag(self, tag_name: &str) -> crate::core::Vertex {
-        let properties: std::collections::HashMap<String, crate::core::Value> =
+        let properties: std::collections::HashMap<String, Value> =
             self.properties.into_iter().collect();
 
         crate::core::Vertex {
             vid: self.vid,
             id: self.internal_id as i64,
-            tags: vec![crate::core::vertex_edge_path::Tag {
+            tags: vec![Tag {
                 name: tag_name.to_string(),
                 properties: properties.clone(),
             }],
@@ -77,13 +81,13 @@ impl VertexRecord {
 pub struct VertexSchema {
     pub label_id: LabelId,
     pub label_name: String,
-    pub properties: Vec<PropertyDef>,
+    pub properties: Vec<StoragePropertyDef>,
     pub primary_key_index: usize,
 }
 
 impl VertexSchema {
-    pub fn from_tag_info(tag: &crate::core::types::TagInfo, label_id: LabelId) -> Self {
-        let properties: Vec<PropertyDef> = tag.properties.iter().map(|p| p.into()).collect();
+    pub fn from_tag_info(tag: &TagInfo, label_id: LabelId) -> Self {
+        let properties: Vec<StoragePropertyDef> = tag.properties.iter().map(StoragePropertyDef::from_core).collect();
         let primary_key_index = 0;
         Self {
             label_id,

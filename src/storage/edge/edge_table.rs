@@ -13,6 +13,8 @@ use super::{
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::cache::EdgePropertyCache;
 use crate::storage::storage_types::{EdgeOffset, PropertyId};
+#[cfg(test)]
+use crate::storage::storage_types::StoragePropertyDef;
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -381,7 +383,7 @@ impl EdgeTable {
 
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
             for (prop_id, value) in values {
-                let prop_id = crate::storage::storage_types::PropertyId::new(*prop_id);
+                let prop_id = PropertyId::new(*prop_id);
                 self.properties.set_property_by_id(
                     nbr.prop_offset,
                     prop_id,
@@ -418,7 +420,7 @@ impl EdgeTable {
     pub fn get_property_cached_by_id(
         &self,
         prop_offset: u32,
-        prop_id: crate::storage::storage_types::PropertyId,
+        prop_id: PropertyId,
     ) -> Option<Value> {
         if let Some(ref cache) = self.property_cache {
             if let Some(value) = cache.get_by_offset_id(prop_offset, prop_id) {
@@ -985,7 +987,7 @@ mod tests {
             label_name: "knows".to_string(),
             src_label: 0,
             dst_label: 0,
-            properties: vec![super::super::PropertyDef::new(
+            properties: vec![StoragePropertyDef::new(
                 "weight".to_string(),
                 DataType::Double,
             )],

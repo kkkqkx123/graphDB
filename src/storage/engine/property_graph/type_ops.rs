@@ -7,8 +7,9 @@ use std::sync::atomic::Ordering;
 
 use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
-use crate::storage::edge::{EdgeSchema, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
-use crate::storage::vertex::{PropertyDef as VertexPropertyDef, VertexSchema, VertexTable};
+use crate::storage::edge::{EdgeSchema, EdgeStrategy, EdgeTable};
+use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::vertex::{VertexSchema, VertexTable};
 
 use super::super::edge::CreateEdgeTypeParams;
 use super::PropertyGraph;
@@ -16,7 +17,7 @@ use super::PropertyGraph;
 pub fn create_vertex_type(
     graph: &PropertyGraph,
     name: &str,
-    properties: Vec<VertexPropertyDef>,
+    properties: Vec<StoragePropertyDef>,
     primary_key: &str,
 ) -> StorageResult<LabelId> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -55,7 +56,7 @@ pub fn create_vertex_type_with_id(
     graph: &PropertyGraph,
     name: &str,
     label_id: LabelId,
-    properties: Vec<VertexPropertyDef>,
+    properties: Vec<StoragePropertyDef>,
     primary_key: &str,
 ) -> StorageResult<LabelId> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -103,7 +104,7 @@ pub fn create_edge_type(
     name: &str,
     src_label: LabelId,
     dst_label: LabelId,
-    properties: Vec<EdgePropertyDef>,
+    properties: Vec<StoragePropertyDef>,
     oe_strategy: EdgeStrategy,
     ie_strategy: EdgeStrategy,
 ) -> StorageResult<LabelId> {

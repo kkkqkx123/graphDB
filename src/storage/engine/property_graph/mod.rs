@@ -18,14 +18,14 @@ use parking_lot::{Mutex, RwLock};
 use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
-use crate::storage::edge::{EdgeRecord, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef};
+use crate::storage::edge::{EdgeRecord, EdgeStrategy, EdgeTable};
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
-use crate::storage::storage_types::EdgeOffset;
-use crate::storage::vertex::{PropertyDef as VertexPropertyDef, VertexRecord, VertexTable};
+use crate::storage::storage_types::{EdgeOffset, StoragePropertyDef};
+use crate::storage::vertex::{VertexRecord, VertexTable};
 use crate::transaction::wal::writer::WalWriter;
 
-use super::cache::CacheManager;
+use super::cache_manager::CacheManager;
 use super::config::PropertyGraphConfig;
 use super::wal_manager::WalManager;
 use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl};
@@ -262,7 +262,7 @@ impl PropertyGraph {
     pub fn create_vertex_type(
         &self,
         name: &str,
-        properties: Vec<VertexPropertyDef>,
+        properties: Vec<StoragePropertyDef>,
         primary_key: &str,
     ) -> StorageResult<LabelId> {
         type_ops::create_vertex_type(self, name, properties, primary_key)
@@ -272,7 +272,7 @@ impl PropertyGraph {
         &self,
         name: &str,
         label_id: LabelId,
-        properties: Vec<VertexPropertyDef>,
+        properties: Vec<StoragePropertyDef>,
         primary_key: &str,
     ) -> StorageResult<LabelId> {
         type_ops::create_vertex_type_with_id(self, name, label_id, properties, primary_key)
@@ -283,7 +283,7 @@ impl PropertyGraph {
         name: &str,
         src_label: LabelId,
         dst_label: LabelId,
-        properties: Vec<EdgePropertyDef>,
+        properties: Vec<StoragePropertyDef>,
         oe_strategy: EdgeStrategy,
         ie_strategy: EdgeStrategy,
     ) -> StorageResult<LabelId> {
@@ -552,8 +552,8 @@ impl PropertyGraph {
 
     // ==================== Persistence Operations ====================
 
-    pub fn flush(&self) -> StorageResult<()> {
-        flush::flush(self)
+    pub fn flush_to_disk(&self) -> StorageResult<()> {
+        flush::flush_to_disk_impl(self)
     }
 
     pub fn flush_incremental(&self) -> StorageResult<Vec<TableId>> {

@@ -238,7 +238,7 @@ impl<'a> PersistenceOps<'a> {
                 .map_err(|e| StorageError::io_error(e.to_string()))?;
             self.ctx.schema_manager.save_schema(&schema_path)?;
 
-            self.ctx.graph.flush()?;
+            self.ctx.graph.flush_to_disk()?;
 
             let index_path = path.join("indexes");
             std::fs::create_dir_all(&index_path)

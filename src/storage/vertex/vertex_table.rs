@@ -6,9 +6,10 @@
 use std::path::Path;
 
 use super::{
-    ColumnStore, IdIndexer, IdKey, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord,
-    VertexSchema, VertexTimestamp,
+    ColumnStore, IdIndexer, IdKey, LabelId, Timestamp, VertexId, VertexRecord, VertexSchema,
+    VertexTimestamp,
 };
+use crate::storage::storage_types::StoragePropertyDef;
 use crate::core::{StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone)]
@@ -437,7 +438,7 @@ impl VertexTable {
         VertexIterator::new(self, ts)
     }
 
-    pub fn add_property(&mut self, prop: PropertyDef) -> StorageResult<()> {
+    pub fn add_property(&mut self, prop: StoragePropertyDef) -> StorageResult<()> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
@@ -940,15 +941,16 @@ impl<'a> Iterator for VertexIterator<'a> {
 mod tests {
     use super::*;
     use crate::core::DataType;
-    use crate::storage::vertex::{PropertyDef, VertexSchema};
+    use crate::storage::storage_types::StoragePropertyDef;
+    use crate::storage::vertex::VertexSchema;
 
     fn create_test_schema() -> VertexSchema {
         VertexSchema {
             label_id: 0,
             label_name: "person".to_string(),
             properties: vec![
-                PropertyDef::new("name".to_string(), DataType::String),
-                PropertyDef::new("age".to_string(), DataType::Int).nullable(true),
+                StoragePropertyDef::new("name".to_string(), DataType::String),
+                StoragePropertyDef::new("age".to_string(), DataType::Int).nullable(true),
             ],
             primary_key_index: 0,
         }

@@ -18,7 +18,7 @@
 //!
 //! Responsibilities:
 //! - WalManager: WAL log management, ensures write-ahead logging
-//! - PropertyGraph::flush(): Memory-to-disk flushing (triggered by coordinator)
+//! - PropertyGraph::flush_to_disk(): Memory-to-disk flushing (triggered by coordinator)
 //! - CheckpointManager: Checkpoint creation and recovery
 //! - SnapshotManager: Full backup management
 //!
@@ -39,6 +39,15 @@ use crate::core::types::Timestamp;
 use crate::storage::engine::snapshot_manager::{SnapshotManager, SnapshotOptions};
 use crate::storage::engine::WalManager;
 use crate::transaction::wal::{CheckpointManager, Lsn};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PersistenceState {
+    Idle,
+    WalWritten,
+    Flushing,
+    Checkpointing,
+    Snapshotting,
+}
 
 #[derive(Debug, Clone)]
 pub struct CheckpointInfo {
@@ -108,6 +117,7 @@ pub struct PersistenceCoordinator {
     last_flush_time: RwLock<Instant>,
     last_snapshot_time: RwLock<Option<SystemTime>>,
     pending_wal_entries: RwLock<u64>,
+    state: RwLock<PersistenceState>,
 }
 
 impl PersistenceCoordinator {
@@ -143,6 +153,7 @@ impl PersistenceCoordinator {
             last_flush_time: RwLock::new(Instant::now()),
             last_snapshot_time: RwLock::new(None),
             pending_wal_entries: RwLock::new(0),
+            state: RwLock::new(PersistenceState::Idle),
         })
     }
 
@@ -158,9 +169,19 @@ impl PersistenceCoordinator {
         self.snapshot_manager.clone()
     }
 
+    pub fn current_state(&self) -> PersistenceState {
+        *self.state.read()
+    }
+
+    fn set_state(&self, state: PersistenceState) {
+        *self.state.write() = state;
+    }
+
     pub fn record_wal_entry(&self) {
         let mut pending = self.pending_wal_entries.write();
         *pending += 1;
+        drop(pending);
+        self.set_state(PersistenceState::WalWritten);
     }
 
     pub fn should_flush(&self) -> bool {
@@ -200,6 +221,8 @@ impl PersistenceCoordinator {
     ) -> StorageResult<CheckpointStats> {
         let start = Instant::now();
 
+        self.set_state(PersistenceState::Checkpointing);
+
         let wal_lsn = {
             let wal = self.wal_manager.read();
             wal.current_lsn()
@@ -237,6 +260,7 @@ impl PersistenceCoordinator {
         *self.last_checkpoint_time.write() = Instant::now();
 
         let snapshot_created = if self.should_snapshot() {
+            self.set_state(PersistenceState::Snapshotting);
             if let Some(ref snapshot_manager) = self.snapshot_manager {
                 let snapshot_options = SnapshotOptions::default();
                 match snapshot_manager.create_snapshot(
@@ -265,6 +289,8 @@ impl PersistenceCoordinator {
         } else {
             false
         };
+
+        self.set_state(PersistenceState::Idle);
 
         let stats = CheckpointStats {
             checkpoint_id: checkpoint.seq,
@@ -483,6 +509,8 @@ impl PersistenceCoordinator {
     {
         let start = Instant::now();
 
+        self.set_state(PersistenceState::Flushing);
+
         let (flushed_tables, flushed_bytes) = flush_fn()?;
 
         let wal_entries = {
@@ -492,6 +520,7 @@ impl PersistenceCoordinator {
 
         *self.pending_wal_entries.write() = 0;
         *self.last_flush_time.write() = Instant::now();
+        self.set_state(PersistenceState::Idle);
 
         Ok(FlushStats {
             flushed_tables,
