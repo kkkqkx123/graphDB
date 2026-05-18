@@ -6,7 +6,7 @@
 use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::{StorageError, StorageResult};
 use crate::storage::edge::EdgeStrategy;
-use crate::storage::engine::edge::CreateEdgeTypeParams;
+use crate::storage::engine::edge_params::CreateEdgeTypeParams;
 use crate::storage::storage_types::StoragePropertyDef;
 
 use super::context::GraphStorageContext;

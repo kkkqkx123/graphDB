@@ -1,7 +1,7 @@
 use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::wal::traits::RecoveryApplier;
 use crate::core::{StorageError, StorageResult};
-use crate::storage::engine::edge::EdgeOperationParams;
+use crate::storage::engine::edge_params::EdgeOperationParams;
 use crate::storage::engine::property_graph::PropertyGraph;
 use crate::storage::engine::transaction::{AddEdgeParams, DeleteEdgeParams, TransactionOps};
 use crate::transaction::codec::bytes_to_value;

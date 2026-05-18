@@ -19,7 +19,7 @@ use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{EdgeRecord, EdgeStrategy, EdgeTable};
-use crate::storage::engine::edge::CreateEdgeTypeParams;
+use crate::storage::engine::edge_params::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::storage_types::{EdgeOffset, StoragePropertyDef};
 use crate::storage::vertex::{VertexRecord, VertexTable};

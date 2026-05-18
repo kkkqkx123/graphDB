@@ -11,7 +11,7 @@ use crate::storage::edge::{EdgeSchema, EdgeStrategy, EdgeTable};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::vertex::{VertexSchema, VertexTable};
 
-use super::super::edge::CreateEdgeTypeParams;
+use super::super::edge_params::CreateEdgeTypeParams;
 use super::PropertyGraph;
 
 pub fn create_vertex_type(

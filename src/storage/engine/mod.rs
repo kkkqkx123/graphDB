@@ -3,7 +3,7 @@
 pub mod batch;
 pub mod cache_manager;
 pub mod config;
-pub mod edge;
+pub mod edge_params;
 pub mod graph_storage;
 pub use graph_storage::{GraphStorage, GraphStorageContext, PersistenceOps};
 pub mod persistence_coordinator;
@@ -22,6 +22,7 @@ pub use batch::{
 };
 pub use cache_manager::CacheManager;
 pub use config::PropertyGraphConfig;
+pub use edge_params::{CreateEdgeTypeParams, EdgeOperationParams, EdgeTraversalParams};
 pub use persistence_coordinator::{
     CheckpointData, CheckpointInfo, CheckpointStats, PersistenceConfig, PersistenceCoordinator,
     PersistenceStats,

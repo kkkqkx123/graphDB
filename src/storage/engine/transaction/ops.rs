@@ -421,7 +421,7 @@ impl TransactionOps {
     pub fn update_edge_property(
         edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
         vertex_tables: &HashMap<LabelId, VertexTable>,
-        params: crate::storage::engine::edge::EdgeOperationParams,
+        params: crate::storage::engine::edge_params::EdgeOperationParams,
         prop_name: &str,
         value: &Value,
         ts: Timestamp,
