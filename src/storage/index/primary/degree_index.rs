@@ -14,7 +14,6 @@ use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::core::types::VertexId;
-use crate::storage::index::index_types::PrimaryIndex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DegreeInfo {
@@ -237,24 +236,16 @@ impl DegreeIndex {
             .iter()
             .map(|entry| (*entry.key(), *entry.value()))
     }
-}
 
-impl PrimaryIndex for DegreeIndex {
-    fn index_name(&self) -> &str {
+    pub fn index_name(&self) -> &str {
         "degree_index"
     }
 
-    fn entry_count(&self) -> usize {
+    pub fn entry_count(&self) -> usize {
         self.degrees.len()
     }
 
-    fn clear(&self) {
-        self.degrees.clear();
-        self.total_out_edges.store(0, Ordering::Relaxed);
-        self.total_in_edges.store(0, Ordering::Relaxed);
-    }
-
-    fn memory_usage(&self) -> usize {
+    pub fn memory_usage(&self) -> usize {
         self.degrees.len() * (std::mem::size_of::<VertexId>() + std::mem::size_of::<DegreeInfo>())
     }
 }

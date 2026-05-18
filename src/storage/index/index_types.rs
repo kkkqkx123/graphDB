@@ -66,20 +66,6 @@ pub enum SecondaryIndexType {
     EdgeProperty,
 }
 
-pub trait PrimaryIndex: Send + Sync {
-    fn category(&self) -> IndexCategory {
-        IndexCategory::Primary
-    }
-
-    fn index_name(&self) -> &str;
-
-    fn entry_count(&self) -> usize;
-
-    fn clear(&self);
-
-    fn memory_usage(&self) -> usize;
-}
-
 pub trait SecondaryIndex: Send + Sync {
     fn category(&self) -> IndexCategory {
         IndexCategory::Secondary

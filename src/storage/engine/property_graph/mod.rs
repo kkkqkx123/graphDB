@@ -28,7 +28,7 @@ use crate::transaction::wal::writer::WalWriter;
 use super::cache_manager::CacheManager;
 use super::config::PropertyGraphConfig;
 use super::wal_manager::WalManager;
-use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl};
+use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl, IndexGcOps};
 use crate::storage::metadata::{TableId, TableTracker, TableTrackerConfig, TableType};
 
 pub(crate) const DATA_FORMAT_VERSION: u32 = 1;

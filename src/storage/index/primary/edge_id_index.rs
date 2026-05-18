@@ -14,7 +14,7 @@ use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::core::types::{EdgeId, VertexId};
-use crate::storage::index::index_types::{PrimaryIndex, PropOffset};
+use crate::storage::index::index_types::PropOffset;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EdgeLocation {
@@ -129,23 +129,16 @@ impl EdgeIdIndex {
             .map(|entry| (*entry.key(), entry.value().clone()))
             .collect()
     }
-}
 
-impl PrimaryIndex for EdgeIdIndex {
-    fn index_name(&self) -> &str {
+    pub fn index_name(&self) -> &str {
         "edge_id_index"
     }
 
-    fn entry_count(&self) -> usize {
+    pub fn entry_count(&self) -> usize {
         self.len()
     }
 
-    fn clear(&self) {
-        self.index.clear();
-        self.edge_count.store(0, Ordering::Relaxed);
-    }
-
-    fn memory_usage(&self) -> usize {
+    pub fn memory_usage(&self) -> usize {
         self.index.len() * (std::mem::size_of::<EdgeId>() + std::mem::size_of::<EdgeLocation>())
     }
 }

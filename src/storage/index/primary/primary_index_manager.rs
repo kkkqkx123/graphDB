@@ -20,7 +20,7 @@ use super::degree_index::{DegreeIndex, DegreeInfo};
 use super::edge_id_index::{EdgeIdIndex, EdgeLocation};
 use crate::core::types::{EdgeId, VertexId};
 use crate::storage::index::index_types::{
-    CompositeIndexStats, IndexCategory, IndexStats, PrimaryIndex, PropOffset,
+    CompositeIndexStats, IndexCategory, IndexStats, PropOffset,
 };
 
 #[derive(Debug)]

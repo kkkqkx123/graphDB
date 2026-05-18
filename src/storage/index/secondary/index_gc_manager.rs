@@ -53,7 +53,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use super::index_data_manager::{GcStats, IndexDataManagerImpl};
+use super::index_data_manager::{GcStats, IndexDataManagerImpl, IndexGcOps};
 
 /// GC manager configuration
 #[derive(Debug, Clone)]

@@ -1,7 +1,5 @@
 use crate::core::error::ManagerError;
-use crate::core::types::{
-    EdgeTypeInfo, SchemaChange, SchemaExportConfig, SchemaImportResult, SchemaVersion, TagInfo,
-};
+use crate::core::types::{EdgeTypeInfo, SchemaChange, SchemaVersion, TagInfo};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicI32, Ordering};
@@ -101,18 +99,6 @@ impl ExtendedSchemaManager {
         let mut changes = self.schema_changes.write();
         changes.remove(&space_id);
         Ok(())
-    }
-
-    pub fn export_schema(&self, _config: &SchemaExportConfig) -> Result<String, ManagerError> {
-        Err(ManagerError::storage_error(
-            "Export functionality is not yet implemented".to_string(),
-        ))
-    }
-
-    pub fn import_schema(&self, _data: &str) -> Result<SchemaImportResult, ManagerError> {
-        Err(ManagerError::storage_error(
-            "Import functionality is not yet implemented".to_string(),
-        ))
     }
 }
 

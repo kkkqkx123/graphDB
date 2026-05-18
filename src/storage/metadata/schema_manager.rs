@@ -2,6 +2,7 @@ use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use crate::storage::metadata::Schema;
 use crate::storage::storage_types::FieldDef;
+use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
@@ -85,8 +86,8 @@ pub struct SchemaManager {
     tag_indexes: Arc<RwLock<HashMap<(u64, String), IndexData>>>,
     edge_indexes: Arc<RwLock<HashMap<(u64, String), IndexData>>>,
     space_id_counter: Arc<AtomicU64>,
-    tag_id_counter: Arc<RwLock<HashMap<u64, AtomicU32>>>,
-    edge_type_id_counter: Arc<RwLock<HashMap<u64, AtomicU32>>>,
+    tag_id_counter: Arc<DashMap<u64, AtomicU32>>,
+    edge_type_id_counter: Arc<DashMap<u64, AtomicU32>>,
 }
 
 impl Clone for SchemaManager {
@@ -123,8 +124,8 @@ impl SchemaManager {
             tag_indexes: Arc::new(RwLock::new(HashMap::new())),
             edge_indexes: Arc::new(RwLock::new(HashMap::new())),
             space_id_counter: Arc::new(AtomicU64::new(0)),
-            tag_id_counter: Arc::new(RwLock::new(HashMap::new())),
-            edge_type_id_counter: Arc::new(RwLock::new(HashMap::new())),
+            tag_id_counter: Arc::new(DashMap::new()),
+            edge_type_id_counter: Arc::new(DashMap::new()),
         }
     }
 
@@ -133,27 +134,19 @@ impl SchemaManager {
     }
 
     fn get_next_tag_id(&self, space_id: u64) -> u32 {
-        let counters = self.tag_id_counter.read();
-        if let Some(counter) = counters.get(&space_id) {
-            counter.fetch_add(1, Ordering::SeqCst) + 1
-        } else {
-            drop(counters);
-            let mut counters = self.tag_id_counter.write();
-            counters.insert(space_id, AtomicU32::new(1));
-            1
-        }
+        let entry = self
+            .tag_id_counter
+            .entry(space_id)
+            .or_insert_with(|| AtomicU32::new(0));
+        entry.fetch_add(1, Ordering::SeqCst) + 1
     }
 
     fn get_next_edge_type_id(&self, space_id: u64) -> u32 {
-        let counters = self.edge_type_id_counter.read();
-        if let Some(counter) = counters.get(&space_id) {
-            counter.fetch_add(1, Ordering::SeqCst) + 1
-        } else {
-            drop(counters);
-            let mut counters = self.edge_type_id_counter.write();
-            counters.insert(space_id, AtomicU32::new(1));
-            1
-        }
+        let entry = self
+            .edge_type_id_counter
+            .entry(space_id)
+            .or_insert_with(|| AtomicU32::new(0));
+        entry.fetch_add(1, Ordering::SeqCst) + 1
     }
 
     pub fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError> {
@@ -651,16 +644,14 @@ impl SchemaManager {
 
         let tag_id_counters: Vec<(u64, u32)> = self
             .tag_id_counter
-            .read()
             .iter()
-            .map(|(k, v)| (*k, v.load(std::sync::atomic::Ordering::SeqCst)))
+            .map(|entry| (*entry.key(), entry.value().load(Ordering::SeqCst)))
             .collect();
 
         let edge_type_id_counters: Vec<(u64, u32)> = self
             .edge_type_id_counter
-            .read()
             .iter()
-            .map(|(k, v)| (*k, v.load(std::sync::atomic::Ordering::SeqCst)))
+            .map(|entry| (*entry.key(), entry.value().load(Ordering::SeqCst)))
             .collect();
 
         let snapshot = SchemaSnapshot {
@@ -755,14 +746,11 @@ impl SchemaManager {
             .store(snapshot.space_id_counter, Ordering::SeqCst);
 
         for (space_id, counter) in snapshot.tag_id_counters {
-            self.tag_id_counter
-                .write()
-                .insert(space_id, AtomicU32::new(counter));
+            self.tag_id_counter.insert(space_id, AtomicU32::new(counter));
         }
 
         for (space_id, counter) in snapshot.edge_type_id_counters {
             self.edge_type_id_counter
-                .write()
                 .insert(space_id, AtomicU32::new(counter));
         }
 
