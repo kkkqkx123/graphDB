@@ -70,7 +70,6 @@ pub struct EdgeRecord {
     pub edge_id: EdgeId,
     pub src_vid: VertexId,
     pub dst_vid: VertexId,
-    pub ranking: i64,
     pub properties: Vec<(String, crate::core::Value)>,
 }
 

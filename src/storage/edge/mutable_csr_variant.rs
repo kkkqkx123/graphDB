@@ -10,6 +10,8 @@
 //! - `Single`: `SingleMutableCsr` for one-edge-per-vertex (O(1) access)
 //! - `None`: No edges stored
 
+use crate::core::StorageResult;
+
 use super::{
     CsrBase, CsrType, EdgeId, EdgeStrategy, MutableCsr, MutableCsrEdgeIterator,
     MutableCsrIterator, MutableCsrTrait, Nbr, SingleCsrEdgeIterator, SingleMutableCsr,
@@ -23,16 +25,18 @@ pub enum MutableCsrVariant {
 }
 
 impl MutableCsrVariant {
-    pub fn from_strategy(strategy: EdgeStrategy, vertex_capacity: usize, edge_capacity: usize) -> Self {
+    pub fn from_strategy(strategy: EdgeStrategy, vertex_capacity: usize, edge_capacity: usize) -> StorageResult<Self> {
         match strategy {
             EdgeStrategy::Multiple => {
-                MutableCsrVariant::Multiple(MutableCsr::with_capacity(vertex_capacity, edge_capacity))
+                Ok(MutableCsrVariant::Multiple(MutableCsr::with_capacity(vertex_capacity, edge_capacity)))
             }
             EdgeStrategy::Single => {
-                MutableCsrVariant::Single(SingleMutableCsr::with_capacity(vertex_capacity))
+                Ok(MutableCsrVariant::Single(SingleMutableCsr::with_capacity(vertex_capacity)))
             }
             EdgeStrategy::None => {
-                panic!("Cannot create MutableCsrVariant with EdgeStrategy::None")
+                Err(crate::core::StorageError::invalid_operation(
+                    "Cannot create MutableCsrVariant with EdgeStrategy::None"
+                ))
             }
         }
     }
@@ -282,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_multiple_csr_variant() {
-        let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100);
+        let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
 
         assert!(csr.is_multiple());
         assert!(!csr.is_single());
@@ -295,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_single_csr_variant() {
-        let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Single, 10, 100);
+        let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Single, 10, 100).unwrap();
 
         assert!(csr.is_single());
         assert!(!csr.is_multiple());
@@ -308,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_clone() {
-        let mut csr1 = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100);
+        let mut csr1 = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
         csr1.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
 
         let csr2 = csr1.clone();

@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_edge_batch_reader() {
         let schema = create_test_edge_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         for i in 0..50u64 {
             let src = i * 2;
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     fn test_edge_batch_writer() {
         let schema = create_test_edge_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         {
             let mut writer = EdgeBatchWriter::new(&mut table, 100, 10);
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn test_batch_import_edges() {
         let schema = create_test_edge_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         let edges: Vec<_> = (0..50)
             .map(|i| {

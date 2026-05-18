@@ -111,7 +111,7 @@ impl VertexTable {
                 return Err(StorageError::vertex_already_exists(external_id.to_string()));
             }
 
-            self.timestamps.revert_remove(internal_id, ts);
+            let _ = self.timestamps.revert_remove(internal_id, ts);
             self.columns.set(internal_id as usize, properties)?;
             return Ok(internal_id);
         }
@@ -314,11 +314,11 @@ impl VertexTable {
             if let Some(internal_id) = self.id_indexer.get_index(external_id) {
                 if self.timestamps.is_valid(internal_id, ts) {
                     for (col_name, value) in properties {
-                        let _ = self.columns.set_property(
+                        self.columns.set_property(
                             internal_id as usize,
                             col_name,
                             Some(value),
-                        );
+                        )?;
                     }
                     updated_count += 1;
                 }
@@ -333,7 +333,11 @@ impl VertexTable {
             return Err(StorageError::storage_not_open());
         }
 
-        self.timestamps.revert_remove(internal_id, ts);
+        if !self.timestamps.revert_remove(internal_id, ts) {
+            return Err(StorageError::invalid_operation(
+                format!("Cannot revert deletion of vertex {}: invalid timestamp", internal_id)
+            ));
+        }
         Ok(())
     }
 
@@ -540,11 +544,11 @@ impl VertexTable {
 
         let mut file = File::create(path)?;
 
-        let keys: Vec<&String> = self.id_indexer.keys().collect();
-        let count = keys.len() as u32;
+        let count = self.id_indexer.len() as u32;
         file.write_all(&count.to_le_bytes())?;
 
-        for key in keys {
+        for (key, id) in self.id_indexer.iter() {
+            file.write_all(&id.to_le_bytes())?;
             let key_bytes = key.as_bytes();
             file.write_all(&(key_bytes.len() as u32).to_le_bytes())?;
             file.write_all(key_bytes)?;
@@ -672,6 +676,10 @@ impl VertexTable {
         self.id_indexer.clear();
 
         for _ in 0..count {
+            let mut id_bytes = [0u8; 4];
+            file.read_exact(&mut id_bytes)?;
+            let internal_id = u32::from_le_bytes(id_bytes);
+
             let mut key_len_bytes = [0u8; 4];
             file.read_exact(&mut key_len_bytes)?;
             let key_len = u32::from_le_bytes(key_len_bytes) as usize;
@@ -681,7 +689,7 @@ impl VertexTable {
             let key = String::from_utf8(key_bytes)
                 .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
-            self.id_indexer.insert(key)?;
+            self.id_indexer.set_at(internal_id, key);
         }
 
         Ok(())

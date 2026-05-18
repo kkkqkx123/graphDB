@@ -2,7 +2,7 @@
 //!
 //! Combines out/in CSRs and property storage for edge management.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -54,32 +54,31 @@ pub struct EdgeTable {
     is_open: bool,
     property_cache: Option<Arc<EdgePropertyCache>>,
     edge_id_to_src: HashMap<EdgeId, (VertexId, VertexId)>,
-    active_vertices: HashSet<VertexId>,
 }
 
 impl EdgeTable {
-    pub fn new(schema: EdgeSchema) -> Self {
+    pub fn new(schema: EdgeSchema) -> StorageResult<Self> {
         Self::with_config(schema, EdgeTableConfig::default())
     }
 
-    pub fn with_config(schema: EdgeSchema, config: EdgeTableConfig) -> Self {
+    pub fn with_config(schema: EdgeSchema, config: EdgeTableConfig) -> StorageResult<Self> {
         let out_csr = MutableCsrVariant::from_strategy(
             schema.oe_strategy,
             config.initial_vertex_capacity,
             config.initial_edge_capacity,
-        );
+        )?;
         let in_csr = MutableCsrVariant::from_strategy(
             schema.ie_strategy,
             config.initial_vertex_capacity,
             config.initial_edge_capacity,
-        );
+        )?;
 
         let mut properties = PropertyTable::with_capacity(config.initial_edge_capacity);
         for prop in &schema.properties {
             properties.add_property(prop.name.clone(), prop.data_type.clone(), prop.nullable);
         }
 
-        Self {
+        Ok(Self {
             label: schema.label_id,
             label_name: schema.label_name.clone(),
             src_label: schema.src_label,
@@ -92,18 +91,17 @@ impl EdgeTable {
             is_open: true,
             property_cache: None,
             edge_id_to_src: HashMap::new(),
-            active_vertices: HashSet::new(),
-        }
+        })
     }
 
     pub fn with_cache(
         schema: EdgeSchema,
         config: EdgeTableConfig,
         cache: Option<Arc<EdgePropertyCache>>,
-    ) -> Self {
-        let mut table = Self::with_config(schema, config);
+    ) -> StorageResult<Self> {
+        let mut table = Self::with_config(schema, config)?;
         table.property_cache = cache;
-        table
+        Ok(table)
     }
 
     pub fn set_cache(&mut self, cache: Option<Arc<EdgePropertyCache>>) {
@@ -162,14 +160,13 @@ impl EdgeTable {
             0
         };
 
-        if self.schema.oe_strategy == EdgeStrategy::Single
-            && self.out_csr.has_edge(src, dst, ts) {
-                self.properties.delete(prop_offset);
-                return Err(StorageError::edge_already_exists(format!(
-                    "{} -> {}",
-                    src, dst
-                )));
-            }
+        if self.out_csr.has_edge(src, dst, ts) {
+            self.properties.delete(prop_offset);
+            return Err(StorageError::edge_already_exists(format!(
+                "{} -> {}",
+                src, dst
+            )));
+        }
 
         if !self.out_csr.insert_edge(src, dst, edge_id, prop_offset, ts) {
             self.properties.delete(prop_offset);
@@ -191,10 +188,6 @@ impl EdgeTable {
         }
 
         self.edge_id_to_src.insert(edge_id, (src, dst));
-        self.active_vertices.insert(src);
-        if self.schema.ie_strategy != EdgeStrategy::None {
-            self.active_vertices.insert(dst);
-        }
 
         Ok(edge_id)
     }
@@ -277,10 +270,6 @@ impl EdgeTable {
         if reverted {
             if let Some(eid) = edge_id {
                 self.edge_id_to_src.insert(eid, (src, dst));
-                self.active_vertices.insert(src);
-                if self.schema.ie_strategy != EdgeStrategy::None {
-                    self.active_vertices.insert(dst);
-                }
             }
         }
 
@@ -341,7 +330,6 @@ impl EdgeTable {
             edge_id: nbr.edge_id,
             src_vid: src,
             dst_vid: dst,
-            ranking: 0,
             properties,
         })
     }
@@ -380,7 +368,6 @@ impl EdgeTable {
             edge_id: nbr.edge_id,
             src_vid: src,
             dst_vid: dst,
-            ranking: 0,
             properties,
         })
     }
@@ -463,7 +450,6 @@ impl EdgeTable {
                     edge_id: nbr.edge_id,
                     src_vid: src,
                     dst_vid: nbr.neighbor,
-                    ranking: 0,
                     properties,
                 }
             })
@@ -497,7 +483,6 @@ impl EdgeTable {
                     edge_id: nbr.edge_id,
                     src_vid: nbr.neighbor,
                     dst_vid: dst,
-                    ranking: 0,
                     properties,
                 }
             })
@@ -587,7 +572,7 @@ impl EdgeTable {
 
             if self.schema.ie_strategy != EdgeStrategy::None {
                 if let Some(ie_nbr) = self.in_csr.get_edge(params.dst, params.src, params.ts) {
-                    debug_assert_eq!(nbr.prop_offset, ie_nbr.prop_offset,
+                    assert_eq!(nbr.prop_offset, ie_nbr.prop_offset,
                         "out_csr and in_csr should share the same prop_offset");
                 }
             }
@@ -619,10 +604,6 @@ impl EdgeTable {
 
             if reverted_out || reverted_in {
                 self.edge_id_to_src.insert(eid, (src, dst));
-                self.active_vertices.insert(src);
-                if self.schema.ie_strategy != EdgeStrategy::None {
-                    self.active_vertices.insert(dst);
-                }
             }
 
             return Ok(reverted_out || reverted_in);
@@ -694,7 +675,6 @@ impl EdgeTable {
         self.properties.clear();
         self.edge_id_counter.store(0, Ordering::Relaxed);
         self.edge_id_to_src.clear();
-        self.active_vertices.clear();
     }
 
     pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
@@ -730,9 +710,6 @@ impl EdgeTable {
         let props_path = path.join("properties.bin");
         self.flush_properties(&props_path)?;
 
-        let active_vertices_path = path.join("active_vertices.bin");
-        self.flush_active_vertices(&active_vertices_path)?;
-
         let edge_id_to_src_path = path.join("edge_id_to_src.bin");
         self.flush_edge_id_to_src(&edge_id_to_src_path)?;
 
@@ -765,21 +742,7 @@ impl EdgeTable {
         Ok(())
     }
 
-    fn flush_active_vertices(&self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
-        use std::io::Write;
 
-        let mut file = File::create(path)?;
-
-        file.write_all(&(self.active_vertices.len() as u64).to_le_bytes())?;
-        for vertex_id in &self.active_vertices {
-            let bytes = vertex_id.as_bytes();
-            file.write_all(&(bytes.len() as u8).to_le_bytes())?;
-            file.write_all(bytes)?;
-        }
-
-        Ok(())
-    }
 
     fn flush_edge_id_to_src(&self, path: &Path) -> StorageResult<()> {
         use std::fs::File;
@@ -792,11 +755,11 @@ impl EdgeTable {
             file.write_all(&edge_id.to_le_bytes())?;
             
             let src_bytes = src.as_bytes();
-            file.write_all(&(src_bytes.len() as u8).to_le_bytes())?;
+            file.write_all(&(src_bytes.len() as u32).to_le_bytes())?;
             file.write_all(src_bytes)?;
             
             let dst_bytes = dst.as_bytes();
-            file.write_all(&(dst_bytes.len() as u8).to_le_bytes())?;
+file.write_all(&(dst_bytes.len() as u32).to_le_bytes())?;
             file.write_all(dst_bytes)?;
         }
 
@@ -852,9 +815,6 @@ impl EdgeTable {
         let props_path = path.join("properties.bin");
         self.load_properties(&props_path)?;
 
-        let active_vertices_path = path.join("active_vertices.bin");
-        self.load_active_vertices(&active_vertices_path)?;
-
         let edge_id_to_src_path = path.join("edge_id_to_src.bin");
         self.load_edge_id_to_src(&edge_id_to_src_path)?;
 
@@ -898,29 +858,7 @@ impl EdgeTable {
         Ok(())
     }
 
-    fn load_active_vertices(&mut self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
-        use std::io::Read;
 
-        let mut file = File::open(path)?;
-
-        let mut len_bytes = [0u8; 8];
-        file.read_exact(&mut len_bytes)?;
-        let len = u64::from_le_bytes(len_bytes) as usize;
-
-        self.active_vertices.clear();
-        for _ in 0..len {
-            let mut len_byte = [0u8; 1];
-            file.read_exact(&mut len_byte)?;
-            let vertex_len = len_byte[0] as usize;
-            
-            let mut vertex_bytes = vec![0u8; vertex_len];
-            file.read_exact(&mut vertex_bytes)?;
-            self.active_vertices.insert(VertexId::from_bytes(vertex_bytes));
-        }
-
-        Ok(())
-    }
 
     fn load_edge_id_to_src(&mut self, path: &Path) -> StorageResult<()> {
         use std::fs::File;
@@ -938,16 +876,16 @@ impl EdgeTable {
             file.read_exact(&mut edge_id_bytes)?;
             let edge_id = u64::from_le_bytes(edge_id_bytes);
 
-            let mut src_len_byte = [0u8; 1];
-            file.read_exact(&mut src_len_byte)?;
-            let src_len = src_len_byte[0] as usize;
-            let mut src_bytes = vec![0u8; src_len];
-            file.read_exact(&mut src_bytes)?;
-            let src = VertexId::from_bytes(src_bytes);
+            let mut src_len_bytes = [0u8; 4];
+        file.read_exact(&mut src_len_bytes)?;
+        let src_len = u32::from_le_bytes(src_len_bytes) as usize;
+        let mut src_bytes = vec![0u8; src_len];
+        file.read_exact(&mut src_bytes)?;
+        let src = VertexId::from_bytes(src_bytes);
 
-            let mut dst_len_byte = [0u8; 1];
-            file.read_exact(&mut dst_len_byte)?;
-            let dst_len = dst_len_byte[0] as usize;
+        let mut dst_len_bytes = [0u8; 4];
+        file.read_exact(&mut dst_len_bytes)?;
+        let dst_len = u32::from_le_bytes(dst_len_bytes) as usize;
             let mut dst_bytes = vec![0u8; dst_len];
             file.read_exact(&mut dst_bytes)?;
             let dst = VertexId::from_bytes(dst_bytes);
@@ -1038,7 +976,6 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
                 edge_id: nbr.edge_id,
                 src_vid,
                 dst_vid: nbr.neighbor,
-                ranking: 0,
                 properties,
             }
         })
@@ -1086,7 +1023,6 @@ impl<'a> Iterator for EdgeVertexIterator<'a> {
                 edge_id: nbr.edge_id,
                 src_vid: self.src_vid,
                 dst_vid: nbr.neighbor,
-                ranking: 0,
                 properties,
             }
         })
@@ -1115,7 +1051,7 @@ mod tests {
     #[test]
     fn test_insert_and_get() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         let edge_id = table
             .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.5))], 100)
@@ -1132,7 +1068,7 @@ mod tests {
     #[test]
     fn test_delete() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         table
             .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.5))], 100)
@@ -1145,7 +1081,7 @@ mod tests {
     #[test]
     fn test_out_in_edges() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         table.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[], 100).unwrap();
         table.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), &[], 100).unwrap();
@@ -1166,7 +1102,7 @@ mod tests {
     #[test]
     fn test_update_properties() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         table
             .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.0))], 100)
@@ -1185,7 +1121,7 @@ mod tests {
         use std::fs;
 
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         let ts = 100u32;
         let _edge_id_1 = table
@@ -1220,7 +1156,7 @@ mod tests {
 
         table.flush(&temp_dir).expect("flush should succeed");
 
-        let mut loaded_table = EdgeTable::new(create_test_schema());
+        let mut loaded_table = EdgeTable::new(create_test_schema()).unwrap();
         loaded_table.load(&temp_dir).expect("load should succeed");
 
         assert_eq!(

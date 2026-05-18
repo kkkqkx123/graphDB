@@ -138,7 +138,7 @@ mod tests {
 
     fn create_test_table() -> EdgeTable {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema);
+        let mut table = EdgeTable::new(schema).unwrap();
 
         let ts = 100u32;
         table.insert_edge(VertexId::from_int64(1), VertexId::from_int64(2), &[("weight".to_string(), Value::Double(1.0))], ts).unwrap();

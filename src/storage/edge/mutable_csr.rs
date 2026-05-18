@@ -4,79 +4,13 @@
 //! Uses per-vertex spin locks for fine-grained concurrency.
 
 use std::fmt;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::{CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP};
 
 const DEFAULT_VERTEX_CAPACITY: usize = 1024;
 const DEFAULT_EDGE_CAPACITY: usize = 4096;
 const DEFAULT_VERTEX_DEGREE: usize = 4;
-
-/// Spin lock for per-vertex locking
-#[derive(Debug)]
-pub struct SpinLock {
-    locked: AtomicBool,
-}
-
-impl SpinLock {
-    pub fn new() -> Self {
-        Self {
-            locked: AtomicBool::new(false),
-        }
-    }
-
-    pub fn lock(&self) {
-        let mut backoff = 1;
-        loop {
-            if self
-                .locked
-                .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
-                .is_ok()
-            {
-                return;
-            }
-            std::thread::yield_now();
-            if backoff <= 1024 {
-                for _ in 0..backoff {
-                    std::hint::spin_loop();
-                }
-                backoff *= 2;
-            }
-        }
-    }
-
-    pub fn unlock(&self) {
-        self.locked.store(false, Ordering::Release);
-    }
-
-    pub fn is_locked(&self) -> bool {
-        self.locked.load(Ordering::Acquire)
-    }
-}
-
-impl Default for SpinLock {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// RAII guard for spin lock
-pub struct SpinLockGuard<'a> {
-    lock: &'a SpinLock,
-}
-
-impl<'a> SpinLockGuard<'a> {
-    pub fn new(lock: &'a SpinLock) -> Self {
-        lock.lock();
-        Self { lock }
-    }
-}
-
-impl<'a> Drop for SpinLockGuard<'a> {
-    fn drop(&mut self) {
-        self.lock.unlock();
-    }
-}
 
 /// Parameters for load_from_parts operation
 pub struct LoadFromPartsParams {
@@ -95,7 +29,6 @@ pub struct MutableCsr {
     adj_offsets: Vec<usize>,
     degrees: Vec<u32>,
     capacities: Vec<u32>,
-    locks: Vec<SpinLock>,
     edge_count: AtomicU64,
     vertex_capacity: usize,
     total_edge_capacity: usize,
@@ -108,7 +41,6 @@ impl Clone for MutableCsr {
             adj_offsets: self.adj_offsets.clone(),
             degrees: self.degrees.clone(),
             capacities: self.capacities.clone(),
-            locks: (0..self.vertex_capacity).map(|_| SpinLock::new()).collect(),
             edge_count: AtomicU64::new(self.edge_count.load(Ordering::Relaxed)),
             vertex_capacity: self.vertex_capacity,
             total_edge_capacity: self.total_edge_capacity,
@@ -153,7 +85,6 @@ impl MutableCsr {
             adj_offsets,
             degrees: vec![0; vertex_cap],
             capacities,
-            locks: (0..vertex_cap).map(|_| SpinLock::new()).collect(),
             edge_count: AtomicU64::new(0),
             vertex_capacity: vertex_cap,
             total_edge_capacity: offset,
@@ -186,7 +117,6 @@ impl MutableCsr {
             self.adj_offsets.push(new_total_capacity);
             self.capacities.push(DEFAULT_VERTEX_DEGREE as u32);
             self.degrees.push(0);
-            self.locks.push(SpinLock::new());
             new_total_capacity += DEFAULT_VERTEX_DEGREE;
         }
 
@@ -220,8 +150,6 @@ impl MutableCsr {
         }
 
         {
-            let _guard = SpinLockGuard::new(&self.locks[src_idx]);
-
             let degree = self.degrees[src_idx] as usize;
             let capacity = self.capacities[src_idx] as usize;
             let offset = self.adj_offsets[src_idx];
@@ -244,7 +172,6 @@ impl MutableCsr {
         self.expand_vertex_capacity(src_idx);
 
         {
-            let _guard = SpinLockGuard::new(&self.locks[src_idx]);
             let degree = self.degrees[src_idx] as usize;
             let offset = self.adj_offsets[src_idx];
             self.nbr_list[offset + degree] = Nbr::new(dst, edge_id, prop_offset, ts);
@@ -295,8 +222,6 @@ impl MutableCsr {
             return false;
         }
 
-        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
-
         let degree = self.degrees[src_idx] as usize;
         let offset = self.adj_offsets[src_idx];
 
@@ -318,8 +243,6 @@ impl MutableCsr {
         if src_idx >= self.vertex_capacity {
             return false;
         }
-
-        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
 
         let degree = self.degrees[src_idx] as usize;
         let offset = self.adj_offsets[src_idx];
@@ -344,8 +267,6 @@ impl MutableCsr {
             return false;
         }
 
-        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
-
         let base_offset = self.adj_offsets[src_idx];
         let idx = base_offset + offset as usize;
 
@@ -369,8 +290,6 @@ impl MutableCsr {
             return false;
         }
 
-        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
-
         let degree = self.degrees[src_idx] as usize;
         let offset = self.adj_offsets[src_idx];
 
@@ -391,8 +310,6 @@ impl MutableCsr {
         if src_idx >= self.vertex_capacity {
             return false;
         }
-
-        let _guard = SpinLockGuard::new(&self.locks[src_idx]);
 
         let base_offset = self.adj_offsets[src_idx];
         let idx = base_offset + offset as usize;
@@ -913,7 +830,6 @@ impl MutableCsr {
         self.degrees = degrees;
         self.capacities = capacities;
         self.nbr_list = nbr_list;
-        self.locks = (0..vertex_capacity).map(|_| SpinLock::new()).collect();
         self.edge_count.store(edge_count, Ordering::Relaxed);
     }
 
@@ -950,7 +866,6 @@ impl MutableCsr {
         self.capacities = params.capacities;
         self.vertex_capacity = params.vertex_capacity;
         self.total_edge_capacity = params.total_edge_capacity;
-        self.locks = (0..params.vertex_capacity).map(|_| SpinLock::new()).collect();
         self.edge_count.store(params.edge_count, Ordering::Relaxed);
     }
 
@@ -959,7 +874,6 @@ impl MutableCsr {
         let mut removed_count = 0;
 
         for vid in 0..self.vertex_capacity {
-            self.locks[vid].lock();
             let start = self.adj_offsets[vid];
             let degree = self.degrees[vid] as usize;
             let _capacity = self.capacities[vid] as usize;
@@ -1014,7 +928,6 @@ impl MutableCsr {
         total += self.adj_offsets.len() * std::mem::size_of::<usize>();
         total += self.degrees.len() * std::mem::size_of::<u32>();
         total += self.capacities.len() * std::mem::size_of::<u32>();
-        total += self.locks.len() * std::mem::size_of::<SpinLock>();
         total += std::mem::size_of::<Self>();
 
         total
@@ -1217,19 +1130,6 @@ impl MutableCsrTrait for MutableCsr {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_spin_lock() {
-        let lock = SpinLock::new();
-        assert!(!lock.is_locked());
-
-        {
-            let _guard = SpinLockGuard::new(&lock);
-            assert!(lock.is_locked());
-        }
-
-        assert!(!lock.is_locked());
-    }
 
     #[test]
     fn test_basic_insert_and_query() {

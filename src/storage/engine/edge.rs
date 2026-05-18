@@ -91,7 +91,7 @@ impl EdgeOps {
             ie_strategy: params.ie_strategy,
         };
 
-        let table = EdgeTable::new(schema);
+        let table = EdgeTable::new(schema)?;
         let key = (params.src_label, params.dst_label, label_id);
         self.edge_tables.insert(key, table);
         self.edge_label_names.insert(params.name.to_string(), label_id);
@@ -136,7 +136,7 @@ impl EdgeOps {
             ie_strategy: params.ie_strategy,
         };
 
-        let table = EdgeTable::new(schema);
+        let table = EdgeTable::new(schema)?;
         let key = (params.src_label, params.dst_label, label_id);
         self.edge_tables.insert(key, table);
         self.edge_label_names.insert(params.name.to_string(), label_id);

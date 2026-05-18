@@ -238,6 +238,17 @@ where
         self.free_list.clear();
     }
 
+    pub fn set_at(&mut self, index: u32, key: K) {
+        if self.key_to_index.contains_key(&key) {
+            return;
+        }
+        while self.keys.len() <= index as usize {
+            self.keys.push(None);
+        }
+        self.keys[index as usize] = Some(key.clone());
+        self.key_to_index.insert(key, index);
+    }
+
     pub fn memory_usage(&self) -> usize {
         let keys_size = self.keys.capacity() * std::mem::size_of::<Option<K>>();
         let map_size = self.key_to_index.capacity()

@@ -47,12 +47,14 @@ impl VertexTimestamp {
         }
     }
 
-    pub fn revert_remove(&mut self, index: u32, _ts: Timestamp) {
+    pub fn revert_remove(&mut self, index: u32, ts: Timestamp) -> bool {
         let idx = index as usize;
-        if idx < self.end_ts.len() && self.deleted[idx] {
+        if idx < self.end_ts.len() && self.deleted[idx] && ts >= self.end_ts[idx] {
             self.end_ts[idx] = MAX_TIMESTAMP;
             self.deleted[idx] = false;
+            return true;
         }
+        false
     }
 
     pub fn is_valid(&self, index: u32, ts: Timestamp) -> bool {
@@ -238,8 +240,9 @@ mod tests {
         assert!(vts.is_valid(0, 150));
         assert!(!vts.is_valid(0, 250));
 
-        vts.revert_remove(0, 100);
+        vts.revert_remove(0, 200);
         assert!(!vts.is_deleted(0));
+        assert!(vts.is_valid(0, 150));
         assert!(vts.is_valid(0, 250));
     }
 
