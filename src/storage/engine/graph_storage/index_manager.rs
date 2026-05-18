@@ -26,18 +26,24 @@ impl<'a> IndexManagerOps<'a> {
             .get_space(space)?
             .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?
             .space_id;
-        self.ctx.index_metadata_manager.create_tag_index(space_id, index)?;
+        self.ctx
+            .index_metadata_manager
+            .create_tag_index(space_id, index)?;
         Ok(true)
     }
 
     pub fn drop_tag_index(&self, space: &str, index_name: &str) -> StorageResult<bool> {
         let space_id = self.ctx.schema_manager.get_space_id(space)?;
-        self.ctx.index_metadata_manager.drop_tag_index(space_id, index_name)
+        self.ctx
+            .index_metadata_manager
+            .drop_tag_index(space_id, index_name)
     }
 
     pub fn get_tag_index(&self, space: &str, index_name: &str) -> StorageResult<Option<Index>> {
         let space_id = self.ctx.schema_manager.get_space_id(space)?;
-        self.ctx.index_metadata_manager.get_tag_index(space_id, index_name)
+        self.ctx
+            .index_metadata_manager
+            .get_tag_index(space_id, index_name)
     }
 
     pub fn list_tag_indexes(&self, space: &str) -> StorageResult<Vec<Index>> {
@@ -52,18 +58,24 @@ impl<'a> IndexManagerOps<'a> {
             .get_space(space)?
             .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?
             .space_id;
-        self.ctx.index_metadata_manager.create_edge_index(space_id, index)?;
+        self.ctx
+            .index_metadata_manager
+            .create_edge_index(space_id, index)?;
         Ok(true)
     }
 
     pub fn drop_edge_index(&self, space: &str, index_name: &str) -> StorageResult<bool> {
         let space_id = self.ctx.schema_manager.get_space_id(space)?;
-        self.ctx.index_metadata_manager.drop_edge_index(space_id, index_name)
+        self.ctx
+            .index_metadata_manager
+            .drop_edge_index(space_id, index_name)
     }
 
     pub fn get_edge_index(&self, space: &str, index_name: &str) -> StorageResult<Option<Index>> {
         let space_id = self.ctx.schema_manager.get_space_id(space)?;
-        self.ctx.index_metadata_manager.get_edge_index(space_id, index_name)
+        self.ctx
+            .index_metadata_manager
+            .get_edge_index(space_id, index_name)
     }
 
     pub fn list_edge_indexes(&self, space: &str) -> StorageResult<Vec<Index>> {
@@ -92,7 +104,13 @@ impl<'a> IndexManagerOps<'a> {
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
             let vid_value = Value::from(vertex.vid);
-            self.ctx.graph.update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
+            self.ctx.graph.update_vertex_indexes_mvcc(
+                space_id,
+                &vid_value,
+                &index.name,
+                &props,
+                ts,
+            )?;
         }
 
         Ok(true)
@@ -113,11 +131,21 @@ impl<'a> IndexManagerOps<'a> {
 
         let ts = self.ctx.get_write_timestamp();
         for edge in edges {
-            let props: Vec<(String, Value)> =
-                edge.props.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+            let props: Vec<(String, Value)> = edge
+                .props
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
             let src_value = Value::from(edge.src);
             let dst_value = Value::from(edge.dst);
-            self.ctx.graph.update_edge_indexes_mvcc(space_id, &src_value, &dst_value, &index.name, &props, ts)?;
+            self.ctx.graph.update_edge_indexes_mvcc(
+                space_id,
+                &src_value,
+                &dst_value,
+                &index.name,
+                &props,
+                ts,
+            )?;
         }
 
         Ok(true)
@@ -137,7 +165,12 @@ impl<'a> IndexManagerOps<'a> {
             .get_tag_index(space_id, index_name)?
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
-        let results = self.ctx.graph.index_data_manager().read().lookup_tag_index(space_id, &index, value)?;
+        let results = self
+            .ctx
+            .graph
+            .index_data_manager()
+            .read()
+            .lookup_tag_index(space_id, &index, value)?;
         Ok(results)
     }
 
@@ -155,7 +188,12 @@ impl<'a> IndexManagerOps<'a> {
             .get_tag_index(space_id, index_name)?
             .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
-        let results = self.ctx.graph.index_data_manager().read().lookup_tag_index(space_id, &index, value)?;
+        let results = self
+            .ctx
+            .graph
+            .index_data_manager()
+            .read()
+            .lookup_tag_index(space_id, &index, value)?;
         Ok(results.into_iter().map(|v| (v, 1.0)).collect())
     }
 }

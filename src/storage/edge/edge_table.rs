@@ -136,7 +136,10 @@ impl EdgeTable {
         }
 
         for (name, value) in property_values {
-            let prop_def = self.schema.properties.iter()
+            let prop_def = self
+                .schema
+                .properties
+                .iter()
                 .find(|p| &p.name == name)
                 .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
 
@@ -252,10 +255,13 @@ impl EdgeTable {
         }
 
         let _edge_id = self.out_csr.find_deleted_edge(src, dst);
-        let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset.as_i32(), ts);
+        let reverted = self
+            .out_csr
+            .revert_delete_by_offset(src, oe_offset.as_i32(), ts);
 
         if reverted && self.schema.ie_strategy != EdgeStrategy::None {
-            self.in_csr.revert_delete_by_offset(dst, ie_offset.as_i32(), ts);
+            self.in_csr
+                .revert_delete_by_offset(dst, ie_offset.as_i32(), ts);
         }
 
         Ok(reverted)
@@ -263,7 +269,8 @@ impl EdgeTable {
 
     pub fn delete_edge_by_id(&mut self, _edge_id: u64, _ts: Timestamp) -> StorageResult<bool> {
         Err(StorageError::invalid_operation(
-            "delete_edge_by_id is not supported. Use delete_edge or delete_edge_by_offset instead.".to_string(),
+            "delete_edge_by_id is not supported. Use delete_edge or delete_edge_by_offset instead."
+                .to_string(),
         ))
     }
 
@@ -303,7 +310,12 @@ impl EdgeTable {
         self.out_csr.get_edge(src, dst, ts)
     }
 
-    pub fn get_edge_by_offset(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<EdgeRecord> {
+    pub fn get_edge_by_offset(
+        &self,
+        src: VertexId,
+        dst: VertexId,
+        ts: Timestamp,
+    ) -> Option<EdgeRecord> {
         if !self.is_open {
             return None;
         }
@@ -370,7 +382,11 @@ impl EdgeTable {
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
             for (prop_id, value) in values {
                 let prop_id = crate::storage::storage_types::PropertyId::new(*prop_id);
-                self.properties.set_property_by_id(nbr.prop_offset, prop_id, Some(value.clone()))?;
+                self.properties.set_property_by_id(
+                    nbr.prop_offset,
+                    prop_id,
+                    Some(value.clone()),
+                )?;
             }
 
             if let Some(ref cache) = self.property_cache {
@@ -383,11 +399,7 @@ impl EdgeTable {
         Ok(false)
     }
 
-    pub fn get_property_cached(
-        &self,
-        prop_offset: u32,
-        prop_name: &str,
-    ) -> Option<Value> {
+    pub fn get_property_cached(&self, prop_offset: u32, prop_name: &str) -> Option<Value> {
         if let Some(ref cache) = self.property_cache {
             if let Some(value) = cache.get_by_offset(prop_offset, prop_name) {
                 return Some(value);
@@ -567,19 +579,27 @@ impl EdgeTable {
         Ok(false)
     }
 
-    pub fn update_edge_property_by_offset(&mut self, params: UpdateEdgePropertyByOffsetParams) -> StorageResult<bool> {
+    pub fn update_edge_property_by_offset(
+        &mut self,
+        params: UpdateEdgePropertyByOffsetParams,
+    ) -> StorageResult<bool> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
 
         if let Some(nbr) = self.out_csr.get_edge(params.src, params.dst, params.ts) {
-            self.properties
-                .set_property_by_id(nbr.prop_offset, PropertyId(params.prop_id), Some(params.value.clone()))?;
+            self.properties.set_property_by_id(
+                nbr.prop_offset,
+                PropertyId(params.prop_id),
+                Some(params.value.clone()),
+            )?;
 
             if self.schema.ie_strategy != EdgeStrategy::None {
                 if let Some(ie_nbr) = self.in_csr.get_edge(params.dst, params.src, params.ts) {
-                    assert_eq!(nbr.prop_offset, ie_nbr.prop_offset,
-                        "out_csr and in_csr should share the same prop_offset");
+                    assert_eq!(
+                        nbr.prop_offset, ie_nbr.prop_offset,
+                        "out_csr and in_csr should share the same prop_offset"
+                    );
                 }
             }
             return Ok(true);
@@ -976,12 +996,19 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         let edge_id = table
-            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.5))], 100)
+            .insert_edge(
+                VertexId::from_int64(0),
+                VertexId::from_int64(1),
+                &[("weight".to_string(), Value::Double(1.5))],
+                100,
+            )
             .unwrap();
 
         assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100));
 
-        let edge = table.get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100).unwrap();
+        let edge = table
+            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100)
+            .unwrap();
         assert_eq!(edge.edge_id, edge_id.0 as u64);
         assert_eq!(edge.src_vid, VertexId::from_int64(0));
         assert_eq!(edge.dst_vid, VertexId::from_int64(1));
@@ -993,10 +1020,17 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         table
-            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.5))], 100)
+            .insert_edge(
+                VertexId::from_int64(0),
+                VertexId::from_int64(1),
+                &[("weight".to_string(), Value::Double(1.5))],
+                100,
+            )
             .unwrap();
 
-        assert!(table.delete_edge(VertexId::from_int64(0), VertexId::from_int64(1), 200).unwrap());
+        assert!(table
+            .delete_edge(VertexId::from_int64(0), VertexId::from_int64(1), 200)
+            .unwrap());
         assert!(!table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 300));
     }
 
@@ -1005,9 +1039,15 @@ mod tests {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema).unwrap();
 
-        table.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[], 100).unwrap();
-        table.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), &[], 100).unwrap();
-        table.insert_edge(VertexId::from_int64(1), VertexId::from_int64(0), &[], 100).unwrap();
+        table
+            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[], 100)
+            .unwrap();
+        table
+            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), &[], 100)
+            .unwrap();
+        table
+            .insert_edge(VertexId::from_int64(1), VertexId::from_int64(0), &[], 100)
+            .unwrap();
 
         assert_eq!(table.out_degree(VertexId::from_int64(0), 100), 2);
         assert_eq!(table.in_degree(VertexId::from_int64(0), 100), 1);
@@ -1027,14 +1067,26 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         table
-            .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(1.0))], 100)
+            .insert_edge(
+                VertexId::from_int64(0),
+                VertexId::from_int64(1),
+                &[("weight".to_string(), Value::Double(1.0))],
+                100,
+            )
             .unwrap();
 
         table
-            .update_properties(VertexId::from_int64(0), VertexId::from_int64(1), &[("weight".to_string(), Value::Double(2.0))], 100)
+            .update_properties(
+                VertexId::from_int64(0),
+                VertexId::from_int64(1),
+                &[("weight".to_string(), Value::Double(2.0))],
+                100,
+            )
             .unwrap();
 
-        let edge = table.get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100).unwrap();
+        let edge = table
+            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100)
+            .unwrap();
         assert_eq!(edge.properties.len(), 1);
     }
 

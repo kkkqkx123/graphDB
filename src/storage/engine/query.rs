@@ -1,5 +1,5 @@
 use crate::core::types::{LabelId, Timestamp};
-use crate::storage::vertex::{VertexTable, vertex_table::VertexIterator};
+use crate::storage::vertex::{vertex_table::VertexIterator, VertexTable};
 use std::collections::HashMap;
 
 pub struct QueryOps;

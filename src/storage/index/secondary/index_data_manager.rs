@@ -6,19 +6,17 @@
 //! Supports persistence through flush/load operations.
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 
+use super::edge_index_manager::EdgeIndexManager;
+use super::key_codec::{deserialize_value, serialize_value};
+use super::vertex_index_manager::VertexIndexManager;
+use crate::core::stats::StatsManager;
 use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::core::stats::StatsManager;
-use super::edge_index_manager::EdgeIndexManager;
-use super::key_codec::{deserialize_value, serialize_value};
-use super::vertex_index_manager::VertexIndexManager;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexEntry {
@@ -827,8 +825,8 @@ mod tests {
         let value = Value::String("test".to_string());
         let bytes =
             IndexDataManagerImpl::serialize_value(&value).expect("serialize should succeed");
-        let decoded = IndexDataManagerImpl::deserialize_value(&bytes)
-            .expect("deserialize should succeed");
+        let decoded =
+            IndexDataManagerImpl::deserialize_value(&bytes).expect("deserialize should succeed");
         assert_eq!(value, decoded);
     }
 

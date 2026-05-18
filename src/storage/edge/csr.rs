@@ -113,8 +113,7 @@ impl Csr {
         new_offsets[self.vertex_capacity] = cumsum;
 
         let total_edges = self.edges.len() + src_list.len();
-        let mut new_edges =
-            vec![ImmutableNbr::new(VertexId::from_int64(0), 0, 0); total_edges];
+        let mut new_edges = vec![ImmutableNbr::new(VertexId::from_int64(0), 0, 0); total_edges];
 
         for (i, offset) in new_offsets.iter().enumerate().take(self.vertex_capacity) {
             let old_start = self.offsets[i] as usize;
@@ -132,11 +131,7 @@ impl Csr {
             if src < current_pos.len() - 1 {
                 let pos = current_pos[src] as usize;
                 if pos < new_edges.len() {
-                    new_edges[pos] = ImmutableNbr::new(
-                        dst_list[i],
-                        edge_ids[i],
-                        prop_offsets[i],
-                    );
+                    new_edges[pos] = ImmutableNbr::new(dst_list[i], edge_ids[i], prop_offsets[i]);
                     current_pos[src] += 1;
                 }
             }
@@ -283,7 +278,11 @@ impl Csr {
                 u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
             offset += 4;
 
-            edges.push(ImmutableNbr::new(VertexId::from_u64(neighbor), edge_id, prop_offset));
+            edges.push(ImmutableNbr::new(
+                VertexId::from_u64(neighbor),
+                edge_id,
+                prop_offset,
+            ));
         }
 
         self.vertex_capacity = vertex_capacity;

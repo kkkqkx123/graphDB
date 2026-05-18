@@ -2,9 +2,9 @@
 //!
 //! Test utilities for sync module integration tests
 
+use graphdb::core::types::VertexId;
 use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::vertex_edge_path::Tag;
-use graphdb::core::types::VertexId;
 use graphdb::core::{Value, Vertex};
 use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
 use graphdb::storage::GraphStorage;

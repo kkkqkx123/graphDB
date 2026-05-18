@@ -27,11 +27,7 @@ pub trait RecoveryApplier {
         ts: Timestamp,
     ) -> StorageResult<()>;
 
-    fn replay_insert_edge(
-        &self,
-        redo: &InsertEdgeRedo,
-        ts: Timestamp,
-    ) -> StorageResult<()>;
+    fn replay_insert_edge(&self, redo: &InsertEdgeRedo, ts: Timestamp) -> StorageResult<()>;
 
     fn replay_update_vertex_prop(
         &self,

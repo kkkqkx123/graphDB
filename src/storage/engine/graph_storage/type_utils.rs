@@ -5,9 +5,9 @@
 
 use std::collections::HashMap;
 
-use crate::core::{Edge, Value, Vertex};
 use crate::core::types::VertexId;
 use crate::core::vertex_edge_path::Tag;
+use crate::core::{Edge, Value, Vertex};
 use crate::storage::edge::EdgeRecord;
 use crate::storage::vertex::VertexRecord;
 
@@ -49,7 +49,12 @@ pub fn vertex_record_to_vertex(record: &VertexRecord, tag_name: &str) -> Vertex 
     }
 }
 
-pub fn edge_record_to_edge(record: &EdgeRecord, edge_type: &str, src_id: &str, dst_id: &str) -> Edge {
+pub fn edge_record_to_edge(
+    record: &EdgeRecord,
+    edge_type: &str,
+    src_id: &str,
+    dst_id: &str,
+) -> Edge {
     let props: HashMap<String, Value> = record.properties.iter().cloned().collect();
 
     Edge {

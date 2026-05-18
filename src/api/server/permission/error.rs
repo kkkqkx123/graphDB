@@ -67,11 +67,17 @@ impl PermissionErrorKind {
             PermissionErrorKind::GuestCannotWriteData => "guest_cannot_write_data",
             PermissionErrorKind::CannotReadUserInfo => "cannot_read_user_info",
             PermissionErrorKind::RoleOperationSpaceIdRequired => "role_operation_space_id_required",
-            PermissionErrorKind::RoleOperationTargetRoleRequired => "role_operation_target_role_required",
-            PermissionErrorKind::OnlyAdminOrGodCanManageRoles => "only_admin_or_god_can_manage_roles",
+            PermissionErrorKind::RoleOperationTargetRoleRequired => {
+                "role_operation_target_role_required"
+            }
+            PermissionErrorKind::OnlyAdminOrGodCanManageRoles => {
+                "only_admin_or_god_can_manage_roles"
+            }
             PermissionErrorKind::CannotGrantRole => "cannot_grant_role",
             PermissionErrorKind::CannotModifyOwnRole => "cannot_modify_own_role",
-            PermissionErrorKind::ChangePasswordTargetUserRequired => "change_password_target_user_required",
+            PermissionErrorKind::ChangePasswordTargetUserRequired => {
+                "change_password_target_user_required"
+            }
             PermissionErrorKind::CanOnlyChangeOwnPassword => "can_only_change_own_password",
         }
     }
@@ -114,7 +120,10 @@ impl PermissionError {
 
     // Convenience constructors
     pub fn insufficient_permission() -> Self {
-        Self::new(PermissionErrorKind::InsufficientPermission, "Insufficient permission")
+        Self::new(
+            PermissionErrorKind::InsufficientPermission,
+            "Insufficient permission",
+        )
     }
 
     pub fn no_role_in_space(user: impl Into<String>, space_id: i64) -> Self {
@@ -127,16 +136,26 @@ impl PermissionError {
     pub fn permission_denied(permission: impl Into<String>, user: impl Into<String>) -> Self {
         Self::new(
             PermissionErrorKind::PermissionDenied,
-            format!("Permission denied: {} for user {}", permission.into(), user.into()),
+            format!(
+                "Permission denied: {} for user {}",
+                permission.into(),
+                user.into()
+            ),
         )
     }
 
     pub fn role_not_found(role: impl Into<String>) -> Self {
-        Self::new(PermissionErrorKind::RoleNotFound, format!("Role not found: {}", role.into()))
+        Self::new(
+            PermissionErrorKind::RoleNotFound,
+            format!("Role not found: {}", role.into()),
+        )
     }
 
     pub fn user_not_found(user: impl Into<String>) -> Self {
-        Self::new(PermissionErrorKind::UserNotFound, format!("User not found: {}", user.into()))
+        Self::new(
+            PermissionErrorKind::UserNotFound,
+            format!("User not found: {}", user.into()),
+        )
     }
 
     pub fn grant_role_failed(message: impl Into<String>) -> Self {
@@ -162,46 +181,77 @@ impl PermissionError {
     }
 
     pub fn space_id_required() -> Self {
-        Self::new(PermissionErrorKind::SpaceIdRequired, "Space ID required for read Space operation")
+        Self::new(
+            PermissionErrorKind::SpaceIdRequired,
+            "Space ID required for read Space operation",
+        )
     }
 
     pub fn schema_space_id_required() -> Self {
-        Self::new(PermissionErrorKind::SchemaSpaceIdRequired, "Space ID required for read Schema operation")
+        Self::new(
+            PermissionErrorKind::SchemaSpaceIdRequired,
+            "Space ID required for read Schema operation",
+        )
     }
 
     pub fn schema_write_space_id_required() -> Self {
-        Self::new(PermissionErrorKind::SchemaWriteSpaceIdRequired, "Space ID required for write Schema operation")
+        Self::new(
+            PermissionErrorKind::SchemaWriteSpaceIdRequired,
+            "Space ID required for write Schema operation",
+        )
     }
 
     pub fn schema_write_permission_denied(space_id: i64, user: impl Into<String>) -> Self {
         Self::new(
             PermissionErrorKind::SchemaWritePermissionDenied,
-            format!("Schema write permission denied: user {} has insufficient privileges in space {}", user.into(), space_id),
+            format!(
+                "Schema write permission denied: user {} has insufficient privileges in space {}",
+                user.into(),
+                space_id
+            ),
         )
     }
 
     pub fn data_read_space_id_required() -> Self {
-        Self::new(PermissionErrorKind::DataReadSpaceIdRequired, "Space ID required for read data operation")
+        Self::new(
+            PermissionErrorKind::DataReadSpaceIdRequired,
+            "Space ID required for read data operation",
+        )
     }
 
     pub fn data_write_space_id_required() -> Self {
-        Self::new(PermissionErrorKind::DataWriteSpaceIdRequired, "Space ID required for write data operation")
+        Self::new(
+            PermissionErrorKind::DataWriteSpaceIdRequired,
+            "Space ID required for write data operation",
+        )
     }
 
     pub fn guest_cannot_write_data() -> Self {
-        Self::new(PermissionErrorKind::GuestCannotWriteData, "Guest role has no permission to write data")
+        Self::new(
+            PermissionErrorKind::GuestCannotWriteData,
+            "Guest role has no permission to write data",
+        )
     }
 
     pub fn cannot_read_user_info() -> Self {
-        Self::new(PermissionErrorKind::CannotReadUserInfo, "No permission to read user information")
+        Self::new(
+            PermissionErrorKind::CannotReadUserInfo,
+            "No permission to read user information",
+        )
     }
 
     pub fn role_operation_space_id_required() -> Self {
-        Self::new(PermissionErrorKind::RoleOperationSpaceIdRequired, "Space ID required for role operation")
+        Self::new(
+            PermissionErrorKind::RoleOperationSpaceIdRequired,
+            "Space ID required for role operation",
+        )
     }
 
     pub fn role_operation_target_role_required() -> Self {
-        Self::new(PermissionErrorKind::RoleOperationTargetRoleRequired, "Target role required for role operation")
+        Self::new(
+            PermissionErrorKind::RoleOperationTargetRoleRequired,
+            "Target role required for role operation",
+        )
     }
 
     pub fn only_admin_or_god_can_manage_roles() -> Self {
@@ -212,19 +262,31 @@ impl PermissionError {
     }
 
     pub fn cannot_grant_role(role: impl Into<String>) -> Self {
-        Self::new(PermissionErrorKind::CannotGrantRole, format!("Permission denied: cannot grant role {}", role.into()))
+        Self::new(
+            PermissionErrorKind::CannotGrantRole,
+            format!("Permission denied: cannot grant role {}", role.into()),
+        )
     }
 
     pub fn cannot_modify_own_role() -> Self {
-        Self::new(PermissionErrorKind::CannotModifyOwnRole, "Cannot modify own role")
+        Self::new(
+            PermissionErrorKind::CannotModifyOwnRole,
+            "Cannot modify own role",
+        )
     }
 
     pub fn change_password_target_user_required() -> Self {
-        Self::new(PermissionErrorKind::ChangePasswordTargetUserRequired, "Target user required for change password operation")
+        Self::new(
+            PermissionErrorKind::ChangePasswordTargetUserRequired,
+            "Target user required for change password operation",
+        )
     }
 
     pub fn can_only_change_own_password() -> Self {
-        Self::new(PermissionErrorKind::CanOnlyChangeOwnPassword, "Can only change own password")
+        Self::new(
+            PermissionErrorKind::CanOnlyChangeOwnPassword,
+            "Can only change own password",
+        )
     }
 }
 
@@ -250,7 +312,9 @@ impl Clone for PermissionError {
 
 impl std::error::Error for PermissionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 

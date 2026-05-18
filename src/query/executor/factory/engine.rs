@@ -180,9 +180,10 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         let context = ExecutionContext::new(expression_context);
 
         // Build the executor chain from the plan root
-        let root_node = plan.root().as_ref().ok_or_else(|| {
-            QueryError::execution("Execution plan has no root node".to_string())
-        })?;
+        let root_node = plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| QueryError::execution("Execution plan has no root node".to_string()))?;
         let mut root_executor = self.build_executor_chain(root_node, storage.clone(), &context)?;
 
         // Execute the root executor

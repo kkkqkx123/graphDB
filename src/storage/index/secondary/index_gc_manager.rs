@@ -46,12 +46,12 @@
 //! handle.join().unwrap();
 //! ```
 
+use crate::core::mvcc::VersionManager;
+use crate::core::types::Timestamp;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use crate::core::types::Timestamp;
-use crate::core::mvcc::VersionManager;
 
 use super::index_data_manager::{GcStats, IndexDataManagerImpl};
 

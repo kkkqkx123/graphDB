@@ -245,10 +245,9 @@ impl FulltextStorage {
 
     /// Commit all pending changes
     pub async fn commit_all(&self) -> Result<(), StorageError> {
-        self.manager
-            .commit_all()
-            .await
-            .map_err(|e| StorageError::db_error(format!("Failed to commit fulltext changes: {}", e)))
+        self.manager.commit_all().await.map_err(|e| {
+            StorageError::db_error(format!("Failed to commit fulltext changes: {}", e))
+        })
     }
 
     /// Close all indexes

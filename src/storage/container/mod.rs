@@ -56,11 +56,11 @@ mod volatile;
 
 pub use container_trait::{FileHeader, IDataContainer};
 pub use persistent::PersistentContainer;
-pub use volatile::VolatileContainer;
 pub use types::{
     ContainerConfig, ContainerError, ContainerResult, ContainerStats, StorageBackend,
     DEFAULT_HUGE_PAGE_SIZE,
 };
+pub use volatile::VolatileContainer;
 
 use std::io::Read;
 use std::path::Path;

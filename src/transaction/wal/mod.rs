@@ -50,21 +50,21 @@ pub mod recovery;
 pub mod types;
 pub mod writer;
 
-pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointResult};
-pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};
 pub use crate::core::types::{TableId, TableTracker, TableTrackerConfig, TableType};
+pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointResult};
 pub use parser::{
-    LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult,
-    WalEntryIter, WalParser, WalParserFactory,
+    LocalWalParser, ParallelWalParser, ParsedWalEntry, RecoveryResult, WalEntryIter, WalParser,
+    WalParserFactory,
 };
+pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};
 pub use types::{
     align_to_block, block_padding_needed, blocks_needed, is_block_aligned, ArchiveMode,
     CompressionLevel, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,
-    InsertEdgeRedo, InsertVertexRedo, Lsn,
-    RecordType, SyncPolicy, TransactionId, UpdateEdgePropRedo, UpdateVertexPropRedo,
-    UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError, WalFileHeader,
-    WalHeader, WalOpType, WalRecoveryMode, WalResult, WalStats, WAL_BLOCK_SIZE,
-    WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAGIC, WAL_MAX_RECORD_SIZE, WAL_VERSION,
+    InsertEdgeRedo, InsertVertexRedo, Lsn, RecordType, SyncPolicy, TransactionId,
+    UpdateEdgePropRedo, UpdateVertexPropRedo, UpdateWalUnit, WalCompression, WalConfig,
+    WalContentUnit, WalError, WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult,
+    WalStats, WAL_BLOCK_SIZE, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAGIC,
+    WAL_MAX_RECORD_SIZE, WAL_VERSION,
 };
 
 // Re-export fundamental types from core for backward compatibility

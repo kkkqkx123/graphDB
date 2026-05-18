@@ -52,7 +52,12 @@ impl<'a> SchemaAdapterOps<'a> {
     }
 
     pub fn space_exists(&self, space: &str) -> bool {
-        self.ctx.schema_manager.get_space(space).ok().flatten().is_some()
+        self.ctx
+            .schema_manager
+            .get_space(space)
+            .ok()
+            .flatten()
+            .is_some()
     }
 
     pub fn clear_space(&self, space: &str) -> StorageResult<bool> {
@@ -70,7 +75,9 @@ impl<'a> SchemaAdapterOps<'a> {
     }
 
     pub fn alter_space_comment(&self, space_id: u64, comment: String) -> StorageResult<bool> {
-        self.ctx.schema_manager.alter_space_comment(space_id, comment)
+        self.ctx
+            .schema_manager
+            .alter_space_comment(space_id, comment)
     }
 
     pub fn create_tag(&self, space: &str, tag: &TagInfo) -> StorageResult<u32> {
@@ -79,9 +86,18 @@ impl<'a> SchemaAdapterOps<'a> {
         let properties: Vec<crate::storage::vertex::PropertyDef> =
             tag.properties.iter().map(|p| p.into()).collect();
 
-        let primary_key = tag.properties.first().map(|p| p.name.as_str()).unwrap_or("id");
+        let primary_key = tag
+            .properties
+            .first()
+            .map(|p| p.name.as_str())
+            .unwrap_or("id");
 
-        self.ctx.graph.create_vertex_type_with_id(&tag.tag_name, tag_id, properties, primary_key)?;
+        self.ctx.graph.create_vertex_type_with_id(
+            &tag.tag_name,
+            tag_id,
+            properties,
+            primary_key,
+        )?;
 
         Ok(tag_id)
     }
@@ -115,12 +131,16 @@ impl<'a> SchemaAdapterOps<'a> {
     pub fn create_edge_type(&self, space: &str, edge_type: &EdgeTypeInfo) -> StorageResult<u32> {
         let edge_type_id = self.ctx.schema_manager.create_edge_type(space, edge_type)?;
 
-        let src_label_id = self.ctx.graph
+        let src_label_id = self
+            .ctx
+            .graph
             .get_vertex_label_id(&edge_type.src_tag_name)
             .ok_or_else(|| {
                 StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name))
             })?;
-        let dst_label_id = self.ctx.graph
+        let dst_label_id = self
+            .ctx
+            .graph
             .get_vertex_label_id(&edge_type.dst_tag_name)
             .ok_or_else(|| {
                 StorageError::not_found(format!(
@@ -152,7 +172,9 @@ impl<'a> SchemaAdapterOps<'a> {
     pub fn drop_edge_type(&self, space: &str, edge_type_name: &str) -> StorageResult<bool> {
         let _ = self.ctx.graph.drop_edge_type(edge_type_name);
 
-        self.ctx.schema_manager.drop_edge_type(space, edge_type_name)
+        self.ctx
+            .schema_manager
+            .drop_edge_type(space, edge_type_name)
     }
 
     pub fn get_edge_type(

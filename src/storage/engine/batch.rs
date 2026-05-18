@@ -32,7 +32,11 @@ impl<'a> VertexBatchReader<'a> {
             ts,
             current_idx: 0,
             end_idx: total,
-            batch_size: if batch_size > 0 { batch_size } else { DEFAULT_BATCH_SIZE },
+            batch_size: if batch_size > 0 {
+                batch_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            },
         }
     }
 
@@ -48,7 +52,11 @@ impl<'a> VertexBatchReader<'a> {
             ts,
             current_idx: start,
             end_idx: end.min(table.total_count() as u32),
-            batch_size: if batch_size > 0 { batch_size } else { DEFAULT_BATCH_SIZE },
+            batch_size: if batch_size > 0 {
+                batch_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            },
         }
     }
 }
@@ -90,8 +98,16 @@ impl<'a> VertexBatchWriter<'a> {
     pub fn new(table: &'a mut VertexTable, ts: Timestamp, buffer_size: usize) -> Self {
         Self {
             table,
-            buffer: Vec::with_capacity(if buffer_size > 0 { buffer_size } else { DEFAULT_BATCH_SIZE }),
-            buffer_size: if buffer_size > 0 { buffer_size } else { DEFAULT_BATCH_SIZE },
+            buffer: Vec::with_capacity(if buffer_size > 0 {
+                buffer_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            }),
+            buffer_size: if buffer_size > 0 {
+                buffer_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            },
             ts,
         }
     }
@@ -109,7 +125,8 @@ impl<'a> VertexBatchWriter<'a> {
             return;
         }
 
-        self.table.ensure_capacity(self.table.total_count() + self.buffer.len());
+        self.table
+            .ensure_capacity(self.table.total_count() + self.buffer.len());
 
         for (id, props) in self.buffer.drain(..) {
             let _ = self.table.insert(&id, &props, self.ts);
@@ -143,7 +160,11 @@ impl<'a> EdgeBatchReader<'a> {
             ts,
             current_src: VertexId::from_int64(0),
             vertex_capacity,
-            batch_size: if batch_size > 0 { batch_size } else { DEFAULT_BATCH_SIZE },
+            batch_size: if batch_size > 0 {
+                batch_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            },
         }
     }
 
@@ -159,7 +180,11 @@ impl<'a> EdgeBatchReader<'a> {
             ts,
             current_src: start_src,
             vertex_capacity,
-            batch_size: if batch_size > 0 { batch_size } else { DEFAULT_BATCH_SIZE },
+            batch_size: if batch_size > 0 {
+                batch_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            },
         }
     }
 }
@@ -207,8 +232,16 @@ impl<'a> EdgeBatchWriter<'a> {
     pub fn new(table: &'a mut EdgeTable, ts: Timestamp, buffer_size: usize) -> Self {
         Self {
             table,
-            buffer: Vec::with_capacity(if buffer_size > 0 { buffer_size } else { DEFAULT_BATCH_SIZE }),
-            buffer_size: if buffer_size > 0 { buffer_size } else { DEFAULT_BATCH_SIZE },
+            buffer: Vec::with_capacity(if buffer_size > 0 {
+                buffer_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            }),
+            buffer_size: if buffer_size > 0 {
+                buffer_size
+            } else {
+                DEFAULT_BATCH_SIZE
+            },
             ts,
         }
     }
@@ -343,10 +376,7 @@ mod tests {
             label_name: "knows".to_string(),
             src_label: 0,
             dst_label: 0,
-            properties: vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            properties: vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
         }
@@ -417,7 +447,13 @@ mod tests {
                 &[("weight".to_string(), Value::Double(i as f64 * 0.1))],
                 100,
             );
-            assert!(result.is_ok(), "Failed to insert edge {}->{}: {:?}", src, dst, result);
+            assert!(
+                result.is_ok(),
+                "Failed to insert edge {}->{}: {:?}",
+                src,
+                dst,
+                result
+            );
         }
 
         let reader = EdgeBatchReader::new(&table, 100, 20);

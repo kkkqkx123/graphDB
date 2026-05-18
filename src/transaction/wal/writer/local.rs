@@ -156,8 +156,7 @@ impl LocalWalWriter {
 
     /// Generate WAL file path for a given version
     fn get_wal_file_path(&self, version: u32) -> PathBuf {
-        PathBuf::from(&self.wal_uri)
-            .join(format!("thread_{}_wal_{:08X}", self.thread_id, version))
+        PathBuf::from(&self.wal_uri).join(format!("thread_{}_wal_{:08X}", self.thread_id, version))
     }
 
     /// List all WAL files in the directory
@@ -275,8 +274,7 @@ impl LocalWalWriter {
 
     /// Archive a WAL file to the archive directory
     fn archive_wal_file(&self, file: &Path, archive_dir: &str) -> WalResult<()> {
-        std::fs::create_dir_all(archive_dir)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        std::fs::create_dir_all(archive_dir).map_err(|e| WalError::IoError(e.to_string()))?;
 
         let file_name = file
             .file_name()
@@ -291,8 +289,7 @@ impl LocalWalWriter {
         let archive_name = format!("{}_{}", file_name, timestamp);
         let archive_path = PathBuf::from(archive_dir).join(archive_name);
 
-        std::fs::rename(file, &archive_path)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        std::fs::rename(file, &archive_path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         log::debug!("Archived WAL file: {:?} -> {:?}", file, archive_path);
 
@@ -301,8 +298,7 @@ impl LocalWalWriter {
 
     /// Copy a file and delete the original
     fn copy_and_delete(&self, file: &Path, archive_dir: &str) -> WalResult<()> {
-        std::fs::create_dir_all(archive_dir)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        std::fs::create_dir_all(archive_dir).map_err(|e| WalError::IoError(e.to_string()))?;
 
         let file_name = file
             .file_name()
@@ -311,12 +307,15 @@ impl LocalWalWriter {
 
         let archive_path = PathBuf::from(archive_dir).join(file_name);
 
-        std::fs::copy(file, &archive_path)
-            .map_err(|e| WalError::IoError(e.to_string()))?;
+        std::fs::copy(file, &archive_path).map_err(|e| WalError::IoError(e.to_string()))?;
 
         std::fs::remove_file(file)?;
 
-        log::debug!("Copied and deleted WAL file: {:?} -> {:?}", file, archive_path);
+        log::debug!(
+            "Copied and deleted WAL file: {:?} -> {:?}",
+            file,
+            archive_path
+        );
 
         Ok(())
     }
@@ -701,8 +700,8 @@ impl WalWriter for LocalWalWriter {
         let path = self.find_available_path()?;
 
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-            if let Some(version_str) = file_name
-                .strip_prefix(&format!("thread_{}_wal_", self.thread_id))
+            if let Some(version_str) =
+                file_name.strip_prefix(&format!("thread_{}_wal_", self.thread_id))
             {
                 if let Ok(version) = u32::from_str_radix(version_str, 16) {
                     self.version = version;
@@ -1046,7 +1045,9 @@ mod tests {
 
         writer.cleanup_old_wal_files().expect("Failed to cleanup");
 
-        let total_size = writer.get_total_wal_size().expect("Failed to get total size");
+        let total_size = writer
+            .get_total_wal_size()
+            .expect("Failed to get total size");
         assert!(total_size <= config.max_total_size);
         writer.close();
     }

@@ -435,7 +435,8 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         let key = format!("{}{}", schema_prefix, col);
                         match col.as_str() {
                             "vid" => {
-                                props.insert(key, Value::BigInt(vertex.vid.as_int64().unwrap_or(0)));
+                                props
+                                    .insert(key, Value::BigInt(vertex.vid.as_int64().unwrap_or(0)));
                             }
                             "id" => {
                                 props.insert(key, Value::BigInt(vertex.id));

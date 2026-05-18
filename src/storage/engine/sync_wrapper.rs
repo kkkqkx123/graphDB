@@ -5,10 +5,10 @@
 
 use crate::core::types::VertexId;
 use crate::core::{Edge, StorageError, Value, Vertex};
+use crate::storage::metadata::SchemaManager;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageWriter,
 };
-use crate::storage::metadata::SchemaManager;
 use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -750,11 +750,7 @@ impl<S: StorageClient + 'static> StorageAuthOps for SyncWrapper<S> {
         self.inner.grant_role(username, space_id, role)
     }
 
-    fn revoke_role(
-        &mut self,
-        username: &str,
-        space_id: u64,
-    ) -> Result<bool, StorageError> {
+    fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError> {
         self.inner.revoke_role(username, space_id)
     }
 }

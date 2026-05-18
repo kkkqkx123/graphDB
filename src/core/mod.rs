@@ -38,9 +38,6 @@ pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 pub use types::YieldColumn;
 
-/// Row type representing a row of values.
-pub type Row = Vec<Value>;
-
 // Other core types
 pub use type_system::TypeUtils;
 

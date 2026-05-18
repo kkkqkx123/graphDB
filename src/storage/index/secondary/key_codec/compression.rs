@@ -273,7 +273,12 @@ impl DeltaCompressor {
         let common_len = key.len().min(self.base.len());
         let mut delta_start = 0;
 
-        for (i, (key_byte, base_byte)) in key.iter().zip(self.base.iter()).enumerate().take(common_len) {
+        for (i, (key_byte, base_byte)) in key
+            .iter()
+            .zip(self.base.iter())
+            .enumerate()
+            .take(common_len)
+        {
             if key_byte != base_byte {
                 delta_start = i;
                 break;
@@ -565,8 +570,7 @@ mod tests {
         assert_eq!(config.compression_type, CompressionType::Prefix);
         assert!(config.is_enabled());
 
-        let disabled_config = CompressionConfig::new()
-            .with_compression_type(CompressionType::None);
+        let disabled_config = CompressionConfig::new().with_compression_type(CompressionType::None);
         assert!(!disabled_config.is_enabled());
     }
 }

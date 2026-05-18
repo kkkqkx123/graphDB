@@ -575,10 +575,10 @@ impl KeyParser {
 
 #[cfg(test)]
 mod tests {
+    use super::super::key_types::serialize_value;
     use super::*;
     use crate::core::Value;
     use crate::storage::index::secondary::key_codec::key_builder::KeyBuilder;
-    use super::super::key_types::serialize_value;
 
     #[test]
     fn test_parse_vertex_id_from_key() {
@@ -587,9 +587,8 @@ mod tests {
         let prop_value = Value::String("test_value".to_string());
         let vertex_id = Value::Int(123);
 
-        let key =
-            KeyBuilder::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
-                .expect("build_vertex_index_key should succeed");
+        let key = KeyBuilder::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
+            .expect("build_vertex_index_key should succeed");
 
         let parsed_vid = KeyParser::parse_vertex_id_from_key(&key.0)
             .expect("parse_vertex_id_from_key should succeed");
@@ -641,8 +640,9 @@ mod tests {
         let prop_value = Value::String("test_value".to_string());
         let vertex_id = 123u64;
 
-        let key = KeyBuilder::build_vertex_index_key_native(space_id, index_name, &prop_value, vertex_id)
-            .expect("build_vertex_index_key_native should succeed");
+        let key =
+            KeyBuilder::build_vertex_index_key_native(space_id, index_name, &prop_value, vertex_id)
+                .expect("build_vertex_index_key_native should succeed");
 
         let parsed_vid = KeyParser::parse_vertex_id_from_key_native(&key.0)
             .expect("parse_vertex_id_from_key_native should succeed");
@@ -657,8 +657,9 @@ mod tests {
         let src = 100u64;
         let dst = 200u64;
 
-        let key = KeyBuilder::build_edge_index_key_native(space_id, index_name, &prop_value, src, dst)
-            .expect("build_edge_index_key_native should succeed");
+        let key =
+            KeyBuilder::build_edge_index_key_native(space_id, index_name, &prop_value, src, dst)
+                .expect("build_edge_index_key_native should succeed");
 
         let (parsed_src, parsed_dst) = KeyParser::parse_edge_ids_from_key_native(&key.0)
             .expect("parse_edge_ids_from_key_native should succeed");

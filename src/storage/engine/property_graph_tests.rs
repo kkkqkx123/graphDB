@@ -2,7 +2,9 @@
 
 use crate::core::{DataType, Value};
 use crate::storage::edge::{EdgeStrategy, PropertyDef as EdgePropertyDef};
-use crate::storage::engine::property_graph::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
+use crate::storage::engine::property_graph::{
+    InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams,
+};
 use crate::storage::vertex::PropertyDef;
 
 #[test]
@@ -51,10 +53,7 @@ fn test_create_edge() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -150,10 +149,7 @@ fn test_vertex_count() {
             .insert_vertex(
                 label_id,
                 &format!("person{}", i),
-                &[(
-                    "name".to_string(),
-                    Value::String(format!("Person{}", i)),
-                )],
+                &[("name".to_string(), Value::String(format!("Person{}", i)))],
                 100,
             )
             .unwrap();
@@ -178,10 +174,7 @@ fn test_out_edges() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -257,10 +250,7 @@ fn test_in_edges() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -351,7 +341,11 @@ fn test_update_vertex_property() {
         .unwrap();
 
     let vertex = graph.get_vertex(label_id, "alice", 100).unwrap();
-    let age_prop = vertex.properties.iter().find(|(name, _)| name == "age").unwrap();
+    let age_prop = vertex
+        .properties
+        .iter()
+        .find(|(name, _)| name == "age")
+        .unwrap();
     assert_eq!(age_prop.1, Value::Int(31));
 }
 
@@ -371,10 +365,7 @@ fn test_update_edge_property() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -425,7 +416,11 @@ fn test_update_edge_property() {
     let edge = graph
         .get_edge(knows_label, person_label, "alice", person_label, "bob", 100)
         .unwrap();
-    let weight_prop = edge.properties.iter().find(|(name, _)| name == "weight").unwrap();
+    let weight_prop = edge
+        .properties
+        .iter()
+        .find(|(name, _)| name == "weight")
+        .unwrap();
     assert_eq!(weight_prop.1, Value::Double(2.0));
 }
 
@@ -445,10 +440,7 @@ fn test_delete_edge() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -484,25 +476,11 @@ fn test_delete_edge() {
         .unwrap();
 
     let deleted = graph
-        .delete_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            100,
-        )
+        .delete_edge(knows_label, person_label, "alice", person_label, "bob", 100)
         .unwrap();
     assert!(deleted);
 
-    let edge = graph.get_edge(
-        knows_label,
-        person_label,
-        "alice",
-        person_label,
-        "bob",
-        100,
-    );
+    let edge = graph.get_edge(knows_label, person_label, "alice", person_label, "bob", 100);
     assert!(edge.is_none());
 }
 
@@ -522,10 +500,7 @@ fn test_edge_count() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -598,10 +573,7 @@ fn test_drop_edge_type() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -651,10 +623,7 @@ fn test_edge_label_names() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -700,10 +669,7 @@ fn test_duplicate_edge_type() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -713,10 +679,7 @@ fn test_duplicate_edge_type() {
         "knows",
         person_label,
         person_label,
-        vec![EdgePropertyDef::new(
-            "weight".to_string(),
-            DataType::Double,
-        )],
+        vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
         EdgeStrategy::Multiple,
         EdgeStrategy::Multiple,
     );
@@ -738,10 +701,7 @@ fn test_edge_with_missing_vertex_label() {
         "knows",
         person_label,
         999,
-        vec![EdgePropertyDef::new(
-            "weight".to_string(),
-            DataType::Double,
-        )],
+        vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
         EdgeStrategy::Multiple,
         EdgeStrategy::Multiple,
     );
@@ -791,10 +751,7 @@ fn test_get_nonexistent_edge() {
             "knows",
             person_label,
             person_label,
-            vec![EdgePropertyDef::new(
-                "weight".to_string(),
-                DataType::Double,
-            )],
+            vec![EdgePropertyDef::new("weight".to_string(), DataType::Double)],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -817,13 +774,6 @@ fn test_get_nonexistent_edge() {
         )
         .unwrap();
 
-    let result = graph.get_edge(
-        knows_label,
-        person_label,
-        "alice",
-        person_label,
-        "bob",
-        100,
-    );
+    let result = graph.get_edge(knows_label, person_label, "alice", person_label, "bob", 100);
     assert!(result.is_none());
 }

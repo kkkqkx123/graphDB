@@ -172,7 +172,10 @@ impl PermissionManager {
         if role.has_permission(permission) {
             Ok(())
         } else {
-            Err(PermissionError::permission_denied(format!("{:?}", permission), username.to_string()))
+            Err(PermissionError::permission_denied(
+                format!("{:?}", permission),
+                username.to_string(),
+            ))
         }
     }
 

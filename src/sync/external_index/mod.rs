@@ -11,4 +11,6 @@ pub use fulltext_client::FulltextClient;
 pub use fulltext_error::{CoordinatorError, CoordinatorResult, FulltextError, FulltextResult};
 pub use trait_def::{ExternalIndexClient, IndexData, IndexKey, IndexOperation, IndexOptions};
 pub use vector_client::{VectorClient, VectorClientConfig};
-pub use vector_error::{VectorCoordinatorError, VectorCoordinatorResult, VectorError, VectorResult};
+pub use vector_error::{
+    VectorCoordinatorError, VectorCoordinatorResult, VectorError, VectorResult,
+};

@@ -6,13 +6,13 @@
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 //! Supports optional key compression for memory efficiency.
 
-use crate::core::types::{Index, MAX_TIMESTAMP, Timestamp};
-use crate::core::{StorageError, StorageResult, Value};
 use super::index_data_manager::IndexEntry;
 use super::key_codec::{
-    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, SecondaryIndexKey, KeyBuilder,
-    KeyParser,
+    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, KeyBuilder, KeyParser,
+    SecondaryIndexKey,
 };
+use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
+use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::index_types::IndexEstimate;
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
@@ -78,9 +78,10 @@ impl VertexIndexManager {
             let c = c.read();
             if c.is_enabled() {
                 let forward = self.forward_index.read();
-                let original: Vec<Vec<u8>> = forward.keys().map(|k| {
-                    c.decompress_key(k).unwrap_or_else(|_| k.clone())
-                }).collect();
+                let original: Vec<Vec<u8>> = forward
+                    .keys()
+                    .map(|k| c.decompress_key(k).unwrap_or_else(|_| k.clone()))
+                    .collect();
                 let compressed: Vec<Vec<u8>> = forward.keys().cloned().collect();
                 Some(c.compression_ratio(&original, &compressed))
             } else {
@@ -107,8 +108,10 @@ impl VertexIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
             let index_key =
@@ -160,8 +163,7 @@ impl VertexIndexManager {
     ) -> Result<(), StorageError> {
         let forward_key =
             KeyBuilder::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)?;
-        let reverse_key =
-            KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
+        let reverse_key = KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
 
         let compressed_forward = self.compress_key(&forward_key.0);
         let compressed_reverse = self.compress_key(&reverse_key.0);
@@ -197,7 +199,9 @@ impl VertexIndexManager {
 
         {
             let reverse_index = self.reverse_index.read();
-            for (compressed_key, entry) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+            for (compressed_key, entry) in
+                reverse_index.range(reverse_prefix.0.clone()..reverse_end.0)
+            {
                 if entry.is_visible_at(write_ts) {
                     let key_bytes = self.decompress_key(compressed_key)?;
                     reverse_keys_to_delete.push(compressed_key.clone());
@@ -216,8 +220,7 @@ impl VertexIndexManager {
                         {
                             if fwd_entry.is_visible_at(write_ts) {
                                 let fwd_key_bytes = self.decompress_key(fwd_compressed_key)?;
-                                if let Ok(vid) =
-                                    KeyParser::parse_vertex_id_from_key(&fwd_key_bytes)
+                                if let Ok(vid) = KeyParser::parse_vertex_id_from_key(&fwd_key_bytes)
                                 {
                                     if vid == *vertex_id {
                                         let vid_start = fwd_key_bytes.len() - vertex_bytes.len();
@@ -267,7 +270,8 @@ impl VertexIndexManager {
 
         {
             let reverse_index = self.reverse_index.read();
-            for (compressed_key, _) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+            for (compressed_key, _) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0)
+            {
                 let key_bytes = self.decompress_key(compressed_key)?;
                 if let Ok((_vertex_id_bytes, index_name)) =
                     KeyParser::parse_vertex_reverse_key_v2(&key_bytes)
@@ -532,8 +536,7 @@ impl VertexIndexManager {
                     if prop_value_start + prop_value_len <= key_bytes.len() {
                         let stored_prop_value =
                             &key_bytes[prop_value_start..prop_value_start + prop_value_len];
-                        if let Ok(prop_value) = deserialize_value(stored_prop_value)
-                        {
+                        if let Ok(prop_value) = deserialize_value(stored_prop_value) {
                             results.push((prop_value, vertex_id));
                         }
                     }
@@ -888,8 +891,7 @@ impl VertexIndexManager {
             vertex_id,
         )?;
 
-        let reverse_key =
-            KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
+        let reverse_key = KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
 
         let entry = IndexEntry::new(write_ts);
 
@@ -1025,8 +1027,10 @@ impl VertexIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
             let index_key = KeyBuilder::build_vertex_index_key_native(
@@ -1218,12 +1222,8 @@ impl VertexIndexManager {
 
         let range_start =
             KeyBuilder::build_vertex_index_key_native(space_id, &index.name, start_value, 0)?;
-        let range_end = KeyBuilder::build_vertex_index_key_native(
-            space_id,
-            &index.name,
-            end_value,
-            u64::MAX,
-        )?;
+        let range_end =
+            KeyBuilder::build_vertex_index_key_native(space_id, &index.name, end_value, u64::MAX)?;
 
         let mut results = Vec::new();
         let forward_index = self.forward_index.read();

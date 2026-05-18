@@ -3,8 +3,8 @@
 //! Define a unified interface for various graph algorithms
 
 use super::types::AlgorithmStats;
-use crate::core::{Path, Value};
 use crate::core::types::VertexId;
+use crate::core::{Path, Value};
 use crate::query::QueryError;
 
 /// Shortest Path Algorithm Interface

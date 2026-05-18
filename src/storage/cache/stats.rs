@@ -98,21 +98,25 @@ impl std::fmt::Display for RecordCacheStats {
         writeln!(
             f,
             "  Vertices: {} (hits: {}, misses: {}, evictions: {}, hit_rate: {:.1}%, eviction_rate: {:.1}%, memory: {})",
-            self.vertex.count, self.vertex.hits, self.vertex.misses, 
+            self.vertex.count, self.vertex.hits, self.vertex.misses,
             self.vertex.evictions, self.vertex.hit_rate * 100.0, self.vertex.eviction_rate * 100.0,
             Self::format_bytes(self.vertex.memory_bytes as usize)
         )?;
         writeln!(
             f,
             "  IdIndexes: {} (hits: {}, misses: {}, evictions: {}, hit_rate: {:.1}%, eviction_rate: {:.1}%, memory: {})",
-            self.id_index.count, self.id_index.hits, self.id_index.misses, 
+            self.id_index.count, self.id_index.hits, self.id_index.misses,
             self.id_index.evictions, self.id_index.hit_rate * 100.0, self.id_index.eviction_rate * 100.0,
             Self::format_bytes(self.id_index.memory_bytes as usize)
         )?;
         writeln!(
             f,
             "  Total: hits: {}, misses: {}, evictions: {}, hit_rate: {:.1}%, eviction_rate: {:.1}%",
-            self.total_hits, self.total_misses, self.total_evictions, self.hit_rate * 100.0, self.eviction_rate * 100.0
+            self.total_hits,
+            self.total_misses,
+            self.total_evictions,
+            self.hit_rate * 100.0,
+            self.eviction_rate * 100.0
         )
     }
 }

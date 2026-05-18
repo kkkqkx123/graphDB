@@ -251,7 +251,10 @@ impl OptimizerEngine {
     }
 
     /// Set the stats manager on the CTE cache manager
-    pub fn set_cte_cache_stats_manager(&self, stats_manager: Arc<crate::core::stats::StatsManager>) {
+    pub fn set_cte_cache_stats_manager(
+        &self,
+        stats_manager: Arc<crate::core::stats::StatsManager>,
+    ) {
         self.cte_cache_manager.set_stats_manager(stats_manager);
     }
 

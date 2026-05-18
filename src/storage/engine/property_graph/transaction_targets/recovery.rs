@@ -1,43 +1,30 @@
 use crate::core::types::{LabelId, Timestamp, VertexId};
-use crate::core::{StorageError, StorageResult};
 use crate::core::wal::traits::RecoveryApplier;
+use crate::core::{StorageError, StorageResult};
 use crate::transaction::codec::bytes_to_value;
 use crate::transaction::wal::{InsertEdgeRedo, UpdateEdgePropRedo};
 
-// Type alias for backward compatibility
-type TxnLabelId = LabelId;
-
+use super::super::PropertyGraph;
 use crate::storage::engine::edge::EdgeOperationParams;
 use crate::storage::engine::transaction::{AddEdgeParams, DeleteEdgeParams, TransactionOps};
-use super::super::PropertyGraph;
 
 impl RecoveryApplier for PropertyGraph {
     fn replay_insert_vertex(
         &self,
-        label: TxnLabelId,
+        label: LabelId,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> StorageResult<()> {
         {
             let mut schema = self.schema_ops.write();
-            TransactionOps::add_vertex(
-                &mut schema,
-                label,
-                oid,
-                properties,
-                ts,
-            )?;
+            TransactionOps::add_vertex(&mut schema, label, oid, properties, ts)?;
         }
         self.mark_vertex_modified(label);
         Ok(())
     }
 
-    fn replay_insert_edge(
-        &self,
-        redo: &InsertEdgeRedo,
-        ts: Timestamp,
-    ) -> StorageResult<()> {
+    fn replay_insert_edge(&self, redo: &InsertEdgeRedo, ts: Timestamp) -> StorageResult<()> {
         let src_oid_str = String::from_utf8_lossy(&redo.src_oid).to_string();
         let dst_oid_str = String::from_utf8_lossy(&redo.dst_oid).to_string();
 
@@ -47,7 +34,9 @@ impl RecoveryApplier for PropertyGraph {
                 log::warn!(
                     "Source vertex not found during recovery: label={}, oid={}, ts={}. \
                      This may indicate out-of-order WAL entries or incomplete transaction.",
-                    redo.src_label, src_oid_str, ts
+                    redo.src_label,
+                    src_oid_str,
+                    ts
                 );
                 return Err(StorageError::db_error(format!(
                     "Source vertex not found during recovery: label={}, oid={}",
@@ -62,7 +51,9 @@ impl RecoveryApplier for PropertyGraph {
                 log::warn!(
                     "Destination vertex not found during recovery: label={}, oid={}, ts={}. \
                      This may indicate out-of-order WAL entries or incomplete transaction.",
-                    redo.dst_label, dst_oid_str, ts
+                    redo.dst_label,
+                    dst_oid_str,
+                    ts
                 );
                 return Err(StorageError::db_error(format!(
                     "Destination vertex not found during recovery: label={}, oid={}",
@@ -82,14 +73,9 @@ impl RecoveryApplier for PropertyGraph {
         {
             let schema = self.schema_ops.read();
             let mut edge = self.edge_ops.write();
-            TransactionOps::add_edge(
-                &mut edge,
-                &schema,
-                params,
-                &redo.properties,
-                ts,
-            )
-            .map_err(|e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)))?;
+            TransactionOps::add_edge(&mut edge, &schema, params, &redo.properties, ts).map_err(
+                |e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)),
+            )?;
         }
 
         self.mark_edge_modified(redo.edge_label);
@@ -98,7 +84,7 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_update_vertex_prop(
         &self,
-        label: TxnLabelId,
+        label: LabelId,
         oid: &[u8],
         prop_name: &str,
         value: &[u8],
@@ -106,13 +92,14 @@ impl RecoveryApplier for PropertyGraph {
     ) -> StorageResult<()> {
         let oid_str = String::from_utf8_lossy(oid).to_string();
         let prop_value = bytes_to_value(value).ok_or_else(|| {
-            StorageError::deserialize_error("Failed to decode property value in WAL recovery".to_string())
+            StorageError::deserialize_error(
+                "Failed to decode property value in WAL recovery".to_string(),
+            )
         })?;
 
         {
             let mut schema = self.schema_ops.write();
-            schema
-                .update_vertex_property(label, &oid_str, prop_name, &prop_value, ts)?;
+            schema.update_vertex_property(label, &oid_str, prop_name, &prop_value, ts)?;
         }
 
         self.mark_vertex_modified(label);
@@ -128,7 +115,9 @@ impl RecoveryApplier for PropertyGraph {
         let dst_oid_str = String::from_utf8_lossy(&redo.dst_oid).to_string();
 
         let prop_value = bytes_to_value(&redo.value).ok_or_else(|| {
-            StorageError::deserialize_error("Failed to decode property value in WAL recovery".to_string())
+            StorageError::deserialize_error(
+                "Failed to decode property value in WAL recovery".to_string(),
+            )
         })?;
 
         let params = EdgeOperationParams {
@@ -157,7 +146,7 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_delete_vertex(
         &self,
-        label: TxnLabelId,
+        label: LabelId,
         oid: &[u8],
         ts: Timestamp,
     ) -> StorageResult<()> {
@@ -172,7 +161,9 @@ impl RecoveryApplier for PropertyGraph {
                     VertexId::from_u64(vertex.internal_id as u64),
                     ts,
                 )
-                .map_err(|e| StorageError::db_error(format!("Failed to replay delete vertex: {}", e)))?;
+                .map_err(|e| {
+                    StorageError::db_error(format!("Failed to replay delete vertex: {}", e))
+                })?;
             }
             self.mark_vertex_modified(label);
         } else {
@@ -187,11 +178,11 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_delete_edge(
         &self,
-        src_label: TxnLabelId,
+        src_label: LabelId,
         src_oid: &[u8],
-        dst_label: TxnLabelId,
+        dst_label: LabelId,
         dst_oid: &[u8],
-        edge_label: TxnLabelId,
+        edge_label: LabelId,
         ts: Timestamp,
     ) -> StorageResult<()> {
         let src_oid_str = String::from_utf8_lossy(src_oid).to_string();
@@ -211,14 +202,9 @@ impl RecoveryApplier for PropertyGraph {
 
             {
                 let mut edge = self.edge_ops.write();
-                TransactionOps::delete_edge(
-                    &mut edge,
-                    params,
-                    0,
-                    0,
-                    ts,
-                )
-                .map_err(|e| StorageError::db_error(format!("Failed to replay delete edge: {}", e)))?;
+                TransactionOps::delete_edge(&mut edge, params, 0, 0, ts).map_err(|e| {
+                    StorageError::db_error(format!("Failed to replay delete edge: {}", e))
+                })?;
             }
             self.mark_edge_modified(edge_label);
         } else {

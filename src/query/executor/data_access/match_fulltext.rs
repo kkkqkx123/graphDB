@@ -74,9 +74,11 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
             ));
         }
 
-        let index_name = self.fulltext_condition.index_name.as_ref().ok_or_else(|| {
-            DBError::validation("Index name is required for MATCH FULLTEXT")
-        })?;
+        let index_name = self
+            .fulltext_condition
+            .index_name
+            .as_ref()
+            .ok_or_else(|| DBError::validation("Index name is required for MATCH FULLTEXT"))?;
 
         let indexes = self.fulltext_manager.list_indexes();
 

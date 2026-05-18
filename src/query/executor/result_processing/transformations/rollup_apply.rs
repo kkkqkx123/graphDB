@@ -81,15 +81,13 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     fn build_path(&self, values: &[Value]) -> DBResult<Path> {
-        let first_value = values.first().ok_or_else(|| {
-            DBError::query("Path must have at least one vertex".to_string())
-        })?;
+        let first_value = values
+            .first()
+            .ok_or_else(|| DBError::query("Path must have at least one vertex".to_string()))?;
 
         let first_vertex = match first_value {
             Value::Vertex(v) => v.as_ref().clone(),
-            _ => {
-                return Err(DBError::query("First value must be a vertex".to_string()))
-            }
+            _ => return Err(DBError::query("First value must be a vertex".to_string())),
         };
 
         let mut path = Path::new(first_vertex);
@@ -110,12 +108,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                         0,
                     ));
                 }
-                _ => {
-                    return Err(DBError::query(format!(
-                        "Invalid path element: {:?}",
-                        value
-                    )))
-                }
+                _ => return Err(DBError::query(format!("Invalid path element: {:?}", value))),
             }
         }
 
@@ -161,16 +154,13 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
 
             let mut key_list = List { values: Vec::new() };
             for col in compare_cols {
-                let val = ExpressionEvaluator::evaluate(col, expr_context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })?;
+                let val = ExpressionEvaluator::evaluate(col, expr_context)
+                    .map_err(|e| DBError::query(e.to_string()))?;
                 key_list.values.push(val);
             }
 
-            let collect_val =
-                ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })?;
+            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context)
+                .map_err(|e| DBError::query(e.to_string()))?;
 
             let entry = hash_table
                 .entry(key_list)
@@ -192,15 +182,11 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         for value in iter {
             expr_context.set_variable("_".to_string(), value.clone());
 
-            let key_val =
-                ExpressionEvaluator::evaluate(compare_col, expr_context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })?;
+            let key_val = ExpressionEvaluator::evaluate(compare_col, expr_context)
+                .map_err(|e| DBError::query(e.to_string()))?;
 
-            let collect_val =
-                ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })?;
+            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context)
+                .map_err(|e| DBError::query(e.to_string()))?;
 
             let entry = hash_table
                 .entry(key_val)
@@ -223,10 +209,8 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         for value in iter {
             expr_context.set_variable("_".to_string(), value.clone());
 
-            let collect_val =
-                ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })?;
+            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context)
+                .map_err(|e| DBError::query(e.to_string()))?;
 
             hash_table.values.push(collect_val);
         }
@@ -285,9 +269,8 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         for value in probe_iter {
             expr_context.set_variable("_".to_string(), value.clone());
 
-            let key_val = ExpressionEvaluator::evaluate(probe_key, expr_context).map_err(|e| {
-                DBError::query(e.to_string())
-            })?;
+            let key_val = ExpressionEvaluator::evaluate(probe_key, expr_context)
+                .map_err(|e| DBError::query(e.to_string()))?;
 
             let vals = hash_table
                 .get(&key_val)
@@ -333,9 +316,8 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
 
             let mut key_list = List { values: Vec::new() };
             for col in probe_keys {
-                let val = ExpressionEvaluator::evaluate(col, expr_context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })?;
+                let val = ExpressionEvaluator::evaluate(col, expr_context)
+                    .map_err(|e| DBError::query(e.to_string()))?;
                 key_list.values.push(val);
             }
 
@@ -382,11 +364,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 .into_iter()
                 .flat_map(|row| row.into_iter())
                 .collect(),
-            _ => {
-                return Err(DBError::query(
-                    "Invalid left input result type".to_string(),
-                ))
-            }
+            _ => return Err(DBError::query("Invalid left input result type".to_string())),
         };
 
         let right_values: Vec<Value> = match right_result {

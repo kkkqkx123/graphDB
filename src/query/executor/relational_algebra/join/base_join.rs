@@ -108,10 +108,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             .context
             .get_result(&self.left_var)
             .ok_or_else(|| {
-                QueryError::execution(format!(
-                    "Left input variable not found: {}",
-                    self.left_var
-                ))
+                QueryError::execution(format!("Left input variable not found: {}", self.left_var))
             })?;
 
         let right_result = self
@@ -280,9 +277,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
                 if key_idx < row.len() {
                     key_values.push(row[key_idx].clone());
                 } else {
-                    return Err(QueryError::execution(
-                        "Key index out of range".to_string(),
-                    ));
+                    return Err(QueryError::execution("Key index out of range".to_string()));
                 }
             }
 

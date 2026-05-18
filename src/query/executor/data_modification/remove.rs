@@ -136,9 +136,10 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
         let mut storage = self.get_storage().write();
 
         for remove_item in &self.remove_items {
-            let expression = remove_item.expression.get_expression().ok_or_else(|| {
-                DBError::query("REMOVE expression does not exist".to_string())
-            })?;
+            let expression = remove_item
+                .expression
+                .get_expression()
+                .ok_or_else(|| DBError::query("REMOVE expression does not exist".to_string()))?;
 
             match &remove_item.item_type {
                 RemoveItemType::Property => {
@@ -190,9 +191,8 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
 
     fn evaluate_to_vertex_id(&self, expr: &Expression) -> DBResult<Value> {
         let mut context = DefaultExpressionContext::new();
-        let value = ExpressionEvaluator::evaluate(expr, &mut context).map_err(|e| {
-            DBError::query(e.to_string())
-        })?;
+        let value = ExpressionEvaluator::evaluate(expr, &mut context)
+            .map_err(|e| DBError::query(e.to_string()))?;
         Ok(value)
     }
 }

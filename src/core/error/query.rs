@@ -10,12 +10,12 @@
 use std::error::Error;
 
 use super::BoxedError;
+use crate::api::server::permission::PermissionError;
+use crate::api::server::session::SessionError;
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 use crate::core::error::manager::ManagerError;
 use crate::core::error::storage::StorageError;
 use crate::core::error::DBError;
-use crate::api::server::permission::PermissionError;
-use crate::api::server::session::SessionError;
 use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 /// Query processing phase enumeration
@@ -324,7 +324,9 @@ impl Clone for QueryError {
 
 impl std::error::Error for QueryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 
@@ -675,7 +677,8 @@ mod tests {
 
     #[test]
     fn test_queryerror_with_source() {
-        let storage_err = StorageError::node_not_found(crate::core::types::VertexId::from_int64(42));
+        let storage_err =
+            StorageError::node_not_found(crate::core::types::VertexId::from_int64(42));
         let query_err = QueryError::from(storage_err);
         assert_eq!(query_err.kind(), QueryErrorKind::Storage);
     }

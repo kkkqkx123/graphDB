@@ -384,7 +384,7 @@ impl BitPackedIntColumn {
     pub fn compression_ratio(&self) -> f64 {
         self.packed.compression_ratio()
     }
-    
+
     pub fn clear(&mut self) {
         self.packed.clear();
     }
@@ -399,7 +399,11 @@ pub fn select_bitpacking(values: &[i64]) -> bool {
     let max_val = *values.iter().max().unwrap_or(&0);
     let range = (max_val - min_val) as u64;
 
-    let bit_width = if range == 0 { 1 } else { (64 - range.leading_zeros()) as u8 };
+    let bit_width = if range == 0 {
+        1
+    } else {
+        (64 - range.leading_zeros()) as u8
+    };
 
     bit_width < 32
 }
@@ -507,11 +511,7 @@ mod tests {
 
     #[test]
     fn test_bitpacked_int_column() {
-        let values = vec![
-            Some(Value::Int(10)),
-            None,
-            Some(Value::Int(30)),
-        ];
+        let values = vec![Some(Value::Int(10)), None, Some(Value::Int(30))];
 
         let column = BitPackedIntColumn::analyze(&values, DataType::Int).unwrap();
 

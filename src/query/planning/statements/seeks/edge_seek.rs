@@ -216,13 +216,21 @@ mod tests {
         });
 
         // Test edge type matching
-        let edge =
-            crate::core::Edge::new_empty(VertexId::from_int64(1), VertexId::from_int64(2), "KNOWS".to_string(), 0);
+        let edge = crate::core::Edge::new_empty(
+            VertexId::from_int64(1),
+            VertexId::from_int64(2),
+            "KNOWS".to_string(),
+            0,
+        );
         assert!(seek.edge_matches_pattern(&edge));
 
         // Test edge type mismatch
-        let edge2 =
-            crate::core::Edge::new_empty(VertexId::from_int64(1), VertexId::from_int64(2), "FOLLOWS".to_string(), 0);
+        let edge2 = crate::core::Edge::new_empty(
+            VertexId::from_int64(1),
+            VertexId::from_int64(2),
+            "FOLLOWS".to_string(),
+            0,
+        );
         assert!(!seek.edge_matches_pattern(&edge2));
     }
 
@@ -236,12 +244,20 @@ mod tests {
             properties: vec![],
         });
 
-        let edge =
-            crate::core::Edge::new_empty(VertexId::from_int64(1), VertexId::from_int64(2), "KNOWS".to_string(), 0);
+        let edge = crate::core::Edge::new_empty(
+            VertexId::from_int64(1),
+            VertexId::from_int64(2),
+            "KNOWS".to_string(),
+            0,
+        );
         assert!(seek.edge_matches_pattern(&edge));
 
-        let edge2 =
-            crate::core::Edge::new_empty(VertexId::from_int64(3), VertexId::from_int64(2), "KNOWS".to_string(), 0);
+        let edge2 = crate::core::Edge::new_empty(
+            VertexId::from_int64(3),
+            VertexId::from_int64(2),
+            "KNOWS".to_string(),
+            0,
+        );
         assert!(!seek.edge_matches_pattern(&edge2));
     }
 }

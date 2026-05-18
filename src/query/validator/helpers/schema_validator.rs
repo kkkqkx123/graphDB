@@ -689,7 +689,13 @@ impl SchemaValidator {
     ) -> Result<Vec<EdgeTypeInfo>, CoreValidationError> {
         let mut created = Vec::new();
         for (edge_type_name, src_tag_name, dst_tag_name, properties) in edge_types {
-            let edge_info = self.auto_create_edge_type(space_name, edge_type_name, src_tag_name, dst_tag_name, properties)?;
+            let edge_info = self.auto_create_edge_type(
+                space_name,
+                edge_type_name,
+                src_tag_name,
+                dst_tag_name,
+                properties,
+            )?;
             created.push(edge_info);
         }
         Ok(created)

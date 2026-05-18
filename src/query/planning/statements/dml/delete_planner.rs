@@ -111,9 +111,7 @@ impl DeletePlanner {
 
         let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
-        let input_node = input_plan
-            .as_ref()
-            .and_then(|p| p.root.clone());
+        let input_node = input_plan.as_ref().and_then(|p| p.root.clone());
 
         let final_node = match &delete_stmt.target {
             DeleteTarget::Vertices(vertex_ids) => {

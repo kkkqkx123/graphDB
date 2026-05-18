@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::engine::CacheManager;
 use crate::storage::vertex::{
-    LabelId, PropertyDef as VertexPropertyDef, Timestamp,
-    VertexRecord, VertexSchema, VertexTable,
+    LabelId, PropertyDef as VertexPropertyDef, Timestamp, VertexRecord, VertexSchema, VertexTable,
 };
 
 pub struct SchemaOps {
@@ -72,7 +71,10 @@ impl SchemaOps {
         }
 
         if self.vertex_tables.contains_key(&label_id) {
-            return Err(StorageError::label_already_exists(format!("label_id {}", label_id)));
+            return Err(StorageError::label_already_exists(format!(
+                "label_id {}",
+                label_id
+            )));
         }
 
         if label_id >= self.vertex_label_counter {
@@ -165,7 +167,10 @@ impl SchemaOps {
     }
 
     pub fn vertex_count(&self, label: LabelId) -> usize {
-        self.vertex_tables.get(&label).map(|t| t.vertex_count(Timestamp::MAX)).unwrap_or(0)
+        self.vertex_tables
+            .get(&label)
+            .map(|t| t.vertex_count(Timestamp::MAX))
+            .unwrap_or(0)
     }
 
     pub fn get_vertex_internal_id(
@@ -241,14 +246,16 @@ impl SchemaOps {
             .ok_or_else(|| StorageError::label_not_found(label_name.to_string()))?;
 
         for prop_name in prop_names {
-            if table.schema().properties.iter().any(|p| p.name == *prop_name) {
+            if table
+                .schema()
+                .properties
+                .iter()
+                .any(|p| p.name == *prop_name)
+            {
                 continue;
             }
 
-            let prop_def = VertexPropertyDef::new(
-                prop_name.clone(),
-                crate::core::DataType::String,
-            );
+            let prop_def = VertexPropertyDef::new(prop_name.clone(), crate::core::DataType::String);
             table.add_property(prop_def)?;
         }
 

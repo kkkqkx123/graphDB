@@ -21,10 +21,10 @@ pub mod varint;
 
 use crate::core::{DataType, Value};
 
-pub use alp::{AlpColumn, AlpEncoder, AlpFloatType, select_alp, select_alp_f32};
-pub use bitpacking::{BitPackedColumn, BitPackedIntColumn, BitPackedIterator, select_bitpacking};
+pub use alp::{select_alp, select_alp_f32, AlpColumn, AlpEncoder, AlpFloatType};
+pub use bitpacking::{select_bitpacking, BitPackedColumn, BitPackedIntColumn, BitPackedIterator};
 pub use dictionary::{DictionaryColumn, DictionaryEncoder, StringDictionary};
-pub use fsst::{FsstColumn, FsstEncoder, FsstSymbolTable, select_fsst};
+pub use fsst::{select_fsst, FsstColumn, FsstEncoder, FsstSymbolTable};
 pub use lazy::{LazyCompare, LazyDecompress, LazyFilter, LazyFind, LazyStats};
 pub use rle::{RleBoolColumn, RleEncoder, RleIntColumn, RleRun};
 pub use selector::{
@@ -33,8 +33,7 @@ pub use selector::{
 };
 pub use varint::{SignedVarint, Varint, VarintReader, VarintWriter};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EncodingType {
     #[default]
     None,
@@ -47,19 +46,19 @@ pub enum EncodingType {
 
 pub trait EncodedColumn: Send + Sync {
     fn get(&self, row_idx: usize) -> Option<Value>;
-    
+
     fn len(&self) -> usize;
-    
+
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    
+
     fn is_null(&self, row_idx: usize) -> bool;
-    
+
     fn memory_usage(&self) -> usize;
-    
+
     fn encoding_type(&self) -> EncodingType;
-    
+
     fn compression_ratio(&self) -> f64 {
         0.0
     }
@@ -88,7 +87,7 @@ impl ColumnEncoding {
             Self::Alp(_) => EncodingType::Alp,
         }
     }
-    
+
     pub fn get(&self, row_idx: usize) -> Option<Value> {
         match self {
             Self::None => None,
@@ -100,7 +99,7 @@ impl ColumnEncoding {
             Self::Alp(col) => col.get_value(row_idx),
         }
     }
-    
+
     pub fn len(&self) -> usize {
         match self {
             Self::None => 0,
@@ -112,11 +111,11 @@ impl ColumnEncoding {
             Self::Alp(col) => col.len(),
         }
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    
+
     pub fn is_null(&self, row_idx: usize) -> bool {
         match self {
             Self::None => true,
@@ -128,7 +127,7 @@ impl ColumnEncoding {
             Self::Alp(col) => col.is_null(row_idx),
         }
     }
-    
+
     pub fn memory_usage(&self) -> usize {
         match self {
             Self::None => 0,
@@ -140,7 +139,7 @@ impl ColumnEncoding {
             Self::Alp(col) => col.memory_usage(),
         }
     }
-    
+
     pub fn compression_ratio(&self) -> f64 {
         match self {
             Self::None => 0.0,
@@ -155,44 +154,48 @@ impl ColumnEncoding {
             Self::RleInt(col) => {
                 let mem = col.memory_usage();
                 let original = col.len() * 8;
-                if original == 0 { 0.0 } else { (original - mem) as f64 / original as f64 }
+                if original == 0 {
+                    0.0
+                } else {
+                    (original - mem) as f64 / original as f64
+                }
             }
             Self::RleBool(col) => {
                 let mem = col.memory_usage();
                 let original = col.len();
-                if original == 0 { 0.0 } else { (original - mem) as f64 / original as f64 }
+                if original == 0 {
+                    0.0
+                } else {
+                    (original - mem) as f64 / original as f64
+                }
             }
             Self::BitPacked(col) => col.compression_ratio(),
             Self::Alp(col) => col.compression_ratio(),
         }
     }
-    
+
     pub fn is_encoded(&self) -> bool {
         !matches!(self, Self::None)
     }
-    
+
     pub fn set(&mut self, row_idx: usize, value: Option<&Value>) -> crate::core::StorageResult<()> {
         use crate::core::StorageError;
-        
+
         match self {
-            Self::None => {
-                Err(StorageError::invalid_operation(
-                    "Cannot set value on unencoded column through ColumnEncoding".to_string(),
-                ))
-            }
-            Self::Fsst(col) => {
-                match value {
-                    Some(Value::String(s)) => {
-                        col.set(row_idx, Some(s.as_str()));
-                        Ok(())
-                    }
-                    Some(v) => Err(StorageError::type_mismatch(DataType::String, v.data_type())),
-                    None => {
-                        col.set(row_idx, None);
-                        Ok(())
-                    }
+            Self::None => Err(StorageError::invalid_operation(
+                "Cannot set value on unencoded column through ColumnEncoding".to_string(),
+            )),
+            Self::Fsst(col) => match value {
+                Some(Value::String(s)) => {
+                    col.set(row_idx, Some(s.as_str()));
+                    Ok(())
                 }
-            }
+                Some(v) => Err(StorageError::type_mismatch(DataType::String, v.data_type())),
+                None => {
+                    col.set(row_idx, None);
+                    Ok(())
+                }
+            },
             Self::Dictionary(col) => {
                 col.set(row_idx, value)?;
                 Ok(())
@@ -220,7 +223,7 @@ impl ColumnEncoding {
             }
         }
     }
-    
+
     pub fn clear(&mut self) {
         match self {
             Self::None => {}
@@ -276,7 +279,8 @@ fn select_string_encoding(values: &[Option<Value>]) -> EncodingType {
         return EncodingType::None;
     }
 
-    let mut unique_values: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut unique_values: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     let mut total_length = 0;
 
     for value in values.iter().flatten() {
@@ -390,18 +394,16 @@ mod tests {
 
     #[test]
     fn test_select_int_encoding_bitpacking() {
-        let values: Vec<Option<Value>> = (0..200)
-            .map(|i| Some(Value::Int(i % 100)))
-            .collect();
+        let values: Vec<Option<Value>> = (0..200).map(|i| Some(Value::Int(i % 100))).collect();
 
         let encoding = select_encoding(&values, &DataType::Int);
         assert_eq!(encoding, EncodingType::BitPacking);
     }
-    
+
     #[test]
     fn test_column_encoding_none() {
         let encoding = ColumnEncoding::None;
-        
+
         assert_eq!(encoding.encoding_type(), EncodingType::None);
         assert!(!encoding.is_encoded());
         assert_eq!(encoding.len(), 0);
@@ -411,17 +413,13 @@ mod tests {
         assert!(encoding.get(0).is_none());
         assert!(encoding.is_null(0));
     }
-    
+
     #[test]
     fn test_column_encoding_fsst() {
-        let strings = vec![
-            Some("hello world"),
-            None,
-            Some("hello rust"),
-        ];
+        let strings = vec![Some("hello world"), None, Some("hello rust")];
         let col = FsstColumn::train_and_build(&strings, 100);
         let encoding = ColumnEncoding::Fsst(col);
-        
+
         assert_eq!(encoding.encoding_type(), EncodingType::Fsst);
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
@@ -431,38 +429,40 @@ mod tests {
         assert!(encoding.is_null(1));
         assert!(!encoding.is_null(0));
     }
-    
+
     #[test]
     fn test_column_encoding_dictionary() {
         let mut col = DictionaryColumn::new();
-        col.set(0, Some(&Value::String("apple".to_string()))).unwrap();
-        col.set(1, Some(&Value::String("banana".to_string()))).unwrap();
+        col.set(0, Some(&Value::String("apple".to_string())))
+            .unwrap();
+        col.set(1, Some(&Value::String("banana".to_string())))
+            .unwrap();
         col.set(2, None).unwrap();
-        
+
         let encoding = ColumnEncoding::Dictionary(col);
-        
+
         assert_eq!(encoding.encoding_type(), EncodingType::Dictionary);
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
         assert!(encoding.get(0).is_some());
         assert!(encoding.is_null(2));
     }
-    
+
     #[test]
     fn test_column_encoding_rle_int() {
         let mut col = RleIntColumn::new();
         col.append(Some(&Value::Int(1))).unwrap();
         col.append(Some(&Value::Int(1))).unwrap();
         col.append(Some(&Value::Int(2))).unwrap();
-        
+
         let encoding = ColumnEncoding::RleInt(col);
-        
+
         assert_eq!(encoding.encoding_type(), EncodingType::Rle);
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
         assert!(encoding.get(0).is_some());
     }
-    
+
     #[test]
     fn test_column_encoding_bitpacked() {
         let values = vec![
@@ -471,54 +471,52 @@ mod tests {
             Some(Value::Int(30)),
         ];
         let col = BitPackedIntColumn::analyze(&values, DataType::Int).unwrap();
-        
+
         let encoding = ColumnEncoding::BitPacked(col);
-        
+
         assert_eq!(encoding.encoding_type(), EncodingType::BitPacking);
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
         assert!(encoding.get(0).is_some());
     }
-    
+
     #[test]
     fn test_column_encoding_alp() {
-        let values = vec![
-            Some(Value::Double(1.5)),
-            Some(Value::Double(2.5)),
-            None,
-        ];
+        let values = vec![Some(Value::Double(1.5)), Some(Value::Double(2.5)), None];
         let col = AlpColumn::analyze_values(&values, DataType::Double).unwrap();
-        
+
         let encoding = ColumnEncoding::Alp(col);
-        
+
         assert_eq!(encoding.encoding_type(), EncodingType::Alp);
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
         assert!(encoding.get(0).is_some());
         assert!(encoding.is_null(2));
     }
-    
+
     #[test]
     fn test_column_encoding_set_fsst() {
         let strings = vec![Some("hello")];
         let col = FsstColumn::train_and_build(&strings, 100);
         let mut encoding = ColumnEncoding::Fsst(col);
-        
-        encoding.set(0, Some(&Value::String("world".to_string()))).unwrap();
+
+        encoding
+            .set(0, Some(&Value::String("world".to_string())))
+            .unwrap();
         assert_eq!(encoding.get(0), Some(Value::String("world".to_string())));
-        
+
         encoding.set(0, None).unwrap();
         assert!(encoding.is_null(0));
     }
-    
+
     #[test]
     fn test_column_encoding_clear() {
         let strings = vec![Some("hello"), Some("world")];
         let col = FsstColumn::train_and_build(&strings, 100);
         let mut encoding = ColumnEncoding::Fsst(col);
-        
+
         assert_eq!(encoding.len(), 2);
-        
+
         encoding.clear();
         assert_eq!(encoding.len(), 0);
         assert!(encoding.is_empty());

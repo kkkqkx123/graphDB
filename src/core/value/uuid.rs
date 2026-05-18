@@ -18,9 +18,7 @@ use std::str::FromStr;
 ///
 /// Stores UUID in binary format for efficient storage and comparison.
 /// Supports all UUID versions (1, 3, 4, 5, 6, 7, 8).
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct UuidValue(pub [u8; 16]);
 
 impl UuidValue {

@@ -52,8 +52,9 @@ impl Compressor for ZstdCompressor {
 
     fn decompress(&self, data: &[u8], compression: WalCompression) -> WalResult<Vec<u8>> {
         match compression {
-            WalCompression::Zstd => zstd::decode_all(data)
-                .map_err(|e| WalError::DeserializationError(e.to_string())),
+            WalCompression::Zstd => {
+                zstd::decode_all(data).map_err(|e| WalError::DeserializationError(e.to_string()))
+            }
             WalCompression::None => Ok(data.to_vec()),
         }
     }
@@ -92,7 +93,9 @@ mod tests {
         assert_eq!(compression, WalCompression::None);
         assert_eq!(compressed.as_slice(), data);
 
-        let decompressed = compressor.decompress(&compressed, WalCompression::None).unwrap();
+        let decompressed = compressor
+            .decompress(&compressed, WalCompression::None)
+            .unwrap();
         assert_eq!(decompressed.as_slice(), data);
     }
 

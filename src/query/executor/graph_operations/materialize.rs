@@ -142,9 +142,9 @@ impl<S: StorageClient + Send + 'static> Executor<S> for MaterializeExecutor<S> {
         }
 
         // Cloning of the materialized data
-        self.materialized_data.clone().ok_or_else(|| {
-            DBError::query("Physical data not available".to_string())
-        })
+        self.materialized_data
+            .clone()
+            .ok_or_else(|| DBError::query("Physical data not available".to_string()))
     }
 
     fn open(&mut self) -> DBResult<()> {

@@ -141,7 +141,10 @@ impl StorageError {
     }
 
     pub fn is_retryable(&self) -> bool {
-        matches!(self.kind, StorageErrorKind::LockTimeout | StorageErrorKind::Deadlock)
+        matches!(
+            self.kind,
+            StorageErrorKind::LockTimeout | StorageErrorKind::Deadlock
+        )
     }
 
     // Convenience constructors
@@ -247,15 +250,24 @@ impl StorageError {
     }
 
     pub fn null_value_not_allowed(column: impl Into<String>) -> Self {
-        Self::new(StorageErrorKind::NullValueNotAllowed, format!("Null value not allowed for column: {}", column.into()))
+        Self::new(
+            StorageErrorKind::NullValueNotAllowed,
+            format!("Null value not allowed for column: {}", column.into()),
+        )
     }
 
     pub fn type_mismatch(expected: crate::core::DataType, actual: crate::core::DataType) -> Self {
-        Self::new(StorageErrorKind::TypeMismatch, format!("Type mismatch: expected {:?}, got {:?}", expected, actual))
+        Self::new(
+            StorageErrorKind::TypeMismatch,
+            format!("Type mismatch: expected {:?}, got {:?}", expected, actual),
+        )
     }
 
     pub fn invalid_offset(offset: u32) -> Self {
-        Self::new(StorageErrorKind::InvalidOffset, format!("Invalid offset: {}", offset))
+        Self::new(
+            StorageErrorKind::InvalidOffset,
+            format!("Invalid offset: {}", offset),
+        )
     }
 
     pub fn invalid_operation(message: impl Into<String>) -> Self {
@@ -301,7 +313,9 @@ impl Clone for StorageError {
 
 impl std::error::Error for StorageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 

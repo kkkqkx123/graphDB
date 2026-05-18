@@ -1,6 +1,6 @@
 //! Cache Concurrency Tests
 
-use graphdb::query::cache::{CacheStats, CacheManager, MemoryStats};
+use graphdb::query::cache::{CacheManager, CacheStats, MemoryStats};
 use std::sync::Arc;
 use std::thread;
 

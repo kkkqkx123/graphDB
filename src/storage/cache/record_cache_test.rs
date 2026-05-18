@@ -107,7 +107,10 @@ fn test_memory_weighted_eviction() {
     }
 
     let stats = cache.stats();
-    assert!(stats.vertex.count < 100, "Cache should have evicted entries");
+    assert!(
+        stats.vertex.count < 100,
+        "Cache should have evicted entries"
+    );
 }
 
 #[test]
@@ -387,8 +390,8 @@ fn test_handle_memory_pressure() {
         max_memory: 1024 * 1024,
         ..Default::default()
     };
-    let cache = RecordCache::with_config(config)
-        .with_memory_pressure_config(MemoryPressureConfig {
+    let cache =
+        RecordCache::with_config(config).with_memory_pressure_config(MemoryPressureConfig {
             enabled: true,
             ..Default::default()
         });
@@ -441,11 +444,19 @@ fn test_memory_pressure_config() {
 
     for i in 0..10u32 {
         let key = VertexCacheKey::new(1, i);
-        assert!(cache.get_vertex(&key).is_some(), "Vertex {} should be cached", i);
+        assert!(
+            cache.get_vertex(&key).is_some(),
+            "Vertex {} should be cached",
+            i
+        );
     }
 
     let stats = cache.stats();
-    assert!(stats.vertex.hits >= 10, "Should have at least 10 hits, got {}", stats.vertex.hits);
+    assert!(
+        stats.vertex.hits >= 10,
+        "Should have at least 10 hits, got {}",
+        stats.vertex.hits
+    );
 }
 
 #[test]
@@ -471,16 +482,36 @@ fn test_invalidate_by_label() {
     cache.insert_id_index(1, "user_001", 100);
     cache.insert_id_index(2, "user_002", 200);
 
-    assert!(cache.get_vertex(&VertexCacheKey::new(1, 100)).is_some(), "Vertex 1,100 should be cached before invalidation");
-    assert!(cache.get_vertex(&VertexCacheKey::new(2, 200)).is_some(), "Vertex 2,200 should be cached before invalidation");
+    assert!(
+        cache.get_vertex(&VertexCacheKey::new(1, 100)).is_some(),
+        "Vertex 1,100 should be cached before invalidation"
+    );
+    assert!(
+        cache.get_vertex(&VertexCacheKey::new(2, 200)).is_some(),
+        "Vertex 2,200 should be cached before invalidation"
+    );
 
     cache.invalidate_vertices_by_label(1);
     cache.invalidate_id_indexes_by_label(1);
 
-    assert!(cache.get_vertex(&VertexCacheKey::new(1, 100)).is_none(), "Vertex 1,100 should be invalidated");
-    assert!(cache.get_vertex(&VertexCacheKey::new(2, 200)).is_some(), "Vertex 2,200 should still be cached");
-    assert_eq!(cache.get_id_index(1, "user_001"), None, "ID index 1,user_001 should be invalidated");
-    assert_eq!(cache.get_id_index(2, "user_002"), Some(200), "ID index 2,user_002 should still be cached");
+    assert!(
+        cache.get_vertex(&VertexCacheKey::new(1, 100)).is_none(),
+        "Vertex 1,100 should be invalidated"
+    );
+    assert!(
+        cache.get_vertex(&VertexCacheKey::new(2, 200)).is_some(),
+        "Vertex 2,200 should still be cached"
+    );
+    assert_eq!(
+        cache.get_id_index(1, "user_001"),
+        None,
+        "ID index 1,user_001 should be invalidated"
+    );
+    assert_eq!(
+        cache.get_id_index(2, "user_002"),
+        Some(200),
+        "ID index 2,user_002 should still be cached"
+    );
 }
 
 #[test]
@@ -560,7 +591,10 @@ fn test_transaction_rollback_new_vertex() {
 
     cache.rollback_transaction();
 
-    assert!(cache.get_vertex(&key).is_none(), "New vertex should be removed after rollback");
+    assert!(
+        cache.get_vertex(&key).is_none(),
+        "New vertex should be removed after rollback"
+    );
 }
 
 #[test]
@@ -680,5 +714,8 @@ fn test_estimated_size_accuracy() {
 
     assert_eq!(estimated, base_size + external_cap + property_size);
     assert!(estimated > 0);
-    assert!(estimated < 1000, "Estimated size should be reasonable for small vertex");
+    assert!(
+        estimated < 1000,
+        "Estimated size should be reasonable for small vertex"
+    );
 }

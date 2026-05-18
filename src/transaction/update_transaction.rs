@@ -13,13 +13,13 @@ use super::read_transaction::INVALID_TIMESTAMP;
 use super::rollback::RollbackHelper;
 use super::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
-    DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo,
-    UndoLogEntry, UndoLogError, UndoLogManager, UndoTarget,
+    DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo, UndoLogEntry,
+    UndoLogError, UndoLogManager, UndoTarget,
 };
-use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::types::{CreateEdgeTypeRedo, CreateVertexTypeRedo, WalHeader, WalOpType};
-use super::wal::{LabelId, Timestamp, VertexId};
 use super::wal::writer::WalWriter;
+use super::wal::{LabelId, Timestamp, VertexId};
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 
 /// Result type for vertex deletion including related edge information
 type DeleteVertexResult = Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>;
@@ -252,11 +252,8 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
         vid: VertexId,
         ts: Timestamp,
     ) -> UpdateTransactionResult<DeleteVertexResult>;
-    fn delete_edge(
-        &mut self,
-        param: DeleteEdgeParam,
-        ts: Timestamp,
-    ) -> UpdateTransactionResult<()>;
+    fn delete_edge(&mut self, param: DeleteEdgeParam, ts: Timestamp)
+        -> UpdateTransactionResult<()>;
 
     fn get_vertex_label_id(&self, name: &str) -> Option<LabelId>;
     fn get_edge_label_id(&self, name: &str) -> Option<LabelId>;
@@ -330,9 +327,10 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         let _label_name = param.label_name.clone();
         let label_id = self.graph.create_vertex_type(param)?;
 
-        self.undo_logs.add(UndoLogEntry::CreateVertexType(CreateVertexTypeUndo {
-            vertex_type: label_id,
-        }));
+        self.undo_logs
+            .add(UndoLogEntry::CreateVertexType(CreateVertexTypeUndo {
+                vertex_type: label_id,
+            }));
 
         self.deleted_vertex_labels.remove(&label_id);
         self.schema_changed = true;
@@ -376,11 +374,12 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         let dst_label_id = self.graph.get_vertex_label_id(&dst_label).unwrap_or(0);
         let edge_label_id = self.graph.get_edge_label_id(&edge_label).unwrap_or(0);
 
-        self.undo_logs.add(UndoLogEntry::CreateEdgeType(CreateEdgeTypeUndo {
-            src_type: src_label_id,
-            dst_type: dst_label_id,
-            edge_type: edge_label_id,
-        }));
+        self.undo_logs
+            .add(UndoLogEntry::CreateEdgeType(CreateEdgeTypeUndo {
+                src_type: src_label_id,
+                dst_type: dst_label_id,
+                edge_type: edge_label_id,
+            }));
 
         self.deleted_edge_labels
             .remove(&(src_label_id, dst_label_id, edge_label_id));
@@ -406,11 +405,12 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
         self.graph.add_vertex_properties(param)?;
 
-        self.undo_logs.add(UndoLogEntry::AddVertexProp(AddVertexPropUndo {
-            label: label_id,
-            label_name: param.label_name.clone(),
-            prop_names,
-        }));
+        self.undo_logs
+            .add(UndoLogEntry::AddVertexProp(AddVertexPropUndo {
+                label: label_id,
+                label_name: param.label_name.clone(),
+                prop_names,
+            }));
 
         self.schema_changed = true;
         Ok(())
@@ -441,15 +441,16 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
         self.graph.add_edge_properties(param)?;
 
-        self.undo_logs.add(UndoLogEntry::AddEdgeProp(AddEdgePropUndo {
-            src_label: src_label_id,
-            dst_label: dst_label_id,
-            edge_label: edge_label_id,
-            src_label_name: param.src_label.clone(),
-            dst_label_name: param.dst_label.clone(),
-            edge_label_name: param.edge_label.clone(),
-            prop_names,
-        }));
+        self.undo_logs
+            .add(UndoLogEntry::AddEdgeProp(AddEdgePropUndo {
+                src_label: src_label_id,
+                dst_label: dst_label_id,
+                edge_label: edge_label_id,
+                src_label_name: param.src_label.clone(),
+                dst_label_name: param.dst_label.clone(),
+                edge_label_name: param.edge_label.clone(),
+                prop_names,
+            }));
 
         self.schema_changed = true;
         Ok(())
@@ -471,11 +472,12 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
         self.graph.delete_vertex_properties(param)?;
 
-        self.undo_logs.add(UndoLogEntry::DeleteVertexProp(DeleteVertexPropUndo {
-            label: label_id,
-            label_name: param.label_name.clone(),
-            prop_names: param.properties.clone(),
-        }));
+        self.undo_logs
+            .add(UndoLogEntry::DeleteVertexProp(DeleteVertexPropUndo {
+                label: label_id,
+                label_name: param.label_name.clone(),
+                prop_names: param.properties.clone(),
+            }));
 
         self.schema_changed = true;
         Ok(())
@@ -505,15 +507,16 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
         self.graph.delete_edge_properties(param)?;
 
-        self.undo_logs.add(UndoLogEntry::DeleteEdgeProp(DeleteEdgePropUndo {
-            src_label: src_label_id,
-            dst_label: dst_label_id,
-            edge_label: edge_label_id,
-            src_label_name: param.src_label.clone(),
-            dst_label_name: param.dst_label.clone(),
-            edge_label_name: param.edge_label.clone(),
-            prop_names: param.properties.clone(),
-        }));
+        self.undo_logs
+            .add(UndoLogEntry::DeleteEdgeProp(DeleteEdgePropUndo {
+                src_label: src_label_id,
+                dst_label: dst_label_id,
+                edge_label: edge_label_id,
+                src_label_name: param.src_label.clone(),
+                dst_label_name: param.dst_label.clone(),
+                edge_label_name: param.edge_label.clone(),
+                prop_names: param.properties.clone(),
+            }));
 
         self.schema_changed = true;
         Ok(())
@@ -532,12 +535,13 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.graph
             .update_vertex_property(param, prop_name, value, self.timestamp)?;
 
-        self.undo_logs.add(RollbackHelper::create_update_vertex_prop_undo(
-            label,
-            vid.as_u64().unwrap_or(0),
-            0,
-            old_value,
-        ));
+        self.undo_logs
+            .add(RollbackHelper::create_update_vertex_prop_undo(
+                label,
+                vid.as_u64().unwrap_or(0),
+                0,
+                old_value,
+            ));
 
         Ok(())
     }
@@ -561,19 +565,20 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             self.timestamp,
         )?;
 
-        self.undo_logs.add(RollbackHelper::create_update_edge_prop_undo(
-            super::rollback::CreateUpdateEdgePropUndoParams {
-                src_label: param.src_label,
-                src_vid: param.src_vid.as_u64().unwrap_or(0),
-                dst_label: param.dst_label,
-                dst_vid: param.dst_vid.as_u64().unwrap_or(0),
-                edge_label: param.edge_label,
-                oe_offset: 0,
-                ie_offset: 0,
-                col_id: 0,
-                old_value: param.old_value,
-            },
-        ));
+        self.undo_logs
+            .add(RollbackHelper::create_update_edge_prop_undo(
+                super::rollback::CreateUpdateEdgePropUndoParams {
+                    src_label: param.src_label,
+                    src_vid: param.src_vid.as_u64().unwrap_or(0),
+                    dst_label: param.dst_label,
+                    dst_vid: param.dst_vid.as_u64().unwrap_or(0),
+                    edge_label: param.edge_label,
+                    oe_offset: 0,
+                    ie_offset: 0,
+                    col_id: 0,
+                    old_value: param.old_value,
+                },
+            ));
 
         Ok(())
     }
@@ -582,20 +587,24 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
     pub fn delete_vertex(&mut self, label: LabelId, vid: VertexId) -> UpdateTransactionResult<()> {
         let related_edges = UpdateTarget::delete_vertex(self.graph, label, vid, self.timestamp)?;
 
-        self.undo_logs.add(RollbackHelper::create_remove_vertex_undo(
-            super::rollback::CreateRemoveVertexUndoParams {
-                label,
-                vid: vid.as_u64().unwrap_or(0),
-                related_edges: related_edges
-                    .iter()
-                    .map(
-                        |(sl, dl, el, edges): &(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)| {
-                            (*sl, *dl, *el, edges.clone())
-                        },
-                    )
-                    .collect(),
-            },
-        ));
+        self.undo_logs
+            .add(RollbackHelper::create_remove_vertex_undo(
+                super::rollback::CreateRemoveVertexUndoParams {
+                    label,
+                    vid: vid.as_u64().unwrap_or(0),
+                    related_edges: related_edges
+                        .iter()
+                        .map(
+                            |(sl, dl, el, edges): &(
+                                LabelId,
+                                LabelId,
+                                LabelId,
+                                Vec<RelatedEdgeInfo>,
+                            )| { (*sl, *dl, *el, edges.clone()) },
+                        )
+                        .collect(),
+                },
+            ));
 
         Ok(())
     }
@@ -616,11 +625,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             dst_vid,
             edge_label,
         };
-        UpdateTarget::delete_edge(
-            self.graph,
-            param,
-            self.timestamp,
-        )?;
+        UpdateTarget::delete_edge(self.graph, param, self.timestamp)?;
 
         self.undo_logs.add(RollbackHelper::create_remove_edge_undo(
             super::rollback::CreateRemoveEdgeUndoParams {
@@ -730,11 +735,11 @@ impl<'a, T: UpdateTarget + ?Sized> Drop for UpdateTransaction<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::types::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
-    use crate::transaction::ColumnId;
     use super::super::undo_log::UndoLogResult;
     use super::super::wal::writer::DummyWalWriter;
     use super::*;
+    use crate::core::types::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
+    use crate::transaction::ColumnId;
 
     struct MockUpdateTarget;
 

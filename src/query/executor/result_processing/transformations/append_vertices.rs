@@ -6,9 +6,9 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::VertexId;
 use crate::core::Expression;
 use crate::core::{Value, Vertex};
-use crate::core::types::VertexId;
 #[cfg(test)]
 use crate::query::executor::base::Executor;
 use crate::query::executor::base::{
@@ -87,10 +87,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             .context
             .get_result(&self.input_var)
             .ok_or_else(|| {
-                DBError::query(format!(
-                    "Input variable '{}' not found",
-                    self.input_var
-                ))
+                DBError::query(format!("Input variable '{}' not found", self.input_var))
             })?;
 
         // Create the context for the expression.
@@ -112,9 +109,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
 
                         let vid =
                             ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
-                                .map_err(|e| {
-                                    DBError::query(e.to_string())
-                                })?;
+                                .map_err(|e| DBError::query(e.to_string()))?;
 
                         if let Some(ref mut seen_map) = seen {
                             if !seen_map.contains_key(&vid) {
@@ -220,11 +215,8 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
 
             if let Some(ref filter_expression) = self.v_filter {
                 let filter_result =
-                    ExpressionEvaluator::evaluate(filter_expression, &mut row_context).map_err(
-                        |e| {
-                            DBError::query(e.to_string())
-                        },
-                    )?;
+                    ExpressionEvaluator::evaluate(filter_expression, &mut row_context)
+                        .map_err(|e| DBError::query(e.to_string()))?;
 
                 if let Value::Bool(false) = filter_result {
                     continue;

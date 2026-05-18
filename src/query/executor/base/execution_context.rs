@@ -107,10 +107,13 @@ impl ExecutionContext {
 
     /// Get current space ID from variables
     pub fn current_space_id(&self) -> Option<u64> {
-        self.variables.write().get("space_id").and_then(|v| match v {
-            Value::Int(id) => Some(*id as u64),
-            _ => None,
-        })
+        self.variables
+            .write()
+            .get("space_id")
+            .and_then(|v| match v {
+                Value::Int(id) => Some(*id as u64),
+                _ => None,
+            })
     }
 
     /// Set current space ID

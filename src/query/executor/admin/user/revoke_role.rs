@@ -41,9 +41,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RevokeRoleExecuto
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
 
-        let space_id = storage_guard.get_space_id(&self.space_name).map_err(|e| {
-            DBError::storage(format!("Failed to get space ID: {}", e))
-        })?;
+        let space_id = storage_guard
+            .get_space_id(&self.space_name)
+            .map_err(|e| DBError::storage(format!("Failed to get space ID: {}", e)))?;
 
         let result = storage_guard.revoke_role(&self.username, space_id);
 

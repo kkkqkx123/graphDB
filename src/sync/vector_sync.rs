@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
 use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
-use crate::core::{Value, Vertex};
 use crate::core::types::TransactionId;
+use crate::core::{Value, Vertex};
 
 use vector_client::{
     EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorManager, VectorPoint,
@@ -439,8 +439,7 @@ impl VectorSyncCoordinator {
                             let mut payload = HashMap::new();
                             payload.insert(
                                 "vertex_id".to_string(),
-                                serde_json::to_value(vertex.vid)
-                                    .unwrap_or(serde_json::Value::Null),
+                                serde_json::to_value(vertex.vid).unwrap_or(serde_json::Value::Null),
                             );
 
                             let point = VectorPoint::new(point_id.clone(), vector.clone())

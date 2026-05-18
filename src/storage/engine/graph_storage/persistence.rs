@@ -5,10 +5,12 @@
 
 use std::path::Path;
 
+use crate::core::types::CompactTarget;
 use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
-use crate::storage::engine::persistence_coordinator::{CheckpointData, CheckpointInfo, CheckpointStats};
-use crate::core::types::CompactTarget;
+use crate::storage::engine::persistence_coordinator::{
+    CheckpointData, CheckpointInfo, CheckpointStats,
+};
 use crate::transaction::compact_transaction::CompactTransaction;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryManager, RecoveryStats};
 use crate::transaction::wal::writer::WalWriter;
@@ -25,11 +27,10 @@ impl<'a> PersistenceOps<'a> {
     }
 
     pub fn save_data(&self) -> StorageResult<()> {
-        let work_dir = self
-            .ctx
-            .work_dir
-            .as_ref()
-            .ok_or_else(|| StorageError::db_error("No work directory configured".to_string()))?;
+        let work_dir =
+            self.ctx.work_dir.as_ref().ok_or_else(|| {
+                StorageError::db_error("No work directory configured".to_string())
+            })?;
 
         self.save_data_to_dir(work_dir)
     }
@@ -74,9 +75,7 @@ impl<'a> PersistenceOps<'a> {
                 let vertex_count = graph.total_vertex_count() as u64;
                 let edge_count = graph.total_edge_count() as u64;
 
-                let data_size = std::fs::metadata(&data_dir)
-                    .map(|m| m.len())
-                    .unwrap_or(0);
+                let data_size = std::fs::metadata(&data_dir).map(|m| m.len()).unwrap_or(0);
 
                 Ok(CheckpointData {
                     vertex_count,
@@ -98,9 +97,9 @@ impl<'a> PersistenceOps<'a> {
 
         let graph = self.ctx.graph.clone();
 
-        persistence.write().load_latest_checkpoint(|checkpoint_dir| {
-            graph.restore_from_checkpoint(checkpoint_dir)
-        })
+        persistence
+            .write()
+            .load_latest_checkpoint(|checkpoint_dir| graph.restore_from_checkpoint(checkpoint_dir))
     }
 
     pub fn should_flush(&self) -> bool {
@@ -185,7 +184,10 @@ impl<'a> PersistenceOps<'a> {
             wal_writer,
             compact_csr,
             reserve_ratio,
-        ).map_err(|e| StorageError::db_error(format!("Failed to create compact transaction: {}", e)))?;
+        )
+        .map_err(|e| {
+            StorageError::db_error(format!("Failed to create compact transaction: {}", e))
+        })?;
 
         let before_stats = txn.storage_stats();
         log::info!(
@@ -196,7 +198,8 @@ impl<'a> PersistenceOps<'a> {
             before_stats.total_size
         );
 
-        txn.commit().map_err(|e| StorageError::db_error(format!("Compact transaction failed: {}", e)))?;
+        txn.commit()
+            .map_err(|e| StorageError::db_error(format!("Compact transaction failed: {}", e)))?;
 
         let after_stats = self.ctx.graph.get_compact_stats();
         log::info!(
@@ -217,7 +220,11 @@ impl<'a> PersistenceOps<'a> {
             self.ctx.graph.load()?;
 
             let index_path = path.join("indexes");
-            self.ctx.graph.index_data_manager().write().load(&index_path)?;
+            self.ctx
+                .graph
+                .index_data_manager()
+                .write()
+                .load(&index_path)?;
         }
         Ok(())
     }
@@ -227,7 +234,8 @@ impl<'a> PersistenceOps<'a> {
             std::fs::create_dir_all(path).map_err(|e| StorageError::io_error(e.to_string()))?;
 
             let schema_path = path.join("schema");
-            std::fs::create_dir_all(&schema_path).map_err(|e| StorageError::io_error(e.to_string()))?;
+            std::fs::create_dir_all(&schema_path)
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
             self.ctx.schema_manager.save_schema(&schema_path)?;
 
             self.ctx.graph.flush()?;
@@ -235,7 +243,11 @@ impl<'a> PersistenceOps<'a> {
             let index_path = path.join("indexes");
             std::fs::create_dir_all(&index_path)
                 .map_err(|e| StorageError::io_error(e.to_string()))?;
-            self.ctx.graph.index_data_manager().read().flush(&index_path)?;
+            self.ctx
+                .graph
+                .index_data_manager()
+                .read()
+                .flush(&index_path)?;
         }
         Ok(())
     }
@@ -245,11 +257,10 @@ impl<'a> PersistenceOps<'a> {
     /// This method performs crash recovery by replaying WAL entries
     /// using the RecoveryApplier implementation on PropertyGraph.
     pub fn recover_from_wal(&self) -> StorageResult<RecoveryStats> {
-        let work_dir = self
-            .ctx
-            .work_dir
-            .as_ref()
-            .ok_or_else(|| StorageError::db_error("No work directory configured".to_string()))?;
+        let work_dir =
+            self.ctx.work_dir.as_ref().ok_or_else(|| {
+                StorageError::db_error("No work directory configured".to_string())
+            })?;
 
         let config = RecoveryConfig {
             wal_dir: work_dir.join("wal"),
@@ -263,7 +274,10 @@ impl<'a> PersistenceOps<'a> {
     }
 
     /// Recover from WAL with custom configuration
-    pub fn recover_from_wal_with_config(&self, config: RecoveryConfig) -> StorageResult<RecoveryStats> {
+    pub fn recover_from_wal_with_config(
+        &self,
+        config: RecoveryConfig,
+    ) -> StorageResult<RecoveryStats> {
         let mut manager = RecoveryManager::new(config);
 
         manager.recover_with_applier(&*self.ctx.graph)

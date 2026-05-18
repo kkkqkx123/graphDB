@@ -44,10 +44,10 @@ use parking_lot::Mutex;
 use crate::core::stats::CacheStats;
 use crate::core::stats::StatsManager;
 
-use super::types::*;
-use super::stats::*;
-use super::config::*;
 use super::batch::*;
+use super::config::*;
+use super::stats::*;
+use super::types::*;
 
 /// Record cache for vertex data and ID index mappings
 pub struct RecordCache {
@@ -323,12 +323,16 @@ impl RecordCache {
     // ==================== Invalidation ====================
 
     pub fn invalidate_vertices_by_label(&self, label_id: u32) {
-        let _ = self.vertex_cache.invalidate_entries_if(move |k, _| k.label_id == label_id);
+        let _ = self
+            .vertex_cache
+            .invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.vertex_cache.run_pending_tasks();
     }
 
     pub fn invalidate_id_indexes_by_label(&self, label_id: u32) {
-        let _ = self.id_index_cache.invalidate_entries_if(move |k, _| k.label_id == label_id);
+        let _ = self
+            .id_index_cache
+            .invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.id_index_cache.run_pending_tasks();
     }
 
@@ -347,8 +351,7 @@ impl RecordCache {
     // ==================== Statistics ====================
 
     pub fn memory_usage(&self) -> usize {
-        (self.vertex_cache.weighted_size()
-            + self.id_index_cache.weighted_size()) as usize
+        (self.vertex_cache.weighted_size() + self.id_index_cache.weighted_size()) as usize
     }
 
     pub fn max_memory(&self) -> usize {
@@ -382,7 +385,8 @@ impl RecordCache {
         let vertex_count = self.vertex_cache.entry_count();
         let id_index_count = self.id_index_cache.entry_count();
         let expected_vertex_memory = vertex_count * std::mem::size_of::<CachedVertex>() as u64;
-        let expected_id_index_memory = id_index_count * std::mem::size_of::<IdIndexCacheKey>() as u64;
+        let expected_id_index_memory =
+            id_index_count * std::mem::size_of::<IdIndexCacheKey>() as u64;
         let fragmentation = if expected_vertex_memory + expected_id_index_memory > 0 {
             1.0 - (expected_vertex_memory + expected_id_index_memory) as f64
                 / (vertex_weighted + id_index_weighted).max(1) as f64
@@ -453,10 +457,17 @@ impl RecordCache {
             }
         }
 
-        BatchGetResult { results, hits, misses }
+        BatchGetResult {
+            results,
+            hits,
+            misses,
+        }
     }
 
-    pub fn insert_vertices_batch(&self, entries: Vec<(VertexCacheKey, CachedVertex)>) -> BatchInsertResult {
+    pub fn insert_vertices_batch(
+        &self,
+        entries: Vec<(VertexCacheKey, CachedVertex)>,
+    ) -> BatchInsertResult {
         let mut total_size = 0usize;
         let mut pre_checked = Vec::with_capacity(entries.len());
 
@@ -514,7 +525,8 @@ impl RecordCache {
                 let retain_ratio = factor.max(0.1_f32);
 
                 let vertex_target = (self.vertex_cache.entry_count() as f32 * retain_ratio) as u64;
-                let id_index_target = (self.id_index_cache.entry_count() as f32 * retain_ratio) as u64;
+                let id_index_target =
+                    (self.id_index_cache.entry_count() as f32 * retain_ratio) as u64;
 
                 let vertex_count = AtomicU64::new(0);
                 let _ = self.vertex_cache.invalidate_entries_if(move |_, _| {

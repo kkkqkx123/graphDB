@@ -15,7 +15,6 @@ use parking_lot::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use crate::core::stats::StatsManager;
 use super::config::{CacheAllocations, CacheManagerConfig, CteCacheConfig, PlanCacheConfig};
 use super::cte_cache::CteCacheManager;
 use super::invalidation::{
@@ -23,6 +22,7 @@ use super::invalidation::{
 };
 use super::plan_cache::QueryPlanCache;
 use super::stats::GlobalCacheStatsSnapshot;
+use crate::core::stats::StatsManager;
 
 /// Unified Cache Manager
 ///

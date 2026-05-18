@@ -7,11 +7,11 @@
 //! - Argument
 
 use super::{get_input_rows, NodeEstimator};
-use crate::query::optimizer::error::CostError;
 use crate::query::optimizer::cost::config::CostModelConfig;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::expression_parser::ExpressionParser;
 use crate::query::optimizer::cost::CostCalculator;
+use crate::query::optimizer::error::CostError;
 use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
     LoopNode, SelectNode,
 };

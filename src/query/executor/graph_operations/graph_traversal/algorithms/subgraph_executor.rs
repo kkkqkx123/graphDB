@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Path, Value, Vertex};
 use crate::core::types::VertexId;
+use crate::core::{Edge, Path, Value, Vertex};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
@@ -183,16 +183,16 @@ impl<S: StorageClient> SubgraphExecutor<S> {
     }
 
     fn get_neighbors(&self, node_id: &VertexId) -> DBResult<Vec<(VertexId, Edge)>> {
-        let storage = self.base.storage.as_ref().ok_or_else(|| {
-            DBError::storage("Storage not set".to_string())
-        })?;
+        let storage = self
+            .base
+            .storage
+            .as_ref()
+            .ok_or_else(|| DBError::storage("Storage not set".to_string()))?;
         let storage = storage.read();
 
         let edges = storage
             .get_node_edges("default", node_id, self.config.edge_direction)
-            .map_err(|e| {
-                DBError::storage(e.to_string())
-            })?;
+            .map_err(|e| DBError::storage(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.config.edge_types {
             edges
@@ -251,9 +251,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
                 self.valid_vids.insert(neighbor_id);
 
                 // If it’s not the last step, add it to the list of steps to be visited next.
-                if self.current_step < self.config.steps
-                    && self.current_vids.insert(neighbor_id)
-                {
+                if self.current_step < self.config.steps && self.current_vids.insert(neighbor_id) {
                     self.next_vids.push(neighbor_id);
                 }
             }
@@ -272,9 +270,11 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 
     /// Obtain detailed information about the vertices
     fn fetch_vertices(&mut self) -> DBResult<()> {
-        let storage = self.base.storage.as_ref().ok_or_else(|| {
-            DBError::storage("Storage not set".to_string())
-        })?;
+        let storage = self
+            .base
+            .storage
+            .as_ref()
+            .ok_or_else(|| DBError::storage("Storage not set".to_string()))?;
         let storage = storage.read();
 
         for vid in &self.valid_vids {
@@ -347,9 +347,9 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for SubgraphExecutor<S> {
     fn execute(&mut self) -> ExecDBResult<ExecutionResult> {
-        let result = self.execute_subgraph().map_err(|e| {
-            DBError::query(e.to_string())
-        })?;
+        let result = self
+            .execute_subgraph()
+            .map_err(|e| DBError::query(e.to_string()))?;
 
         let paths = result.to_paths();
         let rows: Vec<Vec<Value>> = paths.into_iter().map(|p| vec![Value::path(p)]).collect();

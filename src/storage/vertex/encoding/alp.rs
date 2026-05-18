@@ -15,14 +15,12 @@ use super::bitpacking::BitPackedColumn;
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::utils::NullBitmap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlpFloatType {
     Float32,
     #[default]
     Float64,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct AlpEncoder {
@@ -325,7 +323,7 @@ impl AlpColumn {
     pub fn compression_ratio(&self) -> f64 {
         self.encoder.compression_ratio()
     }
-    
+
     pub fn clear(&mut self) {
         self.encoder.bit_packed.clear();
         self.null_bitmap.clear();
@@ -433,12 +431,7 @@ mod tests {
 
     #[test]
     fn test_alp_column_f64() {
-        let values = vec![
-            Some(1.5),
-            None,
-            Some(3.5),
-            Some(5.5),
-        ];
+        let values = vec![Some(1.5), None, Some(3.5), Some(5.5)];
 
         let column = AlpColumn::analyze_f64(&values);
 
@@ -450,11 +443,7 @@ mod tests {
 
     #[test]
     fn test_alp_column_f32() {
-        let values = vec![
-            Some(1.5f32),
-            Some(2.5f32),
-            None,
-        ];
+        let values = vec![Some(1.5f32), Some(2.5f32), None];
 
         let column = AlpColumn::analyze_f32(&values);
 
@@ -473,7 +462,11 @@ mod tests {
 
         column.set(0, Some(2.0)).unwrap();
         let updated = column.get(0).unwrap();
-        assert!((updated - 2.0).abs() < 1e-9, "Expected 2.0, got {}", updated);
+        assert!(
+            (updated - 2.0).abs() < 1e-9,
+            "Expected 2.0, got {}",
+            updated
+        );
 
         column.set(1, None).unwrap();
         assert!(column.is_null(1));
@@ -481,11 +474,7 @@ mod tests {
 
     #[test]
     fn test_alp_column_values() {
-        let values = vec![
-            Some(Value::Double(1.5)),
-            None,
-            Some(Value::Double(3.5)),
-        ];
+        let values = vec![Some(Value::Double(1.5)), None, Some(Value::Double(3.5))];
 
         let column = AlpColumn::analyze_values(&values, DataType::Double).unwrap();
 

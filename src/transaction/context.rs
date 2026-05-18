@@ -10,9 +10,9 @@ use std::time::{Duration, Instant};
 use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
-use super::types::*;
 use super::error::TransactionError;
 use super::rollback::CombinedRollback;
+use super::types::*;
 use super::undo_log::{UndoLogEntry, UndoLogManager, UndoTarget};
 use super::wal::Timestamp;
 
@@ -276,7 +276,8 @@ impl TransactionContext {
         );
 
         if !valid_transition {
-            return Err(TransactionError::invalid_state_transition(current, new_state,
+            return Err(TransactionError::invalid_state_transition(
+                current, new_state,
             ));
         }
 
@@ -497,7 +498,10 @@ impl TransactionContext {
     }
 
     /// Execute undo logs for rollback
-    pub fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &T) -> Result<(), TransactionError> {
+    pub fn execute_undo_logs<T: UndoTarget + ?Sized>(
+        &self,
+        target: &T,
+    ) -> Result<(), TransactionError> {
         let mut undo_logs = self.undo_logs.write();
         undo_logs
             .execute_undo(target, self.start_timestamp)

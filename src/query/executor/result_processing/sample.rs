@@ -74,9 +74,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         } else if let Some(input) = &self.base.input {
             self.sample_input(input.clone())
         } else {
-            Err(DBError::query(
-                "Sample executor requires input".to_string(),
-            ))
+            Err(DBError::query("Sample executor requires input".to_string()))
         }
     }
 

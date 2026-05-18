@@ -28,6 +28,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
+use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
@@ -36,12 +37,10 @@ use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Va
 use crate::storage::engine::persistence_coordinator::{CheckpointInfo, CheckpointStats};
 use crate::storage::engine::{PersistenceConfig, PropertyGraph};
 use crate::storage::index::secondary::IndexGcManager;
+use crate::storage::metadata::{Schema, SchemaManager};
 use crate::storage::{
-    StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats,
-    StorageWriter,
+    StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
 };
-use crate::storage::metadata::{SchemaManager, Schema};
-use crate::core::types::TransactionContextInfo;
 
 #[derive(Clone)]
 pub struct GraphStorage {
@@ -71,12 +70,14 @@ impl GraphStorage {
     }
 
     pub fn new_with_persistence(path: PathBuf, config: PersistenceConfig) -> StorageResult<Self> {
-        GraphStorageContext::new_with_persistence(path, config).map(|ctx| Self {
-            ctx: Arc::new(ctx),
-        })
+        GraphStorageContext::new_with_persistence(path, config)
+            .map(|ctx| Self { ctx: Arc::new(ctx) })
     }
 
-    pub fn with_index_gc(mut self, config: crate::storage::index::secondary::IndexGcConfig) -> Self {
+    pub fn with_index_gc(
+        mut self,
+        config: crate::storage::index::secondary::IndexGcConfig,
+    ) -> Self {
         let new_ctx = Arc::new((*self.ctx).clone().with_index_gc(config));
         self.ctx = new_ctx;
         self
@@ -98,7 +99,10 @@ impl GraphStorage {
         self.ctx.index_gc_manager.clone()
     }
 
-    pub fn with_fulltext_storage(mut self, fulltext: Arc<crate::storage::extend::FulltextStorage>) -> Self {
+    pub fn with_fulltext_storage(
+        mut self,
+        fulltext: Arc<crate::storage::extend::FulltextStorage>,
+    ) -> Self {
         let new_ctx = Arc::new((*self.ctx).clone().with_fulltext_storage(fulltext));
         self.ctx = new_ctx;
         self
@@ -120,7 +124,9 @@ impl GraphStorage {
         self.ctx.schema_manager.clone()
     }
 
-    pub fn get_extended_schema_manager(&self) -> Arc<crate::storage::metadata::ExtendedSchemaManager> {
+    pub fn get_extended_schema_manager(
+        &self,
+    ) -> Arc<crate::storage::metadata::ExtendedSchemaManager> {
         self.ctx.extended_schema_manager.clone()
     }
 
@@ -132,7 +138,9 @@ impl GraphStorage {
         self.ctx.set_transaction_context(context);
     }
 
-    pub fn persistence(&self) -> Option<Arc<RwLock<crate::storage::engine::PersistenceCoordinator>>> {
+    pub fn persistence(
+        &self,
+    ) -> Option<Arc<RwLock<crate::storage::engine::PersistenceCoordinator>>> {
         self.ctx.persistence.clone()
     }
 
@@ -188,7 +196,9 @@ impl GraphStorage {
     /// # Returns
     ///
     /// Recovery statistics including entries replayed and recovery time.
-    pub fn recover_from_wal(&self) -> StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+    pub fn recover_from_wal(
+        &self,
+    ) -> StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
         PersistenceOps::new(&self.ctx).recover_from_wal()
     }
 
@@ -209,7 +219,9 @@ impl GraphStorage {
     ///
     /// This method should be called during startup to recover from
     /// any uncommitted transactions from a previous crash.
-    pub fn init_with_recovery(&self) -> StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
+    pub fn init_with_recovery(
+        &self,
+    ) -> StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
         if self.needs_recovery() {
             log::info!("WAL recovery needed, starting recovery...");
             let stats = self.recover_from_wal()?;
@@ -297,7 +309,8 @@ impl StorageReader for GraphStorage {
         index_name: &str,
         value: &Value,
     ) -> Result<Vec<(Value, f32)>, StorageError> {
-        index_manager::IndexManagerOps::new(&self.ctx).lookup_index_with_score(space, index_name, value)
+        index_manager::IndexManagerOps::new(&self.ctx)
+            .lookup_index_with_score(space, index_name, value)
     }
 
     fn get_vertex_with_schema(
@@ -518,7 +531,8 @@ impl StorageSchemaOps for GraphStorage {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        schema_adapter::SchemaAdapterOps::new(&self.ctx).alter_tag(space, tag_name, additions, deletions)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx)
+            .alter_tag(space, tag_name, additions, deletions)
     }
 
     fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError> {
@@ -540,7 +554,12 @@ impl StorageSchemaOps for GraphStorage {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        schema_adapter::SchemaAdapterOps::new(&self.ctx).alter_edge_type(space, edge_type_name, additions, deletions)
+        schema_adapter::SchemaAdapterOps::new(&self.ctx).alter_edge_type(
+            space,
+            edge_type_name,
+            additions,
+            deletions,
+        )
     }
 
     fn drop_edge_type(&mut self, space: &str, edge_type: &str) -> Result<bool, StorageError> {
@@ -557,7 +576,8 @@ impl StorageSchemaOps for GraphStorage {
 
     fn rebuild_tag_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
         let vertices = reader::GraphStorageReader::new(&self.ctx).scan_vertices(space)?;
-        index_manager::IndexManagerOps::new(&self.ctx).rebuild_tag_index(space, index_name, &vertices)
+        index_manager::IndexManagerOps::new(&self.ctx)
+            .rebuild_tag_index(space, index_name, &vertices)
     }
 
     fn create_edge_index(&mut self, space: &str, index: &Index) -> Result<bool, StorageError> {

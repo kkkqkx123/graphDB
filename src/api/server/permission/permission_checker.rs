@@ -177,7 +177,10 @@ impl PermissionChecker {
 
         // Check whether the user is an administrator.
         if !self.permission_manager.is_admin(username) {
-            return Err(PermissionError::schema_write_permission_denied(space_id, username.to_string()));
+            return Err(PermissionError::schema_write_permission_denied(
+                space_id,
+                username.to_string(),
+            ));
         }
 
         // The administrator needs the “Write” permission.

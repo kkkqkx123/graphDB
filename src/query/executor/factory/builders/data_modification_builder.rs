@@ -85,9 +85,8 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             }
 
             // Create vertices with evaluated ID
-            let vertex_id = VertexId::try_from(&vid).map_err(|e| {
-                QueryError::execution(format!("Invalid vertex ID: {}", e))
-            })?;
+            let vertex_id = VertexId::try_from(&vid)
+                .map_err(|e| QueryError::execution(format!("Invalid vertex ID: {}", e)))?;
             let vertex = Vertex::new(vertex_id, tags);
             vertices.push(vertex);
         }
@@ -178,9 +177,8 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             }
 
             // Create an edge with evaluated src, dst and rank
-            let src_vid = VertexId::try_from(&src).map_err(|e| {
-                QueryError::execution(format!("Invalid source vertex ID: {}", e))
-            })?;
+            let src_vid = VertexId::try_from(&src)
+                .map_err(|e| QueryError::execution(format!("Invalid source vertex ID: {}", e)))?;
             let dst_vid = VertexId::try_from(&dst).map_err(|e| {
                 QueryError::execution(format!("Invalid destination vertex ID: {}", e))
             })?;

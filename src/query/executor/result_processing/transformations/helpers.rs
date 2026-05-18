@@ -8,12 +8,9 @@ pub fn get_input_result(
     context: &crate::query::executor::base::ExecutionContext,
     var_name: &str,
 ) -> DBResult<ExecutionResult> {
-    context.get_result(var_name).ok_or_else(|| {
-        DBError::query(format!(
-            "Input variable '{}' not found",
-            var_name
-        ))
-    })
+    context
+        .get_result(var_name)
+        .ok_or_else(|| DBError::query(format!("Input variable '{}' not found", var_name)))
 }
 
 /// Helper function to convert ExecutionResult to Vec<Value>

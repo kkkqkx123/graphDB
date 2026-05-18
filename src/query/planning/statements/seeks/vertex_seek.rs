@@ -33,8 +33,8 @@ impl SeekStrategy for VertexSeek {
         let mut rows_scanned = 0;
 
         if let Some(ref vid) = context.node_pattern.vid {
-            let vid = VertexId::try_from(vid)
-                .map_err(|e| StorageError::invalid_input(e.to_string()))?;
+            let vid =
+                VertexId::try_from(vid).map_err(|e| StorageError::invalid_input(e.to_string()))?;
             if let Some(vertex) = storage.get_vertex("default", &vid)? {
                 rows_scanned = 1;
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern) {

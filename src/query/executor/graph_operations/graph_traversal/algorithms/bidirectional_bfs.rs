@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{Edge, NPath, Path, Vertex};
 use crate::core::types::VertexId;
+use crate::core::{Edge, NPath, Path, Vertex};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
@@ -194,12 +194,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                             Arc::new(neighbor_vertex),
                         ));
 
-                        state
-                            .left_queue
-                            .push_back((neighbor_id, new_npath.clone()));
+                        state.left_queue.push_back((neighbor_id, new_npath.clone()));
                         visited_left.insert(neighbor_id, new_npath);
-                        left_step_edges
-                            .insert(neighbor_id, vec![(edge, current_id)]);
+                        left_step_edges.insert(neighbor_id, vec![(edge, current_id)]);
                     }
                 }
             }
@@ -245,8 +242,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                             .right_queue
                             .push_back((neighbor_id, new_npath.clone()));
                         visited_right.insert(neighbor_id, new_npath);
-                        right_step_edges
-                            .insert(neighbor_id, vec![(edge, current_id)]);
+                        right_step_edges.insert(neighbor_id, vec![(edge, current_id)]);
                     }
                 }
             }

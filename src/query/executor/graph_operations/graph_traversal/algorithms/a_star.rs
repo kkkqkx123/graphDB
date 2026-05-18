@@ -348,10 +348,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
 
                 if tentative_g_cost < *existing_g_cost {
                     g_cost_map.insert(neighbor_id, tentative_g_cost);
-                    previous_map.insert(
-                        neighbor_id,
-                        (current.vertex_id, edge.clone()),
-                    );
+                    previous_map.insert(neighbor_id, (current.vertex_id, edge.clone()));
 
                     let h_cost = self.calculate_heuristic(&neighbor_id, end_ids)?;
                     let f_cost = tentative_g_cost + h_cost;

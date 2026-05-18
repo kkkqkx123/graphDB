@@ -75,9 +75,7 @@ impl ColumnStats {
 
     pub fn value_range(&self) -> Option<u64> {
         match (&self.min_value, &self.max_value) {
-            (Some(Value::SmallInt(min)), Some(Value::SmallInt(max))) => {
-                Some((*max - *min) as u64)
-            }
+            (Some(Value::SmallInt(min)), Some(Value::SmallInt(max))) => Some((*max - *min) as u64),
             (Some(Value::Int(min)), Some(Value::Int(max))) => Some((*max - *min) as u64),
             (Some(Value::BigInt(min)), Some(Value::BigInt(max))) => Some((*max - *min) as u64),
             _ => None,
@@ -159,8 +157,8 @@ impl CompressionSelector {
         let cardinality_ratio = stats.cardinality_ratio();
 
         if cardinality_ratio < 0.5 && stats.distinct_count < self.config.max_dictionary_size {
-            let estimated_dict_size = stats.distinct_count * stats.avg_length as usize
-                + stats.row_count * 4;
+            let estimated_dict_size =
+                stats.distinct_count * stats.avg_length as usize + stats.row_count * 4;
             let estimated_raw_size = stats.row_count * stats.avg_length as usize;
 
             if estimated_dict_size < estimated_raw_size {
@@ -183,7 +181,11 @@ impl CompressionSelector {
         }
 
         if let Some(range) = stats.value_range() {
-            let bit_width = if range == 0 { 1 } else { 64 - range.leading_zeros() as u8 };
+            let bit_width = if range == 0 {
+                1
+            } else {
+                64 - range.leading_zeros() as u8
+            };
 
             if bit_width < 32 {
                 return EncodingType::BitPacking;
@@ -334,7 +336,11 @@ impl TieredCompressionStrategy {
         }
     }
 
-    pub fn select_for_tier(&self, stats: &ColumnStats, temperature: DataTemperature) -> EncodingType {
+    pub fn select_for_tier(
+        &self,
+        stats: &ColumnStats,
+        temperature: DataTemperature,
+    ) -> EncodingType {
         let base_encoding = self.selector.select(stats);
 
         if let Some(tier_config) = self.tier_configs.get(&temperature) {
@@ -361,7 +367,11 @@ impl TieredCompressionStrategy {
             EncodingType::Rle => stats.run_ratio() < 0.3,
             EncodingType::BitPacking => {
                 if let Some(range) = stats.value_range() {
-                    let bit_width = if range == 0 { 1 } else { 64 - range.leading_zeros() as u8 };
+                    let bit_width = if range == 0 {
+                        1
+                    } else {
+                        64 - range.leading_zeros() as u8
+                    };
                     bit_width < 32
                 } else {
                     false

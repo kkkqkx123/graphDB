@@ -8,16 +8,16 @@
 //! - File rotation and cleanup
 //! - Archive support
 
-mod traits;
+mod compression;
 mod dummy;
 mod factory;
 mod group_commit;
-mod compression;
-mod sync;
 mod local;
+mod sync;
+mod traits;
 
 pub use compression::decompress_payload;
 pub use dummy::DummyWalWriter;
+pub use factory::WalWriterFactory;
 pub use local::LocalWalWriter;
 pub use traits::WalWriter;
-pub use factory::WalWriterFactory;

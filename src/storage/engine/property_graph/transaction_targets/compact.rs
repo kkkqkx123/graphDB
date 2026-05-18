@@ -4,11 +4,7 @@ use crate::core::types::{LabelId, Timestamp};
 use super::super::PropertyGraph;
 
 impl CompactTarget for PropertyGraph {
-    fn compact(
-        &self,
-        config: &CompactConfig,
-        ts: Timestamp,
-    ) -> CompactResult<()> {
+    fn compact(&self, config: &CompactConfig, ts: Timestamp) -> CompactResult<()> {
         log::info!(
             "Starting compaction: enable_structure_compaction={}, reserve_ratio={}, ts={}",
             config.enable_structure_compaction,
@@ -34,7 +30,9 @@ impl CompactTarget for PropertyGraph {
                 let removed = table.compact_with_ts_collect(ts);
                 total_vertices_removed += removed.len();
                 if !removed.is_empty() {
-                    self.last_compacted_vertices.lock().push((label_id, removed));
+                    self.last_compacted_vertices
+                        .lock()
+                        .push((label_id, removed));
                 }
             }
         }
@@ -55,10 +53,7 @@ impl CompactTarget for PropertyGraph {
 
             if config.enable_structure_compaction {
                 for &key in &edge_keys {
-                    let table = edge
-                        .edge_tables
-                        .get_mut(&key)
-                        .expect("edge key must exist");
+                    let table = edge.edge_tables.get_mut(&key).expect("edge key must exist");
                     let removed = table.compact_csr(ts, config.reserve_ratio);
                     total_edges_removed += removed;
                 }
@@ -70,10 +65,7 @@ impl CompactTarget for PropertyGraph {
             }
 
             for &key in &edge_keys {
-                let table = edge
-                    .edge_tables
-                    .get_mut(&key)
-                    .expect("edge key must exist");
+                let table = edge.edge_tables.get_mut(&key).expect("edge key must exist");
                 table.compact_properties(ts);
             }
         }

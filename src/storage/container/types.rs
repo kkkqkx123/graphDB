@@ -19,7 +19,7 @@ pub enum StorageBackend {
     /// Data is synced to disk via mmap
     #[default]
     Persistent,
-    
+
     /// Volatile in-memory storage
     /// Used for: temp tables, caches, testing
     Volatile {
@@ -38,7 +38,12 @@ impl StorageBackend {
     }
 
     pub fn prefers_huge_pages(&self) -> bool {
-        matches!(self, StorageBackend::Volatile { prefer_huge_pages: true })
+        matches!(
+            self,
+            StorageBackend::Volatile {
+                prefer_huge_pages: true
+            }
+        )
     }
 }
 
@@ -270,7 +275,8 @@ impl FileHeader {
         if bytes.len() < Self::SIZE {
             return None;
         }
-        let header: FileHeader = unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const FileHeader) };
+        let header: FileHeader =
+            unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const FileHeader) };
         if header.magic != Self::MAGIC {
             return None;
         }
@@ -292,12 +298,16 @@ mod tests {
     fn test_storage_backend() {
         assert!(StorageBackend::Persistent.is_persistent());
         assert!(!StorageBackend::Persistent.is_volatile());
-        
-        let volatile = StorageBackend::Volatile { prefer_huge_pages: true };
+
+        let volatile = StorageBackend::Volatile {
+            prefer_huge_pages: true,
+        };
         assert!(volatile.is_volatile());
         assert!(volatile.prefers_huge_pages());
-        
-        let volatile_no_hp = StorageBackend::Volatile { prefer_huge_pages: false };
+
+        let volatile_no_hp = StorageBackend::Volatile {
+            prefer_huge_pages: false,
+        };
         assert!(!volatile_no_hp.prefers_huge_pages());
     }
 
@@ -305,7 +315,9 @@ mod tests {
     fn test_container_config() {
         let config = ContainerConfig::new()
             .with_initial_capacity(1024)
-            .with_storage_backend(StorageBackend::Volatile { prefer_huge_pages: true });
+            .with_storage_backend(StorageBackend::Volatile {
+                prefer_huge_pages: true,
+            });
 
         assert_eq!(config.initial_capacity, 1024);
         assert!(config.storage_backend.is_volatile());
@@ -331,14 +343,14 @@ mod tests {
     fn test_file_header_checksum() {
         let data = b"test data for checksum verification";
         let header = FileHeader::with_checksum(data.len() as u64, data);
-        
+
         assert!(header.has_valid_checksum());
         assert!(header.verify_checksum(data));
-        
+
         // Verify that different data fails checksum
         let different_data = b"different data";
         assert!(!header.verify_checksum(different_data));
-        
+
         // Verify compute_checksum is consistent
         let checksum1 = FileHeader::compute_checksum(data);
         let checksum2 = FileHeader::compute_checksum(data);

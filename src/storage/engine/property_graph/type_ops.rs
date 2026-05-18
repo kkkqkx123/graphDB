@@ -22,7 +22,10 @@ pub fn create_vertex_type(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    graph.schema_ops.write().create_vertex_type(name, properties, primary_key)
+    graph
+        .schema_ops
+        .write()
+        .create_vertex_type(name, properties, primary_key)
 }
 
 pub fn create_vertex_type_with_id(
@@ -62,7 +65,10 @@ pub fn create_edge_type(
         ie_strategy,
     };
     let schema = graph.schema_ops.read();
-    graph.edge_ops.write().create_edge_type(params, &schema.vertex_tables)
+    graph
+        .edge_ops
+        .write()
+        .create_edge_type(params, &schema.vertex_tables)
 }
 
 pub fn create_edge_type_with_id(
@@ -74,7 +80,10 @@ pub fn create_edge_type_with_id(
         return Err(StorageError::storage_not_open());
     }
     let schema = graph.schema_ops.read();
-    graph.edge_ops.write().create_edge_type_with_id(params, label_id, &schema.vertex_tables)
+    graph
+        .edge_ops
+        .write()
+        .create_edge_type_with_id(params, label_id, &schema.vertex_tables)
 }
 
 pub fn drop_vertex_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> {

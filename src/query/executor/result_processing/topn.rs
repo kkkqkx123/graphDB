@@ -520,10 +520,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         for sort_key in &self.sort_keys {
             let value =
                 ExpressionEvaluator::evaluate(&sort_key.expression, &mut context).map_err(|e| {
-                    DBError::query(format!(
-                        "Failed to evaluate sort expression: {}",
-                        e
-                    ))
+                    DBError::query(format!("Failed to evaluate sort expression: {}", e))
                 })?;
             sort_values.push(value);
         }
@@ -811,9 +808,8 @@ impl<S: StorageClient> TopNExecutor<S> {
                     }
                 }
 
-                ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })
+                ExpressionEvaluator::evaluate(expression, &mut context)
+                    .map_err(|e| DBError::query(e.to_string()))
             }
         }
     }
@@ -870,9 +866,8 @@ impl<S: StorageClient> TopNExecutor<S> {
                     context.set_variable(prop_name.clone(), prop_value.clone());
                 }
 
-                ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })
+                ExpressionEvaluator::evaluate(expression, &mut context)
+                    .map_err(|e| DBError::query(e.to_string()))
             }
         }
     }

@@ -15,7 +15,9 @@ pub mod vector_search;
 pub mod vertex;
 
 pub use edge::{GetEdgesExecutor, ScanEdgesExecutor};
-pub use fulltext_search::{FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, FulltextSearchExecutorParams};
+pub use fulltext_search::{
+    FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, FulltextSearchExecutorParams,
+};
 pub use index::LookupIndexExecutor;
 pub use match_fulltext::MatchFulltextExecutor;
 pub use neighbor::GetNeighborsExecutor;

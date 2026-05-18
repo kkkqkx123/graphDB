@@ -7,8 +7,8 @@ use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
@@ -117,8 +117,8 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
     fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = self.base.get_storage().clone();
-        let node_vid = VertexId::try_from(node_id)
-            .map_err(|e| QueryError::storage(e.to_string()))?;
+        let node_vid =
+            VertexId::try_from(node_id).map_err(|e| QueryError::storage(e.to_string()))?;
         let neighbors = super::traversal_utils::get_neighbors_with_edges(
             &storage,
             &node_vid,
@@ -127,7 +127,10 @@ impl<S: StorageClient> TraverseExecutor<S> {
             false,
         )
         .map_err(|e| QueryError::storage(e.to_string()))?;
-        Ok(neighbors.into_iter().map(|(vid, edge)| (Value::from(vid), edge)).collect())
+        Ok(neighbors
+            .into_iter()
+            .map(|(vid, edge)| (Value::from(vid), edge))
+            .collect())
     }
 
     /// Check whether the conditions are met.

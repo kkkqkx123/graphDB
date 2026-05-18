@@ -33,12 +33,16 @@ pub use storage::{StorageError, StorageErrorKind, StorageResult};
 pub use crate::api::server::auth::{AuthError, AuthResult};
 pub use crate::api::server::permission::{PermissionError, PermissionResult};
 pub use crate::api::server::session::{SessionError, SessionResult};
-pub use crate::query::executor::expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+pub use crate::query::executor::expression::{
+    ExpressionError, ExpressionErrorType, ExpressionPosition,
+};
 pub use crate::query::optimizer::{CostError, CostResult, OptimizeError, OptimizeResult};
-pub use crate::query::validator::error::{SchemaValidationError, SchemaValidationResult, ValidationError, ValidationErrorType};
+pub use crate::query::validator::error::{
+    SchemaValidationError, SchemaValidationResult, ValidationError, ValidationErrorType,
+};
 pub use crate::sync::external_index::{
-    CoordinatorError, CoordinatorResult, FulltextError, FulltextResult,
-    VectorCoordinatorError, VectorCoordinatorResult, VectorError, VectorResult,
+    CoordinatorError, CoordinatorResult, FulltextError, FulltextResult, VectorCoordinatorError,
+    VectorCoordinatorResult, VectorError, VectorResult,
 };
 
 pub use crate::core::types::DataType;
@@ -541,12 +545,16 @@ mod tests {
 
     #[test]
     fn test_dberror_size() {
-        assert!(std::mem::size_of::<DBError>() <= 64, "DBError should be small");
+        assert!(
+            std::mem::size_of::<DBError>() <= 64,
+            "DBError should be small"
+        );
     }
 
     #[test]
     fn test_dberror_creation() {
-        let storage_err = StorageError::node_not_found(crate::core::types::VertexId::from_int64(42));
+        let storage_err =
+            StorageError::node_not_found(crate::core::types::VertexId::from_int64(42));
         let db_err: DBError = storage_err.into();
         assert_eq!(db_err.kind(), ErrorKind::Storage);
         assert!(!db_err.is_retryable());

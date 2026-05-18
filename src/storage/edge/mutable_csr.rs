@@ -6,7 +6,9 @@
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP};
+use super::{
+    CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP,
+};
 
 const DEFAULT_VERTEX_CAPACITY: usize = 1024;
 const DEFAULT_EDGE_CAPACITY: usize = 4096;
@@ -78,7 +80,10 @@ impl MutableCsr {
             offset += DEFAULT_VERTEX_DEGREE;
         }
 
-        nbr_list.resize(offset, Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP));
+        nbr_list.resize(
+            offset,
+            Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP),
+        );
 
         Self {
             nbr_list,
@@ -120,8 +125,10 @@ impl MutableCsr {
             new_total_capacity += DEFAULT_VERTEX_DEGREE;
         }
 
-        self.nbr_list
-            .resize(new_total_capacity, Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP));
+        self.nbr_list.resize(
+            new_total_capacity,
+            Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP),
+        );
         self.vertex_capacity = new_vertex_capacity;
         self.total_edge_capacity = new_total_capacity;
     }
@@ -204,7 +211,10 @@ impl MutableCsr {
         let insert_pos = self.adj_offsets[src_idx] + old_capacity;
         self.nbr_list.splice(
             insert_pos..insert_pos,
-            std::iter::repeat_n(Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP), additional),
+            std::iter::repeat_n(
+                Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP),
+                additional,
+            ),
         );
 
         for i in (src_idx + 1)..self.vertex_capacity {
@@ -227,12 +237,11 @@ impl MutableCsr {
 
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
-            if nbr.edge_id == edge_id && nbr.timestamp != INVALID_TIMESTAMP
-                && nbr.timestamp <= ts {
-                    nbr.timestamp = INVALID_TIMESTAMP;
-                    self.edge_count.fetch_sub(1, Ordering::Relaxed);
-                    return true;
-                }
+            if nbr.edge_id == edge_id && nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
+                nbr.timestamp = INVALID_TIMESTAMP;
+                self.edge_count.fetch_sub(1, Ordering::Relaxed);
+                return true;
+            }
         }
         false
     }
@@ -250,12 +259,11 @@ impl MutableCsr {
 
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
-            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP
-                && nbr.timestamp <= ts {
-                    nbr.timestamp = INVALID_TIMESTAMP;
-                    self.edge_count.fetch_sub(1, Ordering::Relaxed);
-                    deleted = true;
-                }
+            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
+                nbr.timestamp = INVALID_TIMESTAMP;
+                self.edge_count.fetch_sub(1, Ordering::Relaxed);
+                deleted = true;
+            }
         }
         deleted
     }
@@ -367,18 +375,18 @@ impl MutableCsr {
     }
 
     /// Get edges of a vertex with prefetch optimization
-    /// 
+    ///
     /// This method uses prefetch instructions to improve cache locality
     /// when traversing large adjacency lists.
-    /// 
+    ///
     /// # Performance
-    /// 
+    ///
     /// Expected improvement: 5-15% for large adjacency lists.
     #[cfg(target_arch = "x86_64")]
     pub fn edges_of_with_prefetch(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
         use std::arch::x86_64::_mm_prefetch;
         use std::arch::x86_64::_MM_HINT_T0;
-        
+
         let src_idx = src.as_int64().unwrap_or(0) as usize;
         if src_idx >= self.vertex_capacity {
             return Vec::new();
@@ -388,9 +396,9 @@ impl MutableCsr {
         let offset = self.adj_offsets[src_idx];
 
         let mut result = Vec::with_capacity(degree);
-        
+
         const PREFETCH_DISTANCE: usize = 8;
-        
+
         for i in 0..degree {
             // Prefetch ahead
             if i + PREFETCH_DISTANCE < degree {
@@ -404,7 +412,7 @@ impl MutableCsr {
                     }
                 }
             }
-            
+
             let nbr = &self.nbr_list[offset + i];
             if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
                 result.push(*nbr);
@@ -599,17 +607,17 @@ impl MutableCsr {
     }
 
     /// Batch insert edges with parallel optimization
-    /// 
+    ///
     /// Uses a two-phase approach for parallel insertion:
     /// - Phase 1: Sequential pre-allocation and capacity checking
     /// - Phase 2: Parallel data filling
-    /// 
+    ///
     /// # Performance
-    /// 
+    ///
     /// Expected speedup: 2-8x on multi-core systems compared to sequential insertion.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// This method is safe because:
     /// - Each vertex's data region is pre-allocated and non-overlapping
     /// - No capacity expansion happens during parallel phase
@@ -624,15 +632,27 @@ impl MutableCsr {
     ) {
         use rayon::prelude::*;
         use std::collections::HashMap;
-        
-        assert_eq!(src_list.len(), dst_list.len(), "Source and destination lists must have equal length");
-        assert_eq!(src_list.len(), edge_ids.len(), "Source and edge ID lists must have equal length");
-        assert_eq!(src_list.len(), prop_offsets.len(), "Source and property offset lists must have equal length");
-        
+
+        assert_eq!(
+            src_list.len(),
+            dst_list.len(),
+            "Source and destination lists must have equal length"
+        );
+        assert_eq!(
+            src_list.len(),
+            edge_ids.len(),
+            "Source and edge ID lists must have equal length"
+        );
+        assert_eq!(
+            src_list.len(),
+            prop_offsets.len(),
+            "Source and property offset lists must have equal length"
+        );
+
         if src_list.is_empty() {
             return;
         }
-        
+
         // Phase 1: Pre-allocation (sequential)
         let max_vertex = src_list
             .iter()
@@ -642,68 +662,73 @@ impl MutableCsr {
             .as_int64()
             .unwrap_or(0) as usize;
         self.ensure_vertex_capacity(max_vertex + 1);
-        
+
         // Group edges by source vertex
         let mut groups: HashMap<VertexId, Vec<(VertexId, EdgeId, u32)>> = HashMap::new();
         for i in 0..src_list.len() {
-            groups
-                .entry(src_list[i])
-                .or_default()
-                .push((dst_list[i], edge_ids[i], prop_offsets[i]));
+            groups.entry(src_list[i]).or_default().push((
+                dst_list[i],
+                edge_ids[i],
+                prop_offsets[i],
+            ));
         }
-        
+
         // Calculate insertion positions and ensure capacity for each vertex
         let mut insert_positions: HashMap<VertexId, usize> = HashMap::new();
         let mut total_new_edges = 0usize;
-        
+
         for (&src, edges) in &groups {
             let src_idx = src.as_int64().unwrap_or(0) as usize;
             let current_degree = self.degrees[src_idx] as usize;
             let new_edges = edges.len();
             let required_capacity = current_degree + new_edges;
-            
+
             while (self.capacities[src_idx] as usize) < required_capacity {
                 self.expand_vertex_capacity(src_idx);
             }
-            
+
             insert_positions.insert(src, self.adj_offsets[src_idx] + current_degree);
             total_new_edges += new_edges;
         }
-        
+
         // Convert to Vec for parallel processing
         let groups_vec: Vec<_> = groups.into_iter().collect();
-        
+
         // Phase 2: Parallel data filling using unsafe code
         // Safety: Each vertex's data region is pre-allocated and non-overlapping
         // Convert pointers to usize to make them Send
         let nbr_list_ptr = self.nbr_list.as_mut_ptr() as usize;
         let degrees_ptr = self.degrees.as_mut_ptr() as usize;
-        
+
         groups_vec.into_par_iter().for_each(move |(src, edges)| {
             let src_idx = src.as_int64().unwrap_or(0) as usize;
             let mut pos = insert_positions[&src];
             let edges_len = edges.len();
-            
+
             unsafe {
                 let nbr_list_ptr = nbr_list_ptr as *mut Nbr;
                 let degrees_ptr = degrees_ptr as *mut u32;
-                
+
                 for (dst, edge_id, prop_offset) in edges {
                     // Direct write to pre-allocated position
                     // Safe because positions don't overlap between threads
-                    std::ptr::write(nbr_list_ptr.add(pos), Nbr::new(dst, edge_id, prop_offset, ts));
+                    std::ptr::write(
+                        nbr_list_ptr.add(pos),
+                        Nbr::new(dst, edge_id, prop_offset, ts),
+                    );
                     pos += 1;
                 }
-                
+
                 // Update degree atomically
                 // Safe because this is a simple integer write
                 let old_degree = std::ptr::read(degrees_ptr.add(src_idx));
                 std::ptr::write(degrees_ptr.add(src_idx), old_degree + edges_len as u32);
             }
         });
-        
+
         // Update global edge count
-        self.edge_count.fetch_add(total_new_edges as u64, Ordering::Relaxed);
+        self.edge_count
+            .fetch_add(total_new_edges as u64, Ordering::Relaxed);
     }
 
     /// Batch delete edges
@@ -821,7 +846,12 @@ impl MutableCsr {
                 u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
             offset += 4;
 
-            nbr_list.push(Nbr::new(VertexId::from_u64(neighbor), edge_id, prop_offset, timestamp));
+            nbr_list.push(Nbr::new(
+                VertexId::from_u64(neighbor),
+                edge_id,
+                prop_offset,
+                timestamp,
+            ));
         }
 
         self.vertex_capacity = vertex_capacity;
@@ -1219,7 +1249,13 @@ mod tests {
         let mut csr = MutableCsr::with_capacity(2, 10);
 
         csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
-        csr.insert_edge(VertexId::from_int64(100), VertexId::from_int64(1), 101, 0, 1);
+        csr.insert_edge(
+            VertexId::from_int64(100),
+            VertexId::from_int64(1),
+            101,
+            0,
+            1,
+        );
 
         assert!(csr.vertex_capacity() >= 101);
         assert!(csr.has_edge(VertexId::from_int64(100), VertexId::from_int64(1), 1));

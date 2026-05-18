@@ -61,8 +61,8 @@ impl StringDictionary {
     pub fn memory_usage(&self) -> usize {
         let values_size: usize = self.values.iter().map(|s| s.len()).sum();
         let overhead = self.values.len() * std::mem::size_of::<Arc<str>>();
-        let map_overhead = self.index_map.len()
-            * (std::mem::size_of::<Arc<str>>() + std::mem::size_of::<u32>());
+        let map_overhead =
+            self.index_map.len() * (std::mem::size_of::<Arc<str>>() + std::mem::size_of::<u32>());
         values_size + overhead + map_overhead
     }
 
@@ -209,7 +209,9 @@ impl DictionaryColumn {
                 }
             }
             Some(v) => {
-                return Err(StorageError::type_mismatch(crate::core::DataType::String, v.data_type(),
+                return Err(StorageError::type_mismatch(
+                    crate::core::DataType::String,
+                    v.data_type(),
                 ));
             }
             None => {
@@ -227,7 +229,9 @@ impl DictionaryColumn {
     }
 
     pub fn get(&self, row_idx: usize) -> Option<Value> {
-        self.encoder.decode(row_idx).map(|s| Value::String(s.to_string()))
+        self.encoder
+            .decode(row_idx)
+            .map(|s| Value::String(s.to_string()))
     }
 
     pub fn is_null(&self, row_idx: usize) -> bool {

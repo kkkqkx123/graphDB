@@ -18,9 +18,7 @@ use parking_lot::{Mutex, RwLock};
 use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
-use crate::storage::edge::{
-    EdgeRecord, EdgeStrategy, PropertyDef as EdgePropertyDef,
-};
+use crate::storage::edge::{EdgeRecord, EdgeStrategy, PropertyDef as EdgePropertyDef};
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::storage_types::EdgeOffset;
@@ -34,7 +32,7 @@ use super::edge::EdgeOps;
 use super::query::QueryOps;
 use super::schema::SchemaOps;
 use super::wal_manager::WalManager;
-use crate::storage::index::secondary::{IndexDataManagerImpl, GcStats};
+use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl};
 use crate::storage::metadata::{TableId, TableTracker, TableTrackerConfig, TableType};
 
 pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
@@ -112,12 +110,10 @@ impl PropertyGraph {
             memory_tracker.clone(),
         );
 
-        let table_tracker = Arc::new(TableTracker::with_config(
-            TableTrackerConfig {
-                flush_threshold: config.flush_config.flush_threshold,
-                flush_interval: config.flush_config.flush_interval,
-            },
-        ));
+        let table_tracker = Arc::new(TableTracker::with_config(TableTrackerConfig {
+            flush_threshold: config.flush_config.flush_threshold,
+            flush_interval: config.flush_config.flush_interval,
+        }));
 
         Self {
             schema_ops: RwLock::new(SchemaOps::new()),
@@ -176,14 +172,18 @@ impl PropertyGraph {
     }
 
     pub fn mark_vertex_modified_since_checkpoint(&self, label: LabelId) {
-        self.table_tracker.mark_modified_since_checkpoint(TableId::vertex(label));
+        self.table_tracker
+            .mark_modified_since_checkpoint(TableId::vertex(label));
     }
 
     pub fn mark_edge_modified_since_checkpoint(&self, label: LabelId) {
-        self.table_tracker.mark_modified_since_checkpoint(TableId::edge(label));
+        self.table_tracker
+            .mark_modified_since_checkpoint(TableId::edge(label));
     }
 
-    pub fn take_last_compacted_vertices(&self) -> Vec<(LabelId, Vec<crate::storage::vertex::IdKey>)> {
+    pub fn take_last_compacted_vertices(
+        &self,
+    ) -> Vec<(LabelId, Vec<crate::storage::vertex::IdKey>)> {
         std::mem::take(&mut *self.last_compacted_vertices.lock())
     }
 
@@ -211,10 +211,7 @@ impl PropertyGraph {
         self
     }
 
-    pub fn set_edge_property_cache(
-        &self,
-        config: crate::storage::cache::EdgePropertyCacheConfig,
-    ) {
+    pub fn set_edge_property_cache(&self, config: crate::storage::cache::EdgePropertyCacheConfig) {
         self.cache_manager.set_edge_property_cache(config);
     }
 
@@ -362,7 +359,12 @@ impl PropertyGraph {
     }
 
     pub fn vertex_label_ids(&self) -> Vec<LabelId> {
-        self.schema_ops.read().vertex_tables.keys().copied().collect()
+        self.schema_ops
+            .read()
+            .vertex_tables
+            .keys()
+            .copied()
+            .collect()
     }
 
     // ==================== Edge Operations ====================
@@ -431,8 +433,7 @@ impl PropertyGraph {
             return None;
         }
         let schema = self.schema_ops.read();
-        QueryOps::scan_vertices(&schema.vertex_tables, label, ts)
-            .map(|iter| iter.collect())
+        QueryOps::scan_vertices(&schema.vertex_tables, label, ts).map(|iter| iter.collect())
     }
 
     pub fn vertex_count(&self, label: LabelId, ts: Timestamp) -> usize {
@@ -451,12 +452,19 @@ impl PropertyGraph {
 
     pub fn vertex_label_names(&self) -> Vec<String> {
         let schema = self.schema_ops.read();
-        schema.vertex_label_names().into_iter().map(|s| s.to_string()).collect()
+        schema
+            .vertex_label_names()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
     }
 
     pub fn edge_label_names(&self) -> Vec<String> {
         let edge = self.edge_ops.read();
-        edge.edge_label_names().into_iter().map(|s| s.to_string()).collect()
+        edge.edge_label_names()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
     }
 
     pub fn get_vertex_label_id(&self, name: &str) -> Option<LabelId> {
@@ -473,7 +481,9 @@ impl PropertyGraph {
 
     pub fn get_vertex_table_opt(&self, label: LabelId) -> Option<String> {
         let schema = self.schema_ops.read();
-        schema.get_vertex_table(label).map(|t| t.label_name().to_string())
+        schema
+            .get_vertex_table(label)
+            .map(|t| t.label_name().to_string())
     }
 
     pub fn scan_edges(
@@ -489,11 +499,7 @@ impl PropertyGraph {
             .unwrap_or_default()
     }
 
-    pub fn scan_edges_by_label(
-        &self,
-        edge_label: LabelId,
-        ts: Timestamp,
-    ) -> Vec<EdgeRecord> {
+    pub fn scan_edges_by_label(&self, edge_label: LabelId, ts: Timestamp) -> Vec<EdgeRecord> {
         let edge = self.edge_ops.read();
         edge.get_edge_table_by_label(edge_label)
             .map(|t| t.scan(ts))
@@ -507,10 +513,16 @@ impl PropertyGraph {
 
     pub fn total_edge_count(&self) -> usize {
         let edge = self.edge_ops.read();
-        edge.edge_tables.values().map(|t| t.edge_count() as usize).sum()
+        edge.edge_tables
+            .values()
+            .map(|t| t.edge_count() as usize)
+            .sum()
     }
 
-    pub fn collect_all_edge_records(&self, ts: Timestamp) -> Vec<(LabelId, LabelId, LabelId, EdgeRecord)> {
+    pub fn collect_all_edge_records(
+        &self,
+        ts: Timestamp,
+    ) -> Vec<(LabelId, LabelId, LabelId, EdgeRecord)> {
         let edge = self.edge_ops.read();
         let mut records = Vec::new();
         for ((src_label, dst_label, edge_label), table) in &edge.edge_tables {
@@ -565,7 +577,11 @@ impl PropertyGraph {
         Ok(())
     }
 
-    pub fn compact_vertex_table_with_ts(&self, label: LabelId, ts: Timestamp) -> Vec<crate::storage::vertex::IdKey> {
+    pub fn compact_vertex_table_with_ts(
+        &self,
+        label: LabelId,
+        ts: Timestamp,
+    ) -> Vec<crate::storage::vertex::IdKey> {
         let removed = {
             let mut schema = self.schema_ops.write();
             schema
@@ -575,7 +591,9 @@ impl PropertyGraph {
                 .unwrap_or_default()
         };
         if !removed.is_empty() {
-            self.last_compacted_vertices.lock().push((label, removed.clone()));
+            self.last_compacted_vertices
+                .lock()
+                .push((label, removed.clone()));
         }
         self.cache_manager.invalidate_vertices_by_label(label);
         removed
@@ -639,6 +657,8 @@ impl PropertyGraph {
         ts: Timestamp,
         batch_size: usize,
     ) -> StorageResult<GcStats> {
-        self.index_data_manager.read().gc_tombstones_incremental(ts, batch_size)
+        self.index_data_manager
+            .read()
+            .gc_tombstones_incremental(ts, batch_size)
     }
 }

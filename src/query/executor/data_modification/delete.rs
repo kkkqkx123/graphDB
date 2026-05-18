@@ -180,7 +180,11 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                 if should_delete {
                     if self.with_edge {
                         let edges = storage
-                            .get_node_edges(&self.space_name, &vid, crate::core::EdgeDirection::Both)
+                            .get_node_edges(
+                                &self.space_name,
+                                &vid,
+                                crate::core::EdgeDirection::Both,
+                            )
                             .map_err(|e| {
                                 crate::core::error::DBError::storage(format!(
                                     "Failed to retrieve associated edges: {}",
@@ -259,7 +263,13 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                     for edge in edges {
                         if edge.src == src_vid && edge.dst == dst_vid {
                             storage
-                                .delete_edge(&self.space_name, &src_vid, &dst_vid, edge_type, edge.ranking)
+                                .delete_edge(
+                                    &self.space_name,
+                                    &src_vid,
+                                    &dst_vid,
+                                    edge_type,
+                                    edge.ranking,
+                                )
                                 .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;
@@ -467,9 +477,10 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
 
-        let input_data = self.input_data.as_ref().ok_or_else(|| {
-            DBError::query("PipeDeleteExecutor requires input data".to_string())
-        })?;
+        let input_data = self
+            .input_data
+            .as_ref()
+            .ok_or_else(|| DBError::query("PipeDeleteExecutor requires input data".to_string()))?;
 
         let col_names = &input_data.col_names;
 
@@ -545,7 +556,13 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                     for edge in edges {
                         if edge.src == src_vid && edge.dst == dst_vid {
                             storage
-                                .delete_edge(&self.space_name, &src_vid, &dst_vid, &edge_type, edge.ranking)
+                                .delete_edge(
+                                    &self.space_name,
+                                    &src_vid,
+                                    &dst_vid,
+                                    &edge_type,
+                                    edge.ranking,
+                                )
                                 .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;
@@ -576,9 +593,8 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
             }
         }
 
-        ExpressionEvaluator::evaluate(&expression, &mut context).map_err(|e| {
-            DBError::query(format!("Expression evaluation failed: {}", e))
-        })
+        ExpressionEvaluator::evaluate(&expression, &mut context)
+            .map_err(|e| DBError::query(format!("Expression evaluation failed: {}", e)))
     }
 
     fn check_condition(&self, _storage: &S, _id: &Value) -> DBResult<bool> {

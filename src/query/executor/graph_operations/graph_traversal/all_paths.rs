@@ -83,10 +83,7 @@ impl PathResultCache {
 
     /// Generate a unique key for an NPath based on vertex sequence
     fn generate_path_key(npath: &NPath) -> PathKey {
-        npath
-            .iter_vertices()
-            .map(|v| v.vid)
-            .collect()
+        npath.iter_vertices().map(|v| v.vid).collect()
     }
 
     /// Add NPath to the cache with deduplication.
@@ -226,9 +223,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
         let edges = storage
             .get_node_edges("default", node_id, direction)
-            .map_err(|e| {
-                DBError::storage(e.to_string())
-            })?;
+            .map_err(|e| DBError::storage(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
             edges
@@ -281,8 +276,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 continue;
             }
             self.left_visited.insert(current_id);
-            self.left_path_map
-                .insert(current_id, current_npath.clone());
+            self.left_path_map.insert(current_id, current_npath.clone());
             self.nodes_visited += 1;
 
             // Check whether the limit has been reached.
@@ -418,14 +412,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         use crate::core::{Edge, Vertex};
         use std::sync::Arc;
 
-        let left_vertices: std::collections::HashSet<_> = left_path
-            .iter_vertices()
-            .map(|v| v.vid)
-            .collect();
-        let right_vertices: std::collections::HashSet<_> = right_path
-            .iter_vertices()
-            .map(|v| v.vid)
-            .collect();
+        let left_vertices: std::collections::HashSet<_> =
+            left_path.iter_vertices().map(|v| v.vid).collect();
+        let right_vertices: std::collections::HashSet<_> =
+            right_path.iter_vertices().map(|v| v.vid).collect();
 
         let common: Vec<_> = left_vertices.intersection(&right_vertices).collect();
         if common.len() != 1 {
@@ -465,10 +455,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 edge.ranking,
                 edge.props.clone(),
             ));
-            if let Some(parent_npath) = right_path
-                .iter()
-                .find(|n| n.vertex().vid == next_vid)
-            {
+            if let Some(parent_npath) = right_path.iter().find(|n| n.vertex().vid == next_vid) {
                 full_path = NPath::extend(
                     Arc::new(full_path),
                     reversed_edge,

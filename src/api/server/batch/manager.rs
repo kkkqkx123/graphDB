@@ -240,13 +240,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             .filter_map(|(k, v)| json_to_value(v).map(|val| (k, val)))
             .collect();
 
-        Some(Edge::new(
-            src_vid,
-            dst_vid,
-            data.edge_type,
-            0,
-            props,
-        ))
+        Some(Edge::new(src_vid, dst_vid, data.edge_type, 0, props))
     }
 }
 

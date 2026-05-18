@@ -11,13 +11,13 @@ use crate::core::types::{
 #[cfg(test)]
 use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
 #[cfg(test)]
-use crate::storage::{
-    StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageWriter,
-};
+use crate::storage::engine::PropertyGraph;
 #[cfg(test)]
 use crate::storage::metadata::Schema;
 #[cfg(test)]
-use crate::storage::engine::PropertyGraph;
+use crate::storage::{
+    StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageWriter,
+};
 #[cfg(test)]
 use parking_lot::RwLock;
 #[cfg(test)]
@@ -231,7 +231,11 @@ impl StorageWriter for MockStorage {
         Ok(())
     }
 
-    fn delete_vertex_with_edges(&mut self, _space: &str, _id: &VertexId) -> Result<(), StorageError> {
+    fn delete_vertex_with_edges(
+        &mut self,
+        _space: &str,
+        _id: &VertexId,
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -301,7 +305,12 @@ impl StorageWriter for MockStorage {
         Ok(true)
     }
 
-    fn update_data(&mut self, _space: &str, _space_id: u64, _info: &UpdateInfo) -> Result<bool, StorageError> {
+    fn update_data(
+        &mut self,
+        _space: &str,
+        _space_id: u64,
+        _info: &UpdateInfo,
+    ) -> Result<bool, StorageError> {
         Ok(true)
     }
 }

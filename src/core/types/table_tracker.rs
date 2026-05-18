@@ -204,7 +204,11 @@ impl TableTracker {
 
     /// Get tables that need full writes (modified since checkpoint)
     pub fn get_tables_for_full_write(&self) -> Vec<TableId> {
-        self.tables_since_checkpoint.read().iter().copied().collect()
+        self.tables_since_checkpoint
+            .read()
+            .iter()
+            .copied()
+            .collect()
     }
 
     /// Get total modification count

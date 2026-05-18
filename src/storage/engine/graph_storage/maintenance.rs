@@ -44,25 +44,46 @@ impl<'a> MaintenanceOps<'a> {
     }
 
     pub fn find_dangling_edges(&self, space: &str) -> StorageResult<Vec<Edge>> {
-        let _space_info = self.ctx.schema_manager.get_space(space)?.ok_or_else(|| {
-            StorageError::not_found(format!("Space {} not found", space))
-        })?;
+        let _space_info = self
+            .ctx
+            .schema_manager
+            .get_space(space)?
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.ctx.get_read_timestamp();
         let mut dangling_edges = Vec::new();
 
         let edge_records = self.ctx.graph.collect_all_edge_records(ts);
         for (src_label_id, dst_label_id, edge_label_id, record) in edge_records {
-            let edge_type_name = self.ctx.graph
+            let edge_type_name = self
+                .ctx
+                .graph
                 .edge_label_names()
                 .into_iter()
-                .find(|_| self.ctx.graph.get_edge_label_id(&edge_label_id.to_string()).is_some())
+                .find(|_| {
+                    self.ctx
+                        .graph
+                        .get_edge_label_id(&edge_label_id.to_string())
+                        .is_some()
+                })
                 .unwrap_or_else(|| edge_label_id.to_string());
-            let src_exists = self.ctx.graph
-                .get_vertex_by_internal_id(src_label_id, record.src_vid.as_int64().unwrap_or(0) as u32, ts)
+            let src_exists = self
+                .ctx
+                .graph
+                .get_vertex_by_internal_id(
+                    src_label_id,
+                    record.src_vid.as_int64().unwrap_or(0) as u32,
+                    ts,
+                )
                 .is_some();
-            let dst_exists = self.ctx.graph
-                .get_vertex_by_internal_id(dst_label_id, record.dst_vid.as_int64().unwrap_or(0) as u32, ts)
+            let dst_exists = self
+                .ctx
+                .graph
+                .get_vertex_by_internal_id(
+                    dst_label_id,
+                    record.dst_vid.as_int64().unwrap_or(0) as u32,
+                    ts,
+                )
                 .is_some();
 
             if !src_exists || !dst_exists {

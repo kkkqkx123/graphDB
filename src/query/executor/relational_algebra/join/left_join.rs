@@ -86,12 +86,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
 
         // Constructing a hash table
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
-            .map_err(|e| {
-                DBError::query(format!(
-                    "Failed to build hash table: {}",
-                    e
-                ))
-            })?;
+            .map_err(|e| DBError::query(format!("Failed to build hash table: {}", e)))?;
 
         // Construct a mapping from column names to indices.
         let left_col_map: std::collections::HashMap<&str, usize> = left_dataset
@@ -167,12 +162,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
 
         // Constructing a hash table
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
-            .map_err(|e| {
-                DBError::query(format!(
-                    "Failed to build multi-key hash table: {}",
-                    e
-                ))
-            })?;
+            .map_err(|e| DBError::query(format!("Failed to build multi-key hash table: {}", e)))?;
 
         // Construct a mapping from column names to indexes.
         let left_col_map: std::collections::HashMap<&str, usize> = left_dataset

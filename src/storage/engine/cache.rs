@@ -46,8 +46,8 @@ use parking_lot::RwLock;
 use crate::core::types::{EdgeId, LabelId};
 use crate::core::Value;
 use crate::storage::cache::{
-    CachedVertex, EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats,
-    RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache, VertexCacheKey,
+    CachedVertex, EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats, RecordCache,
+    RecordCacheConfig, RecordCacheStats, SharedRecordCache, VertexCacheKey,
 };
 use crate::storage::memory::SharedMemoryTracker;
 
@@ -59,15 +59,17 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    pub fn new(enable_cache: bool, cache_memory: usize, memory_tracker: SharedMemoryTracker) -> Self {
+    pub fn new(
+        enable_cache: bool,
+        cache_memory: usize,
+        memory_tracker: SharedMemoryTracker,
+    ) -> Self {
         let record_cache = if enable_cache {
             let config = RecordCacheConfig {
                 max_memory: cache_memory,
                 ..Default::default()
             };
-            Some(SharedRecordCache::new(
-                RecordCache::with_config(config),
-            ))
+            Some(SharedRecordCache::new(RecordCache::with_config(config)))
         } else {
             None
         };
@@ -136,11 +138,7 @@ impl CacheManager {
 
     // ==================== ID Index Cache Operations ====================
 
-    pub fn get_cached_vertex_id(
-        &self,
-        label: LabelId,
-        external_id: &str,
-    ) -> Option<u32> {
+    pub fn get_cached_vertex_id(&self, label: LabelId, external_id: &str) -> Option<u32> {
         self.record_cache
             .as_ref()
             .and_then(|rc| rc.get_id_index(label, external_id))
@@ -160,20 +158,20 @@ impl CacheManager {
 
     // ==================== Vertex Cache Operations ====================
 
-    pub fn get_cached_vertex(
+    pub fn get_cached_vertex(&self, label: LabelId, internal_id: u32) -> Option<CachedVertex> {
+        self.record_cache.as_ref().and_then(|rc| {
+            let key = VertexCacheKey::new(label, internal_id);
+            rc.get_vertex(&key)
+        })
+    }
+
+    pub fn cache_vertex(
         &self,
         label: LabelId,
         internal_id: u32,
-    ) -> Option<CachedVertex> {
-        self.record_cache
-            .as_ref()
-            .and_then(|rc| {
-                let key = VertexCacheKey::new(label, internal_id);
-                rc.get_vertex(&key)
-            })
-    }
-
-    pub fn cache_vertex(&self, label: LabelId, internal_id: u32, external_id: String, properties: Vec<(String, crate::core::Value)>) {
+        external_id: String,
+        properties: Vec<(String, crate::core::Value)>,
+    ) {
         if let Some(ref rc) = self.record_cache {
             let key = VertexCacheKey::new(label, internal_id);
             let cached = CachedVertex {

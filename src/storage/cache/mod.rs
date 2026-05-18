@@ -32,22 +32,22 @@
 //! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
 //!    with direct offset access.
 
-mod types;
-mod stats;
-mod config;
 mod batch;
-mod record_cache;
+mod config;
 mod edge_property_cache;
+mod record_cache;
+mod stats;
+mod types;
 
 #[cfg(test)]
 mod record_cache_test;
 
-pub use types::*;
-pub use stats::{CacheTypeStatsSnapshot, RecordCacheStats};
-pub use config::*;
 pub use batch::*;
-pub use record_cache::{RecordCache, SharedRecordCache};
+pub use config::*;
 pub use edge_property_cache::{
     CachedEdgeProperty, EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats,
     EdgePropertyKey,
 };
+pub use record_cache::{RecordCache, SharedRecordCache};
+pub use stats::{CacheTypeStatsSnapshot, RecordCacheStats};
+pub use types::*;

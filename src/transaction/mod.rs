@@ -51,25 +51,17 @@ pub mod context_test;
 #[cfg(test)]
 pub mod manager_test;
 
+pub use crate::core::mvcc::{
+    InsertTimestampGuard, ReadTimestampGuard, UpdateTimestampGuard, VersionManager,
+    VersionManagerConfig, VersionManagerError, VersionManagerResult,
+};
+pub use crate::core::types::CompactTarget;
 pub use cleaner::TransactionCleaner;
 pub use compact_transaction::{
     CompactTransaction, CompactTransactionError, CompactTransactionResult,
 };
-pub use crate::core::types::CompactTarget;
 pub use context::TransactionContext;
-pub use types::*;
 pub use error::{TransactionError, TransactionErrorKind, TransactionResult};
-pub use undo_log::{
-    AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
-    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
-    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
-    RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
-    UpdateEdgePropUndo, UpdateVertexPropUndo,
-};
-pub use rollback::{
-    CreateRemoveEdgeUndoParams, CreateRemoveVertexUndoParams, CreateUpdateEdgePropUndoParams,
-    RollbackHelper,
-};
 pub use insert_transaction::{
     InsertTarget, InsertTransaction, InsertTransactionError, InsertTransactionResult,
 };
@@ -79,15 +71,23 @@ pub use read_transaction::{
     ReadTarget, ReadTransaction, ReadTransactionError, ReadTransactionResult, VertexRecord,
     INVALID_TIMESTAMP,
 };
+pub use rollback::{
+    CreateRemoveEdgeUndoParams, CreateRemoveVertexUndoParams, CreateUpdateEdgePropUndoParams,
+    RollbackHelper,
+};
+pub use types::*;
+pub use undo_log::{
+    AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
+    DeleteEdgePropUndo, DeleteEdgeTypeUndo, DeleteVertexPropUndo, DeleteVertexTypeUndo,
+    InsertEdgeUndo, InsertVertexUndo, PropertyValue, RelatedEdgeInfo, RemoveEdgeUndo,
+    RemoveVertexUndo, UndoLogEntry, UndoLogError, UndoLogManager, UndoLogResult, UndoTarget,
+    UpdateEdgePropUndo, UpdateVertexPropUndo,
+};
 pub use update_transaction::{
     AddEdgePropertiesParam, AddVertexPropertiesParam, CreateEdgeTypeParam, CreateVertexTypeParam,
     DeleteEdgePropertiesParam, DeleteVertexPropertiesParam, PropertyDefinition,
     RenamePropertiesParam, UpdateTarget, UpdateTransaction, UpdateTransactionError,
     UpdateTransactionResult,
-};
-pub use crate::core::mvcc::{
-    InsertTimestampGuard, ReadTimestampGuard, UpdateTimestampGuard, VersionManager,
-    VersionManagerConfig, VersionManagerError, VersionManagerResult,
 };
 pub use wal::{
     ColumnId, CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo,

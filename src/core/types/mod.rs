@@ -238,8 +238,8 @@ pub use self::span::{Position, Span, ToSpan};
 // Export storage identifier types for cross-module usage
 pub use self::storage_ids::{
     ColumnId, EdgeDeletionContext, EdgeDeletionContextParams, EdgeId, EdgeIdentifier, EdgeKey,
-    EdgeLocation, EdgeOperationContext, EdgePropertyUpdateContext, INVALID_TIMESTAMP, LabelId,
-    MAX_TIMESTAMP, Timestamp, TransactionId, VertexId, VertexIdentifier,
+    EdgeLocation, EdgeOperationContext, EdgePropertyUpdateContext, LabelId, Timestamp,
+    TransactionId, VertexId, VertexIdentifier, INVALID_TIMESTAMP, MAX_TIMESTAMP,
 };
 pub use self::table_tracker::{TableId, TableTracker, TableTrackerConfig, TableType};
 pub use self::transaction_config::{DurabilityLevel, TransactionIsolationLevel};

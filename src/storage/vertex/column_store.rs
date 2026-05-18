@@ -3,11 +3,13 @@
 //! Columnar storage for vertex properties.
 //! Each column stores values of a single property type.
 
-use bitvec::prelude::*;
+use super::encoding::{
+    ColumnEncoding, ColumnStats, CompressionSelector, EncodingType, FsstColumn, FsstEncoder,
+};
 use crate::core::value::DateValue;
 use crate::core::{DataType, StorageError, StorageResult, Value};
-use super::encoding::{ColumnEncoding, EncodingType, FsstColumn, FsstEncoder, CompressionSelector, ColumnStats};
 use crate::utils::NullBitmap;
+use bitvec::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct Column {
@@ -89,7 +91,7 @@ impl Column {
             }
             return Ok(());
         }
-        
+
         if self.is_variable_length() {
             while self.offsets.len() <= row_idx {
                 self.offsets.push(self.data.len());
@@ -224,7 +226,10 @@ impl Column {
                 data[offset + 8..offset + 12].copy_from_slice(&d.day.to_le_bytes());
             }
             _ => {
-                return Err(StorageError::type_mismatch(data_type.clone(), value.data_type()));
+                return Err(StorageError::type_mismatch(
+                    data_type.clone(),
+                    value.data_type(),
+                ));
             }
         }
         Ok(())
@@ -239,7 +244,9 @@ impl Column {
                 self.data.extend_from_slice(bytes);
             }
             _ => {
-                return Err(StorageError::type_mismatch(self.data_type.clone(), value.data_type(),
+                return Err(StorageError::type_mismatch(
+                    self.data_type.clone(),
+                    value.data_type(),
                 ));
             }
         }
@@ -364,7 +371,11 @@ impl Column {
     pub fn memory_usage(&self) -> usize {
         let data_size = self.data.len();
         let offsets_size = self.offsets.len() * std::mem::size_of::<usize>();
-        let bitmap_size = self.null_bitmap.as_ref().map(|b| b.as_raw_slice().len()).unwrap_or(0);
+        let bitmap_size = self
+            .null_bitmap
+            .as_ref()
+            .map(|b| b.as_raw_slice().len())
+            .unwrap_or(0);
         let encoding_size = self.encoding.memory_usage();
         data_size + offsets_size + bitmap_size + encoding_size
     }
@@ -416,7 +427,12 @@ impl Column {
         self.null_bitmap.as_ref().map(|b| b.as_raw_slice())
     }
 
-    pub fn load_data(&mut self, data: Vec<u8>, offsets: Option<Vec<usize>>, null_bitmap: Option<BitVec<u8, Lsb0>>) {
+    pub fn load_data(
+        &mut self,
+        data: Vec<u8>,
+        offsets: Option<Vec<usize>>,
+        null_bitmap: Option<BitVec<u8, Lsb0>>,
+    ) {
         self.data = data;
         if let Some(offs) = offsets {
             self.offsets = offs;
@@ -429,7 +445,13 @@ impl Column {
         self.null_bitmap = null_bitmap;
     }
 
-    pub fn load_data_from_raw(&mut self, data: Vec<u8>, offsets: Vec<u64>, null_bitmap_raw: Option<Vec<u8>>, bitmap_bit_len: usize) {
+    pub fn load_data_from_raw(
+        &mut self,
+        data: Vec<u8>,
+        offsets: Vec<u64>,
+        null_bitmap_raw: Option<Vec<u8>>,
+        bitmap_bit_len: usize,
+    ) {
         self.data = data;
         self.null_bitmap = null_bitmap_raw.map(|raw| {
             let mut bv = BitVec::from_vec(raw);
@@ -459,7 +481,10 @@ impl Column {
         let row_count = self.row_count;
         let mut new_data = Vec::new();
         let mut new_offsets = Vec::new();
-        let mut new_bitmap = self.null_bitmap.as_ref().map(|_| BitVec::with_capacity(row_count));
+        let mut new_bitmap = self
+            .null_bitmap
+            .as_ref()
+            .map(|_| BitVec::with_capacity(row_count));
 
         for i in 0..row_count {
             let value = self.encoding.get(i);
@@ -485,7 +510,12 @@ impl Column {
                         let element_size = Self::element_size(&self.data_type);
                         let start = new_data.len();
                         new_data.resize(start + element_size, 0);
-                        let _ = Self::write_fixed_value_to_slice(&mut new_data, start, &self.data_type, &v);
+                        let _ = Self::write_fixed_value_to_slice(
+                            &mut new_data,
+                            start,
+                            &self.data_type,
+                            &v,
+                        );
                     }
                 }
                 None => {
@@ -505,7 +535,7 @@ impl Column {
     pub fn encoding_type(&self) -> EncodingType {
         self.encoding.encoding_type()
     }
-    
+
     pub fn encoding(&self) -> &ColumnEncoding {
         &self.encoding
     }
@@ -640,7 +670,8 @@ impl Column {
         let mut table = super::encoding::FsstSymbolTable::new();
 
         if symbol_table_bytes.len() >= 4 {
-            let symbol_count = u32::from_le_bytes(symbol_table_bytes[0..4].try_into().unwrap()) as usize;
+            let symbol_count =
+                u32::from_le_bytes(symbol_table_bytes[0..4].try_into().unwrap()) as usize;
             let mut offset = 4;
 
             for _ in 0..symbol_count {
@@ -723,17 +754,18 @@ impl Column {
         let element_size = Self::element_size(&self.data_type);
         non_null_count * element_size + std::mem::size_of::<Self>()
     }
-    
+
     pub fn collect_stats(&self) -> ColumnStats {
         let mut stats = ColumnStats::new(self.data_type.clone());
         stats.row_count = self.row_count;
         stats.null_count = self.null_count();
-        
-        let mut distinct_values: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        let mut distinct_values: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         let mut total_length = 0usize;
         let mut run_count = 1usize;
         let mut prev_value: Option<Value> = None;
-        
+
         for i in 0..self.row_count {
             if let Some(value) = self.get(i) {
                 match &value {
@@ -754,7 +786,7 @@ impl Column {
                     }
                     _ => {}
                 }
-                
+
                 if let Some(ref prev) = prev_value {
                     if *prev != value {
                         run_count += 1;
@@ -763,7 +795,7 @@ impl Column {
                 prev_value = Some(value);
             }
         }
-        
+
         stats.distinct_count = distinct_values.len();
         stats.avg_length = if self.row_count > 0 {
             total_length as f64 / self.row_count as f64
@@ -771,10 +803,10 @@ impl Column {
             0.0
         };
         stats.run_count = run_count;
-        
+
         stats
     }
-    
+
     fn update_int_stats(stats: &mut ColumnStats, value: i64) {
         match (&stats.min_value, &stats.max_value) {
             (None, None) => {
@@ -796,16 +828,16 @@ impl Column {
             _ => {}
         }
     }
-    
+
     pub fn auto_compress(&mut self) -> StorageResult<()> {
         if self.encoding.is_encoded() {
             return Ok(());
         }
-        
+
         let stats = self.collect_stats();
         let selector = CompressionSelector::new();
         let encoding_type = selector.select(&stats);
-        
+
         match encoding_type {
             EncodingType::Fsst => {
                 self.apply_fsst_encoding(255)?;
@@ -824,33 +856,33 @@ impl Column {
             }
             EncodingType::None => {}
         }
-        
+
         Ok(())
     }
-    
+
     pub fn apply_dictionary_encoding(&mut self) -> StorageResult<()> {
         if self.data_type != DataType::String {
             return Err(StorageError::not_supported(
                 "Dictionary encoding only supports String type".to_string(),
             ));
         }
-        
+
         use super::encoding::DictionaryColumn;
-        
+
         let mut dict_col = DictionaryColumn::new();
         for i in 0..self.row_count {
             let value = self.get(i);
             dict_col.set(i, value.as_ref())?;
         }
-        
+
         self.encoding = ColumnEncoding::Dictionary(dict_col);
-        
+
         Ok(())
     }
-    
+
     pub fn apply_rle_encoding(&mut self) -> StorageResult<()> {
-        use super::encoding::{RleIntColumn, RleBoolColumn};
-        
+        use super::encoding::{RleBoolColumn, RleIntColumn};
+
         match self.data_type {
             DataType::Bool => {
                 let mut rle_col = RleBoolColumn::new();
@@ -869,18 +901,19 @@ impl Column {
                 self.encoding = ColumnEncoding::RleInt(rle_col);
             }
             _ => {
-                return Err(StorageError::not_supported(
-                    format!("RLE encoding not supported for {:?}", self.data_type),
-                ));
+                return Err(StorageError::not_supported(format!(
+                    "RLE encoding not supported for {:?}",
+                    self.data_type
+                )));
             }
         }
-        
+
         Ok(())
     }
-    
+
     pub fn apply_bitpacking_encoding(&mut self) -> StorageResult<()> {
         use super::encoding::BitPackedIntColumn;
-        
+
         match self.data_type {
             DataType::SmallInt | DataType::Int | DataType::BigInt => {
                 let mut values: Vec<Option<Value>> = Vec::with_capacity(self.row_count);
@@ -891,18 +924,19 @@ impl Column {
                 self.encoding = ColumnEncoding::BitPacked(bp_col);
             }
             _ => {
-                return Err(StorageError::not_supported(
-                    format!("BitPacking encoding not supported for {:?}", self.data_type),
-                ));
+                return Err(StorageError::not_supported(format!(
+                    "BitPacking encoding not supported for {:?}",
+                    self.data_type
+                )));
             }
         }
-        
+
         Ok(())
     }
-    
+
     pub fn apply_alp_encoding(&mut self) -> StorageResult<()> {
         use super::encoding::AlpColumn;
-        
+
         match self.data_type {
             DataType::Float | DataType::Double => {
                 let mut values: Vec<Option<Value>> = Vec::with_capacity(self.row_count);
@@ -913,12 +947,13 @@ impl Column {
                 self.encoding = ColumnEncoding::Alp(alp_col);
             }
             _ => {
-                return Err(StorageError::not_supported(
-                    format!("ALP encoding not supported for {:?}", self.data_type),
-                ));
+                return Err(StorageError::not_supported(format!(
+                    "ALP encoding not supported for {:?}",
+                    self.data_type
+                )));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -1078,8 +1113,13 @@ impl ColumnStore {
         Ok(())
     }
 
-    pub fn apply_encoding_to_column(&mut self, col_name: &str, encoding_type: EncodingType) -> StorageResult<()> {
-        let col = self.get_column_mut(col_name)
+    pub fn apply_encoding_to_column(
+        &mut self,
+        col_name: &str,
+        encoding_type: EncodingType,
+    ) -> StorageResult<()> {
+        let col = self
+            .get_column_mut(col_name)
             .ok_or_else(|| StorageError::column_not_found(col_name.to_string()))?;
 
         if col.is_empty() {
@@ -1089,7 +1129,9 @@ impl ColumnStore {
         match encoding_type {
             EncodingType::Fsst => {
                 if col.data_type != DataType::String {
-                    return Err(StorageError::not_supported("FSST encoding only supports String type".to_string()));
+                    return Err(StorageError::not_supported(
+                        "FSST encoding only supports String type".to_string(),
+                    ));
                 }
                 col.apply_fsst_encoding(1024)?;
             }
@@ -1111,7 +1153,10 @@ impl ColumnStore {
         Ok(())
     }
 
-    pub fn auto_apply_encodings(&mut self, config: Option<super::encoding::CompressionConfig>) -> StorageResult<()> {
+    pub fn auto_apply_encodings(
+        &mut self,
+        config: Option<super::encoding::CompressionConfig>,
+    ) -> StorageResult<()> {
         let selector = match config {
             Some(c) => super::encoding::CompressionSelector::with_config(c),
             None => super::encoding::CompressionSelector::new(),
@@ -1157,7 +1202,8 @@ impl ColumnStore {
             total += col.memory_size();
         }
 
-        total += self.name_to_index.len() * (std::mem::size_of::<String>() + std::mem::size_of::<usize>());
+        total += self.name_to_index.len()
+            * (std::mem::size_of::<String>() + std::mem::size_of::<usize>());
 
         total
     }

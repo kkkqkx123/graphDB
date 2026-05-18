@@ -373,9 +373,7 @@ impl std::fmt::Display for FulltextEngineType {
 }
 
 /// Tokenization mode for Inversearch
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TokenizeMode {
     #[serde(rename = "bidirectional")]
     #[default]
@@ -391,9 +389,7 @@ pub enum TokenizeMode {
 }
 
 /// Character set type for Inversearch
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CharsetType {
     #[serde(rename = "cjk")]
     #[default]

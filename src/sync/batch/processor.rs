@@ -8,8 +8,8 @@ use super::buffer::BatchBuffer;
 use super::config::BatchConfig;
 use super::error::{BatchError, BatchResult};
 use super::trait_def::BatchProcessor;
-use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexKey, IndexOperation};
 use crate::core::types::TransactionId;
+use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexKey, IndexOperation};
 
 pub struct GenericBatchProcessor<E: ExternalIndexClient> {
     engine: Arc<E>,

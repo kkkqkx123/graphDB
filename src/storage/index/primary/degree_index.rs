@@ -95,20 +95,14 @@ impl DegreeIndex {
     }
 
     pub fn increment_out_degree(&self, vertex_id: VertexId) -> u32 {
-        let mut entry = self
-            .degrees
-            .entry(vertex_id)
-            .or_default();
+        let mut entry = self.degrees.entry(vertex_id).or_default();
         entry.out_degree += 1;
         self.total_out_edges.fetch_add(1, Ordering::Relaxed);
         entry.out_degree
     }
 
     pub fn increment_in_degree(&self, vertex_id: VertexId) -> u32 {
-        let mut entry = self
-            .degrees
-            .entry(vertex_id)
-            .or_default();
+        let mut entry = self.degrees.entry(vertex_id).or_default();
         entry.in_degree += 1;
         self.total_in_edges.fetch_add(1, Ordering::Relaxed);
         entry.in_degree
@@ -321,13 +315,17 @@ mod tests {
 
         index.set_degree(VertexId::from_u64(100), 5, 3);
 
-        let info = index.get(VertexId::from_u64(100)).expect("Should have degree info");
+        let info = index
+            .get(VertexId::from_u64(100))
+            .expect("Should have degree info");
         assert_eq!(info.out_degree, 5);
         assert_eq!(info.in_degree, 3);
 
         index.set_degree(VertexId::from_u64(100), 10, 6);
 
-        let info = index.get(VertexId::from_u64(100)).expect("Should have degree info");
+        let info = index
+            .get(VertexId::from_u64(100))
+            .expect("Should have degree info");
         assert_eq!(info.out_degree, 10);
         assert_eq!(info.in_degree, 6);
     }
@@ -356,7 +354,9 @@ mod tests {
         index.set_degree(VertexId::from_u64(100), 5, 3);
         assert_eq!(index.len(), 1);
 
-        let removed = index.remove_vertex(VertexId::from_u64(100)).expect("Should remove vertex");
+        let removed = index
+            .remove_vertex(VertexId::from_u64(100))
+            .expect("Should remove vertex");
         assert_eq!(removed.out_degree, 5);
         assert_eq!(removed.in_degree, 3);
 

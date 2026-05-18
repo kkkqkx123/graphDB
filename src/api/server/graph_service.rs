@@ -5,8 +5,8 @@ use crate::api::server::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
 use crate::core::stats::StatsManager;
-use crate::core::{MetricType, Permission};
 use crate::core::types::TransactionContextInfo;
+use crate::core::{MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
 use crate::storage::{SchemaManager, StorageClient};
@@ -75,7 +75,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         transaction_manager: Arc<TransactionManager>,
         stats_manager: Arc<StatsManager>,
     ) -> Arc<Self> {
-        Self::create_service(config, storage, Some(transaction_manager), true, Some(stats_manager)).await
+        Self::create_service(
+            config,
+            storage,
+            Some(transaction_manager),
+            true,
+            Some(stats_manager),
+        )
+        .await
     }
 
     /// Internal constructor: Extracts the common logic
@@ -145,7 +152,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                             sm,
                         )
                     } else {
-                        QueryApi::new(Arc::new(RwLock::new((*storage).clone())), stats_manager.clone())
+                        QueryApi::new(
+                            Arc::new(RwLock::new((*storage).clone())),
+                            stats_manager.clone(),
+                        )
                     };
                     (Arc::new(RwLock::new(api)), None)
                 }
@@ -158,7 +168,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                     sm,
                 )
             } else {
-                QueryApi::new(Arc::new(RwLock::new((*storage).clone())), stats_manager.clone())
+                QueryApi::new(
+                    Arc::new(RwLock::new((*storage).clone())),
+                    stats_manager.clone(),
+                )
             };
             (Arc::new(RwLock::new(api)), None)
         };

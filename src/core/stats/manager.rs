@@ -441,7 +441,12 @@ impl StatsManager {
         metric.increment();
     }
 
-    pub fn add_space_metric_with_amount(&self, space_name: &str, metric_type: MetricType, amount: u64) {
+    pub fn add_space_metric_with_amount(
+        &self,
+        space_name: &str,
+        metric_type: MetricType,
+        amount: u64,
+    ) {
         let space_map = self
             .space_metrics
             .entry(space_name.to_string())
@@ -463,7 +468,12 @@ impl StatsManager {
         metric.increment();
     }
 
-    pub fn add_index_metric_with_amount(&self, index_name: &str, metric_type: MetricType, amount: u64) {
+    pub fn add_index_metric_with_amount(
+        &self,
+        index_name: &str,
+        metric_type: MetricType,
+        amount: u64,
+    ) {
         let index_map = self
             .index_metrics
             .entry(index_name.to_string())
@@ -761,7 +771,13 @@ impl StatsManager {
     }
 
     /// Record an index operation
-    pub fn record_index_operation(&self, space_id: u64, index_name: &str, latency_ms: u64, success: bool) {
+    pub fn record_index_operation(
+        &self,
+        space_id: u64,
+        index_name: &str,
+        latency_ms: u64,
+        success: bool,
+    ) {
         let space_key = format!("space_{}", space_id);
         self.add_value(MetricType::NumIndexOperations);
         self.add_space_metric(&space_key, MetricType::NumIndexOperations);
@@ -779,7 +795,13 @@ impl StatsManager {
     }
 
     /// Record a delete operation
-    pub fn record_delete_operation(&self, space_id: u64, index_name: &str, latency_ms: u64, success: bool) {
+    pub fn record_delete_operation(
+        &self,
+        space_id: u64,
+        index_name: &str,
+        latency_ms: u64,
+        success: bool,
+    ) {
         let space_key = format!("space_{}", space_id);
         self.add_value(MetricType::NumDeleteOperations);
         self.add_space_metric(&space_key, MetricType::NumDeleteOperations);
@@ -924,7 +946,12 @@ impl StatsManager {
     }
 
     /// Record a classified search error
-    pub fn record_search_error(&self, space_id: u64, index_name: &str, error: &crate::search::error::SearchError) {
+    pub fn record_search_error(
+        &self,
+        space_id: u64,
+        index_name: &str,
+        error: &crate::search::error::SearchError,
+    ) {
         let metric_type = Self::classify_search_error(error);
         let space_key = format!("space_{}", space_id);
         self.add_value(metric_type);
@@ -933,7 +960,12 @@ impl StatsManager {
     }
 
     /// Record a classified index operation error
-    pub fn record_index_error(&self, space_id: u64, index_name: &str, error: &crate::search::error::SearchError) {
+    pub fn record_index_error(
+        &self,
+        space_id: u64,
+        index_name: &str,
+        error: &crate::search::error::SearchError,
+    ) {
         let metric_type = Self::classify_search_error(error);
         let space_key = format!("space_{}", space_id);
         self.add_value(metric_type);
@@ -942,7 +974,12 @@ impl StatsManager {
     }
 
     /// Record a classified delete operation error
-    pub fn record_delete_error(&self, space_id: u64, index_name: &str, error: &crate::search::error::SearchError) {
+    pub fn record_delete_error(
+        &self,
+        space_id: u64,
+        index_name: &str,
+        error: &crate::search::error::SearchError,
+    ) {
         let metric_type = Self::classify_search_error(error);
         let space_key = format!("space_{}", space_id);
         self.add_value(metric_type);

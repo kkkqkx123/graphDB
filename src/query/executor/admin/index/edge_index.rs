@@ -11,7 +11,7 @@ use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::core::Row;
+
 use crate::storage::StorageClient;
 
 /// Side Index Description Information
@@ -423,7 +423,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgeIndexesEx
 
         match result {
             Ok(indexes) => {
-                let rows: Vec<Row> = indexes
+                let rows: Vec<Vec<Value>> = indexes
                     .iter()
                     .map(|desc| {
                         let desc = EdgeIndexDesc::from_metadata(desc);

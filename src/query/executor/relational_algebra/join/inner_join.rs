@@ -340,9 +340,8 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             let mut key_values = Vec::with_capacity(hash_keys.len());
 
             for hash_key in &hash_keys {
-                let key = ExpressionEvaluator::evaluate(hash_key, &mut context).map_err(|e| {
-                    QueryError::execution(format!("Key evaluation failed: {}", e))
-                })?;
+                let key = ExpressionEvaluator::evaluate(hash_key, &mut context)
+                    .map_err(|e| QueryError::execution(format!("Key evaluation failed: {}", e)))?;
                 key_values.push(key);
             }
 
@@ -358,9 +357,8 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             let mut key_values = Vec::with_capacity(probe_keys.len());
 
             for probe_key in &probe_keys {
-                let key = ExpressionEvaluator::evaluate(probe_key, &mut context).map_err(|e| {
-                    QueryError::execution(format!("Key evaluation failed: {}", e))
-                })?;
+                let key = ExpressionEvaluator::evaluate(probe_key, &mut context)
+                    .map_err(|e| QueryError::execution(format!("Key evaluation failed: {}", e)))?;
                 key_values.push(key);
             }
 

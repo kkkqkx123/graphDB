@@ -221,10 +221,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 .context
                 .get_result(left_var)
                 .ok_or_else(|| {
-                    DBError::query(format!(
-                        "Left input variable not found: {}",
-                        left_var
-                    ))
+                    DBError::query(format!("Left input variable not found: {}", left_var))
                 })?;
 
             let right_result = self
@@ -233,10 +230,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                 .context
                 .get_result(right_var)
                 .ok_or_else(|| {
-                    DBError::query(format!(
-                        "Right input variable not found: {}",
-                        right_var
-                    ))
+                    DBError::query(format!("Right input variable not found: {}", right_var))
                 })?;
 
             let left_dataset = match left_result {
@@ -325,8 +319,8 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage
 pub mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::query::DataSet;
     use crate::query::executor::relational_algebra::join::ExpressionContextStruct;
+    use crate::query::DataSet;
     use crate::storage::test_mock::MockStorage;
 
     #[test]

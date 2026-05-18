@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::storage::memory::MemoryConfig;
 use crate::storage::compression::CompressionType;
+use crate::storage::memory::MemoryConfig;
 
 /// Configuration for flush operations
 #[derive(Debug, Clone)]

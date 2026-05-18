@@ -1,3 +1,8 @@
+//! Transaction Operations
+//!
+//! Core transaction operations for vertex and edge manipulation.
+//! These operations are used by the transaction system for insert, delete, and update operations.
+
 use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::Value;
 use crate::storage::edge::UpdateEdgePropertyByOffsetParams;
@@ -8,63 +13,59 @@ use crate::transaction::insert_transaction::{
 use crate::transaction::codec::{bytes_to_value, property_value_to_value};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult};
 
-// Type aliases for backward compatibility
-type TxnLabelId = LabelId;
-type TxnVertexId = VertexId;
-
 use super::schema::SchemaOps;
 use super::edge::{EdgeOps, EdgeOperationParams};
 
 /// Parameters for add_edge operation
 pub struct AddEdgeParams {
-    pub src_label: TxnLabelId,
-    pub src_vid: TxnVertexId,
-    pub dst_label: TxnLabelId,
-    pub dst_vid: TxnVertexId,
-    pub edge_label: TxnLabelId,
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
 }
 
 /// Parameters for delete_edge operation
 pub struct DeleteEdgeParams {
-    pub src_label: TxnLabelId,
-    pub src_vid: TxnVertexId,
-    pub dst_label: TxnLabelId,
-    pub dst_vid: TxnVertexId,
-    pub edge_label: TxnLabelId,
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
 }
 
 /// Parameters for update_edge_property_undo operation
 pub struct UpdateEdgePropertyUndoParams {
-    pub src_label: TxnLabelId,
-    pub src_vid: TxnVertexId,
-    pub dst_label: TxnLabelId,
-    pub dst_vid: TxnVertexId,
-    pub edge_label: TxnLabelId,
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
 }
 
 /// Parameters for insert_edge_undo operation
 pub struct InsertEdgeUndoParams {
-    pub src_label: TxnLabelId,
-    pub src_vid: TxnVertexId,
-    pub dst_label: TxnLabelId,
-    pub dst_vid: TxnVertexId,
-    pub edge_label: TxnLabelId,
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
 }
 
 /// Parameters for revert_delete_edge operation
 pub struct RevertDeleteEdgeParams {
-    pub src_label: TxnLabelId,
-    pub src_vid: TxnVertexId,
-    pub dst_label: TxnLabelId,
-    pub dst_vid: TxnVertexId,
-    pub edge_label: TxnLabelId,
+    pub src_label: LabelId,
+    pub src_vid: VertexId,
+    pub dst_label: LabelId,
+    pub dst_vid: VertexId,
+    pub edge_label: LabelId,
 }
 
 /// Parameters for delete_edge_type operation
 pub struct DeleteEdgeTypeParams {
-    pub src_label: TxnLabelId,
-    pub dst_label: TxnLabelId,
-    pub edge_label: TxnLabelId,
+    pub src_label: LabelId,
+    pub dst_label: LabelId,
+    pub edge_label: LabelId,
 }
 
 pub struct TransactionOps;
@@ -72,11 +73,11 @@ pub struct TransactionOps;
 impl TransactionOps {
     pub fn add_vertex(
         schema_ops: &mut SchemaOps,
-        label: TxnLabelId,
+        label: LabelId,
         oid: &[u8],
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
-    ) -> InsertTransactionResult<TxnVertexId> {
+    ) -> InsertTransactionResult<VertexId> {
         let external_id = std::str::from_utf8(oid)
             .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
 
@@ -146,10 +147,10 @@ impl TransactionOps {
 
     pub fn get_vertex_id(
         schema_ops: &SchemaOps,
-        label: TxnLabelId,
+        label: LabelId,
         oid: &[u8],
         ts: Timestamp,
-    ) -> Option<TxnVertexId> {
+    ) -> Option<VertexId> {
         let external_id = std::str::from_utf8(oid).ok()?;
         schema_ops
             .get_vertex_internal_id(label, external_id, ts)
@@ -158,8 +159,8 @@ impl TransactionOps {
 
     pub fn get_vertex_oid(
         schema_ops: &SchemaOps,
-        label: TxnLabelId,
-        vid: TxnVertexId,
+        label: LabelId,
+        vid: VertexId,
         ts: Timestamp,
     ) -> Option<Vec<u8>> {
         schema_ops
@@ -171,7 +172,7 @@ impl TransactionOps {
             })
     }
 
-    pub fn get_vertex_property_types(schema_ops: &SchemaOps, label: TxnLabelId) -> Vec<String> {
+    pub fn get_vertex_property_types(schema_ops: &SchemaOps, label: LabelId) -> Vec<String> {
         schema_ops
             .get_vertex_table(label)
             .map(|t| {
@@ -186,9 +187,9 @@ impl TransactionOps {
 
     pub fn get_edge_property_types(
         edge_ops: &EdgeOps,
-        _src_label: TxnLabelId,
-        _dst_label: TxnLabelId,
-        edge_label: TxnLabelId,
+        _src_label: LabelId,
+        _dst_label: LabelId,
+        edge_label: LabelId,
     ) -> Vec<String> {
         edge_ops
             .get_edge_table_by_label(edge_label)
@@ -206,7 +207,7 @@ impl TransactionOps {
         schema_ops.vertex_tables.len()
     }
 
-    pub fn lid_num(schema_ops: &SchemaOps, label: TxnLabelId) -> usize {
+    pub fn lid_num(schema_ops: &SchemaOps, label: LabelId) -> usize {
         schema_ops
             .get_vertex_table(label)
             .map(|t| t.total_count())
@@ -216,7 +217,7 @@ impl TransactionOps {
     pub fn delete_vertex_type(
         schema_ops: &mut SchemaOps,
         edge_ops: &mut EdgeOps,
-        label: TxnLabelId,
+        label: LabelId,
     ) -> UndoLogResult<()> {
         let label_name = schema_ops
             .get_vertex_table(label)
@@ -247,8 +248,8 @@ impl TransactionOps {
 
     pub fn delete_vertex(
         schema_ops: &mut SchemaOps,
-        label: TxnLabelId,
-        vid: TxnVertexId,
+        label: LabelId,
+        vid: VertexId,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
         if let Some(table) = schema_ops.vertex_tables.get_mut(&label) {
@@ -307,7 +308,7 @@ impl TransactionOps {
 
     pub fn insert_vertex_undo(
         schema_ops: &mut SchemaOps,
-        label: TxnLabelId,
+        label: LabelId,
         external_id: &str,
         properties: &[(String, PropertyValue)],
         ts: Timestamp,
@@ -352,8 +353,8 @@ impl TransactionOps {
 
     pub fn update_vertex_property_undo(
         schema_ops: &mut SchemaOps,
-        label: TxnLabelId,
-        vid: TxnVertexId,
+        label: LabelId,
+        vid: VertexId,
         col_id: i32,
         old_value: PropertyValue,
         ts: Timestamp,

@@ -195,13 +195,14 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     info!("Transaction manager initialized with StatsManager");
 
     // Create Tokio runtime for async initialization
-    let graph_service = GraphService::<SyncWrapper<GraphStorage>>::new_with_transaction_manager_and_stats(
-        config.clone(),
-        storage.clone(),
-        transaction_manager.clone(),
-        stats_manager.clone(),
-    )
-    .await;
+    let graph_service =
+        GraphService::<SyncWrapper<GraphStorage>>::new_with_transaction_manager_and_stats(
+            config.clone(),
+            storage.clone(),
+            transaction_manager.clone(),
+            stats_manager.clone(),
+        )
+        .await;
     info!("Graph service initialized with transaction management");
 
     // Inject StatsManager into FulltextIndexManager to enable search metrics

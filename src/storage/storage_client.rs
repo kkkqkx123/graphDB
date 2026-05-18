@@ -1,10 +1,10 @@
+use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
-use crate::core::types::TransactionContextInfo;
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::metadata::{SchemaManager, Schema};
+use crate::storage::metadata::{Schema, SchemaManager};
 use std::sync::Arc;
 
 /// Read-only data and schema operations.
@@ -157,11 +157,8 @@ pub trait StorageSchemaOps: Send + Sync + std::fmt::Debug {
     fn create_space(&mut self, space: &mut SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;
     fn clear_space(&mut self, space: &str) -> Result<bool, StorageError>;
-    fn alter_space_comment(
-        &mut self,
-        space_id: u64,
-        comment: String,
-    ) -> Result<bool, StorageError>;
+    fn alter_space_comment(&mut self, space_id: u64, comment: String)
+        -> Result<bool, StorageError>;
 
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<u32, StorageError>;
     fn alter_tag(

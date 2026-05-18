@@ -178,8 +178,9 @@ impl SnapshotManager {
         let snapshots_dir = snapshots_dir.as_ref().to_path_buf();
         let work_dir = work_dir.as_ref().to_path_buf();
 
-        fs::create_dir_all(&snapshots_dir)
-            .map_err(|e| StorageError::io_error(format!("Failed to create snapshots dir: {}", e)))?;
+        fs::create_dir_all(&snapshots_dir).map_err(|e| {
+            StorageError::io_error(format!("Failed to create snapshots dir: {}", e))
+        })?;
         fs::create_dir_all(&work_dir)
             .map_err(|e| StorageError::io_error(format!("Failed to create work dir: {}", e)))?;
 
@@ -229,8 +230,9 @@ impl SnapshotManager {
         let content = fs::read_to_string(&index_path)
             .map_err(|e| StorageError::io_error(format!("Failed to read metadata index: {}", e)))?;
 
-        let index: SnapshotMetadataIndex = serde_json::from_str(&content)
-            .map_err(|e| StorageError::deserialize_error(format!("Invalid metadata index: {}", e)))?;
+        let index: SnapshotMetadataIndex = serde_json::from_str(&content).map_err(|e| {
+            StorageError::deserialize_error(format!("Invalid metadata index: {}", e))
+        })?;
 
         *self.metadata_index.write() = index;
 
@@ -242,27 +244,27 @@ impl SnapshotManager {
         let index_path = self.snapshots_dir.join(METADATA_INDEX_FILE);
 
         let index = self.metadata_index.read();
-        let content = serde_json::to_string_pretty(&*index)
-            .map_err(|e| StorageError::serialize_error(format!("Failed to serialize metadata: {}", e)))?;
+        let content = serde_json::to_string_pretty(&*index).map_err(|e| {
+            StorageError::serialize_error(format!("Failed to serialize metadata: {}", e))
+        })?;
 
-        fs::write(&index_path, content)
-            .map_err(|e| StorageError::io_error(format!("Failed to write metadata index: {}", e)))?;
+        fs::write(&index_path, content).map_err(|e| {
+            StorageError::io_error(format!("Failed to write metadata index: {}", e))
+        })?;
 
         Ok(())
     }
 
     /// Get snapshot directory path
     fn get_snapshot_dir(&self, snapshot_id: u64) -> PathBuf {
-        self.snapshots_dir.join(format!("snapshot_{:010}", snapshot_id))
+        self.snapshots_dir
+            .join(format!("snapshot_{:010}", snapshot_id))
     }
 
     /// Create a new snapshot
     ///
     /// This copies all data files to a new snapshot directory.
-    pub fn create_snapshot(
-        &self,
-        params: CreateSnapshotParams,
-    ) -> StorageResult<SnapshotInfo> {
+    pub fn create_snapshot(&self, params: CreateSnapshotParams) -> StorageResult<SnapshotInfo> {
         let now = SystemTime::now();
 
         if let Some(last_time) = *self.last_snapshot_time.read() {
@@ -289,15 +291,13 @@ impl SnapshotManager {
         fs::create_dir_all(&snapshot_dir)
             .map_err(|e| StorageError::io_error(format!("Failed to create snapshot dir: {}", e)))?;
 
-        let temp_dir = self.work_dir.join(format!("snapshot_temp_{}", params.snapshot_id));
+        let temp_dir = self
+            .work_dir
+            .join(format!("snapshot_temp_{}", params.snapshot_id));
         fs::create_dir_all(&temp_dir)
             .map_err(|e| StorageError::io_error(format!("Failed to create temp dir: {}", e)))?;
 
-        let result = self.create_snapshot_internal(
-            &params,
-            &snapshot_dir,
-            &temp_dir,
-        );
+        let result = self.create_snapshot_internal(&params, &snapshot_dir, &temp_dir);
 
         let _ = fs::remove_dir_all(&temp_dir);
 
@@ -341,8 +341,9 @@ impl SnapshotManager {
         };
 
         let meta_path = snapshot_dir.join(SNAPSHOT_META_FILE);
-        let meta_content = serde_json::to_string_pretty(&info)
-            .map_err(|e| StorageError::serialize_error(format!("Failed to serialize snapshot meta: {}", e)))?;
+        let meta_content = serde_json::to_string_pretty(&info).map_err(|e| {
+            StorageError::serialize_error(format!("Failed to serialize snapshot meta: {}", e))
+        })?;
         fs::write(&meta_path, meta_content)
             .map_err(|e| StorageError::io_error(format!("Failed to write snapshot meta: {}", e)))?;
 
@@ -370,7 +371,8 @@ impl SnapshotManager {
         for entry in fs::read_dir(src)
             .map_err(|e| StorageError::io_error(format!("Failed to read directory: {}", e)))?
         {
-            let entry = entry.map_err(|e| StorageError::io_error(format!("Failed to read entry: {}", e)))?;
+            let entry = entry
+                .map_err(|e| StorageError::io_error(format!("Failed to read entry: {}", e)))?;
             let src_path = entry.path();
             let dst_path = dst.join(entry.file_name());
 
@@ -379,8 +381,9 @@ impl SnapshotManager {
                 .map_err(|e| StorageError::io_error(format!("Failed to get file type: {}", e)))?;
 
             if file_type.is_dir() {
-                fs::create_dir_all(&dst_path)
-                    .map_err(|e| StorageError::io_error(format!("Failed to create directory: {}", e)))?;
+                fs::create_dir_all(&dst_path).map_err(|e| {
+                    StorageError::io_error(format!("Failed to create directory: {}", e))
+                })?;
                 self.copy_directory(&src_path, &dst_path, total_size)?;
             } else if file_type.is_file() {
                 fs::copy(&src_path, &dst_path)
@@ -396,10 +399,11 @@ impl SnapshotManager {
     }
 
     fn sync_directory(&self, dir: &Path) -> StorageResult<()> {
-        for entry in fs::read_dir(dir)
-            .map_err(|e| StorageError::io_error(format!("Failed to read directory for sync: {}", e)))?
-        {
-            let entry = entry.map_err(|e| StorageError::io_error(format!("Failed to read entry: {}", e)))?;
+        for entry in fs::read_dir(dir).map_err(|e| {
+            StorageError::io_error(format!("Failed to read directory for sync: {}", e))
+        })? {
+            let entry = entry
+                .map_err(|e| StorageError::io_error(format!("Failed to read entry: {}", e)))?;
             let path = entry.path();
 
             let file_type = entry
@@ -412,7 +416,9 @@ impl SnapshotManager {
                 let file = fs::OpenOptions::new()
                     .write(true)
                     .open(&path)
-                    .map_err(|e| StorageError::io_error(format!("Failed to open file for sync: {}", e)))?;
+                    .map_err(|e| {
+                        StorageError::io_error(format!("Failed to open file for sync: {}", e))
+                    })?;
                 file.sync_all()
                     .map_err(|e| StorageError::io_error(format!("Failed to sync file: {}", e)))?;
             }
@@ -433,7 +439,11 @@ impl SnapshotManager {
 
     /// Get snapshot info by ID
     pub fn get_snapshot(&self, snapshot_id: u64) -> Option<SnapshotInfo> {
-        self.metadata_index.read().snapshots.get(&snapshot_id).cloned()
+        self.metadata_index
+            .read()
+            .snapshots
+            .get(&snapshot_id)
+            .cloned()
     }
 
     /// Get the latest snapshot
@@ -453,7 +463,10 @@ impl SnapshotManager {
 
     /// Check if a snapshot exists
     pub fn snapshot_exists(&self, snapshot_id: u64) -> bool {
-        self.metadata_index.read().snapshots.contains_key(&snapshot_id)
+        self.metadata_index
+            .read()
+            .snapshots
+            .contains_key(&snapshot_id)
     }
 
     /// Delete a snapshot
@@ -469,8 +482,9 @@ impl SnapshotManager {
 
         let snapshot_dir = self.get_snapshot_dir(snapshot_id);
         if snapshot_dir.exists() {
-            fs::remove_dir_all(&snapshot_dir)
-                .map_err(|e| StorageError::io_error(format!("Failed to delete snapshot dir: {}", e)))?;
+            fs::remove_dir_all(&snapshot_dir).map_err(|e| {
+                StorageError::io_error(format!("Failed to delete snapshot dir: {}", e))
+            })?;
         }
 
         index.snapshots.remove(&snapshot_id);
@@ -489,10 +503,14 @@ impl SnapshotManager {
     /// Restore from a snapshot
     ///
     /// This copies snapshot data to the target directory.
-    pub fn restore_snapshot(&self, snapshot_id: u64, target_dir: &Path) -> StorageResult<SnapshotInfo> {
-        let info = self
-            .get_snapshot(snapshot_id)
-            .ok_or_else(|| StorageError::not_found(format!("Snapshot {} not found", snapshot_id)))?;
+    pub fn restore_snapshot(
+        &self,
+        snapshot_id: u64,
+        target_dir: &Path,
+    ) -> StorageResult<SnapshotInfo> {
+        let info = self.get_snapshot(snapshot_id).ok_or_else(|| {
+            StorageError::not_found(format!("Snapshot {} not found", snapshot_id))
+        })?;
 
         let snapshot_dir = self.get_snapshot_dir(snapshot_id);
 
@@ -504,12 +522,14 @@ impl SnapshotManager {
         }
 
         if target_dir.exists() {
-            fs::remove_dir_all(target_dir)
-                .map_err(|e| StorageError::io_error(format!("Failed to clear target directory: {}", e)))?;
+            fs::remove_dir_all(target_dir).map_err(|e| {
+                StorageError::io_error(format!("Failed to clear target directory: {}", e))
+            })?;
         }
 
-        fs::create_dir_all(target_dir)
-            .map_err(|e| StorageError::io_error(format!("Failed to create target directory: {}", e)))?;
+        fs::create_dir_all(target_dir).map_err(|e| {
+            StorageError::io_error(format!("Failed to create target directory: {}", e))
+        })?;
 
         let mut size_bytes = 0u64;
         self.copy_directory(&snapshot_dir, target_dir, &mut size_bytes)?;
@@ -581,9 +601,9 @@ impl SnapshotManager {
 
     /// Verify snapshot integrity
     pub fn verify_snapshot(&self, snapshot_id: u64) -> StorageResult<bool> {
-        let info = self
-            .get_snapshot(snapshot_id)
-            .ok_or_else(|| StorageError::not_found(format!("Snapshot {} not found", snapshot_id)))?;
+        let info = self.get_snapshot(snapshot_id).ok_or_else(|| {
+            StorageError::not_found(format!("Snapshot {} not found", snapshot_id))
+        })?;
 
         let snapshot_dir = self.get_snapshot_dir(snapshot_id);
 
@@ -599,8 +619,9 @@ impl SnapshotManager {
         let content = fs::read_to_string(&meta_path)
             .map_err(|e| StorageError::io_error(format!("Failed to read snapshot meta: {}", e)))?;
 
-        let loaded_info: SnapshotInfo = serde_json::from_str(&content)
-            .map_err(|e| StorageError::deserialize_error(format!("Invalid snapshot meta: {}", e)))?;
+        let loaded_info: SnapshotInfo = serde_json::from_str(&content).map_err(|e| {
+            StorageError::deserialize_error(format!("Invalid snapshot meta: {}", e))
+        })?;
 
         Ok(loaded_info.id == info.id)
     }
@@ -634,7 +655,8 @@ mod tests {
         fs::create_dir_all(&data_dir).expect("Failed to create data dir");
         fs::write(data_dir.join("test.txt"), "test data").expect("Failed to write test file");
 
-        let manager = SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
+        let manager =
+            SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
 
         let info = manager
             .create_snapshot(CreateSnapshotParams {
@@ -667,7 +689,8 @@ mod tests {
         fs::create_dir_all(&data_dir).expect("Failed to create data dir");
         fs::write(data_dir.join("test.txt"), "test data").expect("Failed to write test file");
 
-        let manager = SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
+        let manager =
+            SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
 
         manager
             .create_snapshot(CreateSnapshotParams {
@@ -698,7 +721,8 @@ mod tests {
 
         fs::create_dir_all(&data_dir).expect("Failed to create data dir");
 
-        let manager = SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
+        let manager =
+            SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
 
         manager
             .create_snapshot(CreateSnapshotParams {
@@ -714,7 +738,9 @@ mod tests {
 
         assert_eq!(manager.snapshot_count(), 1);
 
-        manager.delete_snapshot(1).expect("Failed to delete snapshot");
+        manager
+            .delete_snapshot(1)
+            .expect("Failed to delete snapshot");
 
         assert_eq!(manager.snapshot_count(), 0);
     }
@@ -728,7 +754,8 @@ mod tests {
 
         fs::create_dir_all(&data_dir).expect("Failed to create data dir");
 
-        let mut manager = SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
+        let mut manager =
+            SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
         manager.set_retention_policy(RetentionPolicy {
             max_snapshots: 2,
             max_age_seconds: 0,

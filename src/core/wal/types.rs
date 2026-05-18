@@ -40,9 +40,7 @@ pub fn blocks_needed(size: usize) -> usize {
 
 pub type TransactionId = u64;
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Lsn(pub u64);
 
 impl Lsn {
@@ -566,8 +564,12 @@ pub enum SyncPolicy {
     Never,
     #[default]
     EveryWrite,
-    Periodic { interval_ms: u64 },
-    Batch { batch_size: usize },
+    Periodic {
+        interval_ms: u64,
+    },
+    Batch {
+        batch_size: usize,
+    },
     GroupCommit,
 }
 

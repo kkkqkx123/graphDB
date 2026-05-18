@@ -83,7 +83,12 @@ pub struct ExpandAllExecutorParams<S: StorageClient + Send> {
 impl<S: StorageClient + Send> ExpandAllExecutor<S> {
     pub fn new(params: ExpandAllExecutorParams<S>) -> Self {
         Self {
-            base: BaseExecutor::new(params.id, "ExpandAllExecutor".to_string(), params.storage, params.expr_context),
+            base: BaseExecutor::new(
+                params.id,
+                "ExpandAllExecutor".to_string(),
+                params.storage,
+                params.expr_context,
+            ),
             edge_direction: params.edge_direction,
             edge_types: params.edge_types,
             any_edge_type: params.any_edge_type,
@@ -104,9 +109,17 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         }
     }
 
-    pub fn with_context(params: ExpandAllExecutorParams<S>, context: crate::query::executor::base::ExecutionContext) -> Self {
+    pub fn with_context(
+        params: ExpandAllExecutorParams<S>,
+        context: crate::query::executor::base::ExecutionContext,
+    ) -> Self {
         Self {
-            base: BaseExecutor::with_context(params.id, "ExpandAllExecutor".to_string(), params.storage, context),
+            base: BaseExecutor::with_context(
+                params.id,
+                "ExpandAllExecutor".to_string(),
+                params.storage,
+                context,
+            ),
             edge_direction: params.edge_direction,
             edge_types: params.edge_types,
             any_edge_type: params.any_edge_type,
@@ -153,7 +166,10 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         self
     }
 
-    fn get_neighbors_with_edges(&self, node_id: &VertexId) -> Result<Vec<(VertexId, Edge)>, QueryError> {
+    fn get_neighbors_with_edges(
+        &self,
+        node_id: &VertexId,
+    ) -> Result<Vec<(VertexId, Edge)>, QueryError> {
         let storage = self.base.get_storage().clone();
         let edge_types = if self.any_edge_type {
             None
@@ -532,8 +548,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                             if let Some(idx) = col_names.iter().position(|c| c == input_var) {
                                 if idx < row.len() {
                                     if let Value::Vertex(vertex) = &row[idx] {
-                                        self.input_vertex_to_row
-                                            .insert(vertex.vid, row_idx);
+                                        self.input_vertex_to_row.insert(vertex.vid, row_idx);
                                     }
                                 }
                             }

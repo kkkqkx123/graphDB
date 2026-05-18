@@ -112,7 +112,8 @@ impl OverflowStore {
             overflow_id: id,
             original_size: bytes.len() as u32,
         };
-        self.index.insert(OverflowKey { col_idx, row_idx }, pointer.clone());
+        self.index
+            .insert(OverflowKey { col_idx, row_idx }, pointer.clone());
         pointer
     }
 
@@ -240,8 +241,7 @@ impl OverflowStore {
         if offset + 8 > data.len() {
             return;
         }
-        self.next_id =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
+        self.next_id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
     }
 }
 
@@ -328,7 +328,12 @@ impl PropertyTable {
         }
     }
 
-    pub fn add_property(&mut self, name: String, data_type: DataType, nullable: bool) -> PropertyId {
+    pub fn add_property(
+        &mut self,
+        name: String,
+        data_type: DataType,
+        nullable: bool,
+    ) -> PropertyId {
         self.add_property_with_encoding(name, data_type, nullable, None)
     }
 
@@ -340,9 +345,10 @@ impl PropertyTable {
         encoding: Option<EncodingType>,
     ) -> PropertyId {
         let prop_id = PropertyId::new(self.schema.len() as u16);
-        let schema = PropertySchema::new(name.clone(), prop_id.as_usize() as i32, data_type.clone())
-            .nullable(nullable)
-            .with_encoding(encoding.unwrap_or(EncodingType::None));
+        let schema =
+            PropertySchema::new(name.clone(), prop_id.as_usize() as i32, data_type.clone())
+                .nullable(nullable)
+                .with_encoding(encoding.unwrap_or(EncodingType::None));
         self.name_indexer.register(name.clone());
         self.schema.push(schema);
 
@@ -353,10 +359,17 @@ impl PropertyTable {
         prop_id
     }
 
-    pub fn apply_encoding(&mut self, prop_id: PropertyId, encoding: EncodingType) -> StorageResult<()> {
+    pub fn apply_encoding(
+        &mut self,
+        prop_id: PropertyId,
+        encoding: EncodingType,
+    ) -> StorageResult<()> {
         let col_idx = prop_id.as_usize();
         if col_idx >= self.columns.len() {
-            return Err(StorageError::column_not_found(format!("prop_id={}", prop_id)));
+            return Err(StorageError::column_not_found(format!(
+                "prop_id={}",
+                prop_id
+            )));
         }
 
         let column = &mut self.columns[col_idx];
@@ -432,7 +445,11 @@ impl PropertyTable {
             DataType::Float => Value::Float(0.0),
             DataType::Double => Value::Double(0.0),
             DataType::String => Value::String(String::new()),
-            DataType::Date => Value::Date(DateValue { year: 0, month: 0, day: 0 }),
+            DataType::Date => Value::Date(DateValue {
+                year: 0,
+                month: 0,
+                day: 0,
+            }),
             _ => Value::Null(NullType::Null),
         }
     }
@@ -447,8 +464,7 @@ impl PropertyTable {
         let group_start = group_index * self.row_group_size;
         let group_end = ((group_index + 1) * self.row_group_size).min(self.row_count);
 
-        if self.row_groups.is_empty()
-            || !self.row_groups.last().unwrap().contains_row(current_row)
+        if self.row_groups.is_empty() || !self.row_groups.last().unwrap().contains_row(current_row)
         {
             self.row_groups.push(RowGroup::new(group_start, group_end));
         } else {
@@ -458,8 +474,8 @@ impl PropertyTable {
     }
 
     pub fn update(&mut self, offset: u32, values: &[(String, Value)]) -> StorageResult<()> {
-        let row_idx = prop_offset_to_index(offset)
-            .ok_or_else(|| StorageError::invalid_offset(offset))?;
+        let row_idx =
+            prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
         if row_idx >= self.row_count {
             return Err(StorageError::invalid_offset(offset));
         }
@@ -550,8 +566,8 @@ impl PropertyTable {
             .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
         let col_idx = col_idx.as_usize();
 
-        let row_idx = prop_offset_to_index(offset)
-            .ok_or_else(|| StorageError::invalid_offset(offset))?;
+        let row_idx =
+            prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
         if row_idx >= self.row_count {
             return Err(StorageError::invalid_offset(offset));
         }
@@ -582,8 +598,8 @@ impl PropertyTable {
         value: Option<Value>,
     ) -> StorageResult<()> {
         let col_idx = prop_id.as_usize();
-        let row_idx = prop_offset_to_index(offset)
-            .ok_or_else(|| StorageError::invalid_offset(offset))?;
+        let row_idx =
+            prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
         if row_idx >= self.row_count {
             return Err(StorageError::invalid_offset(offset));
         }
@@ -671,7 +687,9 @@ impl PropertyTable {
     }
 
     pub fn get_property_type(&self, prop_id: PropertyId) -> Option<DataType> {
-        self.schema.get(prop_id.as_usize()).map(|s| s.data_type.clone())
+        self.schema
+            .get(prop_id.as_usize())
+            .map(|s| s.data_type.clone())
     }
 
     pub fn name_indexer(&self) -> &NameIndexer {
@@ -687,9 +705,7 @@ impl PropertyTable {
     }
 
     pub fn get_row_group_for_row(&self, row_idx: usize) -> Option<&RowGroup> {
-        self.row_groups
-            .iter()
-            .find(|rg| rg.contains_row(row_idx))
+        self.row_groups.iter().find(|rg| rg.contains_row(row_idx))
     }
 
     pub fn dump(&self) -> Vec<u8> {
@@ -773,8 +789,7 @@ impl PropertyTable {
             if offset + 6 > data.len() {
                 break;
             }
-            let prop_id =
-                i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+            let prop_id = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
             offset += 4;
             let data_type = DataType::from_u8(data[offset]);
             offset += 1;
@@ -866,7 +881,8 @@ impl PropertyTable {
                 u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
             offset += 8;
             if offset + overflow_len <= data.len() {
-                self.overflow_store.load(&data[offset..offset + overflow_len]);
+                self.overflow_store
+                    .load(&data[offset..offset + overflow_len]);
                 offset += overflow_len;
             }
         }
@@ -917,9 +933,9 @@ impl PropertyTable {
             let old_offset = prop_index_to_offset(old_row_idx);
             if valid_offsets.contains(&old_offset) {
                 for (col_idx, col) in self.columns.iter().enumerate() {
-                    let value = col.get(old_row_idx).or_else(|| {
-                        self.overflow_store.retrieve(col_idx, old_row_idx)
-                    });
+                    let value = col
+                        .get(old_row_idx)
+                        .or_else(|| self.overflow_store.retrieve(col_idx, old_row_idx));
                     let _ = new_columns[col_idx].set(new_row_count, value.as_ref());
                 }
                 new_row_count += 1;
@@ -972,9 +988,9 @@ impl PropertyTable {
             let old_offset = prop_index_to_offset(old_row_idx);
             if valid_offsets.contains(&old_offset) {
                 for (col_idx, col) in self.columns.iter().enumerate() {
-                    let value = col.get(old_row_idx).or_else(|| {
-                        self.overflow_store.retrieve(col_idx, old_row_idx)
-                    });
+                    let value = col
+                        .get(old_row_idx)
+                        .or_else(|| self.overflow_store.retrieve(col_idx, old_row_idx));
                     let _ = new_columns[col_idx].set(new_row_count, value.as_ref());
                 }
                 new_row_count += 1;
@@ -985,8 +1001,7 @@ impl PropertyTable {
             self.columns[col_idx] = new_col;
         }
 
-        self.row_groups[group_idx].end_row =
-            self.row_groups[group_idx].start_row + new_row_count;
+        self.row_groups[group_idx].end_row = self.row_groups[group_idx].start_row + new_row_count;
 
         Ok(())
     }
@@ -1182,9 +1197,7 @@ mod tests {
         table.add_property("id".to_string(), DataType::Int, false);
 
         for i in 0..25 {
-            table
-                .insert(&[("id".to_string(), Value::Int(i))])
-                .unwrap();
+            table.insert(&[("id".to_string(), Value::Int(i))]).unwrap();
         }
 
         assert!(table.row_group_count() > 0);
@@ -1208,7 +1221,9 @@ mod tests {
                 .unwrap();
         }
 
-        assert!(table.apply_encoding(PropertyId(0), EncodingType::Rle).is_ok());
+        assert!(table
+            .apply_encoding(PropertyId(0), EncodingType::Rle)
+            .is_ok());
     }
 
     #[test]
@@ -1217,11 +1232,7 @@ mod tests {
         table.add_property("id".to_string(), DataType::Int, false);
 
         let offsets: Vec<u32> = (0..15)
-            .map(|i| {
-                table
-                    .insert(&[("id".to_string(), Value::Int(i))])
-                    .unwrap()
-            })
+            .map(|i| table.insert(&[("id".to_string(), Value::Int(i))]).unwrap())
             .collect();
 
         table.delete(offsets[5]);

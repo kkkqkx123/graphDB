@@ -152,9 +152,7 @@ pub struct VarintWriter {
 
 impl VarintWriter {
     pub fn new() -> Self {
-        Self {
-            buffer: Vec::new(),
-        }
+        Self { buffer: Vec::new() }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
@@ -353,7 +351,19 @@ mod tests {
 
     #[test]
     fn test_signed_varint() {
-        for value in [0, 1, -1, 63, -64, 64, -65, i32::MAX as i64, i32::MIN as i64, i64::MAX, i64::MIN] {
+        for value in [
+            0,
+            1,
+            -1,
+            63,
+            -64,
+            64,
+            -65,
+            i32::MAX as i64,
+            i32::MIN as i64,
+            i64::MAX,
+            i64::MIN,
+        ] {
             let encoded = SignedVarint::encode(value);
             let (decoded, _) = SignedVarint::decode(&encoded);
             assert_eq!(decoded, value);

@@ -313,7 +313,7 @@ mod tests {
 
     fn create_test_schema_manager() -> Arc<SchemaManager> {
         let manager = SchemaManager::new();
-        
+
         let mut space = SpaceInfo {
             space_id: 0,
             space_name: "test_space".to_string(),
@@ -329,9 +329,9 @@ mod tests {
             engine_type: EngineType::default(),
             status: SpaceStatus::Online,
         };
-        
+
         let _ = manager.create_space(&mut space);
-        
+
         let tag = TagInfo {
             tag_id: 1,
             tag_name: "person".to_string(),
@@ -347,7 +347,7 @@ mod tests {
             ttl_col: None,
         };
         let _ = manager.create_tag("test_space", &tag);
-        
+
         Arc::new(manager)
     }
 

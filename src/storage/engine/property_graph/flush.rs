@@ -9,7 +9,7 @@ use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::metadata::{TableId, TableType};
 
-use super::{DATA_FORMAT_VERSION, PropertyGraph};
+use super::{PropertyGraph, DATA_FORMAT_VERSION};
 
 pub fn flush(graph: &PropertyGraph) -> StorageResult<()> {
     use std::fs;
@@ -215,10 +215,7 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
     Ok(())
 }
 
-pub fn restore_from_checkpoint(
-    graph: &PropertyGraph,
-    checkpoint_dir: &Path,
-) -> StorageResult<()> {
+pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> StorageResult<()> {
     use std::fs;
 
     let data_dir = checkpoint_dir.join("data");

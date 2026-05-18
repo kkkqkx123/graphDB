@@ -4,8 +4,8 @@
 //! A read transaction sees a consistent snapshot of the database at the time
 //! the transaction was started.
 
-use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::{LabelId, Timestamp, VertexId};
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 
 /// Invalid timestamp constant
 pub const INVALID_TIMESTAMP: Timestamp = 0;

@@ -93,13 +93,11 @@ impl PersistenceCoordinator {
 
         let wal_manager = WalManager::new();
 
-        let mut checkpoint_manager = CheckpointManager::new(
-            &config.wal_dir,
-            &config.checkpoint_dir,
-            None,
-        );
-        checkpoint_manager.init()
-            .map_err(|e| crate::core::StorageError::db_error(format!("Failed to init checkpoint manager: {}", e)))?;
+        let mut checkpoint_manager =
+            CheckpointManager::new(&config.wal_dir, &config.checkpoint_dir, None);
+        checkpoint_manager.init().map_err(|e| {
+            crate::core::StorageError::db_error(format!("Failed to init checkpoint manager: {}", e))
+        })?;
 
         let snapshot_manager = if config.enable_snapshots {
             std::fs::create_dir_all(&config.snapshot_dir)?;
@@ -190,11 +188,15 @@ impl PersistenceCoordinator {
 
         let checkpoint = {
             let mut cm = self.checkpoint_manager.write();
-            cm.create_checkpoint(timestamp, wal_lsn)
-                .map_err(|e| crate::core::StorageError::db_error(format!("Failed to create checkpoint: {}", e)))?
+            cm.create_checkpoint(timestamp, wal_lsn).map_err(|e| {
+                crate::core::StorageError::db_error(format!("Failed to create checkpoint: {}", e))
+            })?
         };
 
-        let checkpoint_dir = self.config.checkpoint_dir.join(format!("checkpoint_{}", checkpoint.seq));
+        let checkpoint_dir = self
+            .config
+            .checkpoint_dir
+            .join(format!("checkpoint_{}", checkpoint.seq));
         std::fs::create_dir_all(&checkpoint_dir)?;
 
         let data = flush_data(&checkpoint_dir, timestamp)?;
@@ -247,7 +249,11 @@ impl PersistenceCoordinator {
             snapshot_created,
         };
 
-        log::info!("Checkpoint {} completed in {:?}", checkpoint.seq, stats.duration);
+        log::info!(
+            "Checkpoint {} completed in {:?}",
+            checkpoint.seq,
+            stats.duration
+        );
 
         Ok(stats)
     }
@@ -435,7 +441,9 @@ impl PersistenceCoordinator {
     }
 
     pub fn unregister_transaction(&self, tx_id: u64) {
-        self.checkpoint_manager.write().unregister_transaction(tx_id);
+        self.checkpoint_manager
+            .write()
+            .unregister_transaction(tx_id);
     }
 }
 

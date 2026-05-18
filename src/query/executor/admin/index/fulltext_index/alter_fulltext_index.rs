@@ -76,18 +76,12 @@ impl<S: StorageClient> AlterFulltextIndexExecutor<S> {
                             ))
                         })?;
                     engine.commit().await.map_err(|e| {
-                        DBError::internal(format!(
-                            "Failed to rebuild index: {}",
-                            e
-                        ))
+                        DBError::internal(format!("Failed to rebuild index: {}", e))
                     })?;
                 }
                 AlterIndexAction::Optimize => {
                     self.fulltext_manager.commit_all().await.map_err(|e| {
-                        DBError::internal(format!(
-                            "Failed to optimize index: {}",
-                            e
-                        ))
+                        DBError::internal(format!("Failed to optimize index: {}", e))
                     })?;
                 }
                 AlterIndexAction::AddField(_) => {

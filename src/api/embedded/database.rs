@@ -199,7 +199,10 @@ impl GraphDatabase<GraphStorage> {
                 sync.clone(),
             )))
         } else {
-            Arc::new(RwLock::new(QueryApi::new(storage.clone(), stats_manager.clone())))
+            Arc::new(RwLock::new(QueryApi::new(
+                storage.clone(),
+                stats_manager.clone(),
+            )))
         };
         let schema_api = SchemaApi::new(storage.clone());
 
@@ -349,7 +352,10 @@ impl GraphDatabase<MockStorage> {
         let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
 
         let stats_manager = Arc::new(StatsManager::new());
-        let query_api = Arc::new(RwLock::new(QueryApi::new(storage.clone(), stats_manager.clone())));
+        let query_api = Arc::new(RwLock::new(QueryApi::new(
+            storage.clone(),
+            stats_manager.clone(),
+        )));
         let schema_api = SchemaApi::new(storage.clone());
 
         let inner = Arc::new(GraphDatabaseInner {

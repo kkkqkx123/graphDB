@@ -49,8 +49,7 @@ pub fn resize_mmap(
     // This is less efficient than Linux's mremap but is the only option
     // Note: macOS has copy-on-write semantics for some mmap operations
     *mmap = unsafe {
-        memmap2::MmapMut::map_mut(file)
-            .map_err(|e| ContainerError::MappingFailed(e.to_string()))?
+        memmap2::MmapMut::map_mut(file).map_err(|e| ContainerError::MappingFailed(e.to_string()))?
     };
     Ok(())
 }

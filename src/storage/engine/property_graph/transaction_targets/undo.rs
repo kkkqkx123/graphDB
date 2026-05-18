@@ -1,20 +1,17 @@
 use crate::core::types::{ColumnId, LabelId, Timestamp};
+use crate::core::types::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 use crate::storage::edge::EdgeStrategy;
 use crate::storage::engine::edge::CreateEdgeTypeParams;
 use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
-use crate::core::types::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 
-// Type alias for backward compatibility
-type TxnLabelId = LabelId;
-
+use super::super::PropertyGraph;
 use crate::storage::engine::transaction::{
     DeleteEdgeParams, DeleteEdgeTypeParams, RevertDeleteEdgeParams, TransactionOps,
     UpdateEdgePropertyUndoParams,
 };
-use super::super::PropertyGraph;
 
 impl UndoTarget for PropertyGraph {
-    fn delete_vertex_type(&self, label: TxnLabelId) -> UndoLogResult<()> {
+    fn delete_vertex_type(&self, label: LabelId) -> UndoLogResult<()> {
         {
             let mut schema = self.schema_ops.write();
             let mut edge = self.edge_ops.write();
@@ -38,11 +35,7 @@ impl UndoTarget for PropertyGraph {
         Ok(())
     }
 
-    fn delete_vertex(
-        &self,
-        vertex: VertexIdentifier,
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn delete_vertex(&self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
         {
             let mut schema = self.schema_ops.write();
             TransactionOps::delete_vertex(&mut schema, vertex.label, vertex.vid, ts)?;
@@ -127,11 +120,7 @@ impl UndoTarget for PropertyGraph {
         Ok(())
     }
 
-    fn revert_delete_vertex(
-        &self,
-        vertex: VertexIdentifier,
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn revert_delete_vertex(&self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
         let params = RevertDeleteEdgeParams {
             src_label: vertex.label,
             src_vid: vertex.vid,
@@ -141,13 +130,7 @@ impl UndoTarget for PropertyGraph {
         };
         {
             let mut edge = self.edge_ops.write();
-            TransactionOps::revert_delete_edge(
-                &mut edge,
-                params,
-                0,
-                0,
-                ts,
-            )?;
+            TransactionOps::revert_delete_edge(&mut edge, params, 0, 0, ts)?;
         }
         self.mark_vertex_modified(vertex.label);
         Ok(())
@@ -182,11 +165,7 @@ impl UndoTarget for PropertyGraph {
     ) -> UndoLogResult<()> {
         let label_id = {
             let mut schema = self.schema_ops.write();
-            TransactionOps::revert_delete_vertex_properties(
-                &mut schema,
-                label_name,
-                prop_names,
-            )?;
+            TransactionOps::revert_delete_vertex_properties(&mut schema, label_name, prop_names)?;
             schema.vertex_label_names.get(label_name).copied()
         };
         if let Some(label) = label_id {
@@ -206,12 +185,7 @@ impl UndoTarget for PropertyGraph {
             let schema = self.schema_ops.read();
             let mut edge = self.edge_ops.write();
             TransactionOps::revert_delete_edge_properties(
-                &mut edge,
-                src_label,
-                dst_label,
-                edge_label,
-                &schema,
-                prop_names,
+                &mut edge, src_label, dst_label, edge_label, &schema, prop_names,
             )?;
             edge.edge_label_names.get(edge_label).copied()
         };
@@ -226,11 +200,7 @@ impl UndoTarget for PropertyGraph {
         {
             let mut schema = self.schema_ops.write();
             label = schema.vertex_label_counter;
-            TransactionOps::create_vertex_type_undo(
-                &mut schema,
-                label_name,
-                label,
-            )?;
+            TransactionOps::create_vertex_type_undo(&mut schema, label_name, label)?;
         }
         self.mark_vertex_modified(label);
         Ok(())
@@ -268,10 +238,12 @@ impl UndoTarget for PropertyGraph {
         let edge_label_id = {
             let schema = self.schema_ops.read();
             let mut edge = self.edge_ops.write();
-            edge
-                .create_edge_type(params, &schema.vertex_tables)
+            edge.create_edge_type(params, &schema.vertex_tables)
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
-            edge.edge_label_names.get(edge_label).copied().ok_or(UndoLogError::LabelNotFound(0))?
+            edge.edge_label_names
+                .get(edge_label)
+                .copied()
+                .ok_or(UndoLogError::LabelNotFound(0))?
         };
 
         self.mark_edge_modified(edge_label_id);

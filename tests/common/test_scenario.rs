@@ -350,9 +350,10 @@ impl TestScenario {
 
             let found = rows.iter().any(|row| {
                 row.iter().any(|val| match val {
-                    Value::Vertex(v) => v.tags.iter().any(|tag| {
-                        tag.properties.get(prop_name) == Some(&expected_value)
-                    }),
+                    Value::Vertex(v) => v
+                        .tags
+                        .iter()
+                        .any(|tag| tag.properties.get(prop_name) == Some(&expected_value)),
                     Value::Edge(e) => e.props.get(prop_name) == Some(&expected_value),
                     _ => false,
                 })

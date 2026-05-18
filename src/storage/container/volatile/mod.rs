@@ -32,17 +32,17 @@ use crate::storage::container::container_trait::IDataContainer;
 
 #[cfg(target_os = "linux")]
 mod linux;
-#[cfg(target_os = "windows")]
-mod windows;
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(target_os = "windows")]
+mod windows;
 
 #[cfg(target_os = "linux")]
 use linux::LargePageRegion;
-#[cfg(target_os = "windows")]
-use windows::LargePageRegion;
 #[cfg(target_os = "macos")]
 use macos::LargePageRegion;
+#[cfg(target_os = "windows")]
+use windows::LargePageRegion;
 
 /// Volatile in-memory container
 ///
@@ -318,9 +318,7 @@ impl super::IDataContainer for VolatileContainer {
             if offset + len > size {
                 return Err(ContainerError::InvalidSize(format!(
                     "Read at offset {} with len {} exceeds size {}",
-                    offset,
-                    len,
-                    size
+                    offset, len, size
                 )));
             }
 
@@ -392,14 +390,18 @@ mod tests {
     #[test]
     fn test_volatile_container_empty_write() {
         let mut container = VolatileContainer::new(0).expect("Failed to create container");
-        container.write_at(0, b"").expect("Empty write should succeed");
+        container
+            .write_at(0, b"")
+            .expect("Empty write should succeed");
         assert_eq!(container.size(), 0);
     }
 
     #[test]
     fn test_volatile_container_boundary_write() {
         let mut container = VolatileContainer::new(0).expect("Failed to create container");
-        container.write_at(10, b"boundary").expect("Failed to write at offset 10");
+        container
+            .write_at(10, b"boundary")
+            .expect("Failed to write at offset 10");
         assert_eq!(container.size(), 18);
 
         let data = container.read_at(10, 8).expect("Failed to read");
@@ -422,7 +424,9 @@ mod tests {
             (20, b"third".as_slice()),
         ];
 
-        let written = container.write_batch(&operations).expect("Batch write failed");
+        let written = container
+            .write_batch(&operations)
+            .expect("Batch write failed");
         assert_eq!(written, 16); // 5 + 6 + 5 = 16
 
         let results = container

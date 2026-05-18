@@ -7,9 +7,9 @@
 //! - BFSShortest
 
 use super::NodeEstimator;
-use crate::query::optimizer::error::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
+use crate::query::optimizer::error::CostError;
 use crate::query::planning::plan::PlanNodeEnum;
 
 /// Graph Algorithm Node Estimator

@@ -76,7 +76,8 @@ impl SearchEngine for MetricsSearchEngine {
                     latency_ms,
                     false,
                 );
-                self.stats_manager.record_index_error(self.space_id, &self.index_name, e);
+                self.stats_manager
+                    .record_index_error(self.space_id, &self.index_name, e);
             }
         }
         result
@@ -102,7 +103,8 @@ impl SearchEngine for MetricsSearchEngine {
                     latency_ms,
                     false,
                 );
-                self.stats_manager.record_index_error(self.space_id, &self.index_name, e);
+                self.stats_manager
+                    .record_index_error(self.space_id, &self.index_name, e);
             }
         }
         result
@@ -115,16 +117,10 @@ impl SearchEngine for MetricsSearchEngine {
 
         match &result {
             Ok(results) => {
-                self.stats_manager.record_search(
-                    self.space_id,
-                    &self.index_name,
-                    latency_ms,
-                    true,
-                );
-                self.stats_manager.record_search_result_count(
-                    self.space_id,
-                    results.len() as u64,
-                );
+                self.stats_manager
+                    .record_search(self.space_id, &self.index_name, latency_ms, true);
+                self.stats_manager
+                    .record_search_result_count(self.space_id, results.len() as u64);
             }
             Err(e) => {
                 self.stats_manager.record_search(
@@ -133,7 +129,8 @@ impl SearchEngine for MetricsSearchEngine {
                     latency_ms,
                     false,
                 );
-                self.stats_manager.record_search_error(self.space_id, &self.index_name, e);
+                self.stats_manager
+                    .record_search_error(self.space_id, &self.index_name, e);
             }
         }
 
@@ -160,7 +157,8 @@ impl SearchEngine for MetricsSearchEngine {
                     latency_ms,
                     false,
                 );
-                self.stats_manager.record_delete_error(self.space_id, &self.index_name, e);
+                self.stats_manager
+                    .record_delete_error(self.space_id, &self.index_name, e);
             }
         }
         result
@@ -186,7 +184,8 @@ impl SearchEngine for MetricsSearchEngine {
                     latency_ms,
                     false,
                 );
-                self.stats_manager.record_delete_error(self.space_id, &self.index_name, e);
+                self.stats_manager
+                    .record_delete_error(self.space_id, &self.index_name, e);
             }
         }
         result

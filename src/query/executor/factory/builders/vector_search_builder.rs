@@ -51,9 +51,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .vector_coordinator()
             .cloned()
-            .ok_or_else(|| {
-                QueryError::execution("Vector coordinator not available".to_string())
-            })?;
+            .ok_or_else(|| QueryError::execution("Vector coordinator not available".to_string()))?;
 
         let executor = VectorSearchExecutor::new(
             node.id(),
@@ -76,9 +74,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .vector_coordinator()
             .cloned()
-            .ok_or_else(|| {
-                QueryError::execution("Vector coordinator not available".to_string())
-            })?;
+            .ok_or_else(|| QueryError::execution("Vector coordinator not available".to_string()))?;
 
         let executor = CreateVectorIndexExecutor::new(
             node.id(),
@@ -103,9 +99,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .vector_coordinator()
             .cloned()
-            .ok_or_else(|| {
-                QueryError::execution("Vector coordinator not available".to_string())
-            })?;
+            .ok_or_else(|| QueryError::execution("Vector coordinator not available".to_string()))?;
 
         let executor = DropVectorIndexExecutor::new(
             node.id(),
@@ -130,9 +124,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .vector_coordinator()
             .cloned()
-            .ok_or_else(|| {
-                QueryError::execution("Vector coordinator not available".to_string())
-            })?;
+            .ok_or_else(|| QueryError::execution("Vector coordinator not available".to_string()))?;
 
         let executor = VectorLookupExecutor::new(
             node.id(),
@@ -155,9 +147,7 @@ impl<S: StorageClient + Send + 'static> VectorSearchBuilder<S> {
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .vector_coordinator()
             .cloned()
-            .ok_or_else(|| {
-                QueryError::execution("Vector coordinator not available".to_string())
-            })?;
+            .ok_or_else(|| QueryError::execution("Vector coordinator not available".to_string()))?;
 
         let executor = VectorMatchExecutor::new(
             node.id(),

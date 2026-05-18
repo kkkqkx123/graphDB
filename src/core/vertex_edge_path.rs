@@ -477,12 +477,7 @@ impl PartialOrd for Step {
 
 impl Step {
     pub fn new(dst: Vertex, edge_type: String, _edge_name: String, ranking: i64) -> Self {
-        let edge = Edge::new_empty(
-            VertexId::new(),
-            VertexId::new(),
-            edge_type,
-            ranking,
-        );
+        let edge = Edge::new_empty(VertexId::new(), VertexId::new(), edge_type, ranking);
         Self {
             dst: Box::new(dst),
             edge: Box::new(edge),
@@ -630,11 +625,7 @@ impl Path {
             std::collections::HashSet::new();
 
         for step in &self.steps {
-            let edge_key = (
-                step.edge.src,
-                step.edge.dst,
-                step.edge.edge_type.clone(),
-            );
+            let edge_key = (step.edge.src, step.edge.dst, step.edge.edge_type.clone());
 
             if !seen_edges.insert(edge_key) {
                 return true;

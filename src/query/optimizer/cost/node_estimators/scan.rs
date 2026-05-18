@@ -7,9 +7,9 @@
 //! - EdgeIndexScan
 
 use super::NodeEstimator;
-use crate::query::optimizer::error::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
+use crate::query::optimizer::error::CostError;
 use crate::query::planning::plan::core::nodes::access::EdgeIndexScanNode;
 use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
 use crate::query::planning::plan::PlanNodeEnum;

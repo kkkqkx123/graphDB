@@ -387,7 +387,7 @@ mod tests {
         };
 
         let manager = SchemaManager::new();
-        
+
         let mut space1 = SpaceInfo::new("space1".to_string());
         space1.space_id = 1;
         space1.tags.push(TagInfo::new("Article".to_string()));

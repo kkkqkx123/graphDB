@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::core::types::VertexId;
+use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
@@ -130,8 +130,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             let path = Path::new(Vertex::with_vid(*dst));
             let mut dst_map = HashMap::new();
             dst_map.insert(*dst, vec![path.clone()]);
-            self.history_right_paths
-                .insert(*dst, dst_map.clone());
+            self.history_right_paths.insert(*dst, dst_map.clone());
             self.pre_right_paths.insert(*dst, dst_map);
         }
     }
@@ -141,16 +140,16 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         node_id: &VertexId,
         direction: EdgeDirection,
     ) -> DBResult<Vec<(VertexId, Edge)>> {
-        let storage = self.base.storage.as_ref().ok_or_else(|| {
-            DBError::storage("Storage not set".to_string())
-        })?;
+        let storage = self
+            .base
+            .storage
+            .as_ref()
+            .ok_or_else(|| DBError::storage("Storage not set".to_string()))?;
         let storage = storage.read();
 
         let edges = storage
             .get_node_edges("default", node_id, direction)
-            .map_err(|e| {
-                DBError::storage(e.to_string())
-            })?;
+            .map_err(|e| DBError::storage(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
             edges
@@ -461,9 +460,9 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for MultiShortestPathExecutor<S> {
     fn execute(&mut self) -> ExecDBResult<ExecutionResult> {
-        let paths = self.execute_multi_path().map_err(|e| {
-            DBError::query(e.to_string())
-        })?;
+        let paths = self
+            .execute_multi_path()
+            .map_err(|e| DBError::query(e.to_string()))?;
 
         let rows: Vec<Vec<Value>> = paths.into_iter().map(|p| vec![Value::path(p)]).collect();
         let dataset = DataSet::from_rows(rows, vec!["path".to_string()]);

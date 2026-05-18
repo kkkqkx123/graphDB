@@ -45,19 +45,22 @@ impl IdKey {
 
     pub fn from_bytes(bytes: &[u8]) -> StorageResult<Self> {
         if bytes.is_empty() {
-            return Err(StorageError::deserialize_error("Empty IdKey bytes".to_string()));
+            return Err(StorageError::deserialize_error(
+                "Empty IdKey bytes".to_string(),
+            ));
         }
 
         match bytes[0] {
             ID_KEY_TYPE_INT => {
                 if bytes.len() != 9 {
-                    return Err(StorageError::deserialize_error(
-                        format!("Invalid Int IdKey length: {}", bytes.len()),
-                    ));
+                    return Err(StorageError::deserialize_error(format!(
+                        "Invalid Int IdKey length: {}",
+                        bytes.len()
+                    )));
                 }
-                let val_bytes: [u8; 8] = bytes[1..9]
-                    .try_into()
-                    .map_err(|_| StorageError::deserialize_error("Invalid Int IdKey bytes".to_string()))?;
+                let val_bytes: [u8; 8] = bytes[1..9].try_into().map_err(|_| {
+                    StorageError::deserialize_error("Invalid Int IdKey bytes".to_string())
+                })?;
                 Ok(IdKey::Int(i64::from_be_bytes(val_bytes)))
             }
             ID_KEY_TYPE_TEXT => {
@@ -65,9 +68,10 @@ impl IdKey {
                     .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
                 Ok(IdKey::Text(text))
             }
-            tag => Err(StorageError::deserialize_error(
-                format!("Unknown IdKey type tag: {}", tag),
-            )),
+            tag => Err(StorageError::deserialize_error(format!(
+                "Unknown IdKey type tag: {}",
+                tag
+            ))),
         }
     }
 }
@@ -127,9 +131,7 @@ impl IdIndexer {
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
-        Self::with_config(
-            IdIndexerConfig::default().with_initial_capacity(capacity),
-        )
+        Self::with_config(IdIndexerConfig::default().with_initial_capacity(capacity))
     }
 
     pub fn with_config(config: IdIndexerConfig) -> Self {
@@ -144,9 +146,7 @@ impl IdIndexer {
 
     pub fn insert(&mut self, key: IdKey) -> StorageResult<u32> {
         if self.key_to_index.contains_key(&key) {
-            return Err(StorageError::vertex_already_exists(
-                format!("{:?}", key),
-            ));
+            return Err(StorageError::vertex_already_exists(format!("{:?}", key)));
         }
 
         if self.len() >= self.config.max_capacity {
@@ -180,7 +180,8 @@ impl IdIndexer {
             .max(current_capacity + 1);
 
         self.keys.reserve(new_capacity - current_capacity);
-        self.key_to_index.reserve(new_capacity - self.key_to_index.len());
+        self.key_to_index
+            .reserve(new_capacity - self.key_to_index.len());
 
         Ok(())
     }
@@ -331,12 +332,24 @@ mod tests {
         let idx2 = indexer.insert(IdKey::Text("vertex2".to_string())).unwrap();
         assert_eq!(idx2, 1);
 
-        assert_eq!(indexer.get_index(&IdKey::Text("vertex1".to_string())), Some(0));
-        assert_eq!(indexer.get_index(&IdKey::Text("vertex2".to_string())), Some(1));
+        assert_eq!(
+            indexer.get_index(&IdKey::Text("vertex1".to_string())),
+            Some(0)
+        );
+        assert_eq!(
+            indexer.get_index(&IdKey::Text("vertex2".to_string())),
+            Some(1)
+        );
         assert_eq!(indexer.get_index(&IdKey::Text("vertex3".to_string())), None);
 
-        assert_eq!(indexer.get_key(0), Some(&IdKey::Text("vertex1".to_string())));
-        assert_eq!(indexer.get_key(1), Some(&IdKey::Text("vertex2".to_string())));
+        assert_eq!(
+            indexer.get_key(0),
+            Some(&IdKey::Text("vertex1".to_string()))
+        );
+        assert_eq!(
+            indexer.get_key(1),
+            Some(&IdKey::Text("vertex2".to_string()))
+        );
     }
 
     #[test]
@@ -391,9 +404,7 @@ mod tests {
 
     #[test]
     fn test_free_list_reuse() {
-        let mut indexer = IdIndexer::with_config(
-            IdIndexerConfig::default().with_free_list(true),
-        );
+        let mut indexer = IdIndexer::with_config(IdIndexerConfig::default().with_free_list(true));
 
         let _idx1 = indexer.insert(IdKey::Text("v1".to_string())).unwrap();
         let idx2 = indexer.insert(IdKey::Text("v2".to_string())).unwrap();

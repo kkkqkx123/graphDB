@@ -196,10 +196,9 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 };
 
                 if should_update {
-                    let vertex_vid = VertexId::try_from(&update.vertex_id).map_err(DBError::from)?;
-                    if let Some(mut vertex) =
-                        storage.get_vertex(&self.space_name, &vertex_vid)?
-                    {
+                    let vertex_vid =
+                        VertexId::try_from(&update.vertex_id).map_err(DBError::from)?;
+                    if let Some(mut vertex) = storage.get_vertex(&self.space_name, &vertex_vid)? {
                         let evaluated_props = self.evaluate_property_expressions(
                             &update.properties,
                             update.property_expressions.as_ref(),
@@ -406,9 +405,8 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
             context.set_variable(key.clone(), value.clone());
         }
 
-        let result = ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-            DBError::query(format!("Conditional evaluation failed: {}", e))
-        })?;
+        let result = ExpressionEvaluator::evaluate(expression, &mut context)
+            .map_err(|e| DBError::query(format!("Conditional evaluation failed: {}", e)))?;
 
         match result {
             crate::core::Value::Bool(b) => Ok(b),

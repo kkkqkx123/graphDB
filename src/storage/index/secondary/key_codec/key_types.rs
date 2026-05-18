@@ -6,8 +6,7 @@ use crate::core::{StorageError, Value};
 use postcard::{from_bytes, to_allocvec};
 
 /// Byte key wrapper for index keys
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct ByteKey(pub Vec<u8>);
 
 impl AsRef<[u8]> for ByteKey {
@@ -28,7 +27,6 @@ impl From<ByteKey> for Vec<u8> {
     }
 }
 
-
 pub type SecondaryIndexKey = Vec<u8>;
 
 pub const KEY_TYPE_VERTEX_REVERSE: u8 = 0x01;
@@ -41,8 +39,7 @@ pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
 }
 
 pub fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
-    from_bytes(data)
-        .map_err(|e| StorageError::deserialize_error(e.to_string()))
+    from_bytes(data).map_err(|e| StorageError::deserialize_error(e.to_string()))
 }
 
 #[cfg(test)]

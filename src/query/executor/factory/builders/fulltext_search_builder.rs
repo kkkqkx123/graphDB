@@ -14,7 +14,8 @@ use crate::query::executor::admin::{
 };
 use crate::query::executor::base::{ExecutionContext, ExecutorEnum, FulltextManageExecutor};
 use crate::query::executor::data_access::{
-    FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, FulltextSearchExecutorParams, MatchFulltextExecutor,
+    FulltextScanConfig, FulltextScanExecutor, FulltextSearchExecutor, FulltextSearchExecutorParams,
+    MatchFulltextExecutor,
 };
 use crate::query::parser::ast::SearchStatement;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;

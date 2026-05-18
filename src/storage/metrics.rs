@@ -14,7 +14,10 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::metadata::Schema;
-use crate::storage::{StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats, StorageWriter};
+use crate::storage::{
+    StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
+    StorageWriter,
+};
 
 /// A decorator that wraps a StorageClient and records metrics via StatsManager.
 ///
@@ -499,7 +502,9 @@ impl<S: StorageClient> StorageSchemaOps for MetricsStorage<S> {
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
         let start = Instant::now();
-        let result = self.inner.alter_edge_type(space, edge_type, additions, deletions);
+        let result = self
+            .inner
+            .alter_edge_type(space, edge_type, additions, deletions);
         self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
         result
     }

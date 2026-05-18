@@ -108,11 +108,29 @@ mod tests {
 
     #[test]
     fn test_csr_type_from_strategy() {
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::Multiple, false), CsrType::Mutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::Multiple, true), CsrType::Immutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::Single, false), CsrType::SingleMutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::Single, true), CsrType::Immutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::None, false), CsrType::Immutable);
-        assert_eq!(CsrType::from_strategy(EdgeStrategy::None, true), CsrType::Immutable);
+        assert_eq!(
+            CsrType::from_strategy(EdgeStrategy::Multiple, false),
+            CsrType::Mutable
+        );
+        assert_eq!(
+            CsrType::from_strategy(EdgeStrategy::Multiple, true),
+            CsrType::Immutable
+        );
+        assert_eq!(
+            CsrType::from_strategy(EdgeStrategy::Single, false),
+            CsrType::SingleMutable
+        );
+        assert_eq!(
+            CsrType::from_strategy(EdgeStrategy::Single, true),
+            CsrType::Immutable
+        );
+        assert_eq!(
+            CsrType::from_strategy(EdgeStrategy::None, false),
+            CsrType::Immutable
+        );
+        assert_eq!(
+            CsrType::from_strategy(EdgeStrategy::None, true),
+            CsrType::Immutable
+        );
     }
 }

@@ -546,10 +546,7 @@ fn extract_literal_value(expr: &Expression) -> Option<Value> {
 fn extract_list_values(expr: &Expression) -> Option<Vec<Value>> {
     match expr {
         Expression::List(items) => {
-            let values: Vec<Value> = items
-                .iter()
-                .filter_map(extract_literal_value)
-                .collect();
+            let values: Vec<Value> = items.iter().filter_map(extract_literal_value).collect();
             if values.len() == items.len() {
                 Some(values)
             } else {

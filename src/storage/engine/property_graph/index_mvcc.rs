@@ -17,13 +17,10 @@ pub fn update_vertex_indexes_mvcc(
     props: &[(String, Value)],
     ts: Timestamp,
 ) -> StorageResult<()> {
-    graph.index_data_manager.write().update_vertex_indexes_mvcc(
-        space_id,
-        vertex_id,
-        index_name,
-        props,
-        ts,
-    )
+    graph
+        .index_data_manager
+        .write()
+        .update_vertex_indexes_mvcc(space_id, vertex_id, index_name, props, ts)
 }
 
 pub fn delete_vertex_indexes_mvcc(
@@ -47,14 +44,10 @@ pub fn update_edge_indexes_mvcc(
     props: &[(String, Value)],
     ts: Timestamp,
 ) -> StorageResult<()> {
-    graph.index_data_manager.write().update_edge_indexes_mvcc(
-        space_id,
-        src,
-        dst,
-        index_name,
-        props,
-        ts,
-    )
+    graph
+        .index_data_manager
+        .write()
+        .update_edge_indexes_mvcc(space_id, src, dst, index_name, props, ts)
 }
 
 pub fn delete_edge_indexes_mvcc(

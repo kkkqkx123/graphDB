@@ -164,96 +164,84 @@ impl RecoveryManager {
             let payload = &entry.payload;
 
             match op_type {
-                WalOpType::InsertVertex => {
-                    match self.deserialize_insert_vertex(payload) {
-                        Ok(redo) => {
-                            applier.replay_insert_vertex(
-                                redo.label,
-                                &redo.oid,
-                                &redo.properties,
-                                ts,
-                            )?;
-                            self.stats.wal_entries_replayed += 1;
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to deserialize InsertVertex redo: {}", e);
-                            self.stats.errors_encountered += 1;
-                        }
+                WalOpType::InsertVertex => match self.deserialize_insert_vertex(payload) {
+                    Ok(redo) => {
+                        applier.replay_insert_vertex(
+                            redo.label,
+                            &redo.oid,
+                            &redo.properties,
+                            ts,
+                        )?;
+                        self.stats.wal_entries_replayed += 1;
                     }
-                }
-                WalOpType::InsertEdge => {
-                    match self.deserialize_insert_edge(payload) {
-                        Ok(redo) => {
-                            applier.replay_insert_edge(&redo, ts)?;
-                            self.stats.wal_entries_replayed += 1;
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to deserialize InsertEdge redo: {}", e);
-                            self.stats.errors_encountered += 1;
-                        }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize InsertVertex redo: {}", e);
+                        self.stats.errors_encountered += 1;
                     }
-                }
-                WalOpType::UpdateVertexProp => {
-                    match self.deserialize_update_vertex_prop(payload) {
-                        Ok(redo) => {
-                            applier.replay_update_vertex_prop(
-                                redo.label,
-                                &redo.oid,
-                                &redo.prop_name,
-                                &redo.value,
-                                ts,
-                            )?;
-                            self.stats.wal_entries_replayed += 1;
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to deserialize UpdateVertexProp redo: {}", e);
-                            self.stats.errors_encountered += 1;
-                        }
+                },
+                WalOpType::InsertEdge => match self.deserialize_insert_edge(payload) {
+                    Ok(redo) => {
+                        applier.replay_insert_edge(&redo, ts)?;
+                        self.stats.wal_entries_replayed += 1;
                     }
-                }
-                WalOpType::UpdateEdgeProp => {
-                    match self.deserialize_update_edge_prop(payload) {
-                        Ok(redo) => {
-                            applier.replay_update_edge_prop(&redo, ts)?;
-                            self.stats.wal_entries_replayed += 1;
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to deserialize UpdateEdgeProp redo: {}", e);
-                            self.stats.errors_encountered += 1;
-                        }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize InsertEdge redo: {}", e);
+                        self.stats.errors_encountered += 1;
                     }
-                }
-                WalOpType::DeleteVertex => {
-                    match self.deserialize_delete_vertex(payload) {
-                        Ok(redo) => {
-                            applier.replay_delete_vertex(redo.label, &redo.oid, ts)?;
-                            self.stats.wal_entries_replayed += 1;
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to deserialize DeleteVertex redo: {}", e);
-                            self.stats.errors_encountered += 1;
-                        }
+                },
+                WalOpType::UpdateVertexProp => match self.deserialize_update_vertex_prop(payload) {
+                    Ok(redo) => {
+                        applier.replay_update_vertex_prop(
+                            redo.label,
+                            &redo.oid,
+                            &redo.prop_name,
+                            &redo.value,
+                            ts,
+                        )?;
+                        self.stats.wal_entries_replayed += 1;
                     }
-                }
-                WalOpType::DeleteEdge => {
-                    match self.deserialize_delete_edge(payload) {
-                        Ok(redo) => {
-                            applier.replay_delete_edge(
-                                redo.src_label,
-                                &redo.src_oid,
-                                redo.dst_label,
-                                &redo.dst_oid,
-                                redo.edge_label,
-                                ts,
-                            )?;
-                            self.stats.wal_entries_replayed += 1;
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to deserialize DeleteEdge redo: {}", e);
-                            self.stats.errors_encountered += 1;
-                        }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize UpdateVertexProp redo: {}", e);
+                        self.stats.errors_encountered += 1;
                     }
-                }
+                },
+                WalOpType::UpdateEdgeProp => match self.deserialize_update_edge_prop(payload) {
+                    Ok(redo) => {
+                        applier.replay_update_edge_prop(&redo, ts)?;
+                        self.stats.wal_entries_replayed += 1;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize UpdateEdgeProp redo: {}", e);
+                        self.stats.errors_encountered += 1;
+                    }
+                },
+                WalOpType::DeleteVertex => match self.deserialize_delete_vertex(payload) {
+                    Ok(redo) => {
+                        applier.replay_delete_vertex(redo.label, &redo.oid, ts)?;
+                        self.stats.wal_entries_replayed += 1;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize DeleteVertex redo: {}", e);
+                        self.stats.errors_encountered += 1;
+                    }
+                },
+                WalOpType::DeleteEdge => match self.deserialize_delete_edge(payload) {
+                    Ok(redo) => {
+                        applier.replay_delete_edge(
+                            redo.src_label,
+                            &redo.src_oid,
+                            redo.dst_label,
+                            &redo.dst_oid,
+                            redo.edge_label,
+                            ts,
+                        )?;
+                        self.stats.wal_entries_replayed += 1;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize DeleteEdge redo: {}", e);
+                        self.stats.errors_encountered += 1;
+                    }
+                },
                 _ => {
                     // Schema operations (CreateVertexType, CreateEdgeType, etc.)
                     // These are typically handled separately during schema recovery
@@ -265,33 +253,30 @@ impl RecoveryManager {
     }
 
     fn deserialize_insert_vertex(&self, payload: &[u8]) -> StorageResult<InsertVertexRedo> {
-        from_bytes(payload)
-            .map_err(|e| StorageError::deserialize_error(e.to_string()))
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_insert_edge(&self, payload: &[u8]) -> StorageResult<InsertEdgeRedo> {
-        from_bytes(payload)
-            .map_err(|e| StorageError::deserialize_error(e.to_string()))
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
-    fn deserialize_update_vertex_prop(&self, payload: &[u8]) -> StorageResult<UpdateVertexPropRedo> {
-        from_bytes(payload)
-            .map_err(|e| StorageError::deserialize_error(e.to_string()))
+    fn deserialize_update_vertex_prop(
+        &self,
+        payload: &[u8],
+    ) -> StorageResult<UpdateVertexPropRedo> {
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_update_edge_prop(&self, payload: &[u8]) -> StorageResult<UpdateEdgePropRedo> {
-        from_bytes(payload)
-            .map_err(|e| StorageError::deserialize_error(e.to_string()))
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_delete_vertex(&self, payload: &[u8]) -> StorageResult<DeleteVertexRedo> {
-        from_bytes(payload)
-            .map_err(|e| StorageError::deserialize_error(e.to_string()))
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     fn deserialize_delete_edge(&self, payload: &[u8]) -> StorageResult<DeleteEdgeRedo> {
-        from_bytes(payload)
-            .map_err(|e| StorageError::deserialize_error(e.to_string()))
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 
     /// Get recovery statistics

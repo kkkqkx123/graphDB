@@ -194,7 +194,9 @@ impl LazyCompare for DictionaryColumn {
 
         let current = self.get(row_idx)?;
         match (&current, value) {
-            (Value::String(current_str), Value::String(s)) => Some(current_str.as_str().cmp(s.as_str())),
+            (Value::String(current_str), Value::String(s)) => {
+                Some(current_str.as_str().cmp(s.as_str()))
+            }
             _ => None,
         }
     }
@@ -266,9 +268,10 @@ impl LazyCompare for FsstColumn {
         }
 
         match value {
-            Value::String(s) => {
-                self.get(row_idx).map(|decoded| decoded == *s).unwrap_or(false)
-            }
+            Value::String(s) => self
+                .get(row_idx)
+                .map(|decoded| decoded == *s)
+                .unwrap_or(false),
             _ => false,
         }
     }
@@ -443,9 +446,15 @@ mod tests {
     fn test_dictionary_lazy_compare() {
         let mut column = DictionaryColumn::new();
 
-        column.set(0, Some(&Value::String("apple".to_string()))).unwrap();
-        column.set(1, Some(&Value::String("banana".to_string()))).unwrap();
-        column.set(2, Some(&Value::String("apple".to_string()))).unwrap();
+        column
+            .set(0, Some(&Value::String("apple".to_string())))
+            .unwrap();
+        column
+            .set(1, Some(&Value::String("banana".to_string())))
+            .unwrap();
+        column
+            .set(2, Some(&Value::String("apple".to_string())))
+            .unwrap();
 
         assert!(column.equals(0, &Value::String("apple".to_string())));
         assert!(!column.equals(0, &Value::String("banana".to_string())));
@@ -455,10 +464,18 @@ mod tests {
     fn test_dictionary_lazy_find() {
         let mut column = DictionaryColumn::new();
 
-        column.set(0, Some(&Value::String("apple".to_string()))).unwrap();
-        column.set(1, Some(&Value::String("banana".to_string()))).unwrap();
-        column.set(2, Some(&Value::String("apple".to_string()))).unwrap();
-        column.set(3, Some(&Value::String("cherry".to_string()))).unwrap();
+        column
+            .set(0, Some(&Value::String("apple".to_string())))
+            .unwrap();
+        column
+            .set(1, Some(&Value::String("banana".to_string())))
+            .unwrap();
+        column
+            .set(2, Some(&Value::String("apple".to_string())))
+            .unwrap();
+        column
+            .set(3, Some(&Value::String("cherry".to_string())))
+            .unwrap();
 
         let found = column.find_value(&Value::String("apple".to_string()));
         assert_eq!(found, vec![0, 2]);

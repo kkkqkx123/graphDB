@@ -32,12 +32,14 @@ pub mod key_builder;
 pub mod key_parser;
 pub mod key_types;
 
-pub use compression::{CompressionConfig, DeltaCompressor, DictionaryCompressor, IndexCompressor, PrefixCompressor};
+pub use compression::{
+    CompressionConfig, DeltaCompressor, DictionaryCompressor, IndexCompressor, PrefixCompressor,
+};
 pub use key_builder::KeyBuilder;
 pub use key_parser::KeyParser;
 pub use key_types::{
-    deserialize_value, serialize_value, ByteKey, SecondaryIndexKey,
-    KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
+    deserialize_value, serialize_value, ByteKey, SecondaryIndexKey, KEY_TYPE_EDGE_FORWARD,
+    KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
 #[cfg(test)]
@@ -52,9 +54,8 @@ mod tests {
         let prop_value = Value::String("test_value".to_string());
         let vertex_id = Value::Int(123);
 
-        let key =
-            KeyBuilder::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
-                .expect("build_vertex_index_key should succeed");
+        let key = KeyBuilder::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
+            .expect("build_vertex_index_key should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_FORWARD);

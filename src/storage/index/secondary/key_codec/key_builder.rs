@@ -5,8 +5,8 @@
 use crate::core::{StorageError, Value};
 
 use super::key_types::{
-    ByteKey, KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD,
-    KEY_TYPE_VERTEX_REVERSE, serialize_value,
+    serialize_value, ByteKey, KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE,
+    KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
 pub struct KeyBuilder;
@@ -427,9 +427,8 @@ mod tests {
         let prop_value = Value::String("test_value".to_string());
         let vertex_id = Value::Int(123);
 
-        let key =
-            KeyBuilder::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
-                .expect("build_vertex_index_key should succeed");
+        let key = KeyBuilder::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
+            .expect("build_vertex_index_key should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_FORWARD);
@@ -498,8 +497,9 @@ mod tests {
         let prop_value = Value::String("test_value".to_string());
         let vertex_id = 123u64;
 
-        let key = KeyBuilder::build_vertex_index_key_native(space_id, index_name, &prop_value, vertex_id)
-            .expect("build_vertex_index_key_native should succeed");
+        let key =
+            KeyBuilder::build_vertex_index_key_native(space_id, index_name, &prop_value, vertex_id)
+                .expect("build_vertex_index_key_native should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_FORWARD);
@@ -513,8 +513,9 @@ mod tests {
         let src = 100u64;
         let dst = 200u64;
 
-        let key = KeyBuilder::build_edge_index_key_native(space_id, index_name, &prop_value, src, dst)
-            .expect("build_edge_index_key_native should succeed");
+        let key =
+            KeyBuilder::build_edge_index_key_native(space_id, index_name, &prop_value, src, dst)
+                .expect("build_edge_index_key_native should succeed");
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_EDGE_FORWARD);

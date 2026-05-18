@@ -3,8 +3,10 @@
 //! Provides transaction rollback support through undo log entries.
 //! Each undo log entry can reverse a specific operation during transaction abort.
 
-use crate::core::types::{EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, VertexIdentifier};
 use super::wal::{ColumnId, LabelId, Timestamp, VertexId};
+use crate::core::types::{
+    EdgeDeletionContext, EdgeDeletionContextParams, EdgeIdentifier, EdgeKey, VertexIdentifier,
+};
 
 /// Undo log error
 pub use crate::core::types::UndoLogError;
@@ -634,7 +636,11 @@ impl UndoLogManager {
         self.logs.pop()
     }
 
-    pub fn execute_undo<T: UndoTarget + ?Sized>(&mut self, graph: &T, ts: Timestamp) -> UndoLogResult<()> {
+    pub fn execute_undo<T: UndoTarget + ?Sized>(
+        &mut self,
+        graph: &T,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
         while let Some(log) = self.logs.pop() {
             log.undo(graph, ts)?;
         }

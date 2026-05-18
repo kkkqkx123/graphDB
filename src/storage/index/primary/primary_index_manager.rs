@@ -16,10 +16,12 @@
 //! - Automatically maintained during DML operations
 //! - Thread-safe with DashMap for concurrent access
 
-use super::degree_index::{DegreeInfo, DegreeIndex};
-use super::edge_id_index::{EdgeLocation, EdgeIdIndex};
+use super::degree_index::{DegreeIndex, DegreeInfo};
+use super::edge_id_index::{EdgeIdIndex, EdgeLocation};
 use crate::core::types::{EdgeId, VertexId};
-use crate::storage::index::index_types::{CompositeIndexStats, IndexCategory, IndexStats, PrimaryIndex, PropOffset};
+use crate::storage::index::index_types::{
+    CompositeIndexStats, IndexCategory, IndexStats, PrimaryIndex, PropOffset,
+};
 
 #[derive(Debug)]
 pub struct PrimaryIndexManager {
@@ -78,7 +80,8 @@ impl PrimaryIndexManager {
     }
 
     pub fn update_edge_prop_offset(&self, edge_id: EdgeId, new_prop_offset: PropOffset) -> bool {
-        self.edge_id_index.update_prop_offset(edge_id, new_prop_offset)
+        self.edge_id_index
+            .update_prop_offset(edge_id, new_prop_offset)
     }
 
     pub fn edge_count(&self) -> u64 {
@@ -126,11 +129,13 @@ impl PrimaryIndexManager {
     }
 
     pub fn vertices_with_out_degree_at_least(&self, min_degree: u32) -> Vec<VertexId> {
-        self.degree_index.vertices_with_out_degree_at_least(min_degree)
+        self.degree_index
+            .vertices_with_out_degree_at_least(min_degree)
     }
 
     pub fn vertices_with_in_degree_at_least(&self, min_degree: u32) -> Vec<VertexId> {
-        self.degree_index.vertices_with_in_degree_at_least(min_degree)
+        self.degree_index
+            .vertices_with_in_degree_at_least(min_degree)
     }
 
     pub fn isolated_vertices(&self) -> Vec<VertexId> {

@@ -43,8 +43,7 @@ pub fn resize_mmap(
     // On Windows, we must recreate the entire mapping
     // This is less efficient than Linux's mremap but is the only option
     *mmap = unsafe {
-        memmap2::MmapMut::map_mut(file)
-            .map_err(|e| ContainerError::MappingFailed(e.to_string()))?
+        memmap2::MmapMut::map_mut(file).map_err(|e| ContainerError::MappingFailed(e.to_string()))?
     };
     Ok(())
 }

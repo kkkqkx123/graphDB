@@ -118,7 +118,12 @@ impl<S: StorageClient> SchemaApi<S> {
             .create_tag(&space_name, &tag_info)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        log::info!("Created tag successfully: {} in space {} with id {}", name, space_id, result);
+        log::info!(
+            "Created tag successfully: {} in space {} with id {}",
+            name,
+            space_id,
+            result
+        );
         Ok(())
     }
 

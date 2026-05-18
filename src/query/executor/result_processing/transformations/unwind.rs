@@ -95,9 +95,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 if input_data.rows.is_empty() {
                     let unwind_value =
                         ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                            .map_err(|e| {
-                            DBError::query(e.to_string())
-                        })?;
+                            .map_err(|e| DBError::query(e.to_string()))?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -124,9 +122,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                             &self.unwind_expression,
                             &mut expr_context,
                         )
-                        .map_err(|e| {
-                            DBError::query(e.to_string())
-                        })?;
+                        .map_err(|e| DBError::query(e.to_string()))?;
 
                         let list_values = self.extract_list(&unwind_value);
 
@@ -143,9 +139,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
             | ExecutionResult::SpaceSwitched(_) => {
                 let unwind_value =
                     ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                        .map_err(|e| {
-                            DBError::query(e.to_string())
-                        })?;
+                        .map_err(|e| DBError::query(e.to_string()))?;
 
                 let list_values = self.extract_list(&unwind_value);
 
@@ -154,10 +148,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Error(e) => {
-                return Err(DBError::query(format!(
-                    "Error in input result: {}",
-                    e
-                )));
+                return Err(DBError::query(format!("Error in input result: {}", e)));
             }
         }
 

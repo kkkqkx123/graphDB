@@ -390,7 +390,13 @@ fn test_transaction_edge_insert_sync() {
     // Verify edge exists
     let edge_opt = harness
         .storage
-        .get_edge("test_space", &VertexId::from_int64(1), &VertexId::from_int64(2), "KNOWS", 0)
+        .get_edge(
+            "test_space",
+            &VertexId::from_int64(1),
+            &VertexId::from_int64(2),
+            "KNOWS",
+            0,
+        )
         .expect("Failed to get edge");
     assert!(edge_opt.is_some(), "Edge should exist");
 }

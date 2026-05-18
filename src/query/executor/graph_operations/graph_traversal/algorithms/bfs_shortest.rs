@@ -6,8 +6,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::core::{Edge, EdgeDirection, Path, Value, Vertex};
 use crate::core::types::VertexId;
+use crate::core::{Edge, EdgeDirection, Path, Value, Vertex};
 use crate::query::executor::base::{BaseExecutor, ExecutorConfig};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::DataSet;
@@ -177,11 +177,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
 
             for edge in edges {
                 self.edges_traversed += 1;
-                let dst = if reverse {
-                    edge.src
-                } else {
-                    edge.dst
-                };
+                let dst = if reverse { edge.src } else { edge.dst };
 
                 let is_self_loop = edge.src == edge.dst;
                 // If self-loop edges are not allowed, duplicates should be removed.
@@ -353,11 +349,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
 
         for edge_layer in all_edges.iter().rev() {
             if let Some(edge) = edge_layer.get(&current_vid) {
-                let next_vid = if reverse {
-                    edge.dst
-                } else {
-                    edge.src
-                };
+                let next_vid = if reverse { edge.dst } else { edge.src };
                 steps.push((Vertex::new(next_vid, vec![]), edge.clone()));
                 current_vid = next_vid;
             } else {

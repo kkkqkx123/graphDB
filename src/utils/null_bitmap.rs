@@ -215,8 +215,6 @@ impl NullBitmap {
         &self.data
     }
 
-
-
     /// Append a null (true) or non-null (false) element to the end
     pub fn push(&mut self, is_null: bool) {
         let idx = self.len;

@@ -43,34 +43,34 @@ pub use crate::core::types::DurabilityLevel;
 pub struct TransactionConfig {
     /// Whether to enable transaction support
     pub enable_transactions: bool,
-    
+
     /// Whether to enable WAL (Write-Ahead Logging)
     pub enable_wal: bool,
-    
+
     /// Whether to enable crash recovery
     pub enable_recovery: bool,
-    
+
     /// Whether to enable undo log for rollback
     pub enable_undo_log: bool,
-    
+
     /// Transaction isolation level
     pub isolation_level: IsolationLevel,
-    
+
     /// Durability level
     pub durability: DurabilityLevel,
-    
+
     /// WAL sync mode
     pub wal_sync_mode: WalSyncMode,
-    
+
     /// Transaction timeout
     pub transaction_timeout: Duration,
-    
+
     /// Lock timeout
     pub lock_timeout: Duration,
-    
+
     /// Maximum number of concurrent transactions
     pub max_concurrent_transactions: usize,
-    
+
     /// Auto-commit threshold (number of operations before auto-commit)
     pub auto_commit_threshold: usize,
 }

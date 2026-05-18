@@ -49,7 +49,15 @@ impl SingleMutableCsr {
 
     pub fn with_capacity(vertex_capacity: usize) -> Self {
         let vertex_cap = vertex_capacity.max(1);
-        let nbr_list = vec![Nbr::new(VertexId::from_int64(0), INVALID_EDGE_ID, 0, INVALID_TIMESTAMP); vertex_cap];
+        let nbr_list = vec![
+            Nbr::new(
+                VertexId::from_int64(0),
+                INVALID_EDGE_ID,
+                0,
+                INVALID_TIMESTAMP
+            );
+            vertex_cap
+        ];
 
         Self {
             nbr_list,
@@ -76,11 +84,15 @@ impl SingleMutableCsr {
         }
 
         let additional = new_vertex_capacity - self.vertex_capacity;
-        self.nbr_list
-            .extend(std::iter::repeat_n(
-                Nbr::new(VertexId::from_int64(0), INVALID_EDGE_ID, 0, INVALID_TIMESTAMP),
-                additional,
-            ));
+        self.nbr_list.extend(std::iter::repeat_n(
+            Nbr::new(
+                VertexId::from_int64(0),
+                INVALID_EDGE_ID,
+                0,
+                INVALID_TIMESTAMP,
+            ),
+            additional,
+        ));
         self.vertex_capacity = new_vertex_capacity;
     }
 
@@ -306,7 +318,12 @@ impl SingleMutableCsr {
 
     pub fn clear(&mut self) {
         for nbr in &mut self.nbr_list {
-            *nbr = Nbr::new(VertexId::from_int64(0), INVALID_EDGE_ID, 0, INVALID_TIMESTAMP);
+            *nbr = Nbr::new(
+                VertexId::from_int64(0),
+                INVALID_EDGE_ID,
+                0,
+                INVALID_TIMESTAMP,
+            );
         }
         self.edge_count.store(0, Ordering::Relaxed);
     }
@@ -407,7 +424,12 @@ impl SingleMutableCsr {
                 u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
             offset += 4;
 
-            nbr_list.push(Nbr::new(VertexId::from_u64(neighbor), edge_id, prop_offset, timestamp));
+            nbr_list.push(Nbr::new(
+                VertexId::from_u64(neighbor),
+                edge_id,
+                prop_offset,
+                timestamp,
+            ));
         }
 
         self.vertex_capacity = vertex_capacity;
@@ -607,9 +629,21 @@ mod tests {
     fn test_basic_operations() {
         let mut csr = SingleMutableCsr::with_capacity(10);
 
-        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 100));
+        assert!(csr.insert_edge(
+            VertexId::from_int64(0),
+            VertexId::from_int64(1),
+            100,
+            0,
+            100
+        ));
         assert!(!csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 1, 99));
-        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 102, 1, 101));
+        assert!(csr.insert_edge(
+            VertexId::from_int64(0),
+            VertexId::from_int64(2),
+            102,
+            1,
+            101
+        ));
 
         assert_eq!(csr.edge_count(), 1);
         assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 150));
@@ -620,7 +654,13 @@ mod tests {
     fn test_delete_and_revert() {
         let mut csr = SingleMutableCsr::with_capacity(10);
 
-        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 100);
+        csr.insert_edge(
+            VertexId::from_int64(0),
+            VertexId::from_int64(1),
+            100,
+            0,
+            100,
+        );
         assert_eq!(csr.edge_count(), 1);
 
         assert!(csr.delete_edge(VertexId::from_int64(0), 150));

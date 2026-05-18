@@ -5,8 +5,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
-use crate::core::{Edge, NPath, Path, Value};
 use crate::core::types::VertexId;
+use crate::core::{Edge, NPath, Path, Value};
 
 /// Multi-source shortest path request
 /// A pathfinding request that specifies a pair of starting and ending points.

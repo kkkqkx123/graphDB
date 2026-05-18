@@ -52,7 +52,8 @@ pub use common::log::LogConfig;
 pub use common::monitoring::{MonitoringConfig, SlowQueryLogConfig};
 pub use common::optimizer::{OptimizerConfig, OptimizerRulesConfig};
 pub use common::storage::{
-    CompressionAlgorithm, EdgePropertyCacheConfig, QueryResourceConfig, StorageConfig, StorageEngine,
+    CompressionAlgorithm, EdgePropertyCacheConfig, QueryResourceConfig, StorageConfig,
+    StorageEngine,
 };
 pub use common::transaction::TransactionConfig;
 

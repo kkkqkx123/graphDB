@@ -5,12 +5,10 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
-use super::types::{
-    Lsn, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE,
-};
+use super::types::{Lsn, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE};
 use crate::core::types::Timestamp;
 use crate::storage::metadata::{TableId, TableTracker};
 
@@ -245,7 +243,7 @@ impl CheckpointManager {
         mode: CheckpointMode,
     ) -> WalResult<CheckpointResult> {
         let start_time = std::time::Instant::now();
-        
+
         let checkpoint = match mode {
             CheckpointMode::Passive => self.checkpoint_passive(timestamp, lsn)?,
             CheckpointMode::Full => self.create_checkpoint(timestamp, lsn)?,
@@ -279,13 +277,13 @@ impl CheckpointManager {
     /// Truncate checkpoint: full checkpoint, reset log, and truncate WAL
     fn checkpoint_truncate(&mut self, timestamp: Timestamp, lsn: Lsn) -> WalResult<Checkpoint> {
         let checkpoint = self.checkpoint_restart(timestamp, lsn)?;
-        
+
         for wal_file in &checkpoint.wal_files {
             if wal_file.exists() {
                 fs::remove_file(wal_file).map_err(|e| WalError::IoError(e.to_string()))?;
             }
         }
-        
+
         Ok(checkpoint)
     }
 

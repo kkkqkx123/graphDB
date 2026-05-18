@@ -16,7 +16,6 @@ use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultP
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::executor::utils::recursion_detector::ParallelConfig;
 use crate::query::DataSet;
-use crate::core::Row;
 use crate::storage::StorageClient;
 
 /// Duplicacy removal strategy
@@ -293,7 +292,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         key_extractor: F,
     ) -> Result<(), crate::query::QueryError>
     where
-        F: Fn(&Row) -> String + Send + Sync,
+        F: Fn(&Vec<Value>) -> String + Send + Sync,
     {
         let mut seen = HashSet::new();
         let mut unique_rows = Vec::new();
@@ -303,7 +302,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
             let key = key_extractor(row);
 
             if !seen.contains(&key) {
-                let row_size = std::mem::size_of::<Row>() + key.len();
+                let row_size = std::mem::size_of::<Vec<Value>>() + key.len();
                 memory_usage += row_size;
 
                 if self.current_memory_usage + memory_usage > self.memory_limit {
@@ -410,9 +409,8 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> 
             return Ok(ExecutionResult::DataSet(DataSet::new()));
         };
 
-        self.process_input(input).map_err(|e| {
-            crate::core::error::DBError::query(e.to_string())
-        })
+        self.process_input(input)
+            .map_err(|e| crate::core::error::DBError::query(e.to_string()))
     }
 
     fn set_input(&mut self, input: ExecutionResult) {

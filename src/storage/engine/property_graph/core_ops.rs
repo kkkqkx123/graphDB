@@ -5,8 +5,8 @@
 use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeRecord;
-use crate::storage::vertex::VertexRecord;
 use crate::storage::storage_types::EdgeOffset;
+use crate::storage::vertex::VertexRecord;
 
 use super::super::edge::{EdgeOperationParams, EdgeTraversalParams};
 use super::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
@@ -23,7 +23,10 @@ pub fn insert_vertex(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    graph.schema_ops.write().insert_vertex(label, external_id, properties, ts)
+    graph
+        .schema_ops
+        .write()
+        .insert_vertex(label, external_id, properties, ts)
 }
 
 pub fn get_vertex(
@@ -40,7 +43,10 @@ pub fn get_vertex(
         .cache_manager
         .get_cached_vertex_id(label, external_id)
         .or_else(|| {
-            let id = graph.schema_ops.read().get_vertex_internal_id(label, external_id, ts)?;
+            let id = graph
+                .schema_ops
+                .read()
+                .get_vertex_internal_id(label, external_id, ts)?;
             graph.cache_manager.cache_vertex_id(label, external_id, id);
             Some(id)
         })?;
@@ -91,12 +97,9 @@ pub fn get_vertex_by_internal_id(
         schema.get_vertex_by_internal_id(label, internal_id, ts)?
     };
 
-    graph.cache_manager.cache_vertex(
-        label,
-        internal_id,
-        String::new(),
-        record.properties.clone(),
-    );
+    graph
+        .cache_manager
+        .cache_vertex(label, internal_id, String::new(), record.properties.clone());
 
     Some(record)
 }
@@ -110,7 +113,10 @@ pub fn delete_vertex(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    graph.schema_ops.write().delete_vertex(label, external_id, ts)
+    graph
+        .schema_ops
+        .write()
+        .delete_vertex(label, external_id, ts)
 }
 
 pub fn update_vertex_property(
@@ -170,7 +176,10 @@ pub fn get_edge(
         dst_id,
     };
     let schema = graph.schema_ops.read();
-    graph.edge_ops.read().get_edge(params, ts, &schema.vertex_tables)
+    graph
+        .edge_ops
+        .read()
+        .get_edge(params, ts, &schema.vertex_tables)
 }
 
 pub fn delete_edge(
@@ -193,7 +202,10 @@ pub fn delete_edge(
         dst_id,
     };
     let schema = graph.schema_ops.read();
-    graph.edge_ops.write().delete_edge(params, ts, &schema.vertex_tables)
+    graph
+        .edge_ops
+        .write()
+        .delete_edge(params, ts, &schema.vertex_tables)
 }
 
 pub fn update_edge_property(
@@ -237,7 +249,10 @@ pub fn out_edges(
         dst_label,
     };
     let schema = graph.schema_ops.read();
-    graph.edge_ops.read().out_edges(params, src_id, ts, &schema.vertex_tables)
+    graph
+        .edge_ops
+        .read()
+        .out_edges(params, src_id, ts, &schema.vertex_tables)
 }
 
 pub fn in_edges(
@@ -257,5 +272,8 @@ pub fn in_edges(
         dst_label,
     };
     let schema = graph.schema_ops.read();
-    graph.edge_ops.read().in_edges(params, dst_id, ts, &schema.vertex_tables)
+    graph
+        .edge_ops
+        .read()
+        .in_edges(params, dst_id, ts, &schema.vertex_tables)
 }

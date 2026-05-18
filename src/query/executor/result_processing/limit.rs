@@ -62,9 +62,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             // Use base.input as an alternative
             self.apply_limits_to_input(input.clone())
         } else {
-            Err(DBError::query(
-                "Limit executor requires input".to_string(),
-            ))
+            Err(DBError::query("Limit executor requires input".to_string()))
         }
     }
 

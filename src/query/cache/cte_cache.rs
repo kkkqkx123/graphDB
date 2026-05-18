@@ -20,9 +20,9 @@ use moka::sync::Cache;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::core::stats::StatsManager;
 use super::config::{CachePriority, CteCacheConfig};
 use super::stats::CteCacheStats;
+use crate::core::stats::StatsManager;
 
 /// CTE cache entries
 #[derive(Debug, Clone)]

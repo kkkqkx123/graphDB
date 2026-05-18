@@ -245,11 +245,7 @@ impl NPath {
 
     pub fn contains_edge(&self, edge_key: &(VertexId, VertexId, String)) -> bool {
         if let Some(ref edge) = self.edge {
-            let key = (
-                edge.src,
-                edge.dst,
-                edge.edge_type.clone(),
-            );
+            let key = (edge.src, edge.dst, edge.edge_type.clone());
             if &key == edge_key {
                 return true;
             }

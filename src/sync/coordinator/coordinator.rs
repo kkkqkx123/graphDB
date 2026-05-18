@@ -26,8 +26,7 @@ pub struct SyncCoordinator {
     vector_manager: Option<Arc<vector_client::VectorManager>>,
     fulltext_processors: DashMap<(u64, String, String), Arc<FulltextProcessor>>,
     vector_processors: DashMap<(u64, String, String), Arc<VectorProcessor>>,
-    transaction_buffers:
-        DashMap<crate::core::types::TransactionId, Arc<TransactionBatchBuffer>>,
+    transaction_buffers: DashMap<crate::core::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
     vector_client_config: VectorClientConfig,
     dead_letter_queue: Arc<DeadLetterQueue>,
@@ -183,7 +182,8 @@ impl SyncCoordinator {
                 }
             }
             Ok::<(), SyncCoordinatorError>(())
-        }.await;
+        }
+        .await;
 
         if let Some(ref sm) = self.stats_manager {
             let latency_ms = start.elapsed().as_millis() as u64;
@@ -309,10 +309,7 @@ impl SyncCoordinator {
     }
 
     /// Get the count of buffered operations for a transaction
-    pub fn transaction_buffer_count(
-        &self,
-        txn_id: crate::core::types::TransactionId,
-    ) -> usize {
+    pub fn transaction_buffer_count(&self, txn_id: crate::core::types::TransactionId) -> usize {
         if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
             buffer.pending_count(txn_id)
         } else {

@@ -2,10 +2,16 @@ use std::sync::Arc;
 
 use crate::query::executor::base::{ExecutorConfig, ShortestPathConfig};
 use crate::query::executor::graph_operations::graph_traversal::algorithms::ShortestPathAlgorithmType;
-use crate::query::executor::graph_operations::graph_traversal::expand::{ExpandExecutor, ExpandExecutorParams};
-use crate::query::executor::graph_operations::graph_traversal::expand_all::{ExpandAllExecutor, ExpandAllExecutorParams};
+use crate::query::executor::graph_operations::graph_traversal::expand::{
+    ExpandExecutor, ExpandExecutorParams,
+};
+use crate::query::executor::graph_operations::graph_traversal::expand_all::{
+    ExpandAllExecutor, ExpandAllExecutorParams,
+};
 use crate::query::executor::graph_operations::graph_traversal::shortest_path::ShortestPathExecutor;
-use crate::query::executor::graph_operations::graph_traversal::traverse::{TraverseExecutor, TraverseExecutorParams};
+use crate::query::executor::graph_operations::graph_traversal::traverse::{
+    TraverseExecutor, TraverseExecutorParams,
+};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use parking_lot::RwLock;
 

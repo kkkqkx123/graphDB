@@ -21,11 +21,11 @@
 
 use std::sync::Arc;
 
-use crate::query::optimizer::error::OptimizeResult;
 use crate::core::types::EdgeDirection;
 use crate::query::optimizer::context::OptimizationContext;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::cost_based::trait_def::OptimizationStrategy;
+use crate::query::optimizer::error::OptimizeResult;
 use crate::query::optimizer::stats::EdgeTypeStatistics;
 use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 

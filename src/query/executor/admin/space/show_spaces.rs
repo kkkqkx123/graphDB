@@ -8,7 +8,7 @@ use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::core::Row;
+
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
 
@@ -42,7 +42,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
 
         match result {
             Ok(spaces) => {
-                let rows: Vec<Row> = spaces
+                let rows: Vec<Vec<Value>> = spaces
                     .iter()
                     .map(|space| {
                         vec![

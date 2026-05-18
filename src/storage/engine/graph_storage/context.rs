@@ -9,15 +9,13 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use crate::api::server::auth::UserStorage;
+use crate::core::mvcc::VersionManager;
+use crate::core::types::TransactionContextInfo;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
 use crate::storage::engine::PropertyGraph;
 use crate::storage::extend::FulltextStorage;
 use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
-use crate::storage::metadata::{
-    ExtendedSchemaManager, IndexManager, SchemaManager,
-};
-use crate::core::types::TransactionContextInfo;
-use crate::core::mvcc::VersionManager;
+use crate::storage::metadata::{ExtendedSchemaManager, IndexManager, SchemaManager};
 
 #[derive(Clone)]
 pub struct GraphStorageContext {
@@ -129,7 +127,8 @@ impl GraphStorageContext {
 
     pub fn with_index_gc(mut self, config: IndexGcConfig) -> Self {
         let index_data_manager = self.graph.index_data_manager().read().clone();
-        let gc_manager = IndexGcManager::new(index_data_manager, self.version_manager.clone(), config);
+        let gc_manager =
+            IndexGcManager::new(index_data_manager, self.version_manager.clone(), config);
 
         self.index_gc_manager = Some(Arc::new(gc_manager));
         self
@@ -148,10 +147,7 @@ impl GraphStorageContext {
         self
     }
 
-    pub fn set_edge_property_cache(
-        &self,
-        config: crate::storage::cache::EdgePropertyCacheConfig,
-    ) {
+    pub fn set_edge_property_cache(&self, config: crate::storage::cache::EdgePropertyCacheConfig) {
         self.graph.set_edge_property_cache(config);
     }
 

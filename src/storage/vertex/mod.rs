@@ -19,14 +19,12 @@ pub mod vertex_timestamp;
 pub use crate::storage::storage_types::StoragePropertyDef as PropertyDef;
 
 pub use column_store::{Column, ColumnStore};
-pub use encoding::{EncodingStats, EncodingType, select_encoding};
+pub use encoding::{select_encoding, EncodingStats, EncodingType};
 pub use id_indexer::{IdIndexer, IdKey};
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
 
-pub use crate::core::types::{
-    INVALID_TIMESTAMP, LabelId, MAX_TIMESTAMP, Timestamp, VertexId,
-};
+pub use crate::core::types::{LabelId, Timestamp, VertexId, INVALID_TIMESTAMP, MAX_TIMESTAMP};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VertexStatus {

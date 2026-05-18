@@ -9,9 +9,7 @@ use dashmap::DashMap;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::error::TransactionError;
-use crate::transaction::types::{
-    TransactionId, TransactionState, TransactionStats,
-};
+use crate::transaction::types::{TransactionId, TransactionState, TransactionStats};
 
 /// Transaction Cleaner
 ///

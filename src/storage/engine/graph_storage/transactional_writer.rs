@@ -23,9 +23,11 @@ impl<'a> TransactionalWriter<'a> {
         space: &str,
         vertex: &Vertex,
     ) -> StorageResult<Value> {
-        let _space_info = self.ctx.schema_manager.get_space(space)?.ok_or_else(|| {
-            StorageError::not_found(format!("Space {} not found", space))
-        })?;
+        let _space_info = self
+            .ctx
+            .schema_manager
+            .get_space(space)?
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.ctx.get_write_timestamp();
 
@@ -46,7 +48,10 @@ impl<'a> TransactionalWriter<'a> {
                     }
                     Err(e) => {
                         for (rollback_label, rollback_id) in inserted_ids.iter().rev() {
-                            let _ = self.ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
+                            let _ = self
+                                .ctx
+                                .graph
+                                .delete_vertex(*rollback_label, rollback_id, ts);
                         }
                         return Err(e);
                     }
@@ -66,9 +71,11 @@ impl<'a> TransactionalWriter<'a> {
         space: &str,
         vertices: &[Vertex],
     ) -> StorageResult<Vec<Value>> {
-        let _space_info = self.ctx.schema_manager.get_space(space)?.ok_or_else(|| {
-            StorageError::not_found(format!("Space {} not found", space))
-        })?;
+        let _space_info = self
+            .ctx
+            .schema_manager
+            .get_space(space)?
+            .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.ctx.get_write_timestamp();
 
@@ -95,7 +102,10 @@ impl<'a> TransactionalWriter<'a> {
                         }
                         Err(e) => {
                             for (rollback_label, rollback_id) in rollback_info.iter().rev() {
-                                let _ = self.ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
+                                let _ =
+                                    self.ctx
+                                        .graph
+                                        .delete_vertex(*rollback_label, rollback_id, ts);
                             }
                             return Err(e);
                         }

@@ -507,8 +507,7 @@ impl MemoryEstimatable for LoopNode {
 // ============================================================================
 
 /// Transaction isolation level
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum IsolationLevel {
     /// Read uncommitted - lowest isolation level
     ReadUncommitted,
@@ -520,7 +519,6 @@ pub enum IsolationLevel {
     /// Serializable - highest isolation level
     Serializable,
 }
-
 
 /// Begin Transaction Node
 /// Starts a new transaction with specified isolation level

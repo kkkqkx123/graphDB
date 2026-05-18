@@ -23,15 +23,15 @@ pub use crate::transaction::undo_log::{
 pub(crate) trait OperationLogContext {
     fn operation_log_len(&self) -> usize;
     fn truncate_operation_log(&self, index: usize);
-    
+
     /// Reserved for future use: operation log audit and replay
     #[allow(dead_code)]
     fn get_operation_log(&self, index: usize) -> Option<OperationLog>;
-    
+
     /// Reserved for future use: operation log batch query
     #[allow(dead_code)]
     fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog>;
-    
+
     /// Reserved for future use: operation log cleanup
     #[allow(dead_code)]
     fn clear_operation_log(&self);
@@ -67,11 +67,11 @@ pub(crate) trait UndoLogContext {
     /// Reserved for future use: undo log monitoring and statistics
     #[allow(dead_code)]
     fn undo_log_len(&self) -> usize;
-    
+
     /// Reserved for future use: manual undo log management
     #[allow(dead_code)]
     fn add_undo_log(&self, log: UndoLogEntry);
-    
+
     fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &T) -> Result<(), StorageError>;
     fn clear_undo_logs(&self);
 }
@@ -352,7 +352,10 @@ mod tests {
             self.logs.borrow_mut().add(log);
         }
 
-        fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, _target: &T) -> Result<(), StorageError> {
+        fn execute_undo_logs<T: UndoTarget + ?Sized>(
+            &self,
+            _target: &T,
+        ) -> Result<(), StorageError> {
             self.logs.borrow_mut().clear();
             Ok(())
         }

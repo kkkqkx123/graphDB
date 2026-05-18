@@ -82,7 +82,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
         let object_pool = Arc::new(ThreadSafeExecutorPool::new(ObjectPoolConfig::default()));
-        let plan_cache = Arc::new(QueryPlanCache::default().with_stats_manager(stats_manager.clone()));
+        let plan_cache =
+            Arc::new(QueryPlanCache::default().with_stats_manager(stats_manager.clone()));
         let param_handler = ParameterizedQueryHandler::default();
 
         optimizer_engine.set_cte_cache_stats_manager(stats_manager.clone());
@@ -116,7 +117,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
         let object_pool = Arc::new(ThreadSafeExecutorPool::new(ObjectPoolConfig::default()));
-        let plan_cache = Arc::new(QueryPlanCache::new(plan_cache_config).with_stats_manager(stats_manager.clone()));
+        let plan_cache = Arc::new(
+            QueryPlanCache::new(plan_cache_config).with_stats_manager(stats_manager.clone()),
+        );
         let param_handler = ParameterizedQueryHandler::default();
 
         optimizer_engine.set_cte_cache_stats_manager(stats_manager.clone());
@@ -383,14 +386,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.parse_us = parse_start.elapsed().as_micros() as u64;
-                let error_info = ErrorInfo::new(
-                    ErrorType::ParseError,
-                    QueryPhase::Parse,
-                    e.to_string(),
-                );
+                let error_info =
+                    ErrorInfo::new(ErrorType::ParseError, QueryPhase::Parse, e.to_string());
                 profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_failed_query(profile.clone(), error_info);
+                self.stats_manager
+                    .record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -412,7 +413,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 );
                 profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_failed_query(profile.clone(), error_info);
+                self.stats_manager
+                    .record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -450,14 +452,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.plan_us = plan_start.elapsed().as_micros() as u64;
-                let error_info = ErrorInfo::new(
-                    ErrorType::PlanningError,
-                    QueryPhase::Plan,
-                    e.to_string(),
-                );
+                let error_info =
+                    ErrorInfo::new(ErrorType::PlanningError, QueryPhase::Plan, e.to_string());
                 profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_failed_query(profile.clone(), error_info);
+                self.stats_manager
+                    .record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -478,7 +478,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 );
                 profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_failed_query(profile.clone(), error_info);
+                self.stats_manager
+                    .record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -501,7 +502,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 );
                 profile.mark_failed_with_info(error_info.clone());
                 profile.total_duration_us = total_start.elapsed().as_micros() as u64;
-                self.stats_manager.record_failed_query(profile.clone(), error_info);
+                self.stats_manager
+                    .record_failed_query(profile.clone(), error_info);
                 return Err(e);
             }
         };
@@ -838,9 +840,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::execution(
-                "Storage not available".to_string(),
-            ))
+            DBError::from(QueryError::execution("Storage not available".to_string()))
         })?;
 
         plan_executor
@@ -876,9 +876,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ExplainExecutor
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::execution(
-                "Storage not available".to_string(),
-            ))
+            DBError::from(QueryError::execution("Storage not available".to_string()))
         })?;
 
         let base = BaseExecutor::new(
@@ -929,9 +927,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ExplainExecutor with Analyze mode
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::execution(
-                "Storage not available".to_string(),
-            ))
+            DBError::from(QueryError::execution("Storage not available".to_string()))
         })?;
 
         let base = BaseExecutor::new(
@@ -982,9 +978,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 2. Create ProfileExecutor
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {
-            DBError::from(QueryError::execution(
-                "Storage not available".to_string(),
-            ))
+            DBError::from(QueryError::execution("Storage not available".to_string()))
         })?;
 
         let base = BaseExecutor::new(

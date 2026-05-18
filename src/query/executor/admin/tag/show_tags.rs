@@ -9,7 +9,7 @@ use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::core::Row;
+
 use crate::storage::StorageClient;
 
 /// List labeling actuators
@@ -45,7 +45,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagsExecutor<
 
         match result {
             Ok(tag_schemas) => {
-                let rows: Vec<Row> = tag_schemas
+                let rows: Vec<Vec<Value>> = tag_schemas
                     .iter()
                     .map(|schema| vec![Value::String(schema.tag_name.clone())])
                     .collect();

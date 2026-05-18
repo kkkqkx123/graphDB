@@ -6,8 +6,8 @@
 use std::path::Path;
 
 use super::{
-    ColumnStore, IdIndexer, IdKey, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema,
-    VertexTimestamp,
+    ColumnStore, IdIndexer, IdKey, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord,
+    VertexSchema, VertexTimestamp,
 };
 use crate::core::{StorageError, StorageResult, Value};
 
@@ -107,7 +107,10 @@ impl VertexTable {
         }
 
         for (name, value) in properties {
-            let prop_def = self.schema.properties.iter()
+            let prop_def = self
+                .schema
+                .properties
+                .iter()
                 .find(|p| &p.name == name)
                 .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
 
@@ -297,11 +300,7 @@ impl VertexTable {
         Ok(internal_ids)
     }
 
-    pub fn batch_delete(
-        &mut self,
-        external_ids: &[IdKey],
-        ts: Timestamp,
-    ) -> StorageResult<usize> {
+    pub fn batch_delete(&mut self, external_ids: &[IdKey], ts: Timestamp) -> StorageResult<usize> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
@@ -318,11 +317,7 @@ impl VertexTable {
         Ok(deleted_count)
     }
 
-    pub fn batch_get(
-        &self,
-        external_ids: &[IdKey],
-        ts: Timestamp,
-    ) -> Vec<Option<VertexRecord>> {
+    pub fn batch_get(&self, external_ids: &[IdKey], ts: Timestamp) -> Vec<Option<VertexRecord>> {
         if !self.is_open {
             return vec![None; external_ids.len()];
         }
@@ -348,11 +343,8 @@ impl VertexTable {
             if let Some(internal_id) = self.id_indexer.get_index(external_id) {
                 if self.timestamps.is_valid(internal_id, ts) {
                     for (col_name, value) in properties {
-                        self.columns.set_property(
-                            internal_id as usize,
-                            col_name,
-                            Some(value),
-                        )?;
+                        self.columns
+                            .set_property(internal_id as usize, col_name, Some(value))?;
                     }
                     updated_count += 1;
                 }
@@ -368,9 +360,10 @@ impl VertexTable {
         }
 
         if !self.timestamps.revert_remove(internal_id, ts) {
-            return Err(StorageError::invalid_operation(
-                format!("Cannot revert deletion of vertex {}: invalid timestamp", internal_id)
-            ));
+            return Err(StorageError::invalid_operation(format!(
+                "Cannot revert deletion of vertex {}: invalid timestamp",
+                internal_id
+            )));
         }
         Ok(())
     }
@@ -402,7 +395,9 @@ impl VertexTable {
             return None;
         }
 
-        let internal_id = self.id_indexer.get_index(&IdKey::Text(external_id.to_string()))?;
+        let internal_id = self
+            .id_indexer
+            .get_index(&IdKey::Text(external_id.to_string()))?;
         if self.timestamps.is_valid(internal_id, ts) {
             Some(internal_id)
         } else {
@@ -631,7 +626,9 @@ impl VertexTable {
 
             let (data, offsets, bitmap) = col.get_flush_data();
 
-            let row_count = offsets.len().max(if data.is_empty() { 0 } else { col.len() });
+            let row_count = offsets
+                .len()
+                .max(if data.is_empty() { 0 } else { col.len() });
             file.write_all(&(row_count as u32).to_le_bytes())?;
 
             file.write_all(&(data.len() as u32).to_le_bytes())?;
@@ -817,7 +814,13 @@ impl VertexTable {
                 (None, 0)
             };
 
-            self.columns.load_column_from_raw(&name, data, offsets, null_bitmap_raw, bitmap_bit_len)?;
+            self.columns.load_column_from_raw(
+                &name,
+                data,
+                offsets,
+                null_bitmap_raw,
+                bitmap_bit_len,
+            )?;
         }
 
         Ok(())
@@ -850,9 +853,7 @@ impl VertexTable {
     }
 
     pub fn compact_with_ts_collect(&mut self, ts: Timestamp) -> Vec<IdKey> {
-        let deleted_ids: Vec<u32> = self.timestamps
-            .iter_deleted(ts)
-            .collect();
+        let deleted_ids: Vec<u32> = self.timestamps.iter_deleted(ts).collect();
 
         let mut removed_keys = Vec::with_capacity(deleted_ids.len());
 
@@ -890,7 +891,8 @@ impl VertexTable {
 
         total += self.columns.used_memory_size();
 
-        total += self.timestamps.valid_count(super::MAX_TIMESTAMP - 1) * std::mem::size_of::<Timestamp>();
+        total += self.timestamps.valid_count(super::MAX_TIMESTAMP - 1)
+            * std::mem::size_of::<Timestamp>();
 
         total
     }

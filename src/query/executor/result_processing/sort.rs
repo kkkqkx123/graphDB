@@ -512,9 +512,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
 
                 let sort_value =
                     ExpressionEvaluator::evaluate(&sort_key.expression, &mut expr_context)
-                        .map_err(|e| {
-                            DBError::query(e.to_string())
-                        })?;
+                        .map_err(|e| DBError::query(e.to_string()))?;
                 sort_values.push(sort_value);
             }
         }
@@ -796,12 +794,14 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 } else {
                     return Err(DBError::query(format!(
                         "Column index out of range: {} (Row length: {})",
-                        column_index, row.len()
+                        column_index,
+                        row.len()
                     )));
                 }
             } else {
                 return Err(DBError::query(
-                    "Extract_column_sort_values is not available for non-column index sort keys".to_string(),
+                    "Extract_column_sort_values is not available for non-column index sort keys"
+                        .to_string(),
                 ));
             }
         }

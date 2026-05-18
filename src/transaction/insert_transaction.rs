@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use postcard::{from_bytes, to_allocvec};
 
 use super::read_transaction::INVALID_TIMESTAMP;
-use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::types::{InsertEdgeRedo, InsertVertexRedo, WalHeader, WalOpType};
-use super::wal::{EdgeId, LabelId, Timestamp, VertexId};
 use super::wal::writer::WalWriter;
+use super::wal::{EdgeId, LabelId, Timestamp, VertexId};
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 
 /// Insert transaction error
 #[derive(Debug, Clone, thiserror::Error)]
@@ -217,9 +217,9 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
     /// # Arguments
     /// * `param` - Edge insertion parameters
     pub fn add_edge(&mut self, param: AddEdgeInsertParam) -> InsertTransactionResult<()> {
-        let expected_types = self
-            .graph
-            .get_edge_property_types(param.src_label, param.dst_label, param.edge_label);
+        let expected_types =
+            self.graph
+                .get_edge_property_types(param.src_label, param.dst_label, param.edge_label);
         if expected_types.len() != param.properties.len() {
             return Err(InsertTransactionError::PropertyCountMismatch {
                 expected: expected_types.len(),
@@ -420,10 +420,7 @@ mod tests {
             Ok(VertexId::from_int64(1))
         }
 
-        fn add_edge(
-            &mut self,
-            _param: AddEdgeInsertParam,
-        ) -> InsertTransactionResult<EdgeId> {
+        fn add_edge(&mut self, _param: AddEdgeInsertParam) -> InsertTransactionResult<EdgeId> {
             Ok(1)
         }
 

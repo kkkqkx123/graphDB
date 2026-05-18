@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::{
-    EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable,
-    PropertyDef as EdgePropertyDef,
+    EdgeRecord, EdgeSchema, EdgeStrategy, EdgeTable, PropertyDef as EdgePropertyDef,
 };
 use crate::storage::storage_types::EdgeOffset;
 
@@ -95,7 +94,8 @@ impl EdgeOps {
         let table = EdgeTable::new(schema)?;
         let key = (params.src_label, params.dst_label, label_id);
         self.edge_tables.insert(key, table);
-        self.edge_label_names.insert(params.name.to_string(), label_id);
+        self.edge_label_names
+            .insert(params.name.to_string(), label_id);
 
         Ok(label_id)
     }
@@ -140,7 +140,8 @@ impl EdgeOps {
         let table = EdgeTable::new(schema)?;
         let key = (params.src_label, params.dst_label, label_id);
         self.edge_tables.insert(key, table);
-        self.edge_label_names.insert(params.name.to_string(), label_id);
+        self.edge_label_names
+            .insert(params.name.to_string(), label_id);
 
         Ok(label_id)
     }
@@ -225,10 +226,9 @@ impl EdgeOps {
             .ok_or(StorageError::vertex_not_found())?;
 
         let key = (params.src_label, params.dst_label, params.edge_label);
-        let edge_table = self
-            .edge_tables
-            .get_mut(&key)
-            .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
+        let edge_table = self.edge_tables.get_mut(&key).ok_or_else(|| {
+            StorageError::label_not_found(format!("edge label {}", params.edge_label))
+        })?;
 
         edge_table.insert_edge(
             VertexId::from_int64(src_internal as i64),
@@ -253,7 +253,11 @@ impl EdgeOps {
         let key = (params.src_label, params.dst_label, params.edge_label);
         let edge_table = self.edge_tables.get(&key)?;
 
-        edge_table.get_edge(VertexId::from_int64(src_internal as i64), VertexId::from_int64(dst_internal as i64), ts)
+        edge_table.get_edge(
+            VertexId::from_int64(src_internal as i64),
+            VertexId::from_int64(dst_internal as i64),
+            ts,
+        )
     }
 
     pub fn delete_edge(
@@ -277,12 +281,15 @@ impl EdgeOps {
             .ok_or(StorageError::vertex_not_found())?;
 
         let key = (params.src_label, params.dst_label, params.edge_label);
-        let edge_table = self
-            .edge_tables
-            .get_mut(&key)
-            .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
+        let edge_table = self.edge_tables.get_mut(&key).ok_or_else(|| {
+            StorageError::label_not_found(format!("edge label {}", params.edge_label))
+        })?;
 
-        edge_table.delete_edge(VertexId::from_int64(src_internal as i64), VertexId::from_int64(dst_internal as i64), ts)
+        edge_table.delete_edge(
+            VertexId::from_int64(src_internal as i64),
+            VertexId::from_int64(dst_internal as i64),
+            ts,
+        )
     }
 
     pub fn update_edge_property(
@@ -308,10 +315,9 @@ impl EdgeOps {
             .ok_or(StorageError::vertex_not_found())?;
 
         let key = (params.src_label, params.dst_label, params.edge_label);
-        let edge_table = self
-            .edge_tables
-            .get_mut(&key)
-            .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
+        let edge_table = self.edge_tables.get_mut(&key).ok_or_else(|| {
+            StorageError::label_not_found(format!("edge label {}", params.edge_label))
+        })?;
 
         edge_table.update_edge_property(
             VertexId::from_int64(src_internal as i64),
@@ -398,15 +404,16 @@ impl EdgeOps {
             .ok_or_else(|| StorageError::label_not_found(edge_label.to_string()))?;
 
         for prop_name in prop_names {
-            if table.schema().properties.iter().any(|p| p.name == *prop_name) {
+            if table
+                .schema()
+                .properties
+                .iter()
+                .any(|p| p.name == *prop_name)
+            {
                 continue;
             }
 
-            table.add_property(
-                prop_name.clone(),
-                crate::core::DataType::String,
-                false,
-            )?;
+            table.add_property(prop_name.clone(), crate::core::DataType::String, false)?;
         }
 
         Ok(())

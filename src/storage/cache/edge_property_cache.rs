@@ -294,7 +294,9 @@ impl EdgePropertyCache {
         }
 
         if let Some(old) = cache.put(key, CachedEdgeProperty::new(value)) {
-            self.stats.current_memory.fetch_sub(old.size, Ordering::Relaxed);
+            self.stats
+                .current_memory
+                .fetch_sub(old.size, Ordering::Relaxed);
         } else {
             self.stats.current_entries.fetch_add(1, Ordering::Relaxed);
             self.edge_index.entry(edge_id).or_default().push(key);
@@ -318,7 +320,9 @@ impl EdgePropertyCache {
                 if let Some(entry) = cache.pop(&key) {
                     self.stats.evictions.fetch_add(1, Ordering::Relaxed);
                     self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
-                    self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+                    self.stats
+                        .current_memory
+                        .fetch_sub(entry.size, Ordering::Relaxed);
                 }
             }
         }
@@ -338,7 +342,9 @@ impl EdgePropertyCache {
         if let Some(entry) = cache.pop(&key) {
             self.stats.evictions.fetch_add(1, Ordering::Relaxed);
             self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
-            self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+            self.stats
+                .current_memory
+                .fetch_sub(entry.size, Ordering::Relaxed);
         }
         drop(cache);
 
@@ -363,7 +369,9 @@ impl EdgePropertyCache {
 
         self.stats.current_entries.store(0, Ordering::Relaxed);
         self.stats.current_memory.store(0, Ordering::Relaxed);
-        self.stats.evictions.fetch_add(entries as u64, Ordering::Relaxed);
+        self.stats
+            .evictions
+            .fetch_add(entries as u64, Ordering::Relaxed);
     }
 
     fn track_read(&self, key: &EdgePropertyKey) {
@@ -382,7 +390,9 @@ impl EdgePropertyCache {
                     freed += entry.size;
                     self.stats.evictions.fetch_add(1, Ordering::Relaxed);
                     self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
-                    self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+                    self.stats
+                        .current_memory
+                        .fetch_sub(entry.size, Ordering::Relaxed);
                     if let Some(mut keys) = self.edge_index.get_mut(&key.edge_id) {
                         keys.retain(|k| *k != key);
                         if keys.is_empty() {
@@ -460,7 +470,9 @@ impl EdgePropertyCache {
         let mut cache = self.offset_cache.lock();
 
         if let Some(old) = cache.put(key, CachedEdgeProperty::new(value)) {
-            self.stats.current_memory.fetch_sub(old.size, Ordering::Relaxed);
+            self.stats
+                .current_memory
+                .fetch_sub(old.size, Ordering::Relaxed);
         } else {
             self.stats.current_entries.fetch_add(1, Ordering::Relaxed);
         }
@@ -513,7 +525,9 @@ impl EdgePropertyCache {
         let mut cache = self.offset_cache.lock();
 
         if let Some(old) = cache.put(key, CachedEdgeProperty::new(value)) {
-            self.stats.current_memory.fetch_sub(old.size, Ordering::Relaxed);
+            self.stats
+                .current_memory
+                .fetch_sub(old.size, Ordering::Relaxed);
         } else {
             self.stats.current_entries.fetch_add(1, Ordering::Relaxed);
         }
@@ -538,7 +552,9 @@ impl EdgePropertyCache {
             if let Some(entry) = cache.pop(&key) {
                 self.stats.evictions.fetch_add(1, Ordering::Relaxed);
                 self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
-                self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+                self.stats
+                    .current_memory
+                    .fetch_sub(entry.size, Ordering::Relaxed);
             }
         }
     }

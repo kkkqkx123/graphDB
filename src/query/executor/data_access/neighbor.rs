@@ -120,11 +120,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
                     }
                 }
 
-                let neighbor_id = if edge.src == vid {
-                    edge.dst
-                } else {
-                    edge.src
-                };
+                let neighbor_id = if edge.src == vid { edge.dst } else { edge.src };
 
                 neighbor_ids.push(neighbor_id);
             }

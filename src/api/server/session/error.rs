@@ -89,7 +89,10 @@ impl SessionError {
 
     // Convenience constructors
     pub fn session_not_found(session_id: i64) -> Self {
-        Self::new(SessionErrorKind::SessionNotFound, format!("Session not found: {}", session_id))
+        Self::new(
+            SessionErrorKind::SessionNotFound,
+            format!("Session not found: {}", session_id),
+        )
     }
 
     pub fn session_expired() -> Self {
@@ -97,11 +100,17 @@ impl SessionError {
     }
 
     pub fn max_connections_exceeded() -> Self {
-        Self::new(SessionErrorKind::MaxConnectionsExceeded, "Maximum connections exceeded")
+        Self::new(
+            SessionErrorKind::MaxConnectionsExceeded,
+            "Maximum connections exceeded",
+        )
     }
 
     pub fn query_not_found(query_id: u32) -> Self {
-        Self::new(SessionErrorKind::QueryNotFound, format!("Query not found: {}", query_id))
+        Self::new(
+            SessionErrorKind::QueryNotFound,
+            format!("Query not found: {}", query_id),
+        )
     }
 
     pub fn kill_session_failed(message: impl Into<String>) -> Self {
@@ -113,7 +122,10 @@ impl SessionError {
     }
 
     pub fn insufficient_permission() -> Self {
-        Self::new(SessionErrorKind::InsufficientPermission, "Insufficient permission to perform this operation")
+        Self::new(
+            SessionErrorKind::InsufficientPermission,
+            "Insufficient permission to perform this operation",
+        )
     }
 }
 
@@ -139,7 +151,9 @@ impl Clone for SessionError {
 
 impl std::error::Error for SessionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 

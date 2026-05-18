@@ -27,17 +27,17 @@ use super::types::{
 
 #[cfg(target_os = "linux")]
 mod linux;
-#[cfg(target_os = "windows")]
-mod windows;
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(target_os = "windows")]
+mod windows;
 
 #[cfg(target_os = "linux")]
 use linux::resize_mmap;
-#[cfg(target_os = "windows")]
-use windows::resize_mmap;
 #[cfg(target_os = "macos")]
 use macos::resize_mmap;
+#[cfg(target_os = "windows")]
+use windows::resize_mmap;
 
 /// Persistent container backed by memory-mapped file
 ///
@@ -73,14 +73,17 @@ impl PersistentContainer {
             },
         );
         if result.is_ok() {
-            log::info!("Created persistent container with capacity {} bytes", capacity);
+            log::info!(
+                "Created persistent container with capacity {} bytes",
+                capacity
+            );
         }
         result
     }
 
     pub fn with_config<P: AsRef<Path>>(path: P, config: ContainerConfig) -> ContainerResult<Self> {
         let path = path.as_ref().to_path_buf();
-        
+
         let growth_factor = config.growth_factor.max(1.0);
         let preallocated_size = ((config.initial_capacity as f64) * growth_factor) as usize;
         let total_size = FileHeader::SIZE + preallocated_size;
@@ -142,7 +145,11 @@ impl PersistentContainer {
             0
         };
 
-        log::info!("Opened persistent container from {} ({} bytes data)", path.display(), size);
+        log::info!(
+            "Opened persistent container from {} ({} bytes data)",
+            path.display(),
+            size
+        );
 
         Ok(Self {
             mmap,
@@ -283,7 +290,8 @@ impl PersistentContainer {
 
         log::info!(
             "Resizing mmap from {} to {} bytes",
-            self.mmap_capacity, growth_capacity
+            self.mmap_capacity,
+            growth_capacity
         );
 
         if let Err(e) = self.file.set_len(growth_capacity as u64) {
@@ -303,11 +311,10 @@ impl PersistentContainer {
             };
         }
 
-        resize_mmap(&mut self.mmap, &self.file, growth_capacity)
-            .map_err(|e| {
-                log::error!("Failed to remap mmap to {} bytes: {}", growth_capacity, e);
-                e
-            })?;
+        resize_mmap(&mut self.mmap, &self.file, growth_capacity).map_err(|e| {
+            log::error!("Failed to remap mmap to {} bytes: {}", growth_capacity, e);
+            e
+        })?;
 
         self.mmap_capacity = growth_capacity;
         self.size = new_size;
@@ -439,9 +446,7 @@ impl super::IDataContainer for PersistentContainer {
             if end > self.size + FileHeader::SIZE {
                 return Err(ContainerError::InvalidSize(format!(
                     "Read at offset {} with len {} exceeds size {}",
-                    offset,
-                    len,
-                    self.size
+                    offset, len, self.size
                 )));
             }
             results.push(self.mmap[start..end].to_vec());
@@ -459,8 +464,8 @@ impl Drop for PersistentContainer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use crate::storage::container::container_trait::IDataContainer;
+    use tempfile::TempDir;
 
     #[test]
     fn test_persistent_container_create() {
@@ -553,12 +558,16 @@ mod tests {
         {
             let mut container =
                 PersistentContainer::create(&path, 1024).expect("Failed to create container");
-            container.write_at(0, b"test data for checksum").expect("Failed to write");
+            container
+                .write_at(0, b"test data for checksum")
+                .expect("Failed to write");
             container.sync().expect("Failed to sync");
         }
 
         let container = PersistentContainer::open(&path).expect("Failed to open container");
-        container.verify_integrity().expect("Checksum verification failed");
+        container
+            .verify_integrity()
+            .expect("Checksum verification failed");
     }
 
     #[test]
@@ -566,16 +575,16 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test_prealloc.mmap");
 
-        let container =
-            PersistentContainer::with_config(
-                &path,
-                ContainerConfig {
-                    initial_capacity: 1024,
-                    growth_factor: 2.0,
-                    storage_backend: StorageBackend::Persistent,
-                    ..Default::default()
-                },
-            ).expect("Failed to create container");
+        let container = PersistentContainer::with_config(
+            &path,
+            ContainerConfig {
+                initial_capacity: 1024,
+                growth_factor: 2.0,
+                storage_backend: StorageBackend::Persistent,
+                ..Default::default()
+            },
+        )
+        .expect("Failed to create container");
 
         // capacity() returns data-only capacity
         assert!(container.capacity() >= 1024);
@@ -601,7 +610,9 @@ mod tests {
             (20, b"third".as_slice()),
         ];
 
-        let written = container.write_batch(&operations).expect("Batch write failed");
+        let written = container
+            .write_batch(&operations)
+            .expect("Batch write failed");
         assert_eq!(written, 16); // 5 + 6 + 5 = 16
 
         let results = container
@@ -625,9 +636,14 @@ mod tests {
         assert!(container.dirty, "After write, container should be dirty");
 
         container.sync().expect("Failed to sync");
-        assert!(!container.dirty, "After sync, container should not be dirty");
+        assert!(
+            !container.dirty,
+            "After sync, container should not be dirty"
+        );
 
         let reopened = PersistentContainer::open(&path).expect("Failed to reopen");
-        reopened.verify_integrity().expect("Checksum should be valid");
+        reopened
+            .verify_integrity()
+            .expect("Checksum should be valid");
     }
 }

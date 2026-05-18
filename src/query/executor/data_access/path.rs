@@ -46,12 +46,11 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
 
         let start_vid = VertexId::try_from(&self.start_vertex).map_err(DBError::from)?;
 
-        let start_vertex_obj =
-            if let Some(vertex) = storage.get_vertex("default", &start_vid)? {
-                vertex
-            } else {
-                return Ok(ExecutionResult::DataSet(DataSet::new()));
-            };
+        let start_vertex_obj = if let Some(vertex) = storage.get_vertex("default", &start_vid)? {
+            vertex
+        } else {
+            return Ok(ExecutionResult::DataSet(DataSet::new()));
+        };
 
         let mut current_paths: Vec<Path> = vec![Path {
             src: Box::new(start_vertex_obj.clone()),

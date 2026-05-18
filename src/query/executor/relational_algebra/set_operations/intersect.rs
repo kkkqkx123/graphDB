@@ -90,9 +90,9 @@ impl<S: StorageClient> IntersectExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> Executor<S> for IntersectExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_intersect().map_err(|e| {
-            crate::core::error::DBError::query(e.to_string())
-        })?;
+        let dataset = self
+            .execute_intersect()
+            .map_err(|e| crate::core::error::DBError::query(e.to_string()))?;
 
         Ok(ExecutionResult::DataSet(dataset))
     }

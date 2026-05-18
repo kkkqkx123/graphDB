@@ -13,9 +13,9 @@
 use crate::core::StorageResult;
 
 use super::{
-    CsrBase, CsrType, EdgeId, EdgeStrategy, MutableCsr, MutableCsrEdgeIterator,
-    MutableCsrIterator, MutableCsrTrait, Nbr, SingleCsrEdgeIterator, SingleMutableCsr,
-    SingleMutableCsrIterator, Timestamp, VertexId,
+    CsrBase, CsrType, EdgeId, EdgeStrategy, MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator,
+    MutableCsrTrait, Nbr, SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator,
+    Timestamp, VertexId,
 };
 
 #[derive(Debug, Clone)]
@@ -25,19 +25,22 @@ pub enum MutableCsrVariant {
 }
 
 impl MutableCsrVariant {
-    pub fn from_strategy(strategy: EdgeStrategy, vertex_capacity: usize, edge_capacity: usize) -> StorageResult<Self> {
+    pub fn from_strategy(
+        strategy: EdgeStrategy,
+        vertex_capacity: usize,
+        edge_capacity: usize,
+    ) -> StorageResult<Self> {
         match strategy {
-            EdgeStrategy::Multiple => {
-                Ok(MutableCsrVariant::Multiple(MutableCsr::with_capacity(vertex_capacity, edge_capacity)))
-            }
-            EdgeStrategy::Single => {
-                Ok(MutableCsrVariant::Single(SingleMutableCsr::with_capacity(vertex_capacity)))
-            }
-            EdgeStrategy::None => {
-                Err(crate::core::StorageError::invalid_operation(
-                    "Cannot create MutableCsrVariant with EdgeStrategy::None"
-                ))
-            }
+            EdgeStrategy::Multiple => Ok(MutableCsrVariant::Multiple(MutableCsr::with_capacity(
+                vertex_capacity,
+                edge_capacity,
+            ))),
+            EdgeStrategy::Single => Ok(MutableCsrVariant::Single(SingleMutableCsr::with_capacity(
+                vertex_capacity,
+            ))),
+            EdgeStrategy::None => Err(crate::core::StorageError::invalid_operation(
+                "Cannot create MutableCsrVariant with EdgeStrategy::None",
+            )),
         }
     }
 
@@ -141,7 +144,9 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
         match self {
-            MutableCsrVariant::Multiple(csr) => MutableCsrTrait::revert_delete(csr, src, edge_id, ts),
+            MutableCsrVariant::Multiple(csr) => {
+                MutableCsrTrait::revert_delete(csr, src, edge_id, ts)
+            }
             MutableCsrVariant::Single(csr) => MutableCsrTrait::revert_delete(csr, src, edge_id, ts),
         }
     }
@@ -231,12 +236,8 @@ impl MutableCsrVariant {
 
     pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> CsrEdgeIterator<'_> {
         match self {
-            MutableCsrVariant::Multiple(csr) => {
-                CsrEdgeIterator::Multiple(csr.iter_edges(src, ts))
-            }
-            MutableCsrVariant::Single(csr) => {
-                CsrEdgeIterator::Single(csr.iter_edges(src, ts))
-            }
+            MutableCsrVariant::Multiple(csr) => CsrEdgeIterator::Multiple(csr.iter_edges(src, ts)),
+            MutableCsrVariant::Single(csr) => CsrEdgeIterator::Single(csr.iter_edges(src, ts)),
         }
     }
 

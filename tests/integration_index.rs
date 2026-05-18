@@ -21,7 +21,9 @@ use graphdb::storage::{GraphStorage, StorageReader, StorageSchemaOps, StorageWri
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-fn get_storage(storage: &Arc<RwLock<GraphStorage>>) -> parking_lot::RwLockWriteGuard<'_, GraphStorage> {
+fn get_storage(
+    storage: &Arc<RwLock<GraphStorage>>,
+) -> parking_lot::RwLockWriteGuard<'_, GraphStorage> {
     storage.write()
 }
 
@@ -442,7 +444,6 @@ fn test_update_vertex_indexes() {
     );
     let src_ids = retrieved.expect("索引精确查询应该成功");
     assert!(
-
         src_ids.contains(&Value::from(vertex_id)),
         "The source vertex ID should be in the result set."
     );
@@ -548,7 +549,10 @@ fn test_index_exact_query() {
     let vertices = vec![
         (VertexId::from_int64(1), Value::String("Alice".to_string())),
         (VertexId::from_int64(2), Value::String("Bob".to_string())),
-        (VertexId::from_int64(3), Value::String("Charlie".to_string())),
+        (
+            VertexId::from_int64(3),
+            Value::String("Charlie".to_string()),
+        ),
     ];
 
     for (vid, name) in &vertices {

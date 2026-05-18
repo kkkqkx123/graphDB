@@ -26,8 +26,13 @@ mod tests {
             PropertyDef::new("weight".to_string(), DataType::Double),
             PropertyDef::new("since".to_string(), DataType::BigInt),
         ];
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string())
-            .with_properties(properties);
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "knows".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        )
+        .with_properties(properties);
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = CreateEdgeExecutor::new(1, storage, edge_info, expr_context);
@@ -45,7 +50,12 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "knows".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor =
@@ -152,9 +162,14 @@ mod tests {
             PropertyDef::new("weight".to_string(), DataType::Double),
             PropertyDef::new("since".to_string(), DataType::BigInt),
         ];
-        let edge_info = ExecutorEdgeInfo::new("my_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string())
-            .with_properties(properties)
-            .with_comment("Friend relationship".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "my_space".to_string(),
+            "knows".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        )
+        .with_properties(properties)
+        .with_comment("Friend relationship".to_string());
 
         assert_eq!(edge_info.space_name, "my_space");
         assert_eq!(edge_info.edge_name, "knows");
@@ -180,7 +195,12 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "knows".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = CreateEdgeExecutor::new(8, storage, edge_info, expr_context);
 
@@ -196,7 +216,12 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "knows".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = CreateEdgeExecutor::new(9, storage, edge_info, expr_context);
 
@@ -211,7 +236,12 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "empty_edge".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "empty_edge".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = CreateEdgeExecutor::new(10, storage, edge_info, expr_context);
@@ -232,8 +262,13 @@ mod tests {
             PropertyDef::new("string_field".to_string(), DataType::String),
             PropertyDef::new("timestamp_field".to_string(), DataType::Timestamp),
         ];
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "typed_edge".to_string(), "person".to_string(), "person".to_string())
-            .with_properties(properties);
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "typed_edge".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        )
+        .with_properties(properties);
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = CreateEdgeExecutor::new(11, storage, edge_info, expr_context);
@@ -251,9 +286,13 @@ mod tests {
             PropertyDef::new("required_field".to_string(), DataType::BigInt),
             PropertyDef::new("optional_field".to_string(), DataType::String),
         ];
-        let edge_info =
-            ExecutorEdgeInfo::new("test_space".to_string(), "nullable_edge".to_string(), "person".to_string(), "person".to_string())
-                .with_properties(properties);
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "nullable_edge".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        )
+        .with_properties(properties);
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = CreateEdgeExecutor::new(12, storage, edge_info, expr_context);
@@ -402,8 +441,12 @@ mod tests {
 
     #[test]
     fn test_executor_edge_info_default_values() {
-        let edge_info =
-            ExecutorEdgeInfo::new("default_space".to_string(), "default_edge".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "default_space".to_string(),
+            "default_edge".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
 
         assert_eq!(edge_info.space_name, "default_space");
         assert_eq!(edge_info.edge_name, "default_edge");
@@ -445,7 +488,12 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "knows".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = CreateEdgeExecutor::new(20, storage, edge_info, expr_context);
 
@@ -465,7 +513,12 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "knows".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = CreateEdgeExecutor::new(21, storage, edge_info, expr_context);
 
@@ -484,8 +537,12 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info =
-            ExecutorEdgeInfo::new("test_space".to_string(), "edge_with_underscore".to_string(), "person".to_string(), "person".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "test_space".to_string(),
+            "edge_with_underscore".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        );
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = CreateEdgeExecutor::new(22, storage, edge_info, expr_context);
@@ -525,7 +582,12 @@ mod tests {
         let create_executor = CreateEdgeExecutor::new(
             24,
             storage.clone(),
-            ExecutorEdgeInfo::new("s".to_string(), "e".to_string(), "person".to_string(), "person".to_string()),
+            ExecutorEdgeInfo::new(
+                "s".to_string(),
+                "e".to_string(),
+                "person".to_string(),
+                "person".to_string(),
+            ),
             expr_context.clone(),
         );
         let alter_executor = AlterEdgeExecutor::new(
@@ -569,9 +631,14 @@ mod tests {
             PropertyDef::new("prop1".to_string(), DataType::BigInt),
             PropertyDef::new("prop2".to_string(), DataType::String),
         ];
-        let edge_info = ExecutorEdgeInfo::new("space1".to_string(), "edge1".to_string(), "person".to_string(), "person".to_string())
-            .with_properties(properties)
-            .with_comment("Test edge".to_string());
+        let edge_info = ExecutorEdgeInfo::new(
+            "space1".to_string(),
+            "edge1".to_string(),
+            "person".to_string(),
+            "person".to_string(),
+        )
+        .with_properties(properties)
+        .with_comment("Test edge".to_string());
 
         assert_eq!(edge_info.space_name, "space1");
         assert_eq!(edge_info.edge_name, "edge1");

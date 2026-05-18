@@ -6,8 +6,8 @@ use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::core::{Edge, Path, Step, Vertex};
 use crate::core::types::VertexId;
+use crate::core::{Edge, Path, Step, Vertex};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
@@ -245,10 +245,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
 
                 if new_distance < *existing_distance {
                     distance_map.insert(neighbor_id, new_distance);
-                    previous_map.insert(
-                        neighbor_id,
-                        (current.vertex_id, edge.clone()),
-                    );
+                    previous_map.insert(neighbor_id, (current.vertex_id, edge.clone()));
                     priority_queue.push(Reverse(DistanceNode {
                         distance: new_distance,
                         vertex_id: neighbor_id,

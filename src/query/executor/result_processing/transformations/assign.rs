@@ -59,10 +59,8 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
     /// Perform an assignment operation
     fn execute_assign(&mut self) -> DBResult<()> {
         for (var_name, expression) in &self.assign_items {
-            let value =
-                ExpressionEvaluator::evaluate(expression, &mut self.base.context).map_err(|e| {
-                    DBError::query(e.to_string())
-                })?;
+            let value = ExpressionEvaluator::evaluate(expression, &mut self.base.context)
+                .map_err(|e| DBError::query(e.to_string()))?;
 
             match &value {
                 Value::DataSet(dataset) => {

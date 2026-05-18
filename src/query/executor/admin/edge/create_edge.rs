@@ -49,7 +49,12 @@ pub struct ExecutorEdgeInfo {
 }
 
 impl ExecutorEdgeInfo {
-    pub fn new(space_name: String, edge_name: String, src_tag_name: String, dst_tag_name: String) -> Self {
+    pub fn new(
+        space_name: String,
+        edge_name: String,
+        src_tag_name: String,
+        dst_tag_name: String,
+    ) -> Self {
         Self {
             space_name,
             edge_name,

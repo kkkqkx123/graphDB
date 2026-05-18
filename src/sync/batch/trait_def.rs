@@ -28,5 +28,3 @@ pub trait BatchProcessor: Send + Sync + std::fmt::Debug {
     /// Stop the background flushing task
     async fn stop_background_task(&self);
 }
-
-

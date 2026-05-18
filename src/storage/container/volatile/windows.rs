@@ -62,7 +62,6 @@ impl LargePageRegion {
     pub fn len(&self) -> usize {
         0
     }
-
 }
 
 impl Drop for LargePageRegion {

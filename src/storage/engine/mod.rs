@@ -18,8 +18,8 @@ pub mod transaction;
 pub mod wal_manager;
 
 pub use batch::{
-    batch_import_edges, batch_import_vertices, BatchImportStats, DEFAULT_BATCH_SIZE,
-    EdgeBatchReader, EdgeBatchWriter, VertexBatchReader, VertexBatchWriter,
+    batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
+    VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE,
 };
 pub use cache::CacheManager;
 pub use config::PropertyGraphConfig;
@@ -28,8 +28,10 @@ pub use persistence_coordinator::{
     PersistenceStats,
 };
 pub use property_graph::{InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
-pub use snapshot_manager::{
-    RetentionPolicy, SnapshotInfo, SnapshotManager, SnapshotOptions,
-};
+pub use snapshot_manager::{RetentionPolicy, SnapshotInfo, SnapshotManager, SnapshotOptions};
 pub use sync_wrapper::SyncWrapper;
+pub use transaction::{
+    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, InsertEdgeUndoParams,
+    RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
+};
 pub use wal_manager::WalManager;

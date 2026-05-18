@@ -11,7 +11,8 @@ use crate::query::executor::base::{
 use crate::query::executor::graph_operations::graph_traversal::algorithms::bfs_shortest::BfsShortestPathConfig;
 use crate::query::executor::graph_operations::graph_traversal::algorithms::MultiShortestPathExecutor;
 use crate::query::executor::graph_operations::graph_traversal::{
-    AllPathsExecutor, ExpandAllExecutor, ExpandAllExecutorParams, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
+    AllPathsExecutor, ExpandAllExecutor, ExpandAllExecutorParams, ExpandExecutor,
+    ShortestPathExecutor, TraverseExecutor,
 };
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, PlanNode,
@@ -92,13 +93,10 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             .iter()
             .filter_map(|v| VertexId::try_from(v).ok())
             .collect();
-        let mut executor = ExpandAllExecutor::with_context(
-            params,
-            context.clone(),
-        )
-        .with_src_vids(src_vids)
-        .with_include_empty_paths(node.include_empty_paths())
-        .with_filter(node.filter().cloned());
+        let mut executor = ExpandAllExecutor::with_context(params, context.clone())
+            .with_src_vids(src_vids)
+            .with_include_empty_paths(node.include_empty_paths())
+            .with_filter(node.filter().cloned());
 
         // If input_var is set, use it to get input from ExecutionContext
         if let Some(input_var) = node.get_input_var() {

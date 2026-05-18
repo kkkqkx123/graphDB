@@ -98,9 +98,9 @@ impl<S: StorageClient> MinusExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> Executor<S> for MinusExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_minus().map_err(|e| {
-            crate::core::error::DBError::query(e.to_string())
-        })?;
+        let dataset = self
+            .execute_minus()
+            .map_err(|e| crate::core::error::DBError::query(e.to_string()))?;
 
         Ok(ExecutionResult::DataSet(dataset))
     }

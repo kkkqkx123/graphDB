@@ -76,9 +76,9 @@ impl<S: StorageClient + Send + 'static> ProfileExecutor<S> {
             let executor = factory
                 .create_executor(root, self.get_storage().clone(), &context)
                 .map_err(|e| {
-                    crate::core::error::DBError::from(
-                        crate::core::error::QueryError::execution(e.to_string()),
-                    )
+                    crate::core::error::DBError::from(crate::core::error::QueryError::execution(
+                        e.to_string(),
+                    ))
                 })?;
 
             let mut instrumented = InstrumentedExecutor::new(

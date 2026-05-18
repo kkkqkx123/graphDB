@@ -6,8 +6,8 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi}
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
-use crate::core::{SessionStatistics, StatsManager};
 use crate::core::Value;
+use crate::core::{SessionStatistics, StatsManager};
 use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
 use crate::search::FulltextIndexManager;
 use crate::storage::StorageClient;

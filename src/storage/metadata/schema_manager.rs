@@ -226,7 +226,11 @@ impl SchemaManager {
         Ok(true)
     }
 
-    pub fn alter_space_comment(&self, space_id: u64, comment: String) -> Result<bool, StorageError> {
+    pub fn alter_space_comment(
+        &self,
+        space_id: u64,
+        comment: String,
+    ) -> Result<bool, StorageError> {
         let mut spaces = self.spaces.write();
         if let Some(data) = spaces.get_mut(&space_id) {
             data.info.comment = Some(comment);
@@ -273,8 +277,8 @@ impl SchemaManager {
         let mut spaces = self.spaces.write();
         if let std::collections::hash_map::Entry::Occupied(mut e) = spaces.entry(space.space_id) {
             e.insert(SpaceData {
-                    info: space.clone(),
-                });
+                info: space.clone(),
+            });
             Ok(true)
         } else {
             Ok(false)
@@ -320,7 +324,11 @@ impl SchemaManager {
         }
     }
 
-    pub fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
+    pub fn get_tag(
+        &self,
+        space_name: &str,
+        tag_name: &str,
+    ) -> Result<Option<TagInfo>, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
@@ -379,7 +387,9 @@ impl SchemaManager {
             .iter()
             .any(|e| e.edge_type_name == edge_type.edge_type_name)
         {
-            return Err(StorageError::label_already_exists(edge_type.edge_type_name.clone()));
+            return Err(StorageError::label_already_exists(
+                edge_type.edge_type_name.clone(),
+            ));
         }
 
         let edge_type_id = self.get_next_edge_type_id(space_info.space_id);
@@ -395,7 +405,11 @@ impl SchemaManager {
         Ok(edge_type_id)
     }
 
-    pub fn drop_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
+    pub fn drop_edge_type(
+        &self,
+        space_name: &str,
+        edge_type_name: &str,
+    ) -> Result<bool, StorageError> {
         self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
@@ -533,9 +547,7 @@ impl SchemaManager {
         let mut tags = self.tags.write();
         let tag_key = tags
             .iter()
-            .find(|((sid, _), data)| {
-                *sid == space_info.space_id && data.info.tag_name == tag_name
-            })
+            .find(|((sid, _), data)| *sid == space_info.space_id && data.info.tag_name == tag_name)
             .map(|(k, _)| *k);
 
         if let Some(key) = tag_key {
@@ -545,7 +557,9 @@ impl SchemaManager {
                         data.info.properties.push(prop);
                     }
                 }
-                data.info.properties.retain(|p| !deletions.contains(&p.name));
+                data.info
+                    .properties
+                    .retain(|p| !deletions.contains(&p.name));
                 return Ok(true);
             }
         }
@@ -578,7 +592,9 @@ impl SchemaManager {
                         data.info.properties.push(prop);
                     }
                 }
-                data.info.properties.retain(|p| !deletions.contains(&p.name));
+                data.info
+                    .properties
+                    .retain(|p| !deletions.contains(&p.name));
                 return Ok(true);
             }
         }

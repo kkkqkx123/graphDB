@@ -140,11 +140,13 @@ impl TransactionCacheSnapshot {
     }
 
     pub fn record_vertex(&mut self, key: VertexCacheKey, old_value: Option<CachedVertex>) {
-        self.entries.push(CacheSnapshotEntry::Vertex(key, old_value));
+        self.entries
+            .push(CacheSnapshotEntry::Vertex(key, old_value));
     }
 
     pub fn record_id_index(&mut self, key: IdIndexCacheKey, old_value: Option<u32>) {
-        self.entries.push(CacheSnapshotEntry::IdIndex(key, old_value));
+        self.entries
+            .push(CacheSnapshotEntry::IdIndex(key, old_value));
     }
 
     pub fn into_entries(self) -> Vec<CacheSnapshotEntry> {

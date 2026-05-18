@@ -388,7 +388,7 @@ impl FsstColumn {
 
         (original_size - compressed_size) as f64 / original_size as f64
     }
-    
+
     pub fn clear(&mut self) {
         self.encoded_data.clear();
         self.null_bitmap.clear();
@@ -421,7 +421,10 @@ pub fn select_fsst(strings: &[&str]) -> bool {
     let total_len: usize = strings.iter().map(|s| s.len()).sum();
     let avg_len = total_len / strings.len();
 
-    let unique_count = strings.iter().collect::<std::collections::HashSet<_>>().len();
+    let unique_count = strings
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .len();
     let cardinality_ratio = unique_count as f64 / strings.len() as f64;
 
     avg_len >= 20 && cardinality_ratio > 0.5

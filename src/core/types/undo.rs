@@ -2,11 +2,11 @@
 //!
 //! Provides the core trait and error types for transaction undo/rollback operations.
 
+use super::property_value::PropertyValue;
 use super::storage_ids::{
     ColumnId, EdgeDeletionContext, EdgeId, EdgeIdentifier, EdgeKey, LabelId, Timestamp, VertexId,
     VertexIdentifier,
 };
-use super::property_value::PropertyValue;
 
 /// Undo log error
 #[derive(Debug, Clone, thiserror::Error)]

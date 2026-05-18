@@ -7,9 +7,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::types::{
-    Lsn, RecordType, UpdateWalUnit, WalCompression, WalError,
-    WalFileHeader, WalHeader, WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE,
-    WAL_HEADER_SIZE,
+    Lsn, RecordType, UpdateWalUnit, WalCompression, WalError, WalFileHeader, WalHeader,
+    WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE,
 };
 use crate::core::types::Timestamp;
 
@@ -692,22 +691,21 @@ impl LocalWalParser {
 
             let payload = buffer[payload_start..payload_end].to_vec();
 
-            if self.verify_checksum && header.checksum != 0
-                && !header.verify_checksum(&payload) {
-                    match self.recovery_mode {
-                        WalRecoveryMode::AbortOnCorruption => {
-                            return Err(WalError::ChecksumMismatch {
-                                expected: header.checksum,
-                                actual: self.compute_checksum(&header, &payload),
-                            });
-                        }
-                        _ => {
-                            self.corrupted_count += 1;
-                            offset = payload_end;
-                            continue;
-                        }
+            if self.verify_checksum && header.checksum != 0 && !header.verify_checksum(&payload) {
+                match self.recovery_mode {
+                    WalRecoveryMode::AbortOnCorruption => {
+                        return Err(WalError::ChecksumMismatch {
+                            expected: header.checksum,
+                            actual: self.compute_checksum(&header, &payload),
+                        });
+                    }
+                    _ => {
+                        self.corrupted_count += 1;
+                        offset = payload_end;
+                        continue;
                     }
                 }
+            }
 
             let final_payload = if header.is_compressed() {
                 match Self::decompress_payload(&payload, header.compression()) {
@@ -929,8 +927,8 @@ impl WalParserFactory {
 mod tests {
     use super::*;
     use crate::transaction::wal::types::WalConfig;
-    use crate::transaction::wal::WalOpType;
     use crate::transaction::wal::writer::{LocalWalWriter, WalWriter};
+    use crate::transaction::wal::WalOpType;
     use tempfile::TempDir;
 
     #[test]

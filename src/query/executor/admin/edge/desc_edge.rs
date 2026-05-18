@@ -10,7 +10,7 @@ use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::core::Row;
+
 use crate::storage::StorageClient;
 
 /// Edge type description information
@@ -62,7 +62,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<
 
         match result {
             Ok(Some(edge_schema)) => {
-                let rows: Vec<Row> = edge_schema
+                let rows: Vec<Vec<Value>> = edge_schema
                     .properties
                     .iter()
                     .map(|field| {

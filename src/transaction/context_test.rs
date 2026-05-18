@@ -4,14 +4,16 @@
 
 use std::time::Duration;
 
-use crate::core::types::{ColumnId, EdgeDeletionContext, EdgeIdentifier, EdgeKey, LabelId, Timestamp, VertexIdentifier};
+use crate::core::types::{
+    ColumnId, EdgeDeletionContext, EdgeIdentifier, EdgeKey, LabelId, Timestamp, VertexIdentifier,
+};
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::{
     DurabilityLevel, OperationLog, TransactionConfig, TransactionId, TransactionState,
 };
-use crate::transaction::TransactionErrorKind;
 use crate::transaction::undo_log::PropertyValue;
 use crate::transaction::undo_log::{UndoLogResult, UndoTarget};
+use crate::transaction::TransactionErrorKind;
 
 struct MockUndoTarget;
 
@@ -48,11 +50,7 @@ impl UndoTarget for MockUndoTarget {
     ) -> UndoLogResult<()> {
         Ok(())
     }
-    fn revert_delete_vertex(
-        &self,
-        _vertex: VertexIdentifier,
-        _ts: Timestamp,
-    ) -> UndoLogResult<()> {
+    fn revert_delete_vertex(&self, _vertex: VertexIdentifier, _ts: Timestamp) -> UndoLogResult<()> {
         Ok(())
     }
     fn revert_delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {

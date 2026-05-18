@@ -6,13 +6,13 @@
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 //! Supports optional key compression for memory efficiency.
 
-use crate::core::types::{Index, MAX_TIMESTAMP, Timestamp};
-use crate::core::{StorageError, StorageResult, Value};
 use super::index_data_manager::IndexEntry;
 use super::key_codec::{
-    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, SecondaryIndexKey, KeyBuilder,
-    KeyParser,
+    deserialize_value, serialize_value, CompressionConfig, IndexCompressor, KeyBuilder, KeyParser,
+    SecondaryIndexKey,
 };
+use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
+use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::index_types::IndexEstimate;
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
@@ -78,9 +78,10 @@ impl EdgeIndexManager {
             let c = c.read();
             if c.is_enabled() {
                 let forward = self.forward_index.read();
-                let original: Vec<Vec<u8>> = forward.keys().map(|k| {
-                    c.decompress_key(k).unwrap_or_else(|_| k.clone())
-                }).collect();
+                let original: Vec<Vec<u8>> = forward
+                    .keys()
+                    .map(|k| c.decompress_key(k).unwrap_or_else(|_| k.clone()))
+                    .collect();
                 let compressed: Vec<Vec<u8>> = forward.keys().cloned().collect();
                 Some(c.compression_ratio(&original, &compressed))
             } else {
@@ -109,8 +110,10 @@ impl EdgeIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
             let index_key =
@@ -165,8 +168,7 @@ impl EdgeIndexManager {
     ) -> Result<(), StorageError> {
         let forward_key =
             KeyBuilder::build_edge_index_key(space_id, index_name, prop_value, src, dst)?;
-        let reverse_key =
-            KeyBuilder::build_edge_reverse_key_v2(space_id, src, dst, index_name)?;
+        let reverse_key = KeyBuilder::build_edge_reverse_key_v2(space_id, src, dst, index_name)?;
 
         let compressed_forward = self.compress_key(&forward_key.0);
         let compressed_reverse = self.compress_key(&reverse_key.0);
@@ -196,8 +198,7 @@ impl EdgeIndexManager {
         index_names: &[String],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let reverse_prefix =
-            KeyBuilder::build_edge_reverse_prefix_v2_with_dst(space_id, src, dst)?;
+        let reverse_prefix = KeyBuilder::build_edge_reverse_prefix_v2_with_dst(space_id, src, dst)?;
         let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
         let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
@@ -205,7 +206,9 @@ impl EdgeIndexManager {
 
         {
             let reverse_index = self.reverse_index.read();
-            for (compressed_key, entry) in reverse_index.range(reverse_prefix.0.clone()..reverse_end.0) {
+            for (compressed_key, entry) in
+                reverse_index.range(reverse_prefix.0.clone()..reverse_end.0)
+            {
                 if !entry.is_visible_at(write_ts) {
                     continue;
                 }
@@ -262,7 +265,8 @@ impl EdgeIndexManager {
                                             let stored_dst =
                                                 &fwd_key_bytes[dst_start..dst_start + dst_len];
                                             if stored_src == src_bytes && stored_dst == dst_bytes {
-                                                forward_keys_to_delete.push(fwd_compressed_key.clone());
+                                                forward_keys_to_delete
+                                                    .push(fwd_compressed_key.clone());
                                             }
                                         }
                                     }
@@ -586,10 +590,9 @@ impl EdgeIndexManager {
 
                                 if key_bytes.len() >= dst_start + dst_len {
                                     let dst_bytes = &key_bytes[dst_start..dst_start + dst_len];
-                                    if let (Ok(src), Ok(dst)) = (
-                                        deserialize_value(src_bytes),
-                                        deserialize_value(dst_bytes),
-                                    ) {
+                                    if let (Ok(src), Ok(dst)) =
+                                        (deserialize_value(src_bytes), deserialize_value(dst_bytes))
+                                    {
                                         results.push((prop_value, src, dst));
                                     }
                                 }
@@ -933,8 +936,10 @@ impl EdgeIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> = Vec::with_capacity(props.len());
+        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
+        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
+            Vec::with_capacity(props.len());
 
         for (_prop_name, prop_value) in props {
             let index_key = KeyBuilder::build_edge_index_key_native(
@@ -1096,8 +1101,7 @@ impl EdgeIndexManager {
                         &key_bytes[prop_value_start..prop_value_start + prop_value_len];
 
                     if stored_prop_value == value_bytes.as_slice() {
-                        if let Ok((src, dst)) =
-                            KeyParser::parse_edge_ids_from_key_native(key_bytes)
+                        if let Ok((src, dst)) = KeyParser::parse_edge_ids_from_key_native(key_bytes)
                         {
                             results.push((src, dst));
                         }
@@ -1173,8 +1177,7 @@ impl EdgeIndexManager {
                     if stored_prop_value >= start_bytes.as_slice()
                         && stored_prop_value < end_bytes.as_slice()
                     {
-                        if let Ok((src, dst)) =
-                            KeyParser::parse_edge_ids_from_key_native(key_bytes)
+                        if let Ok((src, dst)) = KeyParser::parse_edge_ids_from_key_native(key_bytes)
                         {
                             results.push((src, dst));
                         }

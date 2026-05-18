@@ -93,20 +93,12 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         // Convert into a dataset
         let left_dataset = match left_result {
             ExecutionResult::DataSet(ds) => ds,
-            _ => {
-                return Err(DBError::query(
-                    "Left input must be a DataSet".to_string(),
-                ))
-            }
+            _ => return Err(DBError::query("Left input must be a DataSet".to_string())),
         };
 
         let right_dataset = match right_result {
             ExecutionResult::DataSet(ds) => ds,
-            _ => {
-                return Err(DBError::query(
-                    "Right input must be a DataSet".to_string(),
-                ))
-            }
+            _ => return Err(DBError::query("Right input must be a DataSet".to_string())),
         };
 
         // Pre-built mapping of column names to indexes
@@ -126,12 +118,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
 
         // Create a hash table for the left table: Use the join key from the left table as the key, and the row index as the value.
         let left_hash_table_indices = build_hash_table(&left_dataset, self.base.hash_keys())
-            .map_err(|e| {
-                DBError::query(format!(
-                    "Failed to build left hash table: {}",
-                    e
-                ))
-            })?;
+            .map_err(|e| DBError::query(format!("Failed to build left hash table: {}", e)))?;
 
         // Convert to a hash table with matching indicators
         let mut left_hash_table: HashMap<JoinKey, Vec<(usize, bool)>> = HashMap::new();
@@ -144,12 +131,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
 
         // Construct a hash table for the right table: Use the join key from the right table as the key, and the row index as the value.
         let right_hash_table_indices = build_hash_table(&right_dataset, self.base.probe_keys())
-            .map_err(|e| {
-                DBError::query(format!(
-                    "Failed to build right hash table: {}",
-                    e
-                ))
-            })?;
+            .map_err(|e| DBError::query(format!("Failed to build right hash table: {}", e)))?;
 
         // Convert to a hash table with matching indicators
         let mut right_hash_table: HashMap<JoinKey, Vec<(usize, bool)>> = HashMap::new();

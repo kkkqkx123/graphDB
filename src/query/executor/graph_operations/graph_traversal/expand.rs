@@ -168,8 +168,8 @@ impl<S: StorageClient> ExpandExecutor<S> {
 
     fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
         let storage = self.base.get_storage().clone();
-        let node_vid = VertexId::try_from(node_id)
-            .map_err(|e| QueryError::storage(e.to_string()))?;
+        let node_vid =
+            VertexId::try_from(node_id).map_err(|e| QueryError::storage(e.to_string()))?;
         let neighbors = super::traversal_utils::get_neighbors(
             &storage,
             &node_vid,

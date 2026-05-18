@@ -12,8 +12,7 @@ use super::common;
 use common::test_scenario::TestScenario;
 use graphdb::core::Value;
 use graphdb::transaction::{
-    TransactionErrorKind, TransactionManager, TransactionManagerConfig,
-    TransactionOptions,
+    TransactionErrorKind, TransactionManager, TransactionManagerConfig, TransactionOptions,
 };
 use std::collections::HashMap;
 use std::sync::Arc;

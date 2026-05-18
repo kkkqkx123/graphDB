@@ -6,10 +6,10 @@
 //! Supports undo logging for transaction rollback.
 //! Supports MVCC timestamp parameters for snapshot isolation.
 
-use crate::core::types::{Index, MAX_TIMESTAMP, Timestamp};
+use super::index_data_manager::IndexDataManager;
+use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, StorageError, Value};
-use super::index_data_manager::IndexDataManager;
 use crate::storage::metadata::IndexMetadataManager;
 
 /// index updater
@@ -586,9 +586,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
 
         // Delete the vertex index.
         if !self.pending_vertex_deletes.is_empty() {
-            let vertex_ids: Vec<Value> = self.pending_vertex_deletes.iter().map(|(vid, _)| vid.clone()).collect();
-            self.updater
-                .batch_delete_vertex_indexes(&vertex_ids)?;
+            let vertex_ids: Vec<Value> = self
+                .pending_vertex_deletes
+                .iter()
+                .map(|(vid, _)| vid.clone())
+                .collect();
+            self.updater.batch_delete_vertex_indexes(&vertex_ids)?;
             self.pending_vertex_deletes.clear();
         }
 
@@ -732,7 +735,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
     pub fn rollback(&mut self) -> Result<(), StorageError> {
         // Execute undo operations to revert index changes
         if !self.undo_log.is_empty() {
-            self.undo_log.execute_undo(self.updater.index_data_manager)?;
+            self.undo_log
+                .execute_undo(self.updater.index_data_manager)?;
         }
 
         // Clear all pending updates

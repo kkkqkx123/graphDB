@@ -9,8 +9,8 @@
 
 use std::error::Error;
 
-use crate::core::error::BoxedError;
 use super::types::{TransactionId, TransactionState};
+use crate::core::error::BoxedError;
 
 /// Transaction operation result type alias
 pub type TransactionResult<T> = Result<T, TransactionError>;
@@ -128,7 +128,10 @@ impl TransactionError {
     }
 
     pub fn transaction_not_found(id: TransactionId) -> Self {
-        Self::new(TransactionErrorKind::TransactionNotFound, format!("Transaction not found: {}", id))
+        Self::new(
+            TransactionErrorKind::TransactionNotFound,
+            format!("Transaction not found: {}", id),
+        )
     }
 
     pub fn savepoint_failed(message: impl Into<String>) -> Self {
@@ -136,15 +139,24 @@ impl TransactionError {
     }
 
     pub fn savepoint_not_found(id: TransactionId) -> Self {
-        Self::new(TransactionErrorKind::SavepointNotFound, format!("Savepoint not found: {}", id))
+        Self::new(
+            TransactionErrorKind::SavepointNotFound,
+            format!("Savepoint not found: {}", id),
+        )
     }
 
     pub fn savepoint_not_active(id: TransactionId) -> Self {
-        Self::new(TransactionErrorKind::SavepointNotActive, format!("Savepoint not active: {}", id))
+        Self::new(
+            TransactionErrorKind::SavepointNotActive,
+            format!("Savepoint not active: {}", id),
+        )
     }
 
     pub fn no_savepoints_in_transaction() -> Self {
-        Self::new(TransactionErrorKind::NoSavepointsInTransaction, "No savepoints in transaction")
+        Self::new(
+            TransactionErrorKind::NoSavepointsInTransaction,
+            "No savepoints in transaction",
+        )
     }
 
     pub fn invalid_state_transition(from: TransactionState, to: TransactionState) -> Self {
@@ -155,19 +167,31 @@ impl TransactionError {
     }
 
     pub fn invalid_state_for_commit(state: TransactionState) -> Self {
-        Self::new(TransactionErrorKind::InvalidStateForCommit, format!("Invalid state for commit: {}", state))
+        Self::new(
+            TransactionErrorKind::InvalidStateForCommit,
+            format!("Invalid state for commit: {}", state),
+        )
     }
 
     pub fn invalid_state_for_abort(state: TransactionState) -> Self {
-        Self::new(TransactionErrorKind::InvalidStateForAbort, format!("Invalid state for abort: {}", state))
+        Self::new(
+            TransactionErrorKind::InvalidStateForAbort,
+            format!("Invalid state for abort: {}", state),
+        )
     }
 
     pub fn transaction_timeout() -> Self {
-        Self::new(TransactionErrorKind::TransactionTimeout, "Transaction timeout")
+        Self::new(
+            TransactionErrorKind::TransactionTimeout,
+            "Transaction timeout",
+        )
     }
 
     pub fn transaction_expired() -> Self {
-        Self::new(TransactionErrorKind::TransactionExpired, "Transaction expired")
+        Self::new(
+            TransactionErrorKind::TransactionExpired,
+            "Transaction expired",
+        )
     }
 
     pub fn rollback_failed(message: impl Into<String>) -> Self {
@@ -175,15 +199,24 @@ impl TransactionError {
     }
 
     pub fn too_many_transactions() -> Self {
-        Self::new(TransactionErrorKind::TooManyTransactions, "Too many concurrent transactions")
+        Self::new(
+            TransactionErrorKind::TooManyTransactions,
+            "Too many concurrent transactions",
+        )
     }
 
     pub fn read_only_transaction() -> Self {
-        Self::new(TransactionErrorKind::ReadOnlyTransaction, "Read-only transaction")
+        Self::new(
+            TransactionErrorKind::ReadOnlyTransaction,
+            "Read-only transaction",
+        )
     }
 
     pub fn write_transaction_conflict() -> Self {
-        Self::new(TransactionErrorKind::WriteTransactionConflict, "Write transaction conflict")
+        Self::new(
+            TransactionErrorKind::WriteTransactionConflict,
+            "Write transaction conflict",
+        )
     }
 
     pub fn recovery_failed(message: impl Into<String>) -> Self {
@@ -229,7 +262,9 @@ impl Clone for TransactionError {
 
 impl std::error::Error for TransactionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 

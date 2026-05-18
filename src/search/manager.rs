@@ -152,7 +152,13 @@ impl FulltextIndexManager {
         )
         .ok()?;
 
-        let engine = self.wrap_engine(engine, EngineType::Inversearch, space_id, &tag_name, &field_name);
+        let engine = self.wrap_engine(
+            engine,
+            EngineType::Inversearch,
+            space_id,
+            &tag_name,
+            &field_name,
+        );
 
         let key = IndexKey::new(space_id, &tag_name, &field_name);
         let metadata = IndexMetadata {

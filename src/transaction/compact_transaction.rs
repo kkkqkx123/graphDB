@@ -5,10 +5,10 @@
 //! including CSR compaction and removal of old versions.
 
 use super::read_transaction::INVALID_TIMESTAMP;
-use crate::core::mvcc::{VersionManager, VersionManagerError};
 use super::wal::types::WalHeader;
-use super::wal::Timestamp;
 use super::wal::writer::WalWriter;
+use super::wal::Timestamp;
+use crate::core::mvcc::{VersionManager, VersionManagerError};
 use crate::core::types::{CompactConfig, CompactError, CompactStats, CompactTarget};
 
 /// Compact transaction error
@@ -130,8 +130,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
 
         log::info!("Starting compaction at timestamp {}", self.timestamp);
 
-        self.graph
-            .compact(&self.config, self.timestamp)?;
+        self.graph.compact(&self.config, self.timestamp)?;
 
         log::info!("Completed compaction at timestamp {}", self.timestamp);
 
@@ -174,11 +173,7 @@ mod tests {
     struct MockCompactTarget;
 
     impl CompactTarget for MockCompactTarget {
-        fn compact(
-            &self,
-            _config: &CompactConfig,
-            _ts: Timestamp,
-        ) -> CompactResult<()> {
+        fn compact(&self, _config: &CompactConfig, _ts: Timestamp) -> CompactResult<()> {
             Ok(())
         }
 

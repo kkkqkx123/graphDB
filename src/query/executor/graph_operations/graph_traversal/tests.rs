@@ -88,16 +88,15 @@ mod tests {
     fn test_expand_executor() {
         let storage = create_test_graph("expand");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = GraphTraversalExecutorFactory::create_expand_executor(
-            ExpandExecutorParams {
+        let executor =
+            GraphTraversalExecutorFactory::create_expand_executor(ExpandExecutorParams {
                 id: 1,
                 storage,
                 edge_direction: EdgeDirection::Out,
                 edge_types: Some(vec!["connect".to_string()]),
                 max_depth: Some(1),
                 expr_context,
-            }
-        );
+            });
 
         // Testing the basic functions
         assert_eq!(executor.name(), "ExpandExecutor");
@@ -111,8 +110,8 @@ mod tests {
     fn test_expand_all_executor() {
         let storage = create_test_graph("expand_all");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = GraphTraversalExecutorFactory::create_expand_all_executor(
-            ExpandAllExecutorParams {
+        let executor =
+            GraphTraversalExecutorFactory::create_expand_all_executor(ExpandAllExecutorParams {
                 id: 2,
                 storage,
                 edge_direction: EdgeDirection::Both,
@@ -122,8 +121,7 @@ mod tests {
                 expr_context,
                 space_id: 1,
                 space_name: "default".to_string(),
-            }
-        );
+            });
 
         assert_eq!(executor.name(), "ExpandAllExecutor");
         assert_eq!(executor.id(), 2);
@@ -136,8 +134,8 @@ mod tests {
     fn test_traverse_executor() {
         let storage = create_test_graph("traverse");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = GraphTraversalExecutorFactory::create_traverse_executor(
-            TraverseExecutorParams {
+        let executor =
+            GraphTraversalExecutorFactory::create_traverse_executor(TraverseExecutorParams {
                 id: 3,
                 storage,
                 edge_direction: EdgeDirection::Out,
@@ -145,8 +143,7 @@ mod tests {
                 max_depth: Some(3),
                 conditions: Some("true".to_string()),
                 expr_context,
-            }
-        );
+            });
 
         assert_eq!(executor.name(), "TraverseExecutor");
         assert_eq!(executor.id(), 3);
@@ -229,33 +226,15 @@ mod tests {
 
             let mut props_bc = std::collections::HashMap::new();
             props_bc.insert("weight".to_string(), Value::Int(2));
-            let edge_bc = Edge::new(
-                id_b,
-                id_c,
-                "connect".to_string(),
-                2,
-                props_bc,
-            );
+            let edge_bc = Edge::new(id_b, id_c, "connect".to_string(), 2, props_bc);
 
             let mut props_ad = std::collections::HashMap::new();
             props_ad.insert("weight".to_string(), Value::Int(5));
-            let edge_ad = Edge::new(
-                id_a,
-                id_d,
-                "connect".to_string(),
-                5,
-                props_ad,
-            );
+            let edge_ad = Edge::new(id_a, id_d, "connect".to_string(), 5, props_ad);
 
             let mut props_dc = std::collections::HashMap::new();
             props_dc.insert("weight".to_string(), Value::Int(1));
-            let edge_dc = Edge::new(
-                id_d,
-                id_c,
-                "connect".to_string(),
-                1,
-                props_dc,
-            );
+            let edge_dc = Edge::new(id_d, id_c, "connect".to_string(), 1, props_dc);
 
             storage_lock
                 .insert_edge(space, edge_ab)
@@ -374,26 +353,22 @@ mod tests {
             let mut props_a = std::collections::HashMap::new();
             props_a.insert("lat".to_string(), Value::Float(0.0));
             props_a.insert("lon".to_string(), Value::Float(0.0));
-            let vertex_a =
-                Vertex::new_with_properties(VertexId::from("A"), vec![], props_a);
+            let vertex_a = Vertex::new_with_properties(VertexId::from("A"), vec![], props_a);
 
             let mut props_b = std::collections::HashMap::new();
             props_b.insert("lat".to_string(), Value::Float(3.0));
             props_b.insert("lon".to_string(), Value::Float(4.0));
-            let vertex_b =
-                Vertex::new_with_properties(VertexId::from("B"), vec![], props_b);
+            let vertex_b = Vertex::new_with_properties(VertexId::from("B"), vec![], props_b);
 
             let mut props_c = std::collections::HashMap::new();
             props_c.insert("lat".to_string(), Value::Float(6.0));
             props_c.insert("lon".to_string(), Value::Float(8.0));
-            let vertex_c =
-                Vertex::new_with_properties(VertexId::from("C"), vec![], props_c);
+            let vertex_c = Vertex::new_with_properties(VertexId::from("C"), vec![], props_c);
 
             let mut props_d = std::collections::HashMap::new();
             props_d.insert("lat".to_string(), Value::Float(1.0));
             props_d.insert("lon".to_string(), Value::Float(1.0));
-            let vertex_d =
-                Vertex::new_with_properties(VertexId::from("D"), vec![], props_d);
+            let vertex_d = Vertex::new_with_properties(VertexId::from("D"), vec![], props_d);
 
             let id_a = storage_lock
                 .insert_vertex(space, vertex_a)
@@ -411,43 +386,19 @@ mod tests {
             // Create edges with weights
             let mut props_ab = std::collections::HashMap::new();
             props_ab.insert("weight".to_string(), Value::Int(5));
-            let edge_ab = Edge::new(
-                id_a,
-                id_b,
-                "connect".to_string(),
-                5,
-                props_ab,
-            );
+            let edge_ab = Edge::new(id_a, id_b, "connect".to_string(), 5, props_ab);
 
             let mut props_bc = std::collections::HashMap::new();
             props_bc.insert("weight".to_string(), Value::Int(5));
-            let edge_bc = Edge::new(
-                id_b,
-                id_c,
-                "connect".to_string(),
-                5,
-                props_bc,
-            );
+            let edge_bc = Edge::new(id_b, id_c, "connect".to_string(), 5, props_bc);
 
             let mut props_ad = std::collections::HashMap::new();
             props_ad.insert("weight".to_string(), Value::Int(2));
-            let edge_ad = Edge::new(
-                id_a,
-                id_d,
-                "connect".to_string(),
-                2,
-                props_ad,
-            );
+            let edge_ad = Edge::new(id_a, id_d, "connect".to_string(), 2, props_ad);
 
             let mut props_dc = std::collections::HashMap::new();
             props_dc.insert("weight".to_string(), Value::Int(8));
-            let edge_dc = Edge::new(
-                id_d,
-                id_c,
-                "connect".to_string(),
-                8,
-                props_dc,
-            );
+            let edge_dc = Edge::new(id_d, id_c, "connect".to_string(), 8, props_dc);
 
             storage_lock
                 .insert_edge(space, edge_ab)

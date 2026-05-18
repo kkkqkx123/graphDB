@@ -5,13 +5,13 @@
 
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::writer::WalWriter;
-use crate::transaction::wal::{Lsn, LocalWalWriter, WalConfig, WalOpType};
+use crate::transaction::wal::{LocalWalWriter, Lsn, WalConfig, WalOpType};
 use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
 
 /// Unified WAL manager that wraps LocalWalWriter
-/// 
+///
 /// This manager ensures LSN consistency by delegating all LSN operations
 /// to the underlying LocalWalWriter, avoiding the dual LSN tracking issue.
 pub struct WalManager {
@@ -102,13 +102,15 @@ impl WalManager {
     ) -> StorageResult<Lsn> {
         if let Some(ref writer) = self.local_writer {
             let mut w = writer.write();
-            w.append_entry(op_type, timestamp, data)
-                .map_err(|e| StorageError::wal_error(format!("Failed to append WAL entry: {:?}", e)))?;
+            w.append_entry(op_type, timestamp, data).map_err(|e| {
+                StorageError::wal_error(format!("Failed to append WAL entry: {:?}", e))
+            })?;
             Ok(w.current_lsn())
         } else if let Some(ref writer) = self.dyn_writer {
             let mut w = writer.write();
-            w.append(data)
-                .map_err(|e| StorageError::wal_error(format!("Failed to append WAL entry: {:?}", e)))?;
+            w.append(data).map_err(|e| {
+                StorageError::wal_error(format!("Failed to append WAL entry: {:?}", e))
+            })?;
             Ok(Lsn::ZERO)
         } else {
             Err(StorageError::wal_error("WAL writer not initialized"))
@@ -136,7 +138,9 @@ impl WalManager {
     }
 
     pub fn get_stats(&self) -> Option<crate::transaction::wal::WalStats> {
-        self.local_writer.as_ref().map(|w| w.read().get_stats().clone())
+        self.local_writer
+            .as_ref()
+            .map(|w| w.read().get_stats().clone())
     }
 
     pub fn checkpoint_seq(&self) -> u64 {
@@ -169,21 +173,25 @@ mod tests {
     fn test_wal_manager_lsn_consistency() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let mut manager = WalManager::new();
-        
-        manager.open(temp_dir.path(), 0).expect("Failed to open WAL");
-        
-        let lsn1 = manager.append_entry(WalOpType::InsertVertex, 1, b"test_data")
+
+        manager
+            .open(temp_dir.path(), 0)
+            .expect("Failed to open WAL");
+
+        let lsn1 = manager
+            .append_entry(WalOpType::InsertVertex, 1, b"test_data")
             .expect("Failed to append");
-        
+
         assert!(lsn1.as_u64() > 0);
         assert_eq!(manager.current_lsn(), lsn1);
-        
-        let lsn2 = manager.append_entry(WalOpType::InsertEdge, 2, b"more_data")
+
+        let lsn2 = manager
+            .append_entry(WalOpType::InsertEdge, 2, b"more_data")
             .expect("Failed to append");
-        
+
         assert!(lsn2.as_u64() > lsn1.as_u64());
         assert_eq!(manager.current_lsn(), lsn2);
-        
+
         manager.close().expect("Failed to close");
     }
 }

@@ -10,5 +10,3 @@ pub use error::BatchError;
 pub use processor::GenericBatchProcessor;
 pub use processor::TransactionBatchBuffer;
 pub use trait_def::BatchProcessor;
-
-
