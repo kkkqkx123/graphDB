@@ -7,7 +7,7 @@ use std::sync::atomic::Ordering;
 
 use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
-use crate::storage::edge::{EdgeSchema, EdgeStrategy, EdgeTable};
+use crate::storage::edge::{DefaultEdgeTable, EdgeSchema, EdgeStrategy};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::vertex::{VertexSchema, VertexTable};
 
@@ -144,7 +144,7 @@ pub fn create_edge_type(
         ie_strategy,
     };
 
-    let table = EdgeTable::new(schema)?;
+    let table = DefaultEdgeTable::new(schema)?;
     let key = (src_label, dst_label, label_id);
     graph.edge_tables.write().insert(key, table);
     edge_label_names.insert(name.to_string(), label_id);
@@ -194,7 +194,7 @@ pub fn create_edge_type_with_id(
         ie_strategy: params.ie_strategy,
     };
 
-    let table = EdgeTable::new(schema)?;
+    let table = DefaultEdgeTable::new(schema)?;
     let key = (params.src_label, params.dst_label, label_id);
     graph.edge_tables.write().insert(key, table);
     edge_label_names.insert(params.name.to_string(), label_id);

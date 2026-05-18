@@ -4,7 +4,7 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::metadata::{Schema, SchemaManager};
+use crate::storage::metadata::SchemaManager;
 use std::sync::Arc;
 
 /// Read-only data and schema operations.
@@ -55,24 +55,24 @@ pub trait StorageReader: Send + Sync + std::fmt::Debug {
         space: &str,
         tag: &str,
         id: &Value,
-    ) -> Result<Option<(Schema, Vec<u8>)>, StorageError>;
+    ) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError>;
     fn get_edge_with_schema(
         &self,
         space: &str,
         edge_type: &str,
         src: &Value,
         dst: &Value,
-    ) -> Result<Option<(Schema, Vec<u8>)>, StorageError>;
+    ) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError>;
     fn scan_vertices_with_schema(
         &self,
         space: &str,
         tag: &str,
-    ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>;
+    ) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError>;
     fn scan_edges_with_schema(
         &self,
         space: &str,
         edge_type: &str,
-    ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>;
+    ) -> Result<Vec<(EdgeTypeInfo, Vec<u8>)>, StorageError>;
 
     fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError>;
     fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>;

@@ -18,7 +18,7 @@ use parking_lot::{Mutex, RwLock};
 use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
-use crate::storage::edge::{EdgeRecord, EdgeStrategy, EdgeTable};
+use crate::storage::edge::{DefaultEdgeTable, EdgeRecord, EdgeStrategy};
 use crate::storage::engine::edge_params::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::storage_types::{EdgeOffset, StoragePropertyDef};
@@ -35,7 +35,7 @@ pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
 
 pub struct PropertyGraph {
     pub(crate) vertex_tables: RwLock<HashMap<LabelId, VertexTable>>,
-    pub(crate) edge_tables: RwLock<HashMap<(LabelId, LabelId, LabelId), EdgeTable>>,
+    pub(crate) edge_tables: RwLock<HashMap<(LabelId, LabelId, LabelId), DefaultEdgeTable>>,
     pub(crate) vertex_label_names: RwLock<HashMap<String, LabelId>>,
     pub(crate) edge_label_names: RwLock<HashMap<String, LabelId>>,
     pub(crate) vertex_label_counter: RwLock<LabelId>,

@@ -1,15 +1,14 @@
 use crate::core::error::StorageError;
 #[cfg(test)]
 use crate::core::types::{
-    EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
-    TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
+    EdgeTypeInfo, EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
+    PropertyDef, SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 #[cfg(test)]
 use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
 #[cfg(test)]
 use crate::storage::engine::PropertyGraph;
 #[cfg(test)]
-use crate::storage::metadata::Schema;
 #[cfg(test)]
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
@@ -61,10 +60,10 @@ impl StorageReader for MockStorage {
     mock_stub!(&self, scan_all_edges(_space: &str) -> Result<Vec<Edge>, StorageError>, Ok(Vec::new()));
     mock_stub!(&self, lookup_index(_space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError>, Ok(Vec::new()));
     mock_stub!(&self, lookup_index_with_score(_space: &str, _index: &str, _value: &Value) -> Result<Vec<(Value, f32)>, StorageError>, Ok(Vec::new()));
-    mock_stub!(&self, get_vertex_with_schema(_space: &str, _tag: &str, _id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>, Ok(None));
-    mock_stub!(&self, get_edge_with_schema(_space: &str, _edge_type: &str, _src: &Value, _dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>, Ok(None));
-    mock_stub!(&self, scan_vertices_with_schema(_space: &str, _tag: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>, Ok(Vec::new()));
-    mock_stub!(&self, scan_edges_with_schema(_space: &str, _edge_type: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>, Ok(Vec::new()));
+    mock_stub!(&self, get_vertex_with_schema(_space: &str, _tag: &str, _id: &Value) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError>, Ok(None));
+    mock_stub!(&self, get_edge_with_schema(_space: &str, _edge_type: &str, _src: &Value, _dst: &Value) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError>, Ok(None));
+    mock_stub!(&self, scan_vertices_with_schema(_space: &str, _tag: &str) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError>, Ok(Vec::new()));
+    mock_stub!(&self, scan_edges_with_schema(_space: &str, _edge_type: &str) -> Result<Vec<(EdgeTypeInfo, Vec<u8>)>, StorageError>, Ok(Vec::new()));
     mock_stub!(&self, get_space(_space: &str) -> Result<Option<SpaceInfo>, StorageError>, Ok(None));
     mock_stub!(&self, get_space_by_id(_space_id: u64) -> Result<Option<SpaceInfo>, StorageError>, Ok(None));
     mock_stub!(&self, list_spaces() -> Result<Vec<SpaceInfo>, StorageError>, Ok(Vec::new()));

@@ -41,7 +41,8 @@ use crate::storage::utils::props_to_map;
 pub use csr::Csr;
 pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
 pub use edge_table::{
-    EdgeTable, EdgeTableScanIterator, EdgeVertexIterator, UpdateEdgePropertyByOffsetParams,
+    DefaultEdgeTable, EdgeTable, EdgeTableScanIterator, EdgeVertexIterator,
+    UpdateEdgePropertyByOffsetParams,
 };
 pub use mutable_csr::{
     LoadFromPartsParams, MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator,

@@ -7,7 +7,7 @@ use crate::core::types::{
     TagInfo, TransactionContextInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::metadata::{Schema, SchemaManager};
+use crate::storage::metadata::SchemaManager;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
     StorageWriter,
@@ -81,10 +81,10 @@ impl<S: StorageClient> StorageReader for MetricsStorage<S> {
     wrap_read!(scan_all_edges(self, space: &str) -> Result<Vec<Edge>, StorageError>);
     wrap_read!(lookup_index(self, space: &str, index: &str, value: &Value) -> Result<Vec<Value>, StorageError>);
     wrap_read!(lookup_index_with_score(self, space: &str, index: &str, value: &Value) -> Result<Vec<(Value, f32)>, StorageError>);
-    wrap_read!(get_vertex_with_schema(self, space: &str, tag: &str, id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>);
-    wrap_read!(get_edge_with_schema(self, space: &str, edge_type: &str, src: &Value, dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>);
-    wrap_read!(scan_vertices_with_schema(self, space: &str, tag: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>);
-    wrap_read!(scan_edges_with_schema(self, space: &str, edge_type: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>);
+    wrap_read!(get_vertex_with_schema(self, space: &str, tag: &str, id: &Value) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError>);
+    wrap_read!(get_edge_with_schema(self, space: &str, edge_type: &str, src: &Value, dst: &Value) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError>);
+    wrap_read!(scan_vertices_with_schema(self, space: &str, tag: &str) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError>);
+    wrap_read!(scan_edges_with_schema(self, space: &str, edge_type: &str) -> Result<Vec<(EdgeTypeInfo, Vec<u8>)>, StorageError>);
     wrap_read!(get_space(self, space: &str) -> Result<Option<SpaceInfo>, StorageError>);
     wrap_read!(get_space_by_id(self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>);
     wrap_read!(list_spaces(self) -> Result<Vec<SpaceInfo>, StorageError>);

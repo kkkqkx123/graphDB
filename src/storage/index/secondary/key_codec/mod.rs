@@ -29,6 +29,7 @@
 
 pub mod compression;
 pub mod key_builder;
+pub mod key_generator;
 pub mod key_parser;
 pub mod key_types;
 
@@ -36,6 +37,7 @@ pub use compression::{
     CompressionConfig, DeltaCompressor, DictionaryCompressor, IndexCompressor, PrefixCompressor,
 };
 pub use key_builder::KeyBuilder;
+pub use key_generator::{EdgeIndexKeyGen, IndexKeyGenerator, VertexIndexKeyGen};
 pub use key_parser::KeyParser;
 pub use key_types::{
     deserialize_value, serialize_value, ByteKey, SecondaryIndexKey, KEY_TYPE_EDGE_FORWARD,

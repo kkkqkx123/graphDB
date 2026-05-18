@@ -2,9 +2,8 @@
 //!
 //! Provides read-only operations for the graph storage engine.
 
-use crate::core::types::VertexId;
+use crate::core::types::{EdgeTypeInfo, TagInfo, VertexId};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-use crate::storage::metadata::Schema;
 
 use super::context::GraphStorageContext;
 use super::type_utils::{
@@ -337,7 +336,7 @@ impl<'a> GraphStorageReader<'a> {
         space: &str,
         tag: &str,
         id: &Value,
-    ) -> StorageResult<Option<(Schema, Vec<u8>)>> {
+    ) -> StorageResult<Option<(TagInfo, Vec<u8>)>> {
         let tag_info = self
             .ctx
             .schema_manager
@@ -351,9 +350,8 @@ impl<'a> GraphStorageReader<'a> {
 
         let label_id = tag_info.tag_id;
         if let Some(record) = self.ctx.graph.get_vertex(label_id, &id_str, ts) {
-            let schema = self.ctx.schema_manager.get_tag_schema(space, tag)?;
             let data = serialize_properties(&record.properties);
-            return Ok(Some((schema, data)));
+            return Ok(Some((tag_info, data)));
         }
 
         Ok(None)
@@ -365,7 +363,7 @@ impl<'a> GraphStorageReader<'a> {
         edge_type: &str,
         src: &Value,
         dst: &Value,
-    ) -> StorageResult<Option<(Schema, Vec<u8>)>> {
+    ) -> StorageResult<Option<(EdgeTypeInfo, Vec<u8>)>> {
         let edge_info = self
             .ctx
             .schema_manager
@@ -393,12 +391,8 @@ impl<'a> GraphStorageReader<'a> {
                     &dst_str,
                     ts,
                 ) {
-                    let schema = self
-                        .ctx
-                        .schema_manager
-                        .get_edge_type_schema(space, edge_type)?;
                     let data = serialize_properties(&record.properties);
-                    return Ok(Some((schema, data)));
+                    return Ok(Some((edge_info, data)));
                 }
             }
         }
@@ -410,7 +404,7 @@ impl<'a> GraphStorageReader<'a> {
         &self,
         space: &str,
         tag: &str,
-    ) -> StorageResult<Vec<(Schema, Vec<u8>)>> {
+    ) -> StorageResult<Vec<(TagInfo, Vec<u8>)>> {
         let tag_info = self
             .ctx
             .schema_manager
@@ -424,10 +418,9 @@ impl<'a> GraphStorageReader<'a> {
 
         let label_id = tag_info.tag_id;
         if let Some(iterator) = self.ctx.graph.scan_vertices(label_id, ts) {
-            let schema = self.ctx.schema_manager.get_tag_schema(space, tag)?;
             for record in iterator {
                 let data = serialize_properties(&record.properties);
-                results.push((schema.clone(), data));
+                results.push((tag_info.clone(), data));
             }
         }
 
@@ -438,7 +431,7 @@ impl<'a> GraphStorageReader<'a> {
         &self,
         space: &str,
         edge_type: &str,
-    ) -> StorageResult<Vec<(Schema, Vec<u8>)>> {
+    ) -> StorageResult<Vec<(EdgeTypeInfo, Vec<u8>)>> {
         let edge_info = self
             .ctx
             .schema_manager
@@ -461,14 +454,9 @@ impl<'a> GraphStorageReader<'a> {
                     self.ctx
                         .graph
                         .scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
-                let schema = self
-                    .ctx
-                    .schema_manager
-                    .get_edge_type_schema(space, edge_type)?;
-
                 for record in records {
                     let data = serialize_properties(&record.properties);
-                    results.push((schema.clone(), data));
+                    results.push((edge_info.clone(), data));
                 }
             }
         }

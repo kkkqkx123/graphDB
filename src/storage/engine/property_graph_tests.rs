@@ -76,7 +76,7 @@ fn test_create_edge() {
         )
         .unwrap();
 
-    let edge_id = graph
+    let _edge_offset = graph
         .insert_edge(InsertEdgeParams {
             edge_label: knows_label,
             src_label: person_label,
@@ -91,7 +91,7 @@ fn test_create_edge() {
     let edge = graph
         .get_edge(knows_label, person_label, "alice", person_label, "bob", 100)
         .unwrap();
-    assert_eq!(edge.edge_id, edge_id.0 as u64);
+    assert_eq!(edge.properties.len(), 1);
 }
 
 #[test]

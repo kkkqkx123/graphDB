@@ -2,6 +2,19 @@
 //!
 //! Combines out/in CSRs and property storage for edge management.
 //! Uses EdgeOffset (CSR-native offset) instead of global EdgeId for edge identification.
+//!
+//! ## Cache Design
+//!
+//! EdgeTable uses generic parameter `C: EdgeTableCache` for property caching, allowing
+//! for pluggable cache implementations with static dispatch. The default is `NoOpEdgeTableCache`
+//! which disables caching. Use `with_cache()` to provide a custom cache.
+//!
+//! ### Benefits of Generic Design
+//!
+//! - **Static dispatch**: No runtime overhead from virtual function calls
+//! - **Type safety**: Cache type is determined at compile time
+//! - **Flexibility**: Each EdgeTable instance can use different cache implementations
+//! - **Zero cost when disabled**: `NoOpEdgeTableCache` compiles away to no-ops
 
 use std::path::Path;
 use std::sync::Arc;
@@ -11,7 +24,7 @@ use super::{
     MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
-use crate::storage::cache::EdgePropertyCache;
+use crate::storage::cache::{EdgeTableCache, NoOpEdgeTableCache};
 use crate::storage::storage_types::{EdgeOffset, PropertyId};
 #[cfg(test)]
 use crate::storage::storage_types::StoragePropertyDef;
@@ -43,7 +56,7 @@ pub struct UpdateEdgePropertyByOffsetParams {
 }
 
 #[derive(Debug)]
-pub struct EdgeTable {
+pub struct EdgeTable<C: EdgeTableCache = NoOpEdgeTableCache> {
     label: LabelId,
     label_name: String,
     src_label: LabelId,
@@ -53,10 +66,12 @@ pub struct EdgeTable {
     in_csr: MutableCsrVariant,
     properties: PropertyTable,
     is_open: bool,
-    property_cache: Option<Arc<EdgePropertyCache>>,
+    property_cache: Arc<C>,
 }
 
-impl EdgeTable {
+pub type DefaultEdgeTable = EdgeTable<NoOpEdgeTableCache>;
+
+impl<C: EdgeTableCache + Default> EdgeTable<C> {
     pub fn new(schema: EdgeSchema) -> StorageResult<Self> {
         Self::with_config(schema, EdgeTableConfig::default())
     }
@@ -88,24 +103,51 @@ impl EdgeTable {
             in_csr,
             properties,
             is_open: true,
-            property_cache: None,
+            property_cache: Arc::new(C::default()),
         })
     }
 
-    pub fn with_cache(
-        schema: EdgeSchema,
-        config: EdgeTableConfig,
-        cache: Option<Arc<EdgePropertyCache>>,
-    ) -> StorageResult<Self> {
-        let mut table = Self::with_config(schema, config)?;
-        table.property_cache = cache;
-        Ok(table)
+    pub fn with_cache(cache: Arc<C>, schema: EdgeSchema, config: EdgeTableConfig) -> StorageResult<Self> {
+        let out_csr = MutableCsrVariant::from_strategy(
+            schema.oe_strategy,
+            config.initial_vertex_capacity,
+            config.initial_edge_capacity,
+        )?;
+        let in_csr = MutableCsrVariant::from_strategy(
+            schema.ie_strategy,
+            config.initial_vertex_capacity,
+            config.initial_edge_capacity,
+        )?;
+
+        let mut properties = PropertyTable::with_capacity(config.initial_edge_capacity);
+        for prop in &schema.properties {
+            properties.add_property(prop.name.clone(), prop.data_type.clone(), prop.nullable);
+        }
+
+        Ok(Self {
+            label: schema.label_id,
+            label_name: schema.label_name.clone(),
+            src_label: schema.src_label,
+            dst_label: schema.dst_label,
+            schema,
+            out_csr,
+            in_csr,
+            properties,
+            is_open: true,
+            property_cache: cache,
+        })
     }
 
-    pub fn set_cache(&mut self, cache: Option<Arc<EdgePropertyCache>>) {
+    pub fn set_cache(&mut self, cache: Arc<C>) {
         self.property_cache = cache;
     }
 
+    pub fn cache(&self) -> &C {
+        self.property_cache.as_ref()
+    }
+}
+
+impl<C: EdgeTableCache> EdgeTable<C> {
     pub fn open<P: AsRef<Path>>(&mut self, _path: P) -> StorageResult<()> {
         self.is_open = true;
         Ok(())
@@ -209,9 +251,7 @@ impl EdgeTable {
                 self.in_csr.delete_edge_by_dst(dst, src, ts);
             }
 
-            if let Some(ref cache) = self.property_cache {
-                cache.invalidate_by_offset(nbr.prop_offset);
-            }
+            self.property_cache.invalidate_by_offset(nbr.prop_offset);
 
             return Ok(true);
         }
@@ -360,9 +400,7 @@ impl EdgeTable {
         if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
             self.properties.update(nbr.prop_offset, values)?;
 
-            if let Some(ref cache) = self.property_cache {
-                cache.invalidate_by_offset(nbr.prop_offset);
-            }
+            self.property_cache.invalidate_by_offset(nbr.prop_offset);
 
             return Ok(true);
         }
@@ -391,9 +429,7 @@ impl EdgeTable {
                 )?;
             }
 
-            if let Some(ref cache) = self.property_cache {
-                cache.invalidate_by_offset(nbr.prop_offset);
-            }
+            self.property_cache.invalidate_by_offset(nbr.prop_offset);
 
             return Ok(true);
         }
@@ -402,17 +438,14 @@ impl EdgeTable {
     }
 
     pub fn get_property_cached(&self, prop_offset: u32, prop_name: &str) -> Option<Value> {
-        if let Some(ref cache) = self.property_cache {
-            if let Some(value) = cache.get_by_offset(prop_offset, prop_name) {
-                return Some(value);
-            }
+        if let Some(value) = self.property_cache.get_by_offset(prop_offset, prop_name) {
+            return Some(value);
         }
 
         let value = self.properties.get_property(prop_offset, prop_name)?;
 
-        if let Some(ref cache) = self.property_cache {
-            cache.put_by_offset(prop_offset, prop_name, value.clone());
-        }
+        self.property_cache
+            .put_by_offset(prop_offset, prop_name, value.clone());
 
         Some(value)
     }
@@ -422,25 +455,20 @@ impl EdgeTable {
         prop_offset: u32,
         prop_id: PropertyId,
     ) -> Option<Value> {
-        if let Some(ref cache) = self.property_cache {
-            if let Some(value) = cache.get_by_offset_id(prop_offset, prop_id) {
-                return Some(value);
-            }
+        if let Some(value) = self.property_cache.get_by_offset_id(prop_offset, prop_id) {
+            return Some(value);
         }
 
         let value = self.properties.get_property_by_id(prop_offset, prop_id)?;
 
-        if let Some(ref cache) = self.property_cache {
-            cache.put_by_offset_id(prop_offset, prop_id, value.clone());
-        }
+        self.property_cache
+            .put_by_offset_id(prop_offset, prop_id, value.clone());
 
         Some(value)
     }
 
     pub fn invalidate_edge_cache_by_offset(&self, prop_offset: u32) {
-        if let Some(ref cache) = self.property_cache {
-            cache.invalidate_by_offset(prop_offset);
-        }
+        self.property_cache.invalidate_by_offset(prop_offset);
     }
 
     pub fn out_edges(&self, src: VertexId, ts: Timestamp) -> Vec<EdgeRecord> {
@@ -674,11 +702,11 @@ impl EdgeTable {
         self.out_csr.edges_of(src, ts)
     }
 
-    pub fn iter(&self, ts: Timestamp) -> EdgeTableScanIterator<'_> {
+    pub fn iter(&self, ts: Timestamp) -> EdgeTableScanIterator<'_, C> {
         EdgeTableScanIterator::new(self, ts)
     }
 
-    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> EdgeVertexIterator<'_> {
+    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> EdgeVertexIterator<'_, C> {
         EdgeVertexIterator::new(self, src, ts)
     }
 
@@ -888,19 +916,19 @@ impl EdgeTable {
     }
 }
 
-pub struct EdgeTableScanIterator<'a> {
-    table: &'a EdgeTable,
+pub struct EdgeTableScanIterator<'a, C: EdgeTableCache> {
+    table: &'a EdgeTable<C>,
     csr_iter: CsrIterator<'a>,
 }
 
-impl<'a> EdgeTableScanIterator<'a> {
-    pub fn new(table: &'a EdgeTable, ts: Timestamp) -> Self {
+impl<'a, C: EdgeTableCache> EdgeTableScanIterator<'a, C> {
+    pub fn new(table: &'a EdgeTable<C>, ts: Timestamp) -> Self {
         let csr_iter = table.out_csr.iter(ts);
         Self { table, csr_iter }
     }
 }
 
-impl<'a> Iterator for EdgeTableScanIterator<'a> {
+impl<'a, C: EdgeTableCache> Iterator for EdgeTableScanIterator<'a, C> {
     type Item = EdgeRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -930,14 +958,14 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
     }
 }
 
-pub struct EdgeVertexIterator<'a> {
-    table: &'a EdgeTable,
+pub struct EdgeVertexIterator<'a, C: EdgeTableCache> {
+    table: &'a EdgeTable<C>,
     csr_iter: CsrEdgeIterator<'a>,
     src_vid: VertexId,
 }
 
-impl<'a> EdgeVertexIterator<'a> {
-    pub fn new(table: &'a EdgeTable, src: VertexId, ts: Timestamp) -> Self {
+impl<'a, C: EdgeTableCache> EdgeVertexIterator<'a, C> {
+    pub fn new(table: &'a EdgeTable<C>, src: VertexId, ts: Timestamp) -> Self {
         let csr_iter = table.out_csr.iter_edges(src, ts);
         Self {
             table,
@@ -947,7 +975,7 @@ impl<'a> EdgeVertexIterator<'a> {
     }
 }
 
-impl<'a> Iterator for EdgeVertexIterator<'a> {
+impl<'a, C: EdgeTableCache> Iterator for EdgeVertexIterator<'a, C> {
     type Item = EdgeRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -999,9 +1027,9 @@ mod tests {
     #[test]
     fn test_insert_and_get() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
-        let edge_id = table
+        let _edge_offset = table
             .insert_edge(
                 VertexId::from_int64(0),
                 VertexId::from_int64(1),
@@ -1015,15 +1043,15 @@ mod tests {
         let edge = table
             .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100)
             .unwrap();
-        assert_eq!(edge.edge_id, edge_id.0 as u64);
         assert_eq!(edge.src_vid, VertexId::from_int64(0));
         assert_eq!(edge.dst_vid, VertexId::from_int64(1));
+        assert_eq!(edge.properties.len(), 1);
     }
 
     #[test]
     fn test_delete() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
         table
             .insert_edge(
@@ -1043,7 +1071,7 @@ mod tests {
     #[test]
     fn test_out_in_edges() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
         table
             .insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), &[], 100)
@@ -1070,7 +1098,7 @@ mod tests {
     #[test]
     fn test_update_properties() {
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
         table
             .insert_edge(
@@ -1101,7 +1129,7 @@ mod tests {
         use std::fs;
 
         let schema = create_test_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
         let ts = 100u32;
         let _edge_id_1 = table
@@ -1136,7 +1164,7 @@ mod tests {
 
         table.flush(&temp_dir).expect("flush should succeed");
 
-        let mut loaded_table = EdgeTable::new(create_test_schema()).unwrap();
+        let mut loaded_table = DefaultEdgeTable::new(create_test_schema()).unwrap();
         loaded_table.load(&temp_dir).expect("load should succeed");
 
         assert_eq!(

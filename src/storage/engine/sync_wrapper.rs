@@ -3,7 +3,7 @@
 //! Decorator pattern implementation that wraps any StorageClient to automatically
 //! synchronize storage operations with external index systems (fulltext, vector).
 
-use crate::core::types::VertexId;
+use crate::core::types::{EdgeTypeInfo, TagInfo, VertexId};
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::metadata::SchemaManager;
 use crate::storage::{
@@ -179,7 +179,7 @@ impl<S: StorageClient + 'static> StorageReader for SyncWrapper<S> {
         space: &str,
         tag: &str,
         id: &Value,
-    ) -> Result<Option<(crate::storage::metadata::Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError> {
         self.inner.get_vertex_with_schema(space, tag, id)
     }
 
@@ -189,7 +189,7 @@ impl<S: StorageClient + 'static> StorageReader for SyncWrapper<S> {
         edge_type: &str,
         src: &Value,
         dst: &Value,
-    ) -> Result<Option<(crate::storage::metadata::Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError> {
         self.inner.get_edge_with_schema(space, edge_type, src, dst)
     }
 
@@ -197,7 +197,7 @@ impl<S: StorageClient + 'static> StorageReader for SyncWrapper<S> {
         &self,
         space: &str,
         tag: &str,
-    ) -> Result<Vec<(crate::storage::metadata::Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError> {
         self.inner.scan_vertices_with_schema(space, tag)
     }
 
@@ -205,7 +205,7 @@ impl<S: StorageClient + 'static> StorageReader for SyncWrapper<S> {
         &self,
         space: &str,
         edge_type: &str,
-    ) -> Result<Vec<(crate::storage::metadata::Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Vec<(EdgeTypeInfo, Vec<u8>)>, StorageError> {
         self.inner.scan_edges_with_schema(space, edge_type)
     }
 

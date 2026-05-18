@@ -35,6 +35,7 @@
 mod batch;
 mod config;
 mod edge_property_cache;
+mod edge_table_cache;
 mod record_cache;
 mod stats;
 mod types;
@@ -48,6 +49,7 @@ pub use edge_property_cache::{
     CachedEdgeProperty, EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats,
     EdgePropertyKey,
 };
+pub use edge_table_cache::{EdgeTableCache, NoOpEdgeTableCache};
 pub use record_cache::{RecordCache, SharedRecordCache};
 pub use stats::{CacheTypeStatsSnapshot, RecordCacheStats};
 pub use types::*;

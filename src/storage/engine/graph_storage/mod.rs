@@ -37,7 +37,7 @@ use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Va
 use crate::storage::engine::persistence_coordinator::{CheckpointInfo, CheckpointStats};
 use crate::storage::engine::{PersistenceConfig, PropertyGraph};
 use crate::storage::index::secondary::IndexGcManager;
-use crate::storage::metadata::{Schema, SchemaManager};
+use crate::storage::metadata::SchemaManager;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
 };
@@ -318,7 +318,7 @@ impl StorageReader for GraphStorage {
         space: &str,
         tag: &str,
         id: &Value,
-    ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError> {
         reader::GraphStorageReader::new(&self.ctx).get_vertex_with_schema(space, tag, id)
     }
 
@@ -328,7 +328,7 @@ impl StorageReader for GraphStorage {
         edge_type: &str,
         src: &Value,
         dst: &Value,
-    ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError> {
         reader::GraphStorageReader::new(&self.ctx).get_edge_with_schema(space, edge_type, src, dst)
     }
 
@@ -336,7 +336,7 @@ impl StorageReader for GraphStorage {
         &self,
         space: &str,
         tag: &str,
-    ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError> {
         reader::GraphStorageReader::new(&self.ctx).scan_vertices_with_schema(space, tag)
     }
 
@@ -344,7 +344,7 @@ impl StorageReader for GraphStorage {
         &self,
         space: &str,
         edge_type: &str,
-    ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+    ) -> Result<Vec<(EdgeTypeInfo, Vec<u8>)>, StorageError> {
         reader::GraphStorageReader::new(&self.ctx).scan_edges_with_schema(space, edge_type)
     }
 

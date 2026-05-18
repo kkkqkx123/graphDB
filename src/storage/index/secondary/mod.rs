@@ -4,6 +4,7 @@
 //! These indexes are decoupled from the CSR structure and use BTreeMap for storage.
 
 mod edge_index_manager;
+mod generic_index_manager;
 mod index_data_manager;
 mod index_gc_manager;
 mod index_updater;

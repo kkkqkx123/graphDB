@@ -2,8 +2,8 @@ use crate::core::types::{ColumnId, LabelId, Timestamp};
 use crate::core::types::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
 use crate::storage::engine::property_graph::PropertyGraph;
 use crate::storage::engine::transaction::{
-    DeleteEdgeParams, DeleteEdgeTypeParams, RevertDeleteEdgeParams, TransactionOps,
-    UpdateEdgePropertyUndoParams,
+    DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams, RevertDeleteEdgeParams,
+    TransactionOps, UpdateEdgePropertyUndoParams,
 };
 use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 
@@ -197,14 +197,13 @@ impl UndoTarget for PropertyGraph {
             let vertex_tables = self.vertex_tables.read();
             let mut edge_tables = self.edge_tables.write();
             let mut edge_label_names = self.edge_label_names.write();
+            let edge_params = EdgeLabelParams { src_label, dst_label, edge_label };
             TransactionOps::revert_delete_edge_properties(
                 &mut edge_tables,
                 &mut edge_label_names,
-                src_label,
-                dst_label,
-                edge_label,
                 &vertex_tables,
                 prop_names,
+                &edge_params,
             )?;
             edge_label_names.get(edge_label).copied()
         };
@@ -299,13 +298,12 @@ impl UndoTarget for PropertyGraph {
             let vertex_tables = self.vertex_tables.read();
             let mut edge_tables = self.edge_tables.write();
             let mut edge_label_names = self.edge_label_names.write();
+            let edge_params = EdgeLabelParams { src_label, dst_label, edge_label };
             TransactionOps::revert_rename_edge_properties(
                 &mut edge_tables,
                 &mut edge_label_names,
-                src_label,
-                dst_label,
-                edge_label,
                 &vertex_tables,
+                &edge_params,
                 current_names,
                 original_names,
             )?;

@@ -573,6 +573,32 @@ impl std::fmt::Debug for EdgePropertyCache {
     }
 }
 
+impl crate::storage::cache::edge_table_cache::EdgeTableCache for EdgePropertyCache {
+    fn get_by_offset(&self, prop_offset: u32, prop_name: &str) -> Option<Value> {
+        self.get_by_offset(prop_offset, prop_name)
+    }
+
+    fn put_by_offset(&self, prop_offset: u32, prop_name: &str, value: Value) {
+        self.put_by_offset(prop_offset, prop_name, value);
+    }
+
+    fn get_by_offset_id(&self, prop_offset: u32, prop_id: PropertyId) -> Option<Value> {
+        self.get_by_offset_id(prop_offset, prop_id)
+    }
+
+    fn put_by_offset_id(&self, prop_offset: u32, prop_id: PropertyId, value: Value) {
+        self.put_by_offset_id(prop_offset, prop_id, value);
+    }
+
+    fn invalidate_by_offset(&self, prop_offset: u32) {
+        self.invalidate_by_offset(prop_offset);
+    }
+
+    fn is_enabled(&self) -> bool {
+        self.is_enabled()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

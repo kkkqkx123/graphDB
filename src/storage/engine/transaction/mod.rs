@@ -12,6 +12,6 @@ mod ops;
 mod targets;
 
 pub use ops::{
-    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, InsertEdgeUndoParams,
-    RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
+    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams,
+    InsertEdgeUndoParams, RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
 };

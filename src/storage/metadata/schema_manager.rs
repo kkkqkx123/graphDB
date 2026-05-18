@@ -1,47 +1,11 @@
 use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::StorageError;
-use crate::storage::metadata::Schema;
-use crate::storage::storage_types::FieldDef;
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
-
-fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
-    let fields: BTreeMap<String, FieldDef> = tag_info
-        .properties
-        .iter()
-        .map(|prop| {
-            let field_def: FieldDef = prop.clone().into();
-            (field_def.name.clone(), field_def)
-        })
-        .collect();
-
-    Schema {
-        name: tag_name.to_string(),
-        version: 1,
-        fields,
-    }
-}
-
-fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> Schema {
-    let fields: BTreeMap<String, FieldDef> = edge_info
-        .properties
-        .iter()
-        .map(|prop| {
-            let field_def: FieldDef = prop.clone().into();
-            (field_def.name.clone(), field_def)
-        })
-        .collect();
-
-    Schema {
-        name: edge_type_name.to_string(),
-        version: 1,
-        fields,
-    }
-}
 
 const SCHEMA_FORMAT_VERSION: u32 = 1;
 
@@ -473,32 +437,6 @@ impl SchemaManager {
             }
         }
         Ok(false)
-    }
-
-    pub fn get_tag_schema(&self, space_name: &str, tag_name: &str) -> Result<Schema, StorageError> {
-        let tag = self.get_tag(space_name, tag_name)?.ok_or_else(|| {
-            StorageError::db_error(format!(
-                "Tag \"{}\" does not exist in space \"{}\"",
-                tag_name, space_name
-            ))
-        })?;
-        Ok(tag_info_to_schema(tag_name, &tag))
-    }
-
-    pub fn get_edge_type_schema(
-        &self,
-        space_name: &str,
-        edge_type_name: &str,
-    ) -> Result<Schema, StorageError> {
-        let edge_type = self
-            .get_edge_type(space_name, edge_type_name)?
-            .ok_or_else(|| {
-                StorageError::db_error(format!(
-                    "Edge type \"{}\" does not exist in space \"{}\"",
-                    edge_type_name, space_name
-                ))
-            })?;
-        Ok(edge_type_info_to_schema(edge_type_name, &edge_type))
     }
 
     pub fn list_tag_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {

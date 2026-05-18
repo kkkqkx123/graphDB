@@ -5,7 +5,7 @@
 
 use crate::core::types::{Timestamp, VertexId};
 use crate::core::Value;
-use crate::storage::edge::{EdgeRecord, EdgeTable};
+use crate::storage::edge::{DefaultEdgeTable, EdgeRecord};
 use crate::storage::vertex::{VertexRecord, VertexTable};
 
 pub const DEFAULT_BATCH_SIZE: usize = 1024;
@@ -145,7 +145,7 @@ impl<'a> Drop for VertexBatchWriter<'a> {
 }
 
 pub struct EdgeBatchReader<'a> {
-    table: &'a EdgeTable,
+    table: &'a DefaultEdgeTable,
     ts: Timestamp,
     current_src: VertexId,
     vertex_capacity: usize,
@@ -153,7 +153,7 @@ pub struct EdgeBatchReader<'a> {
 }
 
 impl<'a> EdgeBatchReader<'a> {
-    pub fn new(table: &'a EdgeTable, ts: Timestamp, batch_size: usize) -> Self {
+    pub fn new(table: &'a DefaultEdgeTable, ts: Timestamp, batch_size: usize) -> Self {
         let vertex_capacity = table.vertex_capacity();
         Self {
             table,
@@ -169,7 +169,7 @@ impl<'a> EdgeBatchReader<'a> {
     }
 
     pub fn from_src_vertex(
-        table: &'a EdgeTable,
+        table: &'a DefaultEdgeTable,
         ts: Timestamp,
         start_src: VertexId,
         batch_size: usize,
@@ -222,14 +222,14 @@ impl<'a> Iterator for EdgeBatchReader<'a> {
 }
 
 pub struct EdgeBatchWriter<'a> {
-    table: &'a mut EdgeTable,
+    table: &'a mut DefaultEdgeTable,
     buffer: Vec<EdgeData>,
     buffer_size: usize,
     ts: Timestamp,
 }
 
 impl<'a> EdgeBatchWriter<'a> {
-    pub fn new(table: &'a mut EdgeTable, ts: Timestamp, buffer_size: usize) -> Self {
+    pub fn new(table: &'a mut DefaultEdgeTable, ts: Timestamp, buffer_size: usize) -> Self {
         Self {
             table,
             buffer: Vec::with_capacity(if buffer_size > 0 {
@@ -323,7 +323,7 @@ pub fn batch_import_vertices(
 }
 
 pub fn batch_import_edges(
-    table: &mut EdgeTable,
+    table: &mut DefaultEdgeTable,
     edges: &[EdgeData],
     ts: Timestamp,
     batch_size: usize,
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn test_edge_batch_reader() {
         let schema = create_test_edge_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
         for i in 0..50u64 {
             let src = i * 2;
@@ -471,7 +471,7 @@ mod tests {
     #[test]
     fn test_edge_batch_writer() {
         let schema = create_test_edge_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
         {
             let mut writer = EdgeBatchWriter::new(&mut table, 100, 10);
@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn test_batch_import_edges() {
         let schema = create_test_edge_schema();
-        let mut table = EdgeTable::new(schema).unwrap();
+        let mut table = DefaultEdgeTable::new(schema).unwrap();
 
         let edges: Vec<_> = (0..50)
             .map(|i| {
