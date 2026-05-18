@@ -1,18 +1,19 @@
 //! Edge Table
 //!
 //! Combines out/in CSRs and property storage for edge management.
+//! Uses EdgeOffset (CSR-native offset) instead of global EdgeId for edge identification.
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use super::{
-    CsrBase, CsrEdgeIterator, CsrIterator, EdgeId, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId,
+    CsrBase, CsrEdgeIterator, CsrIterator, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId,
     MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::cache::EdgePropertyCache;
+use crate::storage::storage_types::EdgeOffset;
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -33,9 +34,9 @@ impl Default for EdgeTableConfig {
 pub struct UpdateEdgePropertyByOffsetParams {
     pub src: VertexId,
     pub dst: VertexId,
-    pub oe_offset: i32,
-    pub ie_offset: i32,
-    pub col_id: i32,
+    pub oe_offset: EdgeOffset,
+    pub ie_offset: EdgeOffset,
+    pub prop_id: u16,
     pub value: Value,
     pub ts: Timestamp,
 }
@@ -50,10 +51,8 @@ pub struct EdgeTable {
     out_csr: MutableCsrVariant,
     in_csr: MutableCsrVariant,
     properties: PropertyTable,
-    edge_id_counter: AtomicU64,
     is_open: bool,
     property_cache: Option<Arc<EdgePropertyCache>>,
-    edge_id_to_src: HashMap<EdgeId, (VertexId, VertexId)>,
 }
 
 impl EdgeTable {
@@ -87,10 +86,8 @@ impl EdgeTable {
             out_csr,
             in_csr,
             properties,
-            edge_id_counter: AtomicU64::new(0),
             is_open: true,
             property_cache: None,
-            edge_id_to_src: HashMap::new(),
         })
     }
 
@@ -128,7 +125,7 @@ impl EdgeTable {
         dst: VertexId,
         property_values: &[(String, Value)],
         ts: Timestamp,
-    ) -> StorageResult<EdgeId> {
+    ) -> StorageResult<EdgeOffset> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
@@ -152,8 +149,6 @@ impl EdgeTable {
             }
         }
 
-        let edge_id = self.edge_id_counter.fetch_add(1, Ordering::Relaxed);
-
         let prop_offset = if !property_values.is_empty() {
             self.properties.insert(property_values)?
         } else {
@@ -168,6 +163,7 @@ impl EdgeTable {
             )));
         }
 
+        let edge_id = self.out_csr.edge_count();
         if !self.out_csr.insert_edge(src, dst, edge_id, prop_offset, ts) {
             self.properties.delete(prop_offset);
             return Err(StorageError::edge_already_exists(format!(
@@ -187,9 +183,7 @@ impl EdgeTable {
             )));
         }
 
-        self.edge_id_to_src.insert(edge_id, (src, dst));
-
-        Ok(edge_id)
+        Ok(EdgeOffset::new(prop_offset as i32))
     }
 
     pub fn delete_edge(
@@ -211,10 +205,8 @@ impl EdgeTable {
                 self.in_csr.delete_edge_by_dst(dst, src, ts);
             }
 
-            self.edge_id_to_src.remove(&edge_id);
-
             if let Some(ref cache) = self.property_cache {
-                cache.invalidate(edge_id);
+                cache.invalidate_by_offset(nbr.prop_offset);
             }
 
             return Ok(true);
@@ -252,8 +244,8 @@ impl EdgeTable {
         &mut self,
         src: VertexId,
         dst: VertexId,
-        oe_offset: i32,
-        ie_offset: i32,
+        oe_offset: EdgeOffset,
+        ie_offset: EdgeOffset,
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
@@ -261,48 +253,19 @@ impl EdgeTable {
         }
 
         let edge_id = self.out_csr.find_deleted_edge(src, dst);
-        let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset, ts);
+        let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset.as_i32(), ts);
 
         if reverted && self.schema.ie_strategy != EdgeStrategy::None {
-            self.in_csr.revert_delete_by_offset(dst, ie_offset, ts);
-        }
-
-        if reverted {
-            if let Some(eid) = edge_id {
-                self.edge_id_to_src.insert(eid, (src, dst));
-            }
+            self.in_csr.revert_delete_by_offset(dst, ie_offset.as_i32(), ts);
         }
 
         Ok(reverted)
     }
 
-    pub fn delete_edge_by_id(&mut self, edge_id: EdgeId, ts: Timestamp) -> StorageResult<bool> {
-        if !self.is_open {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let (src, dst) = match self.edge_id_to_src.get(&edge_id) {
-            Some(&(src, dst)) => (src, dst),
-            None => return Ok(false),
-        };
-
-        if self.out_csr.get_edge(src, dst, ts).is_some() {
-            self.out_csr.delete_edge(src, edge_id, ts);
-
-            if self.schema.ie_strategy != EdgeStrategy::None {
-                self.in_csr.delete_edge_by_dst(dst, src, ts);
-            }
-
-            self.edge_id_to_src.remove(&edge_id);
-
-            if let Some(ref cache) = self.property_cache {
-                cache.invalidate(edge_id);
-            }
-
-            return Ok(true);
-        }
-
-        Ok(false)
+    pub fn delete_edge_by_id(&mut self, _edge_id: u64, ts: Timestamp) -> StorageResult<bool> {
+        Err(StorageError::invalid_operation(
+            "delete_edge_by_id is not supported. Use delete_edge or delete_edge_by_offset instead.".to_string(),
+        ))
     }
 
     pub fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<EdgeRecord> {
@@ -341,12 +304,10 @@ impl EdgeTable {
         self.out_csr.get_edge(src, dst, ts)
     }
 
-    pub fn get_edge_by_id(&self, edge_id: EdgeId, ts: Timestamp) -> Option<EdgeRecord> {
+    pub fn get_edge_by_offset(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<EdgeRecord> {
         if !self.is_open {
             return None;
         }
-
-        let (src, dst) = self.edge_id_to_src.get(&edge_id).copied()?;
 
         let nbr = self.out_csr.get_edge(src, dst, ts)?;
 
@@ -387,7 +348,34 @@ impl EdgeTable {
             self.properties.update(nbr.prop_offset, values)?;
 
             if let Some(ref cache) = self.property_cache {
-                cache.invalidate(nbr.edge_id);
+                cache.invalidate_by_offset(nbr.prop_offset);
+            }
+
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    pub fn update_properties_by_id(
+        &mut self,
+        src: VertexId,
+        dst: VertexId,
+        values: &[(u16, Value)],
+        ts: Timestamp,
+    ) -> StorageResult<bool> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        if let Some(nbr) = self.out_csr.get_edge(src, dst, ts) {
+            for (prop_id, value) in values {
+                let prop_id = crate::storage::storage_types::PropertyId::new(*prop_id);
+                self.properties.set_property_by_id(nbr.prop_offset, prop_id, Some(value))?;
+            }
+
+            if let Some(ref cache) = self.property_cache {
+                cache.invalidate_by_offset(nbr.prop_offset);
             }
 
             return Ok(true);
@@ -398,12 +386,11 @@ impl EdgeTable {
 
     pub fn get_property_cached(
         &self,
-        edge_id: EdgeId,
         prop_offset: u32,
         prop_name: &str,
     ) -> Option<Value> {
         if let Some(ref cache) = self.property_cache {
-            if let Some(value) = cache.get(edge_id, prop_name) {
+            if let Some(value) = cache.get_by_offset(prop_offset, prop_name) {
                 return Some(value);
             }
         }
@@ -411,15 +398,35 @@ impl EdgeTable {
         let value = self.properties.get_property(prop_offset, prop_name)?;
 
         if let Some(ref cache) = self.property_cache {
-            cache.put(edge_id, prop_name, value.clone());
+            cache.put_by_offset(prop_offset, prop_name, value.clone());
         }
 
         Some(value)
     }
 
-    pub fn invalidate_edge_cache(&self, edge_id: EdgeId) {
+    pub fn get_property_cached_by_id(
+        &self,
+        prop_offset: u32,
+        prop_id: crate::storage::storage_types::PropertyId,
+    ) -> Option<Value> {
         if let Some(ref cache) = self.property_cache {
-            cache.invalidate(edge_id);
+            if let Some(value) = cache.get_by_offset_id(prop_offset, prop_id) {
+                return Some(value);
+            }
+        }
+
+        let value = self.properties.get_property_by_id(prop_offset, prop_id)?;
+
+        if let Some(ref cache) = self.property_cache {
+            cache.put_by_offset_id(prop_offset, prop_id, value.clone());
+        }
+
+        Some(value)
+    }
+
+    pub fn invalidate_edge_cache_by_offset(&self, prop_offset: u32) {
+        if let Some(ref cache) = self.property_cache {
+            cache.invalidate_by_offset(prop_offset);
         }
     }
 
@@ -592,24 +599,13 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
-        let edge_id = self.out_csr.find_deleted_edge(src, dst);
+        let reverted = self.out_csr.revert_delete(src, eid, ts);
 
-        if let Some(eid) = edge_id {
-            let reverted_out = self.out_csr.revert_delete(src, eid, ts);
-            let reverted_in = if self.schema.ie_strategy != EdgeStrategy::None {
-                self.in_csr.revert_delete(dst, eid, ts)
-            } else {
-                false
-            };
-
-            if reverted_out || reverted_in {
-                self.edge_id_to_src.insert(eid, (src, dst));
-            }
-
-            return Ok(reverted_out || reverted_in);
+        if reverted && self.schema.ie_strategy != EdgeStrategy::None {
+            self.in_csr.revert_delete(dst, eid, ts);
         }
 
-        Ok(false)
+        Ok(reverted)
     }
 
     pub fn label(&self) -> LabelId {
@@ -673,8 +669,6 @@ impl EdgeTable {
         self.out_csr.clear();
         self.in_csr.clear();
         self.properties.clear();
-        self.edge_id_counter.store(0, Ordering::Relaxed);
-        self.edge_id_to_src.clear();
     }
 
     pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
@@ -710,9 +704,6 @@ impl EdgeTable {
         let props_path = path.join("properties.bin");
         self.flush_properties(&props_path)?;
 
-        let edge_id_to_src_path = path.join("edge_id_to_src.bin");
-        self.flush_edge_id_to_src(&edge_id_to_src_path)?;
-
         Ok(())
     }
 
@@ -738,30 +729,6 @@ impl EdgeTable {
         let data = self.properties.dump();
         file.write_all(&(data.len() as u64).to_le_bytes())?;
         file.write_all(&data)?;
-
-        Ok(())
-    }
-
-
-
-    fn flush_edge_id_to_src(&self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
-        use std::io::Write;
-
-        let mut file = File::create(path)?;
-
-        file.write_all(&(self.edge_id_to_src.len() as u64).to_le_bytes())?;
-        for (edge_id, (src, dst)) in &self.edge_id_to_src {
-            file.write_all(&edge_id.to_le_bytes())?;
-            
-            let src_bytes = src.as_bytes();
-            file.write_all(&(src_bytes.len() as u32).to_le_bytes())?;
-            file.write_all(src_bytes)?;
-            
-            let dst_bytes = dst.as_bytes();
-file.write_all(&(dst_bytes.len() as u32).to_le_bytes())?;
-            file.write_all(dst_bytes)?;
-        }
 
         Ok(())
     }
@@ -796,11 +763,6 @@ file.write_all(&(dst_bytes.len() as u32).to_le_bytes())?;
         self.label_name = String::from_utf8(label_name_bytes)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
-        let mut edge_id_bytes = [0u8; 8];
-        meta_file.read_exact(&mut edge_id_bytes)?;
-        self.edge_id_counter
-            .store(u64::from_le_bytes(edge_id_bytes), Ordering::Relaxed);
-
         let mut is_open_bytes = [0u8; 1];
         if meta_file.read_exact(&mut is_open_bytes).is_ok() {
             self.is_open = is_open_bytes[0] != 0;
@@ -815,8 +777,8 @@ file.write_all(&(dst_bytes.len() as u32).to_le_bytes())?;
         let props_path = path.join("properties.bin");
         self.load_properties(&props_path)?;
 
-        let edge_id_to_src_path = path.join("edge_id_to_src.bin");
-        self.load_edge_id_to_src(&edge_id_to_src_path)?;
+        let props_path = path.join("properties.bin");
+        self.load_properties(&props_path)?;
 
         self.is_open = true;
         Ok(())
@@ -858,49 +820,9 @@ file.write_all(&(dst_bytes.len() as u32).to_le_bytes())?;
         Ok(())
     }
 
-
-
-    fn load_edge_id_to_src(&mut self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
-        use std::io::Read;
-
-        let mut file = File::open(path)?;
-
-        let mut len_bytes = [0u8; 8];
-        file.read_exact(&mut len_bytes)?;
-        let len = u64::from_le_bytes(len_bytes) as usize;
-
-        self.edge_id_to_src.clear();
-        for _ in 0..len {
-            let mut edge_id_bytes = [0u8; 8];
-            file.read_exact(&mut edge_id_bytes)?;
-            let edge_id = u64::from_le_bytes(edge_id_bytes);
-
-            let mut src_len_bytes = [0u8; 4];
-        file.read_exact(&mut src_len_bytes)?;
-        let src_len = u32::from_le_bytes(src_len_bytes) as usize;
-        let mut src_bytes = vec![0u8; src_len];
-        file.read_exact(&mut src_bytes)?;
-        let src = VertexId::from_bytes(src_bytes);
-
-        let mut dst_len_bytes = [0u8; 4];
-        file.read_exact(&mut dst_len_bytes)?;
-        let dst_len = u32::from_le_bytes(dst_len_bytes) as usize;
-            let mut dst_bytes = vec![0u8; dst_len];
-            file.read_exact(&mut dst_bytes)?;
-            let dst = VertexId::from_bytes(dst_bytes);
-
-            self.edge_id_to_src.insert(edge_id, (src, dst));
-        }
-
-        Ok(())
-    }
-
     pub fn compact_csr(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
-        let mut removed_count = 0;
-
-        removed_count += self.out_csr.compact_with_ts(ts, reserve_ratio);
-        removed_count += self.in_csr.compact_with_ts(ts, reserve_ratio);
+        let removed_count = self.out_csr.compact_with_ts(ts, reserve_ratio)
+            + self.in_csr.compact_with_ts(ts, reserve_ratio);
 
         removed_count
     }

@@ -47,7 +47,7 @@ pub struct PropertyGraph {
     pub(crate) memory_tracker: SharedMemoryTracker,
     pub(crate) config: PropertyGraphConfig,
     pub(crate) is_open: AtomicBool,
-    pub(crate) last_compacted_vertices: Mutex<Vec<(LabelId, Vec<String>)>>,
+    pub(crate) last_compacted_vertices: Mutex<Vec<(LabelId, Vec<crate::storage::vertex::IdKey>)>>,
     pub(crate) index_data_manager: RwLock<IndexDataManagerImpl>,
 }
 
@@ -182,7 +182,7 @@ impl PropertyGraph {
         self.table_tracker.mark_modified_since_checkpoint(TableId::edge(label));
     }
 
-    pub fn take_last_compacted_vertices(&self) -> Vec<(LabelId, Vec<String>)> {
+    pub fn take_last_compacted_vertices(&self) -> Vec<(LabelId, Vec<crate::storage::vertex::IdKey>)> {
         std::mem::take(&mut *self.last_compacted_vertices.lock())
     }
 
@@ -564,7 +564,7 @@ impl PropertyGraph {
         Ok(())
     }
 
-    pub fn compact_vertex_table_with_ts(&self, label: LabelId, ts: Timestamp) -> Vec<String> {
+    pub fn compact_vertex_table_with_ts(&self, label: LabelId, ts: Timestamp) -> Vec<crate::storage::vertex::IdKey> {
         let removed = {
             let mut schema = self.schema_ops.write();
             schema

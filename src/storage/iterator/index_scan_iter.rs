@@ -366,7 +366,7 @@ mod tests {
 
         let removed = table.compact_with_ts_collect(ts_delete);
         assert_eq!(removed.len(), 1);
-        assert_eq!(removed[0], "v1");
+        assert_eq!(removed[0], crate::storage::vertex::IdKey::Text("v1".to_string()));
 
         let gc_removed = index_manager
             .gc_tombstones(ts_delete + 1)

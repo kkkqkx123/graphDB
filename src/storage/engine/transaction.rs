@@ -119,12 +119,21 @@ impl TransactionOps {
             .filter_map(|(k, v)| bytes_to_value(v).map(|val| (k.clone(), val)))
             .collect();
 
+        let src_id_str = match &src_external {
+            crate::storage::vertex::IdKey::Text(s) => s.clone(),
+            crate::storage::vertex::IdKey::Int(i) => i.to_string(),
+        };
+        let dst_id_str = match &dst_external {
+            crate::storage::vertex::IdKey::Text(s) => s.clone(),
+            crate::storage::vertex::IdKey::Int(i) => i.to_string(),
+        };
+
         let edge_op_params = EdgeOperationParams {
             edge_label: params.edge_label,
             src_label: params.src_label,
-            src_id: &src_external,
+            src_id: &src_id_str,
             dst_label: params.dst_label,
-            dst_id: &dst_external,
+            dst_id: &dst_id_str,
         };
 
         let edge_id = edge_ops
@@ -155,7 +164,10 @@ impl TransactionOps {
         schema_ops
             .get_vertex_table(label)?
             .get_external_id(vid.as_int64().unwrap_or(0) as u32, ts)
-            .map(|s| s.into_bytes())
+            .map(|id_key| match id_key {
+                crate::storage::vertex::IdKey::Text(s) => s.into_bytes(),
+                crate::storage::vertex::IdKey::Int(i) => i.to_string().into_bytes(),
+            })
     }
 
     pub fn get_vertex_property_types(schema_ops: &SchemaOps, label: TxnLabelId) -> Vec<String> {

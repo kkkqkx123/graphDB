@@ -20,7 +20,7 @@ pub use crate::storage::storage_types::StoragePropertyDef as PropertyDef;
 
 pub use column_store::{Column, ColumnStore};
 pub use encoding::{EncodingStats, EncodingType, select_encoding};
-pub use id_indexer::IdIndexer;
+pub use id_indexer::{IdIndexer, IdKey};
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
 

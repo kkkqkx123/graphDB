@@ -9,7 +9,6 @@ use super::{Timestamp, VertexStatus, INVALID_TIMESTAMP, MAX_TIMESTAMP};
 pub struct VertexTimestamp {
     start_ts: Vec<Timestamp>,
     end_ts: Vec<Timestamp>,
-    deleted: Vec<bool>,
     capacity: usize,
 }
 
@@ -22,7 +21,6 @@ impl VertexTimestamp {
         Self {
             start_ts: Vec::with_capacity(capacity),
             end_ts: Vec::with_capacity(capacity),
-            deleted: Vec::with_capacity(capacity),
             capacity,
         }
     }
@@ -32,26 +30,23 @@ impl VertexTimestamp {
         if idx >= self.start_ts.len() {
             self.start_ts.resize(idx + 1, INVALID_TIMESTAMP);
             self.end_ts.resize(idx + 1, INVALID_TIMESTAMP);
-            self.deleted.resize(idx + 1, false);
         }
         self.start_ts[idx] = ts;
         self.end_ts[idx] = MAX_TIMESTAMP;
-        self.deleted[idx] = false;
     }
 
     pub fn remove(&mut self, index: u32, ts: Timestamp) {
         let idx = index as usize;
         if idx < self.end_ts.len() {
             self.end_ts[idx] = ts;
-            self.deleted[idx] = true;
         }
     }
 
     pub fn revert_remove(&mut self, index: u32, ts: Timestamp) -> bool {
         let idx = index as usize;
-        if idx < self.end_ts.len() && self.deleted[idx] && ts >= self.end_ts[idx] {
+        if idx < self.end_ts.len() && self.end_ts[idx] != MAX_TIMESTAMP && ts >= self.end_ts[idx]
+        {
             self.end_ts[idx] = MAX_TIMESTAMP;
-            self.deleted[idx] = false;
             return true;
         }
         false
@@ -75,7 +70,9 @@ impl VertexTimestamp {
 
     pub fn is_deleted(&self, index: u32) -> bool {
         let idx = index as usize;
-        idx < self.deleted.len() && self.deleted[idx]
+        idx < self.start_ts.len()
+            && self.start_ts[idx] != INVALID_TIMESTAMP
+            && self.end_ts[idx] != MAX_TIMESTAMP
     }
 
     pub fn get_status(&self, index: u32) -> VertexStatus {
@@ -135,71 +132,65 @@ impl VertexTimestamp {
     pub fn resize(&mut self, new_size: usize) {
         self.start_ts.resize(new_size, INVALID_TIMESTAMP);
         self.end_ts.resize(new_size, MAX_TIMESTAMP);
-        self.deleted.resize(new_size, false);
     }
 
     pub fn clear(&mut self) {
         self.start_ts.clear();
         self.end_ts.clear();
-        self.deleted.clear();
     }
 
     pub fn compact(&mut self) {
         let mut write_idx = 0;
         for read_idx in 0..self.start_ts.len() {
-            if !self.deleted[read_idx] {
+            if self.end_ts[read_idx] == MAX_TIMESTAMP {
                 if write_idx != read_idx {
                     self.start_ts[write_idx] = self.start_ts[read_idx];
                     self.end_ts[write_idx] = self.end_ts[read_idx];
-                    self.deleted[write_idx] = self.deleted[read_idx];
                 }
                 write_idx += 1;
             }
         }
         self.start_ts.truncate(write_idx);
         self.end_ts.truncate(write_idx);
-        self.deleted.truncate(write_idx);
     }
 
     pub fn dump(&self) -> Vec<Timestamp> {
-        let mut result = Vec::with_capacity(self.start_ts.len() * 2 + self.deleted.len());
+        let mut result = Vec::with_capacity(self.start_ts.len() * 2);
         for i in 0..self.start_ts.len() {
             result.push(self.start_ts[i]);
             result.push(self.end_ts[i]);
-            result.push(if self.deleted[i] { 1u32 } else { 0u32 });
         }
         result
     }
 
     pub fn load(&mut self, data: &[Timestamp]) {
         self.clear();
-        let count = data.len() / 3;
+        let count = data.len() / 2;
         self.start_ts.reserve(count);
         self.end_ts.reserve(count);
-        self.deleted.reserve(count);
 
         for i in 0..count {
-            self.start_ts.push(data[i * 3]);
-            self.end_ts.push(data[i * 3 + 1]);
-            self.deleted.push(data[i * 3 + 2] == 1);
+            self.start_ts.push(data[i * 2]);
+            self.end_ts.push(data[i * 2 + 1]);
         }
     }
 
     pub fn memory_size(&self) -> usize {
         self.start_ts.len() * std::mem::size_of::<Timestamp>()
             + self.end_ts.len() * std::mem::size_of::<Timestamp>()
-            + self.deleted.len() * std::mem::size_of::<bool>()
             + std::mem::size_of::<Self>()
     }
 
     pub fn iter_deleted(&self, ts: Timestamp) -> impl Iterator<Item = u32> + '_ {
-        self.deleted
+        self.start_ts
             .iter()
             .enumerate()
-            .filter(move |(id, &deleted)| {
-                deleted && self.end_ts[*id] <= ts
+            .filter(move |(i, &start)| {
+                start != INVALID_TIMESTAMP
+                    && self.end_ts[*i] != MAX_TIMESTAMP
+                    && self.end_ts[*i] <= ts
             })
-            .map(|(id, _)| id as u32)
+            .map(|(i, _)| i as u32)
     }
 }
 

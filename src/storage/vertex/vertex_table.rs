@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use super::{
-    ColumnStore, IdIndexer, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema,
+    ColumnStore, IdIndexer, IdKey, LabelId, PropertyDef, Timestamp, VertexId, VertexRecord, VertexSchema,
     VertexTimestamp,
 };
 use crate::core::{StorageError, StorageResult, Value};
@@ -29,7 +29,7 @@ pub struct VertexTable {
     label: LabelId,
     label_name: String,
     schema: VertexSchema,
-    id_indexer: IdIndexer<String>,
+    id_indexer: IdIndexer,
     columns: ColumnStore,
     timestamps: VertexTimestamp,
     is_open: bool,
@@ -84,6 +84,24 @@ impl VertexTable {
         properties: &[(String, Value)],
         ts: Timestamp,
     ) -> StorageResult<u32> {
+        self.insert_by_key(IdKey::Text(external_id.to_string()), properties, ts)
+    }
+
+    pub fn insert_by_i64(
+        &mut self,
+        external_id: i64,
+        properties: &[(String, Value)],
+        ts: Timestamp,
+    ) -> StorageResult<u32> {
+        self.insert_by_key(IdKey::Int(external_id), properties, ts)
+    }
+
+    fn insert_by_key(
+        &mut self,
+        key: IdKey,
+        properties: &[(String, Value)],
+        ts: Timestamp,
+    ) -> StorageResult<u32> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
@@ -101,14 +119,14 @@ impl VertexTable {
             }
         }
 
-        if self.id_indexer.contains(&external_id.to_string()) {
+        if self.id_indexer.contains(&key) {
             let internal_id = self
                 .id_indexer
-                .get_index(&external_id.to_string())
+                .get_index(&key)
                 .ok_or(StorageError::vertex_not_found())?;
 
             if self.timestamps.is_valid(internal_id, ts) {
-                return Err(StorageError::vertex_already_exists(external_id.to_string()));
+                return Err(StorageError::vertex_already_exists(format!("{:?}", key)));
             }
 
             let _ = self.timestamps.revert_remove(internal_id, ts);
@@ -116,7 +134,7 @@ impl VertexTable {
             return Ok(internal_id);
         }
 
-        let internal_id = self.id_indexer.insert(external_id.to_string())?;
+        let internal_id = self.id_indexer.insert(key)?;
         self.timestamps.insert(internal_id, ts);
         self.columns.set(internal_id as usize, properties)?;
 
@@ -124,11 +142,19 @@ impl VertexTable {
     }
 
     pub fn get(&self, external_id: &str, ts: Timestamp) -> Option<VertexRecord> {
+        self.get_by_key(&IdKey::Text(external_id.to_string()), ts)
+    }
+
+    pub fn get_by_i64(&self, external_id: i64, ts: Timestamp) -> Option<VertexRecord> {
+        self.get_by_key(&IdKey::Int(external_id), ts)
+    }
+
+    fn get_by_key(&self, key: &IdKey, ts: Timestamp) -> Option<VertexRecord> {
         if !self.is_open {
             return None;
         }
 
-        let internal_id = self.id_indexer.get_index(&external_id.to_string())?;
+        let internal_id = self.id_indexer.get_index(key)?;
 
         if !self.timestamps.is_valid(internal_id, ts) {
             return None;
@@ -219,13 +245,21 @@ impl VertexTable {
     }
 
     pub fn delete(&mut self, external_id: &str, ts: Timestamp) -> StorageResult<()> {
+        self.delete_by_key(&IdKey::Text(external_id.to_string()), ts)
+    }
+
+    pub fn delete_by_i64(&mut self, external_id: i64, ts: Timestamp) -> StorageResult<()> {
+        self.delete_by_key(&IdKey::Int(external_id), ts)
+    }
+
+    fn delete_by_key(&mut self, key: &IdKey, ts: Timestamp) -> StorageResult<()> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
 
         let internal_id = self
             .id_indexer
-            .get_index(&external_id.to_string())
+            .get_index(key)
             .ok_or(StorageError::vertex_not_found())?;
 
         self.timestamps.remove(internal_id, ts);
@@ -265,7 +299,7 @@ impl VertexTable {
 
     pub fn batch_delete(
         &mut self,
-        external_ids: &[String],
+        external_ids: &[IdKey],
         ts: Timestamp,
     ) -> StorageResult<usize> {
         if !self.is_open {
@@ -286,7 +320,7 @@ impl VertexTable {
 
     pub fn batch_get(
         &self,
-        external_ids: &[String],
+        external_ids: &[IdKey],
         ts: Timestamp,
     ) -> Vec<Option<VertexRecord>> {
         if !self.is_open {
@@ -295,13 +329,13 @@ impl VertexTable {
 
         external_ids
             .iter()
-            .map(|id| self.get(id, ts))
+            .map(|id| self.get_by_key(id, ts))
             .collect()
     }
 
     pub fn batch_update(
         &mut self,
-        updates: &[(String, Vec<(String, Value)>)],
+        updates: &[(IdKey, Vec<(String, Value)>)],
         ts: Timestamp,
     ) -> StorageResult<usize> {
         if !self.is_open {
@@ -347,7 +381,18 @@ impl VertexTable {
         }
 
         self.id_indexer
-            .get_index(&external_id.to_string())
+            .get_index(&IdKey::Text(external_id.to_string()))
+            .map(|id| self.timestamps.is_valid(id, ts))
+            .unwrap_or(false)
+    }
+
+    pub fn contains_by_i64(&self, external_id: i64, ts: Timestamp) -> bool {
+        if !self.is_open {
+            return false;
+        }
+
+        self.id_indexer
+            .get_index(&IdKey::Int(external_id))
             .map(|id| self.timestamps.is_valid(id, ts))
             .unwrap_or(false)
     }
@@ -357,7 +402,7 @@ impl VertexTable {
             return None;
         }
 
-        let internal_id = self.id_indexer.get_index(&external_id.to_string())?;
+        let internal_id = self.id_indexer.get_index(&IdKey::Text(external_id.to_string()))?;
         if self.timestamps.is_valid(internal_id, ts) {
             Some(internal_id)
         } else {
@@ -365,7 +410,20 @@ impl VertexTable {
         }
     }
 
-    pub fn get_external_id(&self, internal_id: u32, ts: Timestamp) -> Option<String> {
+    pub fn get_internal_id_by_i64(&self, external_id: i64, ts: Timestamp) -> Option<u32> {
+        if !self.is_open {
+            return None;
+        }
+
+        let internal_id = self.id_indexer.get_index(&IdKey::Int(external_id))?;
+        if self.timestamps.is_valid(internal_id, ts) {
+            Some(internal_id)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_external_id(&self, internal_id: u32, ts: Timestamp) -> Option<IdKey> {
         if !self.is_open || !self.timestamps.is_valid(internal_id, ts) {
             return None;
         }
@@ -549,9 +607,9 @@ impl VertexTable {
 
         for (key, id) in self.id_indexer.iter() {
             file.write_all(&id.to_le_bytes())?;
-            let key_bytes = key.as_bytes();
+            let key_bytes = key.to_bytes();
             file.write_all(&(key_bytes.len() as u32).to_le_bytes())?;
-            file.write_all(key_bytes)?;
+            file.write_all(&key_bytes)?;
         }
 
         Ok(())
@@ -686,8 +744,7 @@ impl VertexTable {
 
             let mut key_bytes = vec![0u8; key_len];
             file.read_exact(&mut key_bytes)?;
-            let key = String::from_utf8(key_bytes)
-                .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
+            let key = IdKey::from_bytes(&key_bytes)?;
 
             self.id_indexer.set_at(internal_id, key);
         }
@@ -792,7 +849,7 @@ impl VertexTable {
         self.compact_with_ts_collect(ts).len()
     }
 
-    pub fn compact_with_ts_collect(&mut self, ts: Timestamp) -> Vec<String> {
+    pub fn compact_with_ts_collect(&mut self, ts: Timestamp) -> Vec<IdKey> {
         let deleted_ids: Vec<u32> = self.timestamps
             .iter_deleted(ts)
             .collect();

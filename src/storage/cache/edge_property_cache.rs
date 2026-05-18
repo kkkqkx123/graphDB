@@ -36,6 +36,7 @@ use parking_lot::Mutex;
 
 use crate::core::types::EdgeId;
 use crate::core::Value;
+use crate::storage::storage_types::PropertyId;
 
 const DEFAULT_MAX_ENTRIES: usize = 10_000;
 const DEFAULT_MAX_MEMORY: usize = 10 * 1024 * 1024;
@@ -46,6 +47,34 @@ const HOT_ACCESS_THRESHOLD: u64 = 10;
 pub struct EdgePropertyKey {
     pub edge_id: EdgeId,
     pub prop_name_hash: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EdgePropertyOffsetKey {
+    pub prop_offset: u32,
+    pub prop_name_hash: u64,
+}
+
+impl EdgePropertyOffsetKey {
+    pub fn new(prop_offset: u32, prop_name: &str) -> Self {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        prop_name.hash(&mut hasher);
+
+        Self {
+            prop_offset,
+            prop_name_hash: hasher.finish(),
+        }
+    }
+
+    pub fn new_with_id(prop_offset: u32, prop_id: PropertyId) -> Self {
+        Self {
+            prop_offset,
+            prop_name_hash: prop_id.0 as u64,
+        }
+    }
 }
 
 impl EdgePropertyKey {
@@ -176,6 +205,7 @@ impl EdgePropertyCacheStats {
 pub struct EdgePropertyCache {
     config: EdgePropertyCacheConfig,
     cache: Mutex<LruCache<EdgePropertyKey, CachedEdgeProperty>>,
+    offset_cache: Mutex<LruCache<EdgePropertyOffsetKey, CachedEdgeProperty>>,
     stats: Arc<EdgePropertyCacheStats>,
     read_tracker: Arc<DashMap<EdgePropertyKey, u32>>,
     edge_index: Arc<DashMap<EdgeId, Vec<EdgePropertyKey>>>,
@@ -184,10 +214,12 @@ pub struct EdgePropertyCache {
 impl EdgePropertyCache {
     pub fn new(config: EdgePropertyCacheConfig) -> Self {
         let cache = LruCache::new(std::num::NonZeroUsize::new(config.max_entries).unwrap());
+        let offset_cache = LruCache::new(std::num::NonZeroUsize::new(config.max_entries).unwrap());
 
         Self {
             config,
             cache: Mutex::new(cache),
+            offset_cache: Mutex::new(offset_cache),
             stats: Arc::new(EdgePropertyCacheStats::default()),
             read_tracker: Arc::new(DashMap::new()),
             edge_index: Arc::new(DashMap::new()),
@@ -382,6 +414,133 @@ impl EdgePropertyCache {
         self.read_tracker
             .get(&key)
             .is_some_and(|count| *count >= self.config.min_access_frequency)
+    }
+
+    pub fn get_by_offset(&self, prop_offset: u32, prop_name: &str) -> Option<Value> {
+        if !self.config.enabled {
+            return None;
+        }
+
+        let key = EdgePropertyOffsetKey::new(prop_offset, prop_name);
+        let mut cache = self.offset_cache.lock();
+
+        if let Some(entry) = cache.get_mut(&key) {
+            if entry.is_expired(self.config.ttl) {
+                let size = entry.size;
+                cache.pop(&key);
+                drop(cache);
+                self.stats.expired.fetch_add(1, Ordering::Relaxed);
+                self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
+                self.stats.current_memory.fetch_sub(size, Ordering::Relaxed);
+                self.stats.misses.fetch_add(1, Ordering::Relaxed);
+                return None;
+            }
+
+            entry.touch();
+            self.stats.hits.fetch_add(1, Ordering::Relaxed);
+            return Some(entry.value.clone());
+        }
+
+        drop(cache);
+        self.stats.misses.fetch_add(1, Ordering::Relaxed);
+        None
+    }
+
+    pub fn put_by_offset(&self, prop_offset: u32, prop_name: &str, value: Value) -> bool {
+        if !self.config.enabled {
+            return false;
+        }
+
+        let size = std::mem::size_of::<Value>() + value.estimated_size();
+        if size > self.config.max_property_size {
+            return false;
+        }
+
+        let key = EdgePropertyOffsetKey::new(prop_offset, prop_name);
+        let mut cache = self.offset_cache.lock();
+
+        if let Some(old) = cache.put(key, CachedEdgeProperty::new(value)) {
+            self.stats.current_memory.fetch_sub(old.size, Ordering::Relaxed);
+        } else {
+            self.stats.current_entries.fetch_add(1, Ordering::Relaxed);
+        }
+        self.stats.current_memory.fetch_add(size, Ordering::Relaxed);
+
+        true
+    }
+
+    pub fn get_by_offset_id(&self, prop_offset: u32, prop_id: PropertyId) -> Option<Value> {
+        if !self.config.enabled {
+            return None;
+        }
+
+        let key = EdgePropertyOffsetKey::new_with_id(prop_offset, prop_id);
+        let mut cache = self.offset_cache.lock();
+
+        if let Some(entry) = cache.get_mut(&key) {
+            if entry.is_expired(self.config.ttl) {
+                let size = entry.size;
+                cache.pop(&key);
+                drop(cache);
+                self.stats.expired.fetch_add(1, Ordering::Relaxed);
+                self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
+                self.stats.current_memory.fetch_sub(size, Ordering::Relaxed);
+                self.stats.misses.fetch_add(1, Ordering::Relaxed);
+                return None;
+            }
+
+            entry.touch();
+            self.stats.hits.fetch_add(1, Ordering::Relaxed);
+            return Some(entry.value.clone());
+        }
+
+        drop(cache);
+        self.stats.misses.fetch_add(1, Ordering::Relaxed);
+        None
+    }
+
+    pub fn put_by_offset_id(&self, prop_offset: u32, prop_id: PropertyId, value: Value) -> bool {
+        if !self.config.enabled {
+            return false;
+        }
+
+        let size = std::mem::size_of::<Value>() + value.estimated_size();
+        if size > self.config.max_property_size {
+            return false;
+        }
+
+        let key = EdgePropertyOffsetKey::new_with_id(prop_offset, prop_id);
+        let mut cache = self.offset_cache.lock();
+
+        if let Some(old) = cache.put(key, CachedEdgeProperty::new(value)) {
+            self.stats.current_memory.fetch_sub(old.size, Ordering::Relaxed);
+        } else {
+            self.stats.current_entries.fetch_add(1, Ordering::Relaxed);
+        }
+        self.stats.current_memory.fetch_add(size, Ordering::Relaxed);
+
+        true
+    }
+
+    pub fn invalidate_by_offset(&self, prop_offset: u32) {
+        if !self.config.enabled {
+            return;
+        }
+
+        let mut cache = self.offset_cache.lock();
+        let keys: Vec<EdgePropertyOffsetKey> = cache
+            .iter()
+            .filter(|(k, _)| k.prop_offset == prop_offset)
+            .map(|(k, _)| *k)
+            .collect();
+
+        for key in keys {
+            if let Some(entry) = cache.pop(&key) {
+                self.stats.evictions.fetch_add(1, Ordering::Relaxed);
+                self.stats.current_entries.fetch_sub(1, Ordering::Relaxed);
+                self.stats.current_memory.fetch_sub(entry.size, Ordering::Relaxed);
+            }
+        }
     }
 }
 

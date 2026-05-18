@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::core::{DataType, DateValue, NullType, StorageError, StorageResult, Value};
+use crate::storage::storage_types::PropertyId;
+use crate::storage::utils::NameIndexer;
 use crate::storage::vertex::column_store::Column;
 use crate::storage::vertex::encoding::EncodingType;
 
@@ -277,7 +279,7 @@ impl RowGroup {
 #[derive(Debug)]
 pub struct PropertyTable {
     schema: Vec<PropertySchema>,
-    name_to_index: HashMap<String, usize>,
+    name_indexer: NameIndexer,
     columns: Vec<Column>,
     row_count: usize,
     free_list: Vec<u32>,
@@ -290,7 +292,7 @@ impl PropertyTable {
     pub fn new() -> Self {
         Self {
             schema: Vec::new(),
-            name_to_index: HashMap::new(),
+            name_indexer: NameIndexer::new(),
             columns: Vec::new(),
             row_count: 0,
             free_list: Vec::new(),
@@ -303,7 +305,7 @@ impl PropertyTable {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             schema: Vec::new(),
-            name_to_index: HashMap::new(),
+            name_indexer: NameIndexer::with_capacity(capacity),
             columns: Vec::new(),
             row_count: 0,
             free_list: Vec::with_capacity(capacity),
@@ -316,7 +318,7 @@ impl PropertyTable {
     pub fn with_row_group_size(capacity: usize, row_group_size: usize) -> Self {
         Self {
             schema: Vec::new(),
-            name_to_index: HashMap::new(),
+            name_indexer: NameIndexer::with_capacity(capacity),
             columns: Vec::new(),
             row_count: 0,
             free_list: Vec::with_capacity(capacity),
@@ -326,7 +328,7 @@ impl PropertyTable {
         }
     }
 
-    pub fn add_property(&mut self, name: String, data_type: DataType, nullable: bool) -> i32 {
+    pub fn add_property(&mut self, name: String, data_type: DataType, nullable: bool) -> PropertyId {
         self.add_property_with_encoding(name, data_type, nullable, None)
     }
 
@@ -336,25 +338,25 @@ impl PropertyTable {
         data_type: DataType,
         nullable: bool,
         encoding: Option<EncodingType>,
-    ) -> i32 {
-        let prop_id = self.schema.len() as i32;
-        let schema = PropertySchema::new(name.clone(), prop_id, data_type.clone())
+    ) -> PropertyId {
+        let prop_id = PropertyId::new(self.schema.len() as u16);
+        let schema = PropertySchema::new(name.clone(), prop_id.as_usize() as i32, data_type.clone())
             .nullable(nullable)
             .with_encoding(encoding.unwrap_or(EncodingType::None));
-        self.name_to_index.insert(name.clone(), self.schema.len());
+        self.name_indexer.register(name.clone());
         self.schema.push(schema);
 
-        let mut column = Column::new(name, prop_id, data_type, nullable);
+        let mut column = Column::new(name, prop_id.as_usize() as i32, data_type, nullable);
         column.resize(self.row_count);
         self.columns.push(column);
 
         prop_id
     }
 
-    pub fn apply_encoding(&mut self, col_id: i32, encoding: EncodingType) -> StorageResult<()> {
-        let col_idx = col_id as usize;
+    pub fn apply_encoding(&mut self, prop_id: PropertyId, encoding: EncodingType) -> StorageResult<()> {
+        let col_idx = prop_id.as_usize();
         if col_idx >= self.columns.len() {
-            return Err(StorageError::column_not_found(format!("col_id={}", col_id)));
+            return Err(StorageError::column_not_found(format!("prop_id={}", prop_id)));
         }
 
         let column = &mut self.columns[col_idx];
@@ -463,7 +465,8 @@ impl PropertyTable {
         }
 
         for (name, value) in values {
-            if let Some(&col_idx) = self.name_to_index.get(name) {
+            if let Some(col_idx) = self.name_indexer.get_id(name) {
+                let col_idx = col_idx.as_usize();
                 if col_idx < self.columns.len() {
                     if self.should_use_overflow(value) {
                         self.overflow_store.remove(col_idx, row_idx);
@@ -503,7 +506,24 @@ impl PropertyTable {
     }
 
     pub fn get_property(&self, offset: u32, name: &str) -> Option<Value> {
-        let col_idx = *self.name_to_index.get(name)?;
+        let col_idx = self.name_indexer.get_id(name)?;
+        let row_idx = prop_offset_to_index(offset)?;
+        if row_idx >= self.row_count {
+            return None;
+        }
+
+        let col_idx = col_idx.as_usize();
+        if col_idx < self.columns.len() {
+            self.columns[col_idx]
+                .get(row_idx)
+                .or_else(|| self.overflow_store.retrieve(col_idx, row_idx))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_property_by_id(&self, offset: u32, prop_id: PropertyId) -> Option<Value> {
+        let col_idx = prop_id.as_usize();
         let row_idx = prop_offset_to_index(offset)?;
         if row_idx >= self.row_count {
             return None;
@@ -524,10 +544,11 @@ impl PropertyTable {
         name: &str,
         value: Option<Value>,
     ) -> StorageResult<()> {
-        let col_idx = *self
-            .name_to_index
-            .get(name)
+        let col_idx = self
+            .name_indexer
+            .get_id(name)
             .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
+        let col_idx = col_idx.as_usize();
 
         let row_idx = prop_offset_to_index(offset)
             .ok_or_else(|| StorageError::invalid_offset(offset))?;
@@ -557,16 +578,10 @@ impl PropertyTable {
     pub fn set_property_by_id(
         &mut self,
         offset: u32,
-        prop_id: i32,
+        prop_id: PropertyId,
         value: Option<Value>,
     ) -> StorageResult<()> {
-        if prop_id < 0 {
-            return Err(StorageError::invalid_input(format!(
-                "prop_id cannot be negative: {}",
-                prop_id
-            )));
-        }
-        let col_idx = prop_id as usize;
+        let col_idx = prop_id.as_usize();
         let row_idx = prop_offset_to_index(offset)
             .ok_or_else(|| StorageError::invalid_offset(offset))?;
         if row_idx >= self.row_count {
@@ -595,29 +610,6 @@ impl PropertyTable {
         }
 
         Ok(())
-    }
-
-    pub fn get_property_by_id(&self, offset: u32, prop_id: i32) -> Option<Value> {
-        if prop_id < 0 {
-            return None;
-        }
-        let col_idx = prop_id as usize;
-        let row_idx = prop_offset_to_index(offset)?;
-        if row_idx >= self.row_count {
-            return None;
-        }
-
-        if col_idx < self.columns.len() {
-            self.columns[col_idx]
-                .get(row_idx)
-                .or_else(|| self.overflow_store.retrieve(col_idx, row_idx))
-        } else {
-            None
-        }
-    }
-
-    pub fn get_property_type(&self, prop_id: i32) -> Option<DataType> {
-        self.schema.get(prop_id as usize).map(|s| s.data_type.clone())
     }
 
     pub fn delete(&mut self, offset: u32) -> bool {
@@ -664,13 +656,26 @@ impl PropertyTable {
     }
 
     pub fn has_property(&self, name: &str) -> bool {
-        self.name_to_index.contains_key(name)
+        self.name_indexer.contains(name)
     }
 
     pub fn get_schema(&self, name: &str) -> Option<&PropertySchema> {
-        self.name_to_index
-            .get(name)
-            .and_then(|&idx| self.schema.get(idx))
+        self.name_indexer
+            .get_id(name)
+            .map(|id| id.as_usize())
+            .and_then(|idx| self.schema.get(idx))
+    }
+
+    pub fn get_schema_by_id(&self, prop_id: PropertyId) -> Option<&PropertySchema> {
+        self.schema.get(prop_id.as_usize())
+    }
+
+    pub fn get_property_type(&self, prop_id: PropertyId) -> Option<DataType> {
+        self.schema.get(prop_id.as_usize()).map(|s| s.data_type.clone())
+    }
+
+    pub fn name_indexer(&self) -> &NameIndexer {
+        &self.name_indexer
     }
 
     pub fn row_group_count(&self) -> usize {
@@ -721,6 +726,7 @@ impl PropertyTable {
         }
 
         let overflow_data = self.overflow_store.dump();
+        result.extend_from_slice(&(overflow_data.len() as u64).to_le_bytes());
         result.extend_from_slice(&overflow_data);
 
         result.extend_from_slice(&(self.row_groups.len() as u32).to_le_bytes());
@@ -747,7 +753,7 @@ impl PropertyTable {
         offset += 4;
 
         self.schema.clear();
-        self.name_to_index.clear();
+        self.name_indexer.clear();
         self.columns.clear();
 
         for _ in 0..schema_len {
@@ -789,7 +795,7 @@ impl PropertyTable {
             let prop_schema = PropertySchema::new(name.clone(), prop_id, data_type.clone())
                 .nullable(nullable)
                 .with_encoding(encoding.unwrap_or(EncodingType::None));
-            self.name_to_index.insert(name.clone(), self.schema.len());
+            self.name_indexer.register(name.clone());
             self.schema.push(prop_schema);
 
             let column = Column::new(name, prop_id, data_type, nullable);
@@ -855,10 +861,14 @@ impl PropertyTable {
             self.free_list.push(free_offset);
         }
 
-        if offset < data.len() {
-            self.overflow_store.load(&data[offset..]);
-            let overflow_data = self.overflow_store.dump();
-            offset += overflow_data.len();
+        if offset + 8 <= data.len() {
+            let overflow_len =
+                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
+            offset += 8;
+            if offset + overflow_len <= data.len() {
+                self.overflow_store.load(&data[offset..offset + overflow_len]);
+                offset += overflow_len;
+            }
         }
 
         if offset + 4 > data.len() {
@@ -919,6 +929,7 @@ impl PropertyTable {
         self.columns = new_columns;
         self.row_count = new_row_count;
         self.free_list.clear();
+        self.overflow_store.clear();
 
         self.row_groups.clear();
         let mut group_start = 0;
@@ -989,6 +1000,7 @@ impl PropertyTable {
         total += std::mem::size_of::<Self>();
         total += self.overflow_store.memory_size();
         total += self.row_groups.len() * std::mem::size_of::<RowGroup>();
+        total += self.name_indexer.memory_size();
 
         for col in &self.columns {
             total += col.used_memory_size();

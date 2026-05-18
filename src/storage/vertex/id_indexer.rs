@@ -9,13 +9,68 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
-use std::hash::Hash;
 
 use crate::storage::{StorageError, StorageResult};
 
 const DEFAULT_INITIAL_CAPACITY: usize = 1024;
 const DEFAULT_GROWTH_FACTOR: f64 = 1.5;
 const MAX_CAPACITY: usize = u32::MAX as usize;
+
+const ID_KEY_TYPE_INT: u8 = 0;
+const ID_KEY_TYPE_TEXT: u8 = 1;
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum IdKey {
+    Int(i64),
+    Text(String),
+}
+
+impl IdKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            IdKey::Int(val) => {
+                let mut bytes = Vec::with_capacity(9);
+                bytes.push(ID_KEY_TYPE_INT);
+                bytes.extend_from_slice(&val.to_be_bytes());
+                bytes
+            }
+            IdKey::Text(val) => {
+                let mut bytes = Vec::with_capacity(1 + val.len());
+                bytes.push(ID_KEY_TYPE_TEXT);
+                bytes.extend_from_slice(val.as_bytes());
+                bytes
+            }
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> StorageResult<Self> {
+        if bytes.is_empty() {
+            return Err(StorageError::deserialize_error("Empty IdKey bytes".to_string()));
+        }
+
+        match bytes[0] {
+            ID_KEY_TYPE_INT => {
+                if bytes.len() != 9 {
+                    return Err(StorageError::deserialize_error(
+                        format!("Invalid Int IdKey length: {}", bytes.len()),
+                    ));
+                }
+                let val_bytes: [u8; 8] = bytes[1..9]
+                    .try_into()
+                    .map_err(|_| StorageError::deserialize_error("Invalid Int IdKey bytes".to_string()))?;
+                Ok(IdKey::Int(i64::from_be_bytes(val_bytes)))
+            }
+            ID_KEY_TYPE_TEXT => {
+                let text = String::from_utf8(bytes[1..].to_vec())
+                    .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
+                Ok(IdKey::Text(text))
+            }
+            tag => Err(StorageError::deserialize_error(
+                format!("Unknown IdKey type tag: {}", tag),
+            )),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct IdIndexerConfig {
@@ -59,20 +114,14 @@ impl IdIndexerConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct IdIndexer<K>
-where
-    K: Eq + Hash + Clone + Debug,
-{
-    keys: Vec<Option<K>>,
-    key_to_index: HashMap<K, u32>,
+pub struct IdIndexer {
+    keys: Vec<Option<IdKey>>,
+    key_to_index: HashMap<IdKey, u32>,
     free_list: VecDeque<u32>,
     config: IdIndexerConfig,
 }
 
-impl<K> IdIndexer<K>
-where
-    K: Eq + Hash + Clone + Debug,
-{
+impl IdIndexer {
     pub fn new() -> Self {
         Self::with_config(IdIndexerConfig::default())
     }
@@ -93,10 +142,10 @@ where
         }
     }
 
-    pub fn insert(&mut self, key: K) -> StorageResult<u32> {
+    pub fn insert(&mut self, key: IdKey) -> StorageResult<u32> {
         if self.key_to_index.contains_key(&key) {
             return Err(StorageError::vertex_already_exists(
-                format!("{:?}", key).trim_matches('"').to_string(),
+                format!("{:?}", key),
             ));
         }
 
@@ -136,7 +185,7 @@ where
         Ok(())
     }
 
-    pub fn remove(&mut self, key: &K) -> Option<u32> {
+    pub fn remove(&mut self, key: &IdKey) -> Option<u32> {
         if let Some(index) = self.key_to_index.remove(key) {
             self.keys[index as usize] = None;
             if self.config.enable_free_list {
@@ -147,15 +196,15 @@ where
         None
     }
 
-    pub fn get_index(&self, key: &K) -> Option<u32> {
+    pub fn get_index(&self, key: &IdKey) -> Option<u32> {
         self.key_to_index.get(key).copied()
     }
 
-    pub fn get_key(&self, index: u32) -> Option<&K> {
+    pub fn get_key(&self, index: u32) -> Option<&IdKey> {
         self.keys.get(index as usize)?.as_ref()
     }
 
-    pub fn contains(&self, key: &K) -> bool {
+    pub fn contains(&self, key: &IdKey) -> bool {
         self.key_to_index.contains_key(key)
     }
 
@@ -200,7 +249,7 @@ where
         }
 
         let mut id_mapping = HashMap::new();
-        let mut new_keys: Vec<Option<K>> = Vec::with_capacity(self.len());
+        let mut new_keys: Vec<Option<IdKey>> = Vec::with_capacity(self.len());
         let mut new_key_to_index = HashMap::with_capacity(self.len());
 
         for (old_idx, key_opt) in self.keys.iter().enumerate() {
@@ -221,14 +270,14 @@ where
         Ok(id_mapping)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&K, u32)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&IdKey, u32)> {
         self.keys
             .iter()
             .enumerate()
             .filter_map(|(i, k)| k.as_ref().map(|k| (k, i as u32)))
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = &K> {
+    pub fn keys(&self) -> impl Iterator<Item = &IdKey> {
         self.keys.iter().filter_map(|k| k.as_ref())
     }
 
@@ -238,7 +287,7 @@ where
         self.free_list.clear();
     }
 
-    pub fn set_at(&mut self, index: u32, key: K) {
+    pub fn set_at(&mut self, index: u32, key: IdKey) {
         if self.key_to_index.contains_key(&key) {
             return;
         }
@@ -250,9 +299,9 @@ where
     }
 
     pub fn memory_usage(&self) -> usize {
-        let keys_size = self.keys.capacity() * std::mem::size_of::<Option<K>>();
+        let keys_size = self.keys.capacity() * std::mem::size_of::<Option<IdKey>>();
         let map_size = self.key_to_index.capacity()
-            * (std::mem::size_of::<K>() + std::mem::size_of::<u32>());
+            * (std::mem::size_of::<IdKey>() + std::mem::size_of::<u32>());
         let free_list_size = self.free_list.capacity() * std::mem::size_of::<u32>();
         keys_size + map_size + free_list_size
     }
@@ -262,17 +311,11 @@ where
     }
 }
 
-impl<K> Default for IdIndexer<K>
-where
-    K: Eq + Hash + Clone + Debug,
-{
+impl Default for IdIndexer {
     fn default() -> Self {
         Self::new()
     }
 }
-
-pub type StringIdIndexer = IdIndexer<String>;
-pub type Int64IdIndexer = IdIndexer<i64>;
 
 #[cfg(test)]
 mod tests {
@@ -280,68 +323,101 @@ mod tests {
 
     #[test]
     fn test_basic_operations() {
-        let mut indexer: StringIdIndexer = IdIndexer::new();
+        let mut indexer = IdIndexer::new();
 
-        let idx1 = indexer.insert("vertex1".to_string()).unwrap();
+        let idx1 = indexer.insert(IdKey::Text("vertex1".to_string())).unwrap();
         assert_eq!(idx1, 0);
 
-        let idx2 = indexer.insert("vertex2".to_string()).unwrap();
+        let idx2 = indexer.insert(IdKey::Text("vertex2".to_string())).unwrap();
         assert_eq!(idx2, 1);
 
-        assert_eq!(indexer.get_index(&"vertex1".to_string()), Some(0));
-        assert_eq!(indexer.get_index(&"vertex2".to_string()), Some(1));
-        assert_eq!(indexer.get_index(&"vertex3".to_string()), None);
+        assert_eq!(indexer.get_index(&IdKey::Text("vertex1".to_string())), Some(0));
+        assert_eq!(indexer.get_index(&IdKey::Text("vertex2".to_string())), Some(1));
+        assert_eq!(indexer.get_index(&IdKey::Text("vertex3".to_string())), None);
 
-        assert_eq!(indexer.get_key(0), Some(&"vertex1".to_string()));
-        assert_eq!(indexer.get_key(1), Some(&"vertex2".to_string()));
+        assert_eq!(indexer.get_key(0), Some(&IdKey::Text("vertex1".to_string())));
+        assert_eq!(indexer.get_key(1), Some(&IdKey::Text("vertex2".to_string())));
+    }
+
+    #[test]
+    fn test_int_id_operations() {
+        let mut indexer = IdIndexer::new();
+
+        let idx1 = indexer.insert(IdKey::Int(100)).unwrap();
+        assert_eq!(idx1, 0);
+
+        let idx2 = indexer.insert(IdKey::Int(200)).unwrap();
+        assert_eq!(idx2, 1);
+
+        assert_eq!(indexer.get_index(&IdKey::Int(100)), Some(0));
+        assert_eq!(indexer.get_index(&IdKey::Int(200)), Some(1));
+        assert_eq!(indexer.get_index(&IdKey::Int(300)), None);
+
+        assert_eq!(indexer.get_key(0), Some(&IdKey::Int(100)));
+        assert_eq!(indexer.get_key(1), Some(&IdKey::Int(200)));
+    }
+
+    #[test]
+    fn test_mixed_id_operations() {
+        let mut indexer = IdIndexer::new();
+
+        let idx1 = indexer.insert(IdKey::Int(100)).unwrap();
+        let idx2 = indexer.insert(IdKey::Text("vertex1".to_string())).unwrap();
+        let idx3 = indexer.insert(IdKey::Int(200)).unwrap();
+
+        assert_eq!(idx1, 0);
+        assert_eq!(idx2, 1);
+        assert_eq!(idx3, 2);
+
+        assert_eq!(indexer.len(), 3);
     }
 
     #[test]
     fn test_dynamic_expansion() {
-        let mut indexer: StringIdIndexer = IdIndexer::with_config(
+        let mut indexer = IdIndexer::with_config(
             IdIndexerConfig::default()
                 .with_initial_capacity(2)
                 .with_growth_factor(2.0),
         );
 
-        assert!(indexer.insert("v1".to_string()).is_ok());
-        assert!(indexer.insert("v2".to_string()).is_ok());
-        assert!(indexer.insert("v3".to_string()).is_ok());
-        assert!(indexer.insert("v4".to_string()).is_ok());
-        assert!(indexer.insert("v5".to_string()).is_ok());
+        assert!(indexer.insert(IdKey::Text("v1".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v2".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v3".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v4".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v5".to_string())).is_ok());
 
         assert_eq!(indexer.len(), 5);
     }
 
     #[test]
     fn test_free_list_reuse() {
-        let mut indexer: StringIdIndexer = IdIndexer::with_config(
+        let mut indexer = IdIndexer::with_config(
             IdIndexerConfig::default().with_free_list(true),
         );
 
-        let _idx1 = indexer.insert("v1".to_string()).unwrap();
-        let idx2 = indexer.insert("v2".to_string()).unwrap();
-        let _idx3 = indexer.insert("v3".to_string()).unwrap();
+        let _idx1 = indexer.insert(IdKey::Text("v1".to_string())).unwrap();
+        let idx2 = indexer.insert(IdKey::Text("v2".to_string())).unwrap();
+        let _idx3 = indexer.insert(IdKey::Text("v3".to_string())).unwrap();
 
-        assert_eq!(indexer.remove(&"v2".to_string()), Some(idx2));
+        assert_eq!(indexer.remove(&IdKey::Text("v2".to_string())), Some(idx2));
         assert_eq!(indexer.free_count(), 1);
 
-        let idx4 = indexer.insert("v4".to_string()).unwrap();
+        let idx4 = indexer.insert(IdKey::Text("v4".to_string())).unwrap();
         assert_eq!(idx4, idx2);
         assert_eq!(indexer.free_count(), 0);
     }
 
     #[test]
     fn test_compact() {
-        let mut indexer: StringIdIndexer = IdIndexer::new();
+        let mut indexer = IdIndexer::new();
 
-        indexer.insert("v1".to_string()).unwrap();
-        indexer.insert("v2".to_string()).unwrap();
-        indexer.insert("v3".to_string()).unwrap();
-        indexer.insert("v4".to_string()).unwrap();
+        indexer.insert(IdKey::Text("v1".to_string())).unwrap();
+        indexer.insert(IdKey::Text("v2".to_string())).unwrap();
+        indexer.insert(IdKey::Text("v3".to_string())).unwrap();
+        indexer.insert(IdKey::Text("v4".to_string())).unwrap();
 
-        indexer.remove(&"v2".to_string());
-        indexer.remove(&"v4".to_string());
+        indexer.remove(&IdKey::Text("v2".to_string()));
+        indexer.remove(&IdKey::Text("v4".to_string()));
 
         assert_eq!(indexer.free_count(), 2);
         assert_eq!(indexer.total_slots(), 4);
@@ -355,23 +431,54 @@ mod tests {
 
     #[test]
     fn test_duplicate_insert() {
-        let mut indexer: StringIdIndexer = IdIndexer::new();
+        let mut indexer = IdIndexer::new();
 
-        assert!(indexer.insert("v1".to_string()).is_ok());
-        assert!(indexer.insert("v1".to_string()).is_err());
+        assert!(indexer.insert(IdKey::Text("v1".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v1".to_string())).is_err());
     }
 
     #[test]
     fn test_max_capacity() {
-        let mut indexer: StringIdIndexer = IdIndexer::with_config(
+        let mut indexer = IdIndexer::with_config(
             IdIndexerConfig::default()
                 .with_initial_capacity(2)
                 .with_max_capacity(3),
         );
 
-        assert!(indexer.insert("v1".to_string()).is_ok());
-        assert!(indexer.insert("v2".to_string()).is_ok());
-        assert!(indexer.insert("v3".to_string()).is_ok());
-        assert!(indexer.insert("v4".to_string()).is_err());
+        assert!(indexer.insert(IdKey::Text("v1".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v2".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v3".to_string())).is_ok());
+        assert!(indexer.insert(IdKey::Text("v4".to_string())).is_err());
+    }
+
+    #[test]
+    fn test_id_key_serialization() {
+        let int_key = IdKey::Int(12345);
+        let bytes = int_key.to_bytes();
+        let restored = IdKey::from_bytes(&bytes).unwrap();
+        assert_eq!(int_key, restored);
+
+        let text_key = IdKey::Text("test_vertex".to_string());
+        let bytes = text_key.to_bytes();
+        let restored = IdKey::from_bytes(&bytes).unwrap();
+        assert_eq!(text_key, restored);
+    }
+
+    #[test]
+    fn test_id_key_serialization_edge_cases() {
+        let zero_key = IdKey::Int(0);
+        let bytes = zero_key.to_bytes();
+        let restored = IdKey::from_bytes(&bytes).unwrap();
+        assert_eq!(zero_key, restored);
+
+        let neg_key = IdKey::Int(-12345);
+        let bytes = neg_key.to_bytes();
+        let restored = IdKey::from_bytes(&bytes).unwrap();
+        assert_eq!(neg_key, restored);
+
+        let empty_text = IdKey::Text("".to_string());
+        let bytes = empty_text.to_bytes();
+        let restored = IdKey::from_bytes(&bytes).unwrap();
+        assert_eq!(empty_text, restored);
     }
 }

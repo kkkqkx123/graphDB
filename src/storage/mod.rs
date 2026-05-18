@@ -22,6 +22,7 @@ pub mod metrics;
 pub mod params;
 pub mod storage_client;
 pub mod storage_types;
+pub mod utils;
 pub mod vertex;
 
 #[cfg(test)]
@@ -31,7 +32,7 @@ pub use storage_client::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
     StorageWriter,
 };
-pub use storage_types::{ColumnDef, EncodingFormat, FieldDef, GeoShape, StoragePropertyDef};
+pub use storage_types::{ColumnDef, EdgeOffset, EncodingFormat, FieldDef, GeoShape, PropertyId, StoragePropertyDef};
 pub use crate::core::types::{
     InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
 };
