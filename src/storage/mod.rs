@@ -15,7 +15,7 @@ pub mod edge;
 pub mod engine;
 pub mod extend;
 pub mod index;
-pub mod iterator;
+
 pub mod memory;
 pub mod metadata;
 pub mod metrics;
@@ -47,7 +47,6 @@ pub use cache::{
 pub use extend::FulltextStorage;
 
 pub use index::*;
-pub use iterator::*;
 pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryStats, MemoryTracker};
 pub use metadata::*;
 

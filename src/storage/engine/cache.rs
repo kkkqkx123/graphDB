@@ -2,14 +2,23 @@
 //!
 //! Manages record cache, edge property cache, and memory tracking for the storage engine.
 //!
-//! ## Design Note: Edge Property Cache
+//! ## Cache Architecture
 //!
-//! Edge property cache is optional and disabled by default. Enable it when:
-//! - Edge property access frequency exceeds threshold
-//! - Property size is small (< 1KB)
-//! - Edge update frequency is low
+//! This module provides two distinct cache types with different design philosophies:
 //!
-//! Edge data structure (CSR) is NOT cached separately because:
+//! ### Vertex Record Cache (Enabled by default)
+//! - **Purpose**: Cache vertex records for fast point lookups
+//! - **Scope**: Full vertex data including properties
+//! - **Use case**: High-frequency vertex reads by ID
+//!
+//! ### Edge Property Cache (Disabled by default)
+//! - **Purpose**: Cache edge properties only (not CSR structure)
+//! - **Scope**: Property values indexed by edge ID
+//! - **Use case**: High-frequency edge property reads with small property size
+//!
+//! ## Design Rationale: Why Edge Data is NOT Cached Separately
+//!
+//! The CSR (Compressed Sparse Row) structure is NOT cached because:
 //!
 //! 1. **CSR is already read-optimized**: The CSR structure provides O(1) edge list
 //!    access with contiguous memory layout, which is CPU cache-friendly.
@@ -20,6 +29,15 @@
 //!
 //! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
 //!    with direct offset access.
+//!
+//! ## API Symmetry Note
+//!
+//! The cache API is intentionally asymmetric:
+//! - Vertex cache: Full record caching (ID + properties)
+//! - Edge cache: Property-only caching (CSR structure excluded)
+//!
+//! This asymmetry reflects the different access patterns and memory characteristics
+//! of vertices vs edges in graph databases.
 
 use std::sync::Arc;
 

@@ -73,6 +73,38 @@ pub struct EdgeRecord {
     pub properties: Vec<(String, crate::core::Value)>,
 }
 
+impl From<&EdgeRecord> for crate::core::Edge {
+    fn from(record: &EdgeRecord) -> Self {
+        let props: std::collections::HashMap<String, crate::core::Value> =
+            record.properties.iter().cloned().collect();
+
+        crate::core::Edge {
+            src: record.src_vid,
+            dst: record.dst_vid,
+            edge_type: String::new(),
+            ranking: 0,
+            id: record.edge_id as i64,
+            props,
+        }
+    }
+}
+
+impl EdgeRecord {
+    pub fn into_edge_with_type(self, edge_type: &str) -> crate::core::Edge {
+        let props: std::collections::HashMap<String, crate::core::Value> =
+            self.properties.into_iter().collect();
+
+        crate::core::Edge {
+            src: self.src_vid,
+            dst: self.dst_vid,
+            edge_type: edge_type.to_string(),
+            ranking: 0,
+            id: self.edge_id as i64,
+            props,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EdgeSchema {
     pub label_id: LabelId,

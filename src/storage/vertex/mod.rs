@@ -41,6 +41,40 @@ pub struct VertexRecord {
     pub properties: Vec<(String, crate::core::Value)>,
 }
 
+impl From<&VertexRecord> for crate::core::Vertex {
+    fn from(record: &VertexRecord) -> Self {
+        let properties: std::collections::HashMap<String, crate::core::Value> =
+            record.properties.iter().cloned().collect();
+
+        crate::core::Vertex {
+            vid: record.vid,
+            id: record.internal_id as i64,
+            tags: vec![crate::core::vertex_edge_path::Tag {
+                name: String::new(),
+                properties: properties.clone(),
+            }],
+            properties,
+        }
+    }
+}
+
+impl VertexRecord {
+    pub fn into_vertex_with_tag(self, tag_name: &str) -> crate::core::Vertex {
+        let properties: std::collections::HashMap<String, crate::core::Value> =
+            self.properties.into_iter().collect();
+
+        crate::core::Vertex {
+            vid: self.vid,
+            id: self.internal_id as i64,
+            tags: vec![crate::core::vertex_edge_path::Tag {
+                name: tag_name.to_string(),
+                properties: properties.clone(),
+            }],
+            properties,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VertexSchema {
     pub label_id: LabelId,

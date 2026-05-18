@@ -16,7 +16,7 @@ use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultP
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::executor::utils::recursion_detector::ParallelConfig;
 use crate::query::DataSet;
-use crate::storage::iterator::Row;
+use crate::core::Row;
 use crate::storage::StorageClient;
 
 /// Duplicacy removal strategy

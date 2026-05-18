@@ -323,6 +323,44 @@ impl Column {
             .unwrap_or(0)
     }
 
+    pub fn compute_stats(&self) -> super::encoding::ColumnStats {
+        use super::encoding::ColumnStats;
+
+        let mut stats = ColumnStats::new(self.data_type.clone());
+        stats.row_count = self.row_count;
+        stats.null_count = self.null_count();
+
+        let mut distinct_values = std::collections::HashSet::new();
+        let mut total_length: usize = 0;
+        let mut run_count: usize = 0;
+        let mut prev_value: Option<Value> = None;
+
+        for i in 0..self.row_count {
+            if let Some(value) = self.get(i) {
+                if prev_value.as_ref() != Some(&value) {
+                    run_count += 1;
+                }
+                prev_value = Some(value.clone());
+                distinct_values.insert(value);
+                if matches!(self.data_type, DataType::String) {
+                    if let Value::String(s) = self.get(i).unwrap() {
+                        total_length += s.len();
+                    }
+                }
+            }
+        }
+
+        stats.distinct_count = distinct_values.len();
+        stats.run_count = run_count.max(1);
+        stats.avg_length = if self.row_count > 0 {
+            total_length as f64 / self.row_count as f64
+        } else {
+            0.0
+        };
+
+        stats
+    }
+
     pub fn memory_usage(&self) -> usize {
         let data_size = self.data.len();
         let offsets_size = self.offsets.len() * std::mem::size_of::<usize>();
@@ -1037,6 +1075,78 @@ impl ColumnStore {
                 col.apply_fsst_encoding(max_symbols)?;
             }
         }
+        Ok(())
+    }
+
+    pub fn apply_encoding_to_column(&mut self, col_name: &str, encoding_type: EncodingType) -> StorageResult<()> {
+        let col = self.get_column_mut(col_name)
+            .ok_or_else(|| StorageError::column_not_found(col_name.to_string()))?;
+
+        if col.is_empty() {
+            return Ok(());
+        }
+
+        match encoding_type {
+            EncodingType::Fsst => {
+                if col.data_type != DataType::String {
+                    return Err(StorageError::not_supported("FSST encoding only supports String type".to_string()));
+                }
+                col.apply_fsst_encoding(1024)?;
+            }
+            EncodingType::Dictionary => {
+                col.apply_dictionary_encoding()?;
+            }
+            EncodingType::Rle => {
+                col.apply_rle_encoding()?;
+            }
+            EncodingType::BitPacking => {
+                col.apply_bitpacking_encoding()?;
+            }
+            EncodingType::Alp => {
+                col.apply_alp_encoding()?;
+            }
+            EncodingType::None => {}
+        }
+
+        Ok(())
+    }
+
+    pub fn auto_apply_encodings(&mut self, config: Option<super::encoding::CompressionConfig>) -> StorageResult<()> {
+        let selector = match config {
+            Some(c) => super::encoding::CompressionSelector::with_config(c),
+            None => super::encoding::CompressionSelector::new(),
+        };
+
+        for col in &mut self.columns {
+            if col.is_empty() || col.encoding.is_encoded() {
+                continue;
+            }
+
+            let stats = col.compute_stats();
+            let encoding = selector.select(&stats);
+
+            match encoding {
+                EncodingType::Fsst => {
+                    if col.data_type == DataType::String {
+                        col.apply_fsst_encoding(1024)?;
+                    }
+                }
+                EncodingType::Dictionary => {
+                    col.apply_dictionary_encoding()?;
+                }
+                EncodingType::Rle => {
+                    col.apply_rle_encoding()?;
+                }
+                EncodingType::BitPacking => {
+                    col.apply_bitpacking_encoding()?;
+                }
+                EncodingType::Alp => {
+                    col.apply_alp_encoding()?;
+                }
+                EncodingType::None => {}
+            }
+        }
+
         Ok(())
     }
 

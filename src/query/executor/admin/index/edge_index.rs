@@ -11,7 +11,7 @@ use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::iterator::Row;
+use crate::core::Row;
 use crate::storage::StorageClient;
 
 /// Side Index Description Information
