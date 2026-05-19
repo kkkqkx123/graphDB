@@ -3,10 +3,10 @@
 ## Summary
 
 - **Total Errors**: 1
-- **Total Warnings**: 1
-- **Total Issues**: 2
+- **Total Warnings**: 0
+- **Total Issues**: 1
 - **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 1
+- **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
@@ -15,7 +15,7 @@
 
 ### Error Type Breakdown
 
-- **error**: 1 errors
+- **error[E0425]**: 1 errors
 
 ### Files with Errors (Top 10)
 
@@ -23,35 +23,16 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 1
-
-### Warning Type Breakdown
-
-- **warning**: 1 warnings
-
-### Files with Warnings (Top 10)
-
-- `src\core\stats\manager.rs`: 1 warnings
+**Total Warnings**: 0
 
 ## Detailed Error Categorization
 
-### error: expected `,`, found `profile`: unexpected token
+### error[E0425]: cannot find function `micros_to_millis` in this scope: not found in this scope
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
 #### `src\core\stats\manager.rs`: 1 occurrences
 
-- Line 280: expected `,`, found `profile`: unexpected token
-
-## Detailed Warning Categorization
-
-### warning: unused import: `super::utils::micros_to_millis`
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\core\stats\manager.rs`: 1 occurrences
-
-- Line 18: unused import: `super::utils::micros_to_millis`
+- Line 281: cannot find function `micros_to_millis` in this scope: not found in this scope
 

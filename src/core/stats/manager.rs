@@ -15,6 +15,7 @@ use super::latency_histogram::LatencyHistogram;
 use super::metrics::QueryMetrics;
 use super::profile::QueryProfile;
 use super::slow_query_logger::{SlowQueryConfig, SlowQueryLogger};
+use super::utils::micros_to_millis;
 
 /// Space metrics type alias
 type SpaceMetrics = Arc<DashMap<MetricType, Arc<MetricValue>>>;
