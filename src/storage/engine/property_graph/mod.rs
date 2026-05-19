@@ -18,7 +18,7 @@ use parking_lot::{Mutex, RwLock};
 use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
-use crate::storage::edge::{DefaultEdgeTable, EdgeRecord, EdgeStrategy};
+use crate::storage::edge::{EdgeRecord, EdgeStrategy, EdgeTable};
 use crate::storage::engine::edge_params::CreateEdgeTypeParams;
 use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::storage_types::{EdgeOffset, StoragePropertyDef};
@@ -35,7 +35,7 @@ pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
 
 pub struct PropertyGraph {
     pub(crate) vertex_tables: RwLock<HashMap<LabelId, VertexTable>>,
-    pub(crate) edge_tables: RwLock<HashMap<(LabelId, LabelId, LabelId), DefaultEdgeTable>>,
+    pub(crate) edge_tables: RwLock<HashMap<(LabelId, LabelId, LabelId), EdgeTable>>,
     pub(crate) vertex_label_names: RwLock<HashMap<String, LabelId>>,
     pub(crate) edge_label_names: RwLock<HashMap<String, LabelId>>,
     pub(crate) vertex_label_counter: RwLock<LabelId>,
@@ -207,24 +207,6 @@ impl PropertyGraph {
 
     pub fn clear_cache(&self) {
         self.cache_manager.clear_cache();
-    }
-
-    pub fn with_edge_property_cache(
-        self,
-        config: crate::storage::cache::EdgePropertyCacheConfig,
-    ) -> Self {
-        self.cache_manager.set_edge_property_cache(config);
-        self
-    }
-
-    pub fn set_edge_property_cache(&self, config: crate::storage::cache::EdgePropertyCacheConfig) {
-        self.cache_manager.set_edge_property_cache(config);
-    }
-
-    pub fn edge_cache_stats(
-        &self,
-    ) -> Option<std::sync::Arc<crate::storage::cache::EdgePropertyCacheStats>> {
-        self.cache_manager.edge_cache_stats()
     }
 
     pub fn cache_manager(&self) -> &CacheManager {

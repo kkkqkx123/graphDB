@@ -5,6 +5,9 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::core::{StorageError, StorageResult};
+use crate::storage::utils::{read_u32_le, read_u64_le};
+
 use super::{CsrBase, CsrType, EdgeId, ImmutableCsrTrait, ImmutableNbr, Timestamp, VertexId};
 
 /// Immutable CSR with contiguous storage
@@ -229,54 +232,31 @@ impl Csr {
     }
 
     /// Load from bytes
-    pub fn load(&mut self, data: &[u8]) {
+    pub fn load(&mut self, data: &[u8]) -> StorageResult<()> {
         if data.len() < 24 {
-            return;
+            return Err(StorageError::deserialize_error(
+                "Immutable CSR data too short for header",
+            ));
         }
 
-        let mut offset = 0;
+        let mut offset = 0usize;
 
-        let vertex_capacity =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
+        let vertex_capacity = read_u64_le(data, &mut offset)? as usize;
+        let edge_count = read_u64_le(data, &mut offset)?;
+        let offsets_len = read_u64_le(data, &mut offset)? as usize;
 
-        let edge_count = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-        offset += 8;
-
-        let offsets_len =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
-
-        if offset + offsets_len * 4 > data.len() {
-            return;
-        }
         let mut offsets = Vec::with_capacity(offsets_len);
         for _ in 0..offsets_len {
-            let off = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offsets.push(off);
-            offset += 4;
+            offsets.push(read_u32_le(data, &mut offset)?);
         }
 
-        if offset + 8 > data.len() {
-            return;
-        }
-        let edges_len =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
+        let edges_len = read_u64_le(data, &mut offset)? as usize;
 
-        if offset + edges_len * 20 > data.len() {
-            return;
-        }
         let mut edges = Vec::with_capacity(edges_len);
         for _ in 0..edges_len {
-            let neighbor =
-                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let edge_id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let prop_offset =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
+            let neighbor = read_u64_le(data, &mut offset)?;
+            let edge_id = read_u64_le(data, &mut offset)?;
+            let prop_offset = read_u32_le(data, &mut offset)?;
 
             edges.push(ImmutableNbr::new(
                 VertexId::from_u64(neighbor),
@@ -289,6 +269,8 @@ impl Csr {
         self.offsets = offsets;
         self.edges = edges;
         self.edge_count.store(edge_count, Ordering::Relaxed);
+
+        Ok(())
     }
 
     /// Get raw offsets slice
@@ -425,8 +407,8 @@ impl CsrBase for Csr {
         Csr::dump(self)
     }
 
-    fn load(&mut self, data: &[u8]) {
-        Csr::load(self, data);
+    fn load(&mut self, data: &[u8]) -> StorageResult<()> {
+        Csr::load(self, data)
     }
 }
 

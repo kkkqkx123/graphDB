@@ -41,9 +41,10 @@ use crate::storage::utils::props_to_map;
 pub use csr::Csr;
 pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
 pub use edge_table::{
-    DefaultEdgeTable, EdgeTable, EdgeTableScanIterator, EdgeVertexIterator,
+    EdgeTable, EdgeTableScanIterator, EdgeVertexIterator,
     UpdateEdgePropertyByOffsetParams,
 };
+
 pub use mutable_csr::{
     LoadFromPartsParams, MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator,
 };
@@ -58,7 +59,7 @@ pub use crate::core::types::{
 
 pub const INVALID_EDGE_ID: u64 = u64::MAX;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EdgeStrategy {
     None,
     Single,
@@ -110,7 +111,7 @@ impl EdgeRecord {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EdgeSchema {
     pub label_id: LabelId,
     pub label_name: String,

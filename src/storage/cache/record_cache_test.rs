@@ -644,23 +644,6 @@ fn test_cache_stats_with_uptime() {
 }
 
 #[test]
-fn test_edge_property_cache_read_tracking() {
-    let config = EdgePropertyCacheConfig::enabled();
-    let cache = EdgePropertyCache::new(config);
-
-    // Simulate reads (not writes) to meet access frequency threshold
-    for _ in 0..10 {
-        cache.get(1, "frequent_read");
-    }
-
-    // Now put should succeed because reads were tracked
-    assert!(cache.put(1, "frequent_read", Value::Int(42)));
-
-    // Property that was never read should not be cached
-    assert!(!cache.put(1, "never_read", Value::Int(0)));
-}
-
-#[test]
 fn test_concurrent_cache_access() {
     use std::thread;
 

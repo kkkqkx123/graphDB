@@ -93,7 +93,7 @@ impl CsrBase for MutableCsrVariant {
         delegate!(self.dump())
     }
 
-    fn load(&mut self, data: &[u8]) {
+    fn load(&mut self, data: &[u8]) -> StorageResult<()> {
         delegate!(self.load(data))
     }
 }

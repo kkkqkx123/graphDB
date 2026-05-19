@@ -6,6 +6,9 @@
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::core::{StorageError, StorageResult};
+use crate::storage::utils::{read_u32_le, read_u64_le};
+
 use super::{
     CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP,
 };
@@ -779,72 +782,41 @@ impl MutableCsr {
     }
 
     /// Load from bytes
-    pub fn load(&mut self, data: &[u8]) {
+    pub fn load(&mut self, data: &[u8]) -> StorageResult<()> {
         if data.len() < 24 {
-            return;
+            return Err(StorageError::deserialize_error(
+                "CSR data too short for header",
+            ));
         }
 
-        let mut offset = 0;
+        let mut offset = 0usize;
 
-        let vertex_capacity =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
+        let vertex_capacity = read_u64_le(data, &mut offset)? as usize;
+        let edge_count = read_u64_le(data, &mut offset)?;
+        let total_edge_capacity = read_u64_le(data, &mut offset)? as usize;
 
-        let edge_count = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-        offset += 8;
-
-        let total_edge_capacity =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
-
-        if offset + vertex_capacity * 8 > data.len() {
-            return;
-        }
         let mut adj_offsets = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
-            let off =
-                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-            adj_offsets.push(off);
-            offset += 8;
+            adj_offsets.push(read_u64_le(data, &mut offset)? as usize);
         }
 
-        if offset + vertex_capacity * 4 > data.len() {
-            return;
-        }
         let mut degrees = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
-            let deg = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            degrees.push(deg);
-            offset += 4;
+            degrees.push(read_u32_le(data, &mut offset)?);
         }
 
-        if offset + vertex_capacity * 4 > data.len() {
-            return;
-        }
         let mut capacities = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
-            let cap = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            capacities.push(cap);
-            offset += 4;
+            capacities.push(read_u32_le(data, &mut offset)?);
         }
 
         let nbr_count = total_edge_capacity;
-        if offset + nbr_count * 24 > data.len() {
-            return;
-        }
         let mut nbr_list = Vec::with_capacity(nbr_count);
         for _ in 0..nbr_count {
-            let neighbor =
-                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let edge_id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let prop_offset =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
-            let timestamp =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
+            let neighbor = read_u64_le(data, &mut offset)?;
+            let edge_id = read_u64_le(data, &mut offset)?;
+            let prop_offset = read_u32_le(data, &mut offset)?;
+            let timestamp = read_u32_le(data, &mut offset)?;
 
             nbr_list.push(Nbr::new(
                 VertexId::from_u64(neighbor),
@@ -861,6 +833,8 @@ impl MutableCsr {
         self.capacities = capacities;
         self.nbr_list = nbr_list;
         self.edge_count.store(edge_count, Ordering::Relaxed);
+
+        Ok(())
     }
 
     /// Get raw neighbor slice (for internal use)
@@ -1088,8 +1062,8 @@ impl CsrBase for MutableCsr {
         MutableCsr::dump(self)
     }
 
-    fn load(&mut self, data: &[u8]) {
-        MutableCsr::load(self, data);
+    fn load(&mut self, data: &[u8]) -> StorageResult<()> {
+        MutableCsr::load(self, data)
     }
 }
 

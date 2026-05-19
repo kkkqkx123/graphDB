@@ -9,9 +9,24 @@ use std::collections::HashSet;
 
 use crate::core::{DataType, DateValue, NullType, StorageError, StorageResult, Value};
 use crate::storage::storage_types::PropertyId;
-use crate::storage::utils::NameIndexer;
+use crate::storage::utils::{read_u32_le, read_u64_le, NameIndexer};
 use crate::storage::vertex::column_store::Column;
 use crate::storage::vertex::encoding::{CompressionConfig, CompressionSelector, EncodingType};
+
+/// Check that at least `needed` bytes remain in data starting at offset
+fn check_remaining(data: &[u8], offset: usize, needed: usize) -> StorageResult<()> {
+    let end = offset + needed;
+    if end > data.len() {
+        Err(StorageError::deserialize_error(format!(
+            "unexpected end of data: needed {} bytes, have {} at offset {}",
+            needed,
+            data.len(),
+            offset
+        )))
+    } else {
+        Ok(())
+    }
+}
 
 /// Sentinel value meaning "no properties"
 pub const PROP_OFFSET_NONE: u32 = 0;
@@ -170,64 +185,35 @@ impl OverflowStore {
         result
     }
 
-    pub fn load(&mut self, data: &[u8]) {
+    pub fn load(&mut self, data: &[u8]) -> StorageResult<()> {
         if data.is_empty() {
-            return;
+            return Ok(());
         }
 
-        let mut offset = 0;
+        let mut offset = 0usize;
 
-        if offset + 8 > data.len() {
-            return;
-        }
-        let data_len =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
+        let data_len = read_u64_le(data, &mut offset)? as usize;
 
         self.data.clear();
         for _ in 0..data_len {
-            if offset + 12 > data.len() {
-                break;
-            }
-            let id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let bytes_len =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-            offset += 4;
+            let id = read_u64_le(data, &mut offset)?;
+            let bytes_len = read_u32_le(data, &mut offset)? as usize;
 
-            if offset + bytes_len > data.len() {
-                break;
-            }
+            check_remaining(data, offset, bytes_len)?;
             let bytes = data[offset..offset + bytes_len].to_vec();
             offset += bytes_len;
 
             self.data.insert(id, bytes);
         }
 
-        if offset + 8 > data.len() {
-            return;
-        }
-        let index_len =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
+        let index_len = read_u64_le(data, &mut offset)? as usize;
 
         self.index.clear();
         for _ in 0..index_len {
-            if offset + 20 > data.len() {
-                break;
-            }
-            let col_idx =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-            offset += 4;
-            let row_idx =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-            offset += 4;
-            let overflow_id =
-                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let original_size =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
+            let col_idx = read_u32_le(data, &mut offset)? as usize;
+            let row_idx = read_u32_le(data, &mut offset)? as usize;
+            let overflow_id = read_u64_le(data, &mut offset)?;
+            let original_size = read_u32_le(data, &mut offset)?;
 
             self.index.insert(
                 OverflowKey { col_idx, row_idx },
@@ -238,10 +224,9 @@ impl OverflowStore {
             );
         }
 
-        if offset + 8 > data.len() {
-            return;
-        }
-        self.next_id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
+        self.next_id = read_u64_le(data, &mut offset)?;
+
+        Ok(())
     }
 }
 
@@ -559,12 +544,13 @@ impl PropertyTable {
         let group_start = group_index * self.row_group_size;
         let group_end = ((group_index + 1) * self.row_group_size).min(self.row_count);
 
-        if self.row_groups.is_empty() || !self.row_groups.last().unwrap().contains_row(current_row)
-        {
-            self.row_groups.push(RowGroup::new(group_start, group_end));
-        } else {
-            let last_group = self.row_groups.last_mut().unwrap();
-            last_group.end_row = group_end;
+        match self.row_groups.last_mut() {
+            Some(last_group) if last_group.contains_row(current_row) => {
+                last_group.end_row = group_end;
+            }
+            _ => {
+                self.row_groups.push(RowGroup::new(group_start, group_end));
+            }
         }
     }
 
@@ -818,22 +804,37 @@ impl PropertyTable {
         }
 
         result.extend_from_slice(&(self.row_count as u32).to_le_bytes());
-        for row_idx in 0..self.row_count {
-            result.extend_from_slice(&(self.columns.len() as u32).to_le_bytes());
-            for col in &self.columns {
-                let value = col.get(row_idx);
-                if let Some(v) = value {
-                    result.push(1);
-                    result.extend_from_slice(&v.to_bytes());
-                } else {
-                    result.push(0);
-                }
+
+        // Column-batch format: write all column data using Column::get_flush_data()
+        let column_count = self.columns.len() as u32;
+        result.extend_from_slice(&column_count.to_le_bytes());
+        for col in &self.columns {
+            let (data, offsets, bitmap) = col.get_flush_data();
+
+            result.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            result.extend_from_slice(&data);
+
+            let offsets_count = offsets.len() as u32;
+            result.extend_from_slice(&offsets_count.to_le_bytes());
+            for &off in &offsets {
+                result.extend_from_slice(&off.to_le_bytes());
+            }
+
+            if let Some(bitmap) = bitmap {
+                result.push(1);
+                let bitmap_bit_len = bitmap.len() as u32;
+                let bitmap_bytes = bitmap.as_raw_slice();
+                result.extend_from_slice(&bitmap_bit_len.to_le_bytes());
+                result.extend_from_slice(&(bitmap_bytes.len() as u32).to_le_bytes());
+                result.extend_from_slice(bitmap_bytes);
+            } else {
+                result.push(0);
             }
         }
 
         result.extend_from_slice(&(self.free_list.len() as u32).to_le_bytes());
-        for offset in &self.free_list {
-            result.extend_from_slice(&offset.to_le_bytes());
+        for off in &self.free_list {
+            result.extend_from_slice(&off.to_le_bytes());
         }
 
         let overflow_data = self.overflow_store.dump();
@@ -849,42 +850,30 @@ impl PropertyTable {
         result
     }
 
-    pub fn load(&mut self, data: &[u8]) {
+    pub fn load(&mut self, data: &[u8]) -> StorageResult<()> {
         if data.is_empty() {
-            return;
+            return Ok(());
         }
 
-        let mut offset = 0;
+        let mut offset = 0usize;
 
-        if offset + 4 > data.len() {
-            return;
-        }
-        let schema_len =
-            u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-        offset += 4;
+        let schema_len = read_u32_le(data, &mut offset)? as usize;
 
         self.schema.clear();
         self.name_indexer.clear();
         self.columns.clear();
 
         for _ in 0..schema_len {
-            if offset + 4 > data.len() {
-                break;
-            }
-            let name_len =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-            offset += 4;
+            let name_len = read_u32_le(data, &mut offset)? as usize;
 
-            if offset + name_len > data.len() {
-                break;
-            }
+            check_remaining(data, offset, name_len)?;
             let name = String::from_utf8_lossy(&data[offset..offset + name_len]).to_string();
             offset += name_len;
 
-            if offset + 6 > data.len() {
-                break;
-            }
-            let prop_id = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
+            let prop_id_bytes: [u8; 4] = data[offset..offset + 4].try_into().map_err(|_| {
+                StorageError::deserialize_error("failed to read prop_id")
+            })?;
+            let prop_id = i32::from_le_bytes(prop_id_bytes);
             offset += 4;
             let data_type = DataType::from_u8(data[offset]);
             offset += 1;
@@ -912,12 +901,7 @@ impl PropertyTable {
             self.columns.push(column);
         }
 
-        if offset + 4 > data.len() {
-            return;
-        }
-        let rows_len =
-            u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-        offset += 4;
+        let rows_len = read_u32_le(data, &mut offset)? as usize;
 
         self.row_count = 0;
 
@@ -925,89 +909,72 @@ impl PropertyTable {
             col.clear();
         }
 
-        for row_idx in 0..rows_len {
-            if offset + 4 > data.len() {
-                break;
+        // Column-batch format: for each column, write (data, offsets, bitmap)
+        // using the same format as Vertex columns.bin
+        let column_count = read_u32_le(data, &mut offset)? as usize;
+        for col_idx in 0..column_count.min(self.columns.len()) {
+            let data_len = read_u32_le(data, &mut offset)? as usize;
+            check_remaining(data, offset, data_len)?;
+            let col_data = data[offset..offset + data_len].to_vec();
+            offset += data_len;
+
+            let offsets_count = read_u32_le(data, &mut offset)? as usize;
+            let mut offsets = Vec::with_capacity(offsets_count);
+            for _ in 0..offsets_count {
+                offsets.push(read_u64_le(data, &mut offset)?);
             }
-            let values_len =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-            offset += 4;
 
-            for col_idx in 0..values_len {
-                if offset >= data.len() {
-                    break;
-                }
-                let has_value = data[offset] == 1;
-                offset += 1;
+            let has_bitmap = data[offset] == 1;
+            offset += 1;
 
-                if has_value {
-                    if let Some((value, bytes_read)) = Value::from_bytes(&data[offset..]) {
-                        if col_idx < self.columns.len() {
-                            let _ = self.columns[col_idx].set(row_idx, Some(&value));
-                        }
-                        offset += bytes_read;
-                    }
-                }
+            let (null_bitmap_raw, bitmap_bit_len) = if has_bitmap {
+                let bitmap_bit_len = read_u32_le(data, &mut offset)? as usize;
+                let bitmap_bytes_len = read_u32_le(data, &mut offset)? as usize;
+                check_remaining(data, offset, bitmap_bytes_len)?;
+                let bitmap_bytes = data[offset..offset + bitmap_bytes_len].to_vec();
+                offset += bitmap_bytes_len;
+                (Some(bitmap_bytes), bitmap_bit_len)
+            } else {
+                (None, 0)
+            };
+
+            if col_idx < self.columns.len() {
+                self.columns[col_idx].load_data_from_raw(
+                    col_data,
+                    offsets,
+                    null_bitmap_raw,
+                    bitmap_bit_len,
+                );
             }
         }
 
         self.row_count = rows_len;
 
-        if offset + 4 > data.len() {
-            return;
-        }
-        let free_list_len =
-            u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-        offset += 4;
+        let free_list_len = read_u32_le(data, &mut offset)? as usize;
 
         self.free_list.clear();
         for _ in 0..free_list_len {
-            if offset + 4 > data.len() {
-                break;
-            }
-            let free_offset =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
-            self.free_list.push(free_offset);
+            self.free_list.push(read_u32_le(data, &mut offset)?);
         }
 
-        if offset + 8 <= data.len() {
-            let overflow_len =
-                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-            offset += 8;
-            if offset + overflow_len <= data.len() {
-                self.overflow_store
-                    .load(&data[offset..offset + overflow_len]);
-                offset += overflow_len;
-            }
+        let overflow_len = read_u64_le(data, &mut offset)? as usize;
+        if overflow_len > 0 {
+            check_remaining(data, offset, overflow_len)?;
+            self.overflow_store
+                .load(&data[offset..offset + overflow_len])?;
+            offset += overflow_len;
         }
 
-        if offset + 4 > data.len() {
-            return;
-        }
-        let row_groups_len =
-            u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-        offset += 4;
+        let row_groups_len = read_u32_le(data, &mut offset)? as usize;
 
         self.row_groups.clear();
         for _ in 0..row_groups_len {
-            if offset + 8 > data.len() {
-                break;
-            }
-            let start_row =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-            offset += 4;
-            let end_row =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4])) as usize;
-            offset += 4;
-
+            let start_row = read_u32_le(data, &mut offset)? as usize;
+            let end_row = read_u32_le(data, &mut offset)? as usize;
             self.row_groups.push(RowGroup::new(start_row, end_row));
         }
 
-        if offset + 4 <= data.len() {
-            let _old_next_offset =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-        }
+        Ok(())
     }
 
     pub fn compact(&mut self, valid_offsets: &HashSet<u32>) {

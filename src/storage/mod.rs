@@ -41,7 +41,6 @@ pub use storage_types::{
 };
 
 pub use cache::{
-    EdgePropertyCache, EdgePropertyCacheConfig, EdgePropertyCacheStats, EdgePropertyKey,
     RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache,
 };
 

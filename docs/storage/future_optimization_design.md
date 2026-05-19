@@ -10,12 +10,13 @@
 
 当前 `VertexIndexManager` 和 `EdgeIndexManager` 存在大量重复代码：
 
-| 文件 | 行数 | 重复代码估计 |
-|------|------|--------------|
-| vertex_index_manager.rs | ~400 行 | ~60% |
-| edge_index_manager.rs | ~400 行 | ~60% |
+| 文件                    | 行数    | 重复代码估计 |
+| ----------------------- | ------- | ------------ |
+| vertex_index_manager.rs | ~400 行 | ~60%         |
+| edge_index_manager.rs   | ~400 行 | ~60%         |
 
 **重复内容：**
+
 - 数据结构定义（`forward_index`, `reverse_index`, `compressor`）
 - 压缩方法（`compress_key`, `decompress_key`, `train_compression`）
 - MVCC 处理逻辑
@@ -23,6 +24,7 @@
 - GC 逻辑（`gc_tombstones`, `gc_tombstones_incremental`）
 
 **唯一差异：**
+
 - Key 构建方法：`KeyBuilder::build_vertex_index_key` vs `KeyBuilder::build_edge_index_key`
 - Key 解析方法：`KeyParser::parse_vertex_reverse_key` vs `KeyParser::parse_edge_reverse_key`
 
@@ -117,11 +119,11 @@ define_index_manager!(EdgeIndexManager, EdgeIndexKeyGen);
 
 ### 1.4 风险评估
 
-| 风险 | 等级 | 缓解措施 |
-|------|------|----------|
-| 泛型增加类型复杂度 | 中 | 保持清晰的 trait 文档 |
-| PhantomData 约束传播 | 低 | 仅在构造函数使用 |
-| 测试覆盖 | 中 | 复用现有测试用例 |
+| 风险                 | 等级 | 缓解措施              |
+| -------------------- | ---- | --------------------- |
+| 泛型增加类型复杂度   | 中   | 保持清晰的 trait 文档 |
+| PhantomData 约束传播 | 低   | 仅在构造函数使用      |
+| 测试覆盖             | 中   | 复用现有测试用例      |
 
 ### 1.5 工作量估计
 
@@ -149,6 +151,7 @@ fn set(&mut self, row_idx: usize, value: &Value) {
 ```
 
 **问题：**
+
 - 每次读写都有分支判断开销
 - 变长和定长的优化路径不同，难以各自优化
 - 添加新变长类型（JSON、Bytes）需要多处修改
@@ -219,8 +222,8 @@ pub enum Column {
 
 ### 2.4 性能影响
 
-| 操作 | 当前 | 优化后 |
-|------|------|--------|
+| 操作     | 当前        | 优化后   |
+| -------- | ----------- | -------- |
 | 定长 get | 分支 + 计算 | 直接计算 |
 | 定长 set | 分支 + 计算 | 直接计算 |
 | 变长 get | 分支 + 查表 | 直接查表 |
@@ -251,6 +254,7 @@ fn expand_vertex_capacity(&mut self, src_idx: usize) {
 ```
 
 **性能问题：**
+
 - 高频插入场景下，每次扩容都是 O(n)
 - 内存移动开销大
 - 缓存不友好
@@ -293,11 +297,13 @@ impl MutableCsrV2 {
 ```
 
 **优点：**
+
 - 插入 O(1) 摊销复杂度
 - 扩容仅影响单个 Vec
 - 删除使用软删除（timestamp 标记）
 
 **缺点：**
+
 - 内存碎片化
 - 遍历所有边需要遍历所有 Vec
 
@@ -320,10 +326,12 @@ pub struct MutableCsrV3 {
 ```
 
 **优点：**
+
 - 内存连续
 - 支持链表遍历
 
 **缺点：**
+
 - 实现复杂
 - 需要维护 next 指针
 
@@ -356,22 +364,22 @@ pub struct MutableCsrV3 {
 
 ## 四、实施优先级建议
 
-| 优先级 | 任务 | 风险 | 收益 | 建议 |
-|--------|------|------|------|------|
-| 1 | VertexIndexManager 泛型化 | 中 | 消除 500+ 行重复代码 | 优先实施 |
-| 2 | Column 变长/定长拆分 | 中 | 提升列存性能 | 次优先 |
-| 3 | MutableCsr 扩容优化 | 高 | 高频写入性能 | 需要性能测试验证 |
+| 优先级 | 任务                      | 风险 | 收益                 | 建议             |
+| ------ | ------------------------- | ---- | -------------------- | ---------------- |
+| 1      | VertexIndexManager 泛型化 | 中   | 消除 500+ 行重复代码 | 优先实施         |
+| 2      | Column 变长/定长拆分      | 中   | 提升列存性能         | 次优先           |
+| 3      | MutableCsr 扩容优化       | 高   | 高频写入性能         | 需要性能测试验证 |
 
 ---
 
 ## 五、附录：已完成的优化
 
-| 任务 | 状态 | 描述 |
-|------|------|------|
-| MutableCsrVariant 重复代码消除 | ✅ | 使用 delegate! 宏 |
-| ExtendedSchemaManager stub cleanup | ✅ | 移除未实现方法 |
-| PrimaryIndex trait 移除 | ✅ | 转为固有方法 |
-| ID 计数器 DashMap 优化 | ✅ | 消除锁竞争 |
-| IndexDataManager trait 拆分 | ✅ | 拆分为三个小 trait |
-| Schema 结构体清理 | ✅ | 移除未使用方法 |
-| EdgeTable cache 解耦 | ✅ | 使用 EdgeTableCache trait |
+| 任务                               | 状态 | 描述                      |
+| ---------------------------------- | ---- | ------------------------- |
+| MutableCsrVariant 重复代码消除     | ✅   | 使用 delegate! 宏         |
+| ExtendedSchemaManager stub cleanup | ✅   | 移除未实现方法            |
+| PrimaryIndex trait 移除            | ✅   | 转为固有方法              |
+| ID 计数器 DashMap 优化             | ✅   | 消除锁竞争                |
+| IndexDataManager trait 拆分        | ✅   | 拆分为三个小 trait        |
+| Schema 结构体清理                  | ✅   | 移除未使用方法            |
+| EdgeTable cache 解耦               | ✅   | 使用 EdgeTableCache trait |

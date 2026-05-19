@@ -3,6 +3,8 @@
 //! Unified trait interface for different CSR implementations.
 //! Supports runtime polymorphism for edge storage selection.
 
+use crate::core::StorageResult;
+
 use super::{EdgeId, EdgeStrategy, ImmutableNbr, Nbr, Timestamp, VertexId};
 
 pub trait CsrBase: std::fmt::Debug + Send + Sync {
@@ -22,7 +24,7 @@ pub trait CsrBase: std::fmt::Debug + Send + Sync {
 
     fn dump(&self) -> Vec<u8>;
 
-    fn load(&mut self, data: &[u8]);
+    fn load(&mut self, data: &[u8]) -> StorageResult<()>;
 }
 
 pub trait MutableCsrTrait: CsrBase {

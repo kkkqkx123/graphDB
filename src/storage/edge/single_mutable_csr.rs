@@ -10,6 +10,9 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::core::{StorageError, StorageResult};
+use crate::storage::utils::{read_u32_le, read_u64_le};
+
 use super::{
     CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_EDGE_ID,
     INVALID_TIMESTAMP,
@@ -391,38 +394,33 @@ impl SingleMutableCsr {
         self.nbr_list.len() * std::mem::size_of::<Nbr>() + std::mem::size_of::<Self>()
     }
 
-    pub fn load(&mut self, data: &[u8]) {
+    pub fn load(&mut self, data: &[u8]) -> StorageResult<()> {
         if data.len() < 16 {
-            return;
+            return Err(StorageError::deserialize_error(
+                "Single CSR data too short for header",
+            ));
         }
 
-        let mut offset = 0;
+        let mut offset = 0usize;
 
-        let vertex_capacity =
-            u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8])) as usize;
-        offset += 8;
-
-        let edge_count = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-        offset += 8;
+        let vertex_capacity = read_u64_le(data, &mut offset)? as usize;
+        let edge_count = read_u64_le(data, &mut offset)?;
 
         let expected_len = 16 + vertex_capacity * 24;
         if data.len() < expected_len {
-            return;
+            return Err(StorageError::deserialize_error(format!(
+                "Single CSR data too short: expected at least {} bytes, got {}",
+                expected_len,
+                data.len()
+            )));
         }
 
         let mut nbr_list = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
-            let neighbor =
-                u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let edge_id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap_or([0; 8]));
-            offset += 8;
-            let prop_offset =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
-            let timestamp =
-                u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
+            let neighbor = read_u64_le(data, &mut offset)?;
+            let edge_id = read_u64_le(data, &mut offset)?;
+            let prop_offset = read_u32_le(data, &mut offset)?;
+            let timestamp = read_u32_le(data, &mut offset)?;
 
             nbr_list.push(Nbr::new(
                 VertexId::from_u64(neighbor),
@@ -435,6 +433,8 @@ impl SingleMutableCsr {
         self.vertex_capacity = vertex_capacity;
         self.nbr_list = nbr_list;
         self.edge_count.store(edge_count, Ordering::Relaxed);
+
+        Ok(())
     }
 
     pub fn iter(&self, ts: Timestamp) -> SingleMutableCsrIterator<'_> {
@@ -540,8 +540,8 @@ impl CsrBase for SingleMutableCsr {
         SingleMutableCsr::dump(self)
     }
 
-    fn load(&mut self, data: &[u8]) {
-        SingleMutableCsr::load(self, data);
+    fn load(&mut self, data: &[u8]) -> StorageResult<()> {
+        SingleMutableCsr::load(self, data)
     }
 }
 

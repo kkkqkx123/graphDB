@@ -139,24 +139,6 @@ impl GraphStorageContext {
         self
     }
 
-    pub fn with_edge_property_cache(
-        self,
-        config: crate::storage::cache::EdgePropertyCacheConfig,
-    ) -> Self {
-        self.set_edge_property_cache(config);
-        self
-    }
-
-    pub fn set_edge_property_cache(&self, config: crate::storage::cache::EdgePropertyCacheConfig) {
-        self.graph.set_edge_property_cache(config);
-    }
-
-    pub fn edge_cache_stats(
-        &self,
-    ) -> Option<std::sync::Arc<crate::storage::cache::EdgePropertyCacheStats>> {
-        self.graph.edge_cache_stats()
-    }
-
     pub fn get_read_timestamp(&self) -> u32 {
         if let Some(txn_ctx) = self.current_txn_context.write().clone() {
             txn_ctx.timestamp
