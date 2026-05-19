@@ -2,7 +2,7 @@
 //!
 //! Manages record cache and memory tracking for the storage engine.
 
-use crate::core::types::LabelId;
+use crate::core::types::{LabelId, Timestamp};
 use crate::storage::cache::{
     CachedVertex, RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache,
     VertexCacheKey,
@@ -65,15 +65,15 @@ impl CacheManager {
 
     // ==================== ID Index Cache Operations ====================
 
-    pub fn get_cached_vertex_id(&self, label: LabelId, external_id: &str) -> Option<u32> {
+    pub fn get_cached_vertex_id(&self, label: LabelId, external_id: &str, ts: Timestamp) -> Option<u32> {
         self.record_cache
             .as_ref()
-            .and_then(|rc| rc.get_id_index(label, external_id))
+            .and_then(|rc| rc.get_id_index(label, external_id, ts))
     }
 
-    pub fn cache_vertex_id(&self, label: LabelId, external_id: &str, internal_id: u32) {
+    pub fn cache_vertex_id(&self, label: LabelId, external_id: &str, internal_id: u32, ts: Timestamp) {
         if let Some(ref rc) = self.record_cache {
-            rc.insert_id_index(label, external_id, internal_id);
+            rc.insert_id_index(label, external_id, internal_id, ts);
         }
     }
 

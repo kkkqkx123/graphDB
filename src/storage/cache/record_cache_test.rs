@@ -117,18 +117,18 @@ fn test_memory_weighted_eviction() {
 fn test_id_index_cache() {
     let cache = RecordCache::new();
 
-    cache.insert_id_index(1, "user_001", 100);
-    cache.insert_id_index(1, "user_002", 200);
-    cache.insert_id_index(2, "product_001", 300);
+    cache.insert_id_index(1, "user_001", 100, 0);
+    cache.insert_id_index(1, "user_002", 200, 0);
+    cache.insert_id_index(2, "product_001", 300, 0);
 
-    assert_eq!(cache.get_id_index(1, "user_001"), Some(100));
-    assert_eq!(cache.get_id_index(1, "user_002"), Some(200));
-    assert_eq!(cache.get_id_index(2, "product_001"), Some(300));
-    assert_eq!(cache.get_id_index(1, "nonexistent"), None);
+    assert_eq!(cache.get_id_index(1, "user_001", 0), Some(100));
+    assert_eq!(cache.get_id_index(1, "user_002", 0), Some(200));
+    assert_eq!(cache.get_id_index(2, "product_001", 0), Some(300));
+    assert_eq!(cache.get_id_index(1, "nonexistent", 0), None);
 
     cache.remove_id_index(1, "user_001");
-    assert_eq!(cache.get_id_index(1, "user_001"), None);
-    assert_eq!(cache.get_id_index(1, "user_002"), Some(200));
+    assert_eq!(cache.get_id_index(1, "user_001", 0), None);
+    assert_eq!(cache.get_id_index(1, "user_002", 0), Some(200));
 }
 
 #[test]
@@ -168,13 +168,13 @@ fn test_fine_grained_stats() {
         },
     );
 
-    cache.insert_id_index(1, "user_001", 100);
+    cache.insert_id_index(1, "user_001", 100, 0);
 
     cache.get_vertex(&VertexCacheKey::new(1, 100));
     cache.get_vertex(&VertexCacheKey::new(1, 999));
 
-    cache.get_id_index(1, "user_001");
-    cache.get_id_index(1, "nonexistent");
+    cache.get_id_index(1, "user_001", 0);
+    cache.get_id_index(1, "nonexistent", 0);
 
     let stats = cache.stats();
 
@@ -199,10 +199,10 @@ fn test_high_priority_pool() {
     let cache = RecordCache::with_config(config);
 
     for i in 0..100u32 {
-        cache.insert_id_index(1, &format!("id_{}", i), i);
+        cache.insert_id_index(1, &format!("id_{}", i), i, 0);
     }
 
-    assert!(cache.get_id_index(1, "id_50").is_some());
+    assert!(cache.get_id_index(1, "id_50", 0).is_some());
 }
 
 #[test]
@@ -320,9 +320,9 @@ fn test_batch_insert_vertices() {
 fn test_batch_id_indexes() {
     let cache = RecordCache::new();
 
-    cache.insert_id_index(1, "user_001", 100);
-    cache.insert_id_index(1, "user_002", 200);
-    cache.insert_id_index(2, "product_001", 300);
+    cache.insert_id_index(1, "user_001", 100, 0);
+    cache.insert_id_index(1, "user_002", 200, 0);
+    cache.insert_id_index(2, "product_001", 300, 0);
 
     let keys: Vec<(u32, &str)> = vec![
         (1, "user_001"),
@@ -336,7 +336,7 @@ fn test_batch_id_indexes() {
     let mut misses = 0usize;
 
     for (label, id) in &keys {
-        match cache.get_id_index(*label, id) {
+        match cache.get_id_index(*label, id, 0) {
             Some(internal_id) => {
                 hits += 1;
                 results.push(Some(internal_id));
@@ -369,7 +369,7 @@ fn test_invalidate_batch() {
             properties: vec![],
         },
     );
-    cache.insert_id_index(1, "user_001", 100);
+    cache.insert_id_index(1, "user_001", 100, 0);
 
     let keys: Vec<CacheKeyRef<'_>> = vec![
         CacheKeyRef::Vertex(VertexCacheKey::new(1, 100)),
@@ -381,7 +381,7 @@ fn test_invalidate_batch() {
     assert_eq!(invalidated, 2);
 
     assert!(cache.get_vertex(&VertexCacheKey::new(1, 100)).is_none());
-    assert_eq!(cache.get_id_index(1, "user_001"), None);
+    assert_eq!(cache.get_id_index(1, "user_001", 0), None);
 }
 
 #[test]
@@ -479,8 +479,8 @@ fn test_invalidate_by_label() {
             properties: vec![],
         },
     );
-    cache.insert_id_index(1, "user_001", 100);
-    cache.insert_id_index(2, "user_002", 200);
+    cache.insert_id_index(1, "user_001", 100, 0);
+    cache.insert_id_index(2, "user_002", 200, 0);
 
     assert!(
         cache.get_vertex(&VertexCacheKey::new(1, 100)).is_some(),
@@ -503,12 +503,12 @@ fn test_invalidate_by_label() {
         "Vertex 2,200 should still be cached"
     );
     assert_eq!(
-        cache.get_id_index(1, "user_001"),
+        cache.get_id_index(1, "user_001", 0),
         None,
         "ID index 1,user_001 should be invalidated"
     );
     assert_eq!(
-        cache.get_id_index(2, "user_002"),
+        cache.get_id_index(2, "user_002", 0),
         Some(200),
         "ID index 2,user_002 should still be cached"
     );
@@ -601,14 +601,15 @@ fn test_transaction_rollback_new_vertex() {
 fn test_transaction_rollback_id_index() {
     let cache = RecordCache::new();
 
-    cache.insert_id_index(1, "user_001", 100);
+    cache.insert_id_index(1, "user_001", 100, 0);
 
     cache.begin_transaction();
-    cache.insert_id_index(1, "user_001", 200);
-    assert_eq!(cache.get_id_index(1, "user_001"), Some(200));
+    cache.insert_id_index(1, "user_001", 200, 0);
+    assert_eq!(cache.get_id_index(1, "user_001", 0), Some(200));
 
     cache.rollback_transaction();
-    assert_eq!(cache.get_id_index(1, "user_001"), Some(100));
+
+    assert_eq!(cache.get_id_index(1, "user_001", 0), Some(100));
 }
 
 #[test]
@@ -616,10 +617,10 @@ fn test_transaction_commit() {
     let cache = RecordCache::new();
 
     cache.begin_transaction();
-    cache.insert_id_index(1, "user_001", 100);
+    cache.insert_id_index(1, "user_001", 100, 0);
     cache.commit_transaction();
 
-    assert_eq!(cache.get_id_index(1, "user_001"), Some(100));
+    assert_eq!(cache.get_id_index(1, "user_001", 0), Some(100));
 }
 
 #[test]

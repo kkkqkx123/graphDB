@@ -817,6 +817,44 @@ impl Column {
         self.encoding = ColumnEncoding::None;
     }
 
+    /// Reset encoding: decode all values from encoding back to raw storage,
+    /// then clear the encoding to `None`.
+    ///
+    /// This is the inverse of `auto_compress()` and allows re-encoding
+    /// with a different algorithm (e.g. when data characteristics change).
+    pub fn reset_encoding(&mut self) -> StorageResult<()> {
+        if !self.encoding.is_encoded() {
+            return Ok(());
+        }
+
+        let row_count = self.encoding.len();
+        let mut all_values: Vec<Option<Value>> = Vec::with_capacity(row_count);
+
+        for i in 0..row_count {
+            if self.encoding.is_null(i) {
+                all_values.push(None);
+            } else {
+                all_values.push(self.encoding.get(i));
+            }
+        }
+
+        self.inner_mut().clear();
+        self.encoding = ColumnEncoding::None;
+
+        self.inner_mut().resize(row_count);
+        for (i, val) in all_values.into_iter().enumerate() {
+            self.set(i, val.as_ref())?;
+        }
+
+        Ok(())
+    }
+
+    /// Recompress: reset encoding first, then re-apply compression.
+    pub fn recompress(&mut self) -> StorageResult<()> {
+        self.reset_encoding()?;
+        self.auto_compress()
+    }
+
     pub fn resize(&mut self, new_count: usize) {
         self.inner_mut().resize(new_count);
     }
@@ -1534,6 +1572,20 @@ impl ColumnStore {
         for col in &mut self.columns {
             col.resize(new_count);
         }
+    }
+
+    pub fn reset_encodings(&mut self) -> StorageResult<()> {
+        for col in &mut self.columns {
+            col.reset_encoding()?;
+        }
+        Ok(())
+    }
+
+    pub fn recompress_all(&mut self) -> StorageResult<()> {
+        for col in &mut self.columns {
+            col.recompress()?;
+        }
+        Ok(())
     }
 
     pub fn columns(&self) -> &[Column] {

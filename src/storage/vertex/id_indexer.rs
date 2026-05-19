@@ -43,6 +43,24 @@ impl IdKey {
         }
     }
 
+    /// Write the key bytes into an existing buffer to avoid extra allocations.
+    /// The buffer is cleared before writing.
+    pub fn write_to(&self, buf: &mut Vec<u8>) {
+        buf.clear();
+        match self {
+            IdKey::Int(val) => {
+                buf.reserve(9);
+                buf.push(ID_KEY_TYPE_INT);
+                buf.extend_from_slice(&val.to_be_bytes());
+            }
+            IdKey::Text(val) => {
+                buf.reserve(1 + val.len());
+                buf.push(ID_KEY_TYPE_TEXT);
+                buf.extend_from_slice(val.as_bytes());
+            }
+        }
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> StorageResult<Self> {
         if bytes.is_empty() {
             return Err(StorageError::deserialize_error(
@@ -72,6 +90,15 @@ impl IdKey {
                 "Unknown IdKey type tag: {}",
                 tag
             ))),
+        }
+    }
+}
+
+impl std::fmt::Display for IdKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IdKey::Int(val) => write!(f, "{}", val),
+            IdKey::Text(val) => write!(f, "{}", val),
         }
     }
 }

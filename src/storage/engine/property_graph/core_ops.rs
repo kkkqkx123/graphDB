@@ -26,7 +26,12 @@ pub fn insert_vertex(
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
-    table.insert(external_id, properties, ts)
+
+    let internal_id = table.insert(external_id, properties, ts)?;
+
+    graph.cache_manager.cache_vertex_id(label, external_id, internal_id, ts);
+
+    Ok(internal_id)
 }
 
 pub fn get_vertex(
@@ -41,14 +46,14 @@ pub fn get_vertex(
 
     let internal_id = graph
         .cache_manager
-        .get_cached_vertex_id(label, external_id)
+        .get_cached_vertex_id(label, external_id, ts)
         .or_else(|| {
             let id = {
                 let vertex_tables = graph.data_store.vertex_tables.read();
                 vertex_tables.get(&label)?.get_internal_id(external_id, ts)
             };
             if let Some(id) = id {
-                graph.cache_manager.cache_vertex_id(label, external_id, id);
+                graph.cache_manager.cache_vertex_id(label, external_id, id, ts);
             }
             id
         })?;
@@ -99,9 +104,23 @@ pub fn get_vertex_by_internal_id(
         vertex_tables.get(&label)?.get_by_internal_id(internal_id, ts)?
     };
 
+    // Retrieve external_id from storage for proper caching
+    let external_id = {
+        let vertex_tables = graph.data_store.vertex_tables.read();
+        vertex_tables
+            .get(&label)?
+            .get_external_id(internal_id, ts)
+            .map(|k| k.to_string())
+            .unwrap_or_default()
+    };
+
+    if !external_id.is_empty() {
+        graph.cache_manager.cache_vertex_id(label, &external_id, internal_id, ts);
+    }
+
     graph
         .cache_manager
-        .cache_vertex(label, internal_id, String::new(), record.properties.clone());
+        .cache_vertex(label, internal_id, external_id, record.properties.clone());
 
     Some(record)
 }
@@ -119,7 +138,18 @@ pub fn delete_vertex(
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
-    table.delete(external_id, ts)
+
+    let internal_id = table.get_internal_id(external_id, ts);
+
+    table.delete(external_id, ts)?;
+
+    // Invalidate cache entries after successful deletion
+    graph.cache_manager.remove_cached_vertex_id(label, external_id);
+    if let Some(id) = internal_id {
+        graph.cache_manager.remove_cached_vertex(label, id);
+    }
+
+    Ok(())
 }
 
 pub fn update_vertex_property(
@@ -142,7 +172,12 @@ pub fn update_vertex_property(
         .get_internal_id(external_id, ts)
         .ok_or(StorageError::vertex_not_found())?;
     
-    table.update_property(internal_id, property_name, value, ts)
+    table.update_property(internal_id, property_name, value, ts)?;
+
+    // Property change invalidates cached vertex data
+    graph.cache_manager.remove_cached_vertex(label, internal_id);
+
+    Ok(())
 }
 
 pub fn insert_edge(graph: &PropertyGraph, params: InsertEdgeParams) -> StorageResult<EdgeOffset> {

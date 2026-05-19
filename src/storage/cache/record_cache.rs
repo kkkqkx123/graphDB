@@ -43,6 +43,7 @@ use parking_lot::Mutex;
 
 use crate::core::stats::CacheStats;
 use crate::core::stats::StatsManager;
+use crate::core::types::Timestamp;
 
 use super::batch::*;
 use super::config::*;
@@ -52,7 +53,7 @@ use super::types::*;
 /// Record cache for vertex data and ID index mappings
 pub struct RecordCache {
     vertex_cache: Cache<VertexCacheKey, CachedVertex>,
-    id_index_cache: Cache<IdIndexCacheKey, u32>,
+    id_index_cache: Cache<IdIndexCacheKey, IdIndexCacheValue>,
     config: Mutex<RecordCacheConfig>,
     vertex_stats: Arc<CacheStats>,
     id_index_stats: Arc<CacheStats>,
@@ -187,12 +188,12 @@ impl RecordCache {
         eviction_callback: Arc<Mutex<Option<EvictionCallback>>>,
         ttl: Option<std::time::Duration>,
         tti: Option<std::time::Duration>,
-    ) -> Cache<IdIndexCacheKey, u32> {
+    ) -> Cache<IdIndexCacheKey, IdIndexCacheValue> {
         let mut builder = Cache::builder()
             .max_capacity(max_capacity)
-            .weigher(|key: &IdIndexCacheKey, _value: &u32| {
+            .weigher(|key: &IdIndexCacheKey, _value: &IdIndexCacheValue| {
                 let key_size = std::mem::size_of::<IdIndexCacheKey>() + key.external_id.len();
-                let value_size = std::mem::size_of::<u32>();
+                let value_size = std::mem::size_of::<IdIndexCacheValue>();
                 (key_size + value_size) as u32
             })
             .support_invalidation_closures()
@@ -245,12 +246,17 @@ impl RecordCache {
 
     // ==================== ID Index Operations ====================
 
-    pub fn get_id_index(&self, label_id: u32, external_id: &str) -> Option<u32> {
+    pub fn get_id_index(&self, label_id: u32, external_id: &str, query_ts: Timestamp) -> Option<u32> {
         let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
         let result = match self.id_index_cache.get(&key) {
-            Some(internal_id) => {
-                self.id_index_stats.record_hit();
-                Some(internal_id)
+            Some(cached) => {
+                if cached.cached_at_ts <= query_ts {
+                    self.id_index_stats.record_hit();
+                    Some(cached.internal_id)
+                } else {
+                    self.id_index_stats.record_miss();
+                    None
+                }
             }
             None => {
                 self.id_index_stats.record_miss();
@@ -263,13 +269,16 @@ impl RecordCache {
         result
     }
 
-    pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32) {
+    pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32, ts: Timestamp) {
         let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
         if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
             let old_value = self.id_index_cache.get(&key);
             snapshot.record_id_index(key.clone(), old_value);
         }
-        self.id_index_cache.insert(key, internal_id);
+        self.id_index_cache.insert(key, IdIndexCacheValue {
+            internal_id,
+            cached_at_ts: ts,
+        });
     }
 
     pub fn remove_id_index(&self, label_id: u32, external_id: &str) {

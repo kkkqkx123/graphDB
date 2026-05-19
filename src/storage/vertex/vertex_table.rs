@@ -481,12 +481,15 @@ impl VertexTable {
 
     pub fn compact(&mut self) {
         let id_mapping = self.id_indexer.compact().unwrap_or_default();
-
         if id_mapping.is_empty() {
+            let old_count = self.timestamps.size();
             self.timestamps.compact();
+            let new_count = self.timestamps.size();
+            if new_count < old_count && new_count < self.columns.row_count() {
+                self.columns.resize(new_count);
+            }
             return;
         }
-
         self.remap_columns(&id_mapping);
         self.remap_timestamps(&id_mapping);
     }
@@ -610,11 +613,12 @@ impl VertexTable {
         let count = self.id_indexer.len() as u32;
         file.write_all(&count.to_le_bytes())?;
 
+        let mut key_buf = Vec::new();
         for (key, id) in self.id_indexer.iter() {
             file.write_all(&id.to_le_bytes())?;
-            let key_bytes = key.to_bytes();
-            file.write_all(&(key_bytes.len() as u32).to_le_bytes())?;
-            file.write_all(&key_bytes)?;
+            key.write_to(&mut key_buf);
+            file.write_all(&(key_buf.len() as u32).to_le_bytes())?;
+            file.write_all(&key_buf)?;
         }
 
         Ok(())

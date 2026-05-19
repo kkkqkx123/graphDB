@@ -28,6 +28,7 @@ use std::sync::Arc;
 use moka::notification::RemovalCause;
 
 use crate::core::Value;
+use crate::core::types::Timestamp;
 
 /// Eviction cause for cache entries
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +97,18 @@ pub struct CachedVertex {
     pub properties: Vec<(String, Value)>,
 }
 
+/// Cached ID index value with timestamp for validation.
+///
+/// Stores the internal_id along with the timestamp at which the mapping
+/// was last verified. On cache lookup, if the cached timestamp is older
+/// than the query timestamp, the entry is treated as stale and re-fetched
+/// from storage.
+#[derive(Debug, Clone, Copy)]
+pub struct IdIndexCacheValue {
+    pub internal_id: u32,
+    pub cached_at_ts: Timestamp,
+}
+
 impl CachedVertex {
     pub fn estimated_size(&self) -> u32 {
         let mut size = std::mem::size_of::<Self>();
@@ -117,7 +130,7 @@ pub enum CacheSnapshotEntry {
     /// Previous vertex value before modification
     Vertex(VertexCacheKey, Option<CachedVertex>),
     /// Previous ID index value before modification
-    IdIndex(IdIndexCacheKey, Option<u32>),
+    IdIndex(IdIndexCacheKey, Option<IdIndexCacheValue>),
 }
 
 /// Transaction-level cache snapshot for rollback support
@@ -144,7 +157,7 @@ impl TransactionCacheSnapshot {
             .push(CacheSnapshotEntry::Vertex(key, old_value));
     }
 
-    pub fn record_id_index(&mut self, key: IdIndexCacheKey, old_value: Option<u32>) {
+    pub fn record_id_index(&mut self, key: IdIndexCacheKey, old_value: Option<IdIndexCacheValue>) {
         self.entries
             .push(CacheSnapshotEntry::IdIndex(key, old_value));
     }
