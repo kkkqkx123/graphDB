@@ -122,6 +122,7 @@ impl EdgeTable {
             ));
         }
 
+        let mut converted_values: Vec<(String, Value)> = Vec::with_capacity(property_values.len());
         for (name, value) in property_values {
             let prop_def = self
                 .schema
@@ -131,15 +132,15 @@ impl EdgeTable {
                 .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
 
             if value.data_type() != prop_def.data_type {
-                return Err(StorageError::type_mismatch(
-                    prop_def.data_type.clone(),
-                    value.data_type(),
-                ));
+                let converted = value.try_cast_to(&prop_def.data_type)?;
+                converted_values.push((name.clone(), converted));
+            } else {
+                converted_values.push((name.clone(), value.clone()));
             }
         }
 
-        let prop_offset = if !property_values.is_empty() {
-            self.properties.insert(property_values)?
+        let prop_offset = if !converted_values.is_empty() {
+            self.properties.insert(&converted_values)?
         } else {
             0
         };

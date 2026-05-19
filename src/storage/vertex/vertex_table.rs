@@ -108,6 +108,7 @@ impl VertexTable {
             return Err(StorageError::storage_not_open());
         }
 
+        let mut converted: Vec<(String, Value)> = Vec::with_capacity(properties.len());
         for (name, value) in properties {
             let prop_def = self
                 .schema
@@ -117,10 +118,10 @@ impl VertexTable {
                 .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
 
             if value.data_type() != prop_def.data_type {
-                return Err(StorageError::type_mismatch(
-                    prop_def.data_type.clone(),
-                    value.data_type(),
-                ));
+                let converted_val = value.try_cast_to(&prop_def.data_type)?;
+                converted.push((name.clone(), converted_val));
+            } else {
+                converted.push((name.clone(), value.clone()));
             }
         }
 
@@ -135,13 +136,13 @@ impl VertexTable {
             }
 
             let _ = self.timestamps.revert_remove(internal_id, ts);
-            self.columns.set(internal_id as usize, properties)?;
+            self.columns.set(internal_id as usize, &converted)?;
             return Ok(internal_id);
         }
 
         let internal_id = self.id_indexer.insert(key)?;
         self.timestamps.insert(internal_id, ts);
-        self.columns.set(internal_id as usize, properties)?;
+        self.columns.set(internal_id as usize, &converted)?;
 
         Ok(internal_id)
     }

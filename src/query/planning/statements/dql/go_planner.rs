@@ -40,7 +40,7 @@ impl Planner for GoPlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let _ = qctx;
+        let space_id = qctx.space_id().unwrap_or(1);
 
         let go_stmt = match validated.stmt() {
             Stmt::Go(go_stmt) => go_stmt,
@@ -116,7 +116,7 @@ impl Planner for GoPlanner {
         };
 
         // Create ExpandAllNode to traverse edges
-        let mut expand_all_node = ExpandAllNode::new(1, edge_types.clone(), direction_str);
+        let mut expand_all_node = ExpandAllNode::new(space_id, edge_types.clone(), direction_str);
 
         // Set step_limit based on GO statement steps
         let step_limit = match go_stmt.steps {

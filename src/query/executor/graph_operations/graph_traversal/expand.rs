@@ -32,17 +32,15 @@ pub struct ExpandExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
-    pub max_depth: Option<usize>,        // Maximum expansion depth
-    pub step_limits: Option<Vec<usize>>, // Expansion limits for each step
-    pub sample: bool,                    // Should sampling be enabled?
-    pub sample_limit: Option<usize>,     // Sampling limitations
-    pub with_loop: bool,                 // Are self-loop edges allowed?
+    pub max_depth: Option<usize>,
+    pub step_limits: Option<Vec<usize>>,
+    pub sample: bool,
+    pub sample_limit: Option<usize>,
+    pub with_loop: bool,
+    pub space_name: String,
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    // The cache stores the nodes that have been accessed, in order to avoid loops.
     pub visited_nodes: HashSet<Value>,
-    // Adjacency relationship cache
     adjacency_cache: HashMap<Value, Vec<Value>>,
-    // Current number of expansion steps
     current_step: usize,
 }
 
@@ -79,6 +77,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             sample: false,
             sample_limit: None,
             with_loop: false,
+            space_name: "default".to_string(),
             input_executor: None,
             visited_nodes: HashSet::new(),
             adjacency_cache: HashMap::new(),
@@ -175,6 +174,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             &node_vid,
             self.edge_direction,
             &self.edge_types,
+            &self.space_name,
             self.with_loop,
         )
         .map_err(|e| QueryError::storage(e.to_string()))?;

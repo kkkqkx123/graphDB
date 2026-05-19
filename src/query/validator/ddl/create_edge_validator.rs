@@ -70,6 +70,8 @@ impl CreateEdgeValidator {
                 properties,
                 ttl_duration,
                 ttl_col,
+                src_tag: _,
+                dst_tag: _,
             } => {
                 if name.is_empty() {
                     return Err(ValidationError::new(

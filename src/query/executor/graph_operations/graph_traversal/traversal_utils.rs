@@ -39,12 +39,13 @@ pub fn get_neighbors<S: StorageClient>(
     node_id: &VertexId,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
+    space_name: &str,
     allow_loop: bool,
 ) -> DBResult<Vec<VertexId>> {
     let storage_guard = storage.read();
 
     let edges = storage_guard
-        .get_node_edges("default", node_id, EdgeDirection::Both)
+        .get_node_edges(space_name, node_id, EdgeDirection::Both)
         .map_err(|e| DBError::storage(e.to_string()))?;
 
     let filtered_edges: Vec<Edge> = if let Some(ref edge_types) = edge_types {
@@ -119,12 +120,13 @@ pub fn get_neighbors_with_edges<S: StorageClient>(
     node_id: &VertexId,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
+    space_name: &str,
     allow_loop: bool,
 ) -> DBResult<Vec<(VertexId, Edge)>> {
     let storage_guard = storage.read();
 
     let edges = storage_guard
-        .get_node_edges("default", node_id, EdgeDirection::Both)
+        .get_node_edges(space_name, node_id, EdgeDirection::Both)
         .map_err(|e| DBError::storage(e.to_string()))?;
 
     let filtered_edges: Vec<Edge> = if let Some(ref edge_types) = edge_types {

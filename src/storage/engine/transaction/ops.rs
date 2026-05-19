@@ -290,6 +290,20 @@ impl TransactionOps {
         Ok(())
     }
 
+    pub fn revert_delete_vertex(
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        label: LabelId,
+        vid: VertexId,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        if let Some(table) = vertex_tables.get_mut(&label) {
+            table
+                .revert_delete(vid.as_int64().unwrap_or(0) as u32, ts)
+                .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        }
+        Ok(())
+    }
+
     pub fn delete_edge(
         edge_tables: &mut HashMap<(LabelId, LabelId, LabelId), EdgeTable>,
         params: DeleteEdgeParams,

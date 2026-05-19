@@ -650,6 +650,8 @@ pub enum CreateTarget {
         properties: Vec<PropertyDef>,
         ttl_duration: Option<i64>,
         ttl_col: Option<String>,
+        src_tag: Option<String>,
+        dst_tag: Option<String>,
     },
     Space {
         name: String,

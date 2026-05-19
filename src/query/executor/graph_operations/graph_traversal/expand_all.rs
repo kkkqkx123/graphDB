@@ -181,6 +181,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             node_id,
             self.edge_direction,
             &edge_types,
+            &self.space_name,
             false,
         )
         .map_err(|e| QueryError::storage(e.to_string()))

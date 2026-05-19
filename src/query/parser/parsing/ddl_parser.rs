@@ -58,6 +58,7 @@ impl DdlParser {
             }
             let name = ctx.expect_identifier()?;
             let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
+            let (src_tag, dst_tag) = self.parse_edge_src_dst(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
                 target: CreateTarget::EdgeType {
@@ -65,6 +66,8 @@ impl DdlParser {
                     properties,
                     ttl_duration,
                     ttl_col,
+                    src_tag,
+                    dst_tag,
                 },
                 if_not_exists,
             }))
@@ -258,6 +261,7 @@ impl DdlParser {
             }
             let name = ctx.expect_identifier()?;
             let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
+            let (src_tag, dst_tag) = self.parse_edge_src_dst(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
                 target: CreateTarget::EdgeType {
@@ -265,6 +269,8 @@ impl DdlParser {
                     properties,
                     ttl_duration,
                     ttl_col,
+                    src_tag,
+                    dst_tag,
                 },
                 if_not_exists,
             }))
@@ -936,6 +942,22 @@ impl DdlParser {
         }
 
         Ok((properties, ttl_duration, ttl_col))
+    }
+
+    /// Parse the source and destination tag names for CREATE EDGE:
+    /// FROM <src_tag> TO <dst_tag>
+    fn parse_edge_src_dst(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<(Option<String>, Option<String>), ParseError> {
+        if ctx.match_token(TokenKind::From) {
+            let src_tag = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::To)?;
+            let dst_tag = ctx.expect_identifier()?;
+            Ok((Some(src_tag), Some(dst_tag)))
+        } else {
+            Ok((None, None))
+        }
     }
 
     /// Analyzing the definition of a single attribute

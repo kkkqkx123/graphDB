@@ -127,16 +127,9 @@ impl UndoTarget for PropertyGraph {
     }
 
     fn revert_delete_vertex(&self, vertex: VertexIdentifier, ts: Timestamp) -> UndoLogResult<()> {
-        let params = RevertDeleteEdgeParams {
-            src_label: vertex.label,
-            src_vid: vertex.vid,
-            dst_label: vertex.label,
-            dst_vid: vertex.vid,
-            edge_label: vertex.label,
-        };
         {
-            let mut edge_tables = self.data_store.edge_tables.write();
-            TransactionOps::revert_delete_edge(&mut edge_tables, params, 0, 0, ts)?;
+            let mut vertex_tables = self.data_store.vertex_tables.write();
+            TransactionOps::revert_delete_vertex(&mut vertex_tables, vertex.label, vertex.vid, ts)?;
         }
         self.mark_vertex_modified(vertex.label);
         Ok(())

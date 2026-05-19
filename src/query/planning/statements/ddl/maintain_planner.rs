@@ -191,12 +191,15 @@ impl MaintainPlanner {
                 Ok(Some(PlanNodeEnum::TagManage(TagManageNode::Create(node))))
             }
             CreateTarget::EdgeType {
-                name, properties, ..
+                name, properties, src_tag, dst_tag, ..
             } => {
                 let space_name = self.current_space(validated);
-                let edge_info = EdgeManageInfo::new(space_name, name.clone())
+                let mut edge_info = EdgeManageInfo::new(space_name, name.clone())
                     .with_properties(properties.clone())
                     .with_if_not_exists(create_stmt.if_not_exists);
+                if let (Some(src), Some(dst)) = (src_tag, dst_tag) {
+                    edge_info = edge_info.with_src_dst_tags(src.clone(), dst.clone());
+                }
                 let node = CreateEdgeNode::new(next_node_id(), edge_info);
                 Ok(Some(PlanNodeEnum::EdgeManage(EdgeManageNode::Create(node))))
             }

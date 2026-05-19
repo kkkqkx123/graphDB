@@ -86,7 +86,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             max_depth: node.step_limit().map(|s| s as usize),
             expr_context: context.expression_context().clone(),
             space_id: node.space_id(),
-            space_name,
+            space_name: space_name.clone(),
         };
         let src_vids: Vec<VertexId> = node
             .src_vids()

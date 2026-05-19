@@ -215,6 +215,44 @@ impl PropertyGraph {
         }
     }
 
+    pub(crate) fn storage_size(&self) -> usize {
+        let mut total = 0usize;
+
+        {
+            let vertex_tables = self.data_store.vertex_tables.read();
+            for table in vertex_tables.values() {
+                total += table.memory_size();
+            }
+        }
+        {
+            let edge_tables = self.data_store.edge_tables.read();
+            for table in edge_tables.values() {
+                total += table.memory_size();
+            }
+        }
+
+        total
+    }
+
+    pub(crate) fn used_storage_size(&self) -> usize {
+        let mut total = 0usize;
+
+        {
+            let vertex_tables = self.data_store.vertex_tables.read();
+            for table in vertex_tables.values() {
+                total += table.used_memory_size();
+            }
+        }
+        {
+            let edge_tables = self.data_store.edge_tables.read();
+            for table in edge_tables.values() {
+                total += table.used_memory_size();
+            }
+        }
+
+        total
+    }
+
     // ==================== Schema Operations ====================
 
     pub fn create_vertex_type(

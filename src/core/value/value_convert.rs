@@ -1,4 +1,5 @@
 use crate::core::{
+    error::StorageError,
     types::DataType,
     value::{
         date_time::{DateTimeValue, DateValue, TimeValue},
@@ -8,6 +9,7 @@ use crate::core::{
         uuid::UuidValue,
         Value,
     },
+    StorageResult,
 };
 use chrono::{Datelike, Timelike};
 
@@ -614,6 +616,69 @@ impl Value {
                 Err(_) => Value::Null(NullType::BadData),
             },
             _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    /// Try to cast this value to the target data type.
+    /// Returns the converted value on success, or a type_mismatch error.
+    /// Supports implicit type conversions that are allowed by TypeUtils::can_cast.
+    pub fn try_cast_to(&self, target: &DataType) -> StorageResult<Value> {
+        if self.data_type() == *target {
+            return Ok(self.clone());
+        }
+
+        let result = match target {
+            DataType::Null | DataType::Empty => Value::Null(NullType::Null),
+            DataType::Bool => self.to_bool(),
+            DataType::SmallInt => match self.to_int() {
+                Value::BigInt(i) if i >= i16::MIN as i64 && i <= i16::MAX as i64 => {
+                    Value::SmallInt(i as i16)
+                }
+                Value::BigInt(_) => {
+                    return Err(StorageError::type_mismatch(
+                        DataType::SmallInt,
+                        self.data_type(),
+                    ));
+                }
+                other => other,
+            },
+            DataType::Int => match self.to_int() {
+                Value::BigInt(i) if i >= i32::MIN as i64 && i <= i32::MAX as i64 => {
+                    Value::Int(i as i32)
+                }
+                Value::BigInt(_) => {
+                    return Err(StorageError::type_mismatch(
+                        DataType::Int,
+                        self.data_type(),
+                    ));
+                }
+                other => other,
+            },
+            DataType::BigInt => self.to_int(),
+            DataType::Float => match self.to_float() {
+                Value::Double(f) => Value::Float(f as f32),
+                other => other,
+            },
+            DataType::Double => self.to_float(),
+            DataType::String => match self.to_string() {
+                Ok(s) => Value::String(s),
+                Err(_) => Value::Null(NullType::BadData),
+            },
+            DataType::Date => self.to_date(),
+            DataType::Time => self.to_time(),
+            DataType::DateTime | DataType::Timestamp => self.to_datetime(),
+            DataType::List => self.to_list(),
+            DataType::Map => self.to_map(),
+            _ => Value::Null(NullType::BadData),
+        };
+
+        if matches!(result, Value::Null(NullType::BadData)) {
+            Err(StorageError::type_mismatch(
+                target.clone(),
+                self.data_type(),
+            ))
+        } else {
+            Ok(result)
         }
     }
 }

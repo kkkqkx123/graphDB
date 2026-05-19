@@ -36,7 +36,7 @@ pub struct TraverseExecutor<S: StorageClient + Send + 'static> {
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
-
+    pub space_name: String,
     conditions: Option<String>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
     /// Use NPath to store the current traversal path, in order to reduce memory copying.
@@ -88,6 +88,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             edge_direction,
             edge_types,
             max_depth,
+            space_name: "default".to_string(),
             conditions,
             input_executor: None,
             current_npaths: Vec::new(),
@@ -124,6 +125,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             &node_vid,
             self.edge_direction,
             &self.edge_types,
+            &self.space_name,
             false,
         )
         .map_err(|e| QueryError::storage(e.to_string()))?;

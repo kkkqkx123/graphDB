@@ -108,7 +108,7 @@ fn test_relationship_crud_flow() {
         // Setup
         .exec_ddl("CREATE TAG Person(name STRING)")
         .assert_success()
-        .exec_ddl("CREATE EDGE FOLLOWS(since DATE)")
+        .exec_ddl("CREATE EDGE FOLLOWS(since DATE) FROM Person TO Person")
         .assert_success()
         // Create persons
         .exec_dml(
@@ -133,6 +133,7 @@ fn test_relationship_crud_flow() {
         .assert_edge_count("FOLLOWS", 2)
         // Query relationships
         .query("GO FROM 1 OVER FOLLOWS YIELD $$.Person.name AS following")
+        .debug_print_result()
         .assert_result_count(2)
         // Update relationship
         .exec_ddl("ALTER EDGE FOLLOWS ADD (strength DOUBLE)")
@@ -166,9 +167,9 @@ fn test_ecommerce_order_flow() {
         .assert_success()
         .exec_ddl("CREATE TAG Order(order_date DATE, total DOUBLE)")
         .assert_success()
-        .exec_ddl("CREATE EDGE PURCHASED(quantity INT)")
+        .exec_ddl("CREATE EDGE PURCHASED(quantity INT) FROM Customer TO Order")
         .assert_success()
-        .exec_ddl("CREATE EDGE CONTAINS(quantity INT, price DOUBLE)")
+        .exec_ddl("CREATE EDGE CONTAINS(quantity INT, price DOUBLE) FROM Order TO Product")
         .assert_success()
         // Insert customers
         .exec_dml("INSERT VERTEX Customer(name, email) VALUES 1:('John Doe', 'john@example.com')")
@@ -253,12 +254,7 @@ fn test_social_network_complete_flow() {
         )
         .assert_success()
         .exec_ddl(
-            r#"
-            CREATE EDGE KNOWS(
-                since DATE,
-                strength DOUBLE
-            )
-        "#,
+            "CREATE EDGE KNOWS(since DATE, strength DOUBLE) FROM Person TO Person"
         )
         .assert_success()
         // Create users
