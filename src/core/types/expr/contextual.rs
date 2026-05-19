@@ -40,7 +40,7 @@ impl ContextualExpression {
     /// Get a clone of the underlying Expression
     ///
     /// This method is used in scenarios where you need to manipulate the Expression directly.
-    /// 如模板提取、参数化等。大多数场景应使用 expression() 方法
+    /// such as template extraction, parameterization, etc. The expression() method should be used in most scenarios
     ///
     /// # Restrictions on use
     /// This method can only be used at the Executor level and is not allowed to be called at any other level.

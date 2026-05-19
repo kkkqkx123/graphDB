@@ -15,7 +15,6 @@ use super::latency_histogram::LatencyHistogram;
 use super::metrics::QueryMetrics;
 use super::profile::QueryProfile;
 use super::slow_query_logger::{SlowQueryConfig, SlowQueryLogger};
-use super::utils::micros_to_millis;
 
 /// Space metrics type alias
 type SpaceMetrics = Arc<DashMap<MetricType, Arc<MetricValue>>>;
@@ -272,11 +271,11 @@ impl StatsManager {
         };
 
         log::warn!(
-            "慢查询 [trace_id={}] [session_id={}] [duration={}ms] [status={}]\n\
-             查询: {}\n\
-             阶段统计: parse={}ms validate={}ms plan={}ms optimize={}ms execute={}ms\n\
-             结果数: {} 执行器数: {} 执行器总时间: {}ms\n\
-             执行器详情: {}{}",
+"Slow query [trace_id={}] [session_id={}] [duration={}ms] [status={}]\n\
+Queries: {}\n\
+Stage statistics: parse={}ms validate={}ms plan={}ms optimize={}ms execute={}ms\n\
+Number of results: {} Number of executors: {} Total executor time: {}ms\n\\\
+Executor details: {}{}",
             profile.trace_id,
             profile.session_id,
             micros_to_millis(profile.total_duration_us),

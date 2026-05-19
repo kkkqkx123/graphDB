@@ -9,22 +9,6 @@
 //! 2. **O(1) Extension **: New path simply creates a new node pointing to parent path
 //! 3. **Fast splicing**: bi-directional BFS path splicing by simply finding the point of intersection
 //!
-//! # Examples of use
-//!
-//! ```rust,ignore
-//! use std::sync::Arc;
-//! use graphdb::core::npath::NPath;
-//! use graphdb::core::{Vertex, Edge, Value};
-//!
-// Create a starting point
-//! let start_vertex = Arc::new(Vertex::new(Value::Int(1), vec![]));
-//! let start = Arc::new(NPath::new(start_vertex));
-//!
-// Extended path
-//! let edge = Arc::new(Edge::new("friend", Value::Int(1), Value::Int(2)));
-//! let next_vertex = Arc::new(Vertex::new(Value::Int(2), vec![]));
-//! let extended = Arc::new(NPath::extend(start, edge, next_vertex));
-//! ```
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -57,12 +41,6 @@ impl NPath {
     /// # Parameters
     ///
     /// * `vertex` - starting vertex
-    ///
-    /// # Examples
-    ///
-    /// ```rust,ignore
-    /// let start = Arc::new(NPath::new(Arc::new(vertex)));
-    /// ```
     pub fn new(vertex: Arc<Vertex>) -> Self {
         let hash = Self::compute_hash(&vertex, None, None);
         Self {
@@ -74,7 +52,7 @@ impl NPath {
         }
     }
 
-    /// 扩展路径 - O(1)操作
+    /// Extended Path - O(1) Operation
     ///
     /// Creates a new path node that points to the parent path for prefix sharing.
     ///
@@ -83,12 +61,6 @@ impl NPath {
     /// * `parent` - parent path
     /// * `edge` - the edge that reaches the new vertex
     /// * `vertex` - new vertex
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// let extended = Arc::new(NPath::extend(parent, edge, vertex));
-    /// ```
     pub fn extend(parent: Arc<NPath>, edge: Arc<Edge>, vertex: Arc<Vertex>) -> Self {
         let length = parent.length + 1;
         let hash = Self::compute_hash(&vertex, Some(&edge), Some(parent.hash));
@@ -101,20 +73,20 @@ impl NPath {
         }
     }
 
-    /// 扩展路径并检查环路 - O(1)平均时间
+    /// Extend path and check for loops - O(1) averaging time
     ///
     /// Fast detection of loop formation using HashSet, suitable for early pruning in DFS exploration.
     ///
     /// # Parameters
     ///
-    /// * `parent` - 父路径
-    /// * `edge` - 到达新顶点的边
-    /// * `vertex` - 新顶点
+    /// * `parent` - parent path
+    /// * `edge` - the edge that reaches the new vertex
+    /// * `vertex` - new vertex
     /// * :: `seen_vertices` - set of visited vertices
     ///
     /// # Back
     ///
-    /// * `Some(NPath)` - 扩展成功
+    /// * `Some(NPath)` - extension successful
     /// * `None` - loop detected
     ///
     /// # Example
@@ -208,7 +180,7 @@ impl NPath {
 
     /// Translate the text into "Path" (and convert it further if necessary):
     ///
-    /// 时间复杂度：O(n)，n为路径长度
+    /// Time complexity: O(n), n is the path length
     pub fn to_path(&self) -> Path {
         let mut steps = Vec::with_capacity(self.length);
         let mut current = self;
@@ -336,7 +308,7 @@ impl Eq for NPath {}
 
 /// NPath iterator – Traverses all nodes (from the end point to the start point)
 ///
-/// 使用惰性求值，每次.next()向上跳一步，避免预分配Vec
+/// Use inert summation, each time .next() jumps up one step to avoid preallocating Vecs
 pub struct NPathIter<'a> {
     current: Option<&'a NPath>,
 }
@@ -361,7 +333,7 @@ impl<'a> Iterator for NPathIter<'a> {
 
 /// NPath vertex iterator – Lazy traversal of all vertices
 ///
-/// 优化：不预分配Vec，每次.next()向上跳一步
+/// Optimization: no pre-allocated Vec, each time .next() jumps up one step
 pub struct NPathVertexIter<'a> {
     current: Option<&'a NPath>,
 }
@@ -387,7 +359,7 @@ impl<'a> Iterator for NPathVertexIter<'a> {
 
 /// NPath edge iterator – Lazy traversal of all edges
 ///
-/// 优化：不预分配Vec，每次.next()向上跳一步
+/// Optimization: no pre-allocated Vec, each time .next() jumps up one step
 pub struct NPathEdgeIter<'a> {
     current: Option<&'a NPath>,
 }

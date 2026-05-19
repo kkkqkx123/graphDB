@@ -2,42 +2,56 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 2
+- **Total Errors**: 1
+- **Total Warnings**: 1
 - **Total Issues**: 2
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 2
-- **Files with Issues**: 2
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 1
+
+### Error Type Breakdown
+
+- **error**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\core\stats\manager.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 2
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 2 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\storage\container\volatile\windows.rs`: 1 warnings
-- `src\storage\container\persistent\mod.rs`: 1 warnings
+- `src\core\stats\manager.rs`: 1 warnings
+
+## Detailed Error Categorization
+
+### error: expected `,`, found `profile`: unexpected token
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\core\stats\manager.rs`: 1 occurrences
+
+- Line 280: expected `,`, found `profile`: unexpected token
 
 ## Detailed Warning Categorization
 
-### warning: method `is_empty` is never used
+### warning: unused import: `super::utils::micros_to_millis`
 
-**Total Occurrences**: 2  
-**Unique Files**: 2
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-#### `src\storage\container\volatile\windows.rs`: 1 occurrences
+#### `src\core\stats\manager.rs`: 1 occurrences
 
-- Line 66: method `is_empty` is never used
-
-#### `src\storage\container\persistent\mod.rs`: 1 occurrences
-
-- Line 26: unused import: `crate::storage::container::mmap::IDataContainer`
+- Line 18: unused import: `super::utils::micros_to_millis`
 

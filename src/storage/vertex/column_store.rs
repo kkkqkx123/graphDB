@@ -47,6 +47,13 @@ pub trait ColumnStorage: Send + Sync + std::fmt::Debug {
         bitmap_bit_len: usize,
     );
     fn get_flush_data(&self) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>);
+    /// Extract data for a specific row range [start_row, end_row).
+    /// Returns the same format as `get_flush_data()` but only for the given rows.
+    fn get_flush_data_range(
+        &self,
+        start_row: usize,
+        end_row: usize,
+    ) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>);
 }
 
 /// Returns the element size for fixed-width data types.
@@ -83,6 +90,7 @@ pub fn is_variable_length_type(data_type: &DataType) -> bool {
 #[derive(Debug, Clone)]
 pub struct FixedWidthColumn {
     data: Vec<u8>,
+    data_type: DataType,
     element_size: usize,
     null_bitmap: Option<BitVec<u8, Lsb0>>,
     row_count: usize,
@@ -93,6 +101,7 @@ impl FixedWidthColumn {
         let elem_size = element_size(&data_type);
         Self {
             data: Vec::new(),
+            data_type: data_type.clone(),
             element_size: elem_size,
             null_bitmap: if nullable { Some(BitVec::new()) } else { None },
             row_count: 0,
@@ -103,6 +112,7 @@ impl FixedWidthColumn {
         let elem_size = element_size(&data_type);
         Self {
             data: Vec::with_capacity(capacity * elem_size),
+            data_type: data_type.clone(),
             element_size: elem_size,
             null_bitmap: if nullable {
                 Some(BitVec::with_capacity(capacity))
@@ -125,7 +135,8 @@ impl ColumnStorage for FixedWidthColumn {
             return None;
         }
 
-        read_fixed_value(&self.data, offset, self.element_size)
+        let raw = read_fixed_value(&self.data, offset, self.element_size)?;
+        Some(convert_to_type(raw, &self.data_type))
     }
 
     fn set(&mut self, row_idx: usize, value: Option<&Value>) -> StorageResult<()> {
@@ -246,6 +257,31 @@ impl ColumnStorage for FixedWidthColumn {
 
     fn get_flush_data(&self) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>) {
         (self.data.clone(), Vec::new(), self.null_bitmap.clone())
+    }
+
+    fn get_flush_data_range(
+        &self,
+        start_row: usize,
+        end_row: usize,
+    ) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>) {
+        let start_byte = start_row * self.element_size;
+        let end_byte = std::cmp::min(end_row * self.element_size, self.data.len());
+        let data = if end_byte > start_byte {
+            self.data[start_byte..end_byte].to_vec()
+        } else {
+            Vec::new()
+        };
+
+        let bitmap = self.null_bitmap.as_ref().map(|b| {
+            let mut chunk = BitVec::with_capacity(end_row - start_row);
+            for i in start_row..std::cmp::min(end_row, b.len()) {
+                chunk.push(b[i]);
+            }
+            chunk.resize(end_row - start_row, false);
+            chunk
+        });
+
+        (data, Vec::new(), bitmap)
     }
 }
 
@@ -460,6 +496,43 @@ impl ColumnStorage for VariableWidthColumn {
         let offsets: Vec<u64> = self.offsets.iter().map(|&o| o as u64).collect();
         (self.data.clone(), offsets, self.null_bitmap.clone())
     }
+
+    fn get_flush_data_range(
+        &self,
+        start_row: usize,
+        end_row: usize,
+    ) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>) {
+        let mut data = Vec::new();
+        let mut offsets: Vec<u64> = Vec::new();
+        let mut null_flags: Vec<bool> = Vec::new();
+
+        for row in start_row..end_row {
+            if row < self.offsets.len() && !self.is_null(row) {
+                let entry_start = self.offsets[row];
+                let entry_len = if row + 1 < self.offsets.len() && self.offsets[row + 1] != usize::MAX && self.offsets[row + 1] > 0 {
+                    self.offsets[row + 1] - entry_start
+                } else {
+                    self.data.len() - entry_start
+                };
+                offsets.push(data.len() as u64);
+                data.extend_from_slice(&self.data[entry_start..entry_start + entry_len]);
+                null_flags.push(false);
+            } else {
+                offsets.push(data.len() as u64);
+                null_flags.push(true);
+            }
+        }
+
+        let bitmap = self.null_bitmap.as_ref().map(|_| {
+            let mut chunk = BitVec::with_capacity(null_flags.len());
+            for &flag in &null_flags {
+                chunk.push(flag);
+            }
+            chunk
+        });
+
+        (data, offsets, bitmap)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -560,6 +633,15 @@ fn read_fixed_value(data: &[u8], offset: usize, element_size: usize) -> Option<V
             }))
         }
         _ => None,
+    }
+}
+
+/// Convert a raw read_fixed_value result to the correct Value variant based on the declared DataType.
+/// This handles ambiguous element sizes where multiple types share the same width.
+fn convert_to_type(raw: Value, data_type: &DataType) -> Value {
+    match (data_type, &raw) {
+        (DataType::Double, Value::BigInt(n)) => Value::Double(f64::from_bits(*n as u64)),
+        _ => raw,
     }
 }
 
@@ -798,6 +880,70 @@ impl Column {
                         let start = new_data.len();
                         new_data.resize(start + elem_size, 0);
                         let _ = write_fixed_value(&mut new_data, start, elem_size, &v);
+                    }
+                }
+                None => {
+                    if let Some(ref mut bm) = new_bitmap {
+                        bm.push(true);
+                    }
+                    if is_var {
+                        new_offsets.push(u64::MAX);
+                    }
+                }
+            }
+        }
+
+        (new_data, new_offsets, new_bitmap)
+    }
+
+    /// Extract data for a specific row range [start_row, end_row).
+    /// Returns column data in the same format as `get_flush_data()`.
+    pub fn get_flush_data_range(
+        &self,
+        start_row: usize,
+        end_row: usize,
+    ) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>) {
+        if !self.encoding.is_encoded() {
+            return self.inner().get_flush_data_range(start_row, end_row);
+        }
+
+        let row_count = self.len();
+        let end = std::cmp::min(end_row, row_count);
+        let start = std::cmp::min(start_row, end);
+
+        let mut new_data = Vec::new();
+        let mut new_offsets = Vec::new();
+        let mut new_bitmap = self
+            .null_bitmap()
+            .map(|_| BitVec::with_capacity(end - start));
+
+        let is_var = is_variable_length_type(&self.data_type);
+
+        for i in start..end {
+            let value = self.encoding.get(i);
+            match value {
+                Some(v) => {
+                    if let Some(ref mut bm) = new_bitmap {
+                        bm.push(false);
+                    }
+                    if is_var {
+                        new_offsets.push(new_data.len() as u64);
+                        match &v {
+                            Value::String(s) => {
+                                let bytes = s.as_bytes();
+                                new_data.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
+                                new_data.extend_from_slice(bytes);
+                            }
+                            _ => {
+                                new_offsets.pop();
+                                new_offsets.push(u64::MAX);
+                            }
+                        }
+                    } else {
+                        let elem_size = element_size(&self.data_type);
+                        let offset = new_data.len();
+                        new_data.resize(offset + elem_size, 0);
+                        let _ = write_fixed_value(&mut new_data, offset, elem_size, &v);
                     }
                 }
                 None => {

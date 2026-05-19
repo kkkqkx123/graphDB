@@ -98,7 +98,7 @@ pub enum Expression {
 
     /// Dynamic access to tag attributes
     ///
-    /// 用于动态访问标签属性，如 `tagName.propertyName`
+    /// Used to access tag properties dynamically, e.g. `tagName.propertyName`
     /// where tagName is a variable or tag expression
     LabelTagProperty {
         tag: Box<Expression>,
@@ -107,7 +107,7 @@ pub enum Expression {
 
     /// Tag Attribute Access
     ///
-    /// 用于访问顶点标签上的属性，如 `tagName.propertyName`
+    /// Used to access properties on the vertex tag, e.g. `tagName.propertyName`
     TagProperty { tag_name: String, property: String },
 
     /// Edge Attribute Access

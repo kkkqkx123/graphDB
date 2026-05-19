@@ -284,7 +284,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_execute_simple_query() {
         let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();

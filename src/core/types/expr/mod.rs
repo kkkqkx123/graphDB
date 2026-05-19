@@ -59,8 +59,8 @@
 //!
 //! This module defines pure data types, which do not contain any context.
 //! The type definitions relevant to the context are defined in the `query` module.
-//! - **`query::validator::context::ExpressionAnalysisContext`**: 编译时分析上下文，用于验证、优化器、类型推导等阶段
-//! - **`query::executor::expression::evaluation_context::ExpressionContext`**: 运行时求值上下文 trait，用于表达式求值
+//! - **`query::validator::context::ExpressionAnalysisContext`**: compile-time analysis context for validation, optimizer, type derivation, etc. phases
+//! - **`query::executor::expression::evaluation_context::ExpressionContext`**: runtime evaluation context trait for expression evaluation
 //!
 //! Please select the appropriate context type based on the usage scenario.
 
