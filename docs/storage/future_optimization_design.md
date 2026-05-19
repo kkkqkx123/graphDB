@@ -1,247 +1,8 @@
-# 后续优化任务设计文档
-
-> 本文档详细描述存储层优化计划中剩余任务的实现方案，供后续开发参考。
-
----
-
-## 一、VertexIndexManager + EdgeIndexManager 泛型化
-
-### 1.1 问题分析
-
-当前 `VertexIndexManager` 和 `EdgeIndexManager` 存在大量重复代码：
-
-| 文件                    | 行数    | 重复代码估计 |
-| ----------------------- | ------- | ------------ |
-| vertex_index_manager.rs | ~400 行 | ~60%         |
-| edge_index_manager.rs   | ~400 行 | ~60%         |
-
-**重复内容：**
-
-- 数据结构定义（`forward_index`, `reverse_index`, `compressor`）
-- 压缩方法（`compress_key`, `decompress_key`, `train_compression`）
-- MVCC 处理逻辑
-- 持久化逻辑（`flush`, `save`, `load`）
-- GC 逻辑（`gc_tombstones`, `gc_tombstones_incremental`）
-
-**唯一差异：**
-
-- Key 构建方法：`KeyBuilder::build_vertex_index_key` vs `KeyBuilder::build_edge_index_key`
-- Key 解析方法：`KeyParser::parse_vertex_reverse_key` vs `KeyParser::parse_edge_reverse_key`
-
-### 1.2 设计方案
-
-#### 方案 A：泛型参数化（推荐）
-
-```rust
-/// Index key generator trait
-/// Abstracts the key generation logic for different index types
-pub trait IndexKeyGenerator: Send + Sync + 'static {
-    /// Build forward index key (property -> id mapping)
-    fn build_forward_key(
-        space_id: u64,
-        index_name: &str,
-        prop_value: &Value,
-        ids: &[&Value],
-    ) -> Result<ByteKey, StorageError>;
-
-    /// Build reverse index key (id -> property mapping)
-    fn build_reverse_key(
-        space_id: u64,
-        ids: &[&Value],
-        index_name: &str,
-    ) -> Result<ByteKey, StorageError>;
-
-    /// Build reverse key prefix for range scan
-    fn build_reverse_prefix(
-        space_id: u64,
-        ids: &[&Value],
-    ) -> Result<ByteKey, StorageError>;
-
-    /// Parse reverse key to extract id and index name
-    fn parse_reverse_key(key: &[u8]) -> Result<(Vec<u8>, String), StorageError>;
-
-    /// Type name for logging/debugging
-    fn type_name() -> &'static str;
-}
-
-/// Generic index manager
-pub struct GenericIndexManager<K: IndexKeyGenerator> {
-    forward_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
-    reverse_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
-    compressor: Option<Arc<RwLock<IndexCompressor>>>,
-    _marker: PhantomData<K>,
-}
-
-// Type aliases for backward compatibility
-pub type VertexIndexManager = GenericIndexManager<VertexIndexKeyGen>;
-pub type EdgeIndexManager = GenericIndexManager<EdgeIndexKeyGen>;
-```
-
-#### 方案 B：宏生成
-
-```rust
-macro_rules! define_index_manager {
-    ($name:ident, $key_gen:ty) => {
-        pub struct $name {
-            forward_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
-            reverse_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
-            compressor: Option<Arc<RwLock<IndexCompressor>>>,
-        }
-
-        impl $name {
-            // Generated methods using $key_gen
-        }
-    };
-}
-
-define_index_manager!(VertexIndexManager, VertexIndexKeyGen);
-define_index_manager!(EdgeIndexManager, EdgeIndexKeyGen);
-```
-
-### 1.3 实现步骤
-
-1. **定义 `IndexKeyGenerator` trait**
-   - 文件：`src/storage/index/secondary/key_generator.rs`
-   - 抽象 key 构建和解析逻辑
-
-2. **实现具体 KeyGenerator**
-   - `VertexIndexKeyGen`：使用 `KeyBuilder::build_vertex_*` 方法
-   - `EdgeIndexKeyGen`：使用 `KeyBuilder::build_edge_*` 方法
-
-3. **重构为泛型实现**
-   - 创建 `GenericIndexManager<K: IndexKeyGenerator>`
-   - 将公共逻辑移入泛型实现
-   - 使用 `K::build_forward_key()` 替代硬编码方法调用
-
-4. **保持向后兼容**
-   - 使用 type alias：`pub type VertexIndexManager = GenericIndexManager<VertexIndexKeyGen>`
-   - 导出原有类型名
-
-### 1.4 风险评估
-
-| 风险                 | 等级 | 缓解措施              |
-| -------------------- | ---- | --------------------- |
-| 泛型增加类型复杂度   | 中   | 保持清晰的 trait 文档 |
-| PhantomData 约束传播 | 低   | 仅在构造函数使用      |
-| 测试覆盖             | 中   | 复用现有测试用例      |
-
-### 1.5 工作量估计
-
-- 设计 + 实现：1-2 天
-- 测试验证：0.5 天
-- 总计：1.5-2.5 天
-
----
-
-## 二、Column 变长/定长拆分
-
-### 2.1 问题分析
-
-当前 `Column` 结构体在 `set()` 和 `get()` 方法中需要运行时判断变长/定长类型：
-
-```rust
-// 当前实现中的分支判断
-fn set(&mut self, row_idx: usize, value: &Value) {
-    if self.is_variable_length() {
-        // 变长类型逻辑：使用 offsets 数组
-    } else {
-        // 定长类型逻辑：直接计算偏移
-    }
-}
-```
-
-**问题：**
-
-- 每次读写都有分支判断开销
-- 变长和定长的优化路径不同，难以各自优化
-- 添加新变长类型（JSON、Bytes）需要多处修改
-
-### 2.2 设计方案
-
-```rust
-/// Column storage unified interface
-pub trait ColumnStorage: Send + Sync {
-    fn get(&self, row_idx: usize) -> Option<Value>;
-    fn set(&mut self, row_idx: usize, value: &Value) -> Result<(), StorageError>;
-    fn len(&self) -> usize;
-    fn is_null(&self, row_idx: usize) -> bool;
-    fn memory_usage(&self) -> usize;
-}
-
-/// Fixed-width column for primitive types
-pub struct FixedWidthColumn {
-    data: Vec<u8>,
-    element_size: usize,
-    null_bitmap: Option<BitVec>,
-    row_count: usize,
-    data_type: DataType,
-    encoding: ColumnEncoding,
-}
-
-/// Variable-width column for String, Bytes, JSON
-pub struct VariableWidthColumn {
-    data: Vec<u8>,           // Concatenated value data
-    offsets: Vec<usize>,     // Start offset for each row
-    lengths: Vec<usize>,     // Length for each row (for variable-length)
-    null_bitmap: Option<BitVec>,
-    row_count: usize,
-    data_type: DataType,
-    encoding: ColumnEncoding,
-}
-
-/// Column enum for runtime dispatch
-pub enum Column {
-    Fixed(FixedWidthColumn),
-    Variable(VariableWidthColumn),
-}
-```
-
-### 2.3 实现步骤
-
-1. **定义 `ColumnStorage` trait**
-   - 统一列存储接口
-   - 提供默认实现
-
-2. **实现 `FixedWidthColumn`**
-   - 直接偏移计算：`offset = row_idx * element_size`
-   - 支持 RLE、BitPacking 等定长编码
-   - O(1) 随机访问
-
-3. **实现 `VariableWidthColumn`**
-   - 使用 offsets 数组定位
-   - 支持 Dictionary、FSST 等变长编码
-   - O(1) 随机访问（通过 offsets）
-
-4. **重构 `Column` 为枚举**
-   - 构造时根据 DataType 选择实现
-   - 委托方法调用到具体实现
-
-5. **更新 `ColumnStore` 和 `PropertyTable`**
-   - 使用新的 Column 接口
-   - 保持 API 兼容
-
-### 2.4 性能影响
-
-| 操作     | 当前        | 优化后   |
-| -------- | ----------- | -------- |
-| 定长 get | 分支 + 计算 | 直接计算 |
-| 定长 set | 分支 + 计算 | 直接计算 |
-| 变长 get | 分支 + 查表 | 直接查表 |
-| 变长 set | 分支 + 查表 | 直接查表 |
-
-### 2.5 工作量估计
-
-- 设计 + 实现：1-2 天
-- 测试验证：0.5 天
-- 总计：1.5-2.5 天
-
----
-
 ## 三、MutableCsr 扩容性能优化
 
 ### 3.1 问题分析
 
-当前 `MutableCsr.expand_vertex_capacity()` 使用 `Vec::splice()`：
+当前 `MutableCsr.expand_vertex_capacity()` 使用 `Vec::splice()` 在 `nbr_list` 中间插入空位：
 
 ```rust
 fn expand_vertex_capacity(&mut self, src_idx: usize) {
@@ -250,136 +11,356 @@ fn expand_vertex_capacity(&mut self, src_idx: usize) {
         std::iter::repeat_n(empty_nbr, additional),
     );
     // splice 导致插入位置之后所有元素移位，O(n) 复杂度
+    for i in (src_idx + 1)..self.vertex_capacity {
+        self.adj_offsets[i] += additional;
+    }
 }
 ```
 
-**性能问题：**
+**性能瓶颈：**
 
-- 高频插入场景下，每次扩容都是 O(n)
-- 内存移动开销大
-- 缓存不友好
+- 每次扩容都需要移位后续所有顶点的边，O(total_remaining_edges)
+- 对于低编号顶点（如 vertex 0）频繁扩容的场景，每次移位代价随全图边数增长
+- 增长因子 1.5x 导致扩容次数较多（O(log₁.₅ n)）
+- 无 batched expansion，`batch_insert_parallel` 中每个顶点独立触发 splice
 
-### 3.2 设计方案
+### 3.2 关键约束：为何不能随意改变存储结构
 
-#### 方案 A：分段存储（推荐）
+现有架构的核心依赖：
+
+| 组件                                            | 对当前 CSR 的依赖                 | 影响程度 |
+| ----------------------------------------------- | --------------------------------- | -------- |
+| `MutableCsrIterator` / `MutableCsrEdgeIterator` | 顺序扫描 `nbr_list`               | 高       |
+| `edges_of_with_prefetch`                        | 使用 x86 prefetch 预取连续地址    | 必须保留 |
+| `batch_insert_parallel`                         | unsafe pointer write 到非重叠区域 | 高       |
+| `dump` / `load`                                 | 平铺数组直接序列化                | 高       |
+| `compact_with_ts`                               | 重建整个 `nbr_list`               | 中       |
+
+**`Vec<Vec<Nbr>>`（原方案 A）的主要问题是：**
+
+- 全图遍历退化为跨 Vec 跳转，TLB miss 和 cache miss 显著增加
+- `batch_insert_parallel` 的 unsafe 指针写入不适用于独立 Vec
+- `edges_of_with_prefetch` 无法跨 Vec 预取
+- 序列化复杂度增加，需要逐个编码子 Vec
+- 每个空顶点多 24+ 字节堆开销
+
+**Slot 池 + 指针链（原方案 B）的问题是：**
+
+- 链表遍历的本质是 pointer chasing，对图遍历场景几乎必定更慢
+- `compact` 复杂度极高
+- `dump` / `load` 需要处理复杂的有向图结构
+
+### 3.3 新方案：双层 CSR（Two-Level CSR）
+
+#### 核心思路
+
+保持 `nbr_list` 的连续存储不变，但当顶点容量耗尽时，**不在中间 splice，而是在末尾 append overflow 块**：
+
+```
+当前 splice 方案：
+[v0_e0, v0_e1, v0_e2, v0_e3, ___, ___, ___ | v1_e0, v1_e1 | ... ]
+                              ↑ splice 插入3个空位，后续全部移位
+
+双层 CSR 方案：
+[v0_e0, v0_e1, v0_e2, v0_e3 | v1_e0, v1_e1 | ... | ___, ___, ___ ]
+                                                    ↑ overflow append
+```
+
+**优势**：append 是 O(1) 摊销（`Vec::resize` 可能触发整体扩容，但远少于每次 expand），且不改变任何已有元素的位置，无需更新后续顶点的 `adj_offsets`。
+
+#### 数据结构
 
 ```rust
-/// Per-vertex edge list storage
-pub struct MutableCsrV2 {
-    /// Each vertex has its own edge list
-    nbr_lists: Vec<Vec<Nbr>>,
-    /// Vertex degrees for fast lookup
-    degrees: Vec<u32>,
-    /// Total edge count
+pub struct MutableCsr {
+    nbr_list: Vec<Nbr>,
+    adj_offsets: Vec<usize>,       // primary 块起始
+    degrees: Vec<u32>,              // primary 块活跃边数
+    primary_capacities: Vec<u32>,   // primary 块保留容量
+
+    overflow_starts: Vec<usize>,    // overflow 块起始（nbr_list 中位置，NO_OVERFLOW = usize::MAX）
+    overflow_counts: Vec<u32>,      // overflow 块活跃边数
+
     edge_count: AtomicU64,
-    /// Vertex capacity
     vertex_capacity: usize,
-}
-
-impl MutableCsrV2 {
-    fn insert_edge(&mut self, src: VertexId, dst: VertexId, ...) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            self.expand_vertex_capacity(src_idx + 1);
-        }
-        // O(1) amortized push
-        self.nbr_lists[src_idx].push(Nbr { neighbor: dst, ... });
-        self.degrees[src_idx] += 1;
-        true
-    }
-
-    fn expand_vertex_capacity(&mut self, new_capacity: usize) {
-        self.nbr_lists.resize(new_capacity, Vec::new());
-        self.degrees.resize(new_capacity, 0);
-        self.vertex_capacity = new_capacity;
-    }
+    total_edge_capacity: usize,
 }
 ```
 
-**优点：**
+每个顶点至多一块连续 overflow。`NO_OVERFLOW` 标记表示无 overflow。
 
-- 插入 O(1) 摊销复杂度
-- 扩容仅影响单个 Vec
-- 删除使用软删除（timestamp 标记）
+#### 关键操作
 
-**缺点：**
-
-- 内存碎片化
-- 遍历所有边需要遍历所有 Vec
-
-#### 方案 B：Slot 池 + 指针链
+##### expand_vertex_capacity — O(1) append
 
 ```rust
-/// Slot-based edge storage
-pub struct MutableCsrV3 {
-    /// Contiguous edge pool
-    edge_pool: Vec<Nbr>,
-    /// Head index for each vertex
-    vertex_heads: Vec<usize>,
-    /// Edge count for each vertex
-    vertex_counts: Vec<u32>,
-    /// Free slots for reuse
-    free_slots: Vec<usize>,
-    /// Next pointer in each slot (for linked list)
-    next_ptrs: Vec<usize>,
+fn expand_vertex_capacity(&mut self, src_idx: usize) {
+    let old_cap = self.primary_capacities[src_idx] as usize;
+    let new_cap = (old_cap * 2).max(4);
+    let additional = new_cap - old_cap;
+
+    // append 到末尾，O(1) 摊销
+    let append_pos = self.nbr_list.len();
+    self.nbr_list.resize(
+        append_pos + additional,
+        Nbr::default_empty(),
+    );
+
+    self.overflow_starts[src_idx] = append_pos;
+    self.primary_capacities[src_idx] = new_cap as u32;
+    self.total_edge_capacity += additional;
+    // 无需更新 adj_offsets，无需 splice
 }
 ```
 
-**优点：**
+**当前对应实现**（mutable_csr.rs:208-229）需要 splice + 循环更新所有后续 adj_offsets，O(n)。
 
-- 内存连续
-- 支持链表遍历
+##### insert_edge — 两路写入
 
-**缺点：**
+```rust
+fn insert_edge(&mut self, src: VertexId, dst: VertexId, ...) -> bool {
+    let src_idx = src.as_int64().unwrap_or(0) as usize;
 
-- 实现复杂
-- 需要维护 next 指针
+    if src_idx >= self.vertex_capacity {
+        self.ensure_vertex_capacity(src_idx + 1);
+    }
 
-### 3.3 实现步骤
+    // duplicate check（O(degree)，不可跳过，但和当前一致）
+    let degree = self.degrees[src_idx] as usize;
+    let offset = self.adj_offsets[src_idx];
+    for i in 0..degree {
+        let nbr = &self.nbr_list[offset + i];
+        if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP {
+            return false;
+        }
+    }
+    if self.overflow_starts[src_idx] != usize::MAX {
+        let o_start = self.overflow_starts[src_idx];
+        let o_count = self.overflow_counts[src_idx] as usize;
+        for i in 0..o_count {
+            let nbr = &self.nbr_list[o_start + i];
+            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP {
+                return false;
+            }
+        }
+    }
 
-1. **创建 `MutableCsrV2` 原型**
-   - 实现 `MutableCsrTrait` 接口
-   - 使用分段存储
+    // 优先写入 primary
+    if (degree as u32) < self.primary_capacities[src_idx] {
+        self.nbr_list[offset + degree] = Nbr::new(dst, edge_id, prop_offset, ts);
+        self.degrees[src_idx] += 1;
+    } else {
+        // overflow
+        if self.overflow_starts[src_idx] == usize::MAX {
+            self.expand_vertex_capacity(src_idx);
+        }
+        let o_start = self.overflow_starts[src_idx];
+        let o_count = self.overflow_counts[src_idx] as usize;
+        self.nbr_list[o_start + o_count] = Nbr::new(dst, edge_id, prop_offset, ts);
+        self.overflow_counts[src_idx] += 1;
+    }
 
-2. **性能基准测试**
-   - 对比 `MutableCsr` 和 `MutableCsrV2`
-   - 测试场景：批量插入、随机访问、遍历
+    self.edge_count.fetch_add(1, Ordering::Relaxed);
+    true
+}
+```
 
-3. **根据测试结果决定方案**
-   - 如果分段存储性能提升明显，替换实现
-   - 否则保持现有实现
+注意：overflow 也可持续追加。若 overflow 块自身位于 `nbr_list` 末尾，`overflow_counts[src_idx]` 递增即可——`nbr_list` 后续位置已被之前 `expand_vertex_capacity` 的 `resize` 预留。
 
-4. **持久化格式兼容**
-   - 如需修改持久化格式，添加版本号
-   - 提供迁移工具
+##### edges_of / 迭代器 — 扫描 primary + overflow
 
-### 3.4 工作量估计
+```rust
+fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
+    let src_idx = src.as_int64().unwrap_or(0) as usize;
+    if src_idx >= self.vertex_capacity { return Vec::new(); }
 
-- 原型实现：1 天
-- 性能测试：0.5 天
-- 完整实现（如采用）：1-1.5 天
-- 总计：2.5-3 天
+    let offset = self.adj_offsets[src_idx];
+    let degree = self.degrees[src_idx] as usize;
+
+    let mut result = Vec::new();
+    for i in 0..degree {
+        let nbr = &self.nbr_list[offset + i];
+        if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+            result.push(*nbr);
+        }
+    }
+
+    let o_start = self.overflow_starts[src_idx];
+    if o_start != usize::MAX {
+        let o_count = self.overflow_counts[src_idx] as usize;
+        for i in 0..o_count {
+            let nbr = &self.nbr_list[o_start + i];
+            if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+                result.push(*nbr);
+            }
+        }
+    }
+    result
+}
+```
+
+`MutableCsrEdgeIterator` 增加一个 overflow 扫描阶段：
+
+```rust
+impl<'a> Iterator for MutableCsrEdgeIterator<'a> {
+    type Item = Nbr;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Phase 1: primary
+        while self.pos < self.degree {
+            let nbr = self.csr.nbr_list[self.offset + self.pos];
+            self.pos += 1;
+            if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
+                return Some(nbr);
+            }
+        }
+        // Phase 2: overflow (如有)
+        if let Some(o_pos) = self.overflow_scan.as_mut() {
+            while o_pos.idx < o_pos.count {
+                let nbr = self.csr.nbr_list[o_pos.start + o_pos.idx];
+                o_pos.idx += 1;
+                if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
+                    return Some(nbr);
+                }
+            }
+        }
+        None
+    }
+}
+```
+
+##### compact — 合并为单层 CSR
+
+```rust
+fn compact(&mut self) {
+    // 遍历所有顶点，计算出每个顶点的总活跃边数和有效偏移
+    // 在 nbr_list 中从前往后原地压缩，重建 adj_offsets
+    // 清空 overflow_starts / overflow_counts
+    // compact 后回归纯平 CSR 结构，遍历性能无损失
+}
+```
+
+`compact_with_ts` 同理：重建 `nbr_list`，忽略 overflow 标记。
+
+##### batch_insert_parallel — 保持兼容
+
+Phase 1 预先为每个顶点展开 capacity（此时会生成 overflow 块）。Phase 2 的 unsafe 指针写入沿用原有逻辑——优先级：先填满 primary，再写入 overflow 区域。不同顶点的 overflow 块在 `nbr_list` 末尾的非重叠区域中，安全。
+
+### 3.4 额外可确定的优化
+
+#### 优化 1：Growth factor 1.5x → 2x
+
+变更 `mutable_csr.rs:211`：
+
+```rust
+// 当前
+let new_capacity = ((old_capacity as f64) * 1.5).max(4.0) as usize;
+// 改为
+let new_capacity = (old_capacity * 2).max(4);
+```
+
+效果：扩容次数从 O(log₁.₅ n) 降到 O(log₂ n)。对于 100 万条边/顶点的场景，从约 28 次降到约 19 次。代价是稳态内存开销从 33% 增到 50%，无代码复杂度增加。
+
+#### 优化 2：修复 `batch_put_edges` 静默丢边
+
+当前 `batch_put_edges`（mutable_csr.rs:604-608）在 capacity 满时静默丢弃边。双层 CSR 下，多余边直接写入 overflow：
+
+```rust
+if degree < capacity {
+    // 写入 primary
+} else {
+    // 写入 overflow（无丢边）
+}
+```
+
+#### 优化 3：`edges_of_with_prefetch` 保留
+
+overflow 块与 primary 块相同，也是连续内存区域，prefetch 逻辑可直接扩展覆盖 overflow 范围的预取。
+
+### 3.5 对现有代码的影响总览
+
+| 组件                                            | 变更程度 | 说明                                         |
+| ----------------------------------------------- | -------- | -------------------------------------------- |
+| `insert_edge`                                   | 小改     | duplicate check 扩展到 overflow；写入分两路  |
+| `expand_vertex_capacity`                        | 重写     | splice → append；无需更新后续 offset         |
+| `delete_edge*` / `revert*`                      | 小改     | 搜索范围从 primary 扩展到 primary + overflow |
+| `edges_of` / `degree` / `has_edge` / `get_edge` | 中改     | 所有读方法需要检查 overflow block            |
+| `MutableCsrIterator` / `MutableCsrEdgeIterator` | 中改     | 迭代逻辑追加 overflow 扫描阶段               |
+| `batch_insert_parallel`                         | 小改     | Phase 2 写入 primary/overflow 两区域         |
+| `batch_put_edges`                               | 小改     | 修复静默丢边，写入 overflow                  |
+| `compact` / `compact_with_ts`                   | 重写     | 合并 overflow 回 primary 并重建              |
+| `dump` / `load`                                 | 中改     | 增加 overflow_starts / overflow_counts 字段  |
+| `dump` 版本号                                   | 小改     | 需要添加格式版本标识以兼容旧数据             |
+| `clear`                                         | 小改     | 额外清空 overflow 数组                       |
+| `memory_size` / `used_memory_size`              | 小改     | 计入 overflow 数组                           |
+
+### 3.6 与原方案对比
+
+| 对比维度                 | 方案 A (`Vec<Vec<Nbr>>`) | 方案 B (Slot 池) | **本方案 (双层 CSR)** |
+| ------------------------ | ------------------------ | ---------------- | --------------------- |
+| 扩容复杂度               | O(1) 摊销                | O(1) 摊销        | **O(1) 摊销**         |
+| 顶点遍历                 | 跨 Vec 指针追踪          | pointer chasing  | **连续块扫描**        |
+| 全图遍历                 | 大量 TLB miss            | 大量 cache miss  | **顺序 + 少量跳转**   |
+| `edges_of_with_prefetch` | 不支持                   | 不支持           | **保留**              |
+| `batch_insert_parallel`  | 需重写                   | 极复杂           | **兼容**              |
+| dump/load 复杂度         | 编码 N 个 Vec            | 序列化链表       | **平铺 + 2 数组**     |
+| compact 复杂度           | 逐个 Vec 压缩            | 重建链表         | **合并重建**          |
+| 额外内存/顶点            | 24+24=48 字节            | 8-16 字节        | **8+4=12 字节**       |
+| 实现复杂度               | 低                       | 极高             | **中**                |
+
+### 3.7 实现步骤
+
+1. **扩展 `LoadFromPartsParams`**
+   - 增加 `overflow_starts` / `overflow_counts`
+   - 添加格式版本号
+
+2. **实现新 `expand_vertex_capacity`**
+   - 删除 splice 逻辑
+   - 改为 append + 记录位置
+
+3. **更新所有读/写/删方法**
+   - `insert_edge`、`delete_edge*`、`revert*`
+   - `edges_of`、`degree`、`has_edge`、`get_edge`
+
+4. **更新迭代器**
+   - `MutableCsrIterator`、`MutableCsrEdgeIterator`
+
+5. **实现 `compact` / `compact_with_ts`**
+   - 合并 overflow 回 primary
+   - 重建平坦 CSR
+
+6. **更新 `dump` / `load`**
+   - 序列化 overflow 数组
+   - 兼容旧格式或升级版本
+
+7. **调整 growth factor 为 2x**
+
+8. **修复 `batch_put_edges` 丢边问题**
+
+### 3.8 工作量估计
+
+- 数据结构变更 + expand 重写：1 天
+- 读方法适配（edges_of, has_edge, get_edge, degree）：0.5 天
+- 迭代器适配：0.5 天
+- compact 重写：0.5 天
+- dump/load + 序列化兼容：0.5 天
+- 测试覆盖 + 验证：0.5 天
+- 总计：3.5 天
 
 ---
 
 ## 四、实施优先级建议
 
-| 优先级 | 任务                      | 风险 | 收益                 | 建议             |
-| ------ | ------------------------- | ---- | -------------------- | ---------------- |
-| 1      | VertexIndexManager 泛型化 | 中   | 消除 500+ 行重复代码 | 优先实施         |
-| 2      | Column 变长/定长拆分      | 中   | 提升列存性能         | 次优先           |
-| 3      | MutableCsr 扩容优化       | 高   | 高频写入性能         | 需要性能测试验证 |
+| 优先级 | 任务                      | 风险 | 收益                 | 建议           |
+| ------ | ------------------------- | ---- | -------------------- | -------------- |
+| 1      | VertexIndexManager 泛型化 | 中   | 消除 500+ 行重复代码 | 优先实施       |
+| 2      | Column 变长/定长拆分      | 中   | 提升列存性能         | 次优先         |
+| 3      | **MutableCsr 双层 CSR**   | 中   | 高频写入性能         | 实现复杂度较高 |
 
----
+### 关于 MutableCsr 双层 CSR 的风险说明
 
-## 五、附录：已完成的优化
+与原先标注为"高风险"的 design doc 不同，双层 CSR 的风险等级应为**中**：
 
-| 任务                               | 状态 | 描述                      |
-| ---------------------------------- | ---- | ------------------------- |
-| MutableCsrVariant 重复代码消除     | ✅   | 使用 delegate! 宏         |
-| ExtendedSchemaManager stub cleanup | ✅   | 移除未实现方法            |
-| PrimaryIndex trait 移除            | ✅   | 转为固有方法              |
-| ID 计数器 DashMap 优化             | ✅   | 消除锁竞争                |
-| IndexDataManager trait 拆分        | ✅   | 拆分为三个小 trait        |
-| Schema 结构体清理                  | ✅   | 移除未使用方法            |
-| EdgeTable cache 解耦               | ✅   | 使用 EdgeTableCache trait |
+- **降低风险的因素**：保留连续存储核心优势，不改变遍历和序列化的基本模式，`batch_insert_parallel` 兼容性好
+- **需要关注的**：`dump` 格式版本需兼容旧数据；edges_of 等读方法多一个 overflow 分支（branch 预测影响未知，但至多一个 taken/not-taken 分支）
+
+建议先实现原型，通过 `cargo test --lib -- mutable_csr` 验证语义正确性。

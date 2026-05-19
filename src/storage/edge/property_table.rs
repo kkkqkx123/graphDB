@@ -1201,7 +1201,7 @@ mod tests {
         let data = table.dump();
 
         let mut loaded_table = PropertyTable::new();
-        loaded_table.load(&data);
+        let _ = loaded_table.load(&data);
 
         assert_eq!(loaded_table.property_count(), 2);
         assert_eq!(loaded_table.row_count(), 2);
@@ -1245,7 +1245,7 @@ mod tests {
         let data = table.dump();
 
         let mut loaded_table = PropertyTable::new();
-        loaded_table.load(&data);
+        let _ = loaded_table.load(&data);
 
         assert_eq!(loaded_table.overflow_count(), 1);
 

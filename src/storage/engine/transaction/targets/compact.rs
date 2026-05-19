@@ -18,7 +18,7 @@ impl CompactTarget for PropertyGraph {
 
         let vertex_labels: Vec<LabelId>;
         {
-            let mut vertex_tables = self.vertex_tables.write();
+            let mut vertex_tables = self.data_store.vertex_tables.write();
             vertex_labels = vertex_tables.keys().copied().collect();
 
             for &label_id in &vertex_labels {
@@ -46,7 +46,7 @@ impl CompactTarget for PropertyGraph {
 
         let edge_keys: Vec<(LabelId, LabelId, LabelId)>;
         {
-            let mut edge_tables = self.edge_tables.write();
+            let mut edge_tables = self.data_store.edge_tables.write();
             edge_keys = edge_tables.keys().copied().collect();
 
             if config.enable_structure_compaction {
@@ -104,13 +104,13 @@ impl PropertyGraph {
         let mut total = 0usize;
 
         {
-            let vertex_tables = self.vertex_tables.read();
+            let vertex_tables = self.data_store.vertex_tables.read();
             for table in vertex_tables.values() {
                 total += table.memory_size();
             }
         }
         {
-            let edge_tables = self.edge_tables.read();
+            let edge_tables = self.data_store.edge_tables.read();
             for table in edge_tables.values() {
                 total += table.memory_size();
             }
@@ -123,13 +123,13 @@ impl PropertyGraph {
         let mut total = 0usize;
 
         {
-            let vertex_tables = self.vertex_tables.read();
+            let vertex_tables = self.data_store.vertex_tables.read();
             for table in vertex_tables.values() {
                 total += table.used_memory_size();
             }
         }
         {
-            let edge_tables = self.edge_tables.read();
+            let edge_tables = self.data_store.edge_tables.read();
             for table in edge_tables.values() {
                 total += table.used_memory_size();
             }

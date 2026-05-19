@@ -500,7 +500,7 @@ mod tests {
         let data = csr1.dump();
 
         let mut csr2 = Csr::new();
-        csr2.load(&data);
+        let _ = csr2.load(&data);
 
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
