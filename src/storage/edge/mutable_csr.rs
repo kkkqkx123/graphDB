@@ -19,15 +19,15 @@ use super::{
 const DEFAULT_VERTEX_CAPACITY: usize = 1024;
 const DEFAULT_EDGE_CAPACITY: usize = 4096;
 const DEFAULT_VERTEX_DEGREE: usize = 4;
-const NO_OVERFLOW: usize = usize::MAX;
+const NO_OVERFLOW: u32 = u32::MAX;
 
 /// Parameters for load_from_parts operation
 pub struct LoadFromPartsParams {
     pub nbr_list: Vec<Nbr>,
-    pub adj_offsets: Vec<usize>,
+    pub adj_offsets: Vec<u32>,
     pub degrees: Vec<u32>,
     pub primary_capacities: Vec<u32>,
-    pub overflow_starts: Vec<usize>,
+    pub overflow_starts: Vec<u32>,
     pub overflow_counts: Vec<u32>,
     pub overflow_capacities: Vec<u32>,
     pub vertex_capacity: usize,
@@ -52,11 +52,11 @@ pub struct LoadFromPartsParams {
 /// `compact()` merges overflow back into primary, restoring flat CSR layout.
 pub struct MutableCsr {
     nbr_list: Vec<Nbr>,
-    adj_offsets: Vec<usize>,
+    adj_offsets: Vec<u32>,
     degrees: Vec<u32>,
     primary_capacities: Vec<u32>,
 
-    overflow_starts: Vec<usize>,
+    overflow_starts: Vec<u32>,
     overflow_counts: Vec<u32>,
     overflow_capacities: Vec<u32>,
 
@@ -107,7 +107,7 @@ impl MutableCsr {
 
         let mut offset = 0usize;
         for _ in 0..vertex_cap {
-            adj_offsets.push(offset);
+            adj_offsets.push(offset as u32);
             primary_capacities.push(DEFAULT_VERTEX_DEGREE as u32);
             offset += DEFAULT_VERTEX_DEGREE;
         }
@@ -154,7 +154,7 @@ impl MutableCsr {
 
         let mut new_total_capacity = self.total_edge_capacity;
         for _ in 0..additional {
-            self.adj_offsets.push(new_total_capacity);
+            self.adj_offsets.push(new_total_capacity as u32);
             self.primary_capacities.push(DEFAULT_VERTEX_DEGREE as u32);
             self.degrees.push(0);
             self.overflow_starts.push(NO_OVERFLOW);
@@ -194,14 +194,14 @@ impl MutableCsr {
 
         // Copy existing overflow data to new block if re-expanding
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let old_start = self.overflow_starts[src_idx];
+            let old_start = self.overflow_starts[src_idx] as usize;
             let old_count = self.overflow_counts[src_idx] as usize;
             for i in 0..old_count {
                 self.nbr_list[append_pos + i] = self.nbr_list[old_start + i];
             }
         }
 
-        self.overflow_starts[src_idx] = append_pos;
+        self.overflow_starts[src_idx] = append_pos as u32;
         self.overflow_capacities[src_idx] = additional as u32;
         self.primary_capacities[src_idx] = new_cap as u32;
         self.total_edge_capacity += additional;
@@ -224,7 +224,7 @@ impl MutableCsr {
 
         // Duplicate check across both primary and overflow
         let degree = self.degrees[src_idx] as usize;
-        let base = self.adj_offsets[src_idx];
+        let base = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &self.nbr_list[base + i];
             if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP {
@@ -232,7 +232,7 @@ impl MutableCsr {
             }
         }
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
@@ -242,8 +242,8 @@ impl MutableCsr {
             }
         }
 
-        // Write to primary if space available
-        if degree < self.primary_capacities[src_idx] as usize {
+        // Write to primary if space available and overflow not yet allocated
+        if self.overflow_starts[src_idx] == NO_OVERFLOW && degree < self.primary_capacities[src_idx] as usize {
             self.nbr_list[base + degree] = Nbr::new(dst, edge_id, prop_offset, ts);
             self.degrees[src_idx] += 1;
             self.edge_count.fetch_add(1, Ordering::Relaxed);
@@ -256,7 +256,7 @@ impl MutableCsr {
         {
             self.expand_vertex_capacity(src_idx);
         }
-        let o_start = self.overflow_starts[src_idx];
+        let o_start = self.overflow_starts[src_idx] as usize;
         let o_count = self.overflow_counts[src_idx] as usize;
         self.nbr_list[o_start + o_count] = Nbr::new(dst, edge_id, prop_offset, ts);
         self.overflow_counts[src_idx] += 1;
@@ -280,7 +280,7 @@ impl MutableCsr {
         if self.overflow_starts[src_idx] == NO_OVERFLOW {
             return None;
         }
-        let o_start = self.overflow_starts[src_idx];
+        let o_start = self.overflow_starts[src_idx] as usize;
         let o_count = self.overflow_counts[src_idx] as usize;
         (0..o_count).find(|&i| self.nbr_list[o_start + i].edge_id == edge_id)
     }
@@ -289,7 +289,7 @@ impl MutableCsr {
         if self.overflow_starts[src_idx] == NO_OVERFLOW {
             return Vec::new();
         }
-        let o_start = self.overflow_starts[src_idx];
+        let o_start = self.overflow_starts[src_idx] as usize;
         let o_count = self.overflow_counts[src_idx] as usize;
         let mut result = Vec::new();
         for i in 0..o_count {
@@ -309,7 +309,7 @@ impl MutableCsr {
 
         // Scan primary
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
             if nbr.edge_id == edge_id && nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
@@ -321,7 +321,7 @@ impl MutableCsr {
 
         // Scan overflow
         if let Some(idx) = self.scan_overflow_for_edge_id(src_idx, edge_id) {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let nbr = &mut self.nbr_list[o_start + idx];
             if nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
                 nbr.timestamp = INVALID_TIMESTAMP;
@@ -344,7 +344,7 @@ impl MutableCsr {
 
         // Scan primary
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
             if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
@@ -357,7 +357,7 @@ impl MutableCsr {
         // Scan overflow
         let indices = self.scan_overflow_for_dst(src_idx, dst);
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             for idx in indices {
                 let nbr = &mut self.nbr_list[o_start + idx];
                 if nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
@@ -378,7 +378,7 @@ impl MutableCsr {
             return false;
         }
 
-        let base_offset = self.adj_offsets[src_idx];
+        let base_offset = self.adj_offsets[src_idx] as usize;
         let idx = base_offset + offset as usize;
 
         if idx >= self.nbr_list.len() {
@@ -403,7 +403,7 @@ impl MutableCsr {
 
         // Scan primary
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
             if nbr.edge_id == edge_id && nbr.timestamp == INVALID_TIMESTAMP {
@@ -415,7 +415,7 @@ impl MutableCsr {
 
         // Scan overflow
         if let Some(idx) = self.scan_overflow_for_edge_id(src_idx, edge_id) {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let nbr = &mut self.nbr_list[o_start + idx];
             if nbr.timestamp == INVALID_TIMESTAMP {
                 nbr.timestamp = ts;
@@ -434,7 +434,7 @@ impl MutableCsr {
             return false;
         }
 
-        let base_offset = self.adj_offsets[src_idx];
+        let base_offset = self.adj_offsets[src_idx] as usize;
         let idx = base_offset + offset as usize;
 
         if idx >= self.nbr_list.len() {
@@ -459,7 +459,7 @@ impl MutableCsr {
 
         // Scan primary
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.neighbor == dst && nbr.timestamp == INVALID_TIMESTAMP {
@@ -469,7 +469,7 @@ impl MutableCsr {
 
         // Scan overflow
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
@@ -490,7 +490,7 @@ impl MutableCsr {
         }
 
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
 
         let total_valid_primary = self.count_valid_primary(src_idx, ts);
         let total_valid_overflow = self.count_valid_overflow(src_idx, ts);
@@ -504,7 +504,7 @@ impl MutableCsr {
         }
 
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
@@ -529,7 +529,7 @@ impl MutableCsr {
         }
 
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
 
         let total_valid_primary = self.count_valid_primary(src_idx, ts);
         let total_valid_overflow = self.count_valid_overflow(src_idx, ts);
@@ -557,7 +557,7 @@ impl MutableCsr {
         }
 
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 if i + PREFETCH_DISTANCE < o_count {
@@ -585,7 +585,7 @@ impl MutableCsr {
 
     fn count_valid_primary(&self, src_idx: usize, ts: Timestamp) -> usize {
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         let mut count = 0;
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
@@ -600,7 +600,7 @@ impl MutableCsr {
         if self.overflow_starts[src_idx] == NO_OVERFLOW {
             return 0;
         }
-        let o_start = self.overflow_starts[src_idx];
+        let o_start = self.overflow_starts[src_idx] as usize;
         let o_count = self.overflow_counts[src_idx] as usize;
         let mut count = 0;
         for i in 0..o_count {
@@ -620,7 +620,7 @@ impl MutableCsr {
         &self.degrees
     }
 
-    pub fn get_adj_offsets(&self) -> &[usize] {
+    pub fn get_adj_offsets(&self) -> &[u32] {
         &self.adj_offsets
     }
 
@@ -646,7 +646,7 @@ impl MutableCsr {
 
         // Scan primary
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
@@ -656,7 +656,7 @@ impl MutableCsr {
 
         // Scan overflow
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
@@ -678,7 +678,7 @@ impl MutableCsr {
 
         // Scan primary
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
@@ -688,7 +688,7 @@ impl MutableCsr {
 
         // Scan overflow
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
@@ -710,7 +710,7 @@ impl MutableCsr {
 
         // Scan primary
         let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx];
+        let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
             if nbr.edge_id == edge_id && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
@@ -720,7 +720,7 @@ impl MutableCsr {
 
         // Scan overflow
         if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx];
+            let o_start = self.overflow_starts[src_idx] as usize;
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
@@ -754,7 +754,7 @@ impl MutableCsr {
         for src_idx in 0..self.vertex_capacity {
             let degree = self.degrees[src_idx] as usize;
             let capacity = self.primary_capacities[src_idx] as usize;
-            let offset = self.adj_offsets[src_idx];
+            let offset = self.adj_offsets[src_idx] as usize;
 
             // Compact primary block (in-place): pack active edges to front
             let mut write_idx = 0;
@@ -772,7 +772,7 @@ impl MutableCsr {
 
             // Copy active overflow edges into freed primary space
             if self.overflow_starts[src_idx] != NO_OVERFLOW {
-                let o_start = self.overflow_starts[src_idx];
+                let o_start = self.overflow_starts[src_idx] as usize;
                 let o_count = self.overflow_counts[src_idx] as usize;
                 for i in 0..o_count {
                     let nbr = &self.nbr_list[o_start + i];
@@ -825,9 +825,9 @@ impl MutableCsr {
             let src_idx = src_list[i].as_int64().unwrap_or(0) as usize;
             let degree = self.degrees[src_idx] as usize;
             let capacity = self.primary_capacities[src_idx] as usize;
-            let offset = self.adj_offsets[src_idx];
+            let offset = self.adj_offsets[src_idx] as usize;
 
-            if degree < capacity {
+            if self.overflow_starts[src_idx] == NO_OVERFLOW && degree < capacity {
                 self.nbr_list[offset + degree] = Nbr::new(dst, edge_id, prop_offset, ts);
                 self.degrees[src_idx] += 1;
                 self.edge_count.fetch_add(1, Ordering::Relaxed);
@@ -838,7 +838,7 @@ impl MutableCsr {
                 {
                     self.expand_vertex_capacity(src_idx);
                 }
-                let o_start = self.overflow_starts[src_idx];
+                let o_start = self.overflow_starts[src_idx] as usize;
                 let o_count = self.overflow_counts[src_idx] as usize;
                 self.nbr_list[o_start + o_count] = Nbr::new(dst, edge_id, prop_offset, ts);
                 self.overflow_counts[src_idx] += 1;
@@ -927,7 +927,7 @@ impl MutableCsr {
             batch_info.insert(
                 src,
                 VertexBatch {
-                    primary_start: self.adj_offsets[src_idx] + current_degree,
+                    primary_start: (self.adj_offsets[src_idx] as usize) + current_degree,
                     primary_count,
                 },
             );
@@ -975,7 +975,7 @@ impl MutableCsr {
                     {
                         self.expand_vertex_capacity(src_idx);
                     }
-                    let o_start = self.overflow_starts[src_idx];
+                    let o_start = self.overflow_starts[src_idx] as usize;
                     let o_count = self.overflow_counts[src_idx] as usize;
                     self.nbr_list[o_start + o_count] = Nbr::new(*dst, *edge_id, *prop_offset, ts);
                     self.overflow_counts[src_idx] += 1;
@@ -1011,10 +1011,10 @@ impl MutableCsr {
     /// - vertex_capacity (u64)
     /// - edge_count (u64)
     /// - total_edge_capacity (u64)
-    /// - adj_offsets (u64 * vertex_capacity)
+    /// - adj_offsets (u32 * vertex_capacity)
     /// - degrees (u32 * vertex_capacity)
     /// - primary_capacities (u32 * vertex_capacity)
-    /// - overflow_starts (u64 * vertex_capacity)
+    /// - overflow_starts (u32 * vertex_capacity)
     /// - overflow_counts (u32 * vertex_capacity)
     /// - overflow_capacities (u32 * vertex_capacity)
     /// - nbr_list (Nbr * total_edge_capacity)
@@ -1026,7 +1026,7 @@ impl MutableCsr {
         result.extend_from_slice(&(self.total_edge_capacity as u64).to_le_bytes());
 
         for &offset in &self.adj_offsets {
-            result.extend_from_slice(&(offset as u64).to_le_bytes());
+            result.extend_from_slice(&offset.to_le_bytes());
         }
 
         for &degree in &self.degrees {
@@ -1038,7 +1038,7 @@ impl MutableCsr {
         }
 
         for &start in &self.overflow_starts {
-            result.extend_from_slice(&(start as u64).to_le_bytes());
+            result.extend_from_slice(&start.to_le_bytes());
         }
 
         for &count in &self.overflow_counts {
@@ -1075,7 +1075,7 @@ impl MutableCsr {
 
         let mut adj_offsets = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
-            adj_offsets.push(read_u64_le(data, &mut offset)? as usize);
+            adj_offsets.push(read_u32_le(data, &mut offset)?);
         }
 
         let mut degrees = Vec::with_capacity(vertex_capacity);
@@ -1090,7 +1090,7 @@ impl MutableCsr {
 
         let mut overflow_starts = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
-            overflow_starts.push(read_u64_le(data, &mut offset)? as usize);
+            overflow_starts.push(read_u32_le(data, &mut offset)?);
         }
 
         let mut overflow_counts = Vec::with_capacity(vertex_capacity);
@@ -1154,12 +1154,12 @@ impl MutableCsr {
     }
 
     /// Get adj_offsets slice
-    pub fn adj_offsets(&self) -> &[usize] {
+    pub fn adj_offsets(&self) -> &[u32] {
         &self.adj_offsets
     }
 
     /// Get overflow start positions (NO_OVERFLOW = no overflow block)
-    pub fn overflow_starts(&self) -> &[usize] {
+    pub fn overflow_starts(&self) -> &[u32] {
         &self.overflow_starts
     }
 
@@ -1189,7 +1189,7 @@ impl MutableCsr {
         let mut removed_count = 0usize;
 
         for vid in 0..self.vertex_capacity {
-            let start = self.adj_offsets[vid];
+            let start = self.adj_offsets[vid] as usize;
             let degree = self.degrees[vid] as usize;
 
             new_offsets.push(new_edges.len());
@@ -1206,7 +1206,7 @@ impl MutableCsr {
 
             // Collect valid edges from overflow
             if self.overflow_starts[vid] != NO_OVERFLOW {
-                let o_start = self.overflow_starts[vid];
+                let o_start = self.overflow_starts[vid] as usize;
                 let o_count = self.overflow_counts[vid] as usize;
                 for i in 0..o_count {
                     let nbr = &self.nbr_list[o_start + i];
@@ -1230,7 +1230,7 @@ impl MutableCsr {
         let mut final_offsets = Vec::with_capacity(self.vertex_capacity);
 
         for vid in 0..self.vertex_capacity {
-            final_offsets.push(new_nbr_list.len());
+            final_offsets.push(new_nbr_list.len() as u32);
             let off = new_offsets[vid];
             let deg = new_degrees[vid] as usize;
             let cap = new_capacities[vid] as usize;
@@ -1271,10 +1271,10 @@ impl MutableCsr {
         let mut total = 0;
 
         total += self.nbr_list.len() * std::mem::size_of::<Nbr>();
-        total += self.adj_offsets.len() * std::mem::size_of::<usize>();
+        total += self.adj_offsets.len() * std::mem::size_of::<u32>();
         total += self.degrees.len() * std::mem::size_of::<u32>();
         total += self.primary_capacities.len() * std::mem::size_of::<u32>();
-        total += self.overflow_starts.len() * std::mem::size_of::<usize>();
+        total += self.overflow_starts.len() * std::mem::size_of::<u32>();
         total += self.overflow_counts.len() * std::mem::size_of::<u32>();
         total += self.overflow_capacities.len() * std::mem::size_of::<u32>();
         total += std::mem::size_of::<Self>();
@@ -1323,7 +1323,7 @@ impl<'a> Iterator for MutableCsrIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.current_vertex < self.csr.vertex_capacity {
             let degree = self.csr.degrees[self.current_vertex] as usize;
-            let offset = self.csr.adj_offsets[self.current_vertex];
+            let offset = self.csr.adj_offsets[self.current_vertex] as usize;
 
             if !self.in_overflow {
                 // Scan primary
@@ -1341,7 +1341,7 @@ impl<'a> Iterator for MutableCsrIterator<'a> {
 
             // Scan overflow
             if self.csr.overflow_starts[self.current_vertex] != NO_OVERFLOW {
-                let o_start = self.csr.overflow_starts[self.current_vertex];
+                let o_start = self.csr.overflow_starts[self.current_vertex] as usize;
                 let o_count = self.csr.overflow_counts[self.current_vertex] as usize;
                 while self.overflow_idx < o_count {
                     let nbr = self.csr.nbr_list[o_start + self.overflow_idx];
@@ -1378,14 +1378,14 @@ impl<'a> MutableCsrEdgeIterator<'a> {
     pub fn new(csr: &'a MutableCsr, src: VertexId, ts: Timestamp) -> Self {
         let src_idx = src.as_int64().unwrap_or(0) as usize;
         let (offset, degree) = if src_idx < csr.vertex_capacity {
-            (csr.adj_offsets[src_idx], csr.degrees[src_idx] as usize)
+            (csr.adj_offsets[src_idx] as usize, csr.degrees[src_idx] as usize)
         } else {
             (0, 0)
         };
         let (overflow_start, overflow_count) = if src_idx < csr.vertex_capacity
             && csr.overflow_starts[src_idx] != NO_OVERFLOW
         {
-            (csr.overflow_starts[src_idx], csr.overflow_counts[src_idx] as usize)
+            (csr.overflow_starts[src_idx] as usize, csr.overflow_counts[src_idx] as usize)
         } else {
             (0, 0)
         };
@@ -1511,6 +1511,10 @@ impl MutableCsrTrait for MutableCsr {
         MutableCsr::compact(self);
     }
 
+    fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+        MutableCsr::compact_with_ts(self, ts, reserve_ratio)
+    }
+
     fn batch_put_edges(
         &mut self,
         src_list: &[VertexId],
@@ -1520,6 +1524,14 @@ impl MutableCsrTrait for MutableCsr {
         ts: Timestamp,
     ) {
         MutableCsr::batch_put_edges(self, src_list, dst_list, edge_ids, prop_offsets, ts);
+    }
+
+    fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
+        MutableCsr::find_deleted_edge(self, src, dst)
+    }
+
+    fn used_memory_size(&self) -> usize {
+        MutableCsr::used_memory_size(self)
     }
 }
 

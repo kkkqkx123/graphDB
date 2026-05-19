@@ -28,6 +28,11 @@ pub trait CsrBase: std::fmt::Debug + Send + Sync {
 }
 
 pub trait MutableCsrTrait: CsrBase {
+    /// Insert an edge.
+    ///
+    /// - `MutableCsr`: checks for duplicate (neighbor + valid timestamp) across primary and overflow,
+    ///   writes to primary if space available, otherwise spills to overflow with auto-expansion.
+    /// - `SingleMutableCsr`: overwrites based on timestamp ordering (only if new ts > existing ts).
     fn insert_edge(
         &mut self,
         src: VertexId,
@@ -37,26 +42,69 @@ pub trait MutableCsrTrait: CsrBase {
         ts: Timestamp,
     ) -> bool;
 
+    /// Delete an edge by edge_id.
+    ///
+    /// - `MutableCsr`: uses `edge_id` to locate and delete the specific edge.
+    /// - `SingleMutableCsr`: `edge_id` is **ignored** since there is only one edge per vertex.
     fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool;
 
+    /// Delete all edges matching (src, dst).
+    ///
+    /// - `MutableCsr`: scans primary and overflow, deletes **all** matching edges.
+    /// - `SingleMutableCsr`: deletes the single edge if dst matches.
     fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool;
 
+    /// Delete an edge by its offset position in the primary block.
+    ///
+    /// - `MutableCsr`: offset indexes into the primary block of the vertex.
+    /// - `SingleMutableCsr`: only offset == 0 is valid; returns false otherwise.
     fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool;
 
+    /// Revert a previously deleted edge.
+    ///
+    /// - `MutableCsr`: locates the edge by `edge_id` and restores its timestamp.
+    /// - `SingleMutableCsr`: verifies `edge_id` matches, then restores timestamp
+    ///   (neighbor field is preserved from the delete operation).
     fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool;
 
+    /// Revert a deleted edge by its offset position.
+    ///
+    /// - `MutableCsr`: offset indexes into the primary block.
+    /// - `SingleMutableCsr`: only offset == 0 is valid.
     fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool;
 
+    /// Get a specific edge by source and destination.
     fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr>;
 
+    /// Get all valid edges of a vertex at the given timestamp.
     fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr>;
 
+    /// Get the number of valid edges of a vertex.
     fn degree(&self, src: VertexId, ts: Timestamp) -> usize;
 
+    /// Check if an edge exists between source and destination.
     fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool;
 
+    /// Compact the CSR by removing deleted edges and reclaiming space.
+    ///
+    /// - `MutableCsr`: merges overflow back into primary, restores flat CSR layout.
+    /// - `SingleMutableCsr`: no-op (no tombstones to compact).
     fn compact(&mut self);
 
+    /// Compact with timestamp threshold and reserve ratio.
+    ///
+    /// Returns the number of removed edges.
+    ///
+    /// - `MutableCsr`: removes edges with timestamp > `ts`, reserves `reserve_ratio` free space.
+    /// - `SingleMutableCsr`: no-op, returns 0.
+    fn compact_with_ts(&mut self, _ts: Timestamp, _reserve_ratio: f32) -> usize {
+        0
+    }
+
+    /// Batch insert edges.
+    ///
+    /// - `MutableCsr`: calls `insert_edge` per edge (full duplicate check + overflow logic).
+    /// - `SingleMutableCsr`: direct array writes, no duplicate checking (overwrite semantics).
     fn batch_put_edges(
         &mut self,
         src_list: &[VertexId],
@@ -65,6 +113,12 @@ pub trait MutableCsrTrait: CsrBase {
         prop_offsets: &[u32],
         ts: Timestamp,
     );
+
+    /// Find a deleted edge by destination vertex.
+    fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId>;
+
+    /// Return the approximate memory usage in bytes.
+    fn used_memory_size(&self) -> usize;
 }
 
 pub trait ImmutableCsrTrait: CsrBase {

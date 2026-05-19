@@ -609,6 +609,10 @@ impl MutableCsrTrait for SingleMutableCsr {
         SingleMutableCsr::compact(self);
     }
 
+    fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+        SingleMutableCsr::compact_with_ts(self, ts, reserve_ratio)
+    }
+
     fn batch_put_edges(
         &mut self,
         src_list: &[VertexId],
@@ -618,6 +622,14 @@ impl MutableCsrTrait for SingleMutableCsr {
         ts: Timestamp,
     ) {
         SingleMutableCsr::batch_put_edges(self, src_list, dst_list, edge_ids, prop_offsets, ts);
+    }
+
+    fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
+        SingleMutableCsr::find_deleted_edge(self, src, dst)
+    }
+
+    fn used_memory_size(&self) -> usize {
+        SingleMutableCsr::used_memory_size(self)
     }
 }
 
