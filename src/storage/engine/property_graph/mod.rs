@@ -322,6 +322,16 @@ impl PropertyGraph {
         core_ops::insert_vertex(self, label, external_id, properties, ts)
     }
 
+    pub fn insert_vertex_by_i64(
+        &self,
+        label: LabelId,
+        external_id: i64,
+        properties: &[(String, Value)],
+        ts: Timestamp,
+    ) -> StorageResult<u32> {
+        core_ops::insert_vertex_by_i64(self, label, external_id, properties, ts)
+    }
+
     pub fn get_vertex(
         &self,
         label: LabelId,
@@ -329,6 +339,15 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> Option<VertexRecord> {
         core_ops::get_vertex(self, label, external_id, ts)
+    }
+
+    pub fn get_vertex_by_i64(
+        &self,
+        label: LabelId,
+        external_id: i64,
+        ts: Timestamp,
+    ) -> Option<VertexRecord> {
+        core_ops::get_vertex_by_i64(self, label, external_id, ts)
     }
 
     pub fn get_vertex_by_internal_id(

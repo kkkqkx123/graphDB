@@ -172,8 +172,13 @@ impl VertexTable {
             .filter_map(|(name, opt_val)| opt_val.map(|v| (name, v)))
             .collect();
 
+        let vid = match key {
+            IdKey::Int(i) => VertexId::from_int64(*i),
+            IdKey::Text(s) => VertexId::from_string(s),
+        };
+
         Some(VertexRecord {
-            vid: VertexId::from_int64(internal_id as i64),
+            vid,
             internal_id,
             properties,
         })
@@ -188,15 +193,20 @@ impl VertexTable {
             return None;
         }
 
-        let _external_id = self.id_indexer.get_key(internal_id)?;
+        let external_id = self.id_indexer.get_key(internal_id)?;
         let props = self.columns.get(internal_id as usize);
         let properties: Vec<(String, Value)> = props
             .into_iter()
             .filter_map(|(name, opt_val)| opt_val.map(|v| (name, v)))
             .collect();
 
+        let vid = match external_id {
+            IdKey::Int(i) => VertexId::from_int64(*i),
+            IdKey::Text(s) => VertexId::from_string(s),
+        };
+
         Some(VertexRecord {
-            vid: VertexId::from_int64(internal_id as i64),
+            vid,
             internal_id,
             properties,
         })

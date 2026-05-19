@@ -32,11 +32,17 @@ impl<'a> GraphStorageReader<'a> {
         }
 
         let ts = self.ctx.get_read_timestamp();
-        let id_str = id.to_string();
 
         for tag in &tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
-                if let Some(record) = self.ctx.graph.get_vertex(label_id, &id_str, ts) {
+                let record = if let Some(id_int) = id.as_int64() {
+                    self.ctx.graph.get_vertex_by_i64(label_id, id_int, ts)
+                } else {
+                    let id_str = id.to_string();
+                    self.ctx.graph.get_vertex(label_id, &id_str, ts)
+                };
+
+                if let Some(record) = record {
                     let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
                     return Ok(Some(vertex));
                 }

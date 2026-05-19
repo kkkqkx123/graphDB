@@ -34,6 +34,28 @@ pub fn insert_vertex(
     Ok(internal_id)
 }
 
+pub fn insert_vertex_by_i64(
+    graph: &PropertyGraph,
+    label: LabelId,
+    external_id: i64,
+    properties: &[(String, Value)],
+    ts: Timestamp,
+) -> StorageResult<u32> {
+    if !graph.is_open.load(Ordering::Acquire) {
+        return Err(StorageError::storage_not_open());
+    }
+    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let table = vertex_tables
+        .get_mut(&label)
+        .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
+
+    let internal_id = table.insert_by_i64(external_id, properties, ts)?;
+
+    graph.cache_manager.cache_vertex_id(label, &external_id.to_string(), internal_id, ts);
+
+    Ok(internal_id)
+}
+
 pub fn get_vertex(
     graph: &PropertyGraph,
     label: LabelId,
@@ -75,6 +97,54 @@ pub fn get_vertex(
         label,
         internal_id,
         external_id.to_string(),
+        record.properties.clone(),
+    );
+
+    Some(record)
+}
+
+pub fn get_vertex_by_i64(
+    graph: &PropertyGraph,
+    label: LabelId,
+    external_id: i64,
+    ts: Timestamp,
+) -> Option<VertexRecord> {
+    if !graph.is_open.load(Ordering::Acquire) {
+        return None;
+    }
+
+    let external_id_str = external_id.to_string();
+    let internal_id = graph
+        .cache_manager
+        .get_cached_vertex_id(label, &external_id_str, ts)
+        .or_else(|| {
+            let id = {
+                let vertex_tables = graph.data_store.vertex_tables.read();
+                vertex_tables.get(&label)?.get_internal_id_by_i64(external_id, ts)
+            };
+            if let Some(id) = id {
+                graph.cache_manager.cache_vertex_id(label, &external_id_str, id, ts);
+            }
+            id
+        })?;
+
+    if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id) {
+        return Some(VertexRecord {
+            internal_id: cached.internal_id,
+            vid: VertexId::from_int64(external_id),
+            properties: cached.properties,
+        });
+    }
+
+    let record = {
+        let vertex_tables = graph.data_store.vertex_tables.read();
+        vertex_tables.get(&label)?.get_by_internal_id(internal_id, ts)?
+    };
+
+    graph.cache_manager.cache_vertex(
+        label,
+        internal_id,
+        external_id_str,
         record.properties.clone(),
     );
 

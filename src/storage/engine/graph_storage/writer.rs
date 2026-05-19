@@ -33,26 +33,29 @@ impl<'a> GraphStorageWriter<'a> {
 
         for tag in &vertex.tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
-                let id_str = vertex.vid.to_string();
                 let props: Vec<(String, Value)> = tag
                     .properties
                     .iter()
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
 
-                if self
-                    .ctx
-                    .graph
-                    .insert_vertex(label_id, &id_str, &props, ts)
-                    .is_err()
-                {
+                let insert_result = if let Some(vid_int) = vertex.vid.as_int64() {
+                    self.ctx
+                        .graph
+                        .insert_vertex_by_i64(label_id, vid_int, &props, ts)
+                } else {
+                    let id_str = vertex.vid.to_string();
+                    self.ctx.graph.insert_vertex(label_id, &id_str, &props, ts)
+                };
+
+                if insert_result.is_err() {
                     for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
                         let _ = self
                             .ctx
                             .graph
                             .delete_vertex(*rollback_label, rollback_id, ts);
                     }
-                    return Err(StorageError::vertex_already_exists(id_str));
+                    return Err(StorageError::vertex_already_exists(vertex.vid.to_string()));
                 }
 
                 let vid_value = Value::from(vertex.vid);
@@ -71,11 +74,12 @@ impl<'a> GraphStorageWriter<'a> {
                             .graph
                             .delete_vertex(*rollback_label, rollback_id, ts);
                     }
+                    let id_str = vertex.vid.to_string();
                     let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
                     return Err(e);
                 }
 
-                inserted_tags.push((label_id, id_str));
+                inserted_tags.push((label_id, vertex.vid.to_string()));
             }
         }
 
