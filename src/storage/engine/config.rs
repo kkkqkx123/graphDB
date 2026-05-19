@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::storage::compression::CompressionType;
-use crate::storage::memory::MemoryConfig;
 
 /// Configuration for flush operations
 #[derive(Debug, Clone)]
@@ -35,7 +34,6 @@ pub struct PropertyGraphConfig {
     pub work_dir: PathBuf,
     pub enable_cache: bool,
     pub cache_memory: usize,
-    pub memory_config: MemoryConfig,
     pub flush_config: FlushConfig,
     pub enable_background_flush: bool,
 }
@@ -48,7 +46,6 @@ impl Default for PropertyGraphConfig {
             work_dir: PathBuf::from("./data"),
             enable_cache: true,
             cache_memory: 128 * 1024 * 1024,
-            memory_config: MemoryConfig::default(),
             flush_config: FlushConfig::default(),
             enable_background_flush: true,
         }
@@ -59,11 +56,6 @@ impl PropertyGraphConfig {
     pub fn with_cache(mut self, enable: bool, cache_memory: usize) -> Self {
         self.enable_cache = enable;
         self.cache_memory = cache_memory;
-        self
-    }
-
-    pub fn with_memory_config(mut self, config: MemoryConfig) -> Self {
-        self.memory_config = config;
         self
     }
 

@@ -19,7 +19,6 @@ use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{EdgeRecord, EdgeStrategy};
 use crate::storage::engine::edge_params::CreateEdgeTypeParams;
-use crate::storage::memory::{MemoryTracker, SharedMemoryTracker};
 use crate::storage::storage_types::{EdgeOffset, StoragePropertyDef};
 use crate::storage::vertex::VertexRecord;
 use crate::transaction::wal::writer::WalWriter;
@@ -38,7 +37,6 @@ pub struct PropertyGraph {
     pub(crate) cache_manager: CacheManager,
     pub(crate) wal_manager: Mutex<WalManager>,
     pub(crate) table_tracker: Arc<TableTracker>,
-    pub(crate) memory_tracker: SharedMemoryTracker,
     pub(crate) config: PropertyGraphConfig,
     pub(crate) is_open: AtomicBool,
     pub(crate) last_compacted_vertices: Mutex<Vec<(LabelId, Vec<crate::storage::vertex::IdKey>)>>,
@@ -99,12 +97,9 @@ impl PropertyGraph {
     }
 
     pub fn with_config(config: PropertyGraphConfig) -> Self {
-        let memory_tracker = Arc::new(MemoryTracker::new(config.memory_config.clone()));
-
         let cache_manager = CacheManager::new(
             config.enable_cache,
             config.cache_memory,
-            memory_tracker.clone(),
         );
 
         let table_tracker = Arc::new(TableTracker::with_config(TableTrackerConfig {
@@ -117,7 +112,6 @@ impl PropertyGraph {
             cache_manager,
             wal_manager: Mutex::new(WalManager::new()),
             table_tracker,
-            memory_tracker,
             config,
             is_open: AtomicBool::new(true),
             last_compacted_vertices: Mutex::new(Vec::new()),
@@ -136,10 +130,6 @@ impl PropertyGraph {
 
     pub fn wal_enabled(&self) -> bool {
         self.wal_manager.lock().is_enabled()
-    }
-
-    pub fn memory_tracker(&self) -> &SharedMemoryTracker {
-        &self.memory_tracker
     }
 
     pub fn table_tracker(&self) -> &Arc<TableTracker> {
@@ -189,10 +179,6 @@ impl PropertyGraph {
 
     pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
         self.cache_manager.record_cache_stats()
-    }
-
-    pub fn memory_stats(&self) -> Option<crate::storage::memory::MemoryStats> {
-        Some(self.memory_tracker.stats())
     }
 
     pub fn clear_cache(&self) {

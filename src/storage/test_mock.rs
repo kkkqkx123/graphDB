@@ -133,7 +133,7 @@ impl StorageAdmin for MockStorage {
     mock_stub!(&self, save_to_disk() -> Result<(), StorageError>, Ok(()));
 
     fn get_storage_stats(&self) -> StorageStats {
-        StorageStats { total_vertices: 0, total_edges: 0, total_spaces: 0, total_tags: 0, total_edge_types: 0 }
+        StorageStats { total_vertices: 0, total_edges: 0, total_spaces: 0, total_tags: 0, total_edge_types: 0, total_size_bytes: 0, data_size_bytes: 0, index_size_bytes: 0 }
     }
 
     mock_stub!(&self, find_dangling_edges(_space: &str) -> Result<Vec<Edge>, StorageError>, Ok(Vec::new()));

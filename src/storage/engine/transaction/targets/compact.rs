@@ -100,7 +100,7 @@ impl CompactTarget for PropertyGraph {
 }
 
 impl PropertyGraph {
-    fn storage_size(&self) -> usize {
+    pub(crate) fn storage_size(&self) -> usize {
         let mut total = 0usize;
 
         {
@@ -119,7 +119,7 @@ impl PropertyGraph {
         total
     }
 
-    fn used_storage_size(&self) -> usize {
+    pub(crate) fn used_storage_size(&self) -> usize {
         let mut total = 0usize;
 
         {

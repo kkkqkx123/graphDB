@@ -34,12 +34,18 @@ impl<'a> MaintenanceOps<'a> {
             .flatten()
             .count();
 
+        let total_size = self.ctx.graph.storage_size() as u64;
+        let data_size = self.ctx.graph.used_storage_size() as u64;
+
         StorageStats {
             total_vertices,
             total_edges,
             total_spaces: spaces.len(),
             total_tags: tags,
             total_edge_types: edge_types,
+            total_size_bytes: total_size,
+            data_size_bytes: data_size,
+            index_size_bytes: total_size.saturating_sub(data_size),
         }
     }
 

@@ -16,7 +16,6 @@ pub mod engine;
 pub mod extend;
 pub mod index;
 
-pub mod memory;
 pub mod metadata;
 pub mod metrics;
 pub mod storage_client;
@@ -45,8 +44,6 @@ pub use cache::{
 };
 
 pub use extend::FulltextStorage;
-
-pub use memory::{MemoryConfig, MemoryConfigBuilder, MemoryStats, MemoryTracker};
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;

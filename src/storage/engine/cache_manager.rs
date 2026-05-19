@@ -7,19 +7,16 @@ use crate::storage::cache::{
     CachedVertex, RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache,
     VertexCacheKey,
 };
-use crate::storage::memory::SharedMemoryTracker;
 
 /// Manager for storage caches
 pub struct CacheManager {
     pub record_cache: Option<SharedRecordCache>,
-    pub memory_tracker: Option<SharedMemoryTracker>,
 }
 
 impl CacheManager {
     pub fn new(
         enable_cache: bool,
         cache_memory: usize,
-        memory_tracker: SharedMemoryTracker,
     ) -> Self {
         let record_cache = if enable_cache {
             let config = RecordCacheConfig {
@@ -33,7 +30,6 @@ impl CacheManager {
 
         Self {
             record_cache,
-            memory_tracker: Some(memory_tracker),
         }
     }
 
@@ -41,20 +37,10 @@ impl CacheManager {
         self.record_cache.as_ref()
     }
 
-    pub fn memory_tracker(&self) -> Option<&SharedMemoryTracker> {
-        self.memory_tracker.as_ref()
-    }
-
     pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
         self.record_cache
             .as_ref()
             .map(|c: &SharedRecordCache| c.stats())
-    }
-
-    pub fn memory_stats(&self) -> Option<crate::storage::memory::MemoryStats> {
-        self.memory_tracker
-            .as_ref()
-            .map(|t: &SharedMemoryTracker| t.stats())
     }
 
     pub fn clear_cache(&self) {

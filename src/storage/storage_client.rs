@@ -264,4 +264,10 @@ pub struct StorageStats {
     pub total_spaces: usize,
     pub total_tags: usize,
     pub total_edge_types: usize,
+    /// Total allocated storage size in bytes (vertex tables + edge tables + indexes)
+    pub total_size_bytes: u64,
+    /// Data size in bytes (vertex + edge data, excluding index structures)
+    pub data_size_bytes: u64,
+    /// Index structure size in bytes (primary + secondary indexes)
+    pub index_size_bytes: u64,
 }

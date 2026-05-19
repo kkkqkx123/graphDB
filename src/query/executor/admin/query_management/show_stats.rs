@@ -114,6 +114,18 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
                 Value::String("Total Edge Types".to_string()),
                 Value::BigInt(storage_stats.total_edge_types as i64),
             ],
+            vec![
+                Value::String("Total Size (bytes)".to_string()),
+                Value::BigInt(storage_stats.total_size_bytes as i64),
+            ],
+            vec![
+                Value::String("Data Size (bytes)".to_string()),
+                Value::BigInt(storage_stats.data_size_bytes as i64),
+            ],
+            vec![
+                Value::String("Index Size (bytes)".to_string()),
+                Value::BigInt(storage_stats.index_size_bytes as i64),
+            ],
         ];
 
         DataSet {
@@ -183,7 +195,7 @@ mod tests {
                     dataset.col_names,
                     vec!["Statistic".to_string(), "Value".to_string()]
                 );
-                assert_eq!(dataset.rows.len(), 5);
+                assert_eq!(dataset.rows.len(), 8);
 
                 let stats_map: std::collections::HashMap<String, i64> = dataset
                     .rows

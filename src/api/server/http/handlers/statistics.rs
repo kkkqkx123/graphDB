@@ -236,9 +236,9 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
             "total_edges": storage_stats.total_edges,
         },
         "storage": {
-            "total_size_bytes": 0, // It is necessary to expand the StorageStats functionality.
-            "index_size_bytes": 0,
-            "data_size_bytes": 0,
+            "total_size_bytes": storage_stats.total_size_bytes,
+            "index_size_bytes": storage_stats.index_size_bytes,
+            "data_size_bytes": storage_stats.data_size_bytes,
         },
         "performance": {
             "total_queries": total_queries,
