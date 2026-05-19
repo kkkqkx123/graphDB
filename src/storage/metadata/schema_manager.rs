@@ -1,4 +1,4 @@
-use crate::core::types::{EdgeTypeInfo, Index, PropertyDef, SpaceInfo, TagInfo};
+use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::StorageError;
 use dashmap::DashMap;
 use parking_lot::RwLock;
@@ -15,8 +15,6 @@ struct SchemaSnapshot {
     spaces: Vec<SpaceInfo>,
     tags: Vec<(u64, TagInfo)>,
     edge_types: Vec<(u64, EdgeTypeInfo)>,
-    tag_indexes: Vec<(u64, Index)>,
-    edge_indexes: Vec<(u64, Index)>,
     space_id_counter: u64,
     tag_id_counters: Vec<(u64, u32)>,
     edge_type_id_counters: Vec<(u64, u32)>,
@@ -37,18 +35,11 @@ struct EdgeTypeData {
     info: EdgeTypeInfo,
 }
 
-#[derive(Debug, Clone)]
-struct IndexData {
-    info: Index,
-}
-
 pub struct SchemaManager {
     spaces: Arc<RwLock<HashMap<u64, SpaceData>>>,
     space_name_index: Arc<RwLock<HashMap<String, u64>>>,
     tags: Arc<RwLock<HashMap<(u64, u32), TagData>>>,
     edge_types: Arc<RwLock<HashMap<(u64, u32), EdgeTypeData>>>,
-    tag_indexes: Arc<RwLock<HashMap<(u64, String), IndexData>>>,
-    edge_indexes: Arc<RwLock<HashMap<(u64, String), IndexData>>>,
     space_id_counter: Arc<AtomicU64>,
     tag_id_counter: Arc<DashMap<u64, AtomicU32>>,
     edge_type_id_counter: Arc<DashMap<u64, AtomicU32>>,
@@ -61,8 +52,6 @@ impl Clone for SchemaManager {
             space_name_index: self.space_name_index.clone(),
             tags: self.tags.clone(),
             edge_types: self.edge_types.clone(),
-            tag_indexes: self.tag_indexes.clone(),
-            edge_indexes: self.edge_indexes.clone(),
             space_id_counter: self.space_id_counter.clone(),
             tag_id_counter: self.tag_id_counter.clone(),
             edge_type_id_counter: self.edge_type_id_counter.clone(),
@@ -85,8 +74,6 @@ impl SchemaManager {
             space_name_index: Arc::new(RwLock::new(HashMap::new())),
             tags: Arc::new(RwLock::new(HashMap::new())),
             edge_types: Arc::new(RwLock::new(HashMap::new())),
-            tag_indexes: Arc::new(RwLock::new(HashMap::new())),
-            edge_indexes: Arc::new(RwLock::new(HashMap::new())),
             space_id_counter: Arc::new(AtomicU64::new(0)),
             tag_id_counter: Arc::new(DashMap::new()),
             edge_type_id_counter: Arc::new(DashMap::new()),
@@ -150,12 +137,6 @@ impl SchemaManager {
             let mut edge_types = self.edge_types.write();
             edge_types.retain(|(sid, _), _| *sid != space_id);
 
-            let mut tag_indexes = self.tag_indexes.write();
-            tag_indexes.retain(|(sid, _), _| *sid != space_id);
-
-            let mut edge_indexes = self.edge_indexes.write();
-            edge_indexes.retain(|(sid, _), _| *sid != space_id);
-
             Ok(true)
         } else {
             Ok(false)
@@ -174,12 +155,6 @@ impl SchemaManager {
 
         let mut edge_types = self.edge_types.write();
         edge_types.retain(|(sid, _), _| *sid != space_id);
-
-        let mut tag_indexes = self.tag_indexes.write();
-        tag_indexes.retain(|(sid, _), _| *sid != space_id);
-
-        let mut edge_indexes = self.edge_indexes.write();
-        edge_indexes.retain(|(sid, _), _| *sid != space_id);
 
         Ok(true)
     }
@@ -439,32 +414,6 @@ impl SchemaManager {
         Ok(false)
     }
 
-    pub fn list_tag_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
-        })?;
-
-        let indexes = self.tag_indexes.read();
-        Ok(indexes
-            .iter()
-            .filter(|((sid, _), _)| *sid == space_info.space_id)
-            .map(|(_, data)| data.info.clone())
-            .collect())
-    }
-
-    pub fn list_edge_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
-        let space_info = self.get_space(space_name)?.ok_or_else(|| {
-            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
-        })?;
-
-        let indexes = self.edge_indexes.read();
-        Ok(indexes
-            .iter()
-            .filter(|((sid, _), _)| *sid == space_info.space_id)
-            .map(|(_, data)| data.info.clone())
-            .collect())
-    }
-
     pub fn alter_tag(
         &self,
         space_name: &str,
@@ -562,20 +511,6 @@ impl SchemaManager {
             .map(|((space_id, _), data)| (*space_id, data.info.clone()))
             .collect();
 
-        let tag_indexes: Vec<(u64, Index)> = self
-            .tag_indexes
-            .read()
-            .iter()
-            .map(|((space_id, _), data)| (*space_id, data.info.clone()))
-            .collect();
-
-        let edge_indexes: Vec<(u64, Index)> = self
-            .edge_indexes
-            .read()
-            .iter()
-            .map(|((space_id, _), data)| (*space_id, data.info.clone()))
-            .collect();
-
         let space_id_counter = self
             .space_id_counter
             .load(std::sync::atomic::Ordering::SeqCst);
@@ -597,8 +532,6 @@ impl SchemaManager {
             spaces,
             tags,
             edge_types,
-            tag_indexes,
-            edge_indexes,
             space_id_counter,
             tag_id_counters,
             edge_type_id_counters,
@@ -643,8 +576,6 @@ impl SchemaManager {
         self.space_name_index.write().clear();
         self.tags.write().clear();
         self.edge_types.write().clear();
-        self.tag_indexes.write().clear();
-        self.edge_indexes.write().clear();
 
         for space in snapshot.spaces {
             self.space_name_index
@@ -666,18 +597,6 @@ impl SchemaManager {
                 (space_id, edge_type.edge_type_id),
                 EdgeTypeData { info: edge_type },
             );
-        }
-
-        for (space_id, index) in snapshot.tag_indexes {
-            self.tag_indexes
-                .write()
-                .insert((space_id, index.name.clone()), IndexData { info: index });
-        }
-
-        for (space_id, index) in snapshot.edge_indexes {
-            self.edge_indexes
-                .write()
-                .insert((space_id, index.name.clone()), IndexData { info: index });
         }
 
         self.space_id_counter

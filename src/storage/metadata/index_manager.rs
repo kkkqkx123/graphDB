@@ -1,8 +1,19 @@
 use crate::core::types::Index;
 use crate::core::StorageError;
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
+
+const INDEX_FORMAT_VERSION: u32 = 1;
+
+#[derive(Serialize, Deserialize)]
+struct IndexSnapshot {
+    version: u32,
+    tag_indexes: Vec<(u64, String, Index)>,
+    edge_indexes: Vec<(u64, String, Index)>,
+}
 
 pub trait IndexMetadataManager: Send + Sync + std::fmt::Debug {
     fn create_tag_index(&self, space_id: u64, index: &Index) -> Result<bool, StorageError>;
@@ -44,6 +55,85 @@ impl IndexManager {
             tag_indexes: Arc::new(RwLock::new(HashMap::new())),
             edge_indexes: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    pub fn save_indexes(&self, path: &Path) -> Result<(), StorageError> {
+        use std::fs::{self, File};
+        use std::io::Write;
+
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| StorageError::io_error(e.to_string()))?;
+        }
+
+        let tag_indexes: Vec<(u64, String, Index)> = self
+            .tag_indexes
+            .read()
+            .iter()
+            .map(|((space_id, name), index)| (*space_id, name.clone(), index.clone()))
+            .collect();
+
+        let edge_indexes: Vec<(u64, String, Index)> = self
+            .edge_indexes
+            .read()
+            .iter()
+            .map(|((space_id, name), index)| (*space_id, name.clone(), index.clone()))
+            .collect();
+
+        let snapshot = IndexSnapshot {
+            version: INDEX_FORMAT_VERSION,
+            tag_indexes,
+            edge_indexes,
+        };
+
+        let json = serde_json::to_string_pretty(&snapshot)
+            .map_err(|e| StorageError::serialize_error(e.to_string()))?;
+
+        let mut file = File::create(path).map_err(|e| StorageError::io_error(e.to_string()))?;
+        file.write_all(json.as_bytes())
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub fn load_indexes(&self, path: &Path) -> Result<(), StorageError> {
+        use std::fs::File;
+        use std::io::Read;
+
+        if !path.exists() {
+            return Ok(());
+        }
+
+        let mut file = File::open(path).map_err(|e| StorageError::io_error(e.to_string()))?;
+        let mut json = String::new();
+        file.read_to_string(&mut json)
+            .map_err(|e| StorageError::io_error(e.to_string()))?;
+
+        let snapshot: IndexSnapshot = serde_json::from_str(&json)
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
+
+        if snapshot.version > INDEX_FORMAT_VERSION {
+            return Err(StorageError::deserialize_error(format!(
+                "Index snapshot version {} is newer than supported version {}",
+                snapshot.version, INDEX_FORMAT_VERSION
+            )));
+        }
+
+        self.tag_indexes.write().clear();
+        self.edge_indexes.write().clear();
+
+        for (space_id, name, index) in snapshot.tag_indexes {
+            self.tag_indexes
+                .write()
+                .insert((space_id, name), index);
+        }
+
+        for (space_id, name, index) in snapshot.edge_indexes {
+            self.edge_indexes
+                .write()
+                .insert((space_id, name), index);
+        }
+
+        Ok(())
     }
 }
 

@@ -9,6 +9,7 @@ use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
+use crate::storage::metadata::index_manager::IndexMetadataManager;
 use crate::storage::metadata::SchemaManager;
 
 /// Schema metadata provider
@@ -16,12 +17,19 @@ use crate::storage::metadata::SchemaManager;
 /// Provides metadata for tags, edge types, and native indexes from the schema manager.
 pub struct SchemaMetadataProvider {
     schema_manager: Arc<SchemaManager>,
+    index_manager: Arc<dyn IndexMetadataManager>,
 }
 
 impl SchemaMetadataProvider {
     /// Create a new schema metadata provider
-    pub fn new(schema_manager: Arc<SchemaManager>) -> Self {
-        Self { schema_manager }
+    pub fn new(
+        schema_manager: Arc<SchemaManager>,
+        index_manager: Arc<dyn IndexMetadataManager>,
+    ) -> Self {
+        Self {
+            schema_manager,
+            index_manager,
+        }
     }
 
     /// Get space info by space_id
@@ -77,14 +85,10 @@ impl MetadataProvider for SchemaMetadataProvider {
         space_id: u64,
         index_name: &str,
     ) -> Result<IndexMetadata, MetadataProviderError> {
-        // Get space info
-        let space = self.get_space_by_id(space_id)?;
-        let space_name = &space.space_name;
-
         // Search in tag indexes
         let tag_indexes = self
-            .schema_manager
-            .list_tag_indexes(space_name)
+            .index_manager
+            .list_tag_indexes(space_id)
             .map_err(|e| MetadataProviderError::QueryFailed(e.to_string()))?;
 
         for index in tag_indexes {
@@ -105,8 +109,8 @@ impl MetadataProvider for SchemaMetadataProvider {
 
         // Search in edge indexes
         let edge_indexes = self
-            .schema_manager
-            .list_edge_indexes(space_name)
+            .index_manager
+            .list_edge_indexes(space_id)
             .map_err(|e| MetadataProviderError::QueryFailed(e.to_string()))?;
 
         for index in edge_indexes {
@@ -114,7 +118,7 @@ impl MetadataProvider for SchemaMetadataProvider {
                 return Ok(IndexMetadata::new(
                     index.name,
                     space_id,
-                    String::new(), // Edge indexes don't have tag_name
+                    String::new(),
                     index
                         .fields
                         .first()
@@ -157,8 +161,8 @@ impl MetadataProvider for SchemaMetadataProvider {
 
         // Get indexes for this tag
         let indexes = self
-            .schema_manager
-            .list_tag_indexes(space_name)
+            .index_manager
+            .list_tag_indexes(space_id)
             .map_err(|e| MetadataProviderError::QueryFailed(e.to_string()))?;
 
         metadata.indexes = indexes
@@ -196,8 +200,8 @@ impl MetadataProvider for SchemaMetadataProvider {
 
         // Get indexes for this edge type
         let indexes = self
-            .schema_manager
-            .list_edge_indexes(space_name)
+            .index_manager
+            .list_edge_indexes(space_id)
             .map_err(|e| MetadataProviderError::QueryFailed(e.to_string()))?;
 
         metadata.indexes = indexes
@@ -210,16 +214,12 @@ impl MetadataProvider for SchemaMetadataProvider {
     }
 
     fn list_indexes(&self, space_id: u64) -> Result<Vec<IndexMetadata>, MetadataProviderError> {
-        // Get space info
-        let space = self.get_space_by_id(space_id)?;
-        let space_name = &space.space_name;
-
         let mut indexes = Vec::new();
 
         // Get tag indexes
         let tag_indexes = self
-            .schema_manager
-            .list_tag_indexes(space_name)
+            .index_manager
+            .list_tag_indexes(space_id)
             .map_err(|e| MetadataProviderError::QueryFailed(e.to_string()))?;
 
         for index in tag_indexes {
@@ -238,8 +238,8 @@ impl MetadataProvider for SchemaMetadataProvider {
 
         // Get edge indexes
         let edge_indexes = self
-            .schema_manager
-            .list_edge_indexes(space_name)
+            .index_manager
+            .list_edge_indexes(space_id)
             .map_err(|e| MetadataProviderError::QueryFailed(e.to_string()))?;
 
         for index in edge_indexes {
@@ -309,6 +309,7 @@ impl MetadataProvider for SchemaMetadataProvider {
 mod tests {
     use super::*;
     use crate::core::types::{DataType, EngineType, PropertyDef, SpaceStatus};
+    use crate::storage::metadata::IndexManager;
     use crate::storage::metadata::SchemaManager;
 
     fn create_test_schema_manager() -> Arc<SchemaManager> {
@@ -354,7 +355,8 @@ mod tests {
     #[test]
     fn test_get_tag_metadata() {
         let schema_manager = create_test_schema_manager();
-        let provider = SchemaMetadataProvider::new(schema_manager);
+        let index_manager = Arc::new(IndexManager::new());
+        let provider = SchemaMetadataProvider::new(schema_manager, index_manager);
 
         let result = provider.get_tag_metadata(1, "person");
         assert!(result.is_ok());
@@ -369,7 +371,8 @@ mod tests {
     #[test]
     fn test_get_tag_not_found() {
         let schema_manager = create_test_schema_manager();
-        let provider = SchemaMetadataProvider::new(schema_manager);
+        let index_manager = Arc::new(IndexManager::new());
+        let provider = SchemaMetadataProvider::new(schema_manager, index_manager);
 
         let result = provider.get_tag_metadata(1, "nonexistent");
         assert!(result.is_err());
@@ -378,7 +381,8 @@ mod tests {
     #[test]
     fn test_get_space_not_found() {
         let schema_manager = create_test_schema_manager();
-        let provider = SchemaMetadataProvider::new(schema_manager);
+        let index_manager = Arc::new(IndexManager::new());
+        let provider = SchemaMetadataProvider::new(schema_manager, index_manager);
 
         let result = provider.get_tag_metadata(999, "person");
         assert!(result.is_err());

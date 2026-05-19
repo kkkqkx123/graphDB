@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use super::types::{Lsn, TransactionId, WalError, WalFileHeader, WalResult, WAL_FILE_HEADER_SIZE};
 use crate::core::types::Timestamp;
-use crate::storage::metadata::{TableId, TableTracker};
+use crate::core::types::{TableId, TableTracker};
 
 /// Checkpoint information
 #[derive(Debug, Clone)]

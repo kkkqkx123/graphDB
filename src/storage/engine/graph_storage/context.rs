@@ -15,13 +15,12 @@ use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
 use crate::storage::engine::PropertyGraph;
 use crate::storage::extend::FulltextStorage;
 use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
-use crate::storage::metadata::{ExtendedSchemaManager, IndexManager, SchemaManager};
+use crate::storage::metadata::{IndexManager, SchemaManager};
 
 #[derive(Clone)]
 pub struct GraphStorageContext {
     pub graph: Arc<PropertyGraph>,
     pub schema_manager: Arc<SchemaManager>,
-    pub extended_schema_manager: Arc<ExtendedSchemaManager>,
     pub index_metadata_manager: Arc<IndexManager>,
     pub version_manager: Arc<VersionManager>,
     pub user_storage: Arc<UserStorage>,
@@ -37,7 +36,6 @@ impl GraphStorageContext {
     pub fn new() -> Self {
         let graph = Arc::new(PropertyGraph::new());
         let schema_manager = Arc::new(SchemaManager::new());
-        let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(IndexManager::new());
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
@@ -45,7 +43,6 @@ impl GraphStorageContext {
         Self {
             graph,
             schema_manager,
-            extended_schema_manager,
             index_metadata_manager,
             version_manager,
             user_storage,
@@ -63,7 +60,6 @@ impl GraphStorageContext {
 
         let graph = Arc::new(PropertyGraph::new());
         let schema_manager = Arc::new(SchemaManager::new());
-        let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(IndexManager::new());
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
@@ -83,7 +79,6 @@ impl GraphStorageContext {
         Self {
             graph,
             schema_manager,
-            extended_schema_manager,
             index_metadata_manager,
             version_manager,
             user_storage,
@@ -102,7 +97,6 @@ impl GraphStorageContext {
     ) -> crate::core::StorageResult<Self> {
         let graph = Arc::new(PropertyGraph::new());
         let schema_manager = Arc::new(SchemaManager::new());
-        let extended_schema_manager = Arc::new(ExtendedSchemaManager::new());
         let index_metadata_manager = Arc::new(IndexManager::new());
         let version_manager = Arc::new(VersionManager::new());
         let user_storage = Arc::new(UserStorage::new());
@@ -112,7 +106,6 @@ impl GraphStorageContext {
         Ok(Self {
             graph,
             schema_manager,
-            extended_schema_manager,
             index_metadata_manager,
             version_manager,
             user_storage,

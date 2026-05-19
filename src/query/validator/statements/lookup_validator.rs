@@ -15,6 +15,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
+use crate::storage::metadata::index_manager::IndexMetadataManager;
 use crate::storage::metadata::SchemaManager;
 
 /// Verified LOOKUP information
@@ -59,6 +60,7 @@ pub struct LookupValidator {
     user_defined_vars: Vec<String>,
     validated_result: Option<ValidatedLookup>,
     schema_manager: Option<Arc<SchemaManager>>,
+    index_metadata_manager: Option<Arc<dyn IndexMetadataManager>>,
 }
 
 impl LookupValidator {
@@ -70,6 +72,7 @@ impl LookupValidator {
             user_defined_vars: Vec::new(),
             validated_result: None,
             schema_manager: None,
+            index_metadata_manager: None,
         }
     }
 
@@ -78,8 +81,20 @@ impl LookupValidator {
         self
     }
 
+    pub fn with_index_metadata_manager(
+        mut self,
+        index_metadata_manager: Arc<dyn IndexMetadataManager>,
+    ) -> Self {
+        self.index_metadata_manager = Some(index_metadata_manager);
+        self
+    }
+
     pub fn set_schema_manager(&mut self, schema_manager: Arc<SchemaManager>) {
         self.schema_manager = Some(schema_manager);
+    }
+
+    pub fn set_index_metadata_manager(&mut self, index_metadata_manager: Arc<dyn IndexMetadataManager>) {
+        self.index_metadata_manager = Some(index_metadata_manager);
     }
 
     /// Parsing a LOOKUP statement from AST (Abstract Syntax Tree)
@@ -425,32 +440,41 @@ impl StatementValidator for LookupValidator {
         // Get space_id
         let space_id = ctx.space_id().unwrap_or(0);
 
-        // Find index name and columns from schema manager
-        let (index_name, index_columns) = if let Some(ref schema_manager) = self.schema_manager {
-            if is_edge {
-                // Find edge index for this edge type
-                match schema_manager.list_edge_indexes(&space_name) {
-                    Ok(indexes) => indexes
-                        .into_iter()
-                        .find(|idx| idx.schema_name == parsed_info.label)
-                        .map(|idx| (idx.name, idx.properties))
-                        .unwrap_or_default(),
-                    Err(_) => (String::new(), Vec::new()),
+        // Find index name and columns from index manager
+        let (index_name, index_columns) =
+            if let Some(ref index_mgr) = self.index_metadata_manager {
+                if is_edge {
+                    // Find edge index for this edge type
+                    match index_mgr.list_edge_indexes(space_id) {
+                        Ok(indexes) => indexes
+                            .into_iter()
+                            .find(|idx| idx.schema_name == parsed_info.label)
+                            .map(|idx| {
+                                let cols: Vec<String> =
+                                    idx.fields.iter().map(|f| f.name.clone()).collect();
+                                (idx.name, cols)
+                            })
+                            .unwrap_or_default(),
+                        Err(_) => (String::new(), Vec::new()),
+                    }
+                } else {
+                    // Find tag index for this tag
+                    match index_mgr.list_tag_indexes(space_id) {
+                        Ok(indexes) => indexes
+                            .into_iter()
+                            .find(|idx| idx.schema_name == parsed_info.label)
+                            .map(|idx| {
+                                let cols: Vec<String> =
+                                    idx.fields.iter().map(|f| f.name.clone()).collect();
+                                (idx.name, cols)
+                            })
+                            .unwrap_or_default(),
+                        Err(_) => (String::new(), Vec::new()),
+                    }
                 }
             } else {
-                // Find tag index for this tag
-                match schema_manager.list_tag_indexes(&space_name) {
-                    Ok(indexes) => indexes
-                        .into_iter()
-                        .find(|idx| idx.schema_name == parsed_info.label)
-                        .map(|idx| (idx.name, idx.properties))
-                        .unwrap_or_default(),
-                    Err(_) => (String::new(), Vec::new()),
-                }
-            }
-        } else {
-            (String::new(), Vec::new())
-        };
+                (String::new(), Vec::new())
+            };
 
         // Store verification results
         self.validated_result = Some(ValidatedLookup {

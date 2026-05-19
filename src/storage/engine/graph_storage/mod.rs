@@ -124,12 +124,6 @@ impl GraphStorage {
         self.ctx.schema_manager.clone()
     }
 
-    pub fn get_extended_schema_manager(
-        &self,
-    ) -> Arc<crate::storage::metadata::ExtendedSchemaManager> {
-        self.ctx.extended_schema_manager.clone()
-    }
-
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
         self.ctx.get_transaction_context()
     }

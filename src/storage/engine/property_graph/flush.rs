@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
-use crate::storage::metadata::{TableId, TableType};
+use crate::core::types::{TableId, TableType};
 
 use super::{PropertyGraph, DATA_FORMAT_VERSION};
 

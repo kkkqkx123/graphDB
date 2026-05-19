@@ -217,6 +217,11 @@ impl<'a> PersistenceOps<'a> {
             let schema_path = path.join("schema");
             self.ctx.schema_manager.load_schema(&schema_path)?;
 
+            let index_meta_path = path.join("index_meta");
+            self.ctx
+                .index_metadata_manager
+                .load_indexes(&index_meta_path)?;
+
             self.ctx.graph.load()?;
 
             let index_path = path.join("indexes");
@@ -237,6 +242,13 @@ impl<'a> PersistenceOps<'a> {
             std::fs::create_dir_all(&schema_path)
                 .map_err(|e| StorageError::io_error(e.to_string()))?;
             self.ctx.schema_manager.save_schema(&schema_path)?;
+
+            let index_meta_path = path.join("index_meta");
+            std::fs::create_dir_all(&index_meta_path)
+                .map_err(|e| StorageError::io_error(e.to_string()))?;
+            self.ctx
+                .index_metadata_manager
+                .save_indexes(&index_meta_path)?;
 
             self.ctx.graph.flush_to_disk()?;
 
