@@ -179,12 +179,27 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
             Some(node.edge_type().to_string())
         };
 
+        let space_name = {
+            let storage_guard = storage.read();
+            match storage_guard.get_space_by_id(node.space_id()) {
+                Ok(Some(space_info)) => space_info.space_name,
+                _ => "default".to_string(),
+            }
+        };
+
+        let rank: i64 = node.rank().parse().unwrap_or(0);
+
         let executor = GetEdgesExecutor::new(
             node.id(),
             storage,
             edge_type,
             context.expression_context().clone(),
-        );
+        )
+        .with_src(node.src().to_string())
+        .with_dst(node.dst().to_string())
+        .with_rank(rank)
+        .with_space_name(space_name);
+
         Ok(ExecutorEnum::GetEdges(executor))
     }
 

@@ -363,9 +363,14 @@ impl MaintainPlanner {
                 space_name,
                 index_name,
             } => {
+                let resolved_space = if space_name.is_empty() {
+                    current_space
+                } else {
+                    space_name.clone()
+                };
                 let node = crate::query::planning::plan::core::nodes::DropTagIndexNode::new(
                     next_node_id(),
-                    space_name.clone(),
+                    resolved_space,
                     index_name.clone(),
                 );
                 PlanNodeEnum::IndexManage(IndexManageNode::DropTagIndex(node))
@@ -374,9 +379,14 @@ impl MaintainPlanner {
                 space_name,
                 index_name,
             } => {
+                let resolved_space = if space_name.is_empty() {
+                    current_space
+                } else {
+                    space_name.clone()
+                };
                 let node = crate::query::planning::plan::core::nodes::DropEdgeIndexNode::new(
                     next_node_id(),
-                    space_name.clone(),
+                    resolved_space,
                     index_name.clone(),
                 );
                 PlanNodeEnum::IndexManage(IndexManageNode::DropEdgeIndex(node))

@@ -10,10 +10,8 @@ use super::{
     MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
-use crate::storage::storage_types::{EdgeOffset, PropertyId};
+use crate::storage::storage_types::{EdgeOffset, PropertyId, StoragePropertyDef};
 use crate::storage::utils::encoding::{self, section, write_header_to};
-#[cfg(test)]
-use crate::storage::storage_types::StoragePropertyDef;
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -52,6 +50,7 @@ pub struct EdgeTable {
     in_csr: MutableCsrVariant,
     properties: PropertyTable,
     is_open: bool,
+    next_edge_id: u64,
 }
 
 impl EdgeTable {
@@ -86,6 +85,7 @@ impl EdgeTable {
             in_csr,
             properties,
             is_open: true,
+            next_edge_id: 0,
         })
     }
 }
@@ -153,7 +153,8 @@ impl EdgeTable {
             )));
         }
 
-        let edge_id = self.out_csr.edge_count();
+        let edge_id = self.next_edge_id;
+        self.next_edge_id += 1;
         if !self.out_csr.insert_edge(src, dst, edge_id, prop_offset, ts) {
             self.properties.delete(prop_offset);
             return Err(StorageError::edge_already_exists(format!(
@@ -488,7 +489,8 @@ impl EdgeTable {
             return Err(StorageError::column_already_exists(name));
         }
 
-        self.properties.add_property(name, data_type, nullable);
+        self.properties.add_property(name.clone(), data_type.clone(), nullable);
+        self.schema.properties.push(StoragePropertyDef::new(name, data_type));
         Ok(())
     }
 
@@ -663,6 +665,8 @@ impl EdgeTable {
         meta_file.write_all(&(schema_bytes.len() as u32).to_le_bytes())?;
         meta_file.write_all(schema_bytes)?;
 
+        meta_file.write_all(&self.next_edge_id.to_le_bytes())?;
+
         let out_csr_path = path.join("out_csr.bin");
         self.flush_csr(&self.out_csr, &out_csr_path, section::EDGE_OUT_CSR)?;
 
@@ -766,6 +770,12 @@ impl EdgeTable {
             }
         }
 
+        // Read next_edge_id (backward compatible: may not be present in older files)
+        let mut next_edge_id_bytes = [0u8; 8];
+        if meta_file.read_exact(&mut next_edge_id_bytes).is_ok() {
+            self.next_edge_id = u64::from_le_bytes(next_edge_id_bytes);
+        }
+
         let out_csr_path = path.join("out_csr.bin");
         Self::load_csr_static(&mut self.out_csr, &out_csr_path)?;
 
@@ -775,6 +785,10 @@ impl EdgeTable {
         let props_path = path.join("properties.bin");
         self.load_properties(&props_path)?;
 
+        if self.next_edge_id == 0 {
+            let ts = u32::MAX;
+            self.next_edge_id = self.out_csr.iter(ts).map(|(_, nbr)| nbr.edge_id + 1).max().unwrap_or(0);
+        }
         self.is_open = true;
         Ok(())
     }

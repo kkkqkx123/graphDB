@@ -198,9 +198,13 @@ impl ColumnStorage for FixedWidthColumn {
     }
 
     fn resize(&mut self, new_count: usize) {
+        let old_count = self.row_count;
         self.data.resize(new_count * self.element_size, 0);
         if let Some(ref mut bitmap) = self.null_bitmap {
             bitmap.resize(new_count, false);
+            for i in old_count..new_count {
+                bitmap.set(i, true);
+            }
         }
         self.row_count = new_count;
     }
@@ -433,9 +437,13 @@ impl ColumnStorage for VariableWidthColumn {
     }
 
     fn resize(&mut self, new_count: usize) {
+        let old_count = self.row_count;
         self.offsets.resize(new_count, self.data.len());
         if let Some(ref mut bitmap) = self.null_bitmap {
             bitmap.resize(new_count, false);
+            for i in old_count..new_count {
+                bitmap.set(i, true);
+            }
         }
         self.row_count = new_count;
     }

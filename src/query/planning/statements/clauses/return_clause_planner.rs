@@ -208,7 +208,7 @@ fn extract_aggregate_info(
                     agg_aliases.push(col.alias.clone());
                 }
             } else {
-                let key = col.expression.to_expression_string();
+                let key = col.alias.clone();
                 if !group_keys.contains(&key) {
                     group_keys.push(key);
                 }

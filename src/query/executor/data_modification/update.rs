@@ -282,6 +282,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                             &update.edge_type,
                             rank,
                         )?;
+                        edge.id = 0;
                         storage.insert_edge(&self.space_name, edge)?;
                         update_result.returned_props = evaluated_props;
                     } else if self.insertable {

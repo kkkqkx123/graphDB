@@ -261,3 +261,33 @@ pub fn add_vertex_property(
 
     Ok(())
 }
+
+pub fn add_edge_property(
+    graph: &PropertyGraph,
+    edge_label: LabelId,
+    prop: StoragePropertyDef,
+) -> StorageResult<()> {
+    if !graph.is_open.load(Ordering::Acquire) {
+        return Err(StorageError::storage_not_open());
+    }
+
+    let mut edge_tables = graph.data_store.edge_tables.write();
+    let mut updated = false;
+    
+    for (key, table) in edge_tables.iter_mut() {
+        let (_, _, e) = *key;
+        if e == edge_label {
+            table.add_property(prop.name.clone(), prop.data_type.clone(), prop.nullable)?;
+            updated = true;
+        }
+    }
+
+    if !updated {
+        return Err(StorageError::label_not_found(format!(
+            "edge label {}",
+            edge_label
+        )));
+    }
+
+    Ok(())
+}

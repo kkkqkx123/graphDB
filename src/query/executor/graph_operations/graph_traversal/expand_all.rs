@@ -231,7 +231,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             let neighbor_vertex = {
                 let storage = self.get_storage().read();
                 storage
-                    .get_vertex("default", &neighbor_id)
+                    .get_vertex(&self.space_name, &neighbor_id)
                     .map_err(|e| QueryError::storage(e.to_string()))?
             };
 
@@ -601,8 +601,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                     Ok(Some(vertex)) => {
                         input_nodes.push(vertex);
                     }
-                    Ok(None) => {}
-                    Err(_) => {}
+                    _ => {}
                 }
             }
         }

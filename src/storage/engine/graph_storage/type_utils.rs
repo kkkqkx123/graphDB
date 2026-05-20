@@ -57,9 +57,21 @@ pub fn edge_record_to_edge(
 ) -> Edge {
     let props: HashMap<String, Value> = record.properties.iter().cloned().collect();
 
+    let src_vid = if let Ok(id) = src_id.parse::<i64>() {
+        VertexId::from_int64(id)
+    } else {
+        VertexId::from_string(src_id)
+    };
+    
+    let dst_vid = if let Ok(id) = dst_id.parse::<i64>() {
+        VertexId::from_int64(id)
+    } else {
+        VertexId::from_string(dst_id)
+    };
+
     Edge {
-        src: VertexId::from_string(src_id),
-        dst: VertexId::from_string(dst_id),
+        src: src_vid,
+        dst: dst_vid,
         edge_type: edge_type.to_string(),
         ranking: 0,
         id: record.edge_id as i64,

@@ -150,13 +150,13 @@ impl<'a> GraphStorageReader<'a> {
 
         let ts = self.ctx.get_read_timestamp();
 
-        let src_str = src.to_string();
-        let dst_str = dst.to_string();
-
         let edge_label_id = edge_info.edge_type_id;
         if let Some(src_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
             if let Some(dst_label_id) = self.ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name)
             {
+                let src_str = src.to_string();
+                let dst_str = dst.to_string();
+
                 if let Some(record) = self.ctx.graph.get_edge(
                     edge_label_id,
                     src_label_id,
@@ -167,6 +167,20 @@ impl<'a> GraphStorageReader<'a> {
                 ) {
                     let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
                     return Ok(Some(edge));
+                }
+
+                if let (Some(src_int), Some(dst_int)) = (src.as_int64(), dst.as_int64()) {
+                    if let Some(record) = self.ctx.graph.get_edge_by_i64(
+                        edge_label_id,
+                        src_label_id,
+                        src_int,
+                        dst_label_id,
+                        dst_int,
+                        ts,
+                    ) {
+                        let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
+                        return Ok(Some(edge));
+                    }
                 }
             }
         }
@@ -208,11 +222,16 @@ impl<'a> GraphStorageReader<'a> {
                                 ts,
                             ) {
                                 for record in out_edges {
+                                    let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
+                                    let dst_external = self.ctx.graph
+                                        .get_external_id(dst_label_id, dst_internal, ts)
+                                        .unwrap_or_else(|| format!("{}", record.dst_vid));
+                                    
                                     let edge = edge_record_to_edge(
                                         &record,
                                         edge_type_name,
                                         &node_str,
-                                        &format!("{}", record.dst_vid),
+                                        &dst_external,
                                     );
                                     edges.push(edge);
                                 }
@@ -227,10 +246,15 @@ impl<'a> GraphStorageReader<'a> {
                                 ts,
                             ) {
                                 for record in in_edges {
+                                    let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
+                                    let src_external = self.ctx.graph
+                                        .get_external_id(src_label_id, src_internal, ts)
+                                        .unwrap_or_else(|| format!("{}", record.src_vid));
+                                    
                                     let edge = edge_record_to_edge(
                                         &record,
                                         edge_type_name,
-                                        &format!("{}", record.src_vid),
+                                        &src_external,
                                         &node_str,
                                     );
                                     edges.push(edge);
@@ -246,11 +270,16 @@ impl<'a> GraphStorageReader<'a> {
                                 ts,
                             ) {
                                 for record in out_edges {
+                                    let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
+                                    let dst_external = self.ctx.graph
+                                        .get_external_id(dst_label_id, dst_internal, ts)
+                                        .unwrap_or_else(|| format!("{}", record.dst_vid));
+                                    
                                     let edge = edge_record_to_edge(
                                         &record,
                                         edge_type_name,
                                         &node_str,
-                                        &format!("{}", record.dst_vid),
+                                        &dst_external,
                                     );
                                     edges.push(edge);
                                 }
@@ -263,10 +292,15 @@ impl<'a> GraphStorageReader<'a> {
                                 ts,
                             ) {
                                 for record in in_edges {
+                                    let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
+                                    let src_external = self.ctx.graph
+                                        .get_external_id(src_label_id, src_internal, ts)
+                                        .unwrap_or_else(|| format!("{}", record.src_vid));
+                                    
                                     let edge = edge_record_to_edge(
                                         &record,
                                         edge_type_name,
-                                        &format!("{}", record.src_vid),
+                                        &src_external,
                                         &node_str,
                                     );
                                     edges.push(edge);
@@ -305,11 +339,22 @@ impl<'a> GraphStorageReader<'a> {
                         .graph
                         .scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
                 for record in records {
+                    let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
+                    let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
+                    
+                    let src_external = self.ctx.graph
+                        .get_external_id(src_label_id, src_internal, ts)
+                        .unwrap_or_else(|| format!("{}", record.src_vid));
+                    
+                    let dst_external = self.ctx.graph
+                        .get_external_id(dst_label_id, dst_internal, ts)
+                        .unwrap_or_else(|| format!("{}", record.dst_vid));
+                    
                     let edge = edge_record_to_edge(
                         &record,
                         edge_type,
-                        &format!("{}", record.src_vid),
-                        &format!("{}", record.dst_vid),
+                        &src_external,
+                        &dst_external,
                     );
                     edges.push(edge);
                 }

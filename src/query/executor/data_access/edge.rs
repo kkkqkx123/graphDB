@@ -4,6 +4,7 @@ use std::time::Instant;
 use super::super::base::{BaseExecutor, ExecutorStats};
 use crate::core::vertex_edge_path;
 use crate::core::Value;
+use crate::core::types::storage_ids::VertexId;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -14,6 +15,10 @@ use parking_lot::RwLock;
 pub struct GetEdgesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     edge_type: Option<String>,
+    src: Option<String>,
+    dst: Option<String>,
+    rank: i64,
+    space_name: String,
 }
 
 impl<S: StorageClient> GetEdgesExecutor<S> {
@@ -26,7 +31,31 @@ impl<S: StorageClient> GetEdgesExecutor<S> {
         Self {
             base: BaseExecutor::new(id, "GetEdgesExecutor".to_string(), storage, expr_context),
             edge_type,
+            src: None,
+            dst: None,
+            rank: 0,
+            space_name: "default".to_string(),
         }
+    }
+
+    pub fn with_src(mut self, src: String) -> Self {
+        self.src = Some(src);
+        self
+    }
+
+    pub fn with_dst(mut self, dst: String) -> Self {
+        self.dst = Some(dst);
+        self
+    }
+
+    pub fn with_rank(mut self, rank: i64) -> Self {
+        self.rank = rank;
+        self
+    }
+
+    pub fn with_space_name(mut self, space_name: String) -> Self {
+        self.space_name = space_name;
+        self
     }
 }
 
@@ -90,13 +119,35 @@ impl<S: StorageClient> GetEdgesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
         let storage = self.get_storage().read();
 
-        let edges = if let Some(ref edge_type) = self.edge_type {
-            storage.scan_edges_by_type("default", edge_type)?
-        } else {
-            storage.scan_all_edges("default")?
-        };
+        if let (Some(src_str), Some(dst_str), Some(edge_type)) =
+            (&self.src, &self.dst, &self.edge_type)
+        {
+            let src_vid = if let Ok(id) = src_str.parse::<i64>() {
+                VertexId::from_int64(id)
+            } else {
+                VertexId::from_string(src_str.clone())
+            };
+            let dst_vid = if let Ok(id) = dst_str.parse::<i64>() {
+                VertexId::from_int64(id)
+            } else {
+                VertexId::from_string(dst_str.clone())
+            };
 
-        Ok(edges)
+            if let Some(edge) =
+                storage.get_edge(&self.space_name, &src_vid, &dst_vid, edge_type, self.rank)?
+            {
+                Ok(vec![edge])
+            } else {
+                Ok(Vec::new())
+            }
+        } else {
+            let edges = if let Some(ref edge_type) = self.edge_type {
+                storage.scan_edges_by_type(&self.space_name, edge_type)?
+            } else {
+                storage.scan_all_edges(&self.space_name)?
+            };
+            Ok(edges)
+        }
     }
 }
 

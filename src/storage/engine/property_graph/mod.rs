@@ -329,6 +329,14 @@ impl PropertyGraph {
         type_ops::add_vertex_property(self, label, prop)
     }
 
+    pub fn add_edge_property(
+        &self,
+        edge_label: LabelId,
+        prop: crate::storage::storage_types::StoragePropertyDef,
+    ) -> StorageResult<()> {
+        type_ops::add_edge_property(self, edge_label, prop)
+    }
+
     // ==================== Vertex Operations ====================
 
     pub fn insert_vertex(
@@ -376,6 +384,19 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> Option<VertexRecord> {
         core_ops::get_vertex_by_internal_id(self, label, internal_id, ts)
+    }
+
+    pub fn get_external_id(
+        &self,
+        label: LabelId,
+        internal_id: u32,
+        ts: Timestamp,
+    ) -> Option<String> {
+        let vertex_tables = self.data_store.vertex_tables.read();
+        vertex_tables
+            .get(&label)?
+            .get_external_id(internal_id, ts)
+            .map(|k| k.to_string())
     }
 
     pub fn delete_vertex(
@@ -446,6 +467,18 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> Option<EdgeRecord> {
         core_ops::get_edge(self, edge_label, src_label, src_id, dst_label, dst_id, ts)
+    }
+
+    pub fn get_edge_by_i64(
+        &self,
+        edge_label: LabelId,
+        src_label: LabelId,
+        src_id: i64,
+        dst_label: LabelId,
+        dst_id: i64,
+        ts: Timestamp,
+    ) -> Option<EdgeRecord> {
+        core_ops::get_edge_by_i64(self, edge_label, src_label, src_id, dst_label, dst_id, ts)
     }
 
     pub fn delete_edge(

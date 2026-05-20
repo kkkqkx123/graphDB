@@ -207,6 +207,15 @@ impl<'a> SchemaAdapterOps<'a> {
     ) -> StorageResult<bool> {
         self.ctx
             .schema_manager
-            .alter_edge_type(space, edge_type_name, additions, deletions)
+            .alter_edge_type(space, edge_type_name, additions.clone(), deletions)?;
+
+        if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(edge_type_name) {
+            for prop in additions {
+                let storage_prop = StoragePropertyDef::from_core(&prop);
+                self.ctx.graph.add_edge_property(edge_label_id, storage_prop)?;
+            }
+        }
+
+        Ok(true)
     }
 }

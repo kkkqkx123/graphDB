@@ -269,8 +269,30 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     Ok(Vec::new())
                 }
             }
+            "FULL" => {
+                if self.is_edge {
+                    let edges = storage
+                        .scan_edges_by_type(&space_name, &self.schema_name)
+                        .map_err(DBError::from)?;
+                    let results: Vec<Value> = edges
+                        .iter()
+                        .map(|edge| {
+                            Value::String(format!("{}:{}:{}", edge.src, edge.dst, edge.ranking))
+                        })
+                        .collect();
+                    Ok(results)
+                } else {
+                    let vertices = storage
+                        .scan_vertices_by_tag(&space_name, &self.schema_name)
+                        .map_err(DBError::from)?;
+                    let results: Vec<Value> = vertices
+                        .iter()
+                        .map(|v| Value::BigInt(v.vid.as_int64().unwrap_or(0)))
+                        .collect();
+                    Ok(results)
+                }
+            }
             _ => {
-                // Default scanning of all
                 Ok(Vec::new())
             }
         }
