@@ -1024,9 +1024,13 @@ impl DdlParser {
                 ctx.next_token();
                 Ok("INT64".to_string())
             }
-            TokenKind::Float | TokenKind::Double => {
+            TokenKind::Float => {
                 ctx.next_token();
                 Ok("FLOAT".to_string())
+            }
+            TokenKind::Double => {
+                ctx.next_token();
+                Ok("DOUBLE".to_string())
             }
             TokenKind::FixedString => {
                 ctx.next_token();
@@ -1083,9 +1087,13 @@ impl DdlParser {
                 ctx.next_token();
                 Ok(DataType::Int)
             }
-            TokenKind::Float | TokenKind::Double => {
+            TokenKind::Float => {
                 ctx.next_token();
                 Ok(DataType::Float)
+            }
+            TokenKind::Double => {
+                ctx.next_token();
+                Ok(DataType::Double)
             }
             TokenKind::String => {
                 ctx.next_token();
@@ -1173,7 +1181,8 @@ impl DdlParser {
                 ctx.next_token();
                 match type_name.to_uppercase().as_str() {
                     "INT" | "INTEGER" | "INT8" | "INT16" | "INT32" | "INT64" => Ok(DataType::Int),
-                    "FLOAT" | "DOUBLE" => Ok(DataType::Float),
+                    "FLOAT" => Ok(DataType::Float),
+                    "DOUBLE" => Ok(DataType::Double),
                     "STRING" | "VARCHAR" | "TEXT" => Ok(DataType::String),
                     "FIXED_STRING" | "FIXEDSTRING" => {
                         if ctx.current_token().kind == TokenKind::LParen {

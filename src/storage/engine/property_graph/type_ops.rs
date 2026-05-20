@@ -242,3 +242,22 @@ pub fn drop_edge_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> {
 
     Ok(())
 }
+
+pub fn add_vertex_property(
+    graph: &PropertyGraph,
+    label: LabelId,
+    prop: crate::storage::storage_types::StoragePropertyDef,
+) -> StorageResult<()> {
+    if !graph.is_open.load(Ordering::Acquire) {
+        return Err(StorageError::storage_not_open());
+    }
+
+    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let table = vertex_tables
+        .get_mut(&label)
+        .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
+
+    table.add_property(prop)?;
+
+    Ok(())
+}

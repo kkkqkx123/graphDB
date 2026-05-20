@@ -128,7 +128,16 @@ impl<'a> SchemaAdapterOps<'a> {
     ) -> StorageResult<bool> {
         self.ctx
             .schema_manager
-            .alter_tag(space, tag_name, additions, deletions)
+            .alter_tag(space, tag_name, additions.clone(), deletions)?;
+
+        if let Some(label_id) = self.ctx.graph.get_vertex_label_id(tag_name) {
+            for prop in additions {
+                let storage_prop = crate::storage::storage_types::StoragePropertyDef::from_core(&prop);
+                self.ctx.graph.add_vertex_property(label_id, storage_prop)?;
+            }
+        }
+
+        Ok(true)
     }
 
     pub fn create_edge_type(&self, space: &str, edge_type: &EdgeTypeInfo) -> StorageResult<u32> {

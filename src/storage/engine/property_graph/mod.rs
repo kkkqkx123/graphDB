@@ -79,6 +79,17 @@ pub struct InsertEdgeParams<'a> {
     pub ts: Timestamp,
 }
 
+/// Parameters for insert_edge operation with i64 vertex IDs
+pub struct InsertEdgeParamsByI64<'a> {
+    pub edge_label: LabelId,
+    pub src_label: LabelId,
+    pub src_id: i64,
+    pub dst_label: LabelId,
+    pub dst_id: i64,
+    pub properties: &'a [(String, Value)],
+    pub ts: Timestamp,
+}
+
 /// Parameters for update_edge_property operation in PropertyGraph
 pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
     pub edge_label: LabelId,
@@ -310,6 +321,14 @@ impl PropertyGraph {
         type_ops::drop_edge_type(self, name)
     }
 
+    pub fn add_vertex_property(
+        &self,
+        label: LabelId,
+        prop: crate::storage::storage_types::StoragePropertyDef,
+    ) -> StorageResult<()> {
+        type_ops::add_vertex_property(self, label, prop)
+    }
+
     // ==================== Vertex Operations ====================
 
     pub fn insert_vertex(
@@ -368,6 +387,15 @@ impl PropertyGraph {
         core_ops::delete_vertex(self, label, external_id, ts)
     }
 
+    pub fn delete_vertex_by_i64(
+        &self,
+        label: LabelId,
+        external_id: i64,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        core_ops::delete_vertex_by_i64(self, label, external_id, ts)
+    }
+
     pub fn update_vertex_property(
         &self,
         label: LabelId,
@@ -377,6 +405,17 @@ impl PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<()> {
         core_ops::update_vertex_property(self, label, external_id, property_name, value, ts)
+    }
+
+    pub fn update_vertex_property_by_i64(
+        &self,
+        label: LabelId,
+        external_id: i64,
+        property_name: &str,
+        value: &Value,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        core_ops::update_vertex_property_by_i64(self, label, external_id, property_name, value, ts)
     }
 
     pub fn vertex_label_ids(&self) -> Vec<LabelId> {
@@ -391,6 +430,10 @@ impl PropertyGraph {
 
     pub fn insert_edge(&self, params: InsertEdgeParams) -> StorageResult<EdgeOffset> {
         core_ops::insert_edge(self, params)
+    }
+
+    pub fn insert_edge_by_i64(&self, params: InsertEdgeParamsByI64) -> StorageResult<EdgeOffset> {
+        core_ops::insert_edge_by_i64(self, params)
     }
 
     pub fn get_edge(

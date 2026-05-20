@@ -234,8 +234,21 @@ impl VertexTable {
             return Err(StorageError::vertex_not_found());
         }
 
+        let prop_def = self
+            .schema
+            .properties
+            .iter()
+            .find(|p| p.name == col_name)
+            .ok_or_else(|| StorageError::column_not_found(col_name.to_string()))?;
+
+        let converted_value = if value.data_type() != prop_def.data_type {
+            value.try_cast_to(&prop_def.data_type)?
+        } else {
+            value.clone()
+        };
+
         self.columns
-            .set_property(internal_id as usize, col_name, Some(value))
+            .set_property(internal_id as usize, col_name, Some(&converted_value))
     }
 
     pub fn update_property_by_id(
@@ -255,9 +268,20 @@ impl VertexTable {
 
         let col = self
             .columns
+            .get_column_by_id(col_id)
+            .ok_or_else(|| StorageError::column_not_found(format!("col_id={}", col_id)))?;
+
+        let converted_value = if value.data_type() != col.data_type {
+            value.try_cast_to(&col.data_type)?
+        } else {
+            value.clone()
+        };
+
+        let col = self
+            .columns
             .get_column_by_id_mut(col_id)
             .ok_or_else(|| StorageError::column_not_found(format!("col_id={}", col_id)))?;
-        col.set(internal_id as usize, Some(value))
+        col.set(internal_id as usize, Some(&converted_value))
     }
 
     pub fn delete(&mut self, external_id: &str, ts: Timestamp) -> StorageResult<()> {

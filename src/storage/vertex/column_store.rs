@@ -235,7 +235,12 @@ impl ColumnStorage for FixedWidthColumn {
         null_bitmap: Option<BitVec<u8, Lsb0>>,
     ) {
         self.data = data;
-        self.row_count = self.data.len() / self.element_size.max(1);
+        let elem_size = self.element_size.max(1);
+        let remainder = self.data.len() % elem_size;
+        if remainder != 0 {
+            self.data.resize(self.data.len() + (elem_size - remainder), 0);
+        }
+        self.row_count = self.data.len() / elem_size;
         self.null_bitmap = null_bitmap;
     }
 
@@ -247,12 +252,17 @@ impl ColumnStorage for FixedWidthColumn {
         bitmap_bit_len: usize,
     ) {
         self.data = data;
+        let elem_size = self.element_size.max(1);
+        let remainder = self.data.len() % elem_size;
+        if remainder != 0 {
+            self.data.resize(self.data.len() + (elem_size - remainder), 0);
+        }
         self.null_bitmap = null_bitmap_raw.map(|raw| {
             let mut bv = BitVec::from_vec(raw);
             bv.resize(bitmap_bit_len, false);
             bv
         });
-        self.row_count = self.data.len() / self.element_size.max(1);
+        self.row_count = self.data.len() / elem_size;
     }
 
     fn get_flush_data(&self) -> (Vec<u8>, Vec<u64>, Option<BitVec<u8, Lsb0>>) {
@@ -548,9 +558,32 @@ fn ensure_bitmap_len(bitmap: &mut BitVec<u8, Lsb0>, min_len: usize) {
 fn write_fixed_value(
     data: &mut [u8],
     offset: usize,
-    _element_size: usize,
+    element_size: usize,
     value: &Value,
 ) -> StorageResult<()> {
+    let required_size = match value {
+        Value::Bool(_) => 1,
+        Value::SmallInt(_) => 2,
+        Value::Int(_) => 4,
+        Value::BigInt(_) => 8,
+        Value::Float(_) => 4,
+        Value::Double(_) => 8,
+        Value::Date(_) => 12,
+        _ => {
+            return Err(StorageError::type_mismatch(
+                value.data_type(),
+                value.data_type(),
+            ));
+        }
+    };
+    
+    if offset + required_size > data.len() {
+        return Err(StorageError::invalid_input(format!(
+            "Column data buffer too small: offset={}, required_size={}, data_len={}, element_size={}",
+            offset, required_size, data.len(), element_size
+        )));
+    }
+    
     match value {
         Value::Bool(b) => {
             data[offset] = if *b { 1 } else { 0 };
@@ -641,6 +674,8 @@ fn read_fixed_value(data: &[u8], offset: usize, element_size: usize) -> Option<V
 fn convert_to_type(raw: Value, data_type: &DataType) -> Value {
     match (data_type, &raw) {
         (DataType::Double, Value::BigInt(n)) => Value::Double(f64::from_bits(*n as u64)),
+        (DataType::Float, Value::Int(n)) => Value::Float(f32::from_bits(*n as u32)),
+        (DataType::Float, Value::BigInt(n)) => Value::Float(f32::from_bits(*n as u32)),
         _ => raw,
     }
 }

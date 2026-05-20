@@ -6,7 +6,7 @@ use crate::core::types::{
     InsertEdgeInfo, InsertVertexInfo, LabelId, UpdateInfo, UpdateOp, UpdateTarget, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-use crate::storage::engine::property_graph::InsertEdgeParams;
+use crate::storage::engine::property_graph::{InsertEdgeParams, InsertEdgeParamsByI64};
 use crate::storage::metadata::index_manager::IndexMetadataManager;
 
 use super::context::GraphStorageContext;
@@ -94,14 +94,21 @@ impl<'a> GraphStorageWriter<'a> {
             .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
         let ts = self.ctx.get_write_timestamp();
-        let id_str = vertex.vid.to_string();
+        let vid_int = vertex.vid.as_int64();
 
         for tag in &vertex.tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.name) {
                 for (prop_name, value) in &tag.properties {
-                    self.ctx
-                        .graph
-                        .update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
+                    if let Some(id_int) = vid_int {
+                        self.ctx
+                            .graph
+                            .update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
+                    } else {
+                        let id_str = vertex.vid.to_string();
+                        self.ctx
+                            .graph
+                            .update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
+                    }
                 }
 
                 let props: Vec<(String, Value)> = tag
@@ -134,11 +141,16 @@ impl<'a> GraphStorageWriter<'a> {
 
         let tags = self.ctx.schema_manager.list_tags(space)?;
         let ts = self.ctx.get_write_timestamp();
-        let id_str = id.to_string();
+        let id_int = id.as_int64();
 
         for tag in &tags {
             if let Some(label_id) = self.ctx.graph.get_vertex_label_id(&tag.tag_name) {
-                let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
+                if let Some(vid_int) = id_int {
+                    let _ = self.ctx.graph.delete_vertex_by_i64(label_id, vid_int, ts);
+                } else {
+                    let id_str = id.to_string();
+                    let _ = self.ctx.graph.delete_vertex(label_id, &id_str, ts);
+                }
 
                 let id_value = Value::from(*id);
                 Self::delete_vertex_indexes(
@@ -238,23 +250,38 @@ impl<'a> GraphStorageWriter<'a> {
                         if let Some(dst_label_id) =
                             self.ctx.graph.get_vertex_label_id(&et.dst_tag_name)
                         {
-                            let src_str = edge.src.to_string();
-                            let dst_str = edge.dst.to_string();
                             let props: Vec<(String, Value)> = edge
                                 .props
                                 .iter()
                                 .map(|(k, v)| (k.clone(), v.clone()))
                                 .collect();
 
-                            self.ctx.graph.insert_edge(InsertEdgeParams {
-                                edge_label: edge_label_id,
-                                src_label: src_label_id,
-                                src_id: &src_str,
-                                dst_label: dst_label_id,
-                                dst_id: &dst_str,
-                                properties: &props,
-                                ts,
-                            })?;
+                            let src_int = edge.src.as_int64();
+                            let dst_int = edge.dst.as_int64();
+
+                            if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
+                                self.ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
+                                    edge_label: edge_label_id,
+                                    src_label: src_label_id,
+                                    src_id,
+                                    dst_label: dst_label_id,
+                                    dst_id,
+                                    properties: &props,
+                                    ts,
+                                })?;
+                            } else {
+                                let src_str = edge.src.to_string();
+                                let dst_str = edge.dst.to_string();
+                                self.ctx.graph.insert_edge(InsertEdgeParams {
+                                    edge_label: edge_label_id,
+                                    src_label: src_label_id,
+                                    src_id: &src_str,
+                                    dst_label: dst_label_id,
+                                    dst_id: &dst_str,
+                                    properties: &props,
+                                    ts,
+                                })?;
+                            }
 
                             let src_value = Value::from(edge.src);
                             let dst_value = Value::from(edge.dst);
@@ -426,8 +453,6 @@ impl<'a> GraphStorageWriter<'a> {
                 .map_err(|e| StorageError::invalid_input(e.to_string()))?;
             let dst_vid = VertexId::try_from(&info.dst_vertex_id)
                 .map_err(|e| StorageError::invalid_input(e.to_string()))?;
-            let src_id = src_vid.to_string();
-            let dst_id = dst_vid.to_string();
 
             let edge_types = self.ctx.schema_manager.list_edge_types(space)?;
             for et in edge_types {
@@ -437,15 +462,33 @@ impl<'a> GraphStorageWriter<'a> {
                         if let Some(dst_label_id) =
                             self.ctx.graph.get_vertex_label_id(&et.dst_tag_name)
                         {
-                            let result = self.ctx.graph.insert_edge(InsertEdgeParams {
-                                edge_label: edge_label_id,
-                                src_label: src_label_id,
-                                src_id: &src_id,
-                                dst_label: dst_label_id,
-                                dst_id: &dst_id,
-                                properties: &info.props,
-                                ts,
-                            });
+                            let src_int = src_vid.as_int64();
+                            let dst_int = dst_vid.as_int64();
+
+                            let result = if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
+                                self.ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
+                                    edge_label: edge_label_id,
+                                    src_label: src_label_id,
+                                    src_id,
+                                    dst_label: dst_label_id,
+                                    dst_id,
+                                    properties: &info.props,
+                                    ts,
+                                })
+                            } else {
+                                let src_id = src_vid.to_string();
+                                let dst_id = dst_vid.to_string();
+                                self.ctx.graph.insert_edge(InsertEdgeParams {
+                                    edge_label: edge_label_id,
+                                    src_label: src_label_id,
+                                    src_id: &src_id,
+                                    dst_label: dst_label_id,
+                                    dst_id: &dst_id,
+                                    properties: &info.props,
+                                    ts,
+                                })
+                            };
+
                             match result {
                                 Ok(_) => {
                                     Self::update_edge_indexes(EdgeIndexUpdateParams {
