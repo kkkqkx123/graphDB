@@ -16,7 +16,7 @@ use crate::core::Value;
 use crate::search::engine::SearchEngine;
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
-use crate::search::tokenizer::JiebaTokenizer;
+use tantivy::tokenizer::JiebaTokenizer;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TantivyConfig {

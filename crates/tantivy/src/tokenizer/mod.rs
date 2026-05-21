@@ -138,10 +138,14 @@ mod tokenizer;
 mod tokenizer_manager;
 mod whitespace_tokenizer;
 
+#[cfg(feature = "jieba")]
+mod jieba;
 #[cfg(feature = "stemmer")]
 mod stemmer;
 pub use tokenizer_api::{BoxTokenStream, Token, TokenFilter, TokenStream, Tokenizer};
 
+#[cfg(feature = "jieba")]
+pub use self::jieba::JiebaTokenizer;
 pub use self::alphanum_only::AlphaNumOnlyFilter;
 pub use self::ascii_folding_filter::AsciiFoldingFilter;
 pub use self::facet_tokenizer::FacetTokenizer;

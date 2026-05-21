@@ -50,8 +50,6 @@ tonic = { version = "0.12", optional = true }
 prost = { version = "0.13", optional = true }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"], optional = true }
 async-trait = { version = "0.1", optional = true }
-jieba-rs = { version = "0.7", optional = true }
-
 tantivy = { path = "crates/tantivy", optional = true }
 vector-client = { path = "crates/vector-client", features = ["qdrant"], optional = true }
 
@@ -82,7 +80,7 @@ embedded = []
 c-api = ["embedded", "dep:cbindgen"]
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "dep:async-trait"]
 grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
-fulltext-search = ["dep:tantivy", "dep:jieba-rs"]
+fulltext-search = ["dep:tantivy", "tantivy/jieba"]
 
 [profile.dev]
 opt-level = 0

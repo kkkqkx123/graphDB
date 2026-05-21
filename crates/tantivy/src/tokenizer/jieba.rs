@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
 use jieba_rs::{Jieba, TokenizeMode};
-use tantivy::tokenizer::{Token, TokenStream, Tokenizer};
+use tokenizer_api::{Token, TokenStream, Tokenizer};
 
+/// Tokenizer for Chinese text that uses jieba-rs for word segmentation.
+///
+/// Uses `TokenizeMode::Search` which provides finer-grained segmentation
+/// suitable for search indexing.
 #[derive(Clone)]
 pub struct JiebaTokenizer {
     jieba: Arc<Jieba>,
