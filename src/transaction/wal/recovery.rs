@@ -1,6 +1,29 @@
 //! Recovery Manager
 //!
 //! Provides crash recovery functionality using WAL replay.
+//!
+//! ## Usage
+//!
+//! ```rust,ignore
+//! use graphdb::transaction::wal::{RecoveryManager, RecoveryConfig};
+//! use graphdb::core::wal::traits::RecoveryApplier;
+//!
+//! // Create a recovery manager
+//! let config = RecoveryConfig::default();
+//! let mut manager = RecoveryManager::new(config);
+//!
+//! // Check if recovery is needed
+//! if manager.needs_recovery() {
+//!     // Create a recovery applier (typically from storage engine)
+//!     let applier: Box<dyn RecoveryApplier> = ...;
+//!     
+//!     // Perform recovery
+//!     let stats = manager.recover_with_applier(&*applier)?;
+//!     println!("Recovered {} entries in {}ms", 
+//!              stats.wal_entries_replayed, 
+//!              stats.recovery_time_ms);
+//! }
+//! ```
 
 use std::path::PathBuf;
 
@@ -83,20 +106,7 @@ impl RecoveryManager {
         Ok(self.stats.clone())
     }
 
-    /// Perform crash recovery (legacy, without applier)
-    pub fn recover(&mut self) -> StorageResult<RecoveryStats> {
-        let start = std::time::Instant::now();
 
-        self.stats = RecoveryStats::default();
-
-        let wal_result = self.parse_wal_files()?;
-
-        self.restore_from_checkpoint(&wal_result)?;
-
-        self.stats.recovery_time_ms = start.elapsed().as_millis() as u64;
-
-        Ok(self.stats.clone())
-    }
 
     /// Parse WAL files
     fn parse_wal_files(&self) -> StorageResult<RecoveryResult> {
