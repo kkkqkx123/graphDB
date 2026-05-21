@@ -31,7 +31,7 @@ impl Tokenizer for JiebaTokenizer {
 }
 
 pub struct JiebaTokenStream<'a> {
-    tokens: Vec<jieba_rs::Token>,
+    tokens: Vec<jieba_rs::Token<'a>>,
     text: &'a str,
     index: usize,
     token: Token,
