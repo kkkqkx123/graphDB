@@ -32,7 +32,7 @@ fn create_harness_with_paths(
         index_path: index_path.to_path_buf(),
         default_engine: EngineType::Bm25,
         sync: SyncConfig::default(),
-        bm25: Default::default(),
+        tantivy: Default::default(),
         inversearch: Default::default(),
         cache_size: 100,
         max_result_cache: 1000,

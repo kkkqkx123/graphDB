@@ -28,7 +28,7 @@ impl FulltextTestContext {
             index_path: temp_dir.path().to_path_buf(),
             default_engine: EngineType::Bm25,
             sync: graphdb::search::SyncConfig::default(),
-            bm25: Default::default(),
+            tantivy: Default::default(),
             inversearch: Default::default(),
             cache_size: 100,
             max_result_cache: 1000,

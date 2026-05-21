@@ -1,9 +1,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::search::adapters::{Bm25Config, Bm25SearchEngine, InversearchConfig, InversearchEngine};
+use crate::search::adapters::{InversearchConfig, InversearchEngine};
 use crate::search::engine::{EngineType, SearchEngine};
 use crate::search::error::SearchError;
+use crate::search::tantivy_index::{TantivyConfig, TantivySearchEngine};
 
 pub struct SearchEngineFactory;
 
@@ -17,7 +18,8 @@ impl SearchEngineFactory {
 
         match engine_type {
             EngineType::Bm25 => {
-                let engine = Bm25SearchEngine::open_or_create(&engine_path, Bm25Config::default())?;
+                let engine =
+                    TantivySearchEngine::open_or_create(&engine_path, TantivyConfig::default())?;
                 Ok(Arc::new(engine))
             }
             EngineType::Inversearch => {
@@ -44,7 +46,8 @@ impl SearchEngineFactory {
 
         match engine_type {
             EngineType::Bm25 => {
-                let engine = Bm25SearchEngine::open_or_create(&engine_path, config.bm25.clone())?;
+                let engine =
+                    TantivySearchEngine::open_or_create(&engine_path, config.tantivy.clone())?;
                 Ok(Arc::new(engine))
             }
             EngineType::Inversearch => {

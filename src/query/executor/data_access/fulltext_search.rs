@@ -752,7 +752,7 @@ impl<S: StorageClient> HasStorage<S> for FulltextScanExecutor<S> {
 mod tests {
     use super::*;
     use crate::storage::test_mock::MockStorage;
-    use bm25_service::config::IndexManagerConfig;
+    use crate::search::tantivy_index::TantivyConfig;
     use tempfile::TempDir;
 
     fn create_test_executor() -> FulltextSearchExecutor<MockStorage> {
@@ -780,9 +780,9 @@ mod tests {
             ),
             statement,
             engine: std::sync::Arc::new(
-                crate::search::adapters::Bm25SearchEngine::open_or_create(
+                crate::search::tantivy_index::TantivySearchEngine::open_or_create(
                     temp_dir.path(),
-                    IndexManagerConfig::default(),
+                    TantivyConfig::default(),
                 )
                 .expect("Failed to create engine"),
             ),

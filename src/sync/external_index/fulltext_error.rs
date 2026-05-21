@@ -26,9 +26,6 @@ pub enum FulltextError {
     #[error("Index corrupted: {0}")]
     IndexCorrupted(String),
 
-    #[error("BM25 engine error: {0}")]
-    Bm25Error(String),
-
     #[error("Inversearch engine error: {0}")]
     InversearchError(String),
 
@@ -142,7 +139,9 @@ impl From<crate::search::error::SearchError> for FulltextError {
             crate::search::error::SearchError::IndexCorrupted(msg) => {
                 FulltextError::IndexCorrupted(msg)
             }
-            crate::search::error::SearchError::Bm25Error(msg) => FulltextError::Bm25Error(msg),
+            crate::search::error::SearchError::TantivyError(e) => {
+                FulltextError::Internal(e.to_string())
+            }
             crate::search::error::SearchError::InversearchError(msg) => {
                 FulltextError::InversearchError(msg)
             }

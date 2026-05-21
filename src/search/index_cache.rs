@@ -99,8 +99,7 @@ impl IndexCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::search::adapters::Bm25SearchEngine;
-    use bm25_service::config::IndexManagerConfig;
+    use crate::search::tantivy_index::{TantivyConfig, TantivySearchEngine};
     use tempfile::TempDir;
 
     #[test]
@@ -115,11 +114,11 @@ mod tests {
         assert_eq!(cache.len(), 0);
 
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
 
@@ -144,15 +143,15 @@ mod tests {
         let key3 = IndexKey::new(1, "Post", "title");
 
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir1.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir1.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir2.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir2.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
         let engine3 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir3.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir3.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
 
@@ -178,7 +177,7 @@ mod tests {
 
         let key1 = IndexKey::new(1, "Article", "title");
         let engine = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
 
@@ -201,11 +200,11 @@ mod tests {
         let key2 = IndexKey::new(1, "Article", "content");
 
         let engine1 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir1.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir1.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
         let engine2 = Arc::new(
-            Bm25SearchEngine::open_or_create(temp_dir2.path(), IndexManagerConfig::default())
+            TantivySearchEngine::open_or_create(temp_dir2.path(), TantivyConfig::default())
                 .expect("Failed to create engine"),
         );
 

@@ -97,11 +97,77 @@ pub use config::{Bm25Config, FieldWeights, SearchConfig};
 
 ### 2.2 当前 lib.rs 导出问题
 
-`lib.rs` 对几乎所有内部模块都做了 `pub use` 将内部项提升到 crate 根路径（共约 200+ 个 re-export），而外部仅使用了其中 2 个入口。此外 `api::core` 模块整体是 `lib.rs` 的镜像，属于冗余导出层。
+`lib.rs` 对几乎所有内部模块都做了 `pub use` 将内部项提升到 crate 根路径（共约 200+ 个 re-export），而外部（graphdb）仅使用了其中 2 个入口。此外 `api::core` 模块整体是 `lib.rs` 的镜像，属于冗余导出层。
 
-### 2.3 修改方案
+### 2.3 集成测试现状
 
-#### 2.3.1 模块级可见性调整
+`crates/inversearch/tests/` 下存在 **45 个文件 / ~134KB 集成测试代码**，全部通过 `inversearch_service::*` 公共路径访问 crate。这些测试覆盖了 15+ 个模块：
+
+| 模块 | 测试导入示例 | 被测试引用 |
+|------|------------|-----------|
+| `search` | `inversearch_service::search::search` | 是 |
+| `index` | `inversearch_service::Index`, `inversearch_service::index::IndexOptions` | 是 |
+| `resolver` | `inversearch_service::resolver::{exclusion, intersect_and, ...}` | 是 |
+| `highlight` | `inversearch_service::highlight::highlight_single_document` | 是 |
+| `intersect` | `inversearch_service::intersect::SuggestionEngine` | 是 |
+| `document` | `inversearch_service::document::{Document, DocumentConfig}` | 是 |
+| `r#type` | `inversearch_service::r#type::IntermediateSearchResults` | 是 |
+| `storage` | `inversearch_service::storage::common::*` | 是 |
+| `error` | `inversearch_service::error::{InversearchError, IndexError, ...}` | 是 |
+| `config` | `inversearch_service::config::{Config, CacheConfig, ...}` | 是 |
+| `encoder` | `inversearch_service::encoder::Encoder` | 是 |
+| `async_` | — | 否 |
+| `charset` | — | 否 |
+| `common` | — | 否 |
+| `compress` | — | 否 |
+| `keystore` | — | 否 |
+| `serialize` | — | 否 |
+| `tokenizer` | — | 否 |
+| `api::core` | — | 否 |
+
+关键观察：**所有集成测试以外部的视角行使公共 API**，它们通过 `inversearch_service::*` 路径访问，而非 `crate::*`。这正是集成测试的本来目的。
+
+### 2.4 可见性调整策略选择
+
+针对集成测试，文档调研了两种方案并推荐混合策略（方案 C）：
+
+#### 方案 A：集成测试转单元测试（不推荐）
+
+将 `tests/*.rs` 迁移为 `src/**/tests.rs` 内的 `#[cfg(test)] mod tests`。
+
+| 问题 | 说明 |
+|------|------|
+| **测试性质变质** | 集成测试的价值在于**以外部的视角验证公共 API**。转为单元测试后可访问 `pub(crate)` 内部项，反而降低了测试约束力，失去"公共 API 契约测试"的意义 |
+| **迁移成本高** | 45 个文件 / 134KB 代码需全部重构路径 `inversearch_service::` → `crate::` |
+| **代码组织退化** | 测试代码混入 `src/` 生产代码目录 |
+
+#### 方案 B：保留模块 `pub`，仅收缩 lib 层 re-export（可用，但有优化空间）
+
+保持内部模块为 `pub`，但不在 `lib.rs` 中 re-export。集成测试通过完整路径访问。
+
+优点：零迁移成本，集成测试不受影响。
+缺点：仍然暴露了模块路径给外部——但对于内部 crate（非发布到 crates.io 的公共库），这实际是可接受的。
+
+#### 方案 C（推荐）：混合策略
+
+根据是否被集成测试使用，将模块分为三类处理：
+
+| 类别 | 处理方式 | 覆盖模块 |
+|------|----------|----------|
+| **未被集成测试引用** | 降为 `pub(crate)`，移除 lib.rs re-export | `async_`, `charset`, `common`, `compress`, `keystore`, `serialize`, `tokenizer`, `api::core` |
+| **被集成测试引用** | 保留 `pub`，移除 lib.rs re-export | `search`, `index`, `resolver`, `highlight`, `intersect`, `document`, `r#type`, `storage`, `error`, `config`, `encoder` |
+| **外部消费者入口** | 保留 `pub`，保留 lib.rs re-export | `api::embedded`, `config::EmbeddedConfig` |
+
+**这样做的收益**：
+
+1. **lib.rs re-export 从 ~200 项精简到 ~10 项**，外部新手看到 lib.rs 就知道"这才是推荐入口"
+2. **45 个集成测试无需任何修改**，通过完整路径继续工作
+3. **8 个纯内部模块彻底隐藏**，减少误用风险
+4. **被集成测试引用的模块虽保持 `pub` 但不再 re-export**——`pub` 模块路径是一种"软可见性"标记，在内部 crate 中是可接受的折中
+
+### 2.5 模块级可见性调整明细
+
+#### 2.5.1 可直接降为 `pub(crate)` 的模块（无测试依赖）
 
 | 模块 | 当前 | 改为 | 原因 |
 |------|------|------|------|
@@ -109,40 +175,31 @@ pub use config::{Bm25Config, FieldWeights, SearchConfig};
 | `charset` | `pub` | `pub(crate)` | 仅内部使用 |
 | `common` | `pub` | `pub(crate)` | 仅内部使用 |
 | `compress` | `pub` | `pub(crate)` | 仅内部使用 |
-| `document` | `pub` | `pub(crate)` | 仅内部使用 |
-| `encoder` | `pub` | `pub(crate)` | 仅内部使用 |
-| `highlight` | `pub` | `pub(crate)` | 仅内部使用 |
-| `index` | `pub` | `pub(crate)` | 仅内部使用 |
-| `intersect` | `pub` | `pub(crate)` | 仅内部使用 |
 | `keystore` | `pub` | `pub(crate)` | 仅内部使用 |
-| `resolver` | `pub` | `pub(crate)` | 仅内部使用 |
-| `search` | `pub` | `pub(crate)` | 仅内部使用 |
 | `serialize` | `pub` | `pub(crate)` | 仅内部使用 |
-| `storage` | `pub` | `pub(crate)` | 仅内部使用 |
 | `tokenizer` | `pub` | `pub(crate)` | 仅内部使用 |
-| `r#type` | `pub` | `pub(crate)` | 仅内部使用 |
-| `error` | `pub` | `pub(crate)` | 类型已在 lib.rs 层 re-export |
 | `async_` | `pub` | `pub(crate)` | 仅内部使用 |
-| `api::embedded` | `pub` | 维持 `pub` | 外部通过此路径使用 `EmbeddedIndex` |
-| `config` | `pub` | 维持 `pub` | 外部通过此路径使用 `EmbeddedConfig` |
 
-#### 2.3.2 api::core 模块
+#### 2.5.2 保留 `pub` 但移除 re-export 的模块（被集成测试使用）
 
-`api/core/mod.rs` 是 `lib.rs` 的完全镜像，是冗余导出层，可直接降为 `pub(crate)`：
+| 模块 | 当前 lib.rs re-export | 操作 | 说明 |
+|------|----------------------|------|------|
+| `search` | `pub use search::{multi_field_search, search, CacheKeyGenerator, ...}` | 移除 | 集成测试通过 `inversearch_service::search::search` 访问 |
+| `index` | `pub use index::{Register, ScoreFn, ...}` | 移除 | 集成测试通过 `inversearch_service::Index`、`inversearch_service::index::IndexOptions` 访问 |
+| `resolver` | `pub use resolver::{combine_search_results, exclusion, ...}` | 移除 | 集成测试通过 `inversearch_service::resolver::...` 访问 |
+| `highlight` | `pub use highlight::{highlight_document, ...}` | 移除 | 集成测试通过 `inversearch_service::highlight::...` 访问 |
+| `intersect` | `pub use intersect::SuggestionEngine` | 移除 | 集成测试通过 `inversearch_service::intersect::SuggestionEngine` 访问 |
+| `document` | `pub use document::{parse_tree, Batch, Document, ...}` | 移除 | 集成测试通过 `inversearch_service::document::{Document, DocumentConfig}` 访问 |
+| `r#type` | `pub use r#type::{ContextOptions, EncoderOptions, ...}` | 移除 | 集成测试通过 `inversearch_service::r#type::IntermediateSearchResults` 访问 |
+| `storage` | `pub use storage::{StorageInterface, MemoryStorage, StorageManager, ...}` | 移除 | 集成测试通过 `inversearch_service::storage::...` 访问 |
+| `error` | `pub use error::{CacheError, InversearchError, ...}` | 移除 | 集成测试通过 `inversearch_service::error::...` 访问 |
+| `config` | `pub use config::{Config, EmbeddedConfig, ...}` | 精简 | 保留 `pub use config::EmbeddedConfig`（被 graphdb 使用），移除其他 config re-export |
+| `encoder` | `pub use encoder::Encoder` | 移除 | 集成测试通过 `inversearch_service::encoder::Encoder` 访问 |
 
-- 模块声明: `pub mod core` → `pub(crate) mod core` (在 `api/mod.rs` 中修改)
-- 内部所有 `pub use crate::xxx::...` → `pub(crate) use crate::xxx::...`
-
-#### 2.3.3 lib.rs re-export 精简
-
-当前 `lib.rs` 有 108 行，包含 200+ 个 re-export 项。精简后仅保留外部需要的：
+#### 2.5.3 保留 `pub` + 保留 re-export 的入口
 
 ```rust
-// 保留的模块声明
-pub mod api;
-pub mod config;
-
-// 保留的 re-export（外部真实依赖）
+// lib.rs 精简后保留的 re-export
 pub use api::embedded::{
     EmbeddedBatch, EmbeddedBatchOperation, EmbeddedBatchResult,
     EmbeddedIndex, EmbeddedIndexBuilder, EmbeddedIndexStats,
@@ -151,31 +208,18 @@ pub use api::embedded::{
 pub use config::EmbeddedConfig;
 ```
 
-其余所有 lib 层的 `pub use` 均移除。
+#### 2.5.4 api::core 模块的完整处理
 
-#### 2.3.4 内部模块的跨模块引用调整
+`api/core/mod.rs` 是 `lib.rs` 的完全镜像，是冗余导出层，直接降为 `pub(crate)`：
 
-部分内部模块之间通过 `pub(crate)` 相互引用（如 `api/embedded.rs` → `Index`、`search`、`config`），这些引用在模块降级后不受影响，因为 `pub(crate)` 允许同 crate 内任意位置访问。
-
-**例外：integration tests**
-
-`crates/inversearch/tests/` 下有大量集成测试，它们以外部视角访问 crate 的 `pub` 项。若将内部模块全部降级，集成测试将无法编译。以下为两种解决方案：
-
-**方案 A：将集成测试转为单元测试**
-
-将 `tests/*.rs` 迁移为 `src/*_test.rs` 或 `src/**/tests.rs` 内的 `#[cfg(test)] mod tests`。这样它们作为 crate 内部代码可以访问 `pub(crate)` 项。
-
-**方案 B：保留模块 `pub`，仅收缩 lib 层 re-export**
-
-保持内部模块为 `pub`，但不在 `lib.rs` 中 re-export（外部需通过完整路径访问）。这种方式容易遗漏，且仍然暴露了模块路径给外部。
-
-**推荐：方案 A**。集成测试转为单元测试后，整体可见性更可控，且测试代码与实现代码放在一起更易维护。
+- 模块声明: `pub mod core` → `pub(crate) mod core`（在 `api/mod.rs` 中修改）
+- 内部所有 `pub use crate::xxx::...` → `pub(crate) use crate::xxx::...`
 
 ---
 
 ## 3. 实施步骤
 
-### Phase 1: bm25-service
+### Phase 1: bm25-service（无集成测试，可直接执行）
 
 1. `storage/` 模块改为 `pub(crate)`，内部项改为 `pub(crate)`
 2. `tokenizer/` 模块改为 `pub(crate)`
@@ -185,20 +229,22 @@ pub use config::EmbeddedConfig;
 6. 精简 `lib.rs` re-export，移除 `pub use api::core;`
 7. 运行 `cargo clippy --all-targets` 验证
 
-### Phase 2: inversearch-service
+### Phase 2: inversearch-service（按混合策略执行）
 
-1. 将 `tests/` 下集成测试迁移为 crate 内单元测试（`src/**/tests.rs` 或 `src/*_test.rs`）
-2. 将 `charset`, `common`, `compress`, `document`, `encoder`, `highlight`, `index`, `intersect`, `keystore`, `resolver`, `search`, `serialize`, `storage`, `tokenizer`, `r#type`, `async_`, `error` 模块改为 `pub(crate)`
-3. `api/core/` 模块及内部 re-export 改为 `pub(crate)`
-4. 精简 `lib.rs` re-export
+1. **内部模块收紧**：将 `async_`, `charset`, `common`, `compress`, `keystore`, `serialize`, `tokenizer` 模块改为 `pub(crate)`
+2. **api::core 降级**：模块及内部所有 re-export 改为 `pub(crate)`
+3. **入口保留**：`api::embedded` 和 `config` 模块保留 `pub`
+4. **lib.rs 精简化**：
+   - 移除除 `pub use api::embedded::*` 和 `pub use config::EmbeddedConfig` 之外的所有 re-export
+   - 移除不再需要的 `pub mod` 声明（已降为 `pub(crate)` 的模块）
 5. 运行 `cargo clippy --all-targets` 验证
 
 ### Phase 3: 验证
 
 - `cargo clippy --all-targets --all-features`（无 warning）
 - `cargo test --lib`（所有单元测试通过）
-- `cargo test --test '*'`（如有残留集成测试，通过）
-- 确认 graphdb 主 crate 可正常编译
+- `cargo test --test '*'`（所有集成测试通过——关键验证点）
+- 确认 graphdb 主 crate 可正常编译（`cargo check`）
 
 ---
 
@@ -207,6 +253,17 @@ pub use config::EmbeddedConfig;
 | 指标 | bm25 | inversearch |
 |------|------|-------------|
 | lib.rs 行数 | 30 → ~15 | 108 → ~15 |
-| 公共模块数 | 5 → 2 | 22 → 2 |
-| 公共 API 项数 | ~50 → ~10 | ~200 → ~10 |
+| 公共模块数 | 5 → 2 | 22 → 12（8 个隐藏 + 10 个保留不 re-export）|
+| 公共 API 项数 | ~50 → ~10 | ~200 → ~14 |
+| 集成测试影响 | 无（不存在） | 无（无需修改） |
 | 减少误用风险 | 中 | 高 |
+
+### 与纯方案 A/B 的对比
+
+| 维度 | 方案 A（全转单元测试） | 方案 B（仅缩 re-export） | 方案 C 混合策略（推荐） |
+|------|----------------------|------------------------|----------------------|
+| 集成测试改动 | 45 文件全改 | 无 | **无** |
+| 测试性质 | 变质为内部测试 | 保持外部视角 | **保持外部视角** |
+| 纯内部模块隐藏 | 完整隐藏 | 仍暴露 | **完整隐藏** |
+| 实施风险 | 高（134KB 测试需迁移） | 极低 | **低** |
+| 未来可维护性 | 中等 | 低（模块路径仍对外） | **高** |

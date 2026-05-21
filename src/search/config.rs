@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::search::adapters::{Bm25Config, InversearchConfig};
+use crate::search::adapters::InversearchConfig;
 use crate::search::engine::EngineType;
+use crate::search::tantivy_index::TantivyConfig;
 
 /// 同步失败策略
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -21,7 +22,7 @@ pub struct FulltextConfig {
     pub default_engine: EngineType,
     pub index_path: PathBuf,
     pub sync: SyncConfig,
-    pub bm25: Bm25Config,
+    pub tantivy: TantivyConfig,
     pub inversearch: InversearchConfig,
     pub cache_size: usize,
     pub max_result_cache: usize,
@@ -35,7 +36,7 @@ impl Default for FulltextConfig {
             default_engine: EngineType::Bm25,
             index_path: PathBuf::from("data/fulltext"),
             sync: SyncConfig::default(),
-            bm25: Bm25Config::default(),
+            tantivy: TantivyConfig::default(),
             inversearch: InversearchConfig::default(),
             cache_size: 100,
             max_result_cache: 1000,

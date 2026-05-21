@@ -8,6 +8,9 @@ pub mod manager;
 pub mod metadata;
 pub mod metrics;
 pub mod result;
+pub mod tantivy_index;
+pub mod tantivy_schema;
+pub mod tokenizer;
 pub mod warmup;
 
 #[cfg(test)]
@@ -25,4 +28,5 @@ pub use result::{
     FulltextSearchEntry, FulltextSearchResult, HighlightResult, IndexStats, SearchResult,
     SearchStats,
 };
+pub use tantivy_index::{TantivyConfig, TantivySearchEngine};
 pub use warmup::IndexWarmer;

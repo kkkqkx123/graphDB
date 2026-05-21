@@ -26,14 +26,15 @@ pub enum SearchError {
     #[error("Index corrupted: {0}")]
     IndexCorrupted(String),
 
-    #[error("BM25 engine error: {0}")]
-    Bm25Error(String),
-
     #[error("Inversearch engine error: {0}")]
     InversearchError(String),
 
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("Tantivy error: {0}")]
+    TantivyError(#[from] tantivy::TantivyError),
 
     #[error("Serialization error: {0}")]
     SerializationError(String),
