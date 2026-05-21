@@ -63,7 +63,7 @@ pub use compress::{
 pub use config::{
     Config, EmbeddedConfig, EmbeddedConfigBuilder, StorageBackend, StorageConfig, TokenizeMode,
 };
-pub use encoder::Encoder;
+pub use encoder::{Encoder, TextTokenizer};
 pub use error::{
     CacheError, EncoderError, IndexError, InversearchError, SearchError, StorageError,
 };

@@ -161,6 +161,7 @@ pub fn get_charset_latin_balance() -> EncoderOptions {
         minlength: Some(1),
         maxlength: Some(1024),
         cache: Some(true),
+        jieba: None,
     }
 }
 
@@ -190,6 +191,7 @@ pub fn get_charset_latin_advanced() -> EncoderOptions {
         minlength: Some(1),
         maxlength: Some(1024),
         cache: Some(true),
+        jieba: None,
     }
 }
 
@@ -217,6 +219,7 @@ pub fn get_charset_latin_extra() -> EncoderOptions {
         minlength: Some(1),
         maxlength: Some(1024),
         cache: Some(true),
+        jieba: None,
     }
 }
 

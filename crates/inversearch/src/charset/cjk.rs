@@ -17,6 +17,7 @@ pub fn get_charset_cjk() -> EncoderOptions {
         minlength: Some(1),
         maxlength: Some(1024),
         cache: Some(true),
+        jieba: Some(true),
     }
 }
 

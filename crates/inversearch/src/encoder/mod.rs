@@ -1,13 +1,14 @@
-pub mod tokenizer;
+mod tokenizer_trait;
 mod transform;
 mod validator;
 
-pub use tokenizer::{Tokenizer, TokenizerMode};
+pub use tokenizer_trait::TextTokenizer;
 pub use transform::*;
 pub use validator::EncoderValidator;
 
 use crate::error::Result;
 use crate::r#type::EncoderOptions;
+use jieba_rs::Jieba;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
@@ -51,6 +52,7 @@ pub struct Encoder {
     pub maxlength: usize,
     pub rtl: bool,
     pub cache: Option<Cache>,
+    pub jieba: Option<Arc<Jieba>>,
 }
 
 #[derive(Clone)]
@@ -149,6 +151,12 @@ impl Encoder {
         let maxlength = maxlength_val.unwrap_or(1024);
         let rtl = rtl_flag.unwrap_or(false);
 
+        let jieba = if options_clone.jieba.unwrap_or(false) {
+            Some(Arc::new(Jieba::new()))
+        } else {
+            None
+        };
+
         let cache = if cache_flag.unwrap_or(true) {
             Some(Cache {
                 size: 200_000,
@@ -177,6 +185,7 @@ impl Encoder {
             maxlength,
             rtl,
             cache,
+            jieba,
         };
 
         // Validate final transformer configuration
@@ -370,9 +379,25 @@ impl Encoder {
         }
     }
 
+    fn split_jieba(&self, str: &str) -> Vec<String> {
+        if let Some(jieba) = &self.jieba {
+            jieba
+                .tokenize(str, jieba_rs::TokenizeMode::Search, true)
+                .into_iter()
+                .map(|token| token.word.to_string())
+                .collect()
+        } else {
+            // Fallback: individual CJK characters
+            self.split_cjk_fallback(str)
+        }
+    }
+
     /// Split text handling CJK characters properly
-    /// CJK characters are treated as individual tokens
+    /// CJK characters are treated as individual tokens (fallback when jieba is not available)
     fn split_with_cjk(&self, str: &str) -> Vec<String> {
+        if self.jieba.is_some() {
+            return self.split_jieba(str);
+        }
         let mut result = Vec::new();
         let mut current_word = String::new();
 
@@ -407,6 +432,13 @@ impl Encoder {
 
     /// Split text with CJK support for empty split pattern
     fn split_cjk(&self, str: &str) -> Vec<String> {
+        if self.jieba.is_some() {
+            return self.split_jieba(str);
+        }
+        self.split_cjk_fallback(str)
+    }
+
+    fn split_cjk_fallback(&self, str: &str) -> Vec<String> {
         let mut result = Vec::new();
 
         for ch in str.chars() {
@@ -683,6 +715,7 @@ impl Encoder {
             minlength: Some(self.minlength),
             maxlength: Some(self.maxlength),
             cache: Some(self.cache.is_some()),
+            jieba: Some(self.jieba.is_some()),
         }
     }
 }

@@ -9,8 +9,6 @@ pub mod metadata;
 pub mod metrics;
 pub mod result;
 pub mod tantivy_index;
-pub mod tantivy_schema;
-pub mod tokenizer;
 pub mod warmup;
 
 #[cfg(test)]

@@ -127,6 +127,7 @@ pub struct EncoderOptions {
     pub minlength: Option<usize>,
     pub maxlength: Option<usize>,
     pub cache: Option<bool>,
+    pub jieba: Option<bool>,
 }
 
 impl Default for EncoderOptions {
@@ -147,6 +148,7 @@ impl Default for EncoderOptions {
             minlength: Some(1),
             maxlength: Some(1024),
             cache: Some(true),
+            jieba: None,
         }
     }
 }
