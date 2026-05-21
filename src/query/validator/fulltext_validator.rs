@@ -93,37 +93,21 @@ impl FulltextValidator {
             ));
         }
 
-        match create.engine_type {
-            crate::core::types::FulltextEngineType::Bm25 => {
-                if let Some(ref config) = create.options.bm25_config {
-                    if let Some(k1) = config.k1 {
-                        if k1 < 0.0 {
-                            return Err(ValidationError::new(
-                                "BM25 k1 parameter must be non-negative",
-                                ValidationErrorType::SemanticError,
-                            ));
-                        }
-                    }
-                    if let Some(b) = config.b {
-                        if !(0.0..=1.0).contains(&b) {
-                            return Err(ValidationError::new(
-                                "BM25 b parameter must be between 0 and 1",
-                                ValidationErrorType::SemanticError,
-                            ));
-                        }
-                    }
+        if let Some(ref config) = create.options.bm25_config {
+            if let Some(k1) = config.k1 {
+                if k1 < 0.0 {
+                    return Err(ValidationError::new(
+                        "BM25 k1 parameter must be non-negative",
+                        ValidationErrorType::SemanticError,
+                    ));
                 }
             }
-            crate::core::types::FulltextEngineType::Inversearch => {
-                if let Some(ref config) = create.options.inversearch_config {
-                    if let Some(resolution) = config.resolution {
-                        if resolution == 0 {
-                            return Err(ValidationError::new(
-                                "Inversearch resolution must be positive",
-                                ValidationErrorType::SemanticError,
-                            ));
-                        }
-                    }
+            if let Some(b) = config.b {
+                if !(0.0..=1.0).contains(&b) {
+                    return Err(ValidationError::new(
+                        "BM25 b parameter must be between 0 and 1",
+                        ValidationErrorType::SemanticError,
+                    ));
                 }
             }
         }

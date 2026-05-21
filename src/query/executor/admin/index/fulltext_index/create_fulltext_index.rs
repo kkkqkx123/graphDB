@@ -72,11 +72,8 @@ impl<S: StorageClient> CreateFulltextIndexExecutor<S> {
         }
     }
 
-    fn convert_engine_type(engine_type: FulltextEngineType) -> EngineType {
-        match engine_type {
-            FulltextEngineType::Bm25 => EngineType::Bm25,
-            FulltextEngineType::Inversearch => EngineType::Inversearch,
-        }
+    fn convert_engine_type(_engine_type: FulltextEngineType) -> EngineType {
+        EngineType::Bm25
     }
 }
 

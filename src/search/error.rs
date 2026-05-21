@@ -26,10 +26,6 @@ pub enum SearchError {
     #[error("Index corrupted: {0}")]
     IndexCorrupted(String),
 
-    #[error("Inversearch engine error: {0}")]
-    InversearchError(String),
-
-
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 

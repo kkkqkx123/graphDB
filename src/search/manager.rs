@@ -77,15 +77,8 @@ impl FulltextIndexManager {
         for entry in entries.flatten() {
             let path = entry.path();
 
-            if path.is_dir() {
-                if path.join("meta.json").exists() {
-                    if let Some((key, engine, metadata)) = self.try_restore_bm25_index(&path) {
-                        self.engines.insert(key.clone(), engine);
-                        self.metadata.insert(key, metadata);
-                    }
-                }
-            } else if path.extension().map(|e| e == "bin").unwrap_or(false) {
-                if let Some((key, engine, metadata)) = self.try_restore_inversearch_index(&path) {
+            if path.is_dir() && path.join("meta.json").exists() {
+                if let Some((key, engine, metadata)) = self.try_restore_bm25_index(&path) {
                     self.engines.insert(key.clone(), engine);
                     self.metadata.insert(key, metadata);
                 }
@@ -126,48 +119,6 @@ impl FulltextIndexManager {
             tag_name: tag_name.clone(),
             field_name: field_name.clone(),
             engine_type: EngineType::Bm25,
-            storage_path: path.to_string_lossy().to_string(),
-            created_at: chrono::Utc::now(),
-            last_updated: chrono::Utc::now(),
-            doc_count: 0,
-            status: IndexStatus::Active,
-            engine_config: None,
-        };
-
-        Some((key, engine, metadata))
-    }
-
-    fn try_restore_inversearch_index(
-        &self,
-        path: &std::path::Path,
-    ) -> Option<(IndexKey, Arc<dyn SearchEngine>, IndexMetadata)> {
-        let file_stem = path.file_stem()?.to_string_lossy();
-        let (space_id, tag_name, field_name) = self.parse_index_id(&file_stem)?;
-
-        let engine = SearchEngineFactory::from_config(
-            EngineType::Inversearch,
-            &file_stem,
-            &self.base_path,
-            &self.config,
-        )
-        .ok()?;
-
-        let engine = self.wrap_engine(
-            engine,
-            EngineType::Inversearch,
-            space_id,
-            &tag_name,
-            &field_name,
-        );
-
-        let key = IndexKey::new(space_id, &tag_name, &field_name);
-        let metadata = IndexMetadata {
-            index_id: file_stem.to_string(),
-            index_name: format!("idx_{}_{}_{}", space_id, tag_name, field_name),
-            space_id,
-            tag_name: tag_name.clone(),
-            field_name: field_name.clone(),
-            engine_type: EngineType::Inversearch,
             storage_path: path.to_string_lossy().to_string(),
             created_at: chrono::Utc::now(),
             last_updated: chrono::Utc::now(),
@@ -492,11 +443,6 @@ impl FulltextIndexManager {
             tokio::fs::remove_dir_all(&index_path).await?;
         }
 
-        let bin_path = index_path.with_extension("bin");
-        if bin_path.exists() {
-            tokio::fs::remove_file(&bin_path).await?;
-        }
-
         Ok(())
     }
 
@@ -621,11 +567,6 @@ impl FulltextIndexManager {
             let storage_path = PathBuf::from(&metadata.storage_path);
             if storage_path.exists() {
                 tokio::fs::remove_dir_all(&storage_path).await.ok();
-            }
-
-            let bin_path = storage_path.with_extension("bin");
-            if bin_path.exists() {
-                tokio::fs::remove_file(&bin_path).await.ok();
             }
         }
 

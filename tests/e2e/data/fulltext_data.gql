@@ -24,7 +24,7 @@ CREATE TAG IF NOT EXISTS product_desc(
 
 -- Create fulltext indexes
 CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) WITH (engine=bm25, analyzer=standard)
-CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_title ON article(title) WITH (engine=inversearch, analyzer=cjk)
+CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_title ON article(title) WITH (engine=bm25, analyzer=standard)
 
 -- Generate 500 articles
 INSERT VERTEX article(doc_id, title, content, author, publish_date, tags) VALUES "art0001":

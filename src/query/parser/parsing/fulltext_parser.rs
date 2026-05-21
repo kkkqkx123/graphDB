@@ -8,7 +8,7 @@ use crate::core::Value;
 use crate::query::parser::ast::fulltext::{
     AlterFulltextIndex, AlterIndexAction, BM25Options, CreateFulltextIndex, DescribeFulltextIndex,
     DropFulltextIndex, FulltextMatchCondition, FulltextOrderDirection, FulltextQueryExpr,
-    FulltextYieldClause, FulltextYieldItem, IndexFieldDef, IndexOptions, InversearchOptions,
+    FulltextYieldClause, FulltextYieldItem, IndexFieldDef, IndexOptions,
     LookupFulltext, MatchFulltext, OrderClause, OrderItem, SearchStatement, ShowFulltextIndex,
     WhereClause, WhereCondition, YieldExpression,
 };
@@ -116,23 +116,19 @@ pub fn parse_create_fulltext_index_after_create(
     ctx.expect_token(TokenKind::RParen)?;
 
     ctx.consume_keyword("ENGINE")?;
-    let engine_type = if ctx.check_keyword("BM25") {
+    if ctx.check_keyword("BM25") {
         ctx.consume_keyword("BM25")?;
-        FulltextEngineType::Bm25
-    } else if ctx.check_keyword("INVERSEARCH") {
-        ctx.consume_keyword("INVERSEARCH")?;
-        FulltextEngineType::Inversearch
     } else {
         return Err(crate::query::parser::ParseError::new(
             crate::query::parser::core::error::ParseErrorKind::SyntaxError,
-            "Expected BM25 or INVERSEARCH engine type".to_string(),
+            "Expected BM25 engine type".to_string(),
             ctx.current_position(),
         ));
-    };
+    }
+    let engine_type = FulltextEngineType::Bm25;
 
     let options = IndexOptions {
         bm25_config: None,
-        inversearch_config: None,
         common_options: HashMap::new(),
     };
 
@@ -182,48 +178,6 @@ pub fn parse_create_fulltext_index_after_create(
                         });
                     }
                     options.bm25_config.as_mut().unwrap().analyzer = Some(ctx.consume_string()?);
-                }
-                "tokenize_mode" => {
-                    if options.inversearch_config.is_none() {
-                        options.inversearch_config = Some(InversearchOptions {
-                            tokenize_mode: None,
-                            resolution: None,
-                            depth: None,
-                            bidirectional: None,
-                            fast_update: None,
-                            charset: None,
-                        });
-                    }
-                    options.inversearch_config.as_mut().unwrap().tokenize_mode =
-                        Some(ctx.consume_string()?);
-                }
-                "resolution" => {
-                    if options.inversearch_config.is_none() {
-                        options.inversearch_config = Some(InversearchOptions {
-                            tokenize_mode: None,
-                            resolution: None,
-                            depth: None,
-                            bidirectional: None,
-                            fast_update: None,
-                            charset: None,
-                        });
-                    }
-                    options.inversearch_config.as_mut().unwrap().resolution =
-                        Some(ctx.consume_int()? as usize);
-                }
-                "depth" => {
-                    if options.inversearch_config.is_none() {
-                        options.inversearch_config = Some(InversearchOptions {
-                            tokenize_mode: None,
-                            resolution: None,
-                            depth: None,
-                            bidirectional: None,
-                            fast_update: None,
-                            charset: None,
-                        });
-                    }
-                    options.inversearch_config.as_mut().unwrap().depth =
-                        Some(ctx.consume_int()? as usize);
                 }
                 _ => {
                     let value = ctx.consume_value()?;

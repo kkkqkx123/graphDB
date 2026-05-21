@@ -33,7 +33,6 @@ fn create_harness_with_paths(
         default_engine: EngineType::Bm25,
         sync: SyncConfig::default(),
         tantivy: Default::default(),
-        inversearch: Default::default(),
         cache_size: 100,
         max_result_cache: 1000,
         result_cache_ttl_secs: 60,

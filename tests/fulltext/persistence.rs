@@ -5,7 +5,7 @@
 //! - Document persistence verification
 //! - Metadata persistence
 //! - Stats persistence
-//! - Both BM25 and Inversearch engines
+//! - BM25 engine
 //!
 //! Test cases: TC-FT-PERSIST-001 ~ TC-FT-PERSIST-010
 
@@ -21,7 +21,6 @@ fn create_manager_with_path(path: &std::path::Path) -> Arc<FulltextIndexManager>
         default_engine: EngineType::Bm25,
         sync: graphdb::search::SyncConfig::default(),
         tantivy: Default::default(),
-        inversearch: Default::default(),
         cache_size: 100,
         max_result_cache: 1000,
         result_cache_ttl_secs: 60,
@@ -127,47 +126,6 @@ async fn test_multiple_documents_persistence() {
         results.len(),
         10,
         "All 10 documents should persist after restart"
-    );
-}
-
-/// TC-FT-PERSIST-004: Inversearch Index Persistence
-#[tokio::test]
-async fn test_inversearch_index_persistence() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-
-    {
-        let manager = create_manager_with_path(temp_dir.path());
-
-        manager
-            .create_index(1, "Article", "content", Some(EngineType::Inversearch))
-            .await
-            .expect("Failed to create index");
-
-        if let Some(engine) = manager.get_engine(1, "Article", "content") {
-            engine
-                .index("doc_1", "Inversearch persistent content")
-                .await
-                .expect("Failed to index document");
-            engine.commit().await.expect("Failed to commit");
-        }
-    }
-
-    let manager = create_manager_with_path(temp_dir.path());
-
-    assert!(
-        manager.has_index(1, "Article", "content"),
-        "Inversearch index should persist"
-    );
-
-    let results = manager
-        .search(1, "Article", "content", "Inversearch", 10)
-        .await
-        .expect("Search should succeed");
-
-    assert_eq!(
-        results.len(),
-        1,
-        "Inversearch document should persist after restart"
     );
 }
 

@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::search::adapters::InversearchConfig;
 use crate::search::engine::EngineType;
 use crate::search::tantivy_index::TantivyConfig;
 
@@ -23,7 +22,6 @@ pub struct FulltextConfig {
     pub index_path: PathBuf,
     pub sync: SyncConfig,
     pub tantivy: TantivyConfig,
-    pub inversearch: InversearchConfig,
     pub cache_size: usize,
     pub max_result_cache: usize,
     pub result_cache_ttl_secs: u64,
@@ -37,7 +35,6 @@ impl Default for FulltextConfig {
             index_path: PathBuf::from("data/fulltext"),
             sync: SyncConfig::default(),
             tantivy: TantivyConfig::default(),
-            inversearch: InversearchConfig::default(),
             cache_size: 100,
             max_result_cache: 1000,
             result_cache_ttl_secs: 60,

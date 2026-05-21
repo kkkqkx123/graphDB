@@ -100,42 +100,6 @@ async fn test_vertex_insert_auto_sync_bm25() {
     );
 }
 
-/// TC-FT-SYNC-002: Vertex Insert Auto-Sync with Inversearch
-#[tokio::test]
-async fn test_vertex_insert_auto_sync_inversearch() {
-    let ctx = SyncTestContext::new().await;
-
-    ctx.fulltext_ctx
-        .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
-        .await
-        .expect("Failed to create index");
-
-    let vertex_id = graphdb::core::Value::Int(1);
-    let properties = create_test_properties("Hello World");
-
-    ctx.coordinator
-        .on_vertex_change(1, "Article", &vertex_id, &properties, ChangeType::Insert)
-        .await
-        .expect("Failed to sync vertex insert");
-
-    ctx.coordinator
-        .commit_all()
-        .await
-        .expect("Failed to commit");
-
-    let results = ctx
-        .fulltext_ctx
-        .search(1, "Article", "content", "Hello", 10)
-        .await
-        .expect("Search should succeed");
-
-    let expected_doc_id = graphdb::core::Value::String("1".to_string());
-    assert!(
-        results.iter().any(|r| r.doc_id == expected_doc_id),
-        "Should find synced document with doc_id=1"
-    );
-}
-
 /// TC-FT-SYNC-003: Vertex Update Auto-Sync
 #[tokio::test]
 async fn test_vertex_update_auto_sync() {
@@ -305,61 +269,57 @@ async fn test_multiple_vertex_inserts() {
     );
 }
 
-/// TC-FT-SYNC-006: Sync with Mixed Engines
+/// TC-FT-SYNC-006: Sync with Multiple Fields
 #[tokio::test]
-async fn test_sync_mixed_engines() {
+async fn test_sync_multiple_fields() {
     let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
-        .create_test_index(1, "Article", "bm25_content", Some(EngineType::Bm25))
+        .create_test_index(1, "Article", "title", Some(EngineType::Bm25))
         .await
-        .expect("Failed to create BM25 index");
+        .expect("Failed to create title index");
     ctx.fulltext_ctx
-        .create_test_index(1, "Article", "inv_content", Some(EngineType::Inversearch))
+        .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
-        .expect("Failed to create Inversearch index");
+        .expect("Failed to create content index");
 
-    // Insert to BM25 index
     let vertex_id = graphdb::core::Value::Int(1);
-    let bm25_props = vec![(
-        "bm25_content".to_string(),
-        graphdb::core::Value::String("BM25 test content".to_string()),
+    let title_props = vec![(
+        "title".to_string(),
+        graphdb::core::Value::String("Test title".to_string()),
     )];
     ctx.coordinator
-        .on_vertex_change(1, "Article", &vertex_id, &bm25_props, ChangeType::Insert)
+        .on_vertex_change(1, "Article", &vertex_id, &title_props, ChangeType::Insert)
         .await
-        .expect("Failed to sync to BM25");
+        .expect("Failed to sync title");
 
-    // Insert to Inversearch index
-    let inv_props = vec![(
-        "inv_content".to_string(),
-        graphdb::core::Value::String("Inversearch test content".to_string()),
+    let content_props = vec![(
+        "content".to_string(),
+        graphdb::core::Value::String("Test content".to_string()),
     )];
     ctx.coordinator
-        .on_vertex_change(1, "Article", &vertex_id, &inv_props, ChangeType::Insert)
+        .on_vertex_change(1, "Article", &vertex_id, &content_props, ChangeType::Insert)
         .await
-        .expect("Failed to sync to Inversearch");
+        .expect("Failed to sync content");
 
     ctx.coordinator
         .commit_all()
         .await
         .expect("Failed to commit");
 
-    // Search BM25 index
-    let bm25_results = ctx
+    let title_results = ctx
         .fulltext_ctx
-        .search(1, "Article", "bm25_content", "BM25", 10)
+        .search(1, "Article", "title", "title", 10)
         .await
-        .expect("BM25 search should succeed");
-    assert_eq!(bm25_results.len(), 1, "Should find document in BM25");
+        .expect("Title search should succeed");
+    assert_eq!(title_results.len(), 1, "Should find document in title");
 
-    // Search Inversearch index
-    let inv_results = ctx
+    let content_results = ctx
         .fulltext_ctx
-        .search(1, "Article", "inv_content", "Inversearch", 10)
+        .search(1, "Article", "content", "content", 10)
         .await
-        .expect("Inversearch search should succeed");
-    assert_eq!(inv_results.len(), 1, "Should find document in Inversearch");
+        .expect("Content search should succeed");
+    assert_eq!(content_results.len(), 1, "Should find document in content");
 }
 
 /// TC-FT-SYNC-007: Sync with String Vertex IDs
@@ -405,7 +365,7 @@ async fn test_sync_multiple_batches() {
     let ctx = SyncTestContext::new().await;
 
     ctx.fulltext_ctx
-        .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+        .create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 

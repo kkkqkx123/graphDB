@@ -351,7 +351,7 @@ mod tests {
 }
 
 // ============================================================================
-// Full-Text Index Types (for BM25 and Inversearch)
+// Full-Text Index Types
 // ============================================================================
 
 /// Full-text index engine type enumeration
@@ -359,47 +359,14 @@ mod tests {
 pub enum FulltextEngineType {
     #[serde(rename = "bm25")]
     Bm25,
-    #[serde(rename = "inversearch")]
-    Inversearch,
 }
 
 impl std::fmt::Display for FulltextEngineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FulltextEngineType::Bm25 => write!(f, "BM25"),
-            FulltextEngineType::Inversearch => write!(f, "Inversearch"),
         }
     }
-}
-
-/// Tokenization mode for Inversearch
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TokenizeMode {
-    #[serde(rename = "bidirectional")]
-    #[default]
-    Bidirectional,
-    #[serde(rename = "strict")]
-    Strict,
-    #[serde(rename = "forward")]
-    Forward,
-    #[serde(rename = "reverse")]
-    Reverse,
-    #[serde(rename = "full")]
-    Full,
-}
-
-/// Character set type for Inversearch
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CharsetType {
-    #[serde(rename = "cjk")]
-    #[default]
-    CJK,
-    #[serde(rename = "latin")]
-    Latin,
-    #[serde(rename = "exact")]
-    Exact,
-    #[serde(rename = "normalized")]
-    Normalized,
 }
 
 /// BM25 index configuration
@@ -425,36 +392,6 @@ impl Default for BM25IndexConfig {
             field_weights: std::collections::HashMap::new(),
             analyzer: "standard".to_string(),
             store_original: true,
-        }
-    }
-}
-
-/// Inversearch index configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InversearchIndexConfig {
-    /// Tokenization mode
-    pub tokenize_mode: TokenizeMode,
-    /// Resolution (default: 9)
-    pub resolution: usize,
-    /// Depth (default: 3)
-    pub depth: usize,
-    /// Whether bidirectional index
-    pub bidirectional: bool,
-    /// Whether fast update
-    pub fast_update: bool,
-    /// Character set type
-    pub charset: CharsetType,
-}
-
-impl Default for InversearchIndexConfig {
-    fn default() -> Self {
-        Self {
-            tokenize_mode: TokenizeMode::Bidirectional,
-            resolution: 9,
-            depth: 3,
-            bidirectional: true,
-            fast_update: true,
-            charset: CharsetType::CJK,
         }
     }
 }
@@ -496,7 +433,6 @@ impl FulltextIndexField {
 pub struct FulltextIndexOptions {
     pub engine_type: FulltextEngineType,
     pub bm25_config: Option<BM25IndexConfig>,
-    pub inversearch_config: Option<InversearchIndexConfig>,
     pub fields: Vec<FulltextIndexField>,
     pub if_not_exists: bool,
 }
@@ -506,7 +442,6 @@ impl Default for FulltextIndexOptions {
         Self {
             engine_type: FulltextEngineType::Bm25,
             bm25_config: Some(BM25IndexConfig::default()),
-            inversearch_config: None,
             fields: Vec::new(),
             if_not_exists: false,
         }
@@ -518,7 +453,6 @@ impl FulltextIndexOptions {
         Self {
             engine_type,
             bm25_config: Some(BM25IndexConfig::default()),
-            inversearch_config: None,
             fields: Vec::new(),
             if_not_exists: false,
         }
@@ -526,9 +460,5 @@ impl FulltextIndexOptions {
 
     pub fn bm25() -> Self {
         Self::new(FulltextEngineType::Bm25)
-    }
-
-    pub fn inversearch() -> Self {
-        Self::new(FulltextEngineType::Inversearch)
     }
 }

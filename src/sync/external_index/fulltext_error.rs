@@ -26,9 +26,6 @@ pub enum FulltextError {
     #[error("Index corrupted: {0}")]
     IndexCorrupted(String),
 
-    #[error("Inversearch engine error: {0}")]
-    InversearchError(String),
-
     #[error("Query parse error: {0}")]
     QueryParseError(String),
 
@@ -141,9 +138,6 @@ impl From<crate::search::error::SearchError> for FulltextError {
             }
             crate::search::error::SearchError::TantivyError(e) => {
                 FulltextError::Internal(e.to_string())
-            }
-            crate::search::error::SearchError::InversearchError(msg) => {
-                FulltextError::InversearchError(msg)
             }
             crate::search::error::SearchError::IoError(e) => FulltextError::Internal(e.to_string()),
             crate::search::error::SearchError::SerializationError(msg) => {

@@ -931,8 +931,7 @@ impl StatsManager {
             SearchError::EngineNotFound(_)
             | SearchError::EngineUnavailable
             | SearchError::IndexCorrupted(_)
-            | SearchError::TantivyError(_)
-            | SearchError::InversearchError(_) => MetricType::SearchErrorEngineError,
+            | SearchError::TantivyError(_) => MetricType::SearchErrorEngineError,
             SearchError::IoError(_) => MetricType::SearchErrorIoError,
             SearchError::SerializationError(_)
             | SearchError::QueryParseError(_)

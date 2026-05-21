@@ -513,51 +513,6 @@ async fn test_transaction_mixed_change_types() {
     );
 }
 
-/// TC-FT-TXN-009: Transaction with Inversearch Engine
-#[tokio::test]
-async fn test_transaction_with_inversearch() {
-    let ctx = TransactionTestContext::new().await;
-
-    ctx.fulltext_ctx
-        .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
-        .await
-        .expect("Failed to create index");
-
-    let txn_id = generate_txn_id(9);
-
-    for i in 1..=3 {
-        let change_ctx = ChangeContext::new_fulltext(
-            1,
-            "Article",
-            "content",
-            ChangeType::Insert,
-            format!("inv_doc_{}", i),
-            format!("Inversearch transaction test {}", i),
-        );
-        ctx.coordinator
-            .buffer_operation(txn_id, change_ctx)
-            .expect("Buffer operation should succeed");
-    }
-
-    ctx.coordinator
-        .commit_transaction(txn_id)
-        .await
-        .expect("Commit should succeed");
-
-    ctx.coordinator
-        .commit_all()
-        .await
-        .expect("Failed to commit");
-
-    let results = ctx
-        .fulltext_ctx
-        .search(1, "Article", "content", "Inversearch", 10)
-        .await
-        .expect("Search should succeed");
-
-    assert_eq!(results.len(), 3, "Should find all 3 documents");
-}
-
 /// TC-FT-TXN-010: Empty Transaction Commit
 #[tokio::test]
 async fn test_empty_transaction_commit() {

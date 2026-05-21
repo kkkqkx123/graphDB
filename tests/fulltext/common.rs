@@ -1,7 +1,3 @@
-//! Common test utilities for fulltext tests
-//!
-//! Re-exports common test utilities from the parent directory.
-
 use graphdb::core::Value;
 use graphdb::search::{
     EngineType, FulltextConfig, FulltextIndexManager, IndexMetadata, IndexStats, SearchError,
@@ -10,17 +6,12 @@ use graphdb::search::{
 use std::sync::Arc;
 use tempfile::TempDir;
 
-/// Fulltext Test Context with multi-engine support
-///
-/// Provides a test environment with FulltextIndexManager supporting both BM25 and Inversearch engines
-#[allow(dead_code)]
 pub struct FulltextTestContext {
     pub manager: Arc<FulltextIndexManager>,
     pub temp_dir: TempDir,
 }
 
 impl FulltextTestContext {
-    /// Create a basic test context
     pub fn new() -> Self {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let config = FulltextConfig {
@@ -29,7 +20,6 @@ impl FulltextTestContext {
             default_engine: EngineType::Bm25,
             sync: graphdb::search::SyncConfig::default(),
             tantivy: Default::default(),
-            inversearch: Default::default(),
             cache_size: 100,
             max_result_cache: 1000,
             result_cache_ttl_secs: 60,
@@ -39,7 +29,6 @@ impl FulltextTestContext {
         Self { manager, temp_dir }
     }
 
-    /// Create test index with specified engine
     pub async fn create_test_index(
         &self,
         space_id: u64,
@@ -52,7 +41,6 @@ impl FulltextTestContext {
             .await
     }
 
-    /// Insert a test document
     pub async fn insert_test_doc(
         &self,
         space_id: u64,
@@ -72,7 +60,6 @@ impl FulltextTestContext {
         Ok(())
     }
 
-    /// Insert multiple test documents
     pub async fn insert_test_docs(
         &self,
         space_id: u64,
@@ -95,7 +82,6 @@ impl FulltextTestContext {
         Ok(())
     }
 
-    /// Execute search
     pub async fn search(
         &self,
         space_id: u64,
@@ -109,17 +95,14 @@ impl FulltextTestContext {
             .await
     }
 
-    /// Commit all indexes
     pub async fn commit_all(&self) -> Result<(), SearchError> {
         self.manager.commit_all().await
     }
 
-    /// Check if index exists
     pub fn has_index(&self, space_id: u64, tag_name: &str, field_name: &str) -> bool {
         self.manager.has_index(space_id, tag_name, field_name)
     }
 
-    /// Get index metadata
     pub fn get_metadata(
         &self,
         space_id: u64,
@@ -129,12 +112,10 @@ impl FulltextTestContext {
         self.manager.get_metadata(space_id, tag_name, field_name)
     }
 
-    /// Get space indexes
     pub fn get_space_indexes(&self, space_id: u64) -> Vec<IndexMetadata> {
         self.manager.get_space_indexes(space_id)
     }
 
-    /// Drop index
     pub async fn drop_index(
         &self,
         space_id: u64,
@@ -146,7 +127,6 @@ impl FulltextTestContext {
             .await
     }
 
-    /// Get index stats
     #[allow(dead_code)]
     pub async fn get_stats(
         &self,
@@ -157,7 +137,6 @@ impl FulltextTestContext {
         self.manager.get_stats(space_id, tag_name, field_name).await
     }
 
-    /// Get engine type for an index
     pub fn get_engine_type(
         &self,
         space_id: u64,
@@ -175,7 +154,6 @@ impl Default for FulltextTestContext {
     }
 }
 
-/// Generate test documents with prefix
 pub fn generate_test_docs(count: usize, prefix: &str) -> Vec<(String, String)> {
     (0..count)
         .map(|i| {
@@ -190,7 +168,6 @@ pub fn generate_test_docs(count: usize, prefix: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Create test documents with specific words
 #[allow(dead_code)]
 pub fn create_docs_with_words(doc_count: usize, words_per_doc: usize) -> Vec<(String, String)> {
     (0..doc_count)
@@ -203,7 +180,6 @@ pub fn create_docs_with_words(doc_count: usize, words_per_doc: usize) -> Vec<(St
         .collect()
 }
 
-/// Assert search result contains document
 pub fn assert_search_result_contains(
     results: &[SearchResult],
     expected_doc_id: &str,
@@ -219,7 +195,6 @@ pub fn assert_search_result_contains(
     }
 }
 
-/// Assert search result does not contain document
 pub fn assert_search_result_not_contains(
     results: &[SearchResult],
     unexpected_doc_id: &str,
@@ -235,7 +210,6 @@ pub fn assert_search_result_not_contains(
     }
 }
 
-/// Assert search result count
 pub fn assert_search_result_count(
     results: &[SearchResult],
     expected_count: usize,
@@ -251,7 +225,6 @@ pub fn assert_search_result_count(
     }
 }
 
-/// Assert search results are sorted by score (descending)
 pub fn assert_results_sorted_by_score(results: &[SearchResult]) -> Result<(), String> {
     for i in 1..results.len() {
         if results[i].score > results[i - 1].score {
@@ -267,7 +240,6 @@ pub fn assert_results_sorted_by_score(results: &[SearchResult]) -> Result<(), St
     Ok(())
 }
 
-/// Assert search results contain all expected doc_ids
 #[allow(dead_code)]
 pub fn assert_search_results_contain_all(
     results: &[SearchResult],
@@ -283,30 +255,4 @@ pub fn assert_search_results_contain_all(
         }
     }
     Ok(())
-}
-
-/// Compare results from two engines and return common and different doc_ids
-pub fn compare_search_results(
-    results1: &[SearchResult],
-    results2: &[SearchResult],
-) -> (Vec<String>, Vec<String>) {
-    let ids1: std::collections::HashSet<String> = results1
-        .iter()
-        .map(|r| match &r.doc_id {
-            Value::String(s) => s.clone(),
-            _ => r.doc_id.to_string().unwrap_or_default(),
-        })
-        .collect();
-    let ids2: std::collections::HashSet<String> = results2
-        .iter()
-        .map(|r| match &r.doc_id {
-            Value::String(s) => s.clone(),
-            _ => r.doc_id.to_string().unwrap_or_default(),
-        })
-        .collect();
-
-    let common: Vec<String> = ids1.intersection(&ids2).cloned().collect();
-    let different: Vec<String> = ids1.symmetric_difference(&ids2).cloned().collect();
-
-    (common, different)
 }

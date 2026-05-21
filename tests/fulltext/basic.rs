@@ -1,20 +1,8 @@
-//! Fulltext Integration Tests - Basic CRUD Operations
-//!
-//! Test scope:
-//! - Index metadata management (create, drop, query, list)
-//! - Index operations (insert, update, delete, batch operations)
-//! - Search functionality (single term, multi-term, limit, empty, special characters)
-//! - Both BM25 and Inversearch engines
-//!
-//! Test cases: TC-FT-001 ~ TC-FT-015
-
 use super::common::{
     assert_results_sorted_by_score, assert_search_result_contains, assert_search_result_count,
     assert_search_result_not_contains, generate_test_docs, FulltextTestContext,
 };
 use graphdb::search::EngineType;
-
-// ==================== Index Management Tests ====================
 
 /// TC-FT-001: Create Fulltext Index with BM25
 #[tokio::test]
@@ -46,29 +34,6 @@ async fn test_create_fulltext_index_bm25() {
     assert_eq!(metadata.tag_name, "Article");
     assert_eq!(metadata.field_name, "content");
     assert_eq!(metadata.engine_type, EngineType::Bm25);
-}
-
-/// TC-FT-001b: Create Fulltext Index with Inversearch
-#[tokio::test]
-async fn test_create_fulltext_index_inversearch() {
-    let ctx = FulltextTestContext::new();
-
-    let result = ctx
-        .create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
-        .await;
-
-    assert!(result.is_ok(), "Inversearch index creation should succeed");
-    let index_id = result.unwrap();
-
-    assert_eq!(
-        index_id, "space_ft_1_Article_content",
-        "Index ID format should be correct"
-    );
-
-    let metadata = ctx.get_metadata(1, "Article", "content");
-    assert!(metadata.is_some(), "Metadata should exist");
-    let metadata = metadata.unwrap();
-    assert_eq!(metadata.engine_type, EngineType::Inversearch);
 }
 
 /// TC-FT-002: Create Duplicate Index
@@ -145,7 +110,7 @@ async fn test_get_space_indexes() {
     ctx.create_test_index(1, "Article", "title", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+    ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
     ctx.create_test_index(1, "Person", "name", Some(EngineType::Bm25))
@@ -166,38 +131,12 @@ async fn test_get_space_indexes() {
     assert_eq!(indexes_space_2.len(), 1, "Should have 1 index for space 2");
 }
 
-// ==================== Index Operation Tests ====================
-
 /// TC-FT-006: Index Document and Search with BM25
 #[tokio::test]
 async fn test_index_and_search_bm25() {
     let ctx = FulltextTestContext::new();
 
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
-        .await
-        .expect("Failed to create index");
-
-    ctx.insert_test_doc(1, "Article", "content", "doc_1", "Hello World")
-        .await
-        .expect("Failed to insert document");
-
-    ctx.commit_all().await.expect("Failed to commit");
-
-    let results = ctx
-        .search(1, "Article", "content", "Hello", 10)
-        .await
-        .expect("Search should succeed");
-
-    assert_search_result_contains(&results, "doc_1").expect("Search should return doc_1");
-    assert_eq!(results.len(), 1, "Should return 1 result");
-}
-
-/// TC-FT-006b: Index Document and Search with Inversearch
-#[tokio::test]
-async fn test_index_and_search_inversearch() {
-    let ctx = FulltextTestContext::new();
-
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
         .await
         .expect("Failed to create index");
 
@@ -372,8 +311,6 @@ async fn test_batch_delete() {
             .unwrap_or_else(|_| panic!("Should contain doc_{}", i));
     }
 }
-
-// ==================== Search Functionality Tests ====================
 
 /// TC-FT-011: Single Term Search
 #[tokio::test]

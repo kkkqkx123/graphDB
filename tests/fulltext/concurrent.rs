@@ -73,55 +73,6 @@ async fn test_concurrent_inserts_bm25() {
     }
 }
 
-/// TC-FT-CONC-002: Concurrent Inserts to Inversearch Index
-#[tokio::test]
-async fn test_concurrent_inserts_inversearch() {
-    let ctx = Arc::new(FulltextTestContext::new());
-    let num_tasks = 5;
-    let barrier = Arc::new(Barrier::new(num_tasks));
-
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
-        .await
-        .expect("Failed to create index");
-
-    let mut handles = vec![];
-    for i in 0..num_tasks {
-        let ctx_clone = Arc::clone(&ctx);
-        let barrier_clone = Arc::clone(&barrier);
-
-        let handle = tokio::spawn(async move {
-            barrier_clone.wait().await;
-
-            ctx_clone
-                .insert_test_doc(
-                    1,
-                    "Article",
-                    "content",
-                    &format!("doc_{}", i),
-                    &format!("Concurrent content {}", i),
-                )
-                .await
-        });
-
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        let result = handle.await.expect("Task panicked");
-        assert!(result.is_ok(), "Document insertion should succeed");
-    }
-
-    ctx.commit_all().await.expect("Failed to commit");
-
-    let results = ctx
-        .search(1, "Article", "content", "Concurrent", 100)
-        .await
-        .expect("Search should succeed");
-
-    assert_search_result_count(&results, num_tasks)
-        .unwrap_or_else(|_| panic!("Should find all {} documents", num_tasks));
-}
-
 /// TC-FT-CONC-003: Concurrent Searches
 #[tokio::test]
 async fn test_concurrent_searches() {
@@ -315,12 +266,12 @@ async fn test_concurrent_different_indexes() {
     let num_tasks = 3;
     let barrier = Arc::new(Barrier::new(num_tasks * 2));
 
-    ctx.create_test_index(1, "Article", "content_bm25", Some(EngineType::Bm25))
+    ctx.create_test_index(1, "Article", "content_a", Some(EngineType::Bm25))
         .await
-        .expect("Failed to create BM25 index");
-    ctx.create_test_index(1, "Article", "content_inv", Some(EngineType::Inversearch))
+        .expect("Failed to create first index");
+    ctx.create_test_index(1, "Article", "content_b", Some(EngineType::Bm25))
         .await
-        .expect("Failed to create Inversearch index");
+        .expect("Failed to create second index");
 
     let mut handles = vec![];
 
@@ -335,9 +286,9 @@ async fn test_concurrent_different_indexes() {
                 .insert_test_doc(
                     1,
                     "Article",
-                    "content_bm25",
-                    &format!("bm25_doc_{}", i),
-                    &format!("BM25 content {}", i),
+                    "content_a",
+                    &format!("doc_a_{}", i),
+                    &format!("Content A {}", i),
                 )
                 .await
         });
@@ -356,9 +307,9 @@ async fn test_concurrent_different_indexes() {
                 .insert_test_doc(
                     1,
                     "Article",
-                    "content_inv",
-                    &format!("inv_doc_{}", i),
-                    &format!("Inversearch content {}", i),
+                    "content_b",
+                    &format!("doc_b_{}", i),
+                    &format!("Content B {}", i),
                 )
                 .await
         });
@@ -373,24 +324,24 @@ async fn test_concurrent_different_indexes() {
 
     ctx.commit_all().await.expect("Failed to commit");
 
-    let bm25_results = ctx
-        .search(1, "Article", "content_bm25", "BM25", 50)
+    let results_a = ctx
+        .search(1, "Article", "content_a", "Content A", 50)
         .await
-        .expect("BM25 search should succeed");
+        .expect("Search should succeed");
     assert_eq!(
-        bm25_results.len(),
+        results_a.len(),
         num_tasks,
-        "BM25 should have all documents"
+        "First index should have all documents"
     );
 
-    let inv_results = ctx
-        .search(1, "Article", "content_inv", "Inversearch", 50)
+    let results_b = ctx
+        .search(1, "Article", "content_b", "Content B", 50)
         .await
-        .expect("Inversearch search should succeed");
+        .expect("Search should succeed");
     assert_eq!(
-        inv_results.len(),
+        results_b.len(),
         num_tasks,
-        "Inversearch should have all documents"
+        "Second index should have all documents"
     );
 }
 

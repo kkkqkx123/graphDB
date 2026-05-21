@@ -193,8 +193,7 @@ pub use self::edge::EdgeTypeInfo;
 pub use self::index::{Index, IndexConfig, IndexField, IndexStatus, IndexType};
 // Export full-text index types
 pub use self::index::{
-    BM25IndexConfig, CharsetType, FulltextEngineType, FulltextIndexField, FulltextIndexOptions,
-    InversearchIndexConfig, TokenizeMode,
+    BM25IndexConfig, FulltextEngineType, FulltextIndexField, FulltextIndexOptions,
 };
 // Export full-text query types
 pub use self::fulltext_query::{

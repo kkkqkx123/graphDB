@@ -16,6 +16,7 @@ use crate::core::Value;
 use crate::search::engine::SearchEngine;
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
+use crate::search::tokenizer::JiebaTokenizer;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TantivyConfig {
@@ -36,7 +37,14 @@ impl Default for TantivyConfig {
 fn build_schema() -> (Schema, Field, Field) {
     let mut schema_builder = Schema::builder();
     let id_field = schema_builder.add_text_field("id", STRING | STORED);
-    let text_field = schema_builder.add_text_field("text", TEXT | STORED);
+    let text_options = TextOptions::default()
+        .set_indexing_options(
+            TextFieldIndexing::default()
+                .set_tokenizer("jieba")
+                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+        )
+        .set_stored();
+    let text_field = schema_builder.add_text_field("text", text_options);
     let schema = schema_builder.build();
     (schema, id_field, text_field)
 }
@@ -67,6 +75,8 @@ impl TantivySearchEngine {
         } else {
             tantivy::Index::create_in_dir(path, schema.clone())?
         };
+
+        index.tokenizers().register("jieba", JiebaTokenizer::default());
 
         let writer = index.writer(_config.writer_memory_budget)?;
 

@@ -17,7 +17,7 @@ use graphdb::search::EngineType;
 async fn test_boolean_or_query() {
     let ctx = FulltextTestContext::new();
 
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+    ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
@@ -132,7 +132,7 @@ async fn test_phrase_like_search() {
 async fn test_prefix_search_behavior() {
     let ctx = FulltextTestContext::new();
 
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+    ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
@@ -164,7 +164,7 @@ async fn test_prefix_search_behavior() {
 async fn test_case_insensitive_search() {
     let ctx = FulltextTestContext::new();
 
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+    ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
@@ -272,7 +272,7 @@ async fn test_numeric_content_search() {
 async fn test_special_characters_in_content() {
     let ctx = FulltextTestContext::new();
 
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+    ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 
@@ -401,7 +401,7 @@ async fn test_repeated_terms_in_query() {
 async fn test_mixed_language_query() {
     let ctx = FulltextTestContext::new();
 
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
+    ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create index");
 

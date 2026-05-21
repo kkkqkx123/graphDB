@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::search::adapters::{InversearchConfig, InversearchEngine};
 use crate::search::engine::{EngineType, SearchEngine};
 use crate::search::error::SearchError;
 use crate::search::tantivy_index::{TantivyConfig, TantivySearchEngine};
@@ -22,17 +21,6 @@ impl SearchEngineFactory {
                     TantivySearchEngine::open_or_create(&engine_path, TantivyConfig::default())?;
                 Ok(Arc::new(engine))
             }
-            EngineType::Inversearch => {
-                let config = InversearchConfig::builder()
-                    .path(engine_path.with_extension("bin"))
-                    .build();
-                let engine = if engine_path.with_extension("bin").exists() {
-                    InversearchEngine::load(&engine_path.with_extension("bin"), config)?
-                } else {
-                    InversearchEngine::new(config)?
-                };
-                Ok(Arc::new(engine))
-            }
         }
     }
 
@@ -48,17 +36,6 @@ impl SearchEngineFactory {
             EngineType::Bm25 => {
                 let engine =
                     TantivySearchEngine::open_or_create(&engine_path, config.tantivy.clone())?;
-                Ok(Arc::new(engine))
-            }
-            EngineType::Inversearch => {
-                let mut inv_config = config.inversearch.clone();
-                inv_config.index_path = Some(engine_path.with_extension("bin"));
-
-                let engine = if engine_path.with_extension("bin").exists() {
-                    InversearchEngine::load(&engine_path.with_extension("bin"), inv_config)?
-                } else {
-                    InversearchEngine::new(inv_config)?
-                };
                 Ok(Arc::new(engine))
             }
         }

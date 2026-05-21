@@ -6,7 +6,7 @@
 //! - Index rebuilding
 //! - Multi-space isolation
 //! - Memory limits
-//! - Both BM25 and Inversearch engines
+//! - BM25 engine
 //!
 //! Test cases: TC-FT-EDGE-001 ~ TC-FT-EDGE-015
 
@@ -36,30 +36,6 @@ async fn test_index_empty_content_bm25() {
     let ctx = FulltextTestContext::new();
 
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
-        .await
-        .expect("Failed to create index");
-
-    ctx.insert_test_doc(1, "Article", "content", "doc_1", "")
-        .await
-        .expect("Indexing empty content should not fail");
-
-    ctx.commit_all().await.expect("Failed to commit");
-
-    let results = ctx
-        .search(1, "Article", "content", "anything", 10)
-        .await
-        .expect("Search should succeed");
-
-    assert_search_result_count(&results, 0)
-        .expect("Empty content should not produce search results");
-}
-
-/// TC-FT-EDGE-003: Index Empty Content with Inversearch
-#[tokio::test]
-async fn test_index_empty_content_inversearch() {
-    let ctx = FulltextTestContext::new();
-
-    ctx.create_test_index(1, "Article", "content", Some(EngineType::Inversearch))
         .await
         .expect("Failed to create index");
 
@@ -415,15 +391,13 @@ async fn test_numeric_content() {
 async fn test_mixed_engine_space_isolation() {
     let ctx = FulltextTestContext::new();
 
-    // Space 1 with BM25
     ctx.create_test_index(1, "Article", "content", Some(EngineType::Bm25))
         .await
         .expect("Failed to create BM25 index");
 
-    // Space 2 with Inversearch
-    ctx.create_test_index(2, "Article", "content", Some(EngineType::Inversearch))
+    ctx.create_test_index(2, "Article", "content", Some(EngineType::Bm25))
         .await
-        .expect("Failed to create Inversearch index");
+        .expect("Failed to create index");
 
     ctx.insert_test_doc(1, "Article", "content", "doc_1", "Space1Content")
         .await
@@ -442,7 +416,7 @@ async fn test_mixed_engine_space_isolation() {
         .expect("Space 1 search should succeed");
     assert_eq!(space1_results.len(), 1, "Should find document in space 1");
 
-    // Search in space 2 (Inversearch)
+    // Search in space 2
     let space2_results = ctx
         .search(2, "Article", "content", "Space2Content", 10)
         .await

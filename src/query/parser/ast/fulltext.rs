@@ -37,7 +37,6 @@ pub struct IndexFieldDef {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexOptions {
     pub bm25_config: Option<BM25Options>,
-    pub inversearch_config: Option<InversearchOptions>,
     pub common_options: HashMap<String, Value>,
 }
 
@@ -49,17 +48,6 @@ pub struct BM25Options {
     pub field_weights: HashMap<String, f32>,
     pub analyzer: Option<String>,
     pub store_original: Option<bool>,
-}
-
-/// Inversearch specific options
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InversearchOptions {
-    pub tokenize_mode: Option<String>,
-    pub resolution: Option<usize>,
-    pub depth: Option<usize>,
-    pub bidirectional: Option<bool>,
-    pub fast_update: Option<bool>,
-    pub charset: Option<String>,
 }
 
 /// DROP FULLTEXT INDEX statement
@@ -304,7 +292,6 @@ impl CreateFulltextIndex {
             engine_type,
             options: IndexOptions {
                 bm25_config: None,
-                inversearch_config: None,
                 common_options: HashMap::new(),
             },
             if_not_exists: false,
@@ -318,11 +305,6 @@ impl CreateFulltextIndex {
 
     pub fn with_bm25_options(mut self, options: BM25Options) -> Self {
         self.options.bm25_config = Some(options);
-        self
-    }
-
-    pub fn with_inversearch_options(mut self, options: InversearchOptions) -> Self {
-        self.options.inversearch_config = Some(options);
         self
     }
 }

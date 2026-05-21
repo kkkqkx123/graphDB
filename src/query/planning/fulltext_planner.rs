@@ -573,7 +573,6 @@ mod tests {
             engine_type: FulltextEngineType::Bm25,
             options: IndexOptions {
                 bm25_config: None,
-                inversearch_config: None,
                 common_options: std::collections::HashMap::new(),
             },
             if_not_exists: false,
