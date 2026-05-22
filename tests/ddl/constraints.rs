@@ -140,7 +140,7 @@ fn test_create_tag_with_mixed_constraints() {
         email: STRING,
         age: INT DEFAULT 0,
         active: BOOL DEFAULT true,
-        created_at: TIMESTAMP DEFAULT now()
+        created_at: TIMESTAMP DEFAULT "2024-01-01 00:00:00"
     )"#;
     let mut parser = Parser::new(query);
 

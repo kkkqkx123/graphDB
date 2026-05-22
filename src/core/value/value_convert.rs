@@ -669,6 +669,11 @@ impl Value {
             DataType::DateTime | DataType::Timestamp => self.to_datetime(),
             DataType::List => self.to_list(),
             DataType::Map => self.to_map(),
+            DataType::Geography => match self {
+                Value::Null(_) | Value::Empty => Value::Null(NullType::Null),
+                Value::Geography(g) => Value::Geography(g.clone()),
+                _ => return Err(StorageError::type_mismatch(target.clone(), self.data_type())),
+            },
             _ => Value::Null(NullType::BadData),
         };
 

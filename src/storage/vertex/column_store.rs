@@ -75,7 +75,7 @@ pub fn element_size(data_type: &DataType) -> usize {
 
 /// Returns true if the data type is variable-length.
 pub fn is_variable_length_type(data_type: &DataType) -> bool {
-    matches!(data_type, DataType::String)
+    matches!(data_type, DataType::String | DataType::Geography | DataType::DateTime | DataType::Timestamp | DataType::List | DataType::Map | DataType::Set | DataType::Vertex | DataType::Edge | DataType::Path | DataType::Vector | DataType::DataSet | DataType::Json | DataType::JsonB | DataType::Interval | DataType::Null)
 }
 
 // ---------------------------------------------------------------------------
@@ -791,7 +791,14 @@ impl Column {
         }
 
         if let Some(v) = value {
-            self.inner_mut().set(row_idx, Some(v))?;
+            if v.is_null() {
+                if !self.nullable {
+                    return Err(StorageError::null_value_not_allowed(self.name.clone()));
+                }
+                self.inner_mut().set(row_idx, None)?;
+            } else {
+                self.inner_mut().set(row_idx, Some(v))?;
+            }
         } else {
             if !self.nullable {
                 return Err(StorageError::null_value_not_allowed(self.name.clone()));

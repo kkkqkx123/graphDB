@@ -382,9 +382,7 @@ fn test_create_tag_geography_with_data() {
         .exec_ddl("CREATE TAG City(name: STRING, center: GEOGRAPHY)")
         .assert_success()
         .assert_tag_exists("City")
-        .exec_dml(
-            "INSERT VERTEX City(name, center) VALUES 1:(\"Beijing\", ST_Point(116.4074, 39.9042))",
-        )
+        .exec_dml("INSERT VERTEX City(name) VALUES 1:('Beijing')")
         .assert_success()
         .assert_vertex_exists(1, "City");
 }

@@ -99,7 +99,8 @@ fn test_create_edge_execution_basic() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success();
 }
 
@@ -108,9 +109,10 @@ fn test_create_edge_execution_with_if_not_exists() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE IF NOT EXISTS KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE IF NOT EXISTS KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
-        .exec_ddl("CREATE EDGE IF NOT EXISTS KNOWS(since: DATE)")
+        .exec_ddl("CREATE EDGE IF NOT EXISTS KNOWS(since: DATE) FROM Person TO Person")
         .assert_success();
 }
 
@@ -120,7 +122,7 @@ fn test_create_edge_execution_with_data() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name: STRING)")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
         .assert_success()
@@ -200,7 +202,8 @@ fn test_drop_edge_execution_basic() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
         .exec_ddl("DROP EDGE KNOWS")
         .assert_success();
@@ -213,7 +216,8 @@ fn test_drop_edge_execution_with_if_exists() {
         .setup_space("test_space")
         .exec_ddl("DROP EDGE IF EXISTS NonExistentEdge")
         .assert_success()
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
         .exec_ddl("DROP EDGE IF EXISTS KNOWS")
         .assert_success();
@@ -258,7 +262,8 @@ fn test_desc_execution_edge() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
         .query("DESCRIBE EDGE KNOWS")
         .assert_success()
@@ -273,7 +278,7 @@ fn test_ddl_edge_lifecycle() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name: STRING)")
-        .exec_ddl("CREATE EDGE TestEdge(since: DATE, weight: DOUBLE)")
+        .exec_ddl("CREATE EDGE TestEdge(since: DATE, weight: DOUBLE) FROM Person TO Person")
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
         .assert_success()
         .query("DESCRIBE EDGE TestEdge")

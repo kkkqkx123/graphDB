@@ -48,14 +48,14 @@ impl<'a> GraphStorageWriter<'a> {
                     self.ctx.graph.insert_vertex(label_id, &id_str, &props, ts)
                 };
 
-                if insert_result.is_err() {
+                if let Err(e) = insert_result {
                     for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
                         let _ = self
                             .ctx
                             .graph
                             .delete_vertex(*rollback_label, rollback_id, ts);
                     }
-                    return Err(StorageError::vertex_already_exists(vertex.vid.to_string()));
+                    return Err(e);
                 }
 
                 let vid_value = Value::from(vertex.vid);

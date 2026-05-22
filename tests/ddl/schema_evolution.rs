@@ -20,7 +20,7 @@ fn test_schema_evolution_complete_flow() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG UserProfile(username STRING, created_at TIMESTAMP)")
         .assert_success()
-        .exec_ddl("CREATE EDGE FOLLOWS(since DATE)")
+        .exec_ddl("CREATE EDGE FOLLOWS(since DATE) FROM UserProfile TO UserProfile")
         .assert_success()
         .exec_dml("INSERT VERTEX UserProfile(username, created_at) VALUES 1:('alice', now())")
         .assert_success()
@@ -54,9 +54,9 @@ fn test_ddl_multiple_operations() {
         .assert_success()
         .exec_ddl("CREATE TAG Company(name: STRING, founded: INT)")
         .assert_success()
-        .exec_ddl("CREATE EDGE WORKS_AT(since: DATE)")
+        .exec_ddl("CREATE EDGE WORKS_AT(since: DATE) FROM Person TO Company")
         .assert_success()
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
         .assert_tag_exists("Person")
         .assert_tag_exists("Company");
@@ -90,7 +90,7 @@ fn test_complex_schema_with_multiple_tags_and_edges() {
             CREATE EDGE KNOWS(
                 since DATE,
                 strength DOUBLE
-            )
+            ) FROM Person TO Person
         "#)
         .assert_success()
         .exec_ddl(r#"
@@ -98,7 +98,7 @@ fn test_complex_schema_with_multiple_tags_and_edges() {
                 since DATE,
                 position STRING,
                 salary DOUBLE
-            )
+            ) FROM Person TO Company
         "#)
         .assert_success()
         .assert_tag_exists("Person")

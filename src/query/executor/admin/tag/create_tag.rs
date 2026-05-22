@@ -111,6 +111,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
 
+        if self.if_not_exists {
+            let existing = storage_guard.get_tag(&self.tag_info.space_name, &self.tag_info.tag_name);
+            if let Ok(Some(_)) = existing {
+                return Ok(ExecutionResult::Success);
+            }
+        }
+
         let metadata_tag_info = TagInfo::from_executor(&self.tag_info);
         let result = storage_guard.create_tag(&self.tag_info.space_name, &metadata_tag_info);
 

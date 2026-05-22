@@ -126,9 +126,11 @@ impl<'a> SchemaAdapterOps<'a> {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> StorageResult<bool> {
-        self.ctx
-            .schema_manager
-            .alter_tag(space, tag_name, additions.clone(), deletions)?;
+        let result = self.ctx.schema_manager.alter_tag(space, tag_name, additions.clone(), deletions)?;
+
+        if !result {
+            return Ok(false);
+        }
 
         if let Some(label_id) = self.ctx.graph.get_vertex_label_id(tag_name) {
             for prop in additions {
@@ -205,9 +207,13 @@ impl<'a> SchemaAdapterOps<'a> {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     ) -> StorageResult<bool> {
-        self.ctx
+        let result = self.ctx
             .schema_manager
             .alter_edge_type(space, edge_type_name, additions.clone(), deletions)?;
+
+        if !result {
+            return Ok(false);
+        }
 
         if let Some(edge_label_id) = self.ctx.graph.get_edge_label_id(edge_type_name) {
             for prop in additions {

@@ -99,7 +99,8 @@ fn test_alter_edge_execution_add() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
         .exec_ddl("ALTER EDGE KNOWS ADD (note: STRING)")
         .assert_success();
@@ -110,7 +111,8 @@ fn test_alter_edge_execution_drop() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE, temp_field: STRING)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE, temp_field: STRING) FROM Person TO Person")
         .assert_success()
         .exec_ddl("ALTER EDGE KNOWS DROP (temp_field)")
         .assert_success();
@@ -121,7 +123,8 @@ fn test_alter_edge_execution_add_multiple() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
         .exec_ddl("ALTER EDGE KNOWS ADD (note: STRING, weight: DOUBLE, verified: BOOL)")
         .assert_success()
@@ -135,7 +138,8 @@ fn test_alter_edge_execution_drop_multiple() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE, temp1: STRING, temp2: STRING)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE, temp1: STRING, temp2: STRING) FROM Person TO Person")
         .assert_success()
         .exec_ddl("ALTER EDGE KNOWS DROP (temp1, temp2)")
         .assert_success()
@@ -149,6 +153,7 @@ fn test_alter_edge_nonexistent() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
         .exec_ddl("ALTER EDGE NonExistentEdge ADD (field: STRING)")
         .assert_error();
 }
@@ -158,7 +163,8 @@ fn test_alter_edge_drop_nonexistent_field() {
     TestScenario::new()
         .expect("Failed to create test scenario")
         .setup_space("test_space")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE)")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE) FROM Person TO Person")
         .assert_success()
         .exec_ddl("ALTER EDGE KNOWS DROP (nonexistent_field)")
         .assert_error();
