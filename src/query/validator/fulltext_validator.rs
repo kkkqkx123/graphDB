@@ -149,21 +149,21 @@ impl FulltextValidator {
 
         for action in &alter.actions {
             match action {
-                crate::query::parser::ast::AlterIndexAction::AddField(field) => {
-                    if field.field_name.is_empty() {
-                        return Err(ValidationError::new(
-                            "Field name cannot be empty",
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
+                crate::query::parser::ast::AlterIndexAction::AddField(field)
+                    if field.field_name.is_empty() =>
+                {
+                    return Err(ValidationError::new(
+                        "Field name cannot be empty",
+                        ValidationErrorType::SemanticError,
+                    ));
                 }
-                crate::query::parser::ast::AlterIndexAction::DropField(field_name) => {
-                    if field_name.is_empty() {
-                        return Err(ValidationError::new(
-                            "Field name cannot be empty",
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
+                crate::query::parser::ast::AlterIndexAction::DropField(field_name)
+                    if field_name.is_empty() =>
+                {
+                    return Err(ValidationError::new(
+                        "Field name cannot be empty",
+                        ValidationErrorType::SemanticError,
+                    ));
                 }
                 _ => {}
             }

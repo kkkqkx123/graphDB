@@ -828,11 +828,7 @@ impl WalStats {
     }
 
     pub fn average_write_latency_us(&self) -> u64 {
-        if self.write_ops == 0 {
-            0
-        } else {
-            self.total_write_latency_us / self.write_ops
-        }
+        self.total_write_latency_us.checked_div(self.write_ops).unwrap_or(0)
     }
 
     pub fn compression_ratio(&self) -> f64 {

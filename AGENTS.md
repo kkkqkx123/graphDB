@@ -52,7 +52,6 @@ The codebase is organized into several main components:
 
 outside crates:
 
-- `crates/inversearch` - Inverted search engine
 - `crates/bm25` - BM25 search engine
 - `crates/qdrant-client` - HTTP client for qdrant vector database
 - `./graphdb-cli` - HTTP CLI client for graphDB(completely independent)

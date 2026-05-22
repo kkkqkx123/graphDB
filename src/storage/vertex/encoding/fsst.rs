@@ -145,13 +145,11 @@ impl FsstEncoder {
             score_b.cmp(&score_a)
         });
 
-        let mut code: u8 = 1;
-        for (ngram, _freq) in ngrams {
+        for (code, (ngram, _freq)) in (1_u8..).zip(ngrams) {
             if code as usize >= max_symbols.min(SYMBOL_TABLE_SIZE) {
                 break;
             }
             self.table.insert(ngram, code);
-            code += 1;
         }
     }
 

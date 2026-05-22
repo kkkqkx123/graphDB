@@ -511,7 +511,7 @@ impl AggregatedStatsManager {
             .collect();
 
         // Sort by total duration (descending)
-        all_stats.sort_by(|a, b| b.total_duration_us.cmp(&a.total_duration_us));
+        all_stats.sort_by_key(|b| std::cmp::Reverse(b.total_duration_us));
 
         all_stats.into_iter().take(limit).collect()
     }
@@ -525,7 +525,7 @@ impl AggregatedStatsManager {
             .collect();
 
         // Sort by execution count (descending)
-        all_stats.sort_by(|a, b| b.execution_count.cmp(&a.execution_count));
+        all_stats.sort_by_key(|b| std::cmp::Reverse(b.execution_count));
 
         all_stats.into_iter().take(limit).collect()
     }

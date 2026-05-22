@@ -231,7 +231,7 @@ impl QueryStats {
             .map(|(q, f)| (q.clone(), *f))
             .collect();
 
-        queries.sort_by(|a, b| b.1.cmp(&a.1));
+        queries.sort_by_key(|b| std::cmp::Reverse(b.1));
         queries.truncate(limit);
 
         queries
@@ -245,7 +245,7 @@ impl QueryStats {
             .map(|(c, f)| (c.clone(), *f))
             .collect();
 
-        ctes.sort_by(|a, b| b.1.cmp(&a.1));
+        ctes.sort_by_key(|b| std::cmp::Reverse(b.1));
         ctes.truncate(limit);
 
         ctes

@@ -473,13 +473,13 @@ fn extract_predicates_recursive(expr: &Expression, predicates: &mut Vec<Predicat
             _ => {}
         },
         Expression::Unary { .. } => {}
-        Expression::Function { name, args } => {
-            if name.eq_ignore_ascii_case("in") && args.len() >= 2 {
-                if let (Some(col), Some(values)) =
-                    (extract_column_name(&args[0]), extract_list_values(&args[1]))
-                {
-                    predicates.push(PredicateInfo::in_list(col, values));
-                }
+        Expression::Function { name, args }
+            if name.eq_ignore_ascii_case("in") && args.len() >= 2 =>
+        {
+            if let (Some(col), Some(values)) =
+                (extract_column_name(&args[0]), extract_list_values(&args[1]))
+            {
+                predicates.push(PredicateInfo::in_list(col, values));
             }
         }
         _ => {}

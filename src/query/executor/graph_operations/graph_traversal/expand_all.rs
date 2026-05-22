@@ -597,11 +597,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         if !self.src_vids.is_empty() {
             let storage = self.get_storage().read();
             for vid in &self.src_vids {
-                match storage.get_vertex(&self.space_name, vid) {
-                    Ok(Some(vertex)) => {
-                        input_nodes.push(vertex);
-                    }
-                    _ => {}
+                if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, vid) {
+                    input_nodes.push(vertex);
                 }
             }
         }

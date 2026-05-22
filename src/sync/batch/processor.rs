@@ -67,6 +67,43 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
                     .map_err(BatchError::from)?;
             }
         }
+        self.engine.commit().await.map_err(BatchError::from)?;
+        Ok(())
+    }
+
+    /// Execute a batch of operations immediately, bypassing the buffer.
+    ///
+    /// This is used for transactional commits where operations should be
+    /// applied directly without additional buffering, eliminating the
+    /// double-buffering between TransactionBatchBuffer and BatchBuffer.
+    pub async fn execute_now(&self, operations: Vec<IndexOperation>) -> BatchResult<()> {
+        let mut deletes = Vec::new();
+        let mut items = Vec::new();
+
+        for op in operations {
+            match op {
+                IndexOperation::Delete { id, .. } => deletes.push(id),
+                IndexOperation::Insert { id, data, .. }
+                | IndexOperation::Update { id, data, .. } => items.push((id, data)),
+            }
+        }
+
+        if !deletes.is_empty() {
+            let ids: Vec<&str> = deletes.iter().map(|s| s.as_str()).collect();
+            self.engine
+                .delete_batch(&ids)
+                .await
+                .map_err(BatchError::from)?;
+        }
+
+        if !items.is_empty() {
+            self.engine
+                .insert_batch(items)
+                .await
+                .map_err(BatchError::from)?;
+        }
+
+        self.engine.commit().await.map_err(BatchError::from)?;
         Ok(())
     }
 
@@ -118,6 +155,7 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
             }
         }
 
+        self.engine.commit().await.map_err(BatchError::from)?;
         self.buffer.update_commit_time(key);
 
         Ok(())
@@ -282,13 +320,6 @@ impl TransactionBatchBuffer {
         }
     }
 
-    /// Create a new buffer without an associated processor
-    ///
-    /// This is an alias for `new()` for API compatibility.
-    pub fn new_without_processor() -> Self {
-        Self::new()
-    }
-
     /// Take all buffered operations for a transaction
     ///
     /// This removes the operations from the buffer and returns them.
@@ -313,7 +344,7 @@ impl TransactionBatchBuffer {
     }
 
     /// Buffer an operation for the given transaction
-    pub async fn prepare(
+    pub fn prepare(
         &self,
         txn_id: TransactionId,
         operation: IndexOperation,
@@ -332,7 +363,7 @@ impl TransactionBatchBuffer {
     }
 
     /// Rollback the transaction by discarding all buffered operations
-    pub async fn rollback(&self, txn_id: TransactionId) -> BatchResult<()> {
+    pub fn rollback(&self, txn_id: TransactionId) -> BatchResult<()> {
         self.pending.remove(&txn_id);
         Ok(())
     }

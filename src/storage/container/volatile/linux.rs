@@ -49,6 +49,7 @@ impl LargePageRegion {
         self.size
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }

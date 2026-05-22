@@ -253,7 +253,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
         }
 
         if single_shortest && !result_paths.is_empty() {
-            result_paths.sort_by(|a, b| a.steps.len().cmp(&b.steps.len()));
+            result_paths.sort_by_key(|a| a.steps.len());
             result_paths.truncate(1);
         }
 

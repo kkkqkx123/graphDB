@@ -194,8 +194,8 @@ impl Vertex {
             std::cmp::Ordering::Equal => {
                 let mut a_sorted: Vec<_> = a.iter().collect();
                 let mut b_sorted: Vec<_> = b.iter().collect();
-                a_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
-                b_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+                a_sorted.sort_by_key(|(k1, _)| *k1);
+                b_sorted.sort_by_key(|(k1, _)| *k1);
 
                 for ((k1, v1), (k2, v2)) in a_sorted.iter().zip(b_sorted.iter()) {
                     match k1.cmp(k2) {

@@ -399,11 +399,9 @@ impl IndexCompressor {
                     self.config.dictionary_threshold,
                 ));
             }
-            CompressionType::Delta => {
-                if !keys.is_empty() {
-                    let base = keys[0].clone();
-                    self.delta_compressor = Some(DeltaCompressor::with_base(base));
-                }
+            CompressionType::Delta if !keys.is_empty() => {
+                let base = keys[0].clone();
+                self.delta_compressor = Some(DeltaCompressor::with_base(base));
             }
             _ => {}
         }

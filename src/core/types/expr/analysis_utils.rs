@@ -165,10 +165,8 @@ pub fn collect_variables_from_contextual(expression: &ContextualExpression) -> V
 /// Recursive helper for collecting variables
 fn collect_variables_recursive(expression: &Expression, variables: &mut Vec<String>) {
     match expression {
-        Expression::Variable(name) => {
-            if !variables.contains(name) {
-                variables.push(name.clone());
-            }
+        Expression::Variable(name) if !variables.contains(name) => {
+            variables.push(name.clone());
         }
         Expression::Property { object, .. } => {
             collect_variables_recursive(object, variables);

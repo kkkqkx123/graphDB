@@ -100,18 +100,17 @@ impl SearchEngine for TantivySearchEngine {
     }
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
-        let mut writer = self.writer.lock();
+        let writer = self.writer.lock();
         let doc = doc!(
             self.id_field => doc_id,
             self.text_field => content,
         );
         writer.add_document(doc)?;
-        writer.commit()?;
         Ok(())
     }
 
     async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
-        let mut writer = self.writer.lock();
+        let writer = self.writer.lock();
         for (doc_id, content) in docs {
             let doc = doc!(
                 self.id_field => doc_id.as_str(),
@@ -119,7 +118,6 @@ impl SearchEngine for TantivySearchEngine {
             );
             writer.add_document(doc)?;
         }
-        writer.commit()?;
         Ok(())
     }
 
@@ -157,22 +155,20 @@ impl SearchEngine for TantivySearchEngine {
     }
 
     async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
-        let mut writer = self.writer.lock();
+        let writer = self.writer.lock();
         writer.delete_term(
             tantivy::Term::from_field_text(self.id_field, doc_id),
         );
-        writer.commit()?;
         Ok(())
     }
 
     async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
-        let mut writer = self.writer.lock();
+        let writer = self.writer.lock();
         for doc_id in doc_ids {
             writer.delete_term(
                 tantivy::Term::from_field_text(self.id_field, doc_id),
             );
         }
-        writer.commit()?;
         Ok(())
     }
 

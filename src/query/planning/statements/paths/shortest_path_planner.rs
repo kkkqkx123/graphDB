@@ -153,7 +153,7 @@ impl ShortestPathPlanner {
             }
         }
 
-        all_paths.sort_by(|a, b| a.vertices.len().cmp(&b.vertices.len()));
+        all_paths.sort_by_key(|a| a.vertices.len());
 
         Ok(ShortestPathResult {
             paths: all_paths,

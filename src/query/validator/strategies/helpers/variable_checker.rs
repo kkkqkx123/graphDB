@@ -132,10 +132,8 @@ impl VariableChecker {
         variables: &mut Vec<String>,
     ) {
         match expression {
-            crate::core::types::expr::Expression::Variable(name) => {
-                if !variables.contains(name) {
-                    variables.push(name.clone());
-                }
+            crate::core::types::expr::Expression::Variable(name) if !variables.contains(name) => {
+                variables.push(name.clone());
             }
             crate::core::types::expr::Expression::Binary { left, right, .. } => {
                 self.collect_variables_internal(left, variables);

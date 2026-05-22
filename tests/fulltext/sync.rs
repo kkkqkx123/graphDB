@@ -4,7 +4,7 @@
 //! - SyncCoordinator basic functionality
 //! - Vertex change auto-sync (insert, update, delete)
 //! - Transaction buffering
-//! - Sync with both BM25 and Inversearch engines
+//! - Sync with BM25 engine
 //!
 //! Test cases: TC-FT-SYNC-001 ~ TC-FT-SYNC-010
 

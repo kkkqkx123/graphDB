@@ -106,8 +106,8 @@ impl PlanCacheStats {
         self.total_query_size.fetch_add(size, Ordering::Relaxed);
         let total = self.total_query_size.load(Ordering::Relaxed);
         let count = self.memory.entry_count();
-        if count > 0 {
-            *self.avg_query_size.write() = total / count;
+        if let Some(avg) = total.checked_div(count) {
+            *self.avg_query_size.write() = avg;
         }
     }
 

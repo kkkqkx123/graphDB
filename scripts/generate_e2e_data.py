@@ -771,7 +771,7 @@ class FullTextGenerator(TestDataGenerator):
 
         self.add_comment("Create fulltext indexes")
         self.add("CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) WITH (engine=bm25, analyzer=standard)")
-        self.add("CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_title ON article(title) WITH (engine=inversearch, analyzer=cjk)")
+        self.add("CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_title ON article(title) WITH (engine=bm25, analyzer=cjk)")
         self.add_empty()
 
     def generate_articles(self):

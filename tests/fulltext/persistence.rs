@@ -295,57 +295,7 @@ async fn test_deleted_document_persistence() {
     assert_eq!(results_keep.len(), 1, "Non-deleted document should persist");
 }
 
-/// TC-FT-PERSIST-009: Mixed Engine Persistence
-#[tokio::test]
-async fn test_mixed_engine_persistence() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    {
-        let manager = create_manager_with_path(temp_dir.path());
-
-        manager
-            .create_index(1, "Article", "bm25_field", Some(EngineType::Bm25))
-            .await
-            .expect("Failed to create BM25 index");
-
-        manager
-            .create_index(1, "Article", "inv_field", Some(EngineType::Inversearch))
-            .await
-            .expect("Failed to create Inversearch index");
-
-        if let Some(engine) = manager.get_engine(1, "Article", "bm25_field") {
-            engine
-                .index("doc_1", "BM25 persistent content")
-                .await
-                .expect("Failed to index");
-            engine.commit().await.expect("Failed to commit");
-        }
-
-        if let Some(engine) = manager.get_engine(1, "Article", "inv_field") {
-            engine
-                .index("doc_2", "Inversearch persistent content")
-                .await
-                .expect("Failed to index");
-            engine.commit().await.expect("Failed to commit");
-        }
-    }
-
-    let manager = create_manager_with_path(temp_dir.path());
-
-    let bm25_metadata = manager.get_metadata(1, "Article", "bm25_field");
-    assert!(
-        bm25_metadata.is_some(),
-        "BM25 index metadata should persist"
-    );
-    assert_eq!(bm25_metadata.unwrap().engine_type, EngineType::Bm25);
-
-    let inv_metadata = manager.get_metadata(1, "Article", "inv_field");
-    assert!(
-        inv_metadata.is_some(),
-        "Inversearch index metadata should persist"
-    );
-    assert_eq!(inv_metadata.unwrap().engine_type, EngineType::Inversearch);
-}
 
 /// TC-FT-PERSIST-010: Dropped Index Persistence
 #[tokio::test]

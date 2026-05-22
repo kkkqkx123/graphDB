@@ -249,14 +249,13 @@ impl RecordCache {
     pub fn get_id_index(&self, label_id: u32, external_id: &str, query_ts: Timestamp) -> Option<u32> {
         let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
         let result = match self.id_index_cache.get(&key) {
-            Some(cached) => {
-                if cached.cached_at_ts <= query_ts {
-                    self.id_index_stats.record_hit();
-                    Some(cached.internal_id)
-                } else {
-                    self.id_index_stats.record_miss();
-                    None
-                }
+            Some(cached) if cached.cached_at_ts <= query_ts => {
+                self.id_index_stats.record_hit();
+                Some(cached.internal_id)
+            }
+            Some(_) => {
+                self.id_index_stats.record_miss();
+                None
             }
             None => {
                 self.id_index_stats.record_miss();

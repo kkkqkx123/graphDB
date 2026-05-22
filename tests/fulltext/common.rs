@@ -8,6 +8,7 @@ use tempfile::TempDir;
 
 pub struct FulltextTestContext {
     pub manager: Arc<FulltextIndexManager>,
+    #[allow(dead_code)]
     pub temp_dir: TempDir,
 }
 
@@ -137,6 +138,7 @@ impl FulltextTestContext {
         self.manager.get_stats(space_id, tag_name, field_name).await
     }
 
+    #[allow(dead_code)]
     pub fn get_engine_type(
         &self,
         space_id: u64,

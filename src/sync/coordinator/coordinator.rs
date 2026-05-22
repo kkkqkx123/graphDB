@@ -289,11 +289,12 @@ impl SyncCoordinator {
         let buffer = self
             .transaction_buffers
             .entry(txn_id)
-            .or_insert_with(|| Arc::new(TransactionBatchBuffer::new_without_processor()))
+            .or_insert_with(|| Arc::new(TransactionBatchBuffer::new()))
             .clone();
 
         // Adding operations to the buffer
-        futures::executor::block_on(buffer.prepare(txn_id, operation))
+        buffer
+            .prepare(txn_id, operation)
             .map_err(SyncCoordinatorError::BatchError)?;
 
         if let Some(ref sm) = self.stats_manager {
@@ -385,7 +386,7 @@ impl SyncCoordinator {
                     let dlq_clone = self.dead_letter_queue.clone();
 
                     match with_retry(
-                        || async { processor.add_batch(ops_clone.clone()).await },
+                        || async { processor.execute_now(ops_clone.clone()).await },
                         &retry_config_clone,
                     )
                     .await
@@ -428,7 +429,7 @@ impl SyncCoordinator {
                     let dlq_clone = self.dead_letter_queue.clone();
 
                     match with_retry(
-                        || async { processor.add_batch(ops_clone.clone()).await },
+                        || async { processor.execute_now(ops_clone.clone()).await },
                         &retry_config_clone,
                     )
                     .await
@@ -456,6 +457,9 @@ impl SyncCoordinator {
                     }
                 }
             }
+
+            // Flush all remaining buffered operations to ensure persistence
+            self.commit_all().await?;
 
             log::debug!("Transaction {:?} committed with batch optimization", txn_id);
             if let Some(ref sm) = self.stats_manager {
@@ -488,7 +492,6 @@ impl SyncCoordinator {
             );
             buffer
                 .rollback(txn_id)
-                .await
                 .map_err(SyncCoordinatorError::BatchError)?;
             if let Some(ref sm) = self.stats_manager {
                 let total_depth: u64 = self
@@ -585,7 +588,7 @@ impl SyncCoordinator {
                             &key.tag_name,
                             &key.field_name,
                         ) {
-                            processor.add(operation.clone()).await.map_err(|e| {
+                            processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
                                 SyncCoordinatorError::BatchError(
                                     crate::sync::batch::BatchError::InvalidOperation(format!(
                                         "Recovery failed: {:?}",
@@ -611,7 +614,7 @@ impl SyncCoordinator {
                             &key.tag_name,
                             &key.field_name,
                         ) {
-                            processor.add(operation.clone()).await.map_err(|e| {
+                            processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
                                 SyncCoordinatorError::BatchError(
                                     crate::sync::batch::BatchError::InvalidOperation(format!(
                                         "Recovery failed: {:?}",
@@ -627,7 +630,7 @@ impl SyncCoordinator {
                             &key.tag_name,
                             &key.field_name,
                         ) {
-                            processor.add(operation.clone()).await.map_err(|e| {
+                            processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
                                 SyncCoordinatorError::BatchError(
                                     crate::sync::batch::BatchError::InvalidOperation(format!(
                                         "Recovery failed: {:?}",
@@ -646,7 +649,7 @@ impl SyncCoordinator {
                     &key.tag_name,
                     &key.field_name,
                 ) {
-                    processor.add(operation.clone()).await.map_err(|e| {
+                    processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
                         SyncCoordinatorError::BatchError(
                             crate::sync::batch::BatchError::InvalidOperation(format!(
                                 "Recovery failed: {:?}",
