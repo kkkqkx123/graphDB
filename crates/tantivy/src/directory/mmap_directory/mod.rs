@@ -17,6 +17,10 @@ use memmap2::Mmap;
 use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
+/// Maximum number of entries in the mmap cache before triggering
+/// cleanup of dead weak references.
+const MMAP_CACHE_MAX_ENTRIES: usize = 4096;
+
 use crate::core::META_FILEPATH;
 use crate::directory::error::{
     DeleteError, LockError, OpenDirectoryError, OpenReadError, OpenWriteError,
@@ -81,6 +85,7 @@ pub struct CacheInfo {
 struct MmapCache {
     counters: CacheCounters,
     cache: HashMap<PathBuf, WeakArcBytes>,
+    max_entries: usize,
     #[cfg(unix)]
     madvice_opt: Option<Advice>,
 }
@@ -90,6 +95,7 @@ impl MmapCache {
         MmapCache {
             counters: CacheCounters::default(),
             cache: HashMap::default(),
+            max_entries: MMAP_CACHE_MAX_ENTRIES,
             #[cfg(unix)]
             madvice_opt: None,
         }
@@ -140,6 +146,12 @@ impl MmapCache {
         }
         self.cache.remove(full_path);
         self.counters.miss += 1;
+
+        // Periodically clean up dead weak references to prevent unbounded cache growth.
+        if self.cache.len() > self.max_entries {
+            self.remove_weak_ref();
+        }
+
         let mmap_opt = self.open_mmap_impl(full_path)?;
         Ok(mmap_opt.map(|mmap| {
             let mmap_arc: ArcBytes = Arc::new(mmap);

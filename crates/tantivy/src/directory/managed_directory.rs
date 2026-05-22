@@ -111,86 +111,77 @@ impl ManagedDirectory {
         get_living_files: L,
     ) -> crate::Result<GarbageCollectionResult> {
         info!("Garbage collect");
-        let mut files_to_delete = vec![];
 
-        // It is crucial to get the living files after acquiring the
-        // read lock of meta information. That way, we
-        // avoid the following scenario.
-        //
-        // 1) we get the list of living files.
-        // 2) someone creates a new file.
-        // 3) we start garbage collection and remove this file
-        // even though it is a living file.
-        //
-        // releasing the lock as .delete() will use it too.
-        {
-            let meta_informations_rlock = self
-                .meta_informations
-                .read()
-                .expect("Managed directory rlock poisoned in garbage collect.");
-
-            // The point of this second "file" lock is to enforce the following scenario
-            // 1) process B tries to load a new set of searcher.
-            // The list of segments is loaded
-            // 2) writer change meta.json (for instance after a merge or a commit)
-            // 3) gc kicks in.
-            // 4) gc removes a file that was useful for process B, before process B opened it.
-            match self.acquire_lock(&META_LOCK) {
-                Ok(_meta_lock) => {
-                    let living_files = get_living_files();
-                    for managed_path in &meta_informations_rlock.managed_paths {
-                        if !living_files.contains(managed_path) {
-                            files_to_delete.push(managed_path.clone());
-                        }
-                    }
-                }
-                Err(err) => {
-                    error!("Failed to acquire lock for GC");
-                    return Err(crate::TantivyError::from(err));
-                }
-            }
-        }
-
-        let mut failed_to_delete_files = vec![];
         let mut deleted_files = vec![];
+        let mut failed_to_delete_files = vec![];
 
-        for file_to_delete in files_to_delete {
-            match self.delete(&file_to_delete) {
-                Ok(_) => {
-                    info!("Deleted {file_to_delete:?}");
-                    deleted_files.push(file_to_delete);
-                }
-                Err(file_error) => {
-                    match file_error {
-                        DeleteError::FileDoesNotExist(_) => {
-                            deleted_files.push(file_to_delete.clone());
+        // Use write lock on meta_informations to prevent concurrent
+        // register_file_as_managed from creating new files during GC.
+        // This eliminates the race where files created by a merge
+        // (registered in managed_paths but not yet referenced by meta.json)
+        // could be incorrectly deleted.
+        //
+        // Scenario prevented:
+        //   1) Merge creates new segment files via ManagedDirectory::open_write
+        //      (files registered in managed_paths)
+        //   2) GC starts, would read managed_paths and compute living_files
+        //      from meta.json (which hasn't been updated yet by merge)
+        //   3) GC would incorrectly mark merge files as deletable
+        //
+        // By holding the write lock, register_file_as_managed blocks until GC completes.
+        let mut meta_informations_wlock = self
+            .meta_informations
+            .write()
+            .expect("Managed directory wlock poisoned in garbage collect.");
+
+        // The META_LOCK prevents meta.json from being modified while
+        // we are computing which files to delete. This avoids a race
+        // where a reader loading segments could have its files deleted
+        // before it opens them.
+        match self.acquire_lock(&META_LOCK) {
+            Ok(_meta_lock) => {
+                let living_files = get_living_files();
+                let files_to_delete: Vec<PathBuf> = meta_informations_wlock
+                    .managed_paths
+                    .iter()
+                    .filter(|managed_path| !living_files.contains(*managed_path))
+                    .cloned()
+                    .collect();
+                drop(_meta_lock);
+
+                for file_to_delete in files_to_delete {
+                    match self.directory.delete(&file_to_delete) {
+                        Ok(_) => {
+                            info!("Deleted {file_to_delete:?}");
+                            meta_informations_wlock.managed_paths.remove(&file_to_delete);
+                            deleted_files.push(file_to_delete);
                         }
-                        DeleteError::IoError { .. } => {
-                            failed_to_delete_files.push(file_to_delete.clone());
-                            if !cfg!(target_os = "windows") {
-                                // On windows, delete is expected to fail if the file
-                                // is mmapped.
-                                error!("Failed to delete {file_to_delete:?}");
+                        Err(file_error) => {
+                            match file_error {
+                                DeleteError::FileDoesNotExist(_) => {
+                                    meta_informations_wlock.managed_paths.remove(&file_to_delete);
+                                    deleted_files.push(file_to_delete);
+                                }
+                                DeleteError::IoError { .. } => {
+                                    failed_to_delete_files.push(file_to_delete);
+                                    if !cfg!(target_os = "windows") {
+                                        error!("Failed to delete file during GC");
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
 
-        if !deleted_files.is_empty() {
-            // update the list of managed files by removing
-            // the file that were removed.
-            let mut meta_informations_wlock = self
-                .meta_informations
-                .write()
-                .expect("Managed directory wlock poisoned (2).");
-            let managed_paths_write = &mut meta_informations_wlock.managed_paths;
-            for delete_file in &deleted_files {
-                managed_paths_write.remove(delete_file);
+                if !deleted_files.is_empty() {
+                    self.directory.sync_directory()?;
+                    save_managed_paths(self.directory.as_mut(), &meta_informations_wlock)?;
+                }
             }
-            self.directory.sync_directory()?;
-            save_managed_paths(self.directory.as_mut(), &meta_informations_wlock)?;
+            Err(err) => {
+                error!("Failed to acquire lock for GC");
+                return Err(crate::TantivyError::from(err));
+            }
         }
 
         Ok(GarbageCollectionResult {
