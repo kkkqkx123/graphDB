@@ -12,27 +12,6 @@
 //! - Memory-weighted eviction
 //! - Batch operations for improved throughput
 //! - Memory pressure response
-//!
-//! ## Architecture
-//!
-//! This cache manages two distinct cache types as a unified facade:
-//!
-//! - **Vertex Cache**: Stores vertex records keyed by (label_id, internal_id)
-//! - **ID Index Cache**: Stores external_id to internal_id mappings keyed by (label_id, external_id)
-//!
-//! ## Design Note: Why No Edge Cache?
-//!
-//! Edge data is NOT cached because:
-//!
-//! 1. **CSR is already read-optimized**: The CSR structure provides O(1) edge list
-//!    access with contiguous memory layout, which is CPU cache-friendly.
-//!
-//! 2. **High memory cost**: Edge data volume is typically much larger than vertex data.
-//!
-//! 3. **Frequent updates**: Edges are updated more frequently than vertices.
-//!
-//! 4. **Property access is O(1)**: Edge properties are stored in PropertyTable
-//!    with direct offset access.
 
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -50,7 +29,7 @@ use super::config::*;
 use super::stats::*;
 use super::types::*;
 
-/// Record cache for vertex data and ID index mappings
+/// Record cache for vertex data, ID index mappings, and optional edge records
 pub struct RecordCache {
     vertex_cache: Cache<VertexCacheKey, CachedVertex>,
     id_index_cache: Cache<IdIndexCacheKey, IdIndexCacheValue>,
@@ -64,11 +43,6 @@ pub struct RecordCache {
     stats_manager: Option<Arc<StatsManager>>,
     transaction_snapshot: Arc<Mutex<Option<TransactionCacheSnapshot>>>,
     created_at: Instant,
-}
-
-struct CacheMemoryAllocation {
-    vertex_memory: u64,
-    id_index_memory: u64,
 }
 
 impl std::fmt::Debug for RecordCache {
@@ -89,7 +63,20 @@ impl RecordCache {
     }
 
     pub fn with_config(config: RecordCacheConfig) -> Self {
-        let memory_allocation = Self::calculate_memory_allocation(&config);
+        let max_memory = config.max_memory as u64;
+        let total_ratio = config.memory_ratio.0 + config.memory_ratio.1;
+
+        let base_vertex_memory = max_memory * config.memory_ratio.0 as u64 / total_ratio as u64;
+        let base_id_index_memory = max_memory * config.memory_ratio.1 as u64 / total_ratio as u64;
+
+        let high_priority_extra = if config.high_priority_ratio > 0.0 {
+            (max_memory as f64 * config.high_priority_ratio as f64) as u64
+        } else {
+            0
+        };
+
+        let vertex_memory = base_vertex_memory;
+        let id_index_memory = base_id_index_memory + high_priority_extra;
 
         let vertex_stats = Arc::new(CacheStats::new());
         let id_index_stats = Arc::new(CacheStats::new());
@@ -97,7 +84,7 @@ impl RecordCache {
         let eviction_callback = Arc::new(Mutex::new(None::<EvictionCallback>));
 
         let vertex_cache = Self::build_vertex_cache(
-            memory_allocation.vertex_memory,
+            vertex_memory,
             vertex_stats.clone(),
             eviction_callback.clone(),
             config.ttl,
@@ -105,7 +92,7 @@ impl RecordCache {
         );
 
         let id_index_cache = Self::build_id_index_cache(
-            memory_allocation.id_index_memory,
+            id_index_memory,
             id_index_stats.clone(),
             eviction_callback.clone(),
             config.ttl,
@@ -127,25 +114,6 @@ impl RecordCache {
             stats_manager: None,
             transaction_snapshot: Arc::new(Mutex::new(None)),
             created_at: Instant::now(),
-        }
-    }
-
-    fn calculate_memory_allocation(config: &RecordCacheConfig) -> CacheMemoryAllocation {
-        let max_memory = config.max_memory as u64;
-        let total_ratio = config.memory_ratio.0 + config.memory_ratio.1;
-
-        let base_vertex_memory = max_memory * config.memory_ratio.0 as u64 / total_ratio as u64;
-        let base_id_index_memory = max_memory * config.memory_ratio.1 as u64 / total_ratio as u64;
-
-        let high_priority_extra = if config.high_priority_ratio > 0.0 {
-            (max_memory as f64 * config.high_priority_ratio as f64) as u64
-        } else {
-            0
-        };
-
-        CacheMemoryAllocation {
-            vertex_memory: base_vertex_memory,
-            id_index_memory: base_id_index_memory + high_priority_extra,
         }
     }
 
@@ -395,9 +363,10 @@ impl RecordCache {
         let expected_vertex_memory = vertex_count * std::mem::size_of::<CachedVertex>() as u64;
         let expected_id_index_memory =
             id_index_count * std::mem::size_of::<IdIndexCacheKey>() as u64;
-        let fragmentation = if expected_vertex_memory + expected_id_index_memory > 0 {
-            1.0 - (expected_vertex_memory + expected_id_index_memory) as f64
-                / (vertex_weighted + id_index_weighted).max(1) as f64
+        let total_expected = expected_vertex_memory + expected_id_index_memory;
+        let total_weighted = vertex_weighted + id_index_weighted;
+        let fragmentation = if total_expected > 0 {
+            1.0 - total_expected as f64 / total_weighted.max(1) as f64
         } else {
             0.0
         };

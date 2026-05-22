@@ -16,7 +16,7 @@ impl RecoveryApplier for PropertyGraph {
         ts: Timestamp,
     ) -> StorageResult<()> {
         {
-            let mut vertex_tables = self.data_store.vertex_tables.write();
+            let mut vertex_tables = self.data_store.vertex_tables().write();
             TransactionOps::add_vertex(&mut vertex_tables, label, oid, properties, ts)?;
         }
         self.mark_vertex_modified(label);
@@ -70,8 +70,8 @@ impl RecoveryApplier for PropertyGraph {
         };
 
         {
-            let vertex_tables = self.data_store.vertex_tables.read();
-            let mut edge_tables = self.data_store.edge_tables.write();
+            let vertex_tables = self.data_store.vertex_tables().read();
+            let mut edge_tables = self.data_store.edge_tables().write();
             TransactionOps::add_edge(&mut edge_tables, &vertex_tables, params, &redo.properties, ts).map_err(
                 |e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)),
             )?;
@@ -97,7 +97,7 @@ impl RecoveryApplier for PropertyGraph {
         })?;
 
         {
-            let mut vertex_tables = self.data_store.vertex_tables.write();
+            let mut vertex_tables = self.data_store.vertex_tables().write();
             TransactionOps::update_vertex_property(
                 &mut vertex_tables,
                 label,
@@ -135,8 +135,8 @@ impl RecoveryApplier for PropertyGraph {
         };
 
         {
-            let vertex_tables = self.data_store.vertex_tables.read();
-            let mut edge_tables = self.data_store.edge_tables.write();
+            let vertex_tables = self.data_store.vertex_tables().read();
+            let mut edge_tables = self.data_store.edge_tables().write();
             TransactionOps::update_edge_property(
                 &mut edge_tables,
                 &vertex_tables,
@@ -161,7 +161,7 @@ impl RecoveryApplier for PropertyGraph {
 
         if let Some(vertex) = self.get_vertex(label, &oid_str, ts) {
             {
-                let mut vertex_tables = self.data_store.vertex_tables.write();
+                let mut vertex_tables = self.data_store.vertex_tables().write();
                 TransactionOps::delete_vertex(
                     &mut vertex_tables,
                     label,
@@ -208,7 +208,7 @@ impl RecoveryApplier for PropertyGraph {
             };
 
             {
-                let mut edge_tables = self.data_store.edge_tables.write();
+                let mut edge_tables = self.data_store.edge_tables().write();
                 TransactionOps::delete_edge(&mut edge_tables, params, 0, 0, ts).map_err(|e| {
                     StorageError::db_error(format!("Failed to replay delete edge: {}", e))
                 })?;

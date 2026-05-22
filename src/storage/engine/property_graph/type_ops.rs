@@ -8,6 +8,7 @@ use std::sync::atomic::Ordering;
 use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::edge::{EdgeSchema, EdgeStrategy, EdgeTable};
+use crate::storage::engine::data_store::EdgeTableKey;
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::vertex::{VertexSchema, VertexTable};
 
@@ -24,12 +25,12 @@ pub fn create_vertex_type(
         return Err(StorageError::storage_not_open());
     }
     
-    let mut vertex_label_names = graph.data_store.vertex_label_names.write();
+    let mut vertex_label_names = graph.data_store.vertex_label_names().write();
     if vertex_label_names.contains_key(name) {
         return Err(StorageError::label_already_exists(name.to_string()));
     }
     
-    let mut vertex_label_counter = graph.data_store.vertex_label_counter.write();
+    let mut vertex_label_counter = graph.data_store.vertex_label_counter().write();
     let label_id = *vertex_label_counter;
     *vertex_label_counter += 1;
     
@@ -46,7 +47,7 @@ pub fn create_vertex_type(
     };
 
     let table = VertexTable::new(label_id, name.to_string(), schema);
-    graph.data_store.vertex_tables.write().insert(label_id, table);
+    graph.data_store.vertex_tables().write().insert(label_id, table);
     vertex_label_names.insert(name.to_string(), label_id);
 
     Ok(label_id)
@@ -63,19 +64,19 @@ pub fn create_vertex_type_with_id(
         return Err(StorageError::storage_not_open());
     }
     
-    let mut vertex_label_names = graph.data_store.vertex_label_names.write();
+    let mut vertex_label_names = graph.data_store.vertex_label_names().write();
     if vertex_label_names.contains_key(name) {
         return Err(StorageError::label_already_exists(name.to_string()));
     }
     
-    if graph.data_store.vertex_tables.read().contains_key(&label_id) {
+    if graph.data_store.vertex_tables().read().contains_key(&label_id) {
         return Err(StorageError::label_already_exists(format!(
             "label_id {}",
             label_id
         )));
     }
 
-    let mut vertex_label_counter = graph.data_store.vertex_label_counter.write();
+    let mut vertex_label_counter = graph.data_store.vertex_label_counter().write();
     if label_id >= *vertex_label_counter {
         *vertex_label_counter = label_id + 1;
     }
@@ -93,7 +94,7 @@ pub fn create_vertex_type_with_id(
     };
 
     let table = VertexTable::new(label_id, name.to_string(), schema);
-    graph.data_store.vertex_tables.write().insert(label_id, table);
+    graph.data_store.vertex_tables().write().insert(label_id, table);
     vertex_label_names.insert(name.to_string(), label_id);
 
     Ok(label_id)
@@ -112,25 +113,25 @@ pub fn create_edge_type(
         return Err(StorageError::storage_not_open());
     }
     
-    if !graph.data_store.vertex_tables.read().contains_key(&src_label) {
+    if !graph.data_store.vertex_tables().read().contains_key(&src_label) {
         return Err(StorageError::label_not_found(format!(
             "source label {}",
             src_label
         )));
     }
-    if !graph.data_store.vertex_tables.read().contains_key(&dst_label) {
+    if !graph.data_store.vertex_tables().read().contains_key(&dst_label) {
         return Err(StorageError::label_not_found(format!(
             "destination label {}",
             dst_label
         )));
     }
 
-    let mut edge_label_names = graph.data_store.edge_label_names.write();
+    let mut edge_label_names = graph.data_store.edge_label_names().write();
     if edge_label_names.contains_key(name) {
         return Err(StorageError::label_already_exists(name.to_string()));
     }
 
-    let mut edge_label_counter = graph.data_store.edge_label_counter.write();
+    let mut edge_label_counter = graph.data_store.edge_label_counter().write();
     let label_id = *edge_label_counter;
     *edge_label_counter += 1;
 
@@ -145,8 +146,8 @@ pub fn create_edge_type(
     };
 
     let table = EdgeTable::new(schema)?;
-    let key = (src_label, dst_label, label_id);
-    graph.data_store.edge_tables.write().insert(key, table);
+    let key = EdgeTableKey::new(src_label, dst_label, label_id);
+    graph.data_store.edge_tables().write().insert(key, table);
     edge_label_names.insert(name.to_string(), label_id);
 
     Ok(label_id)
@@ -161,25 +162,25 @@ pub fn create_edge_type_with_id(
         return Err(StorageError::storage_not_open());
     }
     
-    if !graph.data_store.vertex_tables.read().contains_key(&params.src_label) {
+    if !graph.data_store.vertex_tables().read().contains_key(&params.src_label) {
         return Err(StorageError::label_not_found(format!(
             "source label {}",
             params.src_label
         )));
     }
-    if !graph.data_store.vertex_tables.read().contains_key(&params.dst_label) {
+    if !graph.data_store.vertex_tables().read().contains_key(&params.dst_label) {
         return Err(StorageError::label_not_found(format!(
             "destination label {}",
             params.dst_label
         )));
     }
 
-    let mut edge_label_names = graph.data_store.edge_label_names.write();
+    let mut edge_label_names = graph.data_store.edge_label_names().write();
     if edge_label_names.contains_key(params.name) {
         return Err(StorageError::label_already_exists(params.name.to_string()));
     }
 
-    let mut edge_label_counter = graph.data_store.edge_label_counter.write();
+    let mut edge_label_counter = graph.data_store.edge_label_counter().write();
     if label_id >= *edge_label_counter {
         *edge_label_counter = label_id + 1;
     }
@@ -195,8 +196,8 @@ pub fn create_edge_type_with_id(
     };
 
     let table = EdgeTable::new(schema)?;
-    let key = (params.src_label, params.dst_label, label_id);
-    graph.data_store.edge_tables.write().insert(key, table);
+    let key = EdgeTableKey::new(params.src_label, params.dst_label, label_id);
+    graph.data_store.edge_tables().write().insert(key, table);
     edge_label_names.insert(params.name.to_string(), label_id);
 
     Ok(label_id)
@@ -208,16 +209,15 @@ pub fn drop_vertex_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> 
     }
     
     let label_id = {
-        let mut vertex_label_names = graph.data_store.vertex_label_names.write();
+        let mut vertex_label_names = graph.data_store.vertex_label_names().write();
         vertex_label_names
             .remove(name)
             .ok_or_else(|| StorageError::label_not_found(name.to_string()))?
     };
     
-    graph.data_store.vertex_tables.write().remove(&label_id);
-    graph.data_store.edge_tables.write().retain(|key, _table| {
-        let (src, dst, _edge) = *key;
-        src != label_id && dst != label_id
+    graph.data_store.vertex_tables().write().remove(&label_id);
+    graph.data_store.edge_tables().write().retain(|key, _table| {
+        key.src_label != label_id && key.dst_label != label_id
     });
     
     Ok(())
@@ -229,15 +229,14 @@ pub fn drop_edge_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> {
     }
     
     let label_id = {
-        let mut edge_label_names = graph.data_store.edge_label_names.write();
+        let mut edge_label_names = graph.data_store.edge_label_names().write();
         edge_label_names
             .remove(name)
             .ok_or_else(|| StorageError::label_not_found(name.to_string()))?
     };
 
-    graph.data_store.edge_tables.write().retain(|_key, _table| {
-        let (_, _, e) = *_key;
-        e != label_id
+    graph.data_store.edge_tables().write().retain(|_key, _table| {
+        _key.edge_label != label_id
     });
 
     Ok(())
@@ -252,7 +251,7 @@ pub fn add_vertex_property(
         return Err(StorageError::storage_not_open());
     }
 
-    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let mut vertex_tables = graph.data_store.vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -271,12 +270,11 @@ pub fn add_edge_property(
         return Err(StorageError::storage_not_open());
     }
 
-    let mut edge_tables = graph.data_store.edge_tables.write();
+    let mut edge_tables = graph.data_store.edge_tables().write();
     let mut updated = false;
     
     for (key, table) in edge_tables.iter_mut() {
-        let (_, _, e) = *key;
-        if e == edge_label {
+        if key.edge_label == edge_label {
             table.add_property(prop.name.clone(), prop.data_type.clone(), prop.nullable)?;
             updated = true;
         }

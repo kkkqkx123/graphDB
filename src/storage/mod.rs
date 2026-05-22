@@ -79,4 +79,4 @@ pub use engine::{
 };
 
 #[cfg(test)]
-pub use test_mock::*;
+pub use test_mock::MockStorage;

@@ -6,7 +6,7 @@ pub mod config;
 pub mod data_store;
 pub mod edge_params;
 pub mod graph_storage;
-pub use graph_storage::{GraphStorage, GraphStorageContext, PersistenceOps};
+pub use graph_storage::{GraphStorage, GraphStorageContext};
 pub mod persistence_coordinator;
 pub mod property_graph;
 #[cfg(test)]

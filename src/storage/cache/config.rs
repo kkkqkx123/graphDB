@@ -1,12 +1,6 @@
 //! Cache Configuration
 //!
 //! Configuration types for cache behavior tuning.
-//!
-//! ## Memory Distribution
-//!
-//! Memory is distributed between two cache types:
-//! - **Vertex Cache**: Stores vertex records for fast point lookups
-//! - **ID Index Cache**: Stores external_id -> internal_id mappings
 
 use std::time::Duration;
 

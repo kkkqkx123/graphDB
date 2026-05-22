@@ -1,5 +1,6 @@
 use crate::core::types::{CompactConfig, CompactResult, CompactStats, CompactTarget};
 use crate::core::types::{LabelId, Timestamp};
+use crate::storage::engine::data_store::EdgeTableKey;
 use crate::storage::engine::property_graph::PropertyGraph;
 
 impl CompactTarget for PropertyGraph {
@@ -18,7 +19,7 @@ impl CompactTarget for PropertyGraph {
 
         let vertex_labels: Vec<LabelId>;
         {
-            let mut vertex_tables = self.data_store.vertex_tables.write();
+            let mut vertex_tables = self.data_store.vertex_tables().write();
             vertex_labels = vertex_tables.keys().copied().collect();
 
             for &label_id in &vertex_labels {
@@ -44,9 +45,9 @@ impl CompactTarget for PropertyGraph {
             total_vertices_removed
         );
 
-        let edge_keys: Vec<(LabelId, LabelId, LabelId)>;
+        let edge_keys: Vec<EdgeTableKey>;
         {
-            let mut edge_tables = self.data_store.edge_tables.write();
+            let mut edge_tables = self.data_store.edge_tables().write();
             edge_keys = edge_tables.keys().copied().collect();
 
             if config.enable_structure_compaction {
@@ -68,8 +69,8 @@ impl CompactTarget for PropertyGraph {
             }
         }
 
-        for &(_, _, edge_label) in &edge_keys {
-            self.mark_edge_modified(edge_label);
+        for &key in &edge_keys {
+            self.mark_edge_modified(key.edge_label);
         }
 
         let index_gc_stats = self.gc_index_tombstones(ts).unwrap_or_default();

@@ -6,13 +6,40 @@ use crate::core::types::LabelId;
 use crate::storage::edge::EdgeTable;
 use crate::storage::vertex::VertexTable;
 
+#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
+pub struct EdgeTableKey {
+    pub src_label: LabelId,
+    pub dst_label: LabelId,
+    pub edge_label: LabelId,
+}
+
+impl EdgeTableKey {
+    pub fn new(src_label: LabelId, dst_label: LabelId, edge_label: LabelId) -> Self {
+        Self {
+            src_label,
+            dst_label,
+            edge_label,
+        }
+    }
+}
+
+impl From<(LabelId, LabelId, LabelId)> for EdgeTableKey {
+    fn from((src_label, dst_label, edge_label): (LabelId, LabelId, LabelId)) -> Self {
+        Self {
+            src_label,
+            dst_label,
+            edge_label,
+        }
+    }
+}
+
 pub struct GraphDataStore {
-    pub vertex_tables: RwLock<HashMap<LabelId, VertexTable>>,
-    pub edge_tables: RwLock<HashMap<(LabelId, LabelId, LabelId), EdgeTable>>,
-    pub vertex_label_names: RwLock<HashMap<String, LabelId>>,
-    pub edge_label_names: RwLock<HashMap<String, LabelId>>,
-    pub vertex_label_counter: RwLock<LabelId>,
-    pub edge_label_counter: RwLock<LabelId>,
+    vertex_tables: RwLock<HashMap<LabelId, VertexTable>>,
+    edge_tables: RwLock<HashMap<EdgeTableKey, EdgeTable>>,
+    vertex_label_names: RwLock<HashMap<String, LabelId>>,
+    edge_label_names: RwLock<HashMap<String, LabelId>>,
+    vertex_label_counter: RwLock<LabelId>,
+    edge_label_counter: RwLock<LabelId>,
 }
 
 impl GraphDataStore {
@@ -25,6 +52,30 @@ impl GraphDataStore {
             vertex_label_counter: RwLock::new(0),
             edge_label_counter: RwLock::new(0),
         }
+    }
+
+    pub(crate) fn vertex_tables(&self) -> &RwLock<HashMap<LabelId, VertexTable>> {
+        &self.vertex_tables
+    }
+
+    pub(crate) fn edge_tables(&self) -> &RwLock<HashMap<EdgeTableKey, EdgeTable>> {
+        &self.edge_tables
+    }
+
+    pub(crate) fn vertex_label_names(&self) -> &RwLock<HashMap<String, LabelId>> {
+        &self.vertex_label_names
+    }
+
+    pub(crate) fn edge_label_names(&self) -> &RwLock<HashMap<String, LabelId>> {
+        &self.edge_label_names
+    }
+
+    pub(crate) fn vertex_label_counter(&self) -> &RwLock<LabelId> {
+        &self.vertex_label_counter
+    }
+
+    pub(crate) fn edge_label_counter(&self) -> &RwLock<LabelId> {
+        &self.edge_label_counter
     }
 }
 

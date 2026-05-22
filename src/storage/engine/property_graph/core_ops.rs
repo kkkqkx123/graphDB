@@ -6,6 +6,7 @@ use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeRecord;
 use crate::storage::storage_types::EdgeOffset;
+use crate::storage::engine::data_store::EdgeTableKey;
 use crate::storage::vertex::VertexRecord;
 
 use super::{InsertEdgeParams, InsertEdgeParamsByI64, PropertyGraph, PropertyGraphUpdateEdgePropertyParams};
@@ -22,7 +23,7 @@ pub fn insert_vertex(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let mut vertex_tables = graph.data_store.vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -44,7 +45,7 @@ pub fn insert_vertex_by_i64(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let mut vertex_tables = graph.data_store.vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -71,7 +72,7 @@ pub fn get_vertex(
         .get_cached_vertex_id(label, external_id, ts)
         .or_else(|| {
             let id = {
-                let vertex_tables = graph.data_store.vertex_tables.read();
+                let vertex_tables = graph.data_store.vertex_tables().read();
                 vertex_tables.get(&label)?.get_internal_id(external_id, ts)
             };
             if let Some(id) = id {
@@ -89,7 +90,7 @@ pub fn get_vertex(
     }
 
     let record = {
-        let vertex_tables = graph.data_store.vertex_tables.read();
+        let vertex_tables = graph.data_store.vertex_tables().read();
         vertex_tables.get(&label)?.get_by_internal_id(internal_id, ts)?
     };
 
@@ -119,7 +120,7 @@ pub fn get_vertex_by_i64(
         .get_cached_vertex_id(label, &external_id_str, ts)
         .or_else(|| {
             let id = {
-                let vertex_tables = graph.data_store.vertex_tables.read();
+                let vertex_tables = graph.data_store.vertex_tables().read();
                 vertex_tables.get(&label)?.get_internal_id_by_i64(external_id, ts)
             };
             if let Some(id) = id {
@@ -137,7 +138,7 @@ pub fn get_vertex_by_i64(
     }
 
     let record = {
-        let vertex_tables = graph.data_store.vertex_tables.read();
+        let vertex_tables = graph.data_store.vertex_tables().read();
         vertex_tables.get(&label)?.get_by_internal_id(internal_id, ts)?
     };
 
@@ -170,13 +171,13 @@ pub fn get_vertex_by_internal_id(
     }
 
     let record = {
-        let vertex_tables = graph.data_store.vertex_tables.read();
+        let vertex_tables = graph.data_store.vertex_tables().read();
         vertex_tables.get(&label)?.get_by_internal_id(internal_id, ts)?
     };
 
     // Retrieve external_id from storage for proper caching
     let external_id = {
-        let vertex_tables = graph.data_store.vertex_tables.read();
+        let vertex_tables = graph.data_store.vertex_tables().read();
         vertex_tables
             .get(&label)?
             .get_external_id(internal_id, ts)
@@ -204,7 +205,7 @@ pub fn delete_vertex(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let mut vertex_tables = graph.data_store.vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -231,7 +232,7 @@ pub fn delete_vertex_by_i64(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let mut vertex_tables = graph.data_store.vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -261,7 +262,7 @@ pub fn update_vertex_property(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let mut vertex_tables = graph.data_store.vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -289,7 +290,7 @@ pub fn update_vertex_property_by_i64(
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
-    let mut vertex_tables = graph.data_store.vertex_tables.write();
+    let mut vertex_tables = graph.data_store.vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -311,7 +312,7 @@ pub fn insert_edge(graph: &PropertyGraph, params: InsertEdgeParams) -> StorageRe
         return Err(StorageError::storage_not_open());
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let src_table = vertex_tables.get(&params.src_label).ok_or_else(|| {
         StorageError::label_not_found(format!("source vertex label {}", params.src_label))
     })?;
@@ -327,8 +328,8 @@ pub fn insert_edge(graph: &PropertyGraph, params: InsertEdgeParams) -> StorageRe
         .ok_or(StorageError::vertex_not_found())?;
     drop(vertex_tables);
 
-    let key = (params.src_label, params.dst_label, params.edge_label);
-    let mut edge_tables = graph.data_store.edge_tables.write();
+    let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
+    let mut edge_tables = graph.data_store.edge_tables().write();
     let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
         StorageError::label_not_found(format!("edge label {}", params.edge_label))
     })?;
@@ -346,7 +347,7 @@ pub fn insert_edge_by_i64(graph: &PropertyGraph, params: InsertEdgeParamsByI64) 
         return Err(StorageError::storage_not_open());
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let src_table = vertex_tables.get(&params.src_label).ok_or_else(|| {
         StorageError::label_not_found(format!("source vertex label {}", params.src_label))
     })?;
@@ -362,8 +363,8 @@ pub fn insert_edge_by_i64(graph: &PropertyGraph, params: InsertEdgeParamsByI64) 
         .ok_or(StorageError::vertex_not_found())?;
     drop(vertex_tables);
 
-    let key = (params.src_label, params.dst_label, params.edge_label);
-    let mut edge_tables = graph.data_store.edge_tables.write();
+    let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
+    let mut edge_tables = graph.data_store.edge_tables().write();
     let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
         StorageError::label_not_found(format!("edge label {}", params.edge_label))
     })?;
@@ -389,7 +390,7 @@ pub fn get_edge(
         return None;
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let src_table = vertex_tables.get(&src_label)?;
     let dst_table = vertex_tables.get(&dst_label)?;
 
@@ -397,8 +398,8 @@ pub fn get_edge(
     let dst_internal = dst_table.get_internal_id(dst_id, ts)?;
     drop(vertex_tables);
 
-    let key = (src_label, dst_label, edge_label);
-    let edge_tables = graph.data_store.edge_tables.read();
+    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let edge_tables = graph.data_store.edge_tables().read();
     let edge_table = edge_tables.get(&key)?;
 
     edge_table.get_edge(
@@ -421,7 +422,7 @@ pub fn get_edge_by_i64(
         return None;
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let src_table = vertex_tables.get(&src_label)?;
     let dst_table = vertex_tables.get(&dst_label)?;
 
@@ -429,8 +430,8 @@ pub fn get_edge_by_i64(
     let dst_internal = dst_table.get_internal_id_by_i64(dst_id, ts)?;
     drop(vertex_tables);
 
-    let key = (src_label, dst_label, edge_label);
-    let edge_tables = graph.data_store.edge_tables.read();
+    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let edge_tables = graph.data_store.edge_tables().read();
     let edge_table = edge_tables.get(&key)?;
 
     edge_table.get_edge(
@@ -453,7 +454,7 @@ pub fn delete_edge(
         return Err(StorageError::storage_not_open());
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let src_table = vertex_tables.get(&src_label).ok_or_else(|| {
         StorageError::label_not_found(format!("source vertex label {}", src_label))
     })?;
@@ -479,8 +480,8 @@ pub fn delete_edge(
     
     drop(vertex_tables);
 
-    let key = (src_label, dst_label, edge_label);
-    let mut edge_tables = graph.data_store.edge_tables.write();
+    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let mut edge_tables = graph.data_store.edge_tables().write();
     let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
         StorageError::label_not_found(format!("edge label {}", edge_label))
     })?;
@@ -500,7 +501,7 @@ pub fn update_edge_property(
         return Err(StorageError::storage_not_open());
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let src_table = vertex_tables.get(&params.src_label).ok_or_else(|| {
         StorageError::label_not_found(format!("source vertex label {}", params.src_label))
     })?;
@@ -526,8 +527,8 @@ pub fn update_edge_property(
     
     drop(vertex_tables);
 
-    let key = (params.src_label, params.dst_label, params.edge_label);
-    let mut edge_tables = graph.data_store.edge_tables.write();
+    let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
+    let mut edge_tables = graph.data_store.edge_tables().write();
     let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
         StorageError::label_not_found(format!("edge label {}", params.edge_label))
     })?;
@@ -553,7 +554,7 @@ pub fn out_edges(
         return None;
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let src_table = vertex_tables.get(&src_label)?;
     let src_internal = if let Ok(id) = src_id.parse::<i64>() {
         src_table.get_internal_id_by_i64(id, ts)
@@ -563,8 +564,8 @@ pub fn out_edges(
     }?;
     drop(vertex_tables);
 
-    let key = (src_label, dst_label, edge_label);
-    let edge_tables = graph.data_store.edge_tables.read();
+    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let edge_tables = graph.data_store.edge_tables().read();
     let edge_table = edge_tables.get(&key)?;
 
     Some(edge_table.out_edges(VertexId::from_int64(src_internal as i64), ts))
@@ -582,7 +583,7 @@ pub fn in_edges(
         return None;
     }
     
-    let vertex_tables = graph.data_store.vertex_tables.read();
+    let vertex_tables = graph.data_store.vertex_tables().read();
     let dst_table = vertex_tables.get(&dst_label)?;
     let dst_internal = if let Ok(id) = dst_id.parse::<i64>() {
         dst_table.get_internal_id_by_i64(id, ts)
@@ -592,8 +593,8 @@ pub fn in_edges(
     }?;
     drop(vertex_tables);
 
-    let key = (src_label, dst_label, edge_label);
-    let edge_tables = graph.data_store.edge_tables.read();
+    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let edge_tables = graph.data_store.edge_tables().read();
     let edge_table = edge_tables.get(&key)?;
 
     Some(edge_table.in_edges(VertexId::from_int64(dst_internal as i64), ts))

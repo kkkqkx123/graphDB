@@ -11,7 +11,7 @@ use super::{
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::storage_types::{EdgeOffset, PropertyId, StoragePropertyDef};
-use crate::storage::utils::encoding::{self, section, write_header_to};
+use crate::storage::utils::persistence_format::{read_header, section, write_header_to, HEADER_SIZE};
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -714,14 +714,14 @@ impl EdgeTable {
         use std::io::Read;
 
         let path = path.as_ref();
-        let mut header_buf = [0u8; encoding::HEADER_SIZE];
+        let mut header_buf = [0u8; HEADER_SIZE];
 
         let meta_path = path.join("meta.bin");
         let mut meta_file = File::open(&meta_path)?;
         meta_file.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            let (_version, sid) = encoding::read_header(&mut slice)?;
+            let (_version, sid) = read_header(&mut slice)?;
             if sid != section::EDGE_META {
                 return Err(StorageError::deserialize_error(format!(
                     "unexpected section id in edge meta: expected {:#06x}, got {:#06x}",
@@ -798,11 +798,11 @@ impl EdgeTable {
         use std::io::Read;
 
         let mut file = File::open(path)?;
-        let mut header_buf = [0u8; encoding::HEADER_SIZE];
+        let mut header_buf = [0u8; HEADER_SIZE];
         file.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            encoding::read_header(&mut slice)?;
+            read_header(&mut slice)?;
         }
 
         let mut len_bytes = [0u8; 8];
@@ -822,11 +822,11 @@ impl EdgeTable {
         use std::io::Read;
 
         let mut file = File::open(path)?;
-        let mut header_buf = [0u8; encoding::HEADER_SIZE];
+        let mut header_buf = [0u8; HEADER_SIZE];
         file.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            encoding::read_header(&mut slice)?;
+            read_header(&mut slice)?;
         }
 
         let mut len_bytes = [0u8; 8];

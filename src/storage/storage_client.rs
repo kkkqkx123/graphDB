@@ -1,10 +1,11 @@
-use crate::core::types::TransactionContextInfo;
+use crate::core::types::{Timestamp, TransactionContextInfo};
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
-use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
+use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::storage::metadata::SchemaManager;
+use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryStats};
 use std::sync::Arc;
 
 /// Read-only data and schema operations.
@@ -215,16 +216,105 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
 
     fn get_db_path(&self) -> &str;
 
-    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
+    /// Persistence operations
+    fn flush(&self) -> StorageResult<()> {
+        self.save_to_disk()
+    }
+
+    fn create_checkpoint(
+        &self,
+    ) -> StorageResult<Option<crate::storage::engine::persistence_coordinator::CheckpointStats>> {
+        let _ = self;
+        Ok(None)
+    }
+
+    fn compact_all(&self, _ts: Timestamp) -> StorageResult<()> {
+        let _ = self;
+        Ok(())
+    }
+
+    fn save_data(&self) -> StorageResult<()> {
+        self.save_to_disk()
+    }
+
+    fn save_data_to_dir(&self, _dir: &std::path::Path) -> StorageResult<()> {
+        let _ = self;
+        Ok(())
+    }
+
+    fn auto_flush_if_needed(&self) -> StorageResult<bool> {
+        let _ = self;
+        Ok(false)
+    }
+
+    fn auto_checkpoint_if_needed(
+        &self,
+    ) -> StorageResult<Option<crate::storage::engine::persistence_coordinator::CheckpointStats>>
+    {
+        let _ = self;
+        Ok(None)
+    }
+
+    fn should_flush(&self) -> bool {
+        false
+    }
+
+    fn should_checkpoint(&self) -> bool {
+        false
+    }
+
+    /// WAL recovery operations
+    fn needs_recovery(&self) -> bool {
+        false
+    }
+
+    fn recover_from_wal(&self) -> StorageResult<RecoveryStats> {
+        Err(StorageError::not_supported("WAL recovery not supported"))
+    }
+
+    fn recover_from_wal_with_config(&self, _config: RecoveryConfig) -> StorageResult<RecoveryStats> {
+        Err(StorageError::not_supported("WAL recovery not supported"))
+    }
+
+    fn init_with_recovery(
+        &self,
+    ) -> StorageResult<Option<RecoveryStats>> {
+        if self.needs_recovery() {
+            let stats = self.recover_from_wal()?;
+            Ok(Some(stats))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Index GC operations
+    fn is_index_gc_running(&self) -> bool {
+        false
+    }
+
+    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
+        let _ = self;
         None
     }
+
+    fn stop_index_gc(&self) {}
+
+    /// Schema manager access
     fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
         None
     }
+
+    /// Transaction context
     fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
         None
     }
+
     fn set_transaction_context(&self, _context: Option<Arc<TransactionContextInfo>>) {}
+
+    /// Sync manager
+    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
+        None
+    }
 }
 
 /// Combined storage interface with full read/write/schema/auth/admin capabilities.

@@ -10,7 +10,7 @@ use super::{
     VertexTimestamp,
 };
 use crate::storage::storage_types::StoragePropertyDef;
-use crate::storage::utils::encoding::{self, section, write_header_to};
+use crate::storage::utils::persistence_format::{read_header, section, write_header_to, HEADER_SIZE};
 use crate::core::{StorageError, StorageResult, Value};
 
 #[derive(Debug, Clone)]
@@ -730,14 +730,14 @@ impl VertexTable {
         use std::io::Read;
 
         let path = path.as_ref();
-        let mut header_buf = [0u8; encoding::HEADER_SIZE];
+        let mut header_buf = [0u8; HEADER_SIZE];
 
         let meta_path = path.join("meta.bin");
         let mut meta_file = File::open(&meta_path)?;
         meta_file.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            let (_version, sid) = encoding::read_header(&mut slice)?;
+            let (_version, sid) = read_header(&mut slice)?;
             if sid != section::VERTEX_META {
                 return Err(StorageError::deserialize_error(format!(
                     "unexpected section id in vertex meta: expected {:#06x}, got {:#06x}",
@@ -789,11 +789,11 @@ impl VertexTable {
         use std::io::Read;
 
         let mut file = File::open(path)?;
-        let mut header_buf = [0u8; encoding::HEADER_SIZE];
+        let mut header_buf = [0u8; HEADER_SIZE];
         file.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            let (_version, sid) = encoding::read_header(&mut slice)?;
+            let (_version, sid) = read_header(&mut slice)?;
             if sid != section::VERTEX_ID_INDEXER {
                 return Err(StorageError::deserialize_error(format!(
                     "unexpected section id in vertex id_indexer: expected {:#06x}, got {:#06x}",
@@ -833,11 +833,11 @@ impl VertexTable {
         use std::io::Read;
 
         let mut file = File::open(path)?;
-        let mut header_buf = [0u8; encoding::HEADER_SIZE];
+        let mut header_buf = [0u8; HEADER_SIZE];
         file.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            let (_version, sid) = encoding::read_header(&mut slice)?;
+            let (_version, sid) = read_header(&mut slice)?;
             if sid != section::VERTEX_COLUMNS {
                 return Err(StorageError::deserialize_error(format!(
                     "unexpected section id in vertex columns: expected {:#06x}, got {:#06x}",
@@ -923,11 +923,11 @@ impl VertexTable {
         use std::io::Read;
 
         let mut file = File::open(path)?;
-        let mut header_buf = [0u8; encoding::HEADER_SIZE];
+        let mut header_buf = [0u8; HEADER_SIZE];
         file.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            let (_version, sid) = encoding::read_header(&mut slice)?;
+            let (_version, sid) = read_header(&mut slice)?;
             if sid != section::VERTEX_TIMESTAMPS {
                 return Err(StorageError::deserialize_error(format!(
                     "unexpected section id in vertex timestamps: expected {:#06x}, got {:#06x}",
