@@ -3,7 +3,7 @@
 //! Core traits for WAL writer and recovery applier.
 
 use crate::core::types::{LabelId, Timestamp};
-use crate::core::StorageResult;
+use crate::core::error::StorageResult;
 
 use super::redo::{InsertEdgeRedo, UpdateEdgePropRedo};
 use super::types::WalResult;

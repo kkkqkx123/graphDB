@@ -51,7 +51,7 @@ use crate::core::Value;
 use std::ffi::c_void;
 
 #[cfg(feature = "c-api")]
-use crate::api::embedded::c_api::value::core_value_to_graphdb;
+use crate::core::utils::value_conversion::core_value_to_graphdb;
 
 /// Function reference enumeration, used to reference functions in expressions
 #[derive(Debug, Clone)]

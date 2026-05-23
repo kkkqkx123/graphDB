@@ -10,6 +10,8 @@ pub mod vertex_edge_path;
 pub mod permission;
 pub mod stats;
 pub mod types;
+pub mod utils;
+
 pub mod wal;
 
 // Error and result types

@@ -266,7 +266,7 @@ pub unsafe extern "C" fn graphdb_context_result_type(
     unsafe {
         let ctx = &(*context).inner;
         match &ctx.result {
-            Some(val) => crate::api::embedded::c_api::value::core_value_to_graphdb_type(val),
+            Some(val) => crate::core::utils::value_conversion::core_value_to_graphdb_type(val),
             None => graphdb_value_type_t::GRAPHDB_NULL,
         }
     }

@@ -2,7 +2,7 @@
 //!
 //! Responsible for creating executors for various data transformation types (Unwind, Assign, Materialize, AppendVertices, RollUpApply, PatternApply).
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{
     AppendVerticesConfig, ExecutionContext, ExecutorConfig, PatternApplyConfig, RollupApplyConfig,

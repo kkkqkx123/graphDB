@@ -5,7 +5,7 @@
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
@@ -74,7 +74,7 @@ impl<S: StorageClient> IntersectExecutor<S> {
 
         for left_row in &left_dataset.rows {
             if SetExecutor::<S>::row_in_set(left_row, &right_row_set) {
-                intersect_rows.push(left_row.clone());
+                intersect_rows.push(left_row.to_vec());
             }
         }
 

@@ -124,7 +124,7 @@ impl SyncManager {
                     tag_name,
                     field_name,
                     change_type,
-                    vertex_id.to_string().unwrap_or_default(),
+                    format!("{}", vertex_id),
                     text.clone(),
                 );
                 self.sync_coordinator
@@ -141,7 +141,7 @@ impl SyncManager {
                         field_name,
                         crate::sync::vector_sync::VectorChangeType::from(change_type),
                         crate::sync::vector_sync::VectorPointData {
-                            id: vertex_id.to_string().unwrap_or_default(),
+                            id: format!("{}", vertex_id),
                             vector: vector.clone(),
                             payload: std::collections::HashMap::new(),
                         },

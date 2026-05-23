@@ -3,7 +3,7 @@
 //! Coordinating various builders, parsers, and validators
 //! Responsible for creating the corresponding executor instances based on the execution plan.
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::factory::builders::{

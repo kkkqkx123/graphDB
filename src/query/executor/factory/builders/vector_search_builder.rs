@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutorEnum, VectorManageExecutor};
 use crate::query::executor::data_access::{
     CreateVectorIndexExecutor, DropVectorIndexExecutor, VectorLookupExecutor, VectorMatchExecutor,

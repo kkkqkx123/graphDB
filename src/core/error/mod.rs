@@ -26,8 +26,11 @@ pub use codes::{ErrorCategory as CodeErrorCategory, ErrorCode, PublicError, ToPu
 
 // Re-export all error types
 pub use manager::{ErrorCategory, ManagerError, ManagerResult};
-pub use query::{PlanNodeVisitError, QueryError, QueryPhase, QueryResult};
-pub use storage::{StorageError, StorageErrorKind, StorageResult};
+pub use storage::StorageError;
+pub use storage::StorageResult;
+pub use query::QueryError;
+pub use query::QueryResult;
+pub use query::PlanNodeVisitError;
 
 pub use crate::core::types::DataType;
 
@@ -192,14 +195,7 @@ impl DBError {
         &self.source
     }
 
-    fn from_boxed<E: Error + Send + Sync + 'static>(kind: ErrorKind, error: E) -> Self {
-        let class = kind.default_class();
-        Self {
-            kind,
-            message: error.to_string(),
-            source: Some(Box::new(error)),
-            class,
-        }
+
     }
 }
 
@@ -323,40 +319,6 @@ impl DBError {
 
 // ==================== From Implementations ====================
 
-impl From<StorageError> for DBError {
-    fn from(e: StorageError) -> Self {
-        let class = if e.is_retryable() {
-            ErrorClass::Retryable
-        } else {
-            ErrorClass::SystemError
-        };
-        DBError {
-            kind: ErrorKind::Storage,
-            message: e.to_string(),
-            source: Some(Box::new(e)),
-            class,
-        }
-    }
-}
-
-impl From<QueryError> for DBError {
-    fn from(e: QueryError) -> Self {
-        DBError::from_boxed(ErrorKind::Query, e)
-    }
-}
-
-impl From<PlanNodeVisitError> for DBError {
-    fn from(e: PlanNodeVisitError) -> Self {
-        DBError::from_boxed(ErrorKind::Plan, e)
-    }
-}
-
-impl From<ManagerError> for DBError {
-    fn from(e: ManagerError) -> Self {
-        DBError::from_boxed(ErrorKind::Manager, e)
-    }
-}
-
 impl From<serde_json::Error> for DBError {
     fn from(err: serde_json::Error) -> Self {
         DBError::new(ErrorKind::Serialization, err.to_string())
@@ -366,6 +328,18 @@ impl From<serde_json::Error> for DBError {
 impl From<std::io::Error> for DBError {
     fn from(err: std::io::Error) -> Self {
         DBError::io(err.to_string())
+    }
+}
+
+impl From<query::QueryError> for DBError {
+    fn from(err: query::QueryError) -> Self {
+        DBError::query(err.to_string()).with_source(Box::new(err))
+    }
+}
+
+impl From<storage::StorageError> for DBError {
+    fn from(err: storage::StorageError) -> Self {
+        DBError::storage(err.to_string()).with_source(Box::new(err))
     }
 }
 

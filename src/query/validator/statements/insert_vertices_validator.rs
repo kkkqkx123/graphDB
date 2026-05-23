@@ -203,8 +203,8 @@ impl InsertVerticesValidator {
             if let Some(prop_def) = tag_info.properties.iter().find(|p| &p.name == prop_name) {
                 // Check if property is a vector type and extract expected dimension
                 let expected_dim = match &prop_def.data_type {
-                    DataType::VectorDense(dim) => Some(*dim),
-                    DataType::VectorSparse(dim) => Some(*dim),
+                    DataType::VectorDense(dim) => Some(dim),
+                    DataType::VectorSparse(dim) => Some(dim),
                     DataType::Vector => None, // Generic vector type without dimension constraint
                     _ => None,
                 };
@@ -215,7 +215,7 @@ impl InsertVerticesValidator {
                         if let Expression::Literal(Value::Vector(vector_val)) = &expr {
                             let actual_dim = vector_val.dimension();
 
-                            if actual_dim != expected_dim {
+                            if actual_dim != *expected_dim {
                                 return Err(ValidationError::new(
                                     format!(
                                         "Vector dimension mismatch for property '{}' in vertex {}, tag {}: expected {}D vector, got {} dimensions",

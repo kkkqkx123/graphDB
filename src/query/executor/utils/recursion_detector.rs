@@ -274,7 +274,7 @@ impl PlanValidator {
         &self,
         plan_node: &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) -> crate::core::error::DBResult<()> {
-        use crate::core::error::QueryError;
+        use crate::core::error::query::QueryError;
         use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
         match plan_node {

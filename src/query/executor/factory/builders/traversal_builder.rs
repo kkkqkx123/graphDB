@@ -2,7 +2,7 @@
 //!
 //! Responsible for creating executors of graph traversal types (Expand, ExpandAll, Traverse, AllPaths, ShortestPath, MultiShortestPath)
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::core::types::{EdgeDirection, VertexId};
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::base::{

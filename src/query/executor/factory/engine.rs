@@ -1,6 +1,6 @@
 //! Plan Executor Engine
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor, InputExecutor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::utils::object_pool::ThreadSafeExecutorPool;

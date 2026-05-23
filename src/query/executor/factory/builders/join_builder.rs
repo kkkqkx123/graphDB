@@ -2,7 +2,7 @@
 //!
 //! Responsible for creating executors for different types of joins (InnerJoin, LeftJoin, FullOuterJoin, CrossJoin)
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::relational_algebra::join::{

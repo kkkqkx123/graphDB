@@ -238,7 +238,7 @@ impl SyncCoordinator {
         properties: &[(String, crate::core::Value)],
         change_type: ChangeType,
     ) -> Result<(), SyncCoordinatorError> {
-        let vid_str = vertex_id.to_string().unwrap_or_default();
+        let vid_str = format!("{}", vertex_id);
 
         for (field_name, value) in properties {
             if self

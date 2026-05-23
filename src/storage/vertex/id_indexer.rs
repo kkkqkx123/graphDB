@@ -10,7 +10,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
-use crate::storage::{StorageError, StorageResult};
+use crate::core::error::{StorageError, StorageResult};
 
 const DEFAULT_INITIAL_CAPACITY: usize = 1024;
 const DEFAULT_GROWTH_FACTOR: f64 = 1.5;

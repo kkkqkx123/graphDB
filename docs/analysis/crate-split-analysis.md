@@ -121,8 +121,8 @@ common  core  utils
 
 | # | 修复内容 | 涉及文件 | 说明 |
 |---|---------|---------|------|
-| 1 | 移除 `core/error/mod.rs` 中所有对外部模块的 re-export | `core/error/mod.rs` | 删除 33-46 行 |
-| 2 | 移除 `core/error/mod.rs` 中所有对外部错误类型的 `From` 实现 | `core/error/mod.rs` | 删除 342-470 行（保留 `std` 和 `serde_json`） |
+| 1 | 移除 `core/error/mod.rs` 中所有对外部模块的 re-export | `core/error/mod.rs` | 已完成: 删除 33-46 行 |
+| 2 | 移除 `core/error/mod.rs` 中所有对外部错误类型的 `From` 实现 | `core/error/mod.rs` | 已完成: 删除 342-470 行（保留 `std` 和 `serde_json`） |
 | 3 | 简化 `core/error/mod.rs` 中的 `ToPublicError` 实现 | `core/error/mod.rs` | 不再 downcast 到上层错误 |
 | 4 | 移除 `core/error/query.rs` 中对 api/query 的依赖 | `core/error/query.rs` | 删除 `From<SessionError>`, `From<PermissionError>`, `From<ExpressionError>` |
 | 5 | 移除 `core/error/storage.rs` 中对 transaction 的依赖 | `core/error/storage.rs` | 删除 `From<InsertTransactionError>` |

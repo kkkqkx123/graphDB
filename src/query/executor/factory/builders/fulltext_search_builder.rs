@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::core::error::QueryError;
+use crate::core::error::query::QueryError;
 use crate::core::types::span::Span;
 use crate::query::executor::admin::{
     AlterFulltextIndexExecutor, CreateFulltextIndexConfig, CreateFulltextIndexExecutor,

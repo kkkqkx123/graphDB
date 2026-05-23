@@ -167,7 +167,7 @@ pub unsafe extern "C" fn graphdb_execute_params(
 }
 
 /// Convert a C value to a Rust value.
-unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
+pub unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
     use crate::api::embedded::c_api::types::graphdb_value_type_t;
 
     match c_value.type_ {
