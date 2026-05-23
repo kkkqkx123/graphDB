@@ -72,15 +72,6 @@ impl VectorClientConfig {
         self
     }
 
-    pub fn to_qdrant_config(&self) -> VectorClientConfig {
-        VectorClientConfig {
-            enabled: self.enabled,
-            engine: EngineType::Qdrant,
-            connection: self.connection.clone(),
-            timeout: self.timeout.clone(),
-            retry: self.retry.clone(),
-        }
-    }
 }
 
 impl Default for VectorClientConfig {

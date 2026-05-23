@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
 use crate::config::{EngineType, VectorClientConfig};
+use crate::engine::QdrantEngine;
 use crate::engine::VectorEngine;
 use crate::error::Result;
 use crate::types::HealthStatus;
-
-#[cfg(feature = "qdrant")]
-use crate::engine::QdrantEngine;
 
 use super::core::{CollectionApi, PointApi, SearchApi};
 
@@ -17,7 +15,6 @@ pub struct VectorClient {
 }
 
 impl VectorClient {
-    #[cfg(feature = "qdrant")]
     pub async fn qdrant(config: VectorClientConfig) -> Result<Self> {
         let engine = QdrantEngine::new(config.clone()).await?;
         Ok(Self {
@@ -28,11 +25,7 @@ impl VectorClient {
 
     pub async fn new(config: VectorClientConfig) -> Result<Self> {
         match config.engine {
-            #[cfg(feature = "qdrant")]
             EngineType::Qdrant => Self::qdrant(config).await,
-
-            #[cfg(not(feature = "qdrant"))]
-            EngineType::Qdrant => Err(VectorClientError::EngineNotAvailable("qdrant".to_string())),
         }
     }
 

@@ -51,7 +51,7 @@ prost = { version = "0.13", optional = true }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"], optional = true }
 async-trait = { version = "0.1", optional = true }
 tantivy = { path = "crates/tantivy", optional = true }
-vector-client = { path = "crates/vector-client", features = ["qdrant"], optional = true }
+vector-client = { path = "crates/vector-client", features = ["qdrant-http"], optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

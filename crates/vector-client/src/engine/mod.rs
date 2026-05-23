@@ -3,10 +3,10 @@ use async_trait::async_trait;
 use crate::error::Result;
 use crate::types::*;
 
-#[cfg(feature = "qdrant")]
+#[cfg(feature = "qdrant-http")]
 mod qdrant;
 
-#[cfg(feature = "qdrant")]
+#[cfg(feature = "qdrant-http")]
 pub use qdrant::QdrantEngine;
 
 #[async_trait]

@@ -64,9 +64,11 @@ pub enum VectorClientError {
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
 
-    #[cfg(feature = "qdrant")]
-    #[error("Qdrant error: {0}")]
-    QdrantError(String),
+    #[error("Qdrant gRPC error: {0}")]
+    QdrantGrpcError(String),
+
+    #[error("Qdrant HTTP error: status={status}, message={message}")]
+    QdrantHttpError { status: u16, message: String },
 
     #[error("Internal error: {0}")]
     InternalError(String),
@@ -90,9 +92,9 @@ impl VectorClientError {
     }
 }
 
-#[cfg(feature = "qdrant")]
+#[cfg(feature = "qdrant-client")]
 impl From<qdrant_client::QdrantError> for VectorClientError {
     fn from(err: qdrant_client::QdrantError) -> Self {
-        VectorClientError::QdrantError(err.to_string())
+        VectorClientError::QdrantGrpcError(err.to_string())
     }
 }

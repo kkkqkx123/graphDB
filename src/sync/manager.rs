@@ -214,7 +214,7 @@ impl SyncManager {
 
     /// Edge deletion (synchronized buffering)
     ///
-    /// Issues a delete operation for every fulltext index associated
+    /// Issues a delete operation for every fulltext and vector index associated
     /// with this edge type, since we need to remove the edge from
     /// all indexed field indexes.
     pub fn on_edge_delete(
@@ -227,7 +227,7 @@ impl SyncManager {
     ) -> Result<(), SyncError> {
         let edge_id = format!("{}->{}", src, dst);
 
-        // Get all indexed fields for this edge type and delete from each.
+        // Get all indexed fields for this edge type and delete from each fulltext index.
         let indexes = self
             .sync_coordinator
             .fulltext_manager()
@@ -257,6 +257,29 @@ impl SyncManager {
                 space_id,
                 edge_type
             );
+        }
+
+        // Also delete from vector indexes for this edge type
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            let vector_indexes = vector_coord.list_indexes();
+            for idx in vector_indexes {
+                if idx.space_id == space_id && idx.tag_name == edge_type {
+                    let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                        space_id,
+                        edge_type,
+                        &idx.field_name,
+                        crate::sync::vector_sync::VectorChangeType::Delete,
+                        crate::sync::vector_sync::VectorPointData {
+                            id: edge_id.clone(),
+                            vector: Vec::new(),
+                            payload: std::collections::HashMap::new(),
+                        },
+                    );
+                    vector_coord
+                        .buffer_vector_change(txn_id, ctx)
+                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                }
+            }
         }
 
         Ok(())

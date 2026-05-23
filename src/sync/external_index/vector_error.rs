@@ -173,7 +173,12 @@ impl From<vector_client::VectorClientError> for VectorError {
                 VectorError::Internal(e.to_string())
             }
             vector_client::VectorClientError::InternalError(msg) => VectorError::Internal(msg),
-            vector_client::VectorClientError::QdrantError(msg) => VectorError::QdrantError(msg),
+            vector_client::VectorClientError::QdrantHttpError { status, message } => {
+                VectorError::QdrantError(format!("HTTP {}: {}", status, message))
+            }
+            vector_client::VectorClientError::QdrantGrpcError(msg) => {
+                VectorError::QdrantError(msg)
+            }
         }
     }
 }

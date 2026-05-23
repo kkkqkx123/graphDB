@@ -1,156 +1,163 @@
-use qdrant_client::qdrant::{
-    Condition, Filter, GeoBoundingBox as QdrantGeoBoundingBox, GeoPoint as QdrantGeoPoint,
-    GeoRadius as QdrantGeoRadius, PointId, Range, ValuesCount,
-};
+use serde_json::{json, Value};
 
 use crate::error::{Result, VectorClientError};
 use crate::types::{ConditionType, FilterCondition, VectorFilter};
 
-pub fn convert_filter(filter: &VectorFilter) -> Result<Filter> {
-    let mut qdrant_filter = Filter::default();
-
-    if let Some(must_conditions) = &filter.must {
-        for condition in must_conditions {
-            if let Some(cond) = convert_condition(condition)? {
-                qdrant_filter.must.push(cond);
-            }
-        }
-    }
-
-    if let Some(must_not_conditions) = &filter.must_not {
-        for condition in must_not_conditions {
-            if let Some(cond) = convert_condition(condition)? {
-                qdrant_filter.must_not.push(cond);
-            }
-        }
-    }
-
-    if let Some(should_conditions) = &filter.should {
-        for condition in should_conditions {
-            if let Some(cond) = convert_condition(condition)? {
-                qdrant_filter.should.push(cond);
-            }
-        }
-    }
-
-    Ok(qdrant_filter)
-}
-
-fn point_id_from_str(id: &str) -> PointId {
+fn point_id_json(id: &str) -> Value {
     if let Ok(num) = id.parse::<u64>() {
-        num.into()
+        json!(num)
     } else {
-        id.into()
+        json!(id)
     }
 }
 
-fn convert_condition(condition: &FilterCondition) -> Result<Option<Condition>> {
-    let cond = match &condition.condition {
-        ConditionType::Match { value } => {
-            Condition::matches(condition.field.clone(), value.clone())
-        }
-        ConditionType::MatchAny { values } => {
-            Condition::matches(condition.field.clone(), values.clone())
-        }
+pub fn convert_filter(filter: &VectorFilter) -> Result<Option<Value>> {
+    let must = if let Some(conditions) = &filter.must {
+        let items: Result<Vec<Value>> = conditions.iter().map(convert_condition).collect();
+        Some(items?)
+    } else {
+        None
+    };
+
+    let must_not = if let Some(conditions) = &filter.must_not {
+        let items: Result<Vec<Value>> = conditions.iter().map(convert_condition).collect();
+        Some(items?)
+    } else {
+        None
+    };
+
+    let should = if let Some(conditions) = &filter.should {
+        let items: Result<Vec<Value>> = conditions.iter().map(convert_condition).collect();
+        Some(items?)
+    } else {
+        None
+    };
+
+    if must.is_none() && must_not.is_none() && should.is_none() {
+        return Ok(None);
+    }
+
+    let mut filter_obj = serde_json::Map::new();
+    if let Some(m) = must {
+        filter_obj.insert("must".to_string(), Value::Array(m));
+    }
+    if let Some(m) = must_not {
+        filter_obj.insert("must_not".to_string(), Value::Array(m));
+    }
+    if let Some(s) = should {
+        filter_obj.insert("should".to_string(), Value::Array(s));
+    }
+
+    if let Some(ref min_should) = filter.min_should {
+        let conditions: Result<Vec<Value>> = min_should
+            .conditions
+            .iter()
+            .map(convert_condition)
+            .collect();
+        filter_obj.insert("should".to_string(), Value::Array(conditions?));
+        filter_obj.insert(
+            "min_should".to_string(),
+            json!({ "conditions": min_should.min_count }),
+        );
+    }
+
+    Ok(Some(Value::Object(filter_obj)))
+}
+
+fn convert_condition(condition: &FilterCondition) -> Result<Value> {
+    match &condition.condition {
+        ConditionType::Match { value } => Ok(json!({
+            "key": condition.field,
+            "match": { "value": value }
+        })),
+        ConditionType::MatchAny { values } => Ok(json!({
+            "key": condition.field,
+            "match_any": { "any": values }
+        })),
         ConditionType::Range(range) => {
-            let mut qdrant_range = Range::default();
+            let mut range_obj = serde_json::Map::new();
             if let Some(gt) = range.gt {
-                qdrant_range.gt = Some(gt);
+                range_obj.insert("gt".to_string(), json!(gt));
             }
             if let Some(gte) = range.gte {
-                qdrant_range.gte = Some(gte);
+                range_obj.insert("gte".to_string(), json!(gte));
             }
             if let Some(lt) = range.lt {
-                qdrant_range.lt = Some(lt);
+                range_obj.insert("lt".to_string(), json!(lt));
             }
             if let Some(lte) = range.lte {
-                qdrant_range.lte = Some(lte);
+                range_obj.insert("lte".to_string(), json!(lte));
             }
-            Condition::range(condition.field.clone(), qdrant_range)
+            Ok(json!({
+                "key": condition.field,
+                "range": range_obj
+            }))
         }
-        ConditionType::IsEmpty => Condition::is_empty(condition.field.clone()),
-        ConditionType::IsNull => Condition::is_null(condition.field.clone()),
+        ConditionType::IsEmpty => Ok(json!({
+            "is_empty": { "key": condition.field }
+        })),
+        ConditionType::IsNull => Ok(json!({
+            "is_null": { "key": condition.field }
+        })),
         ConditionType::HasId { ids } => {
-            let point_ids: Vec<PointId> = ids.iter().map(|id| point_id_from_str(id)).collect();
-            Condition::has_id(point_ids)
+            let point_ids: Vec<Value> = ids.iter().map(|id| point_id_json(id)).collect();
+            Ok(json!({
+                "has_id": point_ids
+            }))
         }
-        ConditionType::GeoRadius(radius) => Condition::geo_radius(
-            condition.field.clone(),
-            QdrantGeoRadius {
-                center: Some(QdrantGeoPoint {
-                    lat: radius.center.lat,
-                    lon: radius.center.lon,
-                }),
-                radius: radius.radius as f32,
-            },
-        ),
-        ConditionType::GeoBoundingBox(bbox) => Condition::geo_bounding_box(
-            condition.field.clone(),
-            QdrantGeoBoundingBox {
-                top_left: Some(QdrantGeoPoint {
-                    lat: bbox.top_left.lat,
-                    lon: bbox.top_left.lon,
-                }),
-                bottom_right: Some(QdrantGeoPoint {
-                    lat: bbox.bottom_right.lat,
-                    lon: bbox.bottom_right.lon,
-                }),
-            },
-        ),
+        ConditionType::GeoRadius(radius) => Ok(json!({
+            "key": condition.field,
+            "geo_radius": {
+                "center": { "lat": radius.center.lat, "lon": radius.center.lon },
+                "radius": radius.radius as f32
+            }
+        })),
+        ConditionType::GeoBoundingBox(bbox) => Ok(json!({
+            "key": condition.field,
+            "geo_bounding_box": {
+                "top_left": { "lat": bbox.top_left.lat, "lon": bbox.top_left.lon },
+                "bottom_right": { "lat": bbox.bottom_right.lat, "lon": bbox.bottom_right.lon }
+            }
+        })),
         ConditionType::ValuesCount(count) => {
-            let mut qdrant_values_count = ValuesCount::default();
+            let mut count_obj = serde_json::Map::new();
             if let Some(gt) = count.gt {
-                qdrant_values_count.gt = Some(gt);
+                count_obj.insert("gt".to_string(), json!(gt));
             }
             if let Some(gte) = count.gte {
-                qdrant_values_count.gte = Some(gte);
+                count_obj.insert("gte".to_string(), json!(gte));
             }
             if let Some(lt) = count.lt {
-                qdrant_values_count.lt = Some(lt);
+                count_obj.insert("lt".to_string(), json!(lt));
             }
             if let Some(lte) = count.lte {
-                qdrant_values_count.lte = Some(lte);
+                count_obj.insert("lte".to_string(), json!(lte));
             }
-            Condition::values_count(condition.field.clone(), qdrant_values_count)
+            Ok(json!({
+                "key": condition.field,
+                "values_count": count_obj
+            }))
         }
-        ConditionType::Contains { value } => {
-            Condition::matches(condition.field.clone(), vec![value.clone()])
-        }
+        ConditionType::Contains { value } => Ok(json!({
+            "key": condition.field,
+            "match": { "text": value }
+        })),
         ConditionType::Nested { filter } => {
-            let nested_filter = convert_filter(filter)?;
-            Condition::nested(condition.field.clone(), nested_filter)
+            let nested_filter = convert_filter(filter)?
+                .ok_or_else(|| VectorClientError::FilterError("Empty nested filter".to_string()))?;
+            Ok(json!({
+                "nested": {
+                    "key": condition.field,
+                    "filter": nested_filter
+                }
+            }))
         }
         ConditionType::Payload { key, value } => {
             let field_path = format!("{}.{}", condition.field, key);
-            let match_value = match value {
-                serde_json::Value::String(s) => s.clone(),
-                serde_json::Value::Bool(b) => b.to_string(),
-                serde_json::Value::Number(n) => n.to_string(),
-                serde_json::Value::Array(arr) => {
-                    let strings: Vec<String> = arr
-                        .iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect();
-                    if strings.len() == arr.len() {
-                        return Ok(Some(Condition::matches(field_path, strings)));
-                    }
-                    let ints: Vec<i64> = arr.iter().filter_map(|v| v.as_i64()).collect();
-                    if ints.len() == arr.len() {
-                        return Ok(Some(Condition::matches(field_path, ints)));
-                    }
-                    return Err(VectorClientError::FilterError(
-                        "Payload filter array contains unsupported value types".to_string(),
-                    ));
-                }
-                _ => {
-                    return Err(VectorClientError::FilterError(
-                        "Payload filter value type not supported".to_string(),
-                    ));
-                }
-            };
-            Condition::matches(field_path, match_value)
+            Ok(json!({
+                "key": field_path,
+                "match": { "value": value }
+            }))
         }
-    };
-
-    Ok(Some(cond))
+    }
 }

@@ -9,8 +9,9 @@ name = "vector_client"
 path = "src/lib.rs"
 
 [features]
-default = ["qdrant"]
-qdrant = ["qdrant-client"]
+default = ["qdrant-http"]
+qdrant-http = []
+qdrant-grpc = ["qdrant-client"]
 llama_cpp = ["llama-cpp-2"]
 
 [dependencies]

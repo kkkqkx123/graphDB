@@ -11,7 +11,7 @@ pub use engine::VectorEngine;
 pub use error::{Result, VectorClientError};
 pub use types::*;
 
-#[cfg(feature = "qdrant")]
+#[cfg(feature = "qdrant-http")]
 pub use engine::QdrantEngine;
 
 pub use api::VectorClient;

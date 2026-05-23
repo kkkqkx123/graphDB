@@ -1,18 +1,11 @@
 use async_trait::async_trait;
-use qdrant_client::qdrant::{
-    CreateCollectionBuilder, CreateFieldIndexCollectionBuilder, DeleteFieldIndexCollectionBuilder,
-    DeletePayloadPointsBuilder, DeletePointsBuilder, GetPointsBuilder, PointId, PointStruct,
-    PointsIdsList, ScrollPointsBuilder, SearchPointsBuilder, SetPayloadPointsBuilder,
-    UpsertPointsBuilder, VectorParamsBuilder,
-};
-use qdrant_client::Qdrant;
+use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 use super::VectorEngine;
-use crate::config::{ConnectionConfig, VectorClientConfig};
+use crate::config::VectorClientConfig;
 use crate::error::{Result, VectorClientError};
 use crate::types::*;
 
@@ -20,17 +13,23 @@ mod config;
 mod filter;
 mod utils;
 
-use config::{build_hnsw_config, build_quantization_config, convert_distance, convert_field_type};
+use config::{
+    build_create_collection_body, build_create_payload_index_body, build_delete_by_filter_body,
+    build_delete_by_ids_body, build_delete_payload_body, build_get_body, build_scroll_body,
+    build_search_batch_body, build_search_body, build_set_payload_body, build_upsert_body,
+};
 use filter::convert_filter;
 use utils::{
-    payload_to_qdrant_payload, point_id_from_str, point_struct_from_vector_point,
-    search_result_from_scored_point, vector_point_from_retrieved_point,
+    parse_payload, point_id_json, PointIdValue, QdrantSearchResult, QdrantUpsertResult,
+    VectorValue,
 };
 
-const QDRANT_VERSION: &str = "1.17.x";
+const QDRANT_VERSION: &str = "1.12.x (HTTP REST)";
 
 pub struct QdrantEngine {
-    client: Arc<Qdrant>,
+    client: reqwest::Client,
+    base_url: String,
+    api_key: Option<String>,
     config: VectorClientConfig,
     collections: RwLock<HashMap<String, CollectionConfig>>,
 }
@@ -38,56 +37,175 @@ pub struct QdrantEngine {
 impl std::fmt::Debug for QdrantEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QdrantEngine")
+            .field("base_url", &self.base_url)
             .field("config", &self.config)
-            .field("collections", &self.collections)
             .finish()
     }
 }
 
 impl QdrantEngine {
     pub async fn new(config: VectorClientConfig) -> Result<Self> {
-        let client = Self::create_client(&config.connection).await?;
+        let http_port = config.connection.http_port.unwrap_or(6333);
+        let scheme = if config.connection.use_tls {
+            "https"
+        } else {
+            "http"
+        };
+        let base_url = format!(
+            "{}://{}:{}",
+            scheme, config.connection.host, http_port
+        );
 
-        Ok(Self {
-            client: Arc::new(client),
+        info!("Connecting to Qdrant HTTP API at {}", base_url);
+
+        let timeout_secs = config.timeout.request_timeout_secs;
+        let client_builder = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(timeout_secs))
+            .connect_timeout(std::time::Duration::from_secs(
+                config.connection.connect_timeout_secs,
+            ));
+
+        let client = client_builder
+            .build()
+            .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
+
+        let engine = Self {
+            client,
+            base_url,
+            api_key: config.connection.api_key.clone(),
             config,
             collections: RwLock::new(HashMap::new()),
+        };
+
+        match engine.health_check().await {
+            Ok(health) => {
+                if health.is_healthy {
+                    info!("Successfully connected to Qdrant HTTP API");
+                } else {
+                    warn!("Qdrant health check warning: {:?}", health.message);
+                }
+            }
+            Err(e) => {
+                warn!("Initial health check failed, continuing: {}", e);
+            }
+        }
+
+        Ok(engine)
+    }
+
+    async fn request(&self, method: reqwest::Method, path: &str) -> Result<reqwest::Response> {
+        let url = format!("{}{}", self.base_url, path);
+        let mut req = self.client.request(method, &url);
+        if let Some(ref key) = self.api_key {
+            req = req.header("api-key", key);
+        }
+        req.send()
+            .await
+            .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))
+    }
+
+    async fn request_json(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: Value,
+    ) -> Result<reqwest::Response> {
+        let url = format!("{}{}", self.base_url, path);
+        let mut req = self.client.request(method, &url).json(&body);
+        if let Some(ref key) = self.api_key {
+            req = req.header("api-key", key);
+        }
+        req.send()
+            .await
+            .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))
+    }
+
+    async fn check_response(&self, response: reqwest::Response) -> Result<()> {
+        let status = response.status();
+        if status.is_success() {
+            return Ok(());
+        }
+        let body: Value = response
+            .json()
+            .await
+            .unwrap_or(Value::Null);
+        let msg = body
+            .get("status")
+            .and_then(|s| s.get("error"))
+            .and_then(|e| e.as_str())
+            .unwrap_or("unknown error")
+            .to_string();
+        let code = status.as_u16();
+        Err(match code {
+            404 => {
+                if msg.contains("Collection") {
+                    VectorClientError::CollectionNotFound(msg)
+                } else {
+                    VectorClientError::PointNotFound(msg, String::new())
+                }
+            }
+            409 => VectorClientError::CollectionAlreadyExists(msg),
+            _ => VectorClientError::QdrantHttpError {
+                status: code,
+                message: msg,
+            },
         })
     }
 
-    async fn create_client(conn_config: &ConnectionConfig) -> Result<Qdrant> {
-        let url = conn_config.to_url();
+    async fn parse_result<T: serde::de::DeserializeOwned>(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<T> {
+        let status = response.status();
+        let body: Value = response
+            .json()
+            .await
+            .map_err(|e| {
+                VectorClientError::InternalError(format!("Failed to parse response: {}", e))
+            })?;
 
-        info!("Connecting to Qdrant at {}", url);
-
-        let mut builder = Qdrant::from_url(&url);
-
-        if let Some(ref api_key) = conn_config.api_key {
-            builder = builder.api_key(api_key.clone());
+        if !status.is_success() {
+            let msg = body
+                .get("status")
+                .and_then(|s| s.get("error"))
+                .and_then(|e| e.as_str())
+                .unwrap_or("unknown error")
+                .to_string();
+            let code = status.as_u16();
+            return Err(match code {
+                404 => {
+                    if msg.contains("Collection") {
+                        VectorClientError::CollectionNotFound(msg)
+                    } else {
+                        VectorClientError::PointNotFound(msg, String::new())
+                    }
+                }
+                409 => VectorClientError::CollectionAlreadyExists(msg),
+                _ => VectorClientError::QdrantHttpError {
+                    status: code,
+                    message: msg,
+                },
+            });
         }
 
-        let client = builder.build()?;
-
-        match client.health_check().await {
-            Ok(_) => {
-                info!("Successfully connected to Qdrant");
-                Ok(client)
-            }
-            Err(e) => {
-                warn!("Failed to connect to Qdrant: {}", e);
-                Err(VectorClientError::ConnectionFailed(format!(
-                    "Failed to connect to Qdrant at {}: {}",
-                    url, e
-                )))
-            }
-        }
+        let result = body
+            .get("result")
+            .ok_or_else(|| {
+                VectorClientError::InternalError("Response missing 'result' field".to_string())
+            })?;
+        serde_json::from_value(result.clone()).map_err(|e| {
+            VectorClientError::InternalError(format!(
+                "Failed to deserialize response result: {}",
+                e
+            ))
+        })
     }
 }
 
 #[async_trait]
 impl VectorEngine for QdrantEngine {
     fn name(&self) -> &str {
-        "qdrant"
+        "qdrant-http"
     }
 
     fn version(&self) -> &str {
@@ -95,8 +213,21 @@ impl VectorEngine for QdrantEngine {
     }
 
     async fn health_check(&self) -> Result<HealthStatus> {
-        match self.client.health_check().await {
-            Ok(_) => Ok(HealthStatus::healthy(self.name(), self.version())),
+        match self
+            .request(reqwest::Method::GET, "/readyz")
+            .await
+        {
+            Ok(response) => {
+                if response.status().is_success() {
+                    Ok(HealthStatus::healthy(self.name(), self.version()))
+                } else {
+                    Ok(HealthStatus::unhealthy(
+                        self.name(),
+                        self.version(),
+                        format!("HTTP {}", response.status()),
+                    ))
+                }
+            }
             Err(e) => Ok(HealthStatus::unhealthy(
                 self.name(),
                 self.version(),
@@ -105,71 +236,71 @@ impl VectorEngine for QdrantEngine {
         }
     }
 
-    async fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
-        debug!("Creating collection '{}' with config: {:?}", name, config);
+    async fn create_collection(&self, name: &str, cfg: CollectionConfig) -> Result<()> {
+        debug!("Creating collection '{}' with config: {:?}", name, cfg);
 
-        let distance = convert_distance(config.distance);
-        let index_type = config.index_type.unwrap_or(IndexType::HNSW);
+        let body = build_create_collection_body(
+            name,
+            cfg.vector_size,
+            cfg.distance,
+            cfg.index_type,
+            &cfg.hnsw_config,
+            &cfg.quantization_config,
+            cfg.on_disk_payload,
+            cfg.shard_number,
+        );
 
-        let mut vector_params = VectorParamsBuilder::new(config.vector_size as u64, distance);
-
-        if let Some(hnsw_config) = build_hnsw_config(&config.hnsw_config) {
-            vector_params = vector_params.hnsw_config(hnsw_config);
-        }
-
-        if let Some(quantization) = build_quantization_config(&config.quantization_config) {
-            vector_params = vector_params.quantization_config(quantization);
-        }
-
-        if let Some(on_disk) = config.on_disk_payload {
-            vector_params = vector_params.on_disk(on_disk);
-        }
-
-        let mut builder = CreateCollectionBuilder::new(name).vectors_config(vector_params);
-
-        if let Some(shard_number) = config.shard_number {
-            builder = builder.shard_number(shard_number as u32);
-        }
-
-        if let Some(on_disk_payload) = config.on_disk_payload {
-            builder = builder.on_disk_payload(on_disk_payload);
-        }
-
-        self.client.create_collection(builder).await?;
+        let response = self
+            .request_json(reqwest::Method::PUT, &format!("/collections/{}", name), body)
+            .await?;
+        self.check_response(response).await?;
 
         self.collections
             .write()
             .await
-            .insert(name.to_string(), config);
+            .insert(name.to_string(), cfg);
 
-        info!(
-            "Collection '{}' created successfully with index type: {:?}",
-            name, index_type
-        );
+        info!("Collection '{}' created successfully", name);
         Ok(())
     }
 
     async fn delete_collection(&self, name: &str) -> Result<()> {
         debug!("Deleting collection '{}'", name);
-
-        self.client.delete_collection(name).await?;
-
+        let response = self
+            .request(
+                reqwest::Method::DELETE,
+                &format!("/collections/{}", name),
+            )
+            .await?;
+        self.check_response(response).await?;
         self.collections.write().await.remove(name);
-
         info!("Collection '{}' deleted successfully", name);
         Ok(())
     }
 
     async fn collection_exists(&self, name: &str) -> Result<bool> {
-        let collections = self.client.list_collections().await?;
-        Ok(collections.collections.iter().any(|c| c.name == name))
+        let response = self
+            .request(reqwest::Method::GET, &format!("/collections/{}", name))
+            .await?;
+        Ok(response.status().is_success())
     }
 
     async fn collection_info(&self, name: &str) -> Result<CollectionInfo> {
-        let response = self.client.collection_info(name).await?;
-        let info = response
-            .result
-            .ok_or_else(|| VectorClientError::CollectionNotFound(name.to_string()))?;
+        let response = self
+            .request(reqwest::Method::GET, &format!("/collections/{}", name))
+            .await?;
+
+        #[derive(serde::Deserialize)]
+        #[allow(dead_code)]
+        struct RawCollectionInfo {
+            status: Option<String>,
+            points_count: Option<u64>,
+            indexed_vectors_count: Option<u64>,
+            segments_count: Option<u64>,
+            vectors_count: Option<u64>,
+        }
+
+        let raw: RawCollectionInfo = self.parse_result(response).await?;
 
         let config = self
             .collections
@@ -181,29 +312,44 @@ impl VectorEngine for QdrantEngine {
 
         Ok(CollectionInfo {
             name: name.to_string(),
-            vector_count: info.points_count.unwrap_or(0),
-            indexed_vector_count: info.indexed_vectors_count.unwrap_or(0),
-            points_count: info.points_count.unwrap_or(0),
-            segments_count: info.segments_count,
+            vector_count: raw.vectors_count.unwrap_or(0),
+            indexed_vector_count: raw.indexed_vectors_count.unwrap_or(0),
+            points_count: raw.points_count.unwrap_or(0),
+            segments_count: raw.segments_count.unwrap_or(0),
             config,
             status: CollectionStatus::Green,
         })
     }
 
     async fn upsert(&self, collection: &str, point: VectorPoint) -> Result<UpsertResult> {
-        debug!(
-            "Upserting point '{}' to collection '{}'",
-            point.id, collection
-        );
+        debug!("Upserting point '{}' to collection '{}'", point.id, collection);
 
-        let point_struct = point_struct_from_vector_point(point)?;
+        let id = point_id_json(&point.id);
+        let point_json = if let Some(ref payload) = point.payload {
+            serde_json::json!({
+                "id": id,
+                "vector": point.vector,
+                "payload": payload,
+            })
+        } else {
+            serde_json::json!({
+                "id": id,
+                "vector": point.vector,
+            })
+        };
 
-        self.client
-            .upsert_points(UpsertPointsBuilder::new(collection, vec![point_struct]).wait(true))
+        let body = build_upsert_body(serde_json::json!([point_json]));
+        let response = self
+            .request_json(
+                reqwest::Method::PUT,
+                &format!("/collections/{}/points?wait=true", collection),
+                body,
+            )
             .await?;
+        let result: QdrantUpsertResult = self.parse_result(response).await?;
 
         Ok(UpsertResult {
-            operation_id: None,
+            operation_id: result.operation_id,
             status: UpsertStatus::Completed,
         })
     }
@@ -219,32 +365,54 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let point_structs: Result<Vec<PointStruct>> = points
+        let points_json: Vec<Value> = points
             .into_iter()
-            .map(point_struct_from_vector_point)
+            .map(|p| {
+                let id = point_id_json(&p.id);
+                if let Some(ref payload) = p.payload {
+                    serde_json::json!({
+                        "id": id,
+                        "vector": p.vector,
+                        "payload": payload,
+                    })
+                } else {
+                    serde_json::json!({
+                        "id": id,
+                        "vector": p.vector,
+                    })
+                }
+            })
             .collect();
 
-        self.client
-            .upsert_points(UpsertPointsBuilder::new(collection, point_structs?).wait(true))
+        let body = build_upsert_body(serde_json::json!(points_json));
+        let response = self
+            .request_json(
+                reqwest::Method::PUT,
+                &format!("/collections/{}/points?wait=true", collection),
+                body,
+            )
             .await?;
+        let result: QdrantUpsertResult = self.parse_result(response).await?;
 
         Ok(UpsertResult {
-            operation_id: None,
+            operation_id: result.operation_id,
             status: UpsertStatus::Completed,
         })
     }
 
     async fn delete(&self, collection: &str, point_id: &str) -> Result<DeleteResult> {
-        debug!(
-            "Deleting point '{}' from collection '{}'",
-            point_id, collection
-        );
+        debug!("Deleting point '{}' from collection '{}'", point_id, collection);
 
-        let id = point_id_from_str(point_id);
-
-        self.client
-            .delete_points(DeletePointsBuilder::new(collection).points(vec![id]))
+        let id = point_id_json(point_id);
+        let body = build_delete_by_ids_body(vec![id]);
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/delete", collection),
+                body,
+            )
             .await?;
+        self.check_response(response).await?;
 
         Ok(DeleteResult {
             operation_id: None,
@@ -252,18 +420,27 @@ impl VectorEngine for QdrantEngine {
         })
     }
 
-    async fn delete_batch(&self, collection: &str, point_ids: Vec<&str>) -> Result<DeleteResult> {
+    async fn delete_batch(
+        &self,
+        collection: &str,
+        point_ids: Vec<&str>,
+    ) -> Result<DeleteResult> {
         debug!(
             "Deleting {} points from collection '{}'",
             point_ids.len(),
             collection
         );
 
-        let ids: Vec<PointId> = point_ids.iter().map(|id| point_id_from_str(id)).collect();
-
-        self.client
-            .delete_points(DeletePointsBuilder::new(collection).points(ids))
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
+        let body = build_delete_by_ids_body(ids);
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/delete", collection),
+                body,
+            )
             .await?;
+        self.check_response(response).await?;
 
         Ok(DeleteResult {
             operation_id: None,
@@ -276,17 +453,23 @@ impl VectorEngine for QdrantEngine {
         collection: &str,
         filter: VectorFilter,
     ) -> Result<DeleteResult> {
-        debug!("Deleting points by filter from collection '{}'", collection);
+        debug!(
+            "Deleting points by filter from collection '{}'",
+            collection
+        );
 
-        let qdrant_filter = convert_filter(&filter)?;
-
-        self.client
-            .delete_points(
-                DeletePointsBuilder::new(collection)
-                    .points(qdrant_filter)
-                    .wait(true),
+        let filter_value =
+            convert_filter(&filter)?
+                .ok_or_else(|| VectorClientError::FilterError("Empty filter".to_string()))?;
+        let body = build_delete_by_filter_body(filter_value);
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/delete", collection),
+                body,
             )
             .await?;
+        self.check_response(response).await?;
 
         Ok(DeleteResult {
             operation_id: None,
@@ -294,59 +477,80 @@ impl VectorEngine for QdrantEngine {
         })
     }
 
-    async fn search(&self, collection: &str, query: SearchQuery) -> Result<Vec<SearchResult>> {
+    async fn search(
+        &self,
+        collection: &str,
+        query: SearchQuery,
+    ) -> Result<Vec<SearchResult>> {
         debug!(
             "Searching in collection '{}' with limit {}",
             collection, query.limit
         );
 
-        let mut builder = SearchPointsBuilder::new(collection, query.vector, query.limit as u64)
-            .with_payload(query.with_payload.unwrap_or(true))
-            .with_vectors(query.with_vector.unwrap_or(false));
+        let filter_json = if let Some(ref filter) = query.filter {
+            convert_filter(filter)?
+        } else {
+            None
+        };
 
-        if let Some(offset) = query.offset {
-            builder = builder.offset(offset as u64);
-        }
+        let nprobe = query.nprobe.or_else(|| {
+            query.search_mode.as_ref().and_then(|mode| match mode {
+                SearchMode::KNN { ef_search, .. } => *ef_search,
+                _ => None,
+            })
+        });
 
-        if let Some(threshold) = query.score_threshold {
-            builder = builder.score_threshold(threshold);
-        }
+        let threshold = query.score_threshold.or_else(|| {
+            query.search_mode.as_ref().and_then(|mode| match mode {
+                SearchMode::Range { radius, .. } => Some(*radius),
+                _ => None,
+            })
+        });
 
-        if let Some(nprobe) = query.nprobe {
-            builder = builder.params(
-                qdrant_client::qdrant::SearchParamsBuilder::default().hnsw_ef(nprobe as u64),
-            );
-        }
-
-        match query.search_mode {
-            Some(SearchMode::KNN { ef_search, .. }) => {
-                if let Some(ef) = ef_search {
-                    builder = builder.params(
-                        qdrant_client::qdrant::SearchParamsBuilder::default().hnsw_ef(ef as u64),
-                    );
-                }
-            }
+        let limit = match query.search_mode {
             Some(SearchMode::Range {
-                radius,
-                max_results,
-            }) => {
-                builder = builder.score_threshold(radius);
-                if let Some(max) = max_results {
-                    builder = builder.limit(max as u64);
-                }
-            }
-            Some(SearchMode::TopK(_)) | None => {}
-        }
+                max_results: Some(max),
+                ..
+            }) => max,
+            Some(SearchMode::TopK(k)) => k,
+            Some(SearchMode::KNN { k, .. }) => k,
+            _ => query.limit,
+        };
 
-        let result = self.client.search_points(builder).await?;
+        let body = build_search_body(
+            query.vector,
+            limit,
+            query.offset,
+            threshold,
+            filter_json,
+            query.with_payload,
+            query.with_vector,
+            nprobe,
+        );
 
-        let search_results: Result<Vec<SearchResult>> = result
-            .result
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/search", collection),
+                body,
+            )
+            .await?;
+
+        let results: Vec<QdrantSearchResult> = self.parse_result(response).await?;
+
+        let search_results = results
             .into_iter()
-            .map(search_result_from_scored_point)
+            .map(|r| {
+                SearchResult {
+                    id: r.id.to_string(),
+                    score: r.score,
+                    payload: parse_payload(r.payload),
+                    vector: r.vector.and_then(|v| v.into_vec()),
+                }
+            })
             .collect();
 
-        search_results
+        Ok(search_results)
     }
 
     async fn search_batch(
@@ -360,40 +564,128 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let mut results = Vec::with_capacity(queries.len());
+        let searches: Result<Vec<Value>> = queries
+            .into_iter()
+            .map(|query| {
+                let filter_json = if let Some(ref filter) = query.filter {
+                    convert_filter(filter)?
+                } else {
+                    None
+                };
 
-        for query in queries {
-            let result = self.search(collection, query).await?;
-            results.push(result);
-        }
+                let nprobe = query.nprobe.or_else(|| {
+                    query.search_mode.as_ref().and_then(|mode| match mode {
+                        SearchMode::KNN { ef_search, .. } => *ef_search,
+                        _ => None,
+                    })
+                });
+
+                let threshold = query.score_threshold.or_else(|| {
+                    query.search_mode.as_ref().and_then(|mode| match mode {
+                        SearchMode::Range { radius, .. } => Some(*radius),
+                        _ => None,
+                    })
+                });
+
+                let limit = match query.search_mode {
+                    Some(SearchMode::TopK(k)) => k,
+                    Some(SearchMode::KNN { k, .. }) => k,
+                    _ => query.limit,
+                };
+
+                Ok(build_search_body(
+                    query.vector,
+                    limit,
+                    query.offset,
+                    threshold,
+                    filter_json,
+                    query.with_payload,
+                    query.with_vector,
+                    nprobe,
+                ))
+            })
+            .collect();
+
+        let body = build_search_batch_body(searches?);
+
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/search/batch", collection),
+                body,
+            )
+            .await?;
+
+        let batch_results: Vec<Vec<QdrantSearchResult>> = self.parse_result(response).await?;
+
+        let results = batch_results
+            .into_iter()
+            .map(|results| {
+                results
+                    .into_iter()
+                    .map(|r| SearchResult {
+                        id: r.id.to_string(),
+                        score: r.score,
+                        payload: parse_payload(r.payload),
+                        vector: r.vector.and_then(|v| v.into_vec()),
+                    })
+                    .collect()
+            })
+            .collect();
 
         Ok(results)
     }
 
-    async fn get(&self, collection: &str, point_id: &str) -> Result<Option<VectorPoint>> {
-        debug!(
-            "Getting point '{}' from collection '{}'",
-            point_id, collection
-        );
+    async fn get(
+        &self,
+        collection: &str,
+        point_id: &str,
+    ) -> Result<Option<VectorPoint>> {
+        debug!("Getting point '{}' from collection '{}'", point_id, collection);
 
-        let id = point_id_from_str(point_id);
+        let id = point_id_json(point_id);
+        let body = build_get_body(vec![id], Some(true), Some(true));
 
-        let result = self
-            .client
-            .get_points(
-                GetPointsBuilder::new(collection, vec![id])
-                    .with_payload(true)
-                    .with_vectors(true),
+        #[derive(serde::Deserialize)]
+        struct RawPoint {
+            id: PointIdValue,
+            #[serde(default)]
+            payload: Option<Value>,
+            #[serde(default)]
+            vector: Option<VectorValue>,
+        }
+
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points", collection),
+                body,
             )
             .await?;
 
-        Ok(result
-            .result
-            .first()
-            .map(|p: &qdrant_client::qdrant::RetrievedPoint| {
-                vector_point_from_retrieved_point(p.clone())
-            })
-            .transpose()?)
+        let result: Option<Vec<RawPoint>> = match self.parse_result(response).await {
+            Ok(v) => Ok(Some(v)),
+            Err(VectorClientError::PointNotFound(_, _)) => Ok(None),
+            Err(e) => Err(e),
+        }?;
+
+        match result {
+            Some(mut points) => {
+                if points.is_empty() {
+                    return Ok(None);
+                }
+                let p = points.remove(0);
+                Ok(Some(VectorPoint {
+                    id: p.id.to_string(),
+                    vector: p
+                        .vector
+                        .and_then(|v| v.into_vec())
+                        .unwrap_or_default(),
+                    payload: parse_payload(p.payload),
+                }))
+            }
+            None => Ok(None),
+        }
     }
 
     async fn get_batch(
@@ -407,23 +699,39 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let ids: Vec<PointId> = point_ids.iter().map(|id| point_id_from_str(id)).collect();
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
+        let body = build_get_body(ids, Some(true), Some(true));
 
-        let result = self
-            .client
-            .get_points(
-                GetPointsBuilder::new(collection, ids)
-                    .with_payload(true)
-                    .with_vectors(true),
+        #[derive(serde::Deserialize)]
+        struct RawPoint {
+            id: PointIdValue,
+            #[serde(default)]
+            payload: Option<Value>,
+            #[serde(default)]
+            vector: Option<VectorValue>,
+        }
+
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points", collection),
+                body,
             )
             .await?;
 
-        let mut points_map: HashMap<String, VectorPoint> = HashMap::new();
-        for point in result.result {
-            if let Ok(vp) = vector_point_from_retrieved_point(point) {
-                points_map.insert(vp.id.clone(), vp);
-            }
-        }
+        let raw_points: Vec<RawPoint> = self.parse_result(response).await?;
+        let points_map: HashMap<String, VectorPoint> = raw_points
+            .into_iter()
+            .map(|p| {
+                let id = p.id.to_string();
+                let vp = VectorPoint {
+                    id: id.clone(),
+                    vector: p.vector.and_then(|v| v.into_vec()).unwrap_or_default(),
+                    payload: parse_payload(p.payload),
+                };
+                (id, vp)
+            })
+            .collect();
 
         Ok(point_ids
             .into_iter()
@@ -432,8 +740,16 @@ impl VectorEngine for QdrantEngine {
     }
 
     async fn count(&self, collection: &str) -> Result<u64> {
-        let response = self.client.collection_info(collection).await?;
-        Ok(response.result.and_then(|r| r.points_count).unwrap_or(0))
+        #[derive(serde::Deserialize)]
+        struct RawInfo {
+            points_count: Option<u64>,
+        }
+
+        let response = self
+            .request(reqwest::Method::GET, &format!("/collections/{}", collection))
+            .await?;
+        let info: RawInfo = self.parse_result(response).await?;
+        Ok(info.points_count.unwrap_or(0))
     }
 
     async fn set_payload(
@@ -448,19 +764,17 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let ids: Vec<PointId> = point_ids.iter().map(|id| point_id_from_str(id)).collect();
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
+        let body = build_set_payload_body(ids, serde_json::to_value(&payload)?);
 
-        let qdrant_payload = payload_to_qdrant_payload(&Some(payload))?;
-
-        self.client
-            .set_payload(
-                SetPayloadPointsBuilder::new(collection, qdrant_payload)
-                    .points_selector(PointsIdsList { ids })
-                    .wait(true),
+        let response = self
+            .request_json(
+                reqwest::Method::PUT,
+                &format!("/collections/{}/points/payload", collection),
+                body,
             )
             .await?;
-
-        Ok(())
+        self.check_response(response).await
     }
 
     async fn delete_payload(
@@ -476,19 +790,18 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let ids: Vec<PointId> = point_ids.iter().map(|id| point_id_from_str(id)).collect();
-
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
         let keys_owned: Vec<String> = keys.iter().map(|k| k.to_string()).collect();
+        let body = build_delete_payload_body(ids, keys_owned);
 
-        self.client
-            .delete_payload(
-                DeletePayloadPointsBuilder::new(collection, keys_owned)
-                    .points_selector(PointsIdsList { ids })
-                    .wait(true),
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/payload/delete", collection),
+                body,
             )
             .await?;
-
-        Ok(())
+        self.check_response(response).await
     }
 
     async fn scroll(
@@ -501,27 +814,47 @@ impl VectorEngine for QdrantEngine {
     ) -> Result<(Vec<VectorPoint>, Option<String>)> {
         debug!("Scrolling collection '{}' with limit {}", collection, limit);
 
-        let mut builder = ScrollPointsBuilder::new(collection)
-            .limit(limit as u32)
-            .with_payload(with_payload.unwrap_or(true))
-            .with_vectors(with_vector.unwrap_or(false));
+        let offset_json = offset.map(point_id_json);
+        let body = build_scroll_body(limit, offset_json, with_payload, with_vector);
 
-        if let Some(o) = offset {
-            let offset_id = point_id_from_str(o);
-            builder = builder.offset(offset_id);
+        #[derive(serde::Deserialize)]
+        struct RawScrollPoint {
+            id: PointIdValue,
+            #[serde(default)]
+            payload: Option<Value>,
+            #[serde(default)]
+            vector: Option<VectorValue>,
         }
 
-        let result = self.client.scroll(builder).await?;
+        #[derive(serde::Deserialize)]
+        struct ScrollResult {
+            points: Vec<RawScrollPoint>,
+            next_page_offset: Option<PointIdValue>,
+        }
 
-        let points: Result<Vec<VectorPoint>> = result
-            .result
+        let response = self
+            .request_json(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/scroll", collection),
+                body,
+            )
+            .await?;
+
+        let scroll_result: ScrollResult = self.parse_result(response).await?;
+
+        let points: Vec<VectorPoint> = scroll_result
+            .points
             .into_iter()
-            .map(vector_point_from_retrieved_point)
+            .map(|p| VectorPoint {
+                id: p.id.to_string(),
+                vector: p.vector.and_then(|v| v.into_vec()).unwrap_or_default(),
+                payload: parse_payload(p.payload),
+            })
             .collect();
 
-        let next_page = result.next_page_offset.map(|id| format!("{:?}", id));
+        let next_page = scroll_result.next_page_offset.map(|id| id.to_string());
 
-        Ok((points?, next_page))
+        Ok((points, next_page))
     }
 
     async fn create_payload_index(
@@ -535,13 +868,16 @@ impl VectorEngine for QdrantEngine {
             field, collection
         );
 
-        let field_type = convert_field_type(schema);
+        let body = build_create_payload_index_body(field, schema);
 
-        self.client
-            .create_field_index(
-                CreateFieldIndexCollectionBuilder::new(collection, field, field_type).wait(true),
+        let response = self
+            .request_json(
+                reqwest::Method::PUT,
+                &format!("/collections/{}/index", collection),
+                body,
             )
             .await?;
+        self.check_response(response).await?;
 
         info!(
             "Payload index created for field '{}' in collection '{}'",
@@ -556,11 +892,13 @@ impl VectorEngine for QdrantEngine {
             field, collection
         );
 
-        self.client
-            .delete_field_index(
-                DeleteFieldIndexCollectionBuilder::new(collection, field).wait(true),
+        let response = self
+            .request(
+                reqwest::Method::DELETE,
+                &format!("/collections/{}/index/{}", collection, field),
             )
             .await?;
+        self.check_response(response).await?;
 
         info!(
             "Payload index deleted for field '{}' in collection '{}'",
@@ -571,10 +909,45 @@ impl VectorEngine for QdrantEngine {
 
     async fn list_payload_indexes(
         &self,
-        _collection: &str,
+        collection: &str,
     ) -> Result<Vec<(String, PayloadSchemaType)>> {
-        debug!("Listing payload indexes for collection '{}'", _collection);
+        debug!("Listing payload indexes for collection '{}'", collection);
 
-        Ok(Vec::new())
+        #[derive(serde::Deserialize)]
+        struct PayloadSchemaInfo {
+            data_type: String,
+            #[allow(dead_code)]
+            points: Option<u64>,
+        }
+
+        let response = self
+            .request(reqwest::Method::GET, &format!("/collections/{}", collection))
+            .await?;
+
+        #[derive(serde::Deserialize)]
+        struct CollectionInfoWithSchema {
+            payload_schema: Option<HashMap<String, PayloadSchemaInfo>>,
+        }
+
+        let info: CollectionInfoWithSchema = self.parse_result(response).await?;
+
+        let schema = info.payload_schema.unwrap_or_default();
+        let mut indexes = Vec::new();
+
+        for (field, schema_info) in schema {
+            let schema_type = match schema_info.data_type.as_str() {
+                "keyword" => PayloadSchemaType::Keyword,
+                "integer" => PayloadSchemaType::Integer,
+                "float" => PayloadSchemaType::Float,
+                "text" => PayloadSchemaType::Text,
+                "bool" => PayloadSchemaType::Bool,
+                "geo" => PayloadSchemaType::Geo,
+                "datetime" => PayloadSchemaType::Datetime,
+                _ => continue,
+            };
+            indexes.push((field, schema_type));
+        }
+
+        Ok(indexes)
     }
 }
