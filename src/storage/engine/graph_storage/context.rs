@@ -13,8 +13,6 @@ use crate::core::mvcc::VersionManager;
 use crate::core::types::TransactionContextInfo;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
 use crate::storage::engine::PropertyGraph;
-#[allow(deprecated)]
-use crate::storage::extend::FulltextStorage;
 use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
 use crate::storage::metadata::{IndexManager, SchemaManager};
 
@@ -28,8 +26,6 @@ pub struct GraphStorageContext {
     pub current_txn_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
     pub persistence: Option<Arc<RwLock<PersistenceCoordinator>>>,
     pub index_gc_manager: Option<Arc<IndexGcManager>>,
-    #[allow(deprecated)]
-    pub fulltext_storage: Option<Arc<FulltextStorage>>,
     pub work_dir: Option<PathBuf>,
     pub db_path: String,
 }
@@ -51,7 +47,6 @@ impl GraphStorageContext {
             current_txn_context: Arc::new(RwLock::new(None)),
             persistence: None,
             index_gc_manager: None,
-            fulltext_storage: None,
             work_dir: None,
             db_path: String::new(),
         }
@@ -87,7 +82,6 @@ impl GraphStorageContext {
             current_txn_context: Arc::new(RwLock::new(None)),
             persistence,
             index_gc_manager: None,
-            fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
         }
@@ -114,7 +108,6 @@ impl GraphStorageContext {
             current_txn_context: Arc::new(RwLock::new(None)),
             persistence: Some(persistence),
             index_gc_manager: None,
-            fulltext_storage: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
         })
@@ -126,12 +119,6 @@ impl GraphStorageContext {
             IndexGcManager::new(index_data_manager, self.version_manager.clone(), config);
 
         self.index_gc_manager = Some(Arc::new(gc_manager));
-        self
-    }
-
-    #[allow(deprecated)]
-    pub fn with_fulltext_storage(mut self, fulltext: Arc<FulltextStorage>) -> Self {
-        self.fulltext_storage = Some(fulltext);
         self
     }
 
@@ -182,9 +169,6 @@ impl GraphStorageContext {
         self.persistence.is_some()
     }
 
-    pub fn is_fulltext_enabled(&self) -> bool {
-        self.fulltext_storage.is_some()
-    }
 }
 
 impl std::fmt::Debug for GraphStorageContext {

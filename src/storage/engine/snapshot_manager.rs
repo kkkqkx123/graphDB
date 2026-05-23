@@ -44,10 +44,6 @@ const SNAPSHOT_FORMAT_VERSION: u32 = 1;
 /// Snapshot metadata file name
 const SNAPSHOT_META_FILE: &str = "meta.json";
 
-/// Schema file name
-#[allow(dead_code)]
-const SCHEMA_FILE: &str = "schema.json";
-
 /// Version file name
 const VERSION_FILE: &str = "VERSION";
 
@@ -154,7 +150,6 @@ pub struct SnapshotManager {
 }
 
 /// Parameters for creating a snapshot
-#[allow(dead_code)]
 pub struct CreateSnapshotParams {
     /// Data directory to snapshot
     pub data_dir: PathBuf,

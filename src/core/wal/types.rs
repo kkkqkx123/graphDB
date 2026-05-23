@@ -109,6 +109,7 @@ pub enum WalOpType {
     DeleteEdgeProp = 13,
     RenameVertexProp = 14,
     RenameEdgeProp = 15,
+    Compact = 16,
 }
 
 impl TryFrom<u8> for WalOpType {
@@ -132,6 +133,7 @@ impl TryFrom<u8> for WalOpType {
             13 => Ok(WalOpType::DeleteEdgeProp),
             14 => Ok(WalOpType::RenameVertexProp),
             15 => Ok(WalOpType::RenameEdgeProp),
+            16 => Ok(WalOpType::Compact),
             _ => Err(WalError::InvalidOpType(value)),
         }
     }
@@ -156,6 +158,7 @@ impl fmt::Display for WalOpType {
             WalOpType::DeleteEdgeProp => write!(f, "DeleteEdgeProp"),
             WalOpType::RenameVertexProp => write!(f, "RenameVertexProp"),
             WalOpType::RenameEdgeProp => write!(f, "RenameEdgeProp"),
+            WalOpType::Compact => write!(f, "Compact"),
         }
     }
 }
@@ -280,6 +283,7 @@ impl WalHeader {
                 | WalOpType::DeleteEdgeProp
                 | WalOpType::RenameVertexProp
                 | WalOpType::RenameEdgeProp
+                | WalOpType::Compact
         );
 
         Self {

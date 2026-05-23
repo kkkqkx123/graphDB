@@ -95,25 +95,6 @@ impl GraphStorage {
         self.ctx.index_gc_manager.clone()
     }
 
-    #[allow(deprecated)]
-    pub fn with_fulltext_storage(
-        mut self,
-        fulltext: Arc<crate::storage::extend::FulltextStorage>,
-    ) -> Self {
-        let new_ctx = Arc::new((*self.ctx).clone().with_fulltext_storage(fulltext));
-        self.ctx = new_ctx;
-        self
-    }
-
-    #[allow(deprecated)]
-    pub fn fulltext_storage(&self) -> Option<Arc<crate::storage::extend::FulltextStorage>> {
-        self.ctx.fulltext_storage.clone()
-    }
-
-    pub fn is_fulltext_enabled(&self) -> bool {
-        self.ctx.is_fulltext_enabled()
-    }
-
     pub fn get_db(&self) -> Arc<PropertyGraph> {
         self.ctx.graph.clone()
     }
@@ -563,8 +544,8 @@ impl StorageAdmin for GraphStorage {
         persistence::create_checkpoint(&self.ctx)
     }
 
-    fn compact_all(&self, ts: crate::core::types::Timestamp) -> StorageResult<()> {
-        persistence::compact_all(&self.ctx, ts)
+    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> StorageResult<()> {
+        persistence::compact_transactional(&self.ctx, compact_csr, reserve_ratio)
     }
 
     fn auto_flush_if_needed(&self) -> StorageResult<bool> {
@@ -604,18 +585,43 @@ impl StorageAdmin for GraphStorage {
     fn init_with_recovery(
         &self,
     ) -> StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
-        if self.needs_recovery() {
-            log::info!("WAL recovery needed, starting recovery...");
-            let stats = self.recover_from_wal()?;
-            log::info!(
-                "WAL recovery completed: {} entries replayed in {}ms",
-                stats.wal_entries_replayed,
-                stats.recovery_time_ms
-            );
-            Ok(Some(stats))
-        } else {
-            Ok(None)
+        if !self.needs_recovery() {
+            return Ok(None);
         }
+
+        log::info!("WAL recovery needed, starting recovery...");
+
+        // Load schema and index metadata from the work directory (these are not checkpointed)
+        if let Some(ref path) = self.ctx.work_dir {
+            let schema_path = path.join("schema");
+            if schema_path.exists() {
+                self.ctx.schema_manager.load_schema(&schema_path)?;
+            }
+            let index_meta_path = path.join("index_meta");
+            if index_meta_path.exists() {
+                self.ctx
+                    .index_metadata_manager
+                    .load_indexes(&index_meta_path)?;
+            }
+        }
+
+        // Try checkpoint recovery first
+        let checkpoint_loaded = persistence::load_latest_checkpoint(&self.ctx)?;
+
+        if checkpoint_loaded.is_none() {
+            // No checkpoint available, load full state from disk
+            persistence::load_from_disk(&self.ctx)?;
+        }
+
+        // Replay remaining WAL entries on top of restored state
+        let stats = self.recover_from_wal()?;
+
+        log::info!(
+            "WAL recovery completed: {} entries replayed in {}ms",
+            stats.wal_entries_replayed,
+            stats.recovery_time_ms
+        );
+        Ok(Some(stats))
     }
 
     fn is_index_gc_running(&self) -> bool {

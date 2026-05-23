@@ -1,14 +1,12 @@
 use std::path::Path;
 
 use crate::core::types::CompactTarget;
-use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::persistence_coordinator::{
     CheckpointData, CheckpointInfo, CheckpointStats,
 };
 use crate::transaction::compact_transaction::CompactTransaction;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryManager, RecoveryStats};
-use crate::transaction::wal::writer::WalWriter;
 
 use super::context::GraphStorageContext;
 
@@ -77,9 +75,6 @@ pub(crate) fn create_checkpoint(
     Ok(Some(stats))
 }
 
-// TODO(next-phase): wire up checkpoint-based recovery to replace
-// recover_from_wal(). See docs/analysis/dead_code_persistence.md
-#[allow(dead_code)]
 pub(crate) fn load_latest_checkpoint(
     ctx: &GraphStorageContext,
 ) -> StorageResult<Option<CheckpointInfo>> {
@@ -135,47 +130,31 @@ pub(crate) fn auto_checkpoint_if_needed(
     Ok(None)
 }
 
-pub(crate) fn compact_all(ctx: &GraphStorageContext, ts: Timestamp) -> StorageResult<()> {
-    let label_ids = ctx.graph.vertex_label_ids();
-
-    for label_id in label_ids {
-        let removed = ctx.graph.compact_vertex_table_with_ts(label_id, ts);
-        if !removed.is_empty() {
-            log::info!(
-                "Compacted label {}: removed {} vertices",
-                label_id,
-                removed.len()
-            );
-        }
-    }
-
-    let stats = ctx.graph.gc_index_tombstones(ts)?;
-    if stats.total_removed() > 0 {
-        log::info!(
-            "Index GC: removed {} vertex entries, {} edge entries",
-            stats.vertex_entries_removed,
-            stats.edge_entries_removed
-        );
-    }
-
-    Ok(())
-}
-
-// TODO(next-phase): replace compact_all() with this WAL-backed version.
-// See docs/analysis/dead_code_persistence.md
-#[allow(dead_code)]
 pub(crate) fn compact_transactional(
     ctx: &GraphStorageContext,
     compact_csr: bool,
     reserve_ratio: f32,
-    wal_writer: &mut dyn WalWriter,
 ) -> StorageResult<()> {
+    let persistence = ctx.persistence.as_ref().ok_or_else(|| {
+        StorageError::db_error("Persistence not available for transactional compaction".to_string())
+    })?;
+
+    let wal_writer = {
+        let coordinator = persistence.read();
+        let wal_mgr = coordinator.wal_manager();
+        let wal_reader = wal_mgr.read();
+        wal_reader.writer().ok_or_else(|| {
+            StorageError::db_error("WAL writer not initialized".to_string())
+        })?
+    };
+
+    let mut wal_writer_guard = wal_writer.write();
     let version_manager = &ctx.version_manager;
 
     let txn = CompactTransaction::new(
         &*ctx.graph,
         version_manager,
-        wal_writer,
+        &mut *wal_writer_guard,
         compact_csr,
         reserve_ratio,
     )
@@ -209,21 +188,27 @@ pub(crate) fn compact_transactional(
 pub(crate) fn load_from_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
     if let Some(ref path) = ctx.work_dir {
         let schema_path = path.join("schema");
-        ctx.schema_manager.load_schema(&schema_path)?;
+        if schema_path.exists() {
+            ctx.schema_manager.load_schema(&schema_path)?;
+        }
 
         let index_meta_path = path.join("index_meta");
-        ctx
-            .index_metadata_manager
-            .load_indexes(&index_meta_path)?;
+        if index_meta_path.exists() {
+            ctx
+                .index_metadata_manager
+                .load_indexes(&index_meta_path)?;
+        }
 
         ctx.graph.load()?;
 
         let index_path = path.join("indexes");
-        ctx
-            .graph
-            .index_data_manager()
-            .write()
-            .load(&index_path)?;
+        if index_path.exists() {
+            ctx
+                .graph
+                .index_data_manager()
+                .write()
+                .load(&index_path)?;
+        }
     }
     Ok(())
 }

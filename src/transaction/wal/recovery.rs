@@ -252,6 +252,10 @@ impl RecoveryManager {
                         self.stats.errors_encountered += 1;
                     }
                 },
+                WalOpType::Compact => {
+                    applier.replay_compact(ts)?;
+                    self.stats.wal_entries_replayed += 1;
+                }
                 _ => {
                     // Schema operations (CreateVertexType, CreateEdgeType, etc.)
                     // These are typically handled separately during schema recovery

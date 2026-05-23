@@ -55,4 +55,10 @@ pub trait RecoveryApplier {
         edge_label: LabelId,
         ts: Timestamp,
     ) -> StorageResult<()>;
+
+    fn replay_compact(&self, ts: Timestamp) -> StorageResult<()> {
+        let _ = ts;
+        log::info!("Compact WAL entry replayed (no-op)");
+        Ok(())
+    }
 }

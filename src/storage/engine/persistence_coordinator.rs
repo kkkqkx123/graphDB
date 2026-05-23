@@ -126,7 +126,8 @@ impl PersistenceCoordinator {
         std::fs::create_dir_all(&config.wal_dir)?;
         std::fs::create_dir_all(&config.checkpoint_dir)?;
 
-        let wal_manager = WalManager::new();
+        let mut wal_manager = WalManager::new();
+        wal_manager.open(&config.wal_dir, 0)?;
 
         let mut checkpoint_manager =
             CheckpointManager::new(&config.wal_dir, &config.checkpoint_dir, None);

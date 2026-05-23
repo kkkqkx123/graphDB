@@ -115,7 +115,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
         }
 
         let header = WalHeader::new(
-            super::wal::types::WalOpType::DeleteVertex,
+            super::wal::types::WalOpType::Compact,
             self.timestamp,
             0,
         );

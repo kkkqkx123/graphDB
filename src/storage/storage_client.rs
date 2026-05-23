@@ -1,4 +1,4 @@
-use crate::core::types::{Timestamp, TransactionContextInfo};
+use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
@@ -228,7 +228,7 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
         Ok(None)
     }
 
-    fn compact_all(&self, _ts: Timestamp) -> StorageResult<()> {
+    fn compact(&self, _compact_csr: bool, _reserve_ratio: f32) -> StorageResult<()> {
         let _ = self;
         Ok(())
     }

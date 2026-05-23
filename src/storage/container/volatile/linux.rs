@@ -48,11 +48,6 @@ impl LargePageRegion {
     pub fn len(&self) -> usize {
         self.size
     }
-
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.size == 0
-    }
 }
 
 impl Drop for LargePageRegion {
