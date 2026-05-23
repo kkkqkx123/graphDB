@@ -43,6 +43,7 @@ pub use cache::{
     RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache,
 };
 
+#[allow(deprecated)]
 pub use extend::FulltextStorage;
 
 pub use crate::core::StorageError;

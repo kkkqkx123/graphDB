@@ -1,8 +1,16 @@
 //! Full-text Storage Manager
+#![allow(deprecated)]
 //!
 //! Provides storage layer abstraction for full-text search functionality.
 //! This module wraps the FulltextIndexManager and provides a unified interface
 //! for vertex and edge full-text indexing operations.
+//!
+//! # Deprecated
+//!
+//! This direct write path is deprecated. All fulltext index operations should
+//! go through the transactional SyncManager path (`SyncManager` → `SyncCoordinator`
+//! → `GenericBatchProcessor<FulltextClient>`) to ensure consistency with
+//! graph transaction semantics.
 
 use crate::core::error::StorageError;
 use crate::core::{Value, Vertex};
@@ -14,9 +22,14 @@ use std::sync::Arc;
 /// Full-text Storage Manager
 ///
 /// Responsible for full-text index management and document indexing operations.
-/// This struct provides a storage-layer abstraction over the search engine,
-/// similar to how VertexStorage and EdgeStorage work for graph data.
+///
+/// # Deprecated
+///
+/// This direct write path is deprecated. All fulltext index operations should
+/// go through the transactional SyncManager path to ensure consistency with
+/// graph transaction semantics.
 #[derive(Clone)]
+#[deprecated(note = "Use SyncManager + SyncCoordinator transactional path instead")]
 pub struct FulltextStorage {
     manager: Arc<FulltextIndexManager>,
 }

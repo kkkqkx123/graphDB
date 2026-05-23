@@ -95,6 +95,7 @@ impl GraphStorage {
         self.ctx.index_gc_manager.clone()
     }
 
+    #[allow(deprecated)]
     pub fn with_fulltext_storage(
         mut self,
         fulltext: Arc<crate::storage::extend::FulltextStorage>,
@@ -104,6 +105,7 @@ impl GraphStorage {
         self
     }
 
+    #[allow(deprecated)]
     pub fn fulltext_storage(&self) -> Option<Arc<crate::storage::extend::FulltextStorage>> {
         self.ctx.fulltext_storage.clone()
     }

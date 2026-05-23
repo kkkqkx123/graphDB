@@ -635,6 +635,7 @@ impl Index {
     /// Returns the BM25 parameters used for scoring.
     ///
     /// If not explicitly configured, returns default parameters (k1=1.2, b=0.75).
+    /// Custom parameters can be set via `IndexSettings::bm25_params`.
     pub fn bm25_params(&self) -> &Bm25Params {
         static DEFAULT_PARAMS: once_cell::sync::Lazy<Bm25Params> =
             once_cell::sync::Lazy::new(Bm25Params::default);

@@ -261,8 +261,8 @@ mod tests {
     fn test_bm25_params_custom() {
         // Test that custom BM25 parameters are properly used
         let default_params = Bm25Params::default();
-        assert_nearly_equals!(default_params.k1, 1.8);
-        assert_nearly_equals!(default_params.b, 0.4);
+        assert_nearly_equals!(default_params.k1, 1.2);
+        assert_nearly_equals!(default_params.b, 0.75);
 
         let custom_params = Bm25Params { k1: 2.0, b: 0.5 };
         assert_nearly_equals!(custom_params.k1, 2.0);

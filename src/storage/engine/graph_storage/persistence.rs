@@ -77,6 +77,9 @@ pub(crate) fn create_checkpoint(
     Ok(Some(stats))
 }
 
+// TODO(next-phase): wire up checkpoint-based recovery to replace
+// recover_from_wal(). See docs/analysis/dead_code_persistence.md
+#[allow(dead_code)]
 pub(crate) fn load_latest_checkpoint(
     ctx: &GraphStorageContext,
 ) -> StorageResult<Option<CheckpointInfo>> {
@@ -158,6 +161,9 @@ pub(crate) fn compact_all(ctx: &GraphStorageContext, ts: Timestamp) -> StorageRe
     Ok(())
 }
 
+// TODO(next-phase): replace compact_all() with this WAL-backed version.
+// See docs/analysis/dead_code_persistence.md
+#[allow(dead_code)]
 pub(crate) fn compact_transactional(
     ctx: &GraphStorageContext,
     compact_csr: bool,

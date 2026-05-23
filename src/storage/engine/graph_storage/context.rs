@@ -13,6 +13,7 @@ use crate::core::mvcc::VersionManager;
 use crate::core::types::TransactionContextInfo;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
 use crate::storage::engine::PropertyGraph;
+#[allow(deprecated)]
 use crate::storage::extend::FulltextStorage;
 use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
 use crate::storage::metadata::{IndexManager, SchemaManager};
@@ -27,6 +28,7 @@ pub struct GraphStorageContext {
     pub current_txn_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
     pub persistence: Option<Arc<RwLock<PersistenceCoordinator>>>,
     pub index_gc_manager: Option<Arc<IndexGcManager>>,
+    #[allow(deprecated)]
     pub fulltext_storage: Option<Arc<FulltextStorage>>,
     pub work_dir: Option<PathBuf>,
     pub db_path: String,
@@ -127,6 +129,7 @@ impl GraphStorageContext {
         self
     }
 
+    #[allow(deprecated)]
     pub fn with_fulltext_storage(mut self, fulltext: Arc<FulltextStorage>) -> Self {
         self.fulltext_storage = Some(fulltext);
         self

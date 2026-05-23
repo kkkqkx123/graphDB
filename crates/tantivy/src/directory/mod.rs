@@ -1,4 +1,15 @@
 //! WORM (Write Once Read Many) directory abstraction.
+//!
+//! The `WriterKind` and `WritePtr` enums intentionally expose crate-internal
+//! writer types (`SafeFileWriter`, `VecWriter`, `FooterProxy`) in their variants.
+//! These inner types are `pub(crate)` because they are implementation details
+//! of specific `Directory` backends. External users interact with them via
+//! `Write` and `TerminatingWrite` trait methods.
+#![cfg_attr(
+
+    not(test),
+    allow(private_interfaces)
+)]
 
 #[cfg(feature = "mmap")]
 mod mmap_directory;
@@ -15,7 +26,7 @@ pub mod error;
 
 mod composite_file;
 
-use std::io::BufWriter;
+use std::io::{self, BufWriter, Write};
 use std::path::PathBuf;
 
 pub use common::file_slice::{FileHandle, FileSlice};
@@ -48,11 +59,84 @@ pub use self::managed_directory::ManagedDirectory;
 #[cfg(feature = "mmap")]
 pub use self::mmap_directory::MmapDirectory;
 
+/// Concrete writer implementations used by [`WritePtr`].
+///
+/// Enum-based dispatch replaces `Box<dyn TerminatingWrite>`, eliminating
+/// vtable calls in the hot write path while preserving type safety.
+pub enum WriterKind {
+    /// File-backed writer (MmapDirectory).
+    #[cfg(feature = "mmap")]
+    File(mmap_directory::SafeFileWriter),
+    /// In-memory Vec-backed writer (RamDirectory, testing).
+    Vec(ram_directory::VecWriter),
+}
+
+impl Write for WriterKind {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        match self {
+            #[cfg(feature = "mmap")]
+            WriterKind::File(w) => w.write(buf),
+            WriterKind::Vec(w) => w.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self {
+            #[cfg(feature = "mmap")]
+            WriterKind::File(w) => w.flush(),
+            WriterKind::Vec(w) => w.flush(),
+        }
+    }
+}
+
+impl TerminatingWrite for WriterKind {
+    fn terminate_ref(&mut self, token: AntiCallToken) -> io::Result<()> {
+        match self {
+            #[cfg(feature = "mmap")]
+            WriterKind::File(w) => w.terminate_ref(token),
+            WriterKind::Vec(w) => w.terminate_ref(token),
+        }
+    }
+}
+
 /// Write object for Directory.
 ///
-/// `WritePtr` are required to implement both Write
-/// and Seek.
-pub type WritePtr = BufWriter<Box<dyn TerminatingWrite + Send + Sync>>;
+/// Provides static dispatch for all writer configurations:
+/// - `Plain`: used by MmapDirectory and RamDirectory (no CRC footer).
+/// - `Managed`: used by ManagedDirectory (wraps in FooterProxy for CRC).
+///
+/// `WritePtr` is required to implement both Write and TerminatingWrite.
+pub enum WritePtr {
+    /// Unwrapped writer (MmapDirectory / RamDirectory).
+    Plain(BufWriter<WriterKind>),
+    /// CRC-wrapped writer (ManagedDirectory).
+    Managed(BufWriter<footer::FooterProxy<WriterKind>>),
+}
+
+impl Write for WritePtr {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        match self {
+            WritePtr::Plain(w) => w.write(buf),
+            WritePtr::Managed(w) => w.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self {
+            WritePtr::Plain(w) => w.flush(),
+            WritePtr::Managed(w) => w.flush(),
+        }
+    }
+}
+
+impl TerminatingWrite for WritePtr {
+    fn terminate_ref(&mut self, token: AntiCallToken) -> io::Result<()> {
+        match self {
+            WritePtr::Plain(w) => w.terminate_ref(token),
+            WritePtr::Managed(w) => w.terminate_ref(token),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests;

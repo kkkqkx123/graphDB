@@ -147,8 +147,16 @@ impl ManagedDirectory {
                     .filter(|managed_path| !living_files.contains(*managed_path))
                     .cloned()
                     .collect();
-                drop(_meta_lock);
-
+                // Keep META_LOCK held during file deletion and save to prevent
+                // a concurrent meta.json update (from merge) from referencing
+                // files we are about to delete.
+                //
+                // Race scenario prevented:
+                //   1. Merge creates segment files, registers in managed_paths
+                //   2. GC: living_files from meta.json (no new segment yet)
+                //   3. GC: drops META_LOCK early
+                //   4. Merge: updates meta.json to reference new files
+                //   5. GC: deletes "unreferenced" files → data loss
                 for file_to_delete in files_to_delete {
                     match self.directory.delete(&file_to_delete) {
                         Ok(_) => {
@@ -177,6 +185,12 @@ impl ManagedDirectory {
                     self.directory.sync_directory()?;
                     save_managed_paths(self.directory.as_mut(), &meta_informations_wlock)?;
                 }
+
+                // Release META_LOCK after all file deletions and save are complete.
+                // This ensures a concurrent merge cannot update meta.json while
+                // we are deleting files that are not yet referenced by meta.json
+                // but are already in managed_paths.
+                drop(_meta_lock);
             }
             Err(err) => {
                 error!("Failed to acquire lock for GC");
@@ -276,13 +290,18 @@ impl Directory for ManagedDirectory {
     fn open_write(&self, path: &Path) -> result::Result<WritePtr, OpenWriteError> {
         self.register_file_as_managed(path)
             .map_err(|io_error| OpenWriteError::wrap_io_error(io_error, path.to_path_buf()))?;
-        Ok(io::BufWriter::new(Box::new(FooterProxy::new(
-            self.directory
-                .open_write(path)?
-                .into_inner()
-                .map_err(|_| ())
-                .expect("buffer should be empty"),
-        ))))
+        match self.directory.open_write(path)? {
+            WritePtr::Plain(buf) => {
+                let inner_writer = buf
+                    .into_inner()
+                    .map_err(|_| ())
+                    .expect("buffer should be empty");
+                Ok(WritePtr::Managed(io::BufWriter::new(FooterProxy::new(
+                    inner_writer,
+                ))))
+            }
+            WritePtr::Managed(_) => unreachable!(),
+        }
     }
 
     fn atomic_write(&self, path: &Path, data: &[u8]) -> io::Result<()> {

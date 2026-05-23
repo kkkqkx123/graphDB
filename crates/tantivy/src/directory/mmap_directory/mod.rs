@@ -27,7 +27,7 @@ use crate::directory::error::{
 };
 use crate::directory::{
     AntiCallToken, Directory, DirectoryLock, FileHandle, Lock, OwnedBytes, TerminatingWrite,
-    WatchCallback, WatchHandle, WritePtr,
+    WatchCallback, WatchHandle, WriterKind, WritePtr,
 };
 
 pub type ArcBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync + 'static>;
@@ -324,7 +324,7 @@ impl Drop for ReleaseLockFile {
 
 /// This Write wraps a File, but has the specificity of
 /// call `sync_all` on flush.
-struct SafeFileWriter(File);
+pub(crate) struct SafeFileWriter(File);
 
 impl SafeFileWriter {
     fn new(file: File) -> SafeFileWriter {
@@ -457,7 +457,7 @@ impl Directory for MmapDirectory {
         // sync_directory() is called.
 
         let writer = SafeFileWriter::new(file);
-        Ok(BufWriter::new(Box::new(writer)))
+        Ok(WritePtr::Plain(BufWriter::new(WriterKind::File(writer))))
     }
 
     fn atomic_read(&self, path: &Path) -> Result<Vec<u8>, OpenReadError> {

@@ -11,13 +11,13 @@ use crate::core::META_FILEPATH;
 use crate::directory::error::{DeleteError, OpenReadError, OpenWriteError};
 use crate::directory::{
     AntiCallToken, Directory, FileSlice, TerminatingWrite, WatchCallback, WatchCallbackList,
-    WatchHandle, WritePtr,
+    WatchHandle, WriterKind, WritePtr,
 };
 
 /// Writer associated with the [`RamDirectory`].
 ///
 /// The Writer just writes a buffer.
-struct VecWriter {
+pub(crate) struct VecWriter {
     path: PathBuf,
     shared_directory: RamDirectory,
     data: Cursor<Vec<u8>>,
@@ -206,7 +206,7 @@ impl Directory for RamDirectory {
         if exists {
             Err(OpenWriteError::FileAlreadyExists(path_buf))
         } else {
-            Ok(BufWriter::new(Box::new(vec_writer)))
+            Ok(WritePtr::Plain(BufWriter::new(WriterKind::Vec(vec_writer))))
         }
     }
 

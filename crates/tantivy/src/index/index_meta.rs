@@ -231,10 +231,16 @@ pub struct Bm25Params {
 
 impl Default for Bm25Params {
     fn default() -> Self {
-        // Optimized for code search with precision-focused matching
-        // k1=1.8: Higher value increases term frequency impact for exact identifier matches
-        // b=0.4: Lower value reduces document length normalization penalty for short code entities
-        Self { k1: 1.8, b: 0.4 }
+        // Standard BM25 defaults (k1=1.2, b=0.75)
+        //
+        // k1 controls term frequency saturation: higher values increase
+        // the impact of repeated terms in a document.
+        //
+        // b controls length normalization: higher values penalize longer
+        // documents more heavily.
+        //
+        // Custom BM25 params can be set via IndexSettings::bm25_params.
+        Self { k1: 1.2, b: 0.75 }
     }
 }
 
