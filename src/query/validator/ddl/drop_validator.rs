@@ -7,7 +7,7 @@
 //! 2. The `DROP SPACE` statement is a global statement; other `DROP` statements require the selection of a specific space to be deleted.
 //! 3. Verify whether the target object exists (based on the if_exists flag).
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, DropStmt, DropTarget};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{

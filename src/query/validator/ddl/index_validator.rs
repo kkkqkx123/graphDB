@@ -6,7 +6,7 @@
 //! 2. It is necessary to pre-select the space (either obtain it from the statement or use the default value).
 //! 3. Verify that the index attribute is not empty.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, CreateStmt, CreateTarget, IndexType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{

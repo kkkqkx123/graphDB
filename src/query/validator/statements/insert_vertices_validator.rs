@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression;
 use crate::core::Value;

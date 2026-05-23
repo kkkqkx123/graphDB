@@ -2,7 +2,7 @@ use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::error::PermissionResult;
+use super::PermissionResult;
 
 // Re-export the permission types from the core layer.
 pub use crate::core::{Permission, RoleType};
@@ -162,7 +162,7 @@ impl PermissionManager {
         space_id: i64,
         permission: Permission,
     ) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let role = self
             .get_role(username, space_id)

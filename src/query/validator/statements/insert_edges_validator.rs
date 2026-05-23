@@ -2,7 +2,7 @@
 //! Corresponding to the functionality of NebulaGraph InsertEdgesValidator
 //! Verify the semantic correctness of the INSERT EDGES statement.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::{NullType, Value};
 use crate::query::parser::ast::stmt::{Ast, InsertTarget};

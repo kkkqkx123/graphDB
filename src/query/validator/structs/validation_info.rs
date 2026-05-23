@@ -116,7 +116,7 @@ impl ValidationInfo {
         variable_types: Option<&std::collections::HashMap<String, crate::core::DataType>>,
     ) -> Result<
         crate::query::validator::ExpressionAnalysisResult,
-        crate::core::error::ValidationError,
+        crate::query::validator::error::ValidationError,
     > {
         use crate::query::validator::ExpressionAnalyzer;
 

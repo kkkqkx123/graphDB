@@ -1,7 +1,7 @@
 //! Return Statement Validator
 //! Used to validate the RETURN statement (the return clause in Cypher style)
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, ReturnStmt};
 use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;

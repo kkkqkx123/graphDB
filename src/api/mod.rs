@@ -261,7 +261,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
         Err(e) => {
             error!("Failed to create session: {}", e);
             return Err(crate::core::error::DBError::from(
-                crate::core::error::SessionError::manager_error(format!(
+                crate::api::server::session::SessionError::manager_error(format!(
                     "Failed to create session: {}",
                     e
                 )),

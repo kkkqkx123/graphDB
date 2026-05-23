@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;

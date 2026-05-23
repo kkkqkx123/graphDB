@@ -921,70 +921,7 @@ impl StatsManager {
         self.set_value(MetricType::IndexMemoryUsage, bytes);
     }
 
-    /// Classify a SearchError into a specific MetricType for error tracking
-    fn classify_search_error(error: &crate::search::error::SearchError) -> MetricType {
-        use crate::search::error::SearchError;
-        match error {
-            SearchError::IndexNotFound(_) | SearchError::FieldNotFound(_) => {
-                MetricType::SearchErrorIndexNotFound
-            }
-            SearchError::EngineNotFound(_)
-            | SearchError::EngineUnavailable
-            | SearchError::IndexCorrupted(_)
-            | SearchError::TantivyError(_) => MetricType::SearchErrorEngineError,
-            SearchError::IoError(_) => MetricType::SearchErrorIoError,
-            SearchError::SerializationError(_)
-            | SearchError::QueryParseError(_)
-            | SearchError::InvalidDocId(_) => MetricType::SearchErrorSerialization,
-            SearchError::SpaceNotFound(_)
-            | SearchError::TagNotFound(_)
-            | SearchError::IndexAlreadyExists(_)
-            | SearchError::ConfigError(_)
-            | SearchError::Internal(_) => MetricType::SearchErrorInternal,
-        }
-    }
 
-    /// Record a classified search error
-    pub fn record_search_error(
-        &self,
-        space_id: u64,
-        index_name: &str,
-        error: &crate::search::error::SearchError,
-    ) {
-        let metric_type = Self::classify_search_error(error);
-        let space_key = format!("space_{}", space_id);
-        self.add_value(metric_type);
-        self.add_space_metric(&space_key, metric_type);
-        self.add_index_metric(index_name, metric_type);
-    }
-
-    /// Record a classified index operation error
-    pub fn record_index_error(
-        &self,
-        space_id: u64,
-        index_name: &str,
-        error: &crate::search::error::SearchError,
-    ) {
-        let metric_type = Self::classify_search_error(error);
-        let space_key = format!("space_{}", space_id);
-        self.add_value(metric_type);
-        self.add_space_metric(&space_key, metric_type);
-        self.add_index_metric(index_name, metric_type);
-    }
-
-    /// Record a classified delete operation error
-    pub fn record_delete_error(
-        &self,
-        space_id: u64,
-        index_name: &str,
-        error: &crate::search::error::SearchError,
-    ) {
-        let metric_type = Self::classify_search_error(error);
-        let space_key = format!("space_{}", space_id);
-        self.add_value(metric_type);
-        self.add_space_metric(&space_key, metric_type);
-        self.add_index_metric(index_name, metric_type);
-    }
 }
 
 impl Default for StatsManager {

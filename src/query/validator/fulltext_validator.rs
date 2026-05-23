@@ -6,7 +6,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
     AlterFulltextIndex, CreateFulltextIndex, DescribeFulltextIndex, DropFulltextIndex,
     FulltextQueryExpr, LookupFulltext, MatchFulltext, SearchStatement,

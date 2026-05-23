@@ -1,7 +1,7 @@
 //! Type checking tools
 //! Responsible for the derivation of expression types, type validation, and type compatibility checks.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
 use crate::core::Expression;
 use crate::core::TypeUtils;

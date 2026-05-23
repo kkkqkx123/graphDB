@@ -2,7 +2,7 @@
 //!
 //! Provide functions for manipulating vertices and edges, including id, tags, labels, properties, type, src, dst, and rank.
 
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::vertex_edge_path::Vertex;

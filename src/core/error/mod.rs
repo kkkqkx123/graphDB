@@ -29,22 +29,6 @@ pub use manager::{ErrorCategory, ManagerError, ManagerResult};
 pub use query::{PlanNodeVisitError, QueryError, QueryPhase, QueryResult};
 pub use storage::{StorageError, StorageErrorKind, StorageResult};
 
-// Re-export error types from their new locations for backward compatibility
-pub use crate::api::server::auth::{AuthError, AuthResult};
-pub use crate::api::server::permission::{PermissionError, PermissionResult};
-pub use crate::api::server::session::{SessionError, SessionResult};
-pub use crate::query::executor::expression::{
-    ExpressionError, ExpressionErrorType, ExpressionPosition,
-};
-pub use crate::query::optimizer::{CostError, CostResult, OptimizeError, OptimizeResult};
-pub use crate::query::validator::error::{
-    SchemaValidationError, SchemaValidationResult, ValidationError, ValidationErrorType,
-};
-pub use crate::sync::external_index::{
-    CoordinatorError, CoordinatorResult, FulltextError, FulltextResult, VectorCoordinatorError,
-    VectorCoordinatorResult, VectorError, VectorResult,
-};
-
 pub use crate::core::types::DataType;
 
 // ==================== Error Classification ====================
@@ -361,12 +345,6 @@ impl From<QueryError> for DBError {
     }
 }
 
-impl From<ExpressionError> for DBError {
-    fn from(e: ExpressionError) -> Self {
-        DBError::from_boxed(ErrorKind::Expression, e)
-    }
-}
-
 impl From<PlanNodeVisitError> for DBError {
     fn from(e: PlanNodeVisitError) -> Self {
         DBError::from_boxed(ErrorKind::Plan, e)
@@ -379,93 +357,15 @@ impl From<ManagerError> for DBError {
     }
 }
 
-impl From<SessionError> for DBError {
-    fn from(e: SessionError) -> Self {
-        DBError::from_boxed(ErrorKind::Session, e)
-    }
-}
-
-impl From<AuthError> for DBError {
-    fn from(e: AuthError) -> Self {
-        DBError::from_boxed(ErrorKind::Auth, e)
-    }
-}
-
-impl From<PermissionError> for DBError {
-    fn from(e: PermissionError) -> Self {
-        DBError::from_boxed(ErrorKind::Permission, e)
-    }
-}
-
-impl From<FulltextError> for DBError {
-    fn from(e: FulltextError) -> Self {
-        DBError::from_boxed(ErrorKind::Fulltext, e)
-    }
-}
-
-impl From<CoordinatorError> for DBError {
-    fn from(e: CoordinatorError) -> Self {
-        DBError::from_boxed(ErrorKind::Coordinator, e)
-    }
-}
-
-impl From<VectorError> for DBError {
-    fn from(e: VectorError) -> Self {
-        DBError::from_boxed(ErrorKind::Vector, e)
-    }
-}
-
-impl From<VectorCoordinatorError> for DBError {
-    fn from(e: VectorCoordinatorError) -> Self {
-        DBError::from_boxed(ErrorKind::VectorCoordinator, e)
-    }
-}
-
 impl From<serde_json::Error> for DBError {
     fn from(err: serde_json::Error) -> Self {
         DBError::new(ErrorKind::Serialization, err.to_string())
     }
 }
 
-impl From<crate::query::planning::planner::PlannerError> for DBError {
-    fn from(err: crate::query::planning::planner::PlannerError) -> Self {
-        DBError::query(err.to_string())
-    }
-}
-
-impl From<crate::query::parser::lexing::LexError> for DBError {
-    fn from(err: crate::query::parser::lexing::LexError) -> Self {
-        DBError::query(err.to_string())
-    }
-}
-
-impl From<crate::query::validator::error::SchemaValidationError> for DBError {
-    fn from(err: crate::query::validator::error::SchemaValidationError) -> Self {
-        DBError::validation(err.to_string())
-    }
-}
-
-impl From<crate::query::validator::error::ValidationError> for DBError {
-    fn from(err: crate::query::validator::error::ValidationError) -> Self {
-        DBError::validation(err.to_string())
-    }
-}
-
 impl From<std::io::Error> for DBError {
     fn from(err: std::io::Error) -> Self {
         DBError::io(err.to_string())
-    }
-}
-
-impl From<crate::search::error::SearchError> for DBError {
-    fn from(err: crate::search::error::SearchError) -> Self {
-        DBError::search(err.to_string())
-    }
-}
-
-impl From<crate::transaction::TransactionError> for DBError {
-    fn from(err: crate::transaction::TransactionError) -> Self {
-        DBError::transaction(err.to_string())
     }
 }
 

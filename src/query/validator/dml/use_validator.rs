@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::space_name_validation::validate_space_name;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::Stmt;
@@ -157,7 +157,7 @@ impl StatementValidator for UseValidator {
         } else {
             return Err(ValidationError::new(
                 "Expected USE statement".to_string(),
-                crate::core::error::ValidationErrorType::SemanticError,
+                crate::query::validator::error::ValidationErrorType::SemanticError,
             ));
         }
 

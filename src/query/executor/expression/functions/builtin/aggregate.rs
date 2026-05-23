@@ -3,7 +3,8 @@
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::list::List;
 use crate::core::Expression;
-use crate::core::{ExpressionError, Value};
+use crate::core::Value;
+use crate::query::executor::expression::ExpressionError;
 use serde::{Deserialize, Serialize};
 
 impl std::fmt::Display for AggregateFunction {

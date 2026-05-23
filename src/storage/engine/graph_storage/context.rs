@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::api::server::auth::UserStorage;
+use crate::core::UserStorage;
 use crate::core::mvcc::VersionManager;
 use crate::core::types::TransactionContextInfo;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;

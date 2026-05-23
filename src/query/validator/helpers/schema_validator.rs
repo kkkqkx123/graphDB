@@ -17,7 +17,7 @@
 
 use std::sync::Arc;
 
-use crate::core::error::{ValidationError as CoreValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;

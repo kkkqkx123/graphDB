@@ -7,7 +7,7 @@
 //! 2. Verify the validity of the group key and the aggregate expression.
 //! 3. Support for verifying HAVING clauses
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::parser::ast::stmt::{Ast, GroupByStmt};

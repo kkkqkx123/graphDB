@@ -349,14 +349,8 @@ impl From<postcard::Error> for StorageError {
     }
 }
 
-impl From<crate::transaction::insert_transaction::InsertTransactionError> for StorageError {
-    fn from(e: crate::transaction::insert_transaction::InsertTransactionError) -> Self {
-        Self::db_error(e.to_string())
-    }
-}
-
-impl From<crate::transaction::undo_log::UndoLogError> for StorageError {
-    fn from(e: crate::transaction::undo_log::UndoLogError) -> Self {
+impl From<crate::core::types::UndoLogError> for StorageError {
+    fn from(e: crate::core::types::UndoLogError) -> Self {
         Self::db_error(e.to_string())
     }
 }

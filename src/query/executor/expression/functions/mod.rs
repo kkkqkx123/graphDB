@@ -43,7 +43,7 @@ pub use builtin::regex::RegexFunction;
 pub use builtin::string::StringFunction;
 pub use builtin::utility::UtilityFunction;
 
-use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 

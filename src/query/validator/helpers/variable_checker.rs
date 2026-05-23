@@ -1,7 +1,7 @@
 //! Variable checking tool
 //! Responsible for verifying the scope of variables, the naming conventions, and their usage.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;

@@ -1,6 +1,6 @@
 //! Implementation of practical functions
 
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;

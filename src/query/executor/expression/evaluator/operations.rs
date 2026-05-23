@@ -1,4 +1,4 @@
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::value::list::List;
 /// Arithmetic and logical operations module

@@ -1,6 +1,7 @@
 pub mod cluster;
 pub mod compact;
 pub mod data_modification;
+pub mod data_set;
 pub mod edge;
 pub mod expr;
 pub mod graph_schema;
@@ -24,6 +25,7 @@ pub mod transaction_config;
 pub mod transaction_context;
 pub mod undo;
 pub mod user;
+pub mod user_storage;
 // Full-text search types
 pub mod fulltext_query;
 
@@ -279,3 +281,6 @@ impl YieldColumn {
         &self.alias
     }
 }
+
+pub use data_set::DataSet;
+pub use user_storage::UserStorage;

@@ -2,7 +2,7 @@
 //! Used to validate the top-level query statement (QueryStmt)
 //! The “Query” statement is a wrapper that contains the actual query statement.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, QueryStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;

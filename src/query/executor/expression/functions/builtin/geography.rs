@@ -1,6 +1,6 @@
 //! Implementation of geospatial functions
 
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::value::geography::{Geography, GeographyValue, LineStringValue, PolygonValue};
 use crate::core::value::NullType;
 use crate::core::Value;

@@ -6,7 +6,7 @@
 //! - matched_fields(): Get the list of matched fields
 //! - snippet(): Get a text snippet
 
-use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::Value;
 use crate::query::executor::expression::functions::signature::{FunctionSignature, ValueType};
 use crate::search::FulltextSearchEntry;

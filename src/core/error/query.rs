@@ -10,13 +10,10 @@
 use std::error::Error;
 
 use super::BoxedError;
-use crate::api::server::permission::PermissionError;
-use crate::api::server::session::SessionError;
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 use crate::core::error::manager::ManagerError;
 use crate::core::error::storage::StorageError;
 use crate::core::error::DBError;
-use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 /// Query processing phase enumeration
 ///
@@ -524,23 +521,9 @@ impl From<DBError> for QueryError {
             ErrorKind::Index => Self::execution(e.message()),
             ErrorKind::Transaction => Self::transaction(e.message()),
             ErrorKind::Internal => Self::execution(e.message()),
-            ErrorKind::Session => {
-                if let Some(ref source) = e.source() {
-                    if let Some(se) = source.downcast_ref::<SessionError>() {
-                        return Self::from_boxed(QueryErrorKind::Session, se.clone());
-                    }
-                }
-                Self::execution(e.message())
-            }
+            ErrorKind::Session => Self::execution(e.message()),
             ErrorKind::Auth => Self::execution(e.message()),
-            ErrorKind::Permission => {
-                if let Some(ref source) = e.source() {
-                    if let Some(pe) = source.downcast_ref::<PermissionError>() {
-                        return Self::from_boxed(QueryErrorKind::Permission, pe.clone());
-                    }
-                }
-                Self::execution(e.message())
-            }
+            ErrorKind::Permission => Self::execution(e.message()),
             ErrorKind::MemoryLimitExceeded => Self::execution(e.message()),
             ErrorKind::Fulltext => Self::execution(e.message()),
             ErrorKind::Coordinator => Self::execution(e.message()),
@@ -570,30 +553,6 @@ impl From<ManagerError> for QueryError {
     }
 }
 
-impl From<SessionError> for QueryError {
-    fn from(e: SessionError) -> Self {
-        Self::from_boxed(QueryErrorKind::Session, e)
-    }
-}
-
-impl From<PermissionError> for QueryError {
-    fn from(e: PermissionError) -> Self {
-        Self::from_boxed(QueryErrorKind::Permission, e)
-    }
-}
-
-impl From<ExpressionError> for QueryError {
-    fn from(e: ExpressionError) -> Self {
-        Self::from_boxed(QueryErrorKind::Expression, e)
-    }
-}
-
-impl From<ExpressionErrorType> for QueryError {
-    fn from(e: ExpressionErrorType) -> Self {
-        Self::expression(e.to_string())
-    }
-}
-
 impl ToPublicError for QueryError {
     fn to_public_error(&self) -> PublicError {
         PublicError::new(self.to_error_code(), self.to_public_message())
@@ -609,22 +568,8 @@ impl ToPublicError for QueryError {
             QueryErrorKind::Expression => ErrorCode::ExecutionError,
             QueryErrorKind::Storage => ErrorCode::InternalError,
             QueryErrorKind::PlanNodeVisit => ErrorCode::ExecutionError,
-            QueryErrorKind::Session => {
-                if let Some(ref source) = self.source {
-                    if let Some(se) = source.downcast_ref::<SessionError>() {
-                        return se.to_error_code();
-                    }
-                }
-                ErrorCode::Unauthorized
-            }
-            QueryErrorKind::Permission => {
-                if let Some(ref source) = self.source {
-                    if let Some(pe) = source.downcast_ref::<PermissionError>() {
-                        return pe.to_error_code();
-                    }
-                }
-                ErrorCode::PermissionDenied
-            }
+            QueryErrorKind::Session => ErrorCode::Unauthorized,
+            QueryErrorKind::Permission => ErrorCode::PermissionDenied,
             QueryErrorKind::Transaction => ErrorCode::ExecutionError,
             QueryErrorKind::Type => ErrorCode::TypeError,
             QueryErrorKind::Timeout => ErrorCode::Timeout,
@@ -633,22 +578,8 @@ impl ToPublicError for QueryError {
 
     fn to_public_message(&self) -> String {
         match self.kind {
-            QueryErrorKind::Session => {
-                if let Some(ref source) = self.source {
-                    if let Some(se) = source.downcast_ref::<SessionError>() {
-                        return se.to_public_message();
-                    }
-                }
-                self.message.clone()
-            }
-            QueryErrorKind::Permission => {
-                if let Some(ref source) = self.source {
-                    if let Some(pe) = source.downcast_ref::<PermissionError>() {
-                        return pe.to_public_message();
-                    }
-                }
-                self.message.clone()
-            }
+            QueryErrorKind::Session => self.message.clone(),
+            QueryErrorKind::Permission => self.message.clone(),
             QueryErrorKind::Storage => "Storage operation failed".to_string(),
             _ => self.message.clone(),
         }

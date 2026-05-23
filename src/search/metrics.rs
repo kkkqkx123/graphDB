@@ -69,15 +69,13 @@ impl SearchEngine for MetricsSearchEngine {
                     true,
                 );
             }
-            Err(e) => {
+            Err(_e) => {
                 self.stats_manager.record_index_operation(
                     self.space_id,
                     &self.index_name,
                     latency_ms,
                     false,
                 );
-                self.stats_manager
-                    .record_index_error(self.space_id, &self.index_name, e);
             }
         }
         result
@@ -96,15 +94,13 @@ impl SearchEngine for MetricsSearchEngine {
                     true,
                 );
             }
-            Err(e) => {
+            Err(_e) => {
                 self.stats_manager.record_index_operation(
                     self.space_id,
                     &self.index_name,
                     latency_ms,
                     false,
                 );
-                self.stats_manager
-                    .record_index_error(self.space_id, &self.index_name, e);
             }
         }
         result
@@ -122,15 +118,13 @@ impl SearchEngine for MetricsSearchEngine {
                 self.stats_manager
                     .record_search_result_count(self.space_id, results.len() as u64);
             }
-            Err(e) => {
+            Err(_e) => {
                 self.stats_manager.record_search(
                     self.space_id,
                     &self.index_name,
                     latency_ms,
                     false,
                 );
-                self.stats_manager
-                    .record_search_error(self.space_id, &self.index_name, e);
             }
         }
 
@@ -150,15 +144,13 @@ impl SearchEngine for MetricsSearchEngine {
                     true,
                 );
             }
-            Err(e) => {
+            Err(_e) => {
                 self.stats_manager.record_delete_operation(
                     self.space_id,
                     &self.index_name,
                     latency_ms,
                     false,
                 );
-                self.stats_manager
-                    .record_delete_error(self.space_id, &self.index_name, e);
             }
         }
         result
@@ -177,15 +169,13 @@ impl SearchEngine for MetricsSearchEngine {
                     true,
                 );
             }
-            Err(e) => {
+            Err(_e) => {
                 self.stats_manager.record_delete_operation(
                     self.space_id,
                     &self.index_name,
                     latency_ms,
                     false,
                 );
-                self.stats_manager
-                    .record_delete_error(self.space_id, &self.index_name, e);
             }
         }
         result

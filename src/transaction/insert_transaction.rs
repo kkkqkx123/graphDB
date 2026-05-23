@@ -402,6 +402,12 @@ impl<'a, T: InsertTarget + ?Sized> Drop for InsertTransaction<'a, T> {
     }
 }
 
+impl From<InsertTransactionError> for crate::core::error::StorageError {
+    fn from(e: InsertTransactionError) -> Self {
+        Self::db_error(e.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::wal::writer::DummyWalWriter;

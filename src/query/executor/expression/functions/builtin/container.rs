@@ -2,7 +2,7 @@
 //!
 //! Provide functions for operating on lists and maps, including head, last, tail, size, range, and keys.
 
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;
@@ -184,7 +184,7 @@ fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
 
     if step == 0 {
         return Err(ExpressionError::new(
-            crate::core::error::ExpressionErrorType::InvalidOperation,
+            crate::query::executor::expression::ExpressionErrorType::InvalidOperation,
             "range step cannot be 0".to_string(),
         ));
     }

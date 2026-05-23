@@ -9,7 +9,7 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::core::error::{VectorCoordinatorError, VectorCoordinatorResult};
+use crate::sync::external_index::{VectorCoordinatorError, VectorCoordinatorResult};
 use crate::core::types::TransactionId;
 use crate::core::{Value, Vertex};
 

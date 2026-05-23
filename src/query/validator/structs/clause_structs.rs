@@ -2,7 +2,7 @@
 
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
-use crate::core::error::ValidationError;
+use crate::query::validator::error::ValidationError;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::OrderDirection;
 use crate::core::DataType;

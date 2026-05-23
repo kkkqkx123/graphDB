@@ -1,6 +1,6 @@
 //! Implementation of date and time functions
 
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::value::{DateTimeValue, DateValue, NullType, TimeValue};
 use crate::core::Value;
 use chrono::{Datelike, Timelike};

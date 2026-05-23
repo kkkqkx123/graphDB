@@ -15,7 +15,7 @@ use crate::core::{
     },
     vertex_edge_path::{Edge, Path, Vertex},
 };
-use crate::query::DataSet;
+use crate::core::DataSet;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},

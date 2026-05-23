@@ -1,7 +1,7 @@
 use crate::api::server::permission::{PermissionManager, GOD_SPACE_ID};
 use crate::api::server::session::ClientSession;
 use crate::config::AuthConfig;
-use crate::core::error::PermissionResult;
+use super::PermissionResult;
 use crate::core::{Permission, RoleType};
 
 /// Operation type – corresponds to different permission checks
@@ -77,7 +77,7 @@ impl PermissionChecker {
         target_user: Option<&str>,
         target_role: Option<RoleType>,
     ) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         // If authorization is not enabled, a successful response is returned directly.
         if !self.is_authorization_enabled() {
@@ -145,7 +145,7 @@ impl PermissionChecker {
 
     /// Check Space read permissions
     fn check_read_space(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let space_id = target_space.ok_or(PermissionError::space_id_required())?;
 
@@ -156,7 +156,7 @@ impl PermissionChecker {
 
     /// Checking Schema Read Permissions
     fn check_read_schema(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let space_id = target_space.ok_or(PermissionError::schema_space_id_required())?;
 
@@ -171,7 +171,7 @@ impl PermissionChecker {
         username: &str,
         target_space: Option<i64>,
     ) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let space_id = target_space.ok_or(PermissionError::schema_write_space_id_required())?;
 
@@ -190,7 +190,7 @@ impl PermissionChecker {
 
     /// Checking data read permissions
     fn check_read_data(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let space_id = target_space.ok_or(PermissionError::data_read_space_id_required())?;
 
@@ -206,7 +206,7 @@ impl PermissionChecker {
         username: &str,
         target_space: Option<i64>,
     ) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let space_id = target_space.ok_or(PermissionError::data_write_space_id_required())?;
 
@@ -229,7 +229,7 @@ impl PermissionChecker {
         target_user: Option<&str>,
         _session: &ClientSession,
     ) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         // Users can read their own information
         if let Some(target) = target_user {
@@ -255,7 +255,7 @@ impl PermissionChecker {
         target_user: Option<&str>,
         target_role: Option<RoleType>,
     ) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let space_id = target_space.ok_or(PermissionError::role_operation_space_id_required())?;
         let role = target_role.ok_or(PermissionError::role_operation_target_role_required())?;
@@ -303,7 +303,7 @@ impl PermissionChecker {
         target_user: Option<&str>,
         session: &ClientSession,
     ) -> PermissionResult<()> {
-        use crate::core::error::PermissionError;
+        use crate::api::server::permission::PermissionError;
 
         let target = target_user.ok_or(PermissionError::change_password_target_user_required())?;
 

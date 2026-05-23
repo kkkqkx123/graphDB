@@ -3,7 +3,7 @@ use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuth
 use crate::api::server::permission::PermissionManager;
 use crate::api::server::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
-use crate::core::error::{SessionError, SessionResult};
+use crate::api::server::session::{SessionError, SessionResult};
 use crate::core::stats::StatsManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::{MetricType, Permission};

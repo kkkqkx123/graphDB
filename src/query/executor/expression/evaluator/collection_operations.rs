@@ -2,7 +2,7 @@
 //!
 //! Provide functionality for evaluating collection types, including index access, range access, and property access.
 
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::value::list::List;
 use crate::core::Value;
 

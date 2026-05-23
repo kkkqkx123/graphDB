@@ -14,10 +14,8 @@ pub mod wal;
 
 // Error and result types
 pub use error::{
-    DBError, DBResult, ErrorCategory, ExpressionError, ExpressionErrorType, ExpressionPosition,
-    GraphDBResult, ManagerError, ManagerResult, PermissionError, PermissionResult,
-    PlanNodeVisitError, QueryError, QueryResult, SchemaValidationError, SchemaValidationResult,
-    SessionError, SessionResult, StorageError, StorageResult, ValidationError, ValidationErrorType,
+    DBError, DBResult, ErrorCategory, GraphDBResult, ManagerError, ManagerResult,
+    PlanNodeVisitError, QueryError, QueryResult, StorageError, StorageResult,
 };
 
 // External error code
@@ -36,6 +34,8 @@ pub use types::graph_schema::EdgeDirection;
 
 pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
+pub use types::DataSet;
+pub use types::UserStorage;
 pub use types::YieldColumn;
 
 // Other core types

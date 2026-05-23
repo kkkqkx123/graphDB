@@ -2,7 +2,7 @@ use dashmap::DashMap;
 use std::sync::Arc;
 
 use crate::config::AuthConfig;
-use crate::core::error::AuthResult;
+use super::AuthResult;
 
 /// Authentication trait
 pub trait Authenticator: Send + Sync {
@@ -93,7 +93,7 @@ impl PasswordAuthenticator {
 
 impl Authenticator for PasswordAuthenticator {
     fn authenticate(&self, username: &str, password: &str) -> AuthResult<()> {
-        use crate::core::error::AuthError;
+        use crate::api::server::auth::AuthError;
 
         // Check if authorization is enabled
         if !self.config.enable_authorize {

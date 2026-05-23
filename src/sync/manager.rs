@@ -2,7 +2,7 @@
 //!
 //! Unified synchronization manager using SyncCoordinator.
 
-use crate::core::error::CoordinatorError;
+use crate::sync::external_index::CoordinatorError;
 use crate::core::Value;
 use crate::search::SyncConfig;
 use crate::sync::coordinator::{ChangeType, SyncCoordinator};

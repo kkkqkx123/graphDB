@@ -1,6 +1,6 @@
 //! Implementation of regular expression functions
 
-use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::value::NullType;
 use crate::core::Value;
 

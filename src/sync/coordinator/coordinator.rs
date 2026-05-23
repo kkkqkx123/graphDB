@@ -806,10 +806,10 @@ pub enum SyncCoordinatorError {
     BatchError(#[from] crate::sync::batch::BatchError),
 
     #[error("Fulltext coordinator error: {0}")]
-    FulltextError(#[from] crate::core::error::CoordinatorError),
+    FulltextError(#[from] crate::sync::external_index::CoordinatorError),
 
     #[error("Vector coordinator error: {0}")]
-    VectorError(#[from] crate::core::error::VectorCoordinatorError),
+    VectorError(#[from] crate::sync::external_index::VectorCoordinatorError),
 
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),

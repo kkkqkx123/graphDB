@@ -1,7 +1,7 @@
 //! LIMIT clause validator
 //! Verify the expressions of the LIMIT and SKIP clauses.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::structs::validation_info::ValidationInfo;

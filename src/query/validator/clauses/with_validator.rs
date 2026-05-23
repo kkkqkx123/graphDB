@@ -1,7 +1,7 @@
 //! With the statement validator…
 //! Used to validate WITH statements (Cypher-style pipeline clauses)
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, WithStmt};
 use crate::query::validator::helpers::schema_validator::SchemaValidator;

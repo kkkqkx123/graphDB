@@ -1,7 +1,7 @@
 //! Expression checking tool
 //! Responsible for verifying the operational legality and structural integrity of expressions.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::DataType;
 use std::collections::HashSet;

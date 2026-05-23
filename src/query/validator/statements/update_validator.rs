@@ -5,7 +5,10 @@
 use std::sync::Arc;
 
 use crate::core::error::{
-    DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType,
+    DBResult,
+};
+use crate::query::validator::error::{
+    ValidationError, ValidationError as CoreValidationError, ValidationErrorType,
 };
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;

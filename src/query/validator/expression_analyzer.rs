@@ -10,7 +10,7 @@
 //! Utilize caching to avoid duplicate analyses.
 //! Incremental analysis is supported.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::types::DataType;
 use crate::core::Value;

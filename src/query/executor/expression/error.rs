@@ -310,3 +310,10 @@ impl fmt::Display for ExpressionError {
         write!(f, "{:?}: {}", self.error_type, self.message)
     }
 }
+
+impl From<ExpressionError> for crate::core::error::DBError {
+    fn from(e: ExpressionError) -> Self {
+        let msg = e.to_string();
+        Self::expression(msg).with_source(Box::new(e))
+    }
+}

@@ -7,7 +7,7 @@
 //! 2. All management statements are global statements; there is no need to pre-select a specific scope (i.e., no need to specify a particular “space” in which the statements should be applied).
 //! 3. Verify whether the target object exists.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{
     Ast, DescStmt, DescTarget, KillQueryStmt, ShowConfigsStmt, ShowCreateStmt, ShowCreateTarget,
     ShowQueriesStmt, ShowSessionsStmt, ShowStmt, ShowTarget,

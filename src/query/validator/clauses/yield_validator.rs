@@ -11,7 +11,7 @@
 //! 3. Use QueryContext to manage the context in a unified manner.
 //! 4. Added schema validation support for property references.
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::YieldColumn;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::helpers::schema_validator::SchemaValidator;

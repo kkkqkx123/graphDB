@@ -1,6 +1,6 @@
 //! Implementation of type conversion functions
 
-use crate::core::error::ExpressionError;
+use crate::query::executor::expression::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
 

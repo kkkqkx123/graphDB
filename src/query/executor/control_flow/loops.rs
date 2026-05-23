@@ -87,7 +87,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
             Some(expression) => {
                 let result = ExpressionEvaluator::evaluate(expression, &mut self.loop_context)
                     .map_err(|e| {
-                        DBError::from(crate::core::error::ExpressionError::function_error(
+                        DBError::from(crate::query::executor::expression::ExpressionError::function_error(
                             e.to_string(),
                         ))
                     })?;
@@ -558,7 +558,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
 
         let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
             .map_err(|e| {
-                DBError::from(crate::core::error::ExpressionError::function_error(
+                DBError::from(crate::query::executor::expression::ExpressionError::function_error(
                     e.to_string(),
                 ))
             })?;

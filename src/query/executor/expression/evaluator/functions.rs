@@ -2,7 +2,7 @@
 //!
 //! Provide the functionality to evaluate aggregate functions.
 
-use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::list::List;
 use crate::core::value::NullType;

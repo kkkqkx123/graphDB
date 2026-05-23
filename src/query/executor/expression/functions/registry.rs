@@ -5,7 +5,7 @@
 
 use super::BuiltinFunction;
 use super::CustomFunction;
-use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::Value;
 use std::collections::HashMap;
 use std::sync::Arc;

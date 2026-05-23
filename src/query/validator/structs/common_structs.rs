@@ -1,6 +1,6 @@
 //! General data structures
 
-use crate::core::error::ValidationError;
+use crate::query::validator::error::ValidationError;
 use crate::core::DataType;
 use crate::query::validator::strategies::helpers::ExpressionValidationContext;
 use crate::query::validator::structs::{AliasType, QueryPart};
