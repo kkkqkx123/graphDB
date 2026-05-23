@@ -77,6 +77,20 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
     /// applied directly without additional buffering, eliminating the
     /// double-buffering between TransactionBatchBuffer and BatchBuffer.
     pub async fn execute_now(&self, operations: Vec<IndexOperation>) -> BatchResult<()> {
+        self.execute_now_without_commit(operations).await?;
+        self.engine.commit().await.map_err(BatchError::from)?;
+        Ok(())
+    }
+
+    /// Like `execute_now`, but does NOT commit.
+    ///
+    /// This allows multiple batch processors to accumulate changes
+    /// before a single final commit across all of them, enabling
+    /// atomic multi-index transactional commits.
+    pub async fn execute_now_without_commit(
+        &self,
+        operations: Vec<IndexOperation>,
+    ) -> BatchResult<()> {
         let mut deletes = Vec::new();
         let mut items = Vec::new();
 
@@ -103,7 +117,6 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
                 .map_err(BatchError::from)?;
         }
 
-        self.engine.commit().await.map_err(BatchError::from)?;
         Ok(())
     }
 

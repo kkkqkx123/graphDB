@@ -213,6 +213,10 @@ impl SyncManager {
     }
 
     /// Edge deletion (synchronized buffering)
+    ///
+    /// Issues a delete operation for every fulltext index associated
+    /// with this edge type, since we need to remove the edge from
+    /// all indexed field indexes.
     pub fn on_edge_delete(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -221,18 +225,39 @@ impl SyncManager {
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), SyncError> {
-        // Create delete context for full-text index
-        let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
-            space_id,
-            edge_type,
-            "_id",
-            ChangeType::Delete,
-            format!("{}->{}", src, dst),
-            String::new(),
-        );
-        self.sync_coordinator
-            .buffer_operation(txn_id, ctx)
-            .map_err(SyncError::from)?;
+        let edge_id = format!("{}->{}", src, dst);
+
+        // Get all indexed fields for this edge type and delete from each.
+        let indexes = self
+            .sync_coordinator
+            .fulltext_manager()
+            .get_space_indexes(space_id)
+            .into_iter()
+            .filter(|m| m.tag_name == edge_type);
+
+        let mut found = false;
+        for metadata in indexes {
+            found = true;
+            let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                space_id,
+                edge_type,
+                &metadata.field_name,
+                ChangeType::Delete,
+                edge_id.clone(),
+                String::new(),
+            );
+            self.sync_coordinator
+                .buffer_operation(txn_id, ctx)
+                .map_err(SyncError::from)?;
+        }
+
+        if !found {
+            tracing::debug!(
+                "Edge delete for {}.{}: no fulltext indexes found, skipping",
+                space_id,
+                edge_type
+            );
+        }
 
         Ok(())
     }

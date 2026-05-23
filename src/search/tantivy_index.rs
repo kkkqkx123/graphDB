@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 
 use tantivy::collector::TopDocs;
 use tantivy::doc;
@@ -13,7 +15,7 @@ use tantivy::IndexWriter;
 use tantivy::TantivyDocument;
 
 use crate::core::Value;
-use crate::search::engine::SearchEngine;
+use crate::search::engine::{ConsistencyState, SearchEngine};
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
 use tantivy::tokenizer::JiebaTokenizer;
@@ -53,6 +55,15 @@ pub struct TantivyConfig {
     pub writer_memory_budget: usize,
     #[serde(default)]
     pub tokenizer: TokenizerKind,
+    /// Number of decompressed blocks to cache in the doc store reader.
+    /// Default is 100. Increase for workloads with large stored fields
+    /// to reduce repeated decompression overhead.
+    #[serde(default = "default_doc_store_cache_num_blocks")]
+    pub doc_store_cache_num_blocks: usize,
+}
+
+fn default_doc_store_cache_num_blocks() -> usize {
+    100
 }
 
 impl Default for TantivyConfig {
@@ -60,6 +71,7 @@ impl Default for TantivyConfig {
         Self {
             writer_memory_budget: 50_000_000,
             tokenizer: TokenizerKind::default(),
+            doc_store_cache_num_blocks: 100,
         }
     }
 }
@@ -87,6 +99,13 @@ pub struct TantivySearchEngine {
     text_field: Field,
     writer: Arc<Mutex<IndexWriter>>,
     reader: Arc<tantivy::IndexReader>,
+    /// Consistency tracking:
+    ///   0 = Consistent, 1 = Inconsistent, 2 = Rebuilding
+    consistency_state: AtomicU8,
+    /// Cached stats to avoid directory I/O on every stats() call.
+    cached_doc_count: AtomicU64,
+    cached_index_size: AtomicU64,
+    last_stats_update: std::sync::Mutex<Option<Instant>>,
 }
 
 impl std::fmt::Debug for TantivySearchEngine {
@@ -96,6 +115,50 @@ impl std::fmt::Debug for TantivySearchEngine {
 }
 
 impl TantivySearchEngine {
+    /// Execute a writer operation on the blocking thread pool.
+    /// This prevents tantivy's CPU/IO-bound IndexWriter operations
+    /// from starving tokio's async worker threads.
+    async fn with_writer<F, T>(&self, f: F) -> Result<T, SearchError>
+    where
+        F: FnOnce(&mut IndexWriter) -> Result<T, tantivy::TantivyError> + Send + 'static,
+        T: Send + 'static,
+    {
+        let writer = self.writer.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut guard = writer.lock();
+            f(&mut guard)
+        })
+        .await
+        .map_err(|e| SearchError::Internal(format!("Blocking task failed: {}", e)))?
+        .map_err(SearchError::from)
+    }
+
+    /// Recompute cached stats from the index reader and directory.
+    fn refresh_stats_cache(&self) {
+        {
+            let searcher = self.reader.searcher();
+            let doc_count = searcher.num_docs();
+            self.cached_doc_count.store(doc_count, Ordering::Release);
+        }
+
+        let index_size = self
+            .index_path
+            .read_dir()
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.file_type().ok().is_some_and(|t| t.is_file()))
+            .filter_map(|entry| entry.metadata().ok())
+            .map(|meta| meta.len())
+            .sum::<u64>();
+        self.cached_index_size.store(index_size, Ordering::Release);
+
+        if let Ok(mut last) = self.last_stats_update.lock() {
+            *last = Some(Instant::now());
+        }
+    }
+
     pub fn open_or_create(path: &Path, config: TantivyConfig) -> Result<Self, SearchError> {
         let (schema, id_field, text_field) = build_schema(&config);
 
@@ -122,6 +185,7 @@ impl TantivySearchEngine {
         let reader = index
             .reader_builder()
             .reload_policy(tantivy::ReloadPolicy::OnCommitWithDelay)
+            .doc_store_cache_num_blocks(config.doc_store_cache_num_blocks)
             .try_into()?;
 
         let index_path = path.to_path_buf();
@@ -133,6 +197,10 @@ impl TantivySearchEngine {
             text_field,
             writer: Arc::new(Mutex::new(writer)),
             reader: Arc::new(reader),
+            consistency_state: AtomicU8::new(0),
+            cached_doc_count: AtomicU64::new(0),
+            cached_index_size: AtomicU64::new(0),
+            last_stats_update: std::sync::Mutex::new(None),
         })
     }
 }
@@ -148,25 +216,30 @@ impl SearchEngine for TantivySearchEngine {
     }
 
     async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
-        let writer = self.writer.lock();
-        let doc = doc!(
-            self.id_field => doc_id,
-            self.text_field => content,
-        );
-        writer.add_document(doc)?;
-        Ok(())
+        let id_field = self.id_field;
+        let text_field = self.text_field;
+        let doc_id = doc_id.to_string();
+        let content = content.to_string();
+        self.with_writer(move |writer| {
+            let doc = doc!(id_field => doc_id.as_str(), text_field => content.as_str());
+            writer.add_document(doc)?;
+            Ok(())
+        })
+        .await
     }
 
     async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
-        let writer = self.writer.lock();
-        for (doc_id, content) in docs {
-            let doc = doc!(
-                self.id_field => doc_id.as_str(),
-                self.text_field => content.as_str(),
-            );
-            writer.add_document(doc)?;
-        }
-        Ok(())
+        let id_field = self.id_field;
+        let text_field = self.text_field;
+        let docs_clone = docs.clone();
+        self.with_writer(move |writer| {
+            for (doc_id, content) in &docs_clone {
+                let doc = doc!(id_field => doc_id.as_str(), text_field => content.as_str());
+                writer.add_document(doc)?;
+            }
+            Ok(())
+        })
+        .await
     }
 
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
@@ -216,56 +289,94 @@ impl SearchEngine for TantivySearchEngine {
     }
 
     async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
-        let writer = self.writer.lock();
-        writer.delete_term(
-            tantivy::Term::from_field_text(self.id_field, doc_id),
-        );
-        Ok(())
+        let id_field = self.id_field;
+        let doc_id = doc_id.to_string();
+        self.with_writer(move |writer| {
+            writer.delete_term(tantivy::Term::from_field_text(id_field, &doc_id));
+            Ok(())
+        })
+        .await
     }
 
     async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
-        let writer = self.writer.lock();
-        for doc_id in doc_ids {
-            writer.delete_term(
-                tantivy::Term::from_field_text(self.id_field, doc_id),
-            );
-        }
-        Ok(())
+        let id_field = self.id_field;
+        let ids: Vec<String> = doc_ids.into_iter().map(|s| s.to_string()).collect();
+        self.with_writer(move |writer| {
+            for doc_id in &ids {
+                writer.delete_term(tantivy::Term::from_field_text(id_field, doc_id));
+            }
+            Ok(())
+        })
+        .await
     }
 
     async fn commit(&self) -> Result<(), SearchError> {
-        let mut writer = self.writer.lock();
-        writer.commit()?;
+        self.with_writer(move |writer| {
+            writer.commit()?;
+            Ok(())
+        })
+        .await?;
+        self.refresh_stats_cache();
         Ok(())
     }
 
     async fn rollback(&self) -> Result<(), SearchError> {
-        Ok(())
+        self.with_writer(move |_writer| {
+            // tantivy does not support rollback.
+            // The transaction buffer (TransactionBatchBuffer) provides
+            // in-memory protection before commit. If a commit has already
+            // occurred, the index state is intentionally unchanged.
+            Ok(())
+        })
+        .await
     }
 
     async fn stats(&self) -> Result<IndexStats, SearchError> {
-        let searcher = self.reader.searcher();
-        let doc_count = searcher.num_docs() as usize;
+        const STATS_CACHE_TTL_SECS: u64 = 5;
 
-        // Calculate on-disk index size by summing all files in the index directory.
-        let index_size = self
-            .index_path
-            .read_dir()
+        let needs_refresh = self
+            .last_stats_update
+            .lock()
             .ok()
-            .into_iter()
-            .flatten()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_type().ok().is_some_and(|t| t.is_file()))
-            .filter_map(|entry| entry.metadata().ok())
-            .map(|meta| meta.len() as usize)
-            .sum();
+            .and_then(|last| *last)
+            .map(|t| t.elapsed().as_secs() > STATS_CACHE_TTL_SECS)
+            .unwrap_or(true);
+
+        if needs_refresh {
+            self.refresh_stats_cache();
+        }
 
         Ok(IndexStats {
-            doc_count,
-            index_size,
+            doc_count: self.cached_doc_count.load(Ordering::Acquire) as usize,
+            index_size: self.cached_index_size.load(Ordering::Acquire) as usize,
             last_updated: None,
             engine_info: None,
         })
+    }
+
+    fn consistency_state(&self) -> ConsistencyState {
+        match self.consistency_state.load(Ordering::Acquire) {
+            0 => ConsistencyState::Consistent,
+            1 => ConsistencyState::Inconsistent,
+            _ => ConsistencyState::Rebuilding,
+        }
+    }
+
+    fn mark_inconsistent(&self) {
+        self.consistency_state.store(1, Ordering::Release);
+    }
+
+    fn mark_consistent(&self) {
+        self.consistency_state.store(0, Ordering::Release);
+    }
+
+    async fn clear(&self) -> Result<(), SearchError> {
+        self.with_writer(move |writer| {
+            writer.delete_all_documents()?;
+            writer.commit()?;
+            Ok(())
+        })
+        .await
     }
 
     async fn close(&self) -> Result<(), SearchError> {

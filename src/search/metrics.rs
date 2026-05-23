@@ -4,7 +4,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 
 use crate::core::stats::StatsManager;
-use crate::search::engine::{EngineType, SearchEngine};
+use crate::search::engine::{ConsistencyState, EngineType, SearchEngine};
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
 
@@ -205,6 +205,22 @@ impl SearchEngine for MetricsSearchEngine {
 
     async fn close(&self) -> Result<(), SearchError> {
         self.inner.close().await
+    }
+
+    fn consistency_state(&self) -> ConsistencyState {
+        self.inner.consistency_state()
+    }
+
+    fn mark_inconsistent(&self) {
+        self.inner.mark_inconsistent();
+    }
+
+    fn mark_consistent(&self) {
+        self.inner.mark_consistent();
+    }
+
+    async fn clear(&self) -> Result<(), SearchError> {
+        self.inner.clear().await
     }
 }
 

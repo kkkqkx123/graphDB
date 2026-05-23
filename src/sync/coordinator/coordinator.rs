@@ -7,6 +7,7 @@ use tracing::{debug, warn};
 
 use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
 use crate::core::stats::StatsManager;
+use crate::search::engine::ConsistencyState;
 use crate::search::manager::FulltextIndexManager;
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
@@ -335,22 +336,26 @@ impl SyncCoordinator {
         Ok(())
     }
 
-    /// Commit phase: Apply all operations with batch optimization
+    /// Commit phase: Apply all operations with batch optimization.
+    ///
+    /// Uses deferred-commit pattern for atomicity:
+    ///   1. Pre-validate all target engines are consistent
+    ///   2. Apply all operations without committing (in-memory)
+    ///   3. Commit all engines at once
+    ///   4. On any failure, mark affected engines as Inconsistent
     pub async fn commit_transaction(
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
         let result = if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
-            // Get all cached operations (grouped by key)
             let grouped_ops = buffer
                 .take_operations(txn_id)
                 .map_err(SyncCoordinatorError::BatchError)?;
 
-            // Group operations by type (vector vs full-text) for batch processing
             let mut vector_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
             let mut fulltext_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
 
-            // First pass: categorize operations
+            // Categorize operations
             for (key, operations) in grouped_ops {
                 let is_vector = operations.iter().any(|op| {
                     matches!(
@@ -364,7 +369,6 @@ impl SyncCoordinator {
                         }
                     )
                 });
-
                 if is_vector {
                     vector_batches.insert(key.clone(), operations);
                 } else {
@@ -372,7 +376,22 @@ impl SyncCoordinator {
                 }
             }
 
-            // Second pass: process vector batches with aggregation (remote index - more retries)
+            // Pre-commit validation: check consistency of all involved engines
+            for key in fulltext_batches.keys() {
+                if let Some(engine) = self.fulltext_manager.get_engine(key.space_id, &key.tag_name, &key.field_name) {
+                    if engine.consistency_state() == ConsistencyState::Inconsistent {
+                        return Err(SyncCoordinatorError::InvalidOperation(format!(
+                            "Engine for {}.{}.{} is marked Inconsistent. Repair required before committing.",
+                            key.space_id, key.tag_name, key.field_name
+                        )));
+                    }
+                }
+            }
+
+            // Phase 1: Apply vector operations (with retry)
+            // Vector index is remote, so we keep full retry+commit per batch
+            let _vector_batch_count = vector_batches.len();
+            let mut vector_failed = false;
             for (key, operations) in vector_batches {
                 let retry_config = default_remote_retry_config();
 
@@ -404,19 +423,25 @@ impl SyncCoordinator {
                                 );
                                 dlq_clone.add(entry);
                             }
-                            return Err(SyncCoordinatorError::BatchError(
-                                crate::sync::batch::BatchError::InvalidOperation(format!(
-                                    "Failed to sync remote index operations: {:?}",
-                                    e
-                                )),
-                            ));
+                            vector_failed = true;
                         }
                     }
                 }
             }
+            if vector_failed {
+                return Err(SyncCoordinatorError::BatchError(
+                    crate::sync::batch::BatchError::InvalidOperation(
+                        "Vector batch commit failed after retries".to_string(),
+                    ),
+                ));
+            }
 
-            // Third pass: process full-text batches with aggregation (local index - fewer retries)
-            for (key, operations) in fulltext_batches {
+            // Phase 2: Apply fulltext operations WITHOUT committing (deferred commit)
+            // This ensures atomicity across multiple fulltext indexes.
+            let mut fulltext_failed = false;
+            let mut failed_keys: Vec<IndexKey> = Vec::new();
+
+            for (key, operations) in &fulltext_batches {
                 let retry_config = default_local_retry_config();
 
                 if let Some(processor) = self.get_or_create_fulltext_processor(
@@ -429,39 +454,61 @@ impl SyncCoordinator {
                     let dlq_clone = self.dead_letter_queue.clone();
 
                     match with_retry(
-                        || async { processor.execute_now(ops_clone.clone()).await },
+                        || async { processor.execute_now_without_commit(ops_clone.clone()).await },
                         &retry_config_clone,
                     )
                     .await
                     {
                         Ok(_) => {
-                            debug!("Fulltext batch committed successfully");
+                            debug!("Fulltext batch applied (pending commit)");
                         }
                         Err(e) => {
                             warn!("Fulltext batch failed after retries: {:?}", e);
                             for op in operations {
                                 let entry = DeadLetterEntry::new(
-                                    op,
+                                    op.clone(),
                                     format!("Local index sync failed after retries: {:?}", e),
                                     retry_config_clone.max_retries,
                                 );
                                 dlq_clone.add(entry);
                             }
-                            return Err(SyncCoordinatorError::BatchError(
-                                crate::sync::batch::BatchError::InvalidOperation(format!(
-                                    "Failed to sync local index operations: {:?}",
-                                    e
-                                )),
-                            ));
+                            fulltext_failed = true;
+                            failed_keys.push(key.clone());
                         }
                     }
                 }
             }
 
-            // Flush all remaining buffered operations to ensure persistence
+            if fulltext_failed {
+                // Mark failed engines as inconsistent so they can be rebuilt
+                for key in &failed_keys {
+                    if let Some(engine) = self.fulltext_manager.get_engine(key.space_id, &key.tag_name, &key.field_name) {
+                        engine.mark_inconsistent();
+                        warn!(
+                            "Marked engine {}.{}.{} as Inconsistent due to commit failure",
+                            key.space_id, key.tag_name, key.field_name
+                        );
+                    }
+                }
+                // Still try to commit the successful batch processors
+                self.commit_all().await.ok();
+                return Err(SyncCoordinatorError::BatchError(
+                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                        "Fulltext commit failed for {} indexes, marked as Inconsistent. Repair with rebuild_index.",
+                        failed_keys.len()
+                    )),
+                ));
+            }
+
+            // Phase 3: Commit all fulltext engines at once
             self.commit_all().await?;
 
-            log::debug!("Transaction {:?} committed with batch optimization", txn_id);
+            log::debug!(
+                "Transaction {:?} committed successfully ({} fulltext, {} vector batches)",
+                txn_id,
+                fulltext_batches.len(),
+                _vector_batch_count
+            );
             if let Some(ref sm) = self.stats_manager {
                 let total_depth: u64 = self
                     .transaction_buffers
@@ -685,11 +732,14 @@ impl SyncCoordinator {
     pub async fn start_background_tasks(&self) {
         log::info!("Starting background tasks for sync coordinator");
 
-        // Start background tasks for all processors
-        for entry in self.fulltext_processors.iter() {
-            let processor: Arc<FulltextProcessor> = entry.value().clone();
-            processor.start_background_task().await;
-        }
+        // Fulltext processors do not need background tasks because all fulltext
+        // index operations go through the transactional path:
+        //
+        //   buffer_operation() → TransactionBatchBuffer → commit_transaction()
+        //     → execute_now_without_commit() [bypasses BatchBuffer]
+        //
+        // The BatchBuffer within GenericBatchProcessor is never populated
+        // for fulltext operations, so a background flush would be a no-op.
 
         for entry in self.vector_processors.iter() {
             let processor: Arc<VectorProcessor> = entry.value().clone();

@@ -23,31 +23,36 @@ pub struct SyncWrapper<S: StorageClient + Debug> {
 
 impl<S: StorageClient> SyncWrapper<S> {
     /// Detect changed properties between two vertices.
-    fn detect_changed_properties(old_vertex: &Vertex, new_vertex: &Vertex) -> Vec<(String, Value)> {
+    fn detect_changed_properties(
+        tag_name: &str,
+        old_vertex: &Vertex,
+        new_vertex: &Vertex,
+    ) -> Vec<(String, Value)> {
         let mut changed_props = Vec::new();
 
-        for new_tag in &new_vertex.tags {
-            if let Some(old_tag) = old_vertex.tags.iter().find(|t| t.name == new_tag.name) {
+        let old_tag = old_vertex.tags.iter().find(|t| t.name == tag_name);
+        let new_tag = new_vertex.tags.iter().find(|t| t.name == tag_name);
+
+        match (old_tag, new_tag) {
+            (Some(old_tag), Some(new_tag)) => {
                 for (prop_name, new_value) in &new_tag.properties {
-                    if let Some(old_value) = old_tag.properties.get(prop_name) {
-                        if old_value != new_value {
+                    match old_tag.properties.get(prop_name) {
+                        Some(old_value) if old_value != new_value => {
                             changed_props.push((prop_name.clone(), new_value.clone()));
                         }
-                    } else {
-                        changed_props.push((prop_name.clone(), new_value.clone()));
+                        None => {
+                            changed_props.push((prop_name.clone(), new_value.clone()));
+                        }
+                        _ => {}
                     }
                 }
-
-                for (prop_name, old_value) in &old_tag.properties {
-                    if !new_tag.properties.contains_key(prop_name) {
-                        changed_props.push((prop_name.clone(), old_value.clone()));
-                    }
-                }
-            } else {
+            }
+            (None, Some(new_tag)) => {
                 for (prop_name, value) in &new_tag.properties {
                     changed_props.push((prop_name.clone(), value.clone()));
                 }
             }
+            _ => {}
         }
 
         changed_props
@@ -348,9 +353,10 @@ impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
                 let space_id = self.inner.get_space_id(space)?;
                 let txn_id = self.get_current_txn_id();
 
-                if let Some(first_tag) = vertex.tags.first() {
-                    let tag_name = &first_tag.name;
-                    let changed_props = Self::detect_changed_properties(&old_vertex, &vertex);
+                for tag in &vertex.tags {
+                    let tag_name = &tag.name;
+                    let changed_props =
+                        Self::detect_changed_properties(tag_name, &old_vertex, &vertex);
 
                     if !changed_props.is_empty() {
                         let vid_value = Value::from(vertex.vid);
@@ -393,19 +399,29 @@ impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
                     let id_value = Value::from(*id);
+                    let props: Vec<(String, Value)> = tag
+                        .properties
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
 
-                    sync_manager
-                        .on_vertex_change_with_txn(
-                            txn_id,
-                            space_id,
-                            tag_name,
-                            &id_value,
-                            &[],
-                            ChangeType::Delete,
-                        )
-                        .map_err(|e| {
-                            StorageError::db_error(format!("Failed to sync vertex delete: {}", e))
-                        })?;
+                    if !props.is_empty() {
+                        sync_manager
+                            .on_vertex_change_with_txn(
+                                txn_id,
+                                space_id,
+                                tag_name,
+                                &id_value,
+                                &props,
+                                ChangeType::Delete,
+                            )
+                            .map_err(|e| {
+                                StorageError::db_error(format!(
+                                    "Failed to sync vertex delete: {}",
+                                    e
+                                ))
+                            })?;
+                    }
                 }
             }
         }
@@ -429,19 +445,29 @@ impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
                 for tag in &vertex.tags {
                     let tag_name = &tag.name;
                     let id_value = Value::from(*id);
+                    let props: Vec<(String, Value)> = tag
+                        .properties
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
 
-                    sync_manager
-                        .on_vertex_change_with_txn(
-                            txn_id,
-                            space_id,
-                            tag_name,
-                            &id_value,
-                            &[],
-                            ChangeType::Delete,
-                        )
-                        .map_err(|e| {
-                            StorageError::db_error(format!("Failed to sync vertex delete: {}", e))
-                        })?;
+                    if !props.is_empty() {
+                        sync_manager
+                            .on_vertex_change_with_txn(
+                                txn_id,
+                                space_id,
+                                tag_name,
+                                &id_value,
+                                &props,
+                                ChangeType::Delete,
+                            )
+                            .map_err(|e| {
+                                StorageError::db_error(format!(
+                                    "Failed to sync vertex delete: {}",
+                                    e
+                                ))
+                            })?;
+                    }
                 }
             }
         }

@@ -66,16 +66,30 @@ impl ExternalIndexClient for FulltextClient {
     }
 
     async fn insert_batch(&self, items: Vec<(String, IndexData)>) -> IndexResult<()> {
+        let mut skipped = 0usize;
+        let total = items.len();
         let fulltext_items: Vec<(String, String)> = items
             .into_iter()
             .filter_map(|(id, data)| {
                 if let IndexData::Fulltext(text) = data {
                     Some((id, text))
                 } else {
+                    skipped += 1;
                     None
                 }
             })
             .collect();
+
+        if skipped > 0 {
+            tracing::warn!(
+                "FulltextClient::insert_batch: skipped {} non-fulltext items out of {} for {}.{}.{}",
+                skipped,
+                total,
+                self.space_id,
+                self.tag_name,
+                self.field_name,
+            );
+        }
 
         if fulltext_items.is_empty() {
             return Ok(());

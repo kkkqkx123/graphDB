@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::core::stats::StatsManager;
 use crate::search::config::FulltextConfig;
-use crate::search::engine::{EngineType, SearchEngine};
+use crate::search::engine::{ConsistencyState, EngineType, SearchEngine};
 use crate::search::error::SearchError;
 use crate::search::factory::SearchEngineFactory;
 use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
@@ -543,6 +543,55 @@ impl FulltextIndexManager {
             }
         }
 
+        Ok(())
+    }
+
+    /// Return all indexes whose consistency state is Inconsistent.
+    pub fn get_inconsistent_indexes(&self) -> Vec<IndexMetadata> {
+        self.metadata
+            .iter()
+            .filter(|entry| {
+                self.engines
+                    .get(entry.key())
+                    .is_some_and(|e| e.consistency_state() == ConsistencyState::Inconsistent)
+            })
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
+    /// Rebuild an index by clearing all documents and marking it consistent.
+    ///
+    /// After calling this, the index is empty but healthy. The caller
+    /// should re-index all relevant data from the main storage.
+    pub async fn rebuild_index(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+    ) -> Result<(), SearchError> {
+        let key = IndexKey::new(space_id, tag_name, field_name);
+        let engine = self
+            .engines
+            .get(&key)
+            .ok_or_else(|| SearchError::IndexNotFound(format!("{}.{}.{}", space_id, tag_name, field_name)))?;
+
+        engine.clear().await?;
+        engine.mark_consistent();
+
+        if let Some(mut metadata) = self.metadata.get_mut(&key) {
+            metadata.last_updated = chrono::Utc::now();
+            metadata.doc_count = 0;
+            metadata.status = IndexStatus::Active;
+        }
+
+        if let Err(e) = self.save_metadata_to_file() {
+            tracing::warn!("Failed to save metadata after rebuilding index: {}", e);
+        }
+
+        tracing::info!(
+            "Rebuilt index {}.{}.{} - cleared and marked consistent",
+            space_id, tag_name, field_name
+        );
         Ok(())
     }
 
