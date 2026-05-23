@@ -130,6 +130,13 @@ pub enum SchemaValidationError {
     UnsupportedOperation(String),
 }
 
+impl From<ValidationError> for crate::core::error::DBError {
+    fn from(e: ValidationError) -> Self {
+        let msg = e.to_string();
+        crate::core::error::DBError::validation(msg).with_source(Box::new(e))
+    }
+}
+
 /// Schema Validation Results
 #[derive(Debug, Clone)]
 pub struct SchemaValidationResult {
