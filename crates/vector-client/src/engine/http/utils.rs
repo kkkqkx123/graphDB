@@ -53,14 +53,6 @@ pub struct QdrantUpsertResult {
     pub status: Option<String>,
 }
 
-pub fn point_id_json(id: &str) -> Value {
-    if let Ok(num) = id.parse::<u64>() {
-        serde_json::json!(num)
-    } else {
-        serde_json::json!(id)
-    }
-}
-
 pub fn parse_payload(payload: Option<Value>) -> Option<std::collections::HashMap<String, Value>> {
     payload.and_then(|v| match v {
         Value::Object(map) => {

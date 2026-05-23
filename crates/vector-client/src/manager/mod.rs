@@ -7,12 +7,14 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use tracing::{debug, info, warn};
 
-use crate::config::VectorClientConfig;
+use crate::config::{EngineType, VectorClientConfig};
+#[cfg(feature = "qdrant-grpc")]
+use crate::engine::QdrantGrpcEngine;
+#[cfg(all(feature = "qdrant-http", not(feature = "qdrant-grpc")))]
+use crate::engine::QdrantEngine;
 use crate::engine::VectorEngine;
 use crate::error::{Result, VectorClientError};
 use crate::types::{CollectionConfig, SearchQuery, SearchResult, VectorPoint};
-
-use super::engine::QdrantEngine;
 
 pub struct VectorManager {
     engine: Arc<dyn VectorEngine>,
@@ -33,11 +35,8 @@ impl VectorManager {
         let enabled = config.enabled;
 
         let engine: Arc<dyn VectorEngine> = if enabled {
-            info!("Initializing Qdrant HTTP engine");
-            let qdrant_engine = QdrantEngine::new(config)
-                .await
-                .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
-            Arc::new(qdrant_engine) as Arc<dyn VectorEngine>
+            let engine = create_engine(config).await?;
+            engine
         } else {
             info!("Vector search is disabled, using no-op engine");
             Arc::new(DisabledEngine) as Arc<dyn VectorEngine>
@@ -148,7 +147,39 @@ impl VectorManager {
     }
 }
 
-#[cfg(feature = "qdrant-http")]
+async fn create_engine(config: VectorClientConfig) -> Result<Arc<dyn VectorEngine>> {
+    match config.engine {
+        EngineType::Qdrant => {
+            #[cfg(feature = "qdrant-grpc")]
+            {
+                info!("Initializing Qdrant gRPC engine");
+                let engine = QdrantGrpcEngine::new(config)
+                    .await
+                    .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
+                Ok(Arc::new(engine) as Arc<dyn VectorEngine>)
+            }
+
+            #[cfg(all(feature = "qdrant-http", not(feature = "qdrant-grpc")))]
+            {
+                info!("Initializing Qdrant HTTP engine");
+                let engine = QdrantEngine::new(config)
+                    .await
+                    .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
+                Ok(Arc::new(engine) as Arc<dyn VectorEngine>)
+            }
+
+            #[cfg(not(any(feature = "qdrant-http", feature = "qdrant-grpc")))]
+            {
+                let _ = config;
+                Err(VectorClientError::EngineNotAvailable(
+                    "Qdrant engine feature not enabled".to_string(),
+                ))
+            }
+        }
+    }
+}
+
+#[cfg(any(feature = "qdrant-http", feature = "qdrant-grpc"))]
 mod disabled {
     use async_trait::async_trait;
 
@@ -166,192 +197,41 @@ mod disabled {
 
     #[async_trait]
     impl VectorEngine for DisabledEngine {
-        fn name(&self) -> &str {
-            "disabled"
-        }
-
-        fn version(&self) -> &str {
-            "0.0"
-        }
+        fn name(&self) -> &str { "disabled" }
+        fn version(&self) -> &str { "0.0" }
 
         async fn health_check(&self) -> Result<HealthStatus> {
             Ok(HealthStatus::unhealthy("disabled", "0.0", "Engine disabled"))
         }
 
-        async fn create_collection(&self, _name: &str, _config: CollectionConfig) -> Result<()> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
+        async fn create_collection(&self, _name: &str, _config: CollectionConfig) -> Result<()> { self.err().await }
+        async fn delete_collection(&self, _name: &str) -> Result<()> { self.err().await }
+        async fn collection_exists(&self, _name: &str) -> Result<bool> { self.err().await }
+        async fn collection_info(&self, _name: &str) -> Result<CollectionInfo> { self.err().await }
+        async fn upsert(&self, _collection: &str, _point: VectorPoint) -> Result<UpsertResult> { self.err().await }
+        async fn upsert_batch(&self, _collection: &str, _points: Vec<VectorPoint>) -> Result<UpsertResult> { self.err().await }
+        async fn delete(&self, _collection: &str, _point_id: &str) -> Result<DeleteResult> { self.err().await }
+        async fn delete_batch(&self, _collection: &str, _point_ids: Vec<&str>) -> Result<DeleteResult> { self.err().await }
+        async fn delete_by_filter(&self, _collection: &str, _filter: VectorFilter) -> Result<DeleteResult> { self.err().await }
+        async fn search(&self, _collection: &str, _query: SearchQuery) -> Result<Vec<SearchResult>> { self.err().await }
+        async fn search_batch(&self, _collection: &str, _queries: Vec<SearchQuery>) -> Result<Vec<Vec<SearchResult>>> { self.err().await }
+        async fn get(&self, _collection: &str, _point_id: &str) -> Result<Option<VectorPoint>> { self.err().await }
+        async fn get_batch(&self, _collection: &str, _point_ids: Vec<&str>) -> Result<Vec<Option<VectorPoint>>> { self.err().await }
+        async fn count(&self, _collection: &str) -> Result<u64> { self.err().await }
+        async fn set_payload(&self, _collection: &str, _point_ids: Vec<&str>, _payload: Payload) -> Result<()> { self.err().await }
+        async fn delete_payload(&self, _collection: &str, _point_ids: Vec<&str>, _keys: Vec<&str>) -> Result<()> { self.err().await }
+        async fn scroll(&self, _collection: &str, _limit: usize, _offset: Option<&str>, _with_payload: Option<bool>, _with_vector: Option<bool>) -> Result<(Vec<VectorPoint>, Option<String>)> { self.err().await }
+        async fn create_payload_index(&self, _collection: &str, _field: &str, _schema: PayloadSchemaType) -> Result<()> { self.err().await }
+        async fn delete_payload_index(&self, _collection: &str, _field: &str) -> Result<()> { self.err().await }
+        async fn list_payload_indexes(&self, _collection: &str) -> Result<Vec<(String, PayloadSchemaType)>> { self.err().await }
+    }
 
-        async fn delete_collection(&self, _name: &str) -> Result<()> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn collection_exists(&self, _name: &str) -> Result<bool> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn collection_info(&self, _name: &str) -> Result<CollectionInfo> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn upsert(&self, _collection: &str, _point: VectorPoint) -> Result<UpsertResult> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn upsert_batch(
-            &self,
-            _collection: &str,
-            _points: Vec<VectorPoint>,
-        ) -> Result<UpsertResult> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn delete(&self, _collection: &str, _point_id: &str) -> Result<DeleteResult> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn delete_batch(
-            &self,
-            _collection: &str,
-            _point_ids: Vec<&str>,
-        ) -> Result<DeleteResult> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn delete_by_filter(
-            &self,
-            _collection: &str,
-            _filter: VectorFilter,
-        ) -> Result<DeleteResult> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn search(
-            &self,
-            _collection: &str,
-            _query: SearchQuery,
-        ) -> Result<Vec<SearchResult>> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn search_batch(
-            &self,
-            _collection: &str,
-            _queries: Vec<SearchQuery>,
-        ) -> Result<Vec<Vec<SearchResult>>> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn get(
-            &self,
-            _collection: &str,
-            _point_id: &str,
-        ) -> Result<Option<VectorPoint>> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn get_batch(
-            &self,
-            _collection: &str,
-            _point_ids: Vec<&str>,
-        ) -> Result<Vec<Option<VectorPoint>>> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn count(&self, _collection: &str) -> Result<u64> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn set_payload(
-            &self,
-            _collection: &str,
-            _point_ids: Vec<&str>,
-            _payload: Payload,
-        ) -> Result<()> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn delete_payload(
-            &self,
-            _collection: &str,
-            _point_ids: Vec<&str>,
-            _keys: Vec<&str>,
-        ) -> Result<()> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn scroll(
-            &self,
-            _collection: &str,
-            _limit: usize,
-            _offset: Option<&str>,
-            _with_payload: Option<bool>,
-            _with_vector: Option<bool>,
-        ) -> Result<(Vec<VectorPoint>, Option<String>)> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn create_payload_index(
-            &self,
-            _collection: &str,
-            _field: &str,
-            _schema: PayloadSchemaType,
-        ) -> Result<()> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn delete_payload_index(&self, _collection: &str, _field: &str) -> Result<()> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
-        }
-
-        async fn list_payload_indexes(
-            &self,
-            _collection: &str,
-        ) -> Result<Vec<(String, PayloadSchemaType)>> {
-            Err(VectorClientError::EngineNotAvailable(
-                "vector engine disabled".to_string(),
-            ))
+    impl DisabledEngine {
+        async fn err<T>(&self) -> Result<T> {
+            Err(VectorClientError::EngineNotAvailable("vector engine disabled".to_string()))
         }
     }
 }
 
-#[cfg(feature = "qdrant-http")]
+#[cfg(any(feature = "qdrant-http", feature = "qdrant-grpc"))]
 use disabled::DisabledEngine;

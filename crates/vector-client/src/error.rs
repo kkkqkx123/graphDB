@@ -70,6 +70,9 @@ pub enum VectorClientError {
     #[error("Qdrant HTTP error: status={status}, message={message}")]
     QdrantHttpError { status: u16, message: String },
 
+    #[error("Operation not supported by this engine: {0}")]
+    NotSupported(String),
+
     #[error("Internal error: {0}")]
     InternalError(String),
 }
@@ -92,9 +95,3 @@ impl VectorClientError {
     }
 }
 
-#[cfg(feature = "qdrant-client")]
-impl From<qdrant_client::QdrantError> for VectorClientError {
-    fn from(err: qdrant_client::QdrantError) -> Self {
-        VectorClientError::QdrantGrpcError(err.to_string())
-    }
-}

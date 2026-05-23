@@ -9,14 +9,15 @@ name = "vector_client"
 path = "src/lib.rs"
 
 [features]
-default = ["qdrant-http"]
+default = ["qdrant"]
+qdrant = ["qdrant-http"]
 qdrant-http = []
-qdrant-grpc = ["qdrant-client"]
+qdrant-grpc = ["dep:tonic", "dep:prost", "dep:prost-types"]
 llama_cpp = ["llama-cpp-2"]
 
 [dependencies]
 async-trait = "0.1"
-tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync"] }
+tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "sync", "time"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
@@ -26,9 +27,13 @@ reqwest = { version = "0.11", features = ["json"] }
 url = "2.5"
 chrono = { version = "0.4.38", features = ["serde"] }
 dashmap = "6.1"
-
-qdrant-client = { version = "1.17", optional = true }
 llama-cpp-2 = { version = "0.1", optional = true }
+tonic = { version = "0.12", optional = true }
+prost = { version = "0.13", optional = true }
+prost-types = { version = "0.13", optional = true }
+
+[build-dependencies]
+tonic-build = "0.12"
 
 [dev-dependencies]
 tokio-test = "0.4"

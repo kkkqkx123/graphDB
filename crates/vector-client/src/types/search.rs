@@ -71,6 +71,32 @@ impl SearchQuery {
         self
     }
 
+    pub fn effective_limit(&self) -> usize {
+        match &self.search_mode {
+            Some(SearchMode::Range {
+                max_results: Some(max),
+                ..
+            }) => *max,
+            Some(SearchMode::TopK(k)) => *k,
+            Some(SearchMode::KNN { k, .. }) => *k,
+            _ => self.limit,
+        }
+    }
+
+    pub fn hnsw_ef(&self) -> Option<usize> {
+        match &self.search_mode {
+            Some(SearchMode::KNN { ef_search, .. }) => *ef_search,
+            _ => None,
+        }
+    }
+
+    pub fn score_threshold(&self) -> Option<f32> {
+        match &self.search_mode {
+            Some(SearchMode::Range { radius, .. }) => Some(*radius),
+            _ => None,
+        }
+    }
+
     pub fn with_search_mode(mut self, mode: SearchMode) -> Self {
         self.search_mode = Some(mode);
         self

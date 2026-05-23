@@ -9,6 +9,9 @@ use crate::config::VectorClientConfig;
 use crate::error::{Result, VectorClientError};
 use crate::types::*;
 
+use super::common::convert::extract_search_params;
+use super::common::utils::point_id_to_json;
+
 mod config;
 mod filter;
 mod utils;
@@ -20,8 +23,7 @@ use config::{
 };
 use filter::convert_filter;
 use utils::{
-    parse_payload, point_id_json, PointIdValue, QdrantSearchResult, QdrantUpsertResult,
-    VectorValue,
+    parse_payload, PointIdValue, QdrantSearchResult, QdrantUpsertResult, VectorValue,
 };
 
 const QDRANT_VERSION: &str = "1.12.x (HTTP REST)";
@@ -324,7 +326,7 @@ impl VectorEngine for QdrantEngine {
     async fn upsert(&self, collection: &str, point: VectorPoint) -> Result<UpsertResult> {
         debug!("Upserting point '{}' to collection '{}'", point.id, collection);
 
-        let id = point_id_json(&point.id);
+        let id = point_id_to_json(&point.id);
         let point_json = if let Some(ref payload) = point.payload {
             serde_json::json!({
                 "id": id,
@@ -368,7 +370,7 @@ impl VectorEngine for QdrantEngine {
         let points_json: Vec<Value> = points
             .into_iter()
             .map(|p| {
-                let id = point_id_json(&p.id);
+                let id = point_id_to_json(&p.id);
                 if let Some(ref payload) = p.payload {
                     serde_json::json!({
                         "id": id,
@@ -403,7 +405,7 @@ impl VectorEngine for QdrantEngine {
     async fn delete(&self, collection: &str, point_id: &str) -> Result<DeleteResult> {
         debug!("Deleting point '{}' from collection '{}'", point_id, collection);
 
-        let id = point_id_json(point_id);
+        let id = point_id_to_json(point_id);
         let body = build_delete_by_ids_body(vec![id]);
         let response = self
             .request_json(
@@ -431,7 +433,7 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_to_json(id)).collect();
         let body = build_delete_by_ids_body(ids);
         let response = self
             .request_json(
@@ -493,39 +495,17 @@ impl VectorEngine for QdrantEngine {
             None
         };
 
-        let nprobe = query.nprobe.or_else(|| {
-            query.search_mode.as_ref().and_then(|mode| match mode {
-                SearchMode::KNN { ef_search, .. } => *ef_search,
-                _ => None,
-            })
-        });
-
-        let threshold = query.score_threshold.or_else(|| {
-            query.search_mode.as_ref().and_then(|mode| match mode {
-                SearchMode::Range { radius, .. } => Some(*radius),
-                _ => None,
-            })
-        });
-
-        let limit = match query.search_mode {
-            Some(SearchMode::Range {
-                max_results: Some(max),
-                ..
-            }) => max,
-            Some(SearchMode::TopK(k)) => k,
-            Some(SearchMode::KNN { k, .. }) => k,
-            _ => query.limit,
-        };
+        let params = extract_search_params(&query);
 
         let body = build_search_body(
             query.vector,
-            limit,
+            params.limit,
             query.offset,
-            threshold,
+            params.score_threshold,
             filter_json,
             query.with_payload,
             query.with_vector,
-            nprobe,
+            params.hnsw_ef,
         );
 
         let response = self
@@ -573,35 +553,17 @@ impl VectorEngine for QdrantEngine {
                     None
                 };
 
-                let nprobe = query.nprobe.or_else(|| {
-                    query.search_mode.as_ref().and_then(|mode| match mode {
-                        SearchMode::KNN { ef_search, .. } => *ef_search,
-                        _ => None,
-                    })
-                });
-
-                let threshold = query.score_threshold.or_else(|| {
-                    query.search_mode.as_ref().and_then(|mode| match mode {
-                        SearchMode::Range { radius, .. } => Some(*radius),
-                        _ => None,
-                    })
-                });
-
-                let limit = match query.search_mode {
-                    Some(SearchMode::TopK(k)) => k,
-                    Some(SearchMode::KNN { k, .. }) => k,
-                    _ => query.limit,
-                };
+                let params = extract_search_params(&query);
 
                 Ok(build_search_body(
                     query.vector,
-                    limit,
+                    params.limit,
                     query.offset,
-                    threshold,
+                    params.score_threshold,
                     filter_json,
                     query.with_payload,
                     query.with_vector,
-                    nprobe,
+                    params.hnsw_ef,
                 ))
             })
             .collect();
@@ -643,7 +605,7 @@ impl VectorEngine for QdrantEngine {
     ) -> Result<Option<VectorPoint>> {
         debug!("Getting point '{}' from collection '{}'", point_id, collection);
 
-        let id = point_id_json(point_id);
+        let id = point_id_to_json(point_id);
         let body = build_get_body(vec![id], Some(true), Some(true));
 
         #[derive(serde::Deserialize)]
@@ -699,7 +661,7 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_to_json(id)).collect();
         let body = build_get_body(ids, Some(true), Some(true));
 
         #[derive(serde::Deserialize)]
@@ -764,7 +726,7 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_to_json(id)).collect();
         let body = build_set_payload_body(ids, serde_json::to_value(&payload)?);
 
         let response = self
@@ -790,7 +752,7 @@ impl VectorEngine for QdrantEngine {
             collection
         );
 
-        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_json(id)).collect();
+        let ids: Vec<Value> = point_ids.iter().map(|id| point_id_to_json(id)).collect();
         let keys_owned: Vec<String> = keys.iter().map(|k| k.to_string()).collect();
         let body = build_delete_payload_body(ids, keys_owned);
 
@@ -814,7 +776,7 @@ impl VectorEngine for QdrantEngine {
     ) -> Result<(Vec<VectorPoint>, Option<String>)> {
         debug!("Scrolling collection '{}' with limit {}", collection, limit);
 
-        let offset_json = offset.map(point_id_json);
+        let offset_json = offset.map(point_id_to_json);
         let body = build_scroll_body(limit, offset_json, with_payload, with_vector);
 
         #[derive(serde::Deserialize)]

@@ -26,9 +26,101 @@ pub fn field_type_to_qdrant(schema: PayloadSchemaType) -> &'static str {
     }
 }
 
-#[allow(unused_variables)]
+fn build_vectors_json(
+    vector_size: usize,
+    distance: DistanceMetric,
+    index_type: Option<IndexType>,
+    hnsw_config: &Option<HnswConfig>,
+    quantization_config: &Option<QuantizationConfig>,
+) -> Value {
+    let distance_str = distance_to_qdrant(distance);
+    let mut vectors = json!({
+        "size": vector_size,
+        "distance": distance_str
+    });
+
+    if let Some(ref hnsw) = hnsw_config {
+        vectors["hnsw_config"] = build_hnsw_json(hnsw);
+    }
+
+    if let Some(s) = index_type {
+        if s != IndexType::HNSW {
+            tracing::warn!(
+                "Index type {:?} not supported by Qdrant, using HNSW with config",
+                s
+            );
+        }
+    }
+
+    if let Some(ref quant) = quantization_config {
+        if quant.enabled {
+            if let Some(ref qt) = quant.quant_type {
+                vectors["quantization_config"] = build_quantization_json(qt);
+            }
+        }
+    }
+
+    vectors
+}
+
+fn build_hnsw_json(hnsw: &HnswConfig) -> Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("m".to_string(), json!(hnsw.m));
+    obj.insert("ef_construct".to_string(), json!(hnsw.ef_construct));
+    if let Some(v) = hnsw.full_scan_threshold {
+        obj.insert("full_scan_threshold".to_string(), json!(v));
+    }
+    if let Some(v) = hnsw.max_indexing_threads {
+        obj.insert("max_indexing_threads".to_string(), json!(v));
+    }
+    if let Some(v) = hnsw.on_disk {
+        obj.insert("on_disk".to_string(), json!(v));
+    }
+    if let Some(v) = hnsw.payload_m {
+        obj.insert("payload_m".to_string(), json!(v));
+    }
+    Value::Object(obj)
+}
+
+fn build_quantization_json(qt: &QuantizationType) -> Value {
+    let mut obj = serde_json::Map::new();
+    let type_name = match qt {
+        QuantizationType::Scalar { .. } => "scalar",
+        QuantizationType::Product { .. } => "product",
+        QuantizationType::Binary { .. } => "binary",
+    };
+    obj.insert("type".to_string(), json!(type_name));
+
+    if let QuantizationType::Product { compression, .. } = qt {
+        let ratio = match compression {
+            CompressionRatio::X4 => 4,
+            CompressionRatio::X8 => 8,
+            CompressionRatio::X16 => 16,
+            CompressionRatio::X32 => 32,
+            CompressionRatio::X64 => 64,
+        };
+        obj.insert("compression".to_string(), json!(ratio));
+    }
+
+    let always_ram = match qt {
+        QuantizationType::Scalar { always_ram, .. }
+        | QuantizationType::Product { always_ram, .. }
+        | QuantizationType::Binary { always_ram } => always_ram,
+    };
+    if let Some(v) = always_ram {
+        obj.insert("always_ram".to_string(), json!(v));
+    }
+
+    if let QuantizationType::Scalar { quantile: Some(v), .. } = qt {
+        obj.insert("quantile".to_string(), json!(v));
+    }
+
+    Value::Object(obj)
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn build_create_collection_body(
-    name: &str,
+    _name: &str,
     vector_size: usize,
     distance: DistanceMetric,
     index_type: Option<IndexType>,
@@ -37,107 +129,7 @@ pub fn build_create_collection_body(
     on_disk_payload: Option<bool>,
     shard_number: Option<usize>,
 ) -> Value {
-    let distance_str = distance_to_qdrant(distance);
-
-    let mut vectors = json!({
-        "size": vector_size,
-        "distance": distance_str
-    });
-
-    if let Some(ref hnsw) = hnsw_config {
-        let mut hnsw_obj = serde_json::Map::new();
-        hnsw_obj.insert("m".to_string(), json!(hnsw.m));
-        hnsw_obj.insert("ef_construct".to_string(), json!(hnsw.ef_construct));
-        if let Some(threshold) = hnsw.full_scan_threshold {
-            hnsw_obj.insert("full_scan_threshold".to_string(), json!(threshold));
-        }
-        if let Some(threads) = hnsw.max_indexing_threads {
-            hnsw_obj.insert("max_indexing_threads".to_string(), json!(threads));
-        }
-        if let Some(on_disk) = hnsw.on_disk {
-            hnsw_obj.insert("on_disk".to_string(), json!(on_disk));
-        }
-        if let Some(payload_m) = hnsw.payload_m {
-            hnsw_obj.insert("payload_m".to_string(), json!(payload_m));
-        }
-
-        let mut vectors_obj =
-            serde_json::Map::from_iter(vec![("hnsw_config".to_string(), Value::Object(hnsw_obj))]);
-        if let Some(s) = index_type {
-            if s != IndexType::HNSW {
-                tracing::warn!(
-                    "Index type {:?} not supported by Qdrant, using HNSW with config",
-                    s
-                );
-            }
-        }
-        vectors_obj.insert("size".to_string(), json!(vector_size));
-        vectors_obj.insert("distance".to_string(), json!(distance_str));
-        vectors = Value::Object(vectors_obj);
-    }
-
-    if let Some(ref quant) = quantization_config {
-        if quant.enabled {
-            if let Some(ref qt) = quant.quant_type {
-                let quant_val = match qt {
-                    QuantizationType::Scalar {
-                        quantile,
-                        always_ram,
-                    } => {
-                        let mut obj = serde_json::Map::new();
-                        obj.insert("type".to_string(), json!("scalar"));
-                        if let Some(q) = quantile {
-                            obj.insert("quantile".to_string(), json!(q));
-                        }
-                        if let Some(ar) = always_ram {
-                            obj.insert("always_ram".to_string(), json!(ar));
-                        }
-                        Value::Object(obj)
-                    }
-                    QuantizationType::Product {
-                        compression,
-                        always_ram,
-                    } => {
-                        let ratio = match compression {
-                            CompressionRatio::X4 => 4,
-                            CompressionRatio::X8 => 8,
-                            CompressionRatio::X16 => 16,
-                            CompressionRatio::X32 => 32,
-                            CompressionRatio::X64 => 64,
-                        };
-                        let mut obj = serde_json::Map::new();
-                        obj.insert("type".to_string(), json!("product"));
-                        obj.insert("compression".to_string(), json!(ratio));
-                        if let Some(ar) = always_ram {
-                            obj.insert("always_ram".to_string(), json!(ar));
-                        }
-                        Value::Object(obj)
-                    }
-                    QuantizationType::Binary { always_ram } => {
-                        let mut obj = serde_json::Map::new();
-                        obj.insert("type".to_string(), json!("binary"));
-                        if let Some(ar) = always_ram {
-                            obj.insert("always_ram".to_string(), json!(ar));
-                        }
-                        Value::Object(obj)
-                    }
-                };
-                let mut vectors_obj = serde_json::Map::new();
-                vectors_obj.insert("size".to_string(), json!(vector_size));
-                vectors_obj.insert("distance".to_string(), json!(distance_str));
-                vectors_obj.insert("quantization_config".to_string(), quant_val);
-                if hnsw_config.is_some() {
-                    if let Some(ref hnsw) = hnsw_config {
-                        let mut hnsw_obj = serde_json::Map::new();
-                        hnsw_obj.insert("m".to_string(), json!(hnsw.m));
-                        hnsw_obj.insert("ef_construct".to_string(), json!(hnsw.ef_construct));
-                        vectors_obj.insert("hnsw_config".to_string(), Value::Object(hnsw_obj));
-                    }
-                }
-                vectors = Value::Object(vectors_obj);
-            }
-        }
-    }
+    let vectors = build_vectors_json(vector_size, distance, index_type, hnsw_config, quantization_config);
 
     let mut body = serde_json::Map::new();
     body.insert("vectors".to_string(), vectors);
@@ -171,6 +163,7 @@ pub fn build_delete_by_filter_body(filter: Value) -> Value {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_search_body(
     vector: Vec<f32>,
     limit: usize,

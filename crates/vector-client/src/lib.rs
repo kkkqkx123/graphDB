@@ -14,6 +14,9 @@ pub use types::*;
 #[cfg(feature = "qdrant-http")]
 pub use engine::QdrantEngine;
 
+#[cfg(feature = "qdrant-grpc")]
+pub use engine::QdrantGrpcEngine;
+
 pub use api::VectorClient;
 pub use api::{CollectionApi, PointApi, SearchApi};
 pub use embedding::{EmbeddingConfig, EmbeddingError, EmbeddingProvider, EmbeddingService};

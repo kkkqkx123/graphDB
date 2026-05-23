@@ -1,8 +1,28 @@
-fn main() {
-    // Enable Vulkan support when llama_cpp feature is enabled
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "llama_cpp")]
     {
         println!("cargo:rustc-env=CMAKE_ARGS=-DGGML_VULKAN=on");
         println!("cargo:rerun-if-changed=build.rs");
     }
+
+    #[cfg(feature = "qdrant-grpc")]
+    {
+        println!("cargo:rerun-if-changed=proto/");
+
+        let manifest_dir = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
+        let proto_dir = manifest_dir.join("proto");
+
+        tonic_build::configure()
+            .build_server(false)
+            .build_client(true)
+            .compile_protos(
+                &[
+                    proto_dir.join("collections_service.proto"),
+                    proto_dir.join("points_service.proto"),
+                ],
+                &[proto_dir],
+            )?;
+    }
+
+    Ok(())
 }

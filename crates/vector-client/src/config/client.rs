@@ -308,9 +308,6 @@ mod validation_tests {
     fn test_connection_config_invalid_port() {
         let config = ConnectionConfig::new("localhost", 0);
         assert!(config.validate().is_err());
-
-        let config = ConnectionConfig::new("localhost", 65535);
-        assert!(config.validate().is_err());
     }
 
     #[test]

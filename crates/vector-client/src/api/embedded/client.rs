@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::config::{EngineType, VectorClientConfig};
-use crate::engine::QdrantEngine;
 use crate::engine::VectorEngine;
 use crate::error::Result;
 use crate::types::HealthStatus;
@@ -15,18 +14,30 @@ pub struct VectorClient {
 }
 
 impl VectorClient {
-    pub async fn qdrant(config: VectorClientConfig) -> Result<Self> {
-        let engine = QdrantEngine::new(config.clone()).await?;
-        Ok(Self {
-            engine: Arc::new(engine),
-            config,
-        })
-    }
-
     pub async fn new(config: VectorClientConfig) -> Result<Self> {
-        match config.engine {
-            EngineType::Qdrant => Self::qdrant(config).await,
-        }
+        let engine: Arc<dyn VectorEngine> = match config.engine {
+            EngineType::Qdrant => {
+                #[cfg(feature = "qdrant-grpc")]
+                {
+                    let e = crate::engine::QdrantGrpcEngine::new(config.clone()).await?;
+                    Arc::new(e)
+                }
+                #[cfg(all(feature = "qdrant-http", not(feature = "qdrant-grpc")))]
+                {
+                    let e = crate::engine::QdrantEngine::new(config.clone()).await?;
+                    Arc::new(e)
+                }
+                #[cfg(not(any(feature = "qdrant-http", feature = "qdrant-grpc")))]
+                {
+                    let _ = config;
+                    return Err(crate::error::VectorClientError::EngineNotAvailable(
+                        "no qdrant engine feature enabled".to_string(),
+                    ));
+                }
+            }
+        };
+
+        Ok(Self { engine, config })
     }
 
     pub fn engine(&self) -> &dyn VectorEngine {
