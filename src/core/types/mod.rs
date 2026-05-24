@@ -28,6 +28,7 @@ pub mod user;
 pub mod user_storage;
 // Full-text search types
 pub mod fulltext_query;
+pub mod memory_estimation;
 
 use serde::{Deserialize, Serialize};
 

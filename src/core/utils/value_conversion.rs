@@ -2,10 +2,12 @@
 //!
 //! Provides conversions between graphdb_value_t and core::Value.
 
+use crate::core::Value;
+
+#[cfg(feature = "c-api")]
 use crate::api::embedded::c_api::types::{
     graphdb_string_t, graphdb_value_data_t, graphdb_value_t, graphdb_value_type_t,
 };
-use crate::core::Value;
 
 /// Converting Core Value to C API Value Types
 pub fn core_value_to_graphdb(value: &Value) -> graphdb_value_t {

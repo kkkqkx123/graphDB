@@ -3,58 +3,28 @@
 //! This trait provides a common interface for estimating memory usage
 //! of different plan node types.
 
-pub trait MemoryEstimatable {
-    /// Estimate memory usage for this node (in bytes)
-    /// This should only estimate the node's own fields, not child nodes
-    fn estimate_memory(&self) -> usize;
-}
-
-/// Helper function to estimate String memory
-/// Uses capacity() to reflect actual heap allocation
-pub fn estimate_string_memory(s: &String) -> usize {
-    std::mem::size_of::<String>() + s.capacity()
-}
-
-/// Helper function to estimate Option<String> memory
-/// Uses capacity() to reflect actual heap allocation
-pub fn estimate_option_string_memory(opt: &Option<String>) -> usize {
-    std::mem::size_of::<Option<String>>()
-        + opt
-            .as_ref()
-            .map(|s| std::mem::size_of::<String>() + s.capacity())
-            .unwrap_or(0)
-}
-
-/// Helper function to estimate Vec<String> memory
-/// Uses capacity() for each string to reflect actual heap allocation
-pub fn estimate_vec_string_memory(vec: &[String]) -> usize {
-    std::mem::size_of::<Vec<String>>()
-        + vec
-            .iter()
-            .map(|s| std::mem::size_of::<String>() + s.capacity())
-            .sum::<usize>()
-}
-
-/// Helper function to estimate Vec<T> memory
-pub fn estimate_vec_memory<T>(vec: &[T]) -> usize {
-    std::mem::size_of_val(vec)
-}
+pub use crate::core::types::memory_estimation::{
+    estimate_option_string_memory, estimate_string_memory, estimate_vec_memory,
+    estimate_vec_string_memory, MemoryEstimatable,
+};
 
 /// Macro to implement a default estimate_memory for plan nodes
 /// This macro estimates the base struct size and col_names vector
 #[macro_export]
 macro_rules! impl_default_estimate_memory {
     ($node_type:ty) => {
-        impl $crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable for $node_type {
+        impl $crate::core::types::memory_estimation::MemoryEstimatable for $node_type {
             fn estimate_memory(&self) -> usize {
                 let base = std::mem::size_of::<$node_type>();
 
-                // Estimate col_names vector
-                let col_names_size = $crate::query::planning::plan::core::nodes::base::memory_estimation::estimate_vec_string_memory(&self.col_names());
+                let col_names_size =
+                    $crate::core::types::memory_estimation::estimate_vec_string_memory(
+                        &self.col_names(),
+                    );
 
-                // Estimate output_var
-                let output_var_size = std::mem::size_of::<Option<String>>() +
-                    self.output_var()
+                let output_var_size = std::mem::size_of::<Option<String>>()
+                    + self
+                        .output_var()
                         .map(|s| std::mem::size_of::<String>() + s.capacity())
                         .unwrap_or(0);
 

@@ -20,58 +20,15 @@ use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
 use tantivy::tokenizer::JiebaTokenizer;
 
-/// Supported tokenizer kinds.
-///
-/// Tokenizers are always from the project itself (tantivy built-in or jieba),
-/// so we use a closed enum instead of a dynamic string-based approach.
-/// This eliminates runtime validation and ensures type safety.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TokenizerKind {
-    /// Jieba Chinese text segmentation (default).
-    #[default]
-    Jieba,
-    /// Tantivy's raw tokenizer (no processing).
-    Raw,
-    /// Tantivy's default tokenizer (SimpleTokenizer + LowerCaser).
-    Default,
-    /// Tantivy's whitespace tokenizer.
-    Whitespace,
-}
+pub use crate::config::common::fulltext::{TantivyConfig, TokenizerKind};
 
 impl TokenizerKind {
-    fn name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         match self {
             TokenizerKind::Jieba => "jieba",
             TokenizerKind::Raw => "raw",
             TokenizerKind::Default => "default",
             TokenizerKind::Whitespace => "whitespace",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TantivyConfig {
-    pub writer_memory_budget: usize,
-    #[serde(default)]
-    pub tokenizer: TokenizerKind,
-    /// Number of decompressed blocks to cache in the doc store reader.
-    /// Default is 100. Increase for workloads with large stored fields
-    /// to reduce repeated decompression overhead.
-    #[serde(default = "default_doc_store_cache_num_blocks")]
-    pub doc_store_cache_num_blocks: usize,
-}
-
-fn default_doc_store_cache_num_blocks() -> usize {
-    100
-}
-
-impl Default for TantivyConfig {
-    fn default() -> Self {
-        Self {
-            writer_memory_budget: 50_000_000,
-            tokenizer: TokenizerKind::default(),
-            doc_store_cache_num_blocks: 100,
         }
     }
 }

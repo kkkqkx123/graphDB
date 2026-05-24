@@ -166,7 +166,9 @@ pub struct StatsManager {
     query_profiles: Arc<RwLock<VecDeque<QueryProfile>>>,
     query_latency_histogram: Arc<RwLock<LatencyHistogram>>,
     search_latency_histogram: Arc<RwLock<LatencyHistogram>>,
-    config: crate::config::MonitoringConfig,
+    monitoring_enabled: bool,
+    profile_cache_size: usize,
+    slow_query_threshold_us: u64,
     error_stats: ErrorStatsManager,
     slow_query_logger: Option<Arc<SlowQueryLogger>>,
     aggregated_stats: AggregatedStatsManager,
@@ -174,20 +176,39 @@ pub struct StatsManager {
 
 impl StatsManager {
     pub fn new() -> Self {
-        Self::with_config(crate::config::MonitoringConfig::default())
-    }
-
-    pub fn with_config(config: crate::config::MonitoringConfig) -> Self {
-        let cache_size = config.memory_cache_size;
         Self {
             metrics: Arc::new(DashMap::new()),
             space_metrics: Arc::new(DashMap::new()),
             index_metrics: Arc::new(DashMap::new()),
             last_query_metrics: Arc::new(RwLock::new(None)),
-            query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(cache_size))),
+            query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(1000))),
             query_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
             search_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
-            config,
+            monitoring_enabled: true,
+            profile_cache_size: 1000,
+            slow_query_threshold_us: 1_000_000,
+            error_stats: ErrorStatsManager::new(),
+            slow_query_logger: None,
+            aggregated_stats: AggregatedStatsManager::new(),
+        }
+    }
+
+    pub fn with_config(
+        monitoring_enabled: bool,
+        profile_cache_size: usize,
+        slow_query_threshold_us: u64,
+    ) -> Self {
+        Self {
+            metrics: Arc::new(DashMap::new()),
+            space_metrics: Arc::new(DashMap::new()),
+            index_metrics: Arc::new(DashMap::new()),
+            last_query_metrics: Arc::new(RwLock::new(None)),
+            query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(profile_cache_size))),
+            query_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
+            search_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
+            monitoring_enabled,
+            profile_cache_size,
+            slow_query_threshold_us,
             error_stats: ErrorStatsManager::new(),
             slow_query_logger: None,
             aggregated_stats: AggregatedStatsManager::new(),
@@ -196,10 +217,11 @@ impl StatsManager {
 
     /// Create StatsManager with slow query logger
     pub fn with_slow_query_logger(
-        config: crate::config::MonitoringConfig,
+        monitoring_enabled: bool,
+        profile_cache_size: usize,
+        slow_query_threshold_us: u64,
         slow_query_config: SlowQueryConfig,
     ) -> Result<Self, std::io::Error> {
-        let cache_size = config.memory_cache_size;
         let logger = Arc::new(SlowQueryLogger::new(slow_query_config)?);
 
         Ok(Self {
@@ -207,10 +229,12 @@ impl StatsManager {
             space_metrics: Arc::new(DashMap::new()),
             index_metrics: Arc::new(DashMap::new()),
             last_query_metrics: Arc::new(RwLock::new(None)),
-            query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(cache_size))),
+            query_profiles: Arc::new(RwLock::new(VecDeque::with_capacity(profile_cache_size))),
             query_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
             search_latency_histogram: Arc::new(RwLock::new(LatencyHistogram::new(10000))),
-            config,
+            monitoring_enabled,
+            profile_cache_size,
+            slow_query_threshold_us,
             error_stats: ErrorStatsManager::new(),
             slow_query_logger: Some(logger),
             aggregated_stats: AggregatedStatsManager::new(),
@@ -218,16 +242,16 @@ impl StatsManager {
     }
 
     pub fn record_query_profile(&self, profile: QueryProfile) {
-        if !self.config.enabled {
+        if !self.monitoring_enabled {
             return;
         }
 
-        if profile.total_duration_us >= self.config.slow_query_threshold_ms * 1000 {
+        if profile.total_duration_us >= self.slow_query_threshold_us {
             self.write_slow_query_log(&profile);
         }
 
         let mut profiles = self.query_profiles.write();
-        if profiles.len() >= self.config.memory_cache_size {
+        if profiles.len() >= self.profile_cache_size {
             profiles.pop_front();
         }
         profiles.push_back(profile);
@@ -307,19 +331,20 @@ Executor details: {}{}",
         let profiles = self.query_profiles.write();
         profiles
             .iter()
-            .filter(|p| p.total_duration_us >= self.config.slow_query_threshold_ms * 1000)
+            .filter(|p| p.total_duration_us >= self.slow_query_threshold_us)
             .rev()
             .take(limit)
             .cloned()
             .collect()
     }
 
-    /// Get slow query statistics
-    pub fn get_slow_query_stats(&self) -> SlowQueryStats {
+    pub fn get_all_slow_queries(&self, limit: usize) -> SlowQueryStats {
         let profiles = self.query_profiles.write();
-        let slow_queries: Vec<&QueryProfile> = profiles
+        let slow_queries: Vec<_> = profiles
             .iter()
-            .filter(|p| p.total_duration_us >= self.config.slow_query_threshold_ms * 1000)
+            .filter(|p| p.total_duration_us >= self.slow_query_threshold_us)
+            .take(limit)
+            .cloned()
             .collect();
 
         let total = slow_queries.len() as u64;
@@ -1033,13 +1058,7 @@ mod tests {
 
     #[test]
     fn test_record_and_get_query_profile() {
-        let config = crate::config::MonitoringConfig {
-            enabled: true,
-            memory_cache_size: 10,
-            slow_query_threshold_ms: 1000,
-            slow_query_log: crate::config::SlowQueryLogConfig::default(),
-        };
-        let stats = StatsManager::with_config(config);
+        let stats = StatsManager::with_config(true, 10, 1_000_000);
 
         let mut profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
         profile.total_duration_us = 500;
@@ -1056,13 +1075,7 @@ mod tests {
 
     #[test]
     fn test_get_slow_queries() {
-        let config = crate::config::MonitoringConfig {
-            enabled: true,
-            memory_cache_size: 10,
-            slow_query_threshold_ms: 1000,
-            slow_query_log: crate::config::SlowQueryLogConfig::default(),
-        };
-        let stats = StatsManager::with_config(config);
+        let stats = StatsManager::with_config(true, 10, 1_000_000);
 
         let mut slow_profile = QueryProfile::new(1, "MATCH (n) RETURN n".to_string());
         slow_profile.total_duration_us = 2_000_000; // 2000ms in microseconds
@@ -1079,12 +1092,7 @@ mod tests {
 
     #[test]
     fn test_query_cache_size_limit() {
-        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
-            enabled: true,
-            memory_cache_size: 3,
-            slow_query_threshold_ms: 1000,
-            slow_query_log: crate::config::SlowQueryLogConfig::default(),
-        });
+        let stats = StatsManager::with_config(true, 3, 1_000_000);
 
         for i in 0..5 {
             let profile = QueryProfile::new(i as i64, format!("Query {}", i));
@@ -1100,12 +1108,7 @@ mod tests {
 
     #[test]
     fn test_disabled_monitoring() {
-        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
-            enabled: false,
-            memory_cache_size: 10,
-            slow_query_threshold_ms: 1000,
-            slow_query_log: crate::config::SlowQueryLogConfig::default(),
-        });
+        let stats = StatsManager::with_config(false, 10, 1_000_000);
 
         let profile = QueryProfile::new(123, "MATCH (n) RETURN n".to_string());
         stats.record_query_profile(profile);
@@ -1138,13 +1141,7 @@ mod tests {
 
     #[test]
     fn test_slow_query_aggregated_recording() {
-        let config = crate::config::MonitoringConfig {
-            enabled: true,
-            memory_cache_size: 10,
-            slow_query_threshold_ms: 1000,
-            slow_query_log: crate::config::SlowQueryLogConfig::default(),
-        };
-        let stats = StatsManager::with_config(config);
+        let stats = StatsManager::with_config(true, 10, 1_000_000);
 
         // Create a slow query profile
         let mut profile =

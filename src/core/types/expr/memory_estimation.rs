@@ -3,8 +3,8 @@
 //! This module provides memory estimation for the Expression enum and related types.
 
 use crate::core::types::expr::Expression;
+use crate::core::types::memory_estimation::MemoryEstimatable;
 use crate::core::value::Value;
-use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
 
 impl MemoryEstimatable for Expression {
     fn estimate_memory(&self) -> usize {
@@ -144,7 +144,7 @@ fn estimate_string_memory(s: &String) -> usize {
 
 /// Helper function to estimate Value memory
 fn estimate_value_memory(value: &Value) -> usize {
-    use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEstimatable;
+    use crate::core::types::memory_estimation::MemoryEstimatable;
     value.estimate_memory()
 }
 

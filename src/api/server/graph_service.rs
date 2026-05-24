@@ -116,9 +116,15 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             ext_stats
         } else {
             let slow_query_config = config.to_slow_query_config();
+            let m = &config.monitoring;
             Arc::new(
-                StatsManager::with_slow_query_logger(config.monitoring.clone(), slow_query_config)
-                    .expect("Failed to create StatsManager with slow query logger"),
+                StatsManager::with_slow_query_logger(
+                    m.enabled,
+                    m.memory_cache_size,
+                    m.slow_query_threshold_ms * 1000,
+                    slow_query_config,
+                )
+                .expect("Failed to create StatsManager with slow query logger"),
             )
         };
 

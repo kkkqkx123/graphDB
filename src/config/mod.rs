@@ -69,7 +69,6 @@ pub use server::http::HttpServerConfig;
 #[cfg(feature = "server")]
 pub use server::security::{AuditConfig, PasswordPolicyConfig, SecurityConfig, SslConfig};
 
-use crate::search::config::FulltextConfig;
 use vector_client::VectorClientConfig;
 
 /// Global configuration aggregator

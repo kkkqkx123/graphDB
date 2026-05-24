@@ -3,6 +3,7 @@
 //! Contains configuration that is shared across all usage patterns (server, embedded, c-api)
 
 pub mod database;
+pub mod fulltext;
 pub mod log;
 pub mod monitoring;
 pub mod optimizer;
@@ -10,6 +11,7 @@ pub mod storage;
 pub mod transaction;
 
 pub use database::*;
+pub use fulltext::*;
 pub use log::*;
 pub use monitoring::*;
 pub use optimizer::*;

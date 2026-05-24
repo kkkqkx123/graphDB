@@ -8,7 +8,7 @@ use std::sync::Arc;
 use super::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::DataType;
 use crate::core::Value;
-use crate::query::validator::context::ExpressionAnalysisContext;
+use super::ExpressionAnalysisContext;
 /// Enhanced expression metadata with query context references
 ///
 /// Lightweight expression references, holding ExpressionId and Context references.

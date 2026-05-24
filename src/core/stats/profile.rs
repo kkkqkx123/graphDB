@@ -5,8 +5,8 @@
 use std::time::Instant;
 
 use super::error_stats::{ErrorInfo, ErrorType, QueryPhase};
+use super::executor_stats::ExecutorStats;
 use super::utils::micros_to_millis;
-use crate::query::executor::base::ExecutorStats;
 
 /// Statistics during the query execution phase (in microseconds)
 #[derive(Debug, Clone, Default)]
@@ -183,7 +183,7 @@ impl QueryProfile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::executor::base::ExecutorStats;
+    use crate::core::stats::executor_stats::ExecutorStats;
 
     #[test]
     fn test_query_profile_creation() {

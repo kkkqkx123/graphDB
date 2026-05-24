@@ -55,15 +55,4 @@ pub trait SearchEngine: Send + Sync + std::fmt::Debug {
     async fn clear(&self) -> Result<(), SearchError>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum EngineType {
-    Bm25,
-}
-
-impl std::fmt::Display for EngineType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EngineType::Bm25 => write!(f, "bm25"),
-        }
-    }
-}
+pub use crate::config::common::fulltext::FulltextEngineType as EngineType;

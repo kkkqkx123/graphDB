@@ -26,6 +26,7 @@
 
 pub mod aggregated_stats;
 pub mod error_stats;
+pub mod executor_stats;
 pub mod latency_histogram;
 pub mod manager;
 pub mod metrics;

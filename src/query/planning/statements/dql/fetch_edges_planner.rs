@@ -54,12 +54,13 @@ impl Planner for FetchEdgesPlanner {
             }
         };
 
-        let src_str = extract_string_from_expr(src)?;
-        let dst_str = extract_string_from_expr(dst)?;
+        let src_str = extract_string_from_expr(src).map_err(PlannerError::InvalidOperation)?;
+        let dst_str = extract_string_from_expr(dst).map_err(PlannerError::InvalidOperation)?;
         let rank_str = rank
             .as_ref()
             .map(extract_string_from_expr)
-            .transpose()?
+            .transpose()
+            .map_err(PlannerError::InvalidOperation)?
             .unwrap_or_else(|| "0".to_string());
 
         let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(

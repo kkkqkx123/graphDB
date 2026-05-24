@@ -180,9 +180,12 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
 
     // Create shared StatsManager for all components (before TransactionManager to enable wiring)
     let slow_query_config = config.to_slow_query_config();
+    let m = &config.monitoring;
     let stats_manager = Arc::new(
         crate::core::stats::StatsManager::with_slow_query_logger(
-            config.monitoring.clone(),
+            m.enabled,
+            m.memory_cache_size,
+            m.slow_query_threshold_ms * 1000,
             slow_query_config,
         )
         .expect("Failed to create StatsManager with slow query logger"),

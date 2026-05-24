@@ -107,6 +107,7 @@ mod type_deduce;
 
 // Visitor pattern
 pub mod visitor;
+pub mod expression_context;
 pub mod visitor_checkers;
 pub mod visitor_collectors;
 
@@ -117,6 +118,7 @@ pub use expression::{ExpressionId, ExpressionMeta};
 pub use serializable::SerializableExpression;
 
 // Unified Export - Visitor pattern
+pub use expression_context::{ExpressionAnalysisContext, OptimizationFlags};
 pub use visitor::ExpressionVisitor;
 pub use visitor_checkers::{ConstantChecker, PropertyContainsChecker};
 pub use visitor_collectors::{

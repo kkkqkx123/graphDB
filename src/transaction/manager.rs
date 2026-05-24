@@ -47,7 +47,7 @@ impl TransactionManager {
     pub fn new(config: TransactionManagerConfig) -> Self {
         let stats = Arc::new(TransactionStats::new());
         let monitor = TransactionMonitor::new(Arc::clone(&stats));
-        let cleaner = TransactionCleaner::new(None, None, Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(None, Arc::clone(&stats));
         let version_manager = Arc::new(VersionManager::new());
 
         Self {
@@ -69,7 +69,7 @@ impl TransactionManager {
     ) -> Self {
         let stats = Arc::new(TransactionStats::new());
         let monitor = TransactionMonitor::new(Arc::clone(&stats));
-        let cleaner = TransactionCleaner::new(None, None, Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(None, Arc::clone(&stats));
         let version_manager = Arc::new(VersionManager::with_config(vm_config));
 
         Self {
@@ -91,7 +91,7 @@ impl TransactionManager {
     ) -> Self {
         let stats = Arc::new(TransactionStats::with_stats_manager(stats_manager));
         let monitor = TransactionMonitor::new(Arc::clone(&stats));
-        let cleaner = TransactionCleaner::new(None, None, Arc::clone(&stats));
+        let cleaner = TransactionCleaner::new(None, Arc::clone(&stats));
         let version_manager = Arc::new(VersionManager::new());
 
         Self {

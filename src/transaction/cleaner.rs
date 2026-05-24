@@ -22,7 +22,6 @@ pub struct TransactionCleaner {
 impl TransactionCleaner {
     pub fn new(
         sync_manager: Option<Arc<SyncManager>>,
-        _shared_state: Option<Arc<crate::storage::GraphStorage>>,
         stats: Arc<TransactionStats>,
     ) -> Self {
         Self {
@@ -150,6 +149,6 @@ impl TransactionCleaner {
 
 impl Default for TransactionCleaner {
     fn default() -> Self {
-        Self::new(None, None, Arc::new(TransactionStats::new()))
+        Self::new(None, Arc::new(TransactionStats::new()))
     }
 }

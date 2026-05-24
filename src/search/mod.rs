@@ -23,5 +23,6 @@ pub use result::{
     FulltextSearchEntry, FulltextSearchResult, HighlightResult, IndexStats, SearchResult,
     SearchStats,
 };
-pub use tantivy_index::{TantivyConfig, TantivySearchEngine};
+pub use crate::config::common::fulltext::TantivyConfig;
+pub use tantivy_index::TantivySearchEngine;
 pub use warmup::IndexWarmer;

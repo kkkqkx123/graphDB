@@ -194,9 +194,6 @@ impl DBError {
     pub fn source(&self) -> &Option<BoxedError> {
         &self.source
     }
-
-
-    }
 }
 
 impl std::fmt::Display for DBError {

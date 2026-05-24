@@ -9,7 +9,6 @@ use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor_collectors::PropertyCollector;
 use crate::core::types::expr::ExpressionVisitor;
 use crate::core::Value;
-use crate::query::planning::planner::PlannerError;
 
 /// Extracting String Values from Expressions
 ///
@@ -21,8 +20,8 @@ use crate::query::planning::planner::PlannerError;
 ///
 /// # Returns
 /// - `Ok(String)`: Extracted string value
-/// - `Err(PlannerError)`: Error when unable to extract string
-pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, PlannerError> {
+/// - `Err(String)`: Error message when unable to extract string
+pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, String> {
     if let Some(var_name) = expr.as_variable() {
         return Ok(var_name);
     }
@@ -35,18 +34,18 @@ pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, P
             Value::Float(f) => return Ok(f.to_string()),
             Value::Bool(b) => return Ok(b.to_string()),
             _ => {
-                return Err(PlannerError::InvalidOperation(format!(
+                return Err(format!(
                     "Cannot extract string from literal: {:?}",
                     literal
-                )))
+                ))
             }
         }
     }
 
-    Err(PlannerError::InvalidOperation(format!(
+    Err(format!(
         "Cannot extract string from expression: {}",
         expr.to_expression_string()
-    )))
+    ))
 }
 
 /// Generating default aliases from ContextualExpression
@@ -139,7 +138,7 @@ mod tests {
     use super::*;
     use crate::core::types::expr::def::Expression;
     use crate::core::types::expr::ExpressionMeta;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::types::expr::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     #[test]
