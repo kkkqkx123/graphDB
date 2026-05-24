@@ -167,6 +167,11 @@ pub unsafe extern "C" fn graphdb_execute_params(
 }
 
 /// Convert a C value to a Rust value.
+///
+/// # Safety
+///
+/// `c_value` must be a valid pointer to a properly initialized `graphdb_value_t` struct.
+/// The caller must ensure that string pointers within the value are valid and properly aligned.
 pub unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
     use crate::api::embedded::c_api::types::graphdb_value_type_t;
 

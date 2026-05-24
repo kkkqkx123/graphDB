@@ -167,7 +167,7 @@ impl CouponCache {
             highest_term_ord < 1_000_000u64 || highest_term_ord < num_terms as u64 * 3u64;
         if should_use_dense {
             let mut coupon_map: Vec<Coupon> = vec![Coupon::EMPTY; highest_term_ord as usize + 1];
-            for (term_ord, coupon) in term_ords.into_iter().zip(coupons.into_iter()) {
+            for (term_ord, coupon) in term_ords.into_iter().zip(coupons) {
                 coupon_map[term_ord as usize] = coupon;
             }
             CouponCache::Dense {

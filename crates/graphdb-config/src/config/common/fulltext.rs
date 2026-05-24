@@ -1,15 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum FulltextEngineType {
+    #[default]
     Bm25,
-}
-
-impl Default for FulltextEngineType {
-    fn default() -> Self {
-        Self::Bm25
-    }
 }
 
 impl std::fmt::Display for FulltextEngineType {

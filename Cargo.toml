@@ -19,6 +19,7 @@ members = [
     "crates/tantivy/sstable",
     "crates/tantivy/tokenizer-api",
     "crates/tantivy/columnar",
+    "crates/vector-client",
 ]
 
 [package]
@@ -70,7 +71,7 @@ default = ["server", "fulltext-search", "qdrant", "c-api", "grpc"]
 server = ["graphdb-api/server", "graphdb-config/server"]
 fulltext-search = ["graphdb-search/fulltext-search"]
 qdrant = ["graphdb-sync/qdrant", "graphdb-api/qdrant", "graphdb-query/qdrant"]
-embedded = ["graphdb-api/embedded"]
+embedded = ["graphdb-api/embedded", "graphdb-config/embedded"]
 c-api = ["graphdb-api/embedded"]
 grpc = ["graphdb-api/grpc"]
 
@@ -84,3 +85,14 @@ tokio-test = "0.4.4"
 tempfile = "3.23.0"
 criterion = { version = "0.5", features = ["async_tokio"] }
 serial_test = "3.0"
+parking_lot = "0.12"
+serde_json = "1.0.145"
+axum = { version = "0.8", features = ["macros"] }
+tower = "0.5"
+vector-client = { path = "crates/vector-client" }
+async-trait = "0.1"
+dashmap = "6.1"
+rand = "0.8"
+log = "0.4"
+regex = "1"
+toml = "0.9"
