@@ -1,3 +1,7 @@
+[build-dependencies]
+tonic-build = { version = "0.12", optional = true }
+prost-build = { version = "0.13", optional = true }
+
 [package]
 name = "graphdb-api"
 version = "0.1.0"
@@ -41,6 +45,6 @@ vector-client = { path = "../vector-client", features = ["qdrant-http"], optiona
 
 [features]
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "dep:async-trait"]
-grpc = ["server", "dep:tonic", "dep:prost"]
+grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
 qdrant = ["dep:vector-client"]
 embedded = []

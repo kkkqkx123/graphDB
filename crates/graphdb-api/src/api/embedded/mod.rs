@@ -40,8 +40,7 @@ pub mod session;
 pub mod statistics;
 pub mod transaction;
 
-// C API module (conditional compilation)
-#[cfg(feature = "c-api")]
+// C API module
 pub mod c_api;
 
 // Re-export the main types
@@ -58,7 +57,6 @@ pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
 pub use crate::core::SessionStatistics;
 
 // C API re-export
-#[cfg(feature = "c-api")]
 pub use c_api::{
     error::graphdb_error_code_t,
     statistics::SessionStatistics as CApiSessionStatistics,

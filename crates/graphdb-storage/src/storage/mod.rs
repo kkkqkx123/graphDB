@@ -23,7 +23,6 @@ pub mod storage_types;
 pub mod utils;
 pub mod vertex;
 
-#[cfg(test)]
 pub mod test_mock;
 
 pub use crate::core::types::{

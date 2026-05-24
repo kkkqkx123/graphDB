@@ -47,10 +47,8 @@ use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 
-#[cfg(feature = "c-api")]
 use std::ffi::c_void;
 
-#[cfg(feature = "c-api")]
 use crate::core::utils::value_conversion::core_value_to_graphdb;
 
 /// Function reference enumeration, used to reference functions in expressions
@@ -298,7 +296,6 @@ impl ExpressionFunction for BuiltinFunction {
 }
 
 /// C Function Context Structure (Opaque Pointers)
-#[cfg(feature = "c-api")]
 pub struct CFunctionContext {
     /// Result value
     pub result: Option<Value>,
@@ -314,14 +311,12 @@ pub struct CFunctionContext {
     pub argv: Vec<crate::core::types::c_api::graphdb_value_t>,
 }
 
-#[cfg(feature = "c-api")]
 impl Default for CFunctionContext {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[cfg(feature = "c-api")]
 impl CFunctionContext {
     pub fn new() -> Self {
         Self {
@@ -370,7 +365,6 @@ impl CFunctionContext {
 }
 
 /// Scalar function callback type
-#[cfg(feature = "c-api")]
 pub type ScalarFunctionCallback = extern "C" fn(
     *mut CFunctionContext,
     i32,
@@ -378,7 +372,6 @@ pub type ScalarFunctionCallback = extern "C" fn(
 );
 
 /// Aggregation step callback type
-#[cfg(feature = "c-api")]
 pub type AggregateStepCallback = extern "C" fn(
     *mut CFunctionContext,
     i32,
@@ -386,7 +379,6 @@ pub type AggregateStepCallback = extern "C" fn(
 );
 
 /// Aggregate final callback type
-#[cfg(feature = "c-api")]
 pub type AggregateFinalCallback = extern "C" fn(*mut CFunctionContext);
 
 /// Implementation of custom functions and their types
@@ -395,7 +387,6 @@ pub enum CustomFunctionImpl {
     /// Custom functions implemented in Rust
     Rust(fn(&[Value]) -> Result<Value, ExpressionError>),
     /// A scalar function implemented using a C callback
-    #[cfg(feature = "c-api")]
     C {
         /// Scalar function callback (stores the address of the function pointer)
         scalar_callback: usize,
@@ -403,7 +394,6 @@ pub enum CustomFunctionImpl {
         user_data: usize,
     },
     /// Aggregate functions implemented using C callbacks
-    #[cfg(feature = "c-api")]
     Aggregate {
         /// Aggregation step callback (pointer address to the storage function)
         step_callback: usize,
@@ -418,9 +408,7 @@ impl std::fmt::Debug for CustomFunctionImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CustomFunctionImpl::Rust(_) => write!(f, "Rust closure"),
-            #[cfg(feature = "c-api")]
             CustomFunctionImpl::C { .. } => write!(f, "C scalar callback"),
-            #[cfg(feature = "c-api")]
             CustomFunctionImpl::Aggregate { .. } => write!(f, "C aggregate callback"),
         }
     }
@@ -460,7 +448,6 @@ impl CustomFunction {
     }
 
     /// Create a new custom C callback function.
-    #[cfg(feature = "c-api")]
     pub fn new_c(
         name: impl Into<String>,
         arity: usize,
@@ -482,7 +469,6 @@ impl CustomFunction {
     }
 
     /// Create a new C callback aggregation function
-    #[cfg(feature = "c-api")]
     pub fn new_c_aggregate(
         name: impl Into<String>,
         arity: usize,
@@ -507,21 +493,13 @@ impl CustomFunction {
 
     /// Check whether it is an aggregate function.
     pub fn is_aggregate(&self) -> bool {
-        #[cfg(feature = "c-api")]
-        {
-            matches!(self.implementation, CustomFunctionImpl::Aggregate { .. })
-        }
-        #[cfg(not(feature = "c-api"))]
-        {
-            false
-        }
+        matches!(self.implementation, CustomFunctionImpl::Aggregate { .. })
     }
 
     /// Execute the function
     pub fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
         match &self.implementation {
             CustomFunctionImpl::Rust(func) => func(args),
-            #[cfg(feature = "c-api")]
             CustomFunctionImpl::C {
                 scalar_callback,
                 user_data: _,
@@ -560,7 +538,6 @@ impl CustomFunction {
                     )
                 })
             }
-            #[cfg(feature = "c-api")]
             CustomFunctionImpl::Aggregate { .. } => Err(ExpressionError::new(
                 ExpressionErrorType::InvalidOperation,
                 "Aggregation functions need to be executed within the aggregation context"

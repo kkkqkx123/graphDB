@@ -57,11 +57,7 @@ tracing = "0.1"
 tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
 
 # build-time deps
-cbindgen = { version = "0.29", optional = true }
-
-[build-dependencies]
-tonic-build = { version = "0.12", optional = true }
-prost-build = { version = "0.13", optional = true }
+cbindgen = "0.29"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -75,8 +71,8 @@ server = ["graphdb-api/server", "graphdb-config/server"]
 fulltext-search = ["graphdb-search/fulltext-search"]
 qdrant = ["graphdb-sync/qdrant", "graphdb-api/qdrant", "graphdb-query/qdrant"]
 embedded = ["graphdb-api/embedded"]
-c-api = ["graphdb-api/embedded", "dep:cbindgen"]
-grpc = ["graphdb-api/grpc", "dep:tonic-build", "dep:prost-build"]
+c-api = ["graphdb-api/embedded"]
+grpc = ["graphdb-api/grpc"]
 
 [profile.dev]
 opt-level = 0

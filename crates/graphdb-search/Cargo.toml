@@ -20,3 +20,7 @@ tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "net", "t
 
 [features]
 fulltext-search = ["dep:tantivy", "tantivy/jieba"]
+
+[dev-dependencies]
+tempfile = "3.23.0"
+graphdb-sync = { path = "../graphdb-sync" }

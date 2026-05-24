@@ -35,7 +35,7 @@ mod tests {
     /// Test vector index naming format: space_vec_{space_id}_{tag}_{field}
     #[test]
     fn test_vector_index_naming_format() {
-        use crate::sync::vector_sync::VectorIndexLocation;
+        use graphdb_sync::sync::vector_sync::VectorIndexLocation;
 
         let location = VectorIndexLocation::new(1, "Article", "content");
         let collection_name = location.to_collection_name();
@@ -56,7 +56,7 @@ mod tests {
     /// Test index naming consistency between vector and fulltext
     #[test]
     fn test_index_naming_consistency() {
-        use crate::sync::vector_sync::VectorIndexLocation;
+        use graphdb_sync::sync::vector_sync::VectorIndexLocation;
 
         let space_id = 42;
         let tag = "Product";

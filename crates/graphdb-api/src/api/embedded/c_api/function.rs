@@ -6,7 +6,7 @@ use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{
     graphdb_session_t, graphdb_value_t, graphdb_value_type_t,
 };
-use crate::c_api::graphdb_error_code_t;
+use crate::api::embedded::c_api::error::graphdb_error_code_t;
 use crate::query::executor::expression::functions::{
     AggregateFinalCallback, AggregateStepCallback, CFunctionContext, CustomFunction,
     ScalarFunctionCallback,

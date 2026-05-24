@@ -523,10 +523,10 @@ mod tests {
     #[test]
     fn test_unified_aggregate_function() {
         // The test involves creating objects from strings.
-        let func = std::str::FromStr::from_str("COUNT").expect("from_str should succeed");
+        let func = aggregate_from_str("COUNT").expect("from_str should succeed");
         assert!(matches!(func, AggregateFunction::Count(_)));
 
-        let func = std::str::FromStr::from_str("SUM").expect("from_str should succeed");
+        let func = aggregate_from_str("SUM").expect("from_str should succeed");
         assert!(matches!(func, AggregateFunction::Sum(_)));
 
         let sum_func = aggregate_from_str_with_args("SUM", &["field".to_string()])

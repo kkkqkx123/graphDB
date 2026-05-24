@@ -1,4 +1,4 @@
-pub use graphdb_api as api;
+pub use graphdb_api::api as api;
 pub use graphdb_core::core as core;
 pub use graphdb_core::common as common;
 pub use graphdb_core::utils as utils;
