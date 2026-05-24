@@ -5,108 +5,66 @@ At present, the project is in the development stage and there is no need to spec
 
 ## Language
 
-Always use English in code, comments, logging, error info or other string literal. Use Chinese in docs (except code block)
-**Never use any Chinese in any code files or code block.**
-
-## Coding Standards
-
-**Security Assurance**
-Always avoid the use of unwrap. In testing, substitute with expect.
-Refrain from using unsafe methods except where directly involving low-level operations.
-All instances of unsafe usage must be explicitly documented in the unsafe.md file within the docs\archive directory.
-
-**Type Design Guidelines**
-Minimise the use of dynamic dispatch forms such as `dyn`, always prioritising deterministic types.
-All instances of dynamic dispatch must be explicitly documented in the `dynamic.md` file within the `docs\archive` directory.
-
-## Language
-
 Always use English in code, comments, logging, error info. Use Chinese in docs
 **Never use any Chinese in any code files.**
 
 ## Project Overview
 
-This is a graph database project reimplemented in Rust, focusing on local single-node deployment scenarios. Unlike the original distributed NebulaGraph, this project removes distributed capabilities and significantly reduces external dependencies, aiming to provide a lightweight, high-performance graph database solution for personal use and small-scale applications.
-
-Key Features:
-
-- Single-node architecture, eliminating distributed complexity
-- Written in Rust, ensuring memory safety and concurrency safety
-- Minimal external dependencies, leveraging the Rust ecosystem
-- Generates a single executable file for straightforward deployment
-- Supports fundamental graph database functionality (nodes, edges, properties)
+A lightweight single-node graph database reimplemented in Rust, focusing on local deployment. Removes distributed complexity from NebulaGraph, minimizes external dependencies, generates a single executable.
 
 ## Architecture
 
-The codebase is organized into several main components:
+Workspace with 8 sub-crates under `crates/`:
 
-- `src` - Rust graphDB src director
-- `src/core` - core data structure and type definition
-- `src/storage` - storage engine
-- `src/query` - query engine and parser
-- `src/transaction` - transaction management
-- `src/index` - index system
-- `src/api` - API interfaces layer
-- `src/utils` - Utility functions and helpers
-- `src/config` - Configuration management
+- `graphdb-core` - core data structures, types, errors
+- `graphdb-config` - configuration management
+- `graphdb-search` - fulltext search (BM25)
+- `graphdb-sync` - synchronization primitives
+- `graphdb-transaction` - transaction management
+- `graphdb-storage` - storage engine (CSR, memory-mapped containers)
+- `graphdb-query` - query engine, parser, executor
+- `graphdb-api` - API layer (HTTP, gRPC, embedded/C-API)
 
-outside crates:
+Root `src/` has `lib.rs`, `main.rs`, `c_api.rs` with `pub use dep_crate::api as api` re-exports.
 
-- `crates/bm25` - BM25 search engine
-- `crates/qdrant-client` - HTTP client for qdrant vector database
-- `./graphdb-cli` - HTTP CLI client for graphDB(completely independent)
+Dependency DAG: core → config → search → sync → transaction → storage → query → api
 
-## Key Directories and Files
+Outside crates: `crates/bm25`, `crates/qdrant-client`, `./graphdb-cli`
 
-- `graphDB/Cargo.toml` - Project dependencies and configuration
-- `graphDB/src/lib.rs` - Library entry point
-- `graphDB/src/main.rs` - Executable entry point
+## Key Directories
+
+- `crates/*` - 8 sub-crates + third-party (bm25, vector-client)
+- `src/` - root crate (server binary, re-exports, C API)
+- `tests/` - integration tests
+- `benches/` - benchmarks
+- `proto/` - gRPC protobuf definitions
 
 ## Building and Running
 
-The graphDB project utilises Cargo as its build system. To build the project:
-
-1. **Prerequisites**:
-
-- rustc: 1.88.0
-- cargo: 1.88.0
-
-2. **Compile check**
+Prerequisites: rustc 1.88.0, cargo 1.88.0
 
 ```shell
-# full compile check
-cargo clippy --all-targets --all-features
+cargo clippy --all-targets --all-features            # full compile check
+cargo check --workspace --features server,fulltext-search,c-api,grpc,qdrant  # check with all features
 ```
 
 ## Development Conventions
 
-- **Coding Style**: Employ Rust standard formatting (`cargo fmt`) and adhere to Rust naming conventions
-- **IDE Integration**: Utilise Rust-compatible editors such as VS Code (rust-analyzer) or IntelliJ IDEA
-- **Testing**: Employ Rust's built-in testing framework (`cargo test`), writing integration tests within the `tests/` directory
-- **Code Structure**: Adopt a modular design following Rust conventions
+- Rust standard formatting (`cargo fmt`)
+- Modular design following Rust conventions
 
 ## Testing
 
-The project includes a comprehensive test suite utilising Rust's standard testing framework:
+```shell
+cargo test --lib -- --nocapture               # lib tests
+cargo test --test '*' -- --nocapture           # integration tests
+cargo test <test_name>                         # specific test(s)
+```
 
-1. **Running tests**:
+Test organization: unit tests in same file (`#[cfg(test)]`), separate `test.rs` for large files, integration tests in `tests/`, benchmarks in `benches/`.
 
-   ```shell
-   cargo test --lib -- --nocapture # Run lib tests
-   cargo test --test '*' -- --nocapture # Run integration tests
-   cargo test <test_name> # Run specific test(s) matching pattern
-   cargo test --test <integration_test_file> # Run specific integration test
-   ```
+## Coding Standards
 
-2. **Test organization**:
-   - Unit tests: Located in the same file as the code being tested, marked with `#[cfg(test)]`
-   - Unit tests when original file is too large: Add individual test.rs, and add it to `mod.rs`
-   - Integration tests: Located in the `tests/` directory
-   - Benchmarks: Located in the `benches/` directory
-
-## Additional Notes
-
-- The project utilises Rust, employing the ownership system to ensure memory safety
-- Does not include distributed functionality, focusing instead on single-machine performance and simplicity
-- The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem
-- Use powershell syntax instead of shell
+- **Security**: Never use unwrap (use expect in tests). No unsafe except low-level ops, documented in `docs/archive/unsafe.md`.
+- **Types**: Minimize `dyn`, prefer concrete types. All dynamic dispatch documented in `docs/archive/dynamic.md`.
+- **Dependencies**: 8 sub-crates form a strict DAG (no circular deps).

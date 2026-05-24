@@ -75,5 +75,4 @@ pub use engine::{
     PropertyGraph, PropertyGraphConfig, VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE,
 };
 
-#[cfg(test)]
 pub use test_mock::MockStorage;

@@ -336,7 +336,8 @@ impl From<query::QueryError> for DBError {
 
 impl From<storage::StorageError> for DBError {
     fn from(err: storage::StorageError) -> Self {
-        DBError::storage(err.to_string()).with_source(Box::new(err))
+        let class = if err.is_retryable() { ErrorClass::Retryable } else { ErrorClass::SystemError };
+        DBError::storage(err.to_string()).with_source(Box::new(err)).with_class(class)
     }
 }
 

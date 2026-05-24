@@ -1,21 +1,14 @@
 use crate::core::error::StorageError;
-#[cfg(test)]
 use crate::core::types::{
     EdgeTypeInfo, EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
-#[cfg(test)]
 use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
-#[cfg(test)]
 use crate::storage::engine::PropertyGraph;
-#[cfg(test)]
-#[cfg(test)]
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
 };
-#[cfg(test)]
 use parking_lot::RwLock;
-#[cfg(test)]
 use std::sync::Arc;
 
 macro_rules! mock_stub {
@@ -27,13 +20,11 @@ macro_rules! mock_stub {
     };
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone)]
 pub struct MockStorage {
     graph: Arc<RwLock<PropertyGraph>>,
 }
 
-#[cfg(test)]
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
         let graph = PropertyGraph::new();
@@ -43,12 +34,10 @@ impl MockStorage {
     pub fn get_graph(&self) -> &Arc<RwLock<PropertyGraph>> { &self.graph }
 }
 
-#[cfg(test)]
 impl Default for MockStorage {
     fn default() -> Self { Self::new().expect("Failed to create MockStorage") }
 }
 
-#[cfg(test)]
 impl StorageReader for MockStorage {
     mock_stub!(&self, get_vertex(_space: &str, _id: &VertexId) -> Result<Option<Vertex>, StorageError>, Ok(None));
     mock_stub!(&self, scan_vertices(_space: &str) -> Result<Vec<Vertex>, StorageError>, Ok(Vec::new()));
@@ -79,7 +68,6 @@ impl StorageReader for MockStorage {
     mock_stub!(&self, list_edge_indexes(_space: &str) -> Result<Vec<Index>, StorageError>, Ok(Vec::new()));
 }
 
-#[cfg(test)]
 impl StorageWriter for MockStorage {
     mock_stub!(&mut self, insert_vertex(_space: &str, _vertex: Vertex) -> Result<VertexId, StorageError>, Ok(VertexId::new()));
     mock_stub!(&mut self, update_vertex(_space: &str, _vertex: Vertex) -> Result<(), StorageError>, Ok(()));
@@ -97,7 +85,6 @@ impl StorageWriter for MockStorage {
     mock_stub!(&mut self, update_data(_space: &str, _space_id: u64, _info: &UpdateInfo) -> Result<bool, StorageError>, Ok(true));
 }
 
-#[cfg(test)]
 impl StorageSchemaOps for MockStorage {
     mock_stub!(&mut self, create_space(_space: &mut SpaceInfo) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, drop_space(_space: &str) -> Result<bool, StorageError>, Ok(true));
@@ -117,7 +104,6 @@ impl StorageSchemaOps for MockStorage {
     mock_stub!(&mut self, rebuild_edge_index(_space: &str, _index: &str) -> Result<bool, StorageError>, Ok(true));
 }
 
-#[cfg(test)]
 impl StorageAuthOps for MockStorage {
     mock_stub!(&mut self, change_password(_info: &PasswordInfo) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, create_user(_info: &UserInfo) -> Result<bool, StorageError>, Ok(true));
@@ -127,7 +113,6 @@ impl StorageAuthOps for MockStorage {
     mock_stub!(&mut self, revoke_role(_username: &str, _space_id: u64) -> Result<bool, StorageError>, Ok(true));
 }
 
-#[cfg(test)]
 impl StorageAdmin for MockStorage {
     mock_stub!(&mut self, load_from_disk() -> Result<(), StorageError>, Ok(()));
     mock_stub!(&self, save_to_disk() -> Result<(), StorageError>, Ok(()));
