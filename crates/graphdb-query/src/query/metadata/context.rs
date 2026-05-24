@@ -4,7 +4,6 @@
 //! Similar to PostgreSQL's fdw_private mechanism.
 
 use super::types::{EdgeTypeMetadata, IndexMetadata, TagMetadata};
-use crate::query::planning::planner::PlannerError;
 use std::collections::HashMap;
 
 /// Metadata context
@@ -118,37 +117,4 @@ impl MetadataContext {
     }
 }
 
-/// Extension trait for MetadataContext to provide convenient access methods
-pub trait MetadataContextExt {
-    /// Get index metadata or return an error
-    fn get_index_metadata_or_err(&self, index_name: &str) -> Result<&IndexMetadata, PlannerError>;
 
-    /// Get tag metadata or return an error
-    fn get_tag_metadata_or_err(&self, tag_name: &str) -> Result<&TagMetadata, PlannerError>;
-
-    /// Get edge type metadata or return an error
-    fn get_edge_type_metadata_or_err(
-        &self,
-        edge_type: &str,
-    ) -> Result<&EdgeTypeMetadata, PlannerError>;
-}
-
-impl MetadataContextExt for MetadataContext {
-    fn get_index_metadata_or_err(&self, index_name: &str) -> Result<&IndexMetadata, PlannerError> {
-        self.get_index_metadata(index_name)
-            .ok_or_else(|| PlannerError::IndexNotFound(index_name.to_string()))
-    }
-
-    fn get_tag_metadata_or_err(&self, tag_name: &str) -> Result<&TagMetadata, PlannerError> {
-        self.get_tag_metadata(tag_name)
-            .ok_or_else(|| PlannerError::TagNotFound(tag_name.to_string()))
-    }
-
-    fn get_edge_type_metadata_or_err(
-        &self,
-        edge_type: &str,
-    ) -> Result<&EdgeTypeMetadata, PlannerError> {
-        self.get_edge_type_metadata(edge_type)
-            .ok_or_else(|| PlannerError::EdgeTypeNotFound(edge_type.to_string()))
-    }
-}

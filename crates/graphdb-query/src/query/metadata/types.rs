@@ -3,6 +3,7 @@
 //! This module defines the core metadata types used throughout the query planning
 //! and execution process.
 
+use crate::core::types::DataType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -137,6 +138,29 @@ pub enum PropertyType {
     Geography,
 }
 
+impl From<DataType> for PropertyType {
+    fn from(dt: DataType) -> Self {
+        use DataType as D;
+        match dt {
+            D::Bool => Self::Bool,
+            D::SmallInt | D::Int | D::BigInt | D::VID => Self::Int,
+            D::Float | D::Double | D::Decimal128 => Self::Float,
+            D::String | D::FixedString(_) | D::Json | D::JsonB | D::Uuid | D::Blob => Self::String,
+            D::Date => Self::Date,
+            D::Time | D::DateTime | D::Interval => Self::DateTime,
+            D::Timestamp => Self::Timestamp,
+            D::Vertex => Self::Vertex,
+            D::Edge => Self::Edge,
+            D::Path => Self::Path,
+            D::List | D::Set | D::DataSet => Self::List,
+            D::Map => Self::Map,
+            D::Geography => Self::Geography,
+            D::Vector | D::VectorDense(_) | D::VectorSparse(_) => Self::Vector,
+            D::Empty | D::Null => Self::String,
+        }
+    }
+}
+
 impl std::fmt::Display for PropertyType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -181,27 +205,4 @@ impl std::fmt::Display for Value {
     }
 }
 
-/// Versioned metadata wrapper
-#[derive(Debug, Clone)]
-pub struct VersionedMetadata<T> {
-    pub metadata: T,
-    pub version: u64,
-    pub timestamp: u64,
-}
 
-impl<T> VersionedMetadata<T> {
-    pub fn new(metadata: T, version: u64) -> Self {
-        Self {
-            metadata,
-            version,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        }
-    }
-
-    pub fn is_valid(&self, current_version: u64) -> bool {
-        self.version == current_version
-    }
-}

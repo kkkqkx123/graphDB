@@ -11,7 +11,7 @@ pub mod types;
 pub mod vector_provider;
 
 pub use context::MetadataContext;
-pub use provider::MetadataProvider;
+pub use provider::{CompositeMetadataProvider, MetadataProvider};
 pub use schema_provider::SchemaMetadataProvider;
 pub use types::*;
 pub use vector_provider::{CachedMetadataProvider, VectorIndexMetadataProvider};

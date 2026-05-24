@@ -769,41 +769,32 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
                 // Resolve tag metadata and their indexes
                 for tag_name in referenced_tags {
-                    match metadata_provider.get_tag_metadata(space_id, tag_name) {
-                        Ok(tag_metadata) => {
-                            context.set_tag_metadata(tag_name.clone(), tag_metadata);
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to get tag metadata for '{}': {}", tag_name, e);
-                        }
-                    }
+                    let tag_metadata =
+                        metadata_provider.get_tag_metadata(space_id, tag_name).map_err(|e| {
+                            DBError::from(QueryError::invalid_query(format!(
+                                "Tag '{}' not found: {}",
+                                tag_name, e
+                            )))
+                        })?;
+                    context.set_tag_metadata(tag_name.clone(), tag_metadata);
                 }
 
                 // Resolve edge type metadata
                 for edge_type in referenced_edges {
-                    match metadata_provider.get_edge_type_metadata(space_id, edge_type) {
-                        Ok(edge_metadata) => {
-                            context.set_edge_type_metadata(edge_type.clone(), edge_metadata);
-                        }
-                        Err(e) => {
-                            log::warn!(
-                                "Failed to get edge type metadata for '{}': {}",
-                                edge_type,
-                                e
-                            );
-                        }
-                    }
+                    let edge_metadata =
+                        metadata_provider.get_edge_type_metadata(space_id, edge_type).map_err(|e| {
+                            DBError::from(QueryError::invalid_query(format!(
+                                "Edge type '{}' not found: {}",
+                                edge_type, e
+                            )))
+                        })?;
+                    context.set_edge_type_metadata(edge_type.clone(), edge_metadata);
                 }
 
                 // Resolve all indexes for the space
-                match metadata_provider.list_indexes(space_id) {
-                    Ok(indexes) => {
-                        for index in indexes {
-                            context.set_index_metadata(index.index_name.clone(), index);
-                        }
-                    }
-                    Err(e) => {
-                        log::warn!("Failed to list indexes for space {}: {}", space_id, e);
+                if let Ok(indexes) = metadata_provider.list_indexes(space_id) {
+                    for index in indexes {
+                        context.set_index_metadata(index.index_name.clone(), index);
                     }
                 }
             }

@@ -6,7 +6,8 @@ use crate::api::core::error::{CoreError, CoreResult};
 use crate::api::core::types::{ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::StatsManager;
 use crate::query::metadata::{
-    CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider,
+    CachedMetadataProvider, CompositeMetadataProvider, MetadataProvider, SchemaMetadataProvider,
+    VectorIndexMetadataProvider,
 };
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::core::metadata::SchemaManager;
@@ -60,13 +61,19 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         schema_manager: Arc<SchemaManager>,
     ) -> Self {
         let optimizer_engine = Arc::new(OptimizerEngine::default());
+
+        let schema_provider =
+            Arc::new(SchemaMetadataProvider::new(schema_manager.clone(), None));
+        let cached_provider = Arc::new(CachedMetadataProvider::new(schema_provider));
+
         Self {
             pipeline_manager: QueryPipelineManager::with_optimizer(
                 storage,
                 stats_manager,
                 optimizer_engine,
             )
-            .with_schema_manager(schema_manager),
+            .with_schema_manager(schema_manager)
+            .with_metadata_provider(cached_provider),
         }
     }
 
@@ -89,21 +96,27 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         // Create vector coordinator (embedding service is optional)
         let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager, None));
 
-        // Create metadata provider
-        let metadata_provider: Arc<dyn MetadataProvider> =
+        // Create metadata providers
+        let vector_provider: Arc<dyn MetadataProvider> =
             Arc::new(VectorIndexMetadataProvider::new(vector_coordinator.clone()));
 
-        // Create cached metadata provider
-        let cached_provider = Arc::new(CachedMetadataProvider::new(metadata_provider));
-
-        // Create pipeline manager with metadata provider and schema manager
+        // Compose with schema provider if schema_manager is available
         let mut pipeline_manager =
-            QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine)
-                .with_metadata_provider(cached_provider);
+            QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine);
 
-        // Add schema manager if provided
         if let Some(sm) = schema_manager {
-            pipeline_manager = pipeline_manager.with_schema_manager(sm);
+            let schema_provider = Arc::new(SchemaMetadataProvider::new(sm.clone(), None));
+            let composite = Arc::new(CompositeMetadataProvider::new(vec![
+                schema_provider,
+                vector_provider,
+            ]));
+            let cached = Arc::new(CachedMetadataProvider::new(composite));
+            pipeline_manager = pipeline_manager
+                .with_schema_manager(sm)
+                .with_metadata_provider(cached);
+        } else {
+            let cached = Arc::new(CachedMetadataProvider::new(vector_provider));
+            pipeline_manager = pipeline_manager.with_metadata_provider(cached);
         }
 
         Ok(Self { pipeline_manager })

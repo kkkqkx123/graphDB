@@ -1,7 +1,6 @@
 //! Verification Policy Module
 //! Implementation that includes all verification strategies
 
-pub mod agg_functions;
 pub mod aggregate_strategy;
 pub mod alias_strategy;
 pub mod clause_strategy;

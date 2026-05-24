@@ -10,7 +10,7 @@ Always use English in code, comments, logging, error info. Use Chinese in docs
 
 ## Project Overview
 
-A lightweight single-node graph database reimplemented in Rust, focusing on local deployment. Removes distributed complexity from NebulaGraph, minimizes external dependencies, generates a single executable.
+A lightweight single-node graph database reimplemented in Rust, focusing on local deployment.
 
 ## Architecture
 
@@ -36,7 +36,6 @@ Outside crates: `crates/bm25`, `crates/qdrant-client`, `./graphdb-cli`
 - `crates/*` - 8 sub-crates + third-party (bm25, vector-client)
 - `src/` - root crate (server binary, re-exports, C API)
 - `tests/` - integration tests
-- `benches/` - benchmarks
 - `proto/` - gRPC protobuf definitions
 
 ## Building and Running
