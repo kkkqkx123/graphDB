@@ -5,7 +5,9 @@
 //! "server" refers to a network service API (HTTP).
 //! "Embedded" refers to an API that is designed to be used on a standalone device (i.e., without the need for any additional servers or networks).
 
-use log::{error, info, warn};
+#[cfg(feature = "qdrant")]
+use log::warn;
+use log::{error, info};
 use std::sync::Arc;
 
 pub mod core;
@@ -18,8 +20,11 @@ pub mod embedded;
 
 // Convenient export options
 pub use core::{
-    CoreError, CoreResult, QueryApi, SchemaApi, SyncApi, VectorApi, VectorSearchResult,
+    CoreError, CoreResult, QueryApi, SchemaApi, SyncApi,
 };
+
+#[cfg(feature = "qdrant")]
+pub use core::{VectorApi, VectorSearchResult};
 
 #[cfg(feature = "server")]
 pub use server::{session, HttpServer};
@@ -66,12 +71,10 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     let inner_storage = Arc::new(GraphStorage::new()?);
     info!("Storage initialized (memory mode)");
 
-    // 如果配置启用了全文索引或向量索引，初始化 SyncManager
-    let storage = if config.fulltext.enabled || config.vector.enabled {
+    let storage = if config.fulltext.enabled || config.is_vector_enabled() {
         use crate::search::manager::FulltextIndexManager;
         use crate::search::FulltextConfig;
         use crate::sync::{SyncConfig, SyncManager};
-        use vector_client::VectorManager;
 
         let (_coordinator, sync_manager) = if config.fulltext.enabled {
             let manager = Arc::new(
@@ -94,11 +97,13 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 batch_config,
             ));
 
-            let mut sync_manager =
+            let sync_manager =
                 SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
-            if config.vector.enabled {
-                match VectorManager::new(config.vector.clone()).await {
+            #[cfg(feature = "qdrant")]
+            let sync_manager = if config.is_vector_enabled() {
+                use vector_client::VectorManager;
+                match VectorManager::new(config.vector_config().clone()).await {
                     Ok(vm) => {
                         let vector_manager = Arc::new(vm);
                         let vector_coordinator =
@@ -106,17 +111,20 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                                 vector_manager,
                                 None,
                             ));
-                        sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
                         info!("Vector index sync enabled");
+                        sync_manager.with_vector_coordinator(vector_coordinator)
                     }
                     Err(e) => {
                         warn!(
                             "Failed to create VectorManager: {}. Vector search will be disabled.",
                             e
                         );
+                        sync_manager
                     }
                 }
-            }
+            } else {
+                sync_manager
+            };
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
         } else {
@@ -132,11 +140,13 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 batch_config,
             ));
 
-            let mut sync_manager =
+            let sync_manager =
                 SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
-            if config.vector.enabled {
-                match VectorManager::new(config.vector.clone()).await {
+            #[cfg(feature = "qdrant")]
+            let sync_manager = if config.is_vector_enabled() {
+                use vector_client::VectorManager;
+                match VectorManager::new(config.vector_config().clone()).await {
                     Ok(vm) => {
                         let vector_manager = Arc::new(vm);
                         let vector_coordinator =
@@ -144,17 +154,20 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                                 vector_manager,
                                 None,
                             ));
-                        sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
                         info!("Vector index sync enabled");
+                        sync_manager.with_vector_coordinator(vector_coordinator)
                     }
                     Err(e) => {
                         warn!(
                             "Failed to create VectorManager: {}. Vector search will be disabled.",
                             e
                         );
+                        sync_manager
                     }
                 }
-            }
+            } else {
+                sync_manager
+            };
 
             (sync_coordinator.clone(), Arc::new(sync_manager))
         };

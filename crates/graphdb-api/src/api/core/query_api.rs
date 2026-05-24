@@ -5,18 +5,19 @@
 use crate::api::core::error::{CoreError, CoreResult};
 use crate::api::core::types::{ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::StatsManager;
-use crate::query::metadata::{
-    CachedMetadataProvider, CompositeMetadataProvider, MetadataProvider, SchemaMetadataProvider,
-    VectorIndexMetadataProvider,
-};
+use crate::query::metadata::{CachedMetadataProvider, SchemaMetadataProvider};
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::core::metadata::SchemaManager;
 use crate::storage::StorageClient;
-use crate::sync::vector_sync::VectorSyncCoordinator;
 use crate::sync::SyncManager;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Instant;
+#[cfg(feature = "qdrant")]
+use crate::query::metadata::{CompositeMetadataProvider, MetadataProvider, VectorIndexMetadataProvider};
+#[cfg(feature = "qdrant")]
+use crate::sync::vector_sync::VectorSyncCoordinator;
+#[cfg(feature = "qdrant")]
 use vector_client::{VectorClientConfig, VectorManager};
 
 /// Universal Query API – Core Layer
@@ -78,6 +79,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     }
 
     /// Create a new QueryApi instance with vector search support
+    #[cfg(feature = "qdrant")]
     pub async fn with_vector_search(
         storage: Arc<RwLock<S>>,
         stats_manager: Arc<StatsManager>,

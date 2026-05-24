@@ -70,6 +70,7 @@ pub use server::http::HttpServerConfig;
 #[cfg(feature = "server")]
 pub use server::security::{AuditConfig, PasswordPolicyConfig, SecurityConfig, SslConfig};
 
+#[cfg(feature = "qdrant")]
 use vector_client::VectorClientConfig;
 
 /// Global configuration aggregator
@@ -107,6 +108,7 @@ pub struct Config {
     pub embedded: EmbeddedConfig,
 
     /// Vector search configuration
+    #[cfg(feature = "qdrant")]
     #[serde(default)]
     pub vector: VectorClientConfig,
 
@@ -293,6 +295,20 @@ impl Config {
     /// Get query resource configuration
     pub fn query_resource(&self) -> &QueryResourceConfig {
         &self.common.query_resource
+    }
+
+    /// Check if vector search is enabled
+    pub fn is_vector_enabled(&self) -> bool {
+        #[cfg(feature = "qdrant")]
+        { self.vector.enabled }
+        #[cfg(not(feature = "qdrant"))]
+        { false }
+    }
+
+    /// Get vector client configuration (only available with `qdrant` feature)
+    #[cfg(feature = "qdrant")]
+    pub fn vector_config(&self) -> &VectorClientConfig {
+        &self.vector
     }
 }
 

@@ -4,25 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
-thiserror = "2.0.17"
-log = "0.4.29"
-parking_lot = "0.12"
-dashmap = "6.1"
-chrono = { version = "0.4.38", features = ["serde"] }
-uuid = { version = "1.19.0", features = ["v4"] }
-regex = "1.11.1"
-rand = "0.8.5"
-rayon = "1.10.0"
-crossbeam-utils = "0.8"
-dec = "0.4.11"
-bumpalo = "3.16"
-memmap2 = "0.9"
-crc32fast = "1.5"
-md-5 = "0.10"
-zstd = "0.13"
-bitvec = "1.0"
-lru = "0.16.2"
-postcard = { version = "1.1", features = ["use-std"] }
-bcrypt = "0.18.0"
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+dashmap.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+regex.workspace = true
+rand.workspace = true
+dec.workspace = true
+bumpalo.workspace = true
+crc32fast.workspace = true
+zstd.workspace = true
+bitvec.workspace = true
+postcard.workspace = true
+bcrypt.workspace = true

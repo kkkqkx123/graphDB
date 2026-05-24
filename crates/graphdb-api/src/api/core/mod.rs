@@ -10,6 +10,7 @@ pub mod schema_api;
 pub mod sync_api;
 pub mod transaction_api;
 pub mod types;
+#[cfg(feature = "qdrant")]
 pub mod vector_api;
 
 pub use batch::{
@@ -22,6 +23,7 @@ pub use schema_api::SchemaApi;
 pub use sync_api::SyncApi;
 pub use transaction_api::TransactionApi;
 pub use types::*;
+#[cfg(feature = "qdrant")]
 pub use vector_api::VectorApi;
 
 // Re-export the statistical types from the core layer.

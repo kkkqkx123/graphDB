@@ -1,4 +1,7 @@
-use crate::api::core::{QueryApi, SyncApi, VectorApi};
+use crate::api::core::{QueryApi, SyncApi};
+
+#[cfg(feature = "qdrant")]
+use crate::api::core::VectorApi;
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
 use crate::api::server::session::{ClientSession, GraphSessionManager};
@@ -16,6 +19,7 @@ use log::{info, warn};
 use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Duration;
+#[cfg(feature = "qdrant")]
 use vector_client::VectorManager;
 
 /// RAII guard to ensure transaction context is always cleared from storage.
@@ -42,6 +46,7 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     permission_manager: Arc<PermissionManager>,
     pub stats_manager: Arc<StatsManager>,
     storage: Arc<S>,
+    #[cfg(feature = "qdrant")]
     vector_api: Option<Arc<VectorApi>>,
     sync_api: Option<Arc<SyncApi>>,
 
@@ -128,19 +133,19 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             )
         };
 
-        let (query_api, vector_api) = if config.vector.enabled {
+        #[cfg(feature = "qdrant")]
+        let (query_api, vector_api) = if config.is_vector_enabled() {
             match QueryApi::with_vector_search(
                 Arc::new(RwLock::new((*storage).clone())),
                 stats_manager.clone(),
-                config.vector.clone(),
+                config.vector_config().clone(),
                 schema_manager.clone(),
             )
             .await
             {
                 Ok(api) => {
-                    // Create vector manager and vector API
                     let vector_manager = Arc::new(
-                        VectorManager::new(config.vector.clone())
+                        VectorManager::new(config.vector_config().clone())
                             .await
                             .unwrap_or_else(|_| panic!("Failed to create vector manager")),
                     );
@@ -183,6 +188,23 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             (Arc::new(RwLock::new(api)), None)
         };
 
+        #[cfg(not(feature = "qdrant"))]
+        let query_api = {
+            let api = if let Some(sm) = schema_manager {
+                QueryApi::with_schema_manager(
+                    Arc::new(RwLock::new((*storage).clone())),
+                    stats_manager.clone(),
+                    sm,
+                )
+            } else {
+                QueryApi::new(
+                    Arc::new(RwLock::new((*storage).clone())),
+                    stats_manager.clone(),
+                )
+            };
+            Arc::new(RwLock::new(api))
+        };
+
         let authenticator = AuthenticatorFactory::create_default(&config.server.auth);
         let permission_manager = Arc::new(PermissionManager::new());
 
@@ -191,17 +213,20 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             .get_sync_manager()
             .map(|sync_manager| Arc::new(SyncApi::new(sync_manager)));
 
-        Arc::new(Self {
+        #[allow(unused_mut)]
+        let mut service = Self {
             session_manager,
             query_api,
             authenticator,
             permission_manager,
             stats_manager,
             storage,
+            #[cfg(feature = "qdrant")]
             vector_api,
             sync_api,
             transaction_manager,
-        })
+        };
+        Arc::new(service)
     }
 
     pub async fn authenticate(
@@ -473,6 +498,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         &self.stats_manager
     }
 
+    #[cfg(feature = "qdrant")]
     pub fn vector_api(&self) -> Option<&Arc<VectorApi>> {
         self.vector_api.as_ref()
     }

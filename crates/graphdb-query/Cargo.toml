@@ -8,24 +8,23 @@ graphdb-core = { path = "../graphdb-core" }
 graphdb-storage = { path = "../graphdb-storage" }
 graphdb-search = { path = "../graphdb-search" }
 graphdb-sync = { path = "../graphdb-sync" }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
-thiserror = "2.0.17"
-log = "0.4.29"
-parking_lot = "0.12"
-chrono = { version = "0.4.38", features = ["serde"] }
-uuid = { version = "1.19.0", features = ["v4"] }
-regex = "1.11.1"
-rand = "0.8.5"
-rayon = "1.10.0"
-dashmap = "6.1"
-futures = "0.3"
-tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
-moka = { version = "0.12", features = ["sync", "future"] }
-vector-client = { path = "../vector-client", features = ["qdrant-http"], optional = true }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+regex.workspace = true
+rand.workspace = true
+rayon.workspace = true
+dashmap.workspace = true
+futures.workspace = true
+tokio.workspace = true
+moka.workspace = true
+vector-client = { path = "../vector-client", features = ["qdrant-http"] }
 
 [dev-dependencies]
-tempfile = "3.23.0"
+tempfile.workspace = true
 
 [features]
-qdrant = ["dep:vector-client"]

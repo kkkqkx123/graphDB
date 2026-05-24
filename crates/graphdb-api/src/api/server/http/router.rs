@@ -14,6 +14,9 @@ use tower_http::{
 
 use crate::storage::StorageClient;
 
+#[cfg(feature = "qdrant")]
+use super::handlers::vector;
+
 use super::{
     handlers::{
         auth::{login, logout},
@@ -27,7 +30,7 @@ use super::{
         session::{create as create_session, delete_session, get_session},
         statistics::{database, queries, search as search_stats, session, system},
         stream::execute_stream,
-        sync, transaction, vector,
+        sync, transaction,
     },
     middleware::{auth::auth_middleware, error, logging},
     state::AppState,
@@ -85,24 +88,8 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/functions/{name}", get(function_info).delete(unregister))
         // Streaming Query Routing
         .route("/query/stream", post(execute_stream))
-        // Vector Index Routes
-        .route(
-            "/vector/indexes",
-            post(vector::create_index).get(vector::list_indexes),
-        )
-        .route(
-            "/vector/indexes/{space_id}/{tag_name}/{field_name}",
-            get(vector::get_index_info).delete(vector::drop_index),
-        )
-        .route("/vector/search", post(vector::search))
-        .route(
-            "/vector/{space_id}/{tag_name}/{field_name}/{point_id}",
-            get(vector::get_vector),
-        )
-        .route(
-            "/vector/{space_id}/{tag_name}/{field_name}/count",
-            get(vector::count),
-        )
+        // Sync Management Routes
+        .route("/sync/status", get(sync::status))
         // Sync Management Routes
         .route("/sync/status", get(sync::status))
         // Schema Routes
@@ -128,6 +115,22 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         ));
 
     // Merge all routes and add a version prefix.
+    let protected_routes = {
+        #[cfg(feature = "qdrant")]
+        {
+            protected_routes
+                .route("/vector/indexes", post(vector::create_index).get(vector::list_indexes))
+                .route("/vector/indexes/{space_id}/{tag_name}/{field_name}", get(vector::get_index_info).delete(vector::drop_index))
+                .route("/vector/search", post(vector::search))
+                .route("/vector/{space_id}/{tag_name}/{field_name}/{point_id}", get(vector::get_vector))
+                .route("/vector/{space_id}/{tag_name}/{field_name}/count", get(vector::count))
+        }
+        #[cfg(not(feature = "qdrant"))]
+        {
+            protected_routes
+        }
+    };
+
     let router = Router::new()
         .nest("/v1", public_routes.merge(protected_routes))
         .layer(middleware::from_fn(logging::logging_middleware))
