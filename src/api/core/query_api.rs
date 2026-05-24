@@ -9,7 +9,7 @@ use crate::query::metadata::{
     CachedMetadataProvider, MetadataProvider, VectorIndexMetadataProvider,
 };
 use crate::query::{OptimizerEngine, QueryPipelineManager};
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use crate::sync::SyncManager;

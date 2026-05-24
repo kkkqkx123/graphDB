@@ -7,7 +7,7 @@ use crate::core::types::{
     TagInfo, TransactionContextInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
     StorageWriter,

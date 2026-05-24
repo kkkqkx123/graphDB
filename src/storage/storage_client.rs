@@ -4,7 +4,7 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryStats};
 use std::sync::Arc;
 

@@ -42,7 +42,7 @@ fn log_format(
 /// # Examples
 /// ```
 /// use graphdb::config::Config;
-/// use graphdb::utils::logging;
+/// use graphdb::config::logging;
 ///
 /// let config = Config::default();
 /// logging::init(&config).expect("Logging initialization failed");
@@ -82,7 +82,7 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// # Examples
 /// ```
-/// use graphdb::utils::logging;
+/// use graphdb::config::logging;
 ///
 /// // Before program exit
 /// logging::shutdown();

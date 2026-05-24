@@ -35,6 +35,7 @@
 
 pub mod common;
 pub mod embedded;
+pub mod logging;
 pub mod server;
 
 use serde::{Deserialize, Serialize};

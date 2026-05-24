@@ -3,7 +3,7 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::property_graph::{InsertEdgeParams, InsertEdgeParamsByI64};
-use crate::storage::metadata::index_manager::IndexMetadataManager;
+use crate::core::metadata::index_manager::IndexMetadataManager;
 
 use super::context::GraphStorageContext;
 use super::reader;
@@ -684,7 +684,7 @@ pub(crate) fn update_data(
 
 fn update_vertex_indexes(
     graph: &crate::storage::engine::PropertyGraph,
-    index_metadata_manager: &crate::storage::metadata::IndexManager,
+    index_metadata_manager: &crate::core::metadata::IndexManager,
     space_id: u64,
     vertex_id: &Value,
     tag_name: &str,
@@ -702,7 +702,7 @@ fn update_vertex_indexes(
 
 struct EdgeIndexUpdateParams<'a> {
     graph: &'a crate::storage::engine::PropertyGraph,
-    index_metadata_manager: &'a crate::storage::metadata::IndexManager,
+    index_metadata_manager: &'a crate::core::metadata::IndexManager,
     space_id: u64,
     src: &'a Value,
     dst: &'a Value,
@@ -732,7 +732,7 @@ fn update_edge_indexes(params: EdgeIndexUpdateParams) -> StorageResult<()> {
 
 fn delete_vertex_indexes(
     graph: &crate::storage::engine::PropertyGraph,
-    index_metadata_manager: &crate::storage::metadata::IndexManager,
+    index_metadata_manager: &crate::core::metadata::IndexManager,
     space_id: u64,
     vertex_id: &Value,
     tag_name: &str,
@@ -749,7 +749,7 @@ fn delete_vertex_indexes(
 
 fn delete_edge_indexes(
     graph: &crate::storage::engine::PropertyGraph,
-    index_metadata_manager: &crate::storage::metadata::IndexManager,
+    index_metadata_manager: &crate::core::metadata::IndexManager,
     space_id: u64,
     src: &Value,
     dst: &Value,

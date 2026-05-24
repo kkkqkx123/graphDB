@@ -3,7 +3,7 @@ mod server_main {
     use clap::Parser;
     use graphdb::api;
     use graphdb::config::Config;
-    use graphdb::utils::logging;
+    use graphdb::config::logging;
 
     #[derive(Parser)]
     #[clap(version = "0.1.0", author = "GraphDB Contributors")]

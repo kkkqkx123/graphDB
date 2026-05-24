@@ -311,7 +311,7 @@ pub struct CFunctionContext {
     /// Number of parameters
     pub argc: usize,
     /// Parameter array (converted to C API format)
-    pub argv: Vec<crate::api::embedded::c_api::types::graphdb_value_t>,
+    pub argv: Vec<crate::core::types::c_api::graphdb_value_t>,
 }
 
 #[cfg(feature = "c-api")]
@@ -374,7 +374,7 @@ impl CFunctionContext {
 pub type ScalarFunctionCallback = extern "C" fn(
     *mut CFunctionContext,
     i32,
-    *mut crate::api::embedded::c_api::types::graphdb_value_t,
+    *mut crate::core::types::c_api::graphdb_value_t,
 );
 
 /// Aggregation step callback type
@@ -382,7 +382,7 @@ pub type ScalarFunctionCallback = extern "C" fn(
 pub type AggregateStepCallback = extern "C" fn(
     *mut CFunctionContext,
     i32,
-    *mut crate::api::embedded::c_api::types::graphdb_value_t,
+    *mut crate::core::types::c_api::graphdb_value_t,
 );
 
 /// Aggregate final callback type

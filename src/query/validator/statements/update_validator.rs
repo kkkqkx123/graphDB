@@ -20,7 +20,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 
 /// Verified update information
 #[derive(Debug, Clone)]

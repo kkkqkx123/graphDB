@@ -40,7 +40,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
 use crate::query::QueryRequestContext;
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 use parking_lot::RwLock;

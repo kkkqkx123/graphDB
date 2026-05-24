@@ -30,6 +30,10 @@ pub mod user_storage;
 pub mod fulltext_query;
 pub mod memory_estimation;
 
+// C API type definitions (behind feature gate)
+#[cfg(feature = "c-api")]
+pub mod c_api;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

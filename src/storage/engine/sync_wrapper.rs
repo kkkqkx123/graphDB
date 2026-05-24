@@ -5,7 +5,7 @@
 
 use crate::core::types::{EdgeTypeInfo, TagInfo, VertexId};
 use crate::core::{Edge, StorageError, Value, Vertex};
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageWriter,
 };

@@ -22,7 +22,7 @@ use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::query::validator::validator_trait::ValueType;
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 
 /// Edge type definition for auto-creation with source, destination and properties
 type EdgeTypeAutoCreateDef = (String, String, String, Vec<(String, Value)>);

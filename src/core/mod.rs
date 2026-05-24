@@ -1,4 +1,5 @@
 pub mod error;
+pub mod metadata;
 pub mod mvcc;
 pub mod npath;
 pub mod session_stats;

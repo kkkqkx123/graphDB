@@ -10,7 +10,7 @@ use super::index_data_manager::IndexDataManager;
 use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, StorageError, Value};
-use crate::storage::metadata::IndexMetadataManager;
+use crate::core::metadata::IndexMetadataManager;
 
 /// index updater
 ///

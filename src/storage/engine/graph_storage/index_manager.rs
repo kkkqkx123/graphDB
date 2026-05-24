@@ -1,7 +1,7 @@
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::secondary::VertexIndexOps;
-use crate::storage::metadata::index_manager::IndexMetadataManager;
+use crate::core::metadata::index_manager::IndexMetadataManager;
 
 use super::context::GraphStorageContext;
 

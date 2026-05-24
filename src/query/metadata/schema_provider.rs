@@ -9,8 +9,8 @@ use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
-use crate::storage::metadata::index_manager::IndexMetadataManager;
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::index_manager::IndexMetadataManager;
+use crate::core::metadata::SchemaManager;
 
 /// Schema metadata provider
 ///
@@ -309,8 +309,8 @@ impl MetadataProvider for SchemaMetadataProvider {
 mod tests {
     use super::*;
     use crate::core::types::{DataType, EngineType, PropertyDef, SpaceStatus};
-    use crate::storage::metadata::IndexManager;
-    use crate::storage::metadata::SchemaManager;
+    use crate::core::metadata::IndexManager;
+    use crate::core::metadata::SchemaManager;
 
     fn create_test_schema_manager() -> Arc<SchemaManager> {
         let manager = SchemaManager::new();

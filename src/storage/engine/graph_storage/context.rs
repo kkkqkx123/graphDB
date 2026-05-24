@@ -14,7 +14,7 @@ use crate::core::types::TransactionContextInfo;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
 use crate::storage::engine::PropertyGraph;
 use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
-use crate::storage::metadata::{IndexManager, SchemaManager};
+use crate::core::metadata::{IndexManager, SchemaManager};
 
 #[derive(Clone)]
 pub struct GraphStorageContext {

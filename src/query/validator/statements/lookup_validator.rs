@@ -15,8 +15,8 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::storage::metadata::index_manager::IndexMetadataManager;
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::index_manager::IndexMetadataManager;
+use crate::core::metadata::SchemaManager;
 
 /// Verified LOOKUP information
 #[derive(Debug, Clone)]

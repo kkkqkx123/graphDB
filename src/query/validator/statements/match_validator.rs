@@ -11,7 +11,7 @@ use crate::query::parser::ast::stmt::{Ast, MatchStmt, OrderByClause, ReturnClaus
 use crate::query::parser::ast::{Pattern, Stmt};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 
 use crate::query::validator::strategies::ExpressionValidationStrategy;
 use crate::query::validator::structs::validation_info::{PathAnalysis, ValidationInfo};

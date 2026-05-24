@@ -1,5 +1,3 @@
-pub mod index_manager;
-pub mod schema_manager;
-
-pub use self::index_manager::{IndexManager, IndexMetadataManager};
-pub use self::schema_manager::SchemaManager;
+// Metadata types are now defined in core/metadata/
+// This module re-exports them for backward compatibility
+pub use crate::core::metadata::*;

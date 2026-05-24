@@ -4,8 +4,7 @@
 
 use crate::core::Value;
 
-#[cfg(feature = "c-api")]
-use crate::api::embedded::c_api::types::{
+use crate::core::types::c_api::{
     graphdb_string_t, graphdb_value_data_t, graphdb_value_t, graphdb_value_type_t,
 };
 

@@ -6,7 +6,7 @@
 use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::PropertyGraph;
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 use crate::transaction::undo_log::UndoLogManager;
 
 use super::super::graph_storage::type_utils::vertex_id_to_string;

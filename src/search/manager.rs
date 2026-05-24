@@ -11,7 +11,7 @@ use crate::search::factory::SearchEngineFactory;
 use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
 use crate::search::metrics::MetricsSearchEngine;
 use crate::search::result::{IndexStats, SearchResult};
-use crate::storage::metadata::SchemaManager;
+use crate::core::metadata::SchemaManager;
 
 const METADATA_FILE_NAME: &str = "fulltext_metadata.json";
 
