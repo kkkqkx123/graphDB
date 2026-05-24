@@ -1,3 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    ".",
+    "crates/graphdb-core",
+    "crates/graphdb-config",
+    "crates/graphdb-search",
+    "crates/graphdb-sync",
+    "crates/graphdb-transaction",
+    "crates/graphdb-storage",
+    "crates/graphdb-query",
+    "crates/graphdb-api",
+    "crates/tantivy",
+    "crates/tantivy/query-grammar",
+    "crates/tantivy/bitpacker",
+    "crates/tantivy/common",
+    "crates/tantivy/ownedbytes",
+    "crates/tantivy/stacker",
+    "crates/tantivy/sstable",
+    "crates/tantivy/tokenizer-api",
+    "crates/tantivy/columnar",
+]
+
 [package]
 name = "graphdb"
 version = "0.1.0"
@@ -8,57 +31,6 @@ license = "Apache-2.0"
 repository = "https://github.com/kkkqkx123/graphDB"
 homepage = "https://github.com/kkkqkx123/graphDB"
 
-[dependencies]
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
-tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
-tokio-stream = "0.1"
-bitvec = "1.0"
-clap = { version = "4.5.53", features = ["derive"] }
-log = "0.4.29"
-flexi_logger = { version = "0.31", features = ["async"] }
-thiserror = "2.0.17"
-moka = { version = "0.12", features = ["sync", "future"] }
-lru = "0.16.2"
-postcard = { version = "1.1", features = ["use-std"] }
-toml = "0.9.8"
-num_cpus = "1.17.0"
-uuid = { version = "1.19.0", features = ["v4"] }
-chrono = { version = "0.4.38", features = ["serde"] }
-bcrypt = "0.18.0"
-regex = "1.11.1"
-rand = "0.8.5"
-rayon = "1.10.0"
-dashmap = "6.1"
-parking_lot = "0.12"
-crossbeam-utils = "0.8"
-sysinfo = "0.30"
-dec = "0.4.11"
-futures = "0.3"
-tracing = "0.1"
-memmap2 = "0.9"
-crc32fast = "1.5"
-md-5 = "0.10"
-zstd = "0.13"
-bumpalo = "3.16"
-
-axum = { version = "0.8", features = ["macros"], optional = true }
-tower = { version = "0.5", optional = true }
-tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "limit"], optional = true }
-http = { version = "1.1", optional = true }
-tonic = { version = "0.12", optional = true }
-prost = { version = "0.13", optional = true }
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"], optional = true }
-async-trait = { version = "0.1", optional = true }
-tantivy = { path = "crates/tantivy", optional = true }
-vector-client = { path = "crates/vector-client", features = ["qdrant-http"], optional = true }
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
-
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["processthreadsapi", "psapi", "sysinfoapi", "fileapi", "minwinbase"] }
-
 [lib]
 name = "graphdb"
 crate-type = ["cdylib", "rlib"]
@@ -68,19 +40,43 @@ name = "graphdb-server"
 path = "src/main.rs"
 required-features = ["server"]
 
-[build-dependencies]
+[dependencies]
+graphdb-core = { path = "crates/graphdb-core" }
+graphdb-config = { path = "crates/graphdb-config" }
+graphdb-search = { path = "crates/graphdb-search" }
+graphdb-sync = { path = "crates/graphdb-sync" }
+graphdb-transaction = { path = "crates/graphdb-transaction" }
+graphdb-storage = { path = "crates/graphdb-storage" }
+graphdb-query = { path = "crates/graphdb-query" }
+graphdb-api = { path = "crates/graphdb-api" }
+
+# server binary deps
+clap = { version = "4.5.53", features = ["derive"] }
+flexi_logger = { version = "0.31", features = ["async"] }
+tracing = "0.1"
+tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
+
+# build-time deps
 cbindgen = { version = "0.29", optional = true }
+
+[build-dependencies]
 tonic-build = { version = "0.12", optional = true }
 prost-build = { version = "0.13", optional = true }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["processthreadsapi", "psapi", "sysinfoapi", "fileapi", "minwinbase"] }
+
 [features]
 default = ["server", "fulltext-search", "qdrant", "c-api", "grpc"]
-qdrant = ["dep:vector-client"]
-embedded = []
-c-api = ["embedded", "dep:cbindgen"]
-server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "dep:async-trait"]
-grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
-fulltext-search = ["dep:tantivy", "tantivy/jieba"]
+server = ["graphdb-api/server", "graphdb-config/server"]
+fulltext-search = ["graphdb-search/fulltext-search"]
+qdrant = ["graphdb-sync/qdrant", "graphdb-api/qdrant", "graphdb-query/qdrant"]
+embedded = ["graphdb-api/embedded"]
+c-api = ["graphdb-api/embedded", "dep:cbindgen"]
+grpc = ["graphdb-api/grpc", "dep:tonic-build", "dep:prost-build"]
 
 [profile.dev]
 opt-level = 0

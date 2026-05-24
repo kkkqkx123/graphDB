@@ -136,17 +136,7 @@ quickwit = ["sstable", "futures-util", "futures-channel"]
 # Uses 64bit ahash.
 compare_hash_only = ["stacker/compare_hash_only"]
 
-[workspace]
-members = [
-    "query-grammar",
-    "bitpacker",
-    "common",
-    "ownedbytes",
-    "stacker",
-    "sstable",
-    "tokenizer-api",
-    "columnar",
-]
+# Workspace members integrated into root workspace
 
 # Following the "fail" crate best practises, we isolate
 # tests that define specific behavior in fail check points
