@@ -15,8 +15,8 @@ pub mod test_scenario;
 pub mod transaction_helpers;
 pub mod validation_helpers;
 
-// C API helpers only compiled when c-api feature is enabled
-#[cfg(feature = "c-api")]
+// C API helpers only compiled when embedded feature is enabled
+#[cfg(feature = "embedded")]
 pub mod c_api_helpers;
 
 use graphdb::core::error::DBError;
