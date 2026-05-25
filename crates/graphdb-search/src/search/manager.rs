@@ -7,6 +7,7 @@ use crate::core::stats::StatsManager;
 use crate::search::config::FulltextConfig;
 use crate::search::engine::{ConsistencyState, EngineType, SearchEngine};
 use crate::search::error::SearchError;
+#[cfg(feature = "fulltext-search")]
 use crate::search::factory::SearchEngineFactory;
 use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
 use crate::search::metrics::MetricsSearchEngine;
@@ -20,7 +21,9 @@ pub struct FulltextIndexManager {
     engines: DashMap<IndexKey, Arc<dyn SearchEngine>>,
     metadata: DashMap<IndexKey, IndexMetadata>,
     base_path: PathBuf,
+    #[cfg(feature = "fulltext-search")]
     default_engine: EngineType,
+    #[cfg(feature = "fulltext-search")]
     config: FulltextConfig,
     schema_manager: Option<Arc<SchemaManager>>,
     stats_manager: Mutex<Option<Arc<StatsManager>>>,
@@ -38,7 +41,9 @@ impl FulltextIndexManager {
             engines: DashMap::new(),
             metadata: DashMap::new(),
             base_path,
+            #[cfg(feature = "fulltext-search")]
             default_engine: config.default_engine,
+            #[cfg(feature = "fulltext-search")]
             config,
             schema_manager: None,
             stats_manager: Mutex::new(None),
@@ -50,6 +55,7 @@ impl FulltextIndexManager {
     }
 
     fn discover_existing_indexes(&self) -> Result<(), SearchError> {
+        #[cfg(feature = "fulltext-search")]
         if let Ok(loaded) = self.load_metadata_from_file() {
             for metadata in loaded {
                 if self.restore_index_from_metadata(&metadata).is_ok() {
@@ -62,9 +68,14 @@ impl FulltextIndexManager {
             return Ok(());
         }
 
-        self.discover_indexes_from_disk()
+        #[cfg(feature = "fulltext-search")]
+        return self.discover_indexes_from_disk();
+
+        #[cfg(not(feature = "fulltext-search"))]
+        Ok(())
     }
 
+    #[cfg(feature = "fulltext-search")]
     fn discover_indexes_from_disk(&self) -> Result<(), SearchError> {
         let entries = match std::fs::read_dir(&self.base_path) {
             Ok(entries) => entries,
@@ -94,6 +105,7 @@ impl FulltextIndexManager {
         Ok(())
     }
 
+    #[cfg(feature = "fulltext-search")]
     fn try_restore_bm25_index(
         &self,
         path: &std::path::Path,
@@ -130,6 +142,7 @@ impl FulltextIndexManager {
         Some((key, engine, metadata))
     }
 
+    #[cfg(feature = "fulltext-search")]
     fn parse_index_id(&self, index_id: &str) -> Option<(u64, String, String)> {
         let parts: Vec<&str> = index_id.split('_').collect();
         if parts.len() < 4 || parts[0] != "space" || parts[1] != "ft" {
@@ -143,6 +156,7 @@ impl FulltextIndexManager {
         Some((space_id, tag_name, field_name))
     }
 
+    #[cfg(feature = "fulltext-search")]
     fn restore_index_from_metadata(&self, metadata: &IndexMetadata) -> Result<(), SearchError> {
         let key = IndexKey::new(metadata.space_id, &metadata.tag_name, &metadata.field_name);
 
@@ -167,6 +181,7 @@ impl FulltextIndexManager {
         Ok(())
     }
 
+    #[cfg(feature = "fulltext-search")]
     fn load_metadata_from_file(&self) -> Result<Vec<IndexMetadata>, SearchError> {
         let metadata_path = self.base_path.join(METADATA_FILE_NAME);
 
@@ -296,6 +311,7 @@ impl FulltextIndexManager {
         Ok(())
     }
 
+    #[cfg(feature = "fulltext-search")]
     fn get_space_storage_path(&self, space_id: u64) -> Result<PathBuf, SearchError> {
         if let Some(ref schema_manager) = self.schema_manager {
             if let Some(space_info) = schema_manager
@@ -352,38 +368,51 @@ impl FulltextIndexManager {
             return Err(SearchError::IndexAlreadyExists(index_id));
         }
 
-        let engine_type = engine_type.unwrap_or(self.default_engine);
+        #[cfg(feature = "fulltext-search")]
+        {
+            let engine_type = engine_type.unwrap_or(self.default_engine);
+            let storage_path = self.get_space_storage_path(space_id)?;
 
-        let storage_path = self.get_space_storage_path(space_id)?;
+            let engine = {
+                let engine = SearchEngineFactory::from_config(
+                    engine_type,
+                    &index_id,
+                    &storage_path,
+                    &self.config,
+                )?;
+                self.wrap_engine(engine, engine_type, space_id, tag_name, field_name)
+            };
 
-        let engine =
-            SearchEngineFactory::from_config(engine_type, &index_id, &storage_path, &self.config)?;
+            let metadata = IndexMetadata {
+                index_id: index_id.clone(),
+                index_name: format!("idx_{}_{}_{}", space_id, tag_name, field_name),
+                space_id,
+                tag_name: tag_name.to_string(),
+                field_name: field_name.to_string(),
+                engine_type,
+                storage_path: storage_path.join(&index_id).to_string_lossy().to_string(),
+                created_at: chrono::Utc::now(),
+                last_updated: chrono::Utc::now(),
+                doc_count: 0,
+                status: IndexStatus::Active,
+                engine_config: None,
+            };
 
-        let engine = self.wrap_engine(engine, engine_type, space_id, tag_name, field_name);
+            self.engines.insert(key.clone(), engine);
+            self.metadata.insert(key, metadata);
 
-        let metadata = IndexMetadata {
-            index_id: index_id.clone(),
-            index_name: format!("idx_{}_{}_{}", space_id, tag_name, field_name),
-            space_id,
-            tag_name: tag_name.to_string(),
-            field_name: field_name.to_string(),
-            engine_type,
-            storage_path: storage_path.join(&index_id).to_string_lossy().to_string(),
-            created_at: chrono::Utc::now(),
-            last_updated: chrono::Utc::now(),
-            doc_count: 0,
-            status: IndexStatus::Active,
-            engine_config: None,
-        };
+            if let Err(e) = self.save_metadata_to_file() {
+                tracing::warn!("Failed to save metadata after creating index: {}", e);
+            }
 
-        self.engines.insert(key.clone(), engine);
-        self.metadata.insert(key, metadata);
-
-        if let Err(e) = self.save_metadata_to_file() {
-            tracing::warn!("Failed to save metadata after creating index: {}", e);
+            Ok(index_id)
         }
 
-        Ok(index_id)
+        #[cfg(not(feature = "fulltext-search"))]
+        {
+            let _ = engine_type;
+            Err(SearchError::EngineUnavailable)
+        }
     }
 
     pub fn get_engine(

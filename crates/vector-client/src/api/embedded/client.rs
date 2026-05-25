@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::config::{EngineType, VectorClientConfig};
+use crate::config::VectorClientConfig;
+#[cfg(any(feature = "qdrant-http", feature = "qdrant-grpc"))]
+use crate::config::EngineType;
 use crate::engine::VectorEngine;
 use crate::error::Result;
 use crate::types::HealthStatus;
@@ -15,29 +17,33 @@ pub struct VectorClient {
 
 impl VectorClient {
     pub async fn new(config: VectorClientConfig) -> Result<Self> {
-        let engine: Arc<dyn VectorEngine> = match config.engine {
-            EngineType::Qdrant => {
-                #[cfg(feature = "qdrant-grpc")]
-                {
-                    let e = crate::engine::QdrantGrpcEngine::new(config.clone()).await?;
-                    Arc::new(e)
+        #[cfg(any(feature = "qdrant-http", feature = "qdrant-grpc"))]
+        {
+            let engine: Arc<dyn VectorEngine> = match config.engine {
+                EngineType::Qdrant => {
+                    #[cfg(feature = "qdrant-grpc")]
+                    {
+                        let e = crate::engine::QdrantGrpcEngine::new(config.clone()).await?;
+                        Arc::new(e)
+                    }
+                    #[cfg(feature = "qdrant-http")]
+                    {
+                        let e = crate::engine::QdrantEngine::new(config.clone()).await?;
+                        Arc::new(e)
+                    }
                 }
-                #[cfg(all(feature = "qdrant-http", not(feature = "qdrant-grpc")))]
-                {
-                    let e = crate::engine::QdrantEngine::new(config.clone()).await?;
-                    Arc::new(e)
-                }
-                #[cfg(not(any(feature = "qdrant-http", feature = "qdrant-grpc")))]
-                {
-                    let _ = config;
-                    return Err(crate::error::VectorClientError::EngineNotAvailable(
-                        "no qdrant engine feature enabled".to_string(),
-                    ));
-                }
-            }
-        };
+            };
 
-        Ok(Self { engine, config })
+            Ok(Self { engine, config })
+        }
+
+        #[cfg(not(any(feature = "qdrant-http", feature = "qdrant-grpc")))]
+        {
+            let _ = config;
+            Err(crate::error::VectorClientError::EngineNotAvailable(
+                "no qdrant engine feature enabled".to_string(),
+            ))
+        }
     }
 
     pub fn engine(&self) -> &dyn VectorEngine {

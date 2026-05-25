@@ -106,11 +106,11 @@ macro_rules! define_enum_as_mut_methods {
 /// ```
 #[macro_export]
 macro_rules! define_enum_type_name {
-    ($enum_type:ident, $(($variant:ident, $name:expr)),* $(,)?) => {
+    ($enum_type:ident, $($(#[$meta:meta])* ($variant:ident, $name:expr)),* $(,)?) => {
         impl $enum_type {
             pub fn type_name(&self) -> &'static str {
                 match self {
-                    $($enum_type::$variant(_) => $name,)*
+                    $($(#[$meta])* $enum_type::$variant(_) => $name,)*
                 }
             }
         }
@@ -129,12 +129,12 @@ macro_rules! define_enum_type_name {
 /// ```
 #[macro_export]
 macro_rules! define_enum_category {
-    ($enum_type:ident, $(($variant:ident, $category:expr)),* $(,)?) => {
+    ($enum_type:ident, $($(#[$meta:meta])* ($variant:ident, $category:expr)),* $(,)?) => {
         impl $enum_type {
             pub fn category(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory {
                 use $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
                 match self {
-                    $($enum_type::$variant(_) => $category,)*
+                    $($(#[$meta])* $enum_type::$variant(_) => $category,)*
                 }
             }
         }
@@ -154,12 +154,12 @@ macro_rules! define_enum_category {
 /// ```
 #[macro_export]
 macro_rules! define_enum_describe {
-    ($enum_type:ident, $(($variant:ident, $name:expr)),* $(,)?) => {
+    ($enum_type:ident, $($(#[$meta:meta])* ($variant:ident, $name:expr)),* $(,)?) => {
         impl $enum_type {
             pub fn describe(&self) -> $crate::query::planning::plan::explain::PlanNodeDescription {
                 use $crate::query::planning::plan::explain::PlanNodeDescription;
                 match self {
-                    $($enum_type::$variant(node) => {
+                    $($(#[$meta])* $enum_type::$variant(node) => {
                         let mut desc = PlanNodeDescription::new($name, node.id());
                         if let Some(var) = node.output_var() {
                             desc = desc.with_output_var(var.to_string());

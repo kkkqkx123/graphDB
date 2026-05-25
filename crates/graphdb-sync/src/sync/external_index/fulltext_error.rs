@@ -136,6 +136,7 @@ impl From<crate::search::error::SearchError> for FulltextError {
             crate::search::error::SearchError::IndexCorrupted(msg) => {
                 FulltextError::IndexCorrupted(msg)
             }
+            #[cfg(feature = "fulltext-search")]
             crate::search::error::SearchError::TantivyError(e) => {
                 FulltextError::Internal(e.to_string())
             }

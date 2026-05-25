@@ -127,6 +127,7 @@ pub enum VectorCoordinatorError {
 pub type VectorResult<T> = std::result::Result<T, VectorError>;
 pub type VectorCoordinatorResult<T> = std::result::Result<T, VectorCoordinatorError>;
 
+#[cfg(feature = "qdrant")]
 impl From<vector_client::VectorClientError> for VectorError {
     fn from(err: vector_client::VectorClientError) -> Self {
         match err {
@@ -184,6 +185,7 @@ impl From<vector_client::VectorClientError> for VectorError {
     }
 }
 
+#[cfg(feature = "qdrant")]
 impl From<vector_client::VectorClientError> for VectorCoordinatorError {
     fn from(err: vector_client::VectorClientError) -> Self {
         VectorCoordinatorError::Vector(VectorError::from(err))

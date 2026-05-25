@@ -46,5 +46,5 @@ vector-client = { path = "../vector-client", features = ["qdrant-http"], optiona
 [features]
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "dep:async-trait"]
 grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
-qdrant = ["dep:vector-client"]
+qdrant = ["dep:vector-client", "graphdb-sync/qdrant", "graphdb-query/qdrant"]
 embedded = []

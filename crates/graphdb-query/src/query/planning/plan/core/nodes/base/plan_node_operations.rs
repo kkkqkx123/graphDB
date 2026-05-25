@@ -155,8 +155,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(_) => "FulltextSearch",
             PlanNodeEnum::FulltextLookup(_) => "FulltextLookup",
             PlanNodeEnum::MatchFulltext(_) => "MatchFulltext",
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorSearch(_) => "VectorSearch",
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorLookup(_) => "VectorLookup",
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorMatch(_) => "VectorMatch",
         }
     }
@@ -312,8 +315,10 @@ impl PlanNodeEnum {
 
             PlanNodeEnum::FulltextSearch(_)
             | PlanNodeEnum::FulltextLookup(_)
-            | PlanNodeEnum::MatchFulltext(_)
-            | PlanNodeEnum::VectorSearch(_)
+            | PlanNodeEnum::MatchFulltext(_) => Cow::Borrowed(&[]),
+
+            #[cfg(feature = "qdrant")]
+            PlanNodeEnum::VectorSearch(_)
             | PlanNodeEnum::VectorLookup(_)
             | PlanNodeEnum::VectorMatch(_) => Cow::Borrowed(&[]),
         }

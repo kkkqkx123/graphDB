@@ -37,8 +37,10 @@ impl PlanNodeEnum {
             | PlanNodeEnum::MultiShortestPath(_)
             | PlanNodeEnum::FulltextSearch(_)
             | PlanNodeEnum::FulltextLookup(_)
-            | PlanNodeEnum::MatchFulltext(_)
-            | PlanNodeEnum::VectorSearch(_)
+            | PlanNodeEnum::MatchFulltext(_) => vec![],
+
+            #[cfg(feature = "qdrant")]
+            PlanNodeEnum::VectorSearch(_)
             | PlanNodeEnum::VectorLookup(_)
             | PlanNodeEnum::VectorMatch(_) => vec![],
 

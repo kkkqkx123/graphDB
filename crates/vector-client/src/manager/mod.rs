@@ -179,7 +179,6 @@ async fn create_engine(config: VectorClientConfig) -> Result<Arc<dyn VectorEngin
     }
 }
 
-#[cfg(any(feature = "qdrant-http", feature = "qdrant-grpc"))]
 mod disabled {
     use async_trait::async_trait;
 
@@ -233,5 +232,4 @@ mod disabled {
     }
 }
 
-#[cfg(any(feature = "qdrant-http", feature = "qdrant-grpc"))]
 use disabled::DisabledEngine;

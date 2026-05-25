@@ -12,6 +12,7 @@ pub mod join_builder;
 pub mod set_operation_builder;
 pub mod transformation_builder;
 pub mod traversal_builder;
+#[cfg(feature = "qdrant")]
 pub mod vector_search_builder;
 
 pub use admin_builder::AdminBuilder;
@@ -24,4 +25,5 @@ pub use join_builder::JoinBuilder;
 pub use set_operation_builder::SetOperationBuilder;
 pub use transformation_builder::TransformationBuilder;
 pub use traversal_builder::TraversalBuilder;
+#[cfg(feature = "qdrant")]
 pub use vector_search_builder::VectorSearchBuilder;

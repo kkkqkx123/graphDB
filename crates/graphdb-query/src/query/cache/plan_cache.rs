@@ -477,8 +477,11 @@ impl QueryPlanCache {
             PlanNodeEnum::MatchFulltext(_) => 30,
 
             // Vector search nodes
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorSearch(_) => 35,
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorLookup(_) => 30,
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorMatch(_) => 35,
         };
 

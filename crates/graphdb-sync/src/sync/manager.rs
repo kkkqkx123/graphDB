@@ -6,15 +6,18 @@ use crate::sync::external_index::CoordinatorError;
 use crate::core::Value;
 use crate::search::SyncConfig;
 use crate::sync::coordinator::{ChangeType, SyncCoordinator};
+#[cfg(feature = "qdrant")]
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 // Re-export vector_client types for unified API
+#[cfg(feature = "qdrant")]
 pub use vector_client::{CollectionConfig, SearchResult};
 
 pub struct SyncManager {
     sync_coordinator: Arc<SyncCoordinator>,
+    #[cfg(feature = "qdrant")]
     vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
     running: Arc<std::sync::atomic::AtomicBool>,
     dead_letter_queue: Option<Arc<crate::sync::DeadLetterQueue>>,
@@ -26,6 +29,7 @@ impl Clone for SyncManager {
     fn clone(&self) -> Self {
         Self {
             sync_coordinator: self.sync_coordinator.clone(),
+            #[cfg(feature = "qdrant")]
             vector_coordinator: self.vector_coordinator.clone(),
             running: self.running.clone(),
             dead_letter_queue: self.dead_letter_queue.clone(),
@@ -36,11 +40,12 @@ impl Clone for SyncManager {
 
 impl std::fmt::Debug for SyncManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SyncManager")
-            .field("sync_coordinator", &self.sync_coordinator)
-            .field("vector_coordinator", &self.vector_coordinator)
-            .field("running", &self.running)
-            .finish_non_exhaustive()
+        let mut d = f.debug_struct("SyncManager");
+        d.field("sync_coordinator", &self.sync_coordinator);
+        #[cfg(feature = "qdrant")]
+        d.field("vector_coordinator", &self.vector_coordinator);
+        d.field("running", &self.running);
+        d.finish_non_exhaustive()
     }
 }
 
@@ -48,6 +53,7 @@ impl SyncManager {
     pub fn new(sync_coordinator: Arc<SyncCoordinator>) -> Self {
         Self {
             sync_coordinator,
+            #[cfg(feature = "qdrant")]
             vector_coordinator: None,
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             dead_letter_queue: None,
@@ -55,6 +61,7 @@ impl SyncManager {
         }
     }
 
+    #[cfg(feature = "qdrant")]
     pub fn with_vector_coordinator(
         mut self,
         vector_coordinator: Arc<VectorSyncCoordinator>,
@@ -133,6 +140,7 @@ impl SyncManager {
             }
 
             // Buffered Vector Indexing Operations
+            #[cfg(feature = "qdrant")]
             if let Some(vector) = value.as_vector() {
                 if let Some(ref vector_coord) = self.vector_coordinator {
                     let ctx = crate::sync::vector_sync::VectorChangeContext::new(
@@ -187,6 +195,7 @@ impl SyncManager {
             }
 
             // Buffer vector index operations for vector properties
+            #[cfg(feature = "qdrant")]
             if let Some(vector) = value.as_vector() {
                 if let Some(ref vector_coord) = self.vector_coordinator {
                     if vector_coord.index_exists(space_id, &edge.edge_type, field_name) {
@@ -260,6 +269,7 @@ impl SyncManager {
         }
 
         // Also delete from vector indexes for this edge type
+        #[cfg(feature = "qdrant")]
         if let Some(ref vector_coord) = self.vector_coordinator {
             let vector_indexes = vector_coord.list_indexes();
             for idx in vector_indexes {
@@ -285,6 +295,7 @@ impl SyncManager {
         Ok(())
     }
 
+    #[cfg(feature = "qdrant")]
     pub fn on_vector_change_with_context_buffered(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -298,6 +309,7 @@ impl SyncManager {
         Ok(())
     }
 
+    #[cfg(feature = "qdrant")]
     pub async fn on_vector_change_with_context(
         &self,
         ctx: crate::sync::vector_sync::VectorChangeContext,
@@ -337,6 +349,7 @@ impl SyncManager {
         self.sync_coordinator.commit_transaction(txn_id).await?;
 
         // Commit vector index
+        #[cfg(feature = "qdrant")]
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord
                 .commit_transaction(txn_id)
@@ -354,6 +367,7 @@ impl SyncManager {
         self.sync_coordinator.rollback_transaction(txn_id).await?;
 
         // Also rollback vector index buffer
+        #[cfg(feature = "qdrant")]
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord.rollback_transaction(txn_id).await;
         }
@@ -412,6 +426,7 @@ impl SyncManager {
     }
 
     /// Commit vector index transaction
+    #[cfg(feature = "qdrant")]
     pub async fn commit_vector_transaction(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -429,6 +444,7 @@ impl SyncManager {
         &self.sync_coordinator
     }
 
+    #[cfg(feature = "qdrant")]
     pub fn vector_coordinator(&self) -> Option<&Arc<VectorSyncCoordinator>> {
         self.vector_coordinator.as_ref()
     }
@@ -504,6 +520,7 @@ impl SyncManager {
     // ===== Unified Index Management API =====
 
     /// Check if vector index exists
+    #[cfg(feature = "qdrant")]
     pub fn vector_index_exists(&self, space_id: u64, tag_name: &str, field_name: &str) -> bool {
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord.index_exists(space_id, tag_name, field_name)
@@ -513,6 +530,7 @@ impl SyncManager {
     }
 
     /// Create vector index
+    #[cfg(feature = "qdrant")]
     pub async fn create_vector_index(
         &self,
         space_id: u64,
@@ -534,6 +552,7 @@ impl SyncManager {
     }
 
     /// Drop vector index
+    #[cfg(feature = "qdrant")]
     pub async fn drop_vector_index(
         &self,
         space_id: u64,
@@ -553,6 +572,7 @@ impl SyncManager {
     }
 
     /// Search vector index
+    #[cfg(feature = "qdrant")]
     pub async fn search_vector(
         &self,
         space_id: u64,

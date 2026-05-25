@@ -9,8 +9,10 @@ use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::factory::builders::{
     AdminBuilder, ControlFlowBuilder, DataAccessBuilder, DataModificationBuilder,
     DataProcessingBuilder, FulltextSearchBuilder, JoinBuilder, SetOperationBuilder,
-    TransformationBuilder, TraversalBuilder, VectorSearchBuilder,
+    TransformationBuilder, TraversalBuilder,
 };
+#[cfg(feature = "qdrant")]
+use crate::query::executor::factory::builders::VectorSearchBuilder;
 use crate::query::executor::utils::recursion_detector::{
     ExecutorSafetyConfig, PlanValidator, RecursionDetector,
 };
@@ -493,6 +495,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             },
 
             // Manage Executor – Vector Index Management (parameterized)
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorManage(vector_node) => match vector_node {
                 crate::query::planning::plan::core::nodes::management::manage_node_enums::VectorManageNode::Create(node) => {
                     VectorSearchBuilder::build_create_vector_index(
@@ -505,6 +508,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     )
                 }
             },
+            #[cfg(not(feature = "qdrant"))]
+            PlanNodeEnum::VectorManage(_) => {
+                return Err(QueryError::execution(
+                    "Vector index operations require the qdrant feature",
+                ));
+            }
 
             // Management Executor – Query Management
             PlanNodeEnum::ShowStats(node) => AdminBuilder::build_show_stats(node, storage, context),
@@ -530,18 +539,21 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             ),
 
             // Vector Search Executors (data access)
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorSearch(node) => VectorSearchBuilder::build_vector_search(
                 node,
                 storage,
                 context,
                 self.sync_manager.as_ref(),
             ),
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorLookup(node) => VectorSearchBuilder::build_vector_lookup(
                 node,
                 storage,
                 context,
                 self.sync_manager.as_ref(),
             ),
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorMatch(node) => VectorSearchBuilder::build_vector_match(
                 node,
                 storage,

@@ -7,7 +7,10 @@
 
 #[cfg(feature = "qdrant")]
 use log::warn;
-use log::{error, info};
+use log::info;
+#[cfg(feature = "server")]
+use log::error;
+#[cfg(feature = "server")]
 use std::sync::Arc;
 
 pub mod core;
@@ -34,10 +37,15 @@ pub use embedded::GraphDatabase;
 
 #[cfg(feature = "server")]
 use crate::api::server::GraphService;
+#[cfg(feature = "server")]
 use crate::config::Config;
+#[cfg(feature = "server")]
 use crate::core::error::DBResult;
+#[cfg(feature = "server")]
 use crate::storage::engine::sync_wrapper::SyncWrapper;
+#[cfg(feature = "server")]
 use crate::storage::GraphStorage;
+#[cfg(feature = "server")]
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// Start the service using the configuration file path (deprecated; please use start_service_with_config).

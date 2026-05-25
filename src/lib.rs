@@ -9,5 +9,5 @@ pub use graphdb_storage::storage as storage;
 pub use graphdb_sync::sync as sync;
 pub use graphdb_transaction::transaction as transaction;
 
-#[cfg(feature = "c-api")]
+#[cfg(feature = "embedded")]
 pub mod c_api;

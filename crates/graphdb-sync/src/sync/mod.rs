@@ -9,6 +9,7 @@ pub mod dead_letter_queue;
 pub mod external_index;
 pub mod manager;
 pub mod retry;
+#[cfg(feature = "qdrant")]
 pub mod vector_sync;
 
 pub use crate::search::SyncConfig;
@@ -26,6 +27,7 @@ pub use dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueCon
 pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
 pub use manager::{SyncError, SyncManager};
 pub use retry::{with_retry, RetryConfig};
+#[cfg(feature = "qdrant")]
 pub use vector_sync::{
     PendingVectorUpdate, SearchOptions, VectorChangeContext, VectorChangeType, VectorIndexLocation,
     VectorPointData, VectorSyncCoordinator, VectorTransactionBuffer, VectorTransactionBufferConfig,

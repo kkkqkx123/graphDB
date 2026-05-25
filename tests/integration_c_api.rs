@@ -10,7 +10,7 @@
 //! Batch operations
 //! Error handling
 
-#![cfg(feature = "c-api")]
+#![cfg(feature = "embedded")]
 
 mod common;
 

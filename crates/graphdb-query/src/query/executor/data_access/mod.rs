@@ -10,7 +10,9 @@ pub mod neighbor;
 pub mod path;
 pub mod property;
 pub mod search;
+#[cfg(feature = "qdrant")]
 pub mod vector_index;
+#[cfg(feature = "qdrant")]
 pub mod vector_search;
 pub mod vertex;
 
@@ -24,6 +26,8 @@ pub use neighbor::GetNeighborsExecutor;
 pub use path::AllPathsExecutor;
 pub use property::GetPropExecutor;
 pub use search::IndexScanExecutor;
+#[cfg(feature = "qdrant")]
 pub use vector_index::{CreateVectorIndexExecutor, DropVectorIndexExecutor};
+#[cfg(feature = "qdrant")]
 pub use vector_search::{VectorLookupExecutor, VectorMatchExecutor, VectorSearchExecutor};
 pub use vertex::{GetVerticesExecutor, GetVerticesParams, ScanVerticesExecutor};

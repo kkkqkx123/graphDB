@@ -1,11 +1,13 @@
 pub mod config;
 pub mod engine;
 pub mod error;
+#[cfg(feature = "fulltext-search")]
 pub mod factory;
 pub mod manager;
 pub mod metadata;
 pub mod metrics;
 pub mod result;
+#[cfg(feature = "fulltext-search")]
 pub mod tantivy_index;
 pub mod warmup;
 
@@ -15,6 +17,7 @@ mod isolation_test;
 pub use config::{FulltextConfig, SyncConfig, SyncFailurePolicy};
 pub use engine::{EngineType, SearchEngine};
 pub use error::{Result, SearchError};
+#[cfg(feature = "fulltext-search")]
 pub use factory::SearchEngineFactory;
 pub use manager::FulltextIndexManager;
 pub use metadata::{IndexKey, IndexMetadata, IndexStatus};
@@ -24,5 +27,6 @@ pub use result::{
     SearchStats,
 };
 pub use crate::config::common::fulltext::TantivyConfig;
+#[cfg(feature = "fulltext-search")]
 pub use tantivy_index::TantivySearchEngine;
 pub use warmup::IndexWarmer;

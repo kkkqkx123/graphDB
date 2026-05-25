@@ -36,6 +36,7 @@ use crate::query::executor::admin::user::{
     AlterUserExecutor, ChangePasswordExecutor, CreateUserExecutor, DropUserExecutor,
     GrantRoleExecutor, RevokeRoleExecutor,
 };
+#[cfg(feature = "qdrant")]
 use crate::query::executor::data_access::{CreateVectorIndexExecutor, DropVectorIndexExecutor};
 use crate::storage::StorageClient;
 
@@ -203,6 +204,7 @@ define_manage_executor_enum! {
     }
 }
 
+#[cfg(feature = "qdrant")]
 define_manage_executor_enum! {
     /// Vector index management executor sub-enum
     pub enum VectorManageExecutor {

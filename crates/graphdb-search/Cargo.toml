@@ -16,10 +16,11 @@ tantivy = { path = "../tantivy", optional = true }
 dashmap.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["fs"] }
 
 [features]
-fulltext-search = ["dep:tantivy", "tantivy/jieba"]
+fulltext-search = ["dep:tantivy"]
+jieba = ["tantivy/jieba"]
 
 [dev-dependencies]
 tempfile.workspace = true

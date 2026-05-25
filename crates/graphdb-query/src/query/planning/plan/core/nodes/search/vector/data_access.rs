@@ -8,7 +8,12 @@ use crate::query::planning::plan::core::nodes::base::memory_estimation::MemoryEs
 use crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{PlanNode, ZeroInputNode};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "qdrant")]
 use vector_client::types::VectorFilter;
+
+#[cfg(not(feature = "qdrant"))]
+#[derive(Debug, Clone)]
+pub struct VectorFilter;
 
 /// Output field definition
 #[derive(Debug, Clone, Serialize, Deserialize)]

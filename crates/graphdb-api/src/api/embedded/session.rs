@@ -11,6 +11,7 @@ use crate::core::{SessionStatistics, StatsManager};
 use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
 use crate::search::FulltextIndexManager;
 use crate::storage::StorageClient;
+#[cfg(feature = "qdrant")]
 use crate::sync::vector_sync::SearchOptions;
 use crate::sync::SyncManager;
 use crate::transaction::TransactionManager;
@@ -554,6 +555,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns vector search results on success
     /// - Return error on failure
+    #[cfg(feature = "qdrant")]
     pub async fn vector_search(
         &self,
         tag_name: &str,
@@ -603,6 +605,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns vector search results on success
     /// - Return error on failure
+    #[cfg(feature = "qdrant")]
     pub async fn vector_search_with_threshold(
         &self,
         tag_name: &str,
@@ -653,6 +656,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns collection name on success
     /// - Return error on failure
+    #[cfg(feature = "qdrant")]
     pub async fn create_vector_index(
         &self,
         tag_name: &str,
@@ -688,6 +692,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns () on success
     /// - Return error on failure
+    #[cfg(feature = "qdrant")]
     pub async fn drop_vector_index(&self, tag_name: &str, field_name: &str) -> CoreResult<()> {
         let space_id = self
             .space_id

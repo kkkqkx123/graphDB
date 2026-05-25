@@ -22,9 +22,7 @@ dashmap.workspace = true
 futures.workspace = true
 tokio.workspace = true
 moka.workspace = true
-vector-client = { path = "../vector-client", features = ["qdrant-http"] }
-
-[dev-dependencies]
-tempfile.workspace = true
+vector-client = { path = "../vector-client", features = ["qdrant-http"], optional = true }
 
 [features]
+qdrant = ["dep:vector-client", "graphdb-sync/qdrant"]

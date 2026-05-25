@@ -15,20 +15,28 @@ use crate::sync::batch::{
 
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 use crate::sync::external_index::{
-    FulltextClient, IndexData, IndexKey, IndexOperation, VectorClient, VectorClientConfig,
+    FulltextClient, IndexData, IndexKey, IndexOperation,
 };
-use crate::sync::retry::{default_local_retry_config, default_remote_retry_config, with_retry};
+#[cfg(feature = "qdrant")]
+use crate::sync::external_index::{VectorClient, VectorClientConfig};
+use crate::sync::retry::{default_local_retry_config, with_retry};
+#[cfg(feature = "qdrant")]
+use crate::sync::retry::default_remote_retry_config;
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
+#[cfg(feature = "qdrant")]
 type VectorProcessor = GenericBatchProcessor<VectorClient>;
 
 pub struct SyncCoordinator {
     fulltext_manager: Arc<FulltextIndexManager>,
+    #[cfg(feature = "qdrant")]
     vector_manager: Option<Arc<vector_client::VectorManager>>,
     fulltext_processors: DashMap<(u64, String, String), Arc<FulltextProcessor>>,
+    #[cfg(feature = "qdrant")]
     vector_processors: DashMap<(u64, String, String), Arc<VectorProcessor>>,
     transaction_buffers: DashMap<crate::core::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
+    #[cfg(feature = "qdrant")]
     vector_client_config: VectorClientConfig,
     dead_letter_queue: Arc<DeadLetterQueue>,
     stats_manager: Option<Arc<StatsManager>>,
@@ -36,11 +44,12 @@ pub struct SyncCoordinator {
 
 impl std::fmt::Debug for SyncCoordinator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SyncCoordinator")
-            .field("fulltext_processors_count", &self.fulltext_processors.len())
-            .field("vector_processors_count", &self.vector_processors.len())
-            .field("config", &self.config)
-            .finish_non_exhaustive()
+        let mut d = f.debug_struct("SyncCoordinator");
+        d.field("fulltext_processors_count", &self.fulltext_processors.len());
+        #[cfg(feature = "qdrant")]
+        d.field("vector_processors_count", &self.vector_processors.len());
+        d.field("config", &self.config);
+        d.finish_non_exhaustive()
     }
 }
 
@@ -50,17 +59,21 @@ impl SyncCoordinator {
 
         Self {
             fulltext_manager,
+            #[cfg(feature = "qdrant")]
             vector_manager: None,
             fulltext_processors: DashMap::new(),
+            #[cfg(feature = "qdrant")]
             vector_processors: DashMap::new(),
             transaction_buffers: DashMap::new(),
             config,
+            #[cfg(feature = "qdrant")]
             vector_client_config: VectorClientConfig::default(),
             dead_letter_queue,
             stats_manager: None,
         }
     }
 
+    #[cfg(feature = "qdrant")]
     pub fn with_vector_manager(
         mut self,
         vector_manager: Arc<vector_client::VectorManager>,
@@ -74,6 +87,7 @@ impl SyncCoordinator {
         self
     }
 
+    #[cfg(feature = "qdrant")]
     pub fn with_vector_client_config(mut self, config: VectorClientConfig) -> Self {
         self.vector_client_config = config;
         self
@@ -121,6 +135,7 @@ impl SyncCoordinator {
         Some(processor)
     }
 
+    #[cfg(feature = "qdrant")]
     fn get_or_create_vector_processor(
         &self,
         space_id: u64,
@@ -172,6 +187,7 @@ impl SyncCoordinator {
                         processor.add(operation).await?;
                     }
                 }
+                #[cfg(feature = "qdrant")]
                 IndexType::Vector => {
                     if let Some(processor) = self.get_or_create_vector_processor(
                         ctx.space_id,
@@ -181,6 +197,8 @@ impl SyncCoordinator {
                         processor.add(operation).await?;
                     }
                 }
+                #[cfg(not(feature = "qdrant"))]
+                _ => {}
             }
             Ok::<(), SyncCoordinatorError>(())
         }
@@ -259,17 +277,20 @@ impl SyncCoordinator {
                 }
             }
 
-            if let Some(ref _vm) = self.vector_manager {
-                if let Some(vector) = value.as_vector() {
-                    let ctx = ChangeContext::new_vector(
-                        space_id,
-                        tag_name,
-                        field_name,
-                        change_type,
-                        vid_str.clone(),
-                        vector,
-                    );
-                    self.on_change(ctx).await?;
+            #[cfg(feature = "qdrant")]
+            {
+                if let Some(ref _vm) = self.vector_manager {
+                    if let Some(vector) = value.as_vector() {
+                        let ctx = ChangeContext::new_vector(
+                            space_id,
+                            tag_name,
+                            field_name,
+                            change_type,
+                            vid_str.clone(),
+                            vector,
+                        );
+                        self.on_change(ctx).await?;
+                    }
                 }
             }
         }
@@ -352,27 +373,35 @@ impl SyncCoordinator {
                 .take_operations(txn_id)
                 .map_err(SyncCoordinatorError::BatchError)?;
 
+            #[cfg(feature = "qdrant")]
             let mut vector_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
             let mut fulltext_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
 
             // Categorize operations
             for (key, operations) in grouped_ops {
-                let is_vector = operations.iter().any(|op| {
-                    matches!(
-                        op,
-                        IndexOperation::Insert {
-                            data: IndexData::Vector(_),
-                            ..
-                        } | IndexOperation::Update {
-                            data: IndexData::Vector(_),
-                            ..
-                        }
-                    )
-                });
-                if is_vector {
-                    vector_batches.insert(key.clone(), operations);
-                } else {
-                    fulltext_batches.insert(key.clone(), operations);
+                #[cfg(not(feature = "qdrant"))]
+                {
+                    fulltext_batches.insert(key, operations);
+                }
+                #[cfg(feature = "qdrant")]
+                {
+                    let is_vector = operations.iter().any(|op| {
+                        matches!(
+                            op,
+                            IndexOperation::Insert {
+                                data: IndexData::Vector(_),
+                                ..
+                            } | IndexOperation::Update {
+                                data: IndexData::Vector(_),
+                                ..
+                            }
+                        )
+                    });
+                    if is_vector {
+                        vector_batches.insert(key, operations);
+                    } else {
+                        fulltext_batches.insert(key, operations);
+                    }
                 }
             }
 
@@ -388,52 +417,59 @@ impl SyncCoordinator {
                 }
             }
 
+            #[cfg(feature = "qdrant")]
+            let _vector_batch_count = vector_batches.len();
+            #[cfg(not(feature = "qdrant"))]
+            let _vector_batch_count = 0usize;
+
             // Phase 1: Apply vector operations (with retry)
             // Vector index is remote, so we keep full retry+commit per batch
-            let _vector_batch_count = vector_batches.len();
-            let mut vector_failed = false;
-            for (key, operations) in vector_batches {
-                let retry_config = default_remote_retry_config();
+            #[cfg(feature = "qdrant")]
+            {
+                let mut vector_failed = false;
+                for (key, operations) in vector_batches {
+                    let retry_config = default_remote_retry_config();
 
-                if let Some(processor) = self.get_or_create_vector_processor(
-                    key.space_id,
-                    &key.tag_name,
-                    &key.field_name,
-                ) {
-                    let ops_clone = operations.clone();
-                    let retry_config_clone = retry_config.clone();
-                    let dlq_clone = self.dead_letter_queue.clone();
+                    if let Some(processor) = self.get_or_create_vector_processor(
+                        key.space_id,
+                        &key.tag_name,
+                        &key.field_name,
+                    ) {
+                        let ops_clone = operations.clone();
+                        let retry_config_clone = retry_config.clone();
+                        let dlq_clone = self.dead_letter_queue.clone();
 
-                    match with_retry(
-                        || async { processor.execute_now(ops_clone.clone()).await },
-                        &retry_config_clone,
-                    )
-                    .await
-                    {
-                        Ok(_) => {
-                            debug!("Vector batch committed successfully");
-                        }
-                        Err(e) => {
-                            warn!("Vector batch failed after retries: {:?}", e);
-                            for op in operations {
-                                let entry = DeadLetterEntry::new(
-                                    op,
-                                    format!("Remote index sync failed after retries: {:?}", e),
-                                    retry_config_clone.max_retries,
-                                );
-                                dlq_clone.add(entry);
+                        match with_retry(
+                            || async { processor.execute_now(ops_clone.clone()).await },
+                            &retry_config_clone,
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                debug!("Vector batch committed successfully");
                             }
-                            vector_failed = true;
+                            Err(e) => {
+                                warn!("Vector batch failed after retries: {:?}", e);
+                                for op in operations {
+                                    let entry = DeadLetterEntry::new(
+                                        op,
+                                        format!("Remote index sync failed after retries: {:?}", e),
+                                        retry_config_clone.max_retries,
+                                    );
+                                    dlq_clone.add(entry);
+                                }
+                                vector_failed = true;
+                            }
                         }
                     }
                 }
-            }
-            if vector_failed {
-                return Err(SyncCoordinatorError::BatchError(
-                    crate::sync::batch::BatchError::InvalidOperation(
-                        "Vector batch commit failed after retries".to_string(),
-                    ),
-                ));
+                if vector_failed {
+                    return Err(SyncCoordinatorError::BatchError(
+                        crate::sync::batch::BatchError::InvalidOperation(
+                            "Vector batch commit failed after retries".to_string(),
+                        ),
+                    ));
+                }
             }
 
             // Phase 2: Apply fulltext operations WITHOUT committing (deferred commit)
@@ -558,6 +594,7 @@ impl SyncCoordinator {
             processor.commit_all().await?;
         }
 
+        #[cfg(feature = "qdrant")]
         for entry in self.vector_processors.iter() {
             let processor: &Arc<VectorProcessor> = entry.value();
             processor.commit_all().await?;
@@ -629,6 +666,7 @@ impl SyncCoordinator {
                             })?;
                         }
                     }
+                    #[cfg(feature = "qdrant")]
                     IndexData::Vector(_vector) => {
                         if let Some(processor) = self.get_or_create_vector_processor(
                             key.space_id,
@@ -644,6 +682,10 @@ impl SyncCoordinator {
                                 )
                             })?;
                         }
+                    }
+                    #[cfg(not(feature = "qdrant"))]
+                    IndexData::Vector(_) => {
+                        log::warn!("Vector recovery skipped (qdrant feature disabled)");
                     }
                 }
             }
@@ -671,6 +713,7 @@ impl SyncCoordinator {
                             })?;
                         }
                     }
+                    #[cfg(feature = "qdrant")]
                     IndexData::Vector(_vector) => {
                         if let Some(processor) = self.get_or_create_vector_processor(
                             key.space_id,
@@ -686,6 +729,10 @@ impl SyncCoordinator {
                                 )
                             })?;
                         }
+                    }
+                    #[cfg(not(feature = "qdrant"))]
+                    IndexData::Vector(_) => {
+                        log::warn!("Vector recovery skipped (qdrant feature disabled)");
                     }
                 }
             }
@@ -741,6 +788,7 @@ impl SyncCoordinator {
         // The BatchBuffer within GenericBatchProcessor is never populated
         // for fulltext operations, so a background flush would be a no-op.
 
+        #[cfg(feature = "qdrant")]
         for entry in self.vector_processors.iter() {
             let processor: Arc<VectorProcessor> = entry.value().clone();
             processor.start_background_task().await;
@@ -780,6 +828,7 @@ impl SyncCoordinator {
             processor.stop_background_task().await;
         }
 
+        #[cfg(feature = "qdrant")]
         for entry in self.vector_processors.iter() {
             let processor: &Arc<VectorProcessor> = entry.value();
             processor.stop_background_task().await;

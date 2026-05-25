@@ -53,7 +53,11 @@ pub use search::{
     ShowFulltextIndexNode,
 };
 pub use search::{
-    CreateVectorIndexNode, DropVectorIndexNode, VectorLookupNode, VectorMatchNode, VectorSearchNode,
+    CreateVectorIndexNode, DropVectorIndexNode,
+};
+#[cfg(feature = "qdrant")]
+pub use search::{
+    VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
 pub use traversal::{
     AllPathsNode, AppendVerticesNode, BFSShortestNode, BiExpandNode, BiTraverseNode, ExpandAllNode,

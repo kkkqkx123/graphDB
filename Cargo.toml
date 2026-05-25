@@ -103,12 +103,12 @@ libc = "0.2"
 winapi = { version = "0.3", features = ["processthreadsapi", "psapi", "sysinfoapi", "fileapi", "minwinbase"] }
 
 [features]
-default = ["server", "fulltext-search", "qdrant", "c-api", "grpc"]
+default = ["server"]
 server = ["graphdb-api/server", "graphdb-config/server"]
-fulltext-search = ["graphdb-search/fulltext-search"]
-qdrant = ["graphdb-api/qdrant", "graphdb-config/qdrant"]
+fulltext-search = ["graphdb-search/fulltext-search", "graphdb-sync/fulltext-search"]
+jieba = ["graphdb-search/jieba"]
+qdrant = ["graphdb-api/qdrant", "graphdb-config/qdrant", "graphdb-sync/qdrant", "graphdb-query/qdrant"]
 embedded = ["graphdb-api/embedded", "graphdb-config/embedded"]
-c-api = ["graphdb-api/embedded"]
 grpc = ["graphdb-api/grpc"]
 
 [profile.dev]

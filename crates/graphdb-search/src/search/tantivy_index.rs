@@ -17,6 +17,7 @@ use crate::core::Value;
 use crate::search::engine::{ConsistencyState, SearchEngine};
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
+#[cfg(feature = "jieba")]
 use tantivy::tokenizer::JiebaTokenizer;
 
 pub use crate::config::common::fulltext::{TantivyConfig, TokenizerKind};
@@ -120,6 +121,7 @@ impl TantivySearchEngine {
         // Register jieba unconditionally for backward compatibility with existing
         // indexes whose schema may reference "jieba". Tantivy's default TokenizerManager
         // auto-registers "raw", "default", and "whitespace".
+        #[cfg(feature = "jieba")]
         index.tokenizers().register("jieba", JiebaTokenizer::default());
 
         let writer = index.writer(config.writer_memory_budget)?;

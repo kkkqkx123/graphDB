@@ -23,6 +23,7 @@ use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStat
 use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
     FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
 };
+#[cfg(feature = "qdrant")]
 use crate::query::planning::plan::core::nodes::search::vector::data_access::{
     VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
@@ -219,8 +220,11 @@ pub enum PlanNodeEnum {
     MatchFulltext(MatchFulltextNode),
 
     // Vector Search Nodes
+    #[cfg(feature = "qdrant")]
     VectorSearch(VectorSearchNode),
+    #[cfg(feature = "qdrant")]
     VectorLookup(VectorLookupNode),
+    #[cfg(feature = "qdrant")]
     VectorMatch(VectorMatchNode),
 }
 
@@ -316,6 +320,11 @@ crate::define_enum_is_methods! {
     (FulltextLookup, is_fulltext_lookup),
     (MatchFulltext, is_match_fulltext),
     // Vector Search Nodes
+}
+
+#[cfg(feature = "qdrant")]
+crate::define_enum_is_methods! {
+    PlanNodeEnum,
     (VectorSearch, is_vector_search),
     (VectorLookup, is_vector_lookup),
     (VectorMatch, is_vector_match),
@@ -406,6 +415,11 @@ crate::define_enum_as_methods! {
     (FulltextLookup, as_fulltext_lookup, FulltextLookupNode),
     (MatchFulltext, as_match_fulltext, MatchFulltextNode),
     // Vector Search Nodes
+}
+
+#[cfg(feature = "qdrant")]
+crate::define_enum_as_methods! {
+    PlanNodeEnum,
     (VectorSearch, as_vector_search, VectorSearchNode),
     (VectorLookup, as_vector_lookup, VectorLookupNode),
     (VectorMatch, as_vector_match, VectorMatchNode),
@@ -496,6 +510,11 @@ crate::define_enum_as_mut_methods! {
     (FulltextLookup, as_fulltext_lookup_mut, FulltextLookupNode),
     (MatchFulltext, as_match_fulltext_mut, MatchFulltextNode),
     // Vector Search Nodes
+}
+
+#[cfg(feature = "qdrant")]
+crate::define_enum_as_mut_methods! {
+    PlanNodeEnum,
     (VectorSearch, as_vector_search_mut, VectorSearchNode),
     (VectorLookup, as_vector_lookup_mut, VectorLookupNode),
     (VectorMatch, as_vector_match_mut, VectorMatchNode),
@@ -591,8 +610,11 @@ crate::define_enum_type_name! {
     (FulltextLookup, "FulltextLookup"),
     (MatchFulltext, "MatchFulltext"),
     // Vector Search Nodes
+    #[cfg(feature = "qdrant")]
     (VectorSearch, "VectorSearch"),
+    #[cfg(feature = "qdrant")]
     (VectorLookup, "VectorLookup"),
+    #[cfg(feature = "qdrant")]
     (VectorMatch, "VectorMatch"),
 }
 
@@ -686,8 +708,11 @@ crate::define_enum_category! {
     (FulltextLookup, PlanNodeCategory::DataAccess),
     (MatchFulltext, PlanNodeCategory::DataAccess),
     // Vector Search Nodes
+    #[cfg(feature = "qdrant")]
     (VectorSearch, PlanNodeCategory::DataAccess),
+    #[cfg(feature = "qdrant")]
     (VectorLookup, PlanNodeCategory::DataAccess),
+    #[cfg(feature = "qdrant")]
     (VectorMatch, PlanNodeCategory::DataAccess),
 }
 
@@ -781,8 +806,11 @@ crate::define_enum_describe! {
     (FulltextLookup, "FulltextLookup"),
     (MatchFulltext, "MatchFulltext"),
     // Vector Search Nodes
+    #[cfg(feature = "qdrant")]
     (VectorSearch, "VectorSearch"),
+    #[cfg(feature = "qdrant")]
     (VectorLookup, "VectorLookup"),
+    #[cfg(feature = "qdrant")]
     (VectorMatch, "VectorMatch"),
 }
 

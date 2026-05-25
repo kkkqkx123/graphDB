@@ -14,6 +14,7 @@ use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStat
 use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
     FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
 };
+#[cfg(feature = "qdrant")]
 use crate::query::planning::plan::core::nodes::search::vector::data_access::{
     VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
@@ -189,6 +190,10 @@ pub trait PlanNodeVisitor {
         FulltextSearch, FulltextSearchNode, visit_fulltext_search;
         FulltextLookup, FulltextLookupNode, visit_fulltext_lookup;
         MatchFulltext, MatchFulltextNode, visit_match_fulltext;
+    );
+
+    #[cfg(feature = "qdrant")]
+    impl_visitor_methods!(
         VectorSearch, VectorSearchNode, visit_vector_search;
         VectorLookup, VectorLookupNode, visit_vector_lookup;
         VectorMatch, VectorMatchNode, visit_vector_match;
@@ -278,8 +283,11 @@ impl PlanNodeEnum {
             PlanNodeEnum::FulltextSearch(node) => visitor.visit_fulltext_search(node),
             PlanNodeEnum::FulltextLookup(node) => visitor.visit_fulltext_lookup(node),
             PlanNodeEnum::MatchFulltext(node) => visitor.visit_match_fulltext(node),
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorSearch(node) => visitor.visit_vector_search(node),
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorLookup(node) => visitor.visit_vector_lookup(node),
+            #[cfg(feature = "qdrant")]
             PlanNodeEnum::VectorMatch(node) => visitor.visit_vector_match(node),
         }
     }
