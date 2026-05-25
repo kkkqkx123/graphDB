@@ -157,51 +157,18 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                         "Failed to initialize vector search, falling back to basic QueryApi: {}",
                         e
                     );
-                    let api = if let Some(sm) = schema_manager.clone() {
-                        QueryApi::with_schema_manager(
-                            Arc::new(RwLock::new((*storage).clone())),
-                            stats_manager.clone(),
-                            sm,
-                        )
-                    } else {
-                        QueryApi::new(
-                            Arc::new(RwLock::new((*storage).clone())),
-                            stats_manager.clone(),
-                        )
-                    };
+                    let api = Self::build_query_api(&storage, &stats_manager, schema_manager.as_ref());
                     (Arc::new(RwLock::new(api)), None)
                 }
             }
         } else {
-            let api = if let Some(sm) = schema_manager {
-                QueryApi::with_schema_manager(
-                    Arc::new(RwLock::new((*storage).clone())),
-                    stats_manager.clone(),
-                    sm,
-                )
-            } else {
-                QueryApi::new(
-                    Arc::new(RwLock::new((*storage).clone())),
-                    stats_manager.clone(),
-                )
-            };
+            let api = Self::build_query_api(&storage, &stats_manager, schema_manager.as_ref());
             (Arc::new(RwLock::new(api)), None)
         };
 
         #[cfg(not(feature = "qdrant"))]
         let query_api = {
-            let api = if let Some(sm) = schema_manager {
-                QueryApi::with_schema_manager(
-                    Arc::new(RwLock::new((*storage).clone())),
-                    stats_manager.clone(),
-                    sm,
-                )
-            } else {
-                QueryApi::new(
-                    Arc::new(RwLock::new((*storage).clone())),
-                    stats_manager.clone(),
-                )
-            };
+            let api = Self::build_query_api(&storage, &stats_manager, schema_manager.as_ref());
             Arc::new(RwLock::new(api))
         };
 
@@ -227,6 +194,20 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             transaction_manager,
         };
         Arc::new(service)
+    }
+
+    /// Shared helper: build a QueryApi with optional SchemaManager
+    fn build_query_api(
+        storage: &Arc<S>,
+        stats_manager: &Arc<StatsManager>,
+        schema_manager: Option<&Arc<SchemaManager>>,
+    ) -> QueryApi<S> {
+        let inner = Arc::new(RwLock::new((**storage).clone()));
+        if let Some(sm) = schema_manager {
+            QueryApi::with_schema_manager(inner, stats_manager.clone(), sm.clone())
+        } else {
+            QueryApi::new(inner, stats_manager.clone())
+        }
     }
 
     pub async fn authenticate(

@@ -2,8 +2,6 @@
 //!
 //! Provides an interface to GraphDB services based on the gRPC protocol.
 
-#![cfg(feature = "grpc")]
-
 pub mod server;
 
 // Proto module will be generated at compile time

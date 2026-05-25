@@ -21,6 +21,70 @@ use vector_client::{VectorClientConfig, VectorManager};
 #[cfg(test)]
 use crate::storage::test_mock::MockStorage;
 
+/// Create a VectorManager from the default configuration (requires a running tokio runtime)
+#[cfg(feature = "qdrant")]
+fn create_vector_manager(vector_config: &VectorClientConfig) -> CoreResult<Arc<VectorManager>> {
+    let rt = tokio::runtime::Handle::try_current().map_err(|_| {
+        CoreError::Internal("No tokio runtime available for vector manager".to_string())
+    })?;
+    let vector_manager = Arc::new(
+        rt.block_on(VectorManager::new(vector_config.clone()))
+            .map_err(|e| {
+                CoreError::Internal(format!("Failed to initialize vector manager: {}", e))
+            })?,
+    );
+    Ok(vector_manager)
+}
+
+/// Attach a vector sync coordinator to an existing SyncManager (no-op if vector is disabled)
+#[cfg(feature = "qdrant")]
+fn attach_vector_coordinator(mut sync: SyncManager) -> CoreResult<SyncManager> {
+    let vector_config = VectorClientConfig::default();
+    if !vector_config.enabled {
+        return Ok(sync);
+    }
+    let vector_manager = create_vector_manager(&vector_config)?;
+    let vector_coordinator = Arc::new(
+        crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
+    );
+    sync = sync.with_vector_coordinator(vector_coordinator);
+    Ok(sync)
+}
+
+/// Full init path when qdrant is enabled but fulltext is not: create a full sync pipeline
+/// just to host the vector coordinator.
+#[cfg(feature = "qdrant")]
+fn setup_sync_with_vector_only(
+) -> CoreResult<(Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>)> {
+    let vector_config = VectorClientConfig::default();
+    if !vector_config.enabled {
+        return Ok((None, None));
+    }
+    let vector_manager = create_vector_manager(&vector_config)?;
+    let vector_coordinator = Arc::new(
+        crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
+    );
+
+    let sync_config = SyncConfig::default();
+    let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
+    let manager = Arc::new(
+        FulltextIndexManager::new(FulltextConfig::default())
+            .map_err(|e| CoreError::Internal(format!("Failed to initialize fulltext manager: {}", e)))?,
+    );
+    let sync_coordinator =
+        Arc::new(crate::sync::coordinator::SyncCoordinator::new(manager.clone(), batch_config));
+    let mut sync = SyncManager::with_sync_config(sync_coordinator, sync_config);
+    sync = sync.with_vector_coordinator(vector_coordinator);
+    Ok((None, Some(Arc::new(sync))))
+}
+
+/// Stub: no qdrant, return (None, None)
+#[cfg(not(feature = "qdrant"))]
+fn setup_sync_with_vector_only(
+) -> CoreResult<(Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>)> {
+    Ok((None, None))
+}
+
 /// Embedded GraphDB database
 ///
 /// This is the main entry point for the embedded API, offering a simple way of use similar to that of SQLite.
@@ -125,94 +189,15 @@ impl GraphDatabase<GraphStorage> {
                 batch_config,
             ));
 
-            let mut sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
+            let sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             #[cfg(feature = "qdrant")]
-            {
-                let vector_config = VectorClientConfig::default();
-                if vector_config.enabled {
-                    let rt = tokio::runtime::Handle::try_current().map_err(|_| {
-                        CoreError::Internal(
-                            "No tokio runtime available for vector manager".to_string(),
-                        )
-                    })?;
-                    let vector_manager = Arc::new(
-                        rt.block_on(VectorManager::new(vector_config.clone()))
-                            .map_err(|e| {
-                                CoreError::Internal(format!(
-                                    "Failed to initialize vector manager: {}",
-                                    e
-                                ))
-                            })?,
-                    );
-                    let vector_coordinator = Arc::new(
-                        crate::sync::vector_sync::VectorSyncCoordinator::new(
-                            vector_manager,
-                            None,
-                        ),
-                    );
-                    sync = sync.with_vector_coordinator(vector_coordinator);
-                }
-            }
+            let sync = attach_vector_coordinator(sync)?;
 
             let sync = Arc::new(sync);
             (Some(manager), Some(sync))
         } else {
-            #[cfg(feature = "qdrant")]
-            {
-                let vector_config = VectorClientConfig::default();
-                if vector_config.enabled {
-                    let rt = tokio::runtime::Handle::try_current().map_err(|_| {
-                        CoreError::Internal(
-                            "No tokio runtime available for vector manager".to_string(),
-                        )
-                    })?;
-                    let vector_manager = Arc::new(
-                        rt.block_on(VectorManager::new(vector_config.clone()))
-                            .map_err(|e| {
-                                CoreError::Internal(format!(
-                                    "Failed to initialize vector manager: {}",
-                                    e
-                                ))
-                            })?,
-                    );
-                    let vector_coordinator = Arc::new(
-                        crate::sync::vector_sync::VectorSyncCoordinator::new(
-                            vector_manager,
-                            None,
-                        ),
-                    );
-
-                    let sync_config = SyncConfig::default();
-                    let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
-                    let manager = Arc::new(
-                        FulltextIndexManager::new(FulltextConfig::default()).map_err(|e| {
-                            CoreError::Internal(format!(
-                                "Failed to initialize fulltext manager: {}",
-                                e
-                            ))
-                        })?,
-                    );
-                    let sync_coordinator = Arc::new(
-                        crate::sync::coordinator::SyncCoordinator::new(
-                            manager.clone(),
-                            batch_config,
-                        ),
-                    );
-                    let mut sync =
-                        SyncManager::with_sync_config(sync_coordinator, sync_config);
-                    sync = sync.with_vector_coordinator(vector_coordinator);
-                    let sync = Arc::new(sync);
-
-                    (None, Some(sync))
-                } else {
-                    (None, None)
-                }
-            }
-            #[cfg(not(feature = "qdrant"))]
-            {
-                (None, None)
-            }
+            setup_sync_with_vector_only()?
         };
 
         let txn_manager_config = TransactionManagerConfig::default();

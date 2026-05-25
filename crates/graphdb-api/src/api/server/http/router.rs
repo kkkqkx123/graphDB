@@ -114,22 +114,7 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
             auth_middleware,
         ));
 
-    // Merge all routes and add a version prefix.
-    let protected_routes = {
-        #[cfg(feature = "qdrant")]
-        {
-            protected_routes
-                .route("/vector/indexes", post(vector::create_index).get(vector::list_indexes))
-                .route("/vector/indexes/{space_id}/{tag_name}/{field_name}", get(vector::get_index_info).delete(vector::drop_index))
-                .route("/vector/search", post(vector::search))
-                .route("/vector/{space_id}/{tag_name}/{field_name}/{point_id}", get(vector::get_vector))
-                .route("/vector/{space_id}/{tag_name}/{field_name}/count", get(vector::count))
-        }
-        #[cfg(not(feature = "qdrant"))]
-        {
-            protected_routes
-        }
-    };
+    let protected_routes = add_vector_routes(protected_routes);
 
     let router = Router::new()
         .nest("/v1", public_routes.merge(protected_routes))
@@ -150,6 +135,26 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
     } else {
         router
     }
+}
+
+/// Conditionally add vector search routes
+#[cfg(feature = "qdrant")]
+fn add_vector_routes<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
+    router: Router<super::state::AppState<S>>,
+) -> Router<super::state::AppState<S>> {
+    router
+        .route("/vector/indexes", post(vector::create_index).get(vector::list_indexes))
+        .route("/vector/indexes/{space_id}/{tag_name}/{field_name}", get(vector::get_index_info).delete(vector::drop_index))
+        .route("/vector/search", post(vector::search))
+        .route("/vector/{space_id}/{tag_name}/{field_name}/{point_id}", get(vector::get_vector))
+        .route("/vector/{space_id}/{tag_name}/{field_name}/count", get(vector::count))
+}
+
+#[cfg(not(feature = "qdrant"))]
+fn add_vector_routes<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
+    router: Router<super::state::AppState<S>>,
+) -> Router<super::state::AppState<S>> {
+    router
 }
 
 /// Create a CORS configuration layer
