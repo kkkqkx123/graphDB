@@ -1787,7 +1787,7 @@ mod tests {
             .segment_readers()
             .iter()
             .flat_map(|segment_reader| {
-                let ff_reader = segment_reader.fast_fields().u64("id").unwrap();
+                let ff_reader = segment_reader.fast_fields().u64("id").unwrap().unwrap();
                 segment_reader
                     .doc_ids_alive()
                     .flat_map(move |doc| ff_reader.values_for_doc(doc).collect_vec().into_iter())
@@ -1798,7 +1798,7 @@ mod tests {
             .segment_readers()
             .iter()
             .flat_map(|segment_reader| {
-                let ff_reader = segment_reader.fast_fields().u64("id").unwrap();
+                let ff_reader = segment_reader.fast_fields().u64("id").unwrap().unwrap();
                 segment_reader
                     .doc_ids_alive()
                     .flat_map(move |doc| ff_reader.values_for_doc(doc).collect_vec().into_iter())
@@ -1925,7 +1925,7 @@ mod tests {
 
         // multivalue fast field tests
         for segment_reader in searcher.segment_readers().iter() {
-            let id_reader = segment_reader.fast_fields().u64("id").unwrap();
+            let id_reader = segment_reader.fast_fields().u64("id").unwrap().unwrap();
             let ff_reader = segment_reader
                 .fast_fields()
                 .column_opt("multi_numbers")
@@ -2206,7 +2206,7 @@ mod tests {
             let ff_reader = segment_reader
                 .fast_fields()
                 .u64("id")
-                .unwrap()
+                .unwrap().unwrap()
                 .first_or_default_col(9999);
             for doc_id in segment_reader.doc_ids_alive() {
                 let id = ff_reader.get_val(doc_id);

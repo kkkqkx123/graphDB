@@ -875,7 +875,7 @@ mod tests {
                 .segment_reader(0)
                 .fast_fields()
                 .u64("score")
-                .unwrap();
+                .unwrap().unwrap();
             assert_eq!(score_field_reader.min_value(), 4000);
             assert_eq!(score_field_reader.max_value(), 7000);
 
@@ -883,7 +883,7 @@ mod tests {
                 .segment_reader(1)
                 .fast_fields()
                 .u64("score")
-                .unwrap();
+                .unwrap().unwrap();
             assert_eq!(score_field_reader.min_value(), 1);
             assert_eq!(score_field_reader.max_value(), 3);
         }
@@ -929,7 +929,7 @@ mod tests {
                 .segment_reader(0)
                 .fast_fields()
                 .u64("score")
-                .unwrap();
+                .unwrap().unwrap();
             assert_eq!(score_field_reader.min_value(), 3);
             assert_eq!(score_field_reader.max_value(), 7000);
         }
@@ -976,7 +976,7 @@ mod tests {
                 .segment_reader(0)
                 .fast_fields()
                 .u64("score")
-                .unwrap();
+                .unwrap().unwrap();
             assert_eq!(score_field_reader.min_value(), 3);
             assert_eq!(score_field_reader.max_value(), 7000);
         }
@@ -1023,7 +1023,7 @@ mod tests {
                 .segment_reader(0)
                 .fast_fields()
                 .u64("score")
-                .unwrap();
+                .unwrap().unwrap();
             assert_eq!(score_field_reader.min_value(), 6000);
             assert_eq!(score_field_reader.max_value(), 7000);
         }

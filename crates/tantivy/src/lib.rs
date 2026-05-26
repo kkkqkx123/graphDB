@@ -1074,38 +1074,38 @@ pub mod tests {
         let searcher = reader.searcher();
         let segment_reader: &SegmentReader = searcher.segment_reader(0);
         {
-            let fast_field_reader_res = segment_reader.fast_fields().u64("text");
-            assert!(fast_field_reader_res.is_err());
+            let fast_field_reader_res = segment_reader.fast_fields().u64("text")?;
+            assert!(fast_field_reader_res.is_none());
         }
         {
-            let fast_field_reader_opt = segment_reader.fast_fields().u64("stored_int");
-            assert!(fast_field_reader_opt.is_err());
+            let fast_field_reader_opt = segment_reader.fast_fields().u64("stored_int")?;
+            assert!(fast_field_reader_opt.is_none());
         }
         {
-            let fast_field_reader_opt = segment_reader.fast_fields().u64("signed");
-            assert!(fast_field_reader_opt.is_err());
+            let fast_field_reader_opt = segment_reader.fast_fields().u64("signed")?;
+            assert!(fast_field_reader_opt.is_none());
         }
         {
-            let fast_field_reader_opt = segment_reader.fast_fields().u64("float");
-            assert!(fast_field_reader_opt.is_err());
+            let fast_field_reader_opt = segment_reader.fast_fields().u64("float")?;
+            assert!(fast_field_reader_opt.is_none());
         }
         {
-            let fast_field_reader_opt = segment_reader.fast_fields().u64("unsigned");
-            assert!(fast_field_reader_opt.is_ok());
+            let fast_field_reader_opt = segment_reader.fast_fields().u64("unsigned")?;
+            assert!(fast_field_reader_opt.is_some());
             let fast_field_reader = fast_field_reader_opt.unwrap();
             assert_eq!(fast_field_reader.first(0), Some(4u64))
         }
 
         {
-            let fast_field_reader_res = segment_reader.fast_fields().i64("signed");
-            assert!(fast_field_reader_res.is_ok());
+            let fast_field_reader_res = segment_reader.fast_fields().i64("signed")?;
+            assert!(fast_field_reader_res.is_some());
             let fast_field_reader = fast_field_reader_res.unwrap();
             assert_eq!(fast_field_reader.first(0), Some(4i64))
         }
 
         {
-            let fast_field_reader_res = segment_reader.fast_fields().f64("float");
-            assert!(fast_field_reader_res.is_ok());
+            let fast_field_reader_res = segment_reader.fast_fields().f64("float")?;
+            assert!(fast_field_reader_res.is_some());
             let fast_field_reader = fast_field_reader_res.unwrap();
             assert_eq!(fast_field_reader.first(0), Some(4f64))
         }

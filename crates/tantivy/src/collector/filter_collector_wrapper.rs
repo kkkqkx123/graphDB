@@ -9,11 +9,11 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use columnar::{BytesColumn, Column, DynamicColumn, HasAssociatedColumnType};
+use columnar::{BytesColumn, Column, ColumnType, DynamicColumn, HasAssociatedColumnType};
 
 use crate::collector::{Collector, SegmentCollector};
-use crate::schema::Schema;
-use crate::{DocId, Score, SegmentReader};
+use crate::schema::{value_type_to_column_type, Schema};
+use crate::{DocId, Score, SegmentReader, TantivyError};
 
 /// The `FilterCollector` filters docs using a fast field value and a predicate.
 ///
@@ -107,6 +107,23 @@ where
 
     fn check_schema(&self, schema: &Schema) -> crate::Result<()> {
         self.collector.check_schema(schema)?;
+        let field = schema.get_field(&self.field)?;
+        let field_entry = schema.get_field_entry(field);
+        let value_type = field_entry.field_type().value_type();
+        let column_type = value_type_to_column_type(value_type).ok_or_else(|| {
+            TantivyError::InvalidArgument(format!(
+                "Field '{}' has type {:?}, which is not a columnar type",
+                self.field, value_type
+            ))
+        })?;
+        if column_type != TPredicateValue::column_type() {
+            return Err(TantivyError::InvalidArgument(format!(
+                "Field '{}' has type {:?}, but filter expects {:?}",
+                self.field,
+                column_type,
+                TPredicateValue::column_type()
+            )));
+        }
         Ok(())
     }
 
@@ -281,7 +298,23 @@ where
     type Child = BytesFilterSegmentCollector<TCollector::Child, TPredicate>;
 
     fn check_schema(&self, schema: &Schema) -> crate::Result<()> {
-        self.collector.check_schema(schema)
+        self.collector.check_schema(schema)?;
+        let field = schema.get_field(&self.field)?;
+        let field_entry = schema.get_field_entry(field);
+        let value_type = field_entry.field_type().value_type();
+        let column_type = value_type_to_column_type(value_type).ok_or_else(|| {
+            TantivyError::InvalidArgument(format!(
+                "Field '{}' has type {:?}, which is not a columnar type",
+                self.field, value_type
+            ))
+        })?;
+        if column_type != ColumnType::Bytes {
+            return Err(TantivyError::InvalidArgument(format!(
+                "Field '{}' has type {:?}, but filter expects Bytes",
+                self.field, column_type
+            )));
+        }
+        Ok(())
     }
 
     fn for_segment(

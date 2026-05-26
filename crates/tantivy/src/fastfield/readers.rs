@@ -12,7 +12,6 @@ use crate::core::json_utils::{encode_column_name, json_path_sep_to_dot};
 use crate::directory::FileSlice;
 use crate::schema::{Field, FieldEntry, FieldType, Schema};
 use crate::space_usage::{FieldUsage, PerFieldSpaceUsage};
-use crate::TantivyError;
 
 /// Provides access to all of the BitpackedFastFieldReader.
 ///
@@ -25,7 +24,7 @@ pub struct FastFieldReaders {
 }
 
 impl FastFieldReaders {
-    pub(crate) fn open(fast_field_file: FileSlice, schema: Schema) -> io::Result<FastFieldReaders> {
+    pub(crate) fn load(fast_field_file: FileSlice, schema: Schema) -> io::Result<FastFieldReaders> {
         let columnar = Arc::new(ColumnarReader::open(fast_field_file)?);
         Ok(FastFieldReaders { columnar, schema })
     }
@@ -89,9 +88,7 @@ impl FastFieldReaders {
         };
         let field_entry: &FieldEntry = self.schema.get_field_entry(field);
         if !field_entry.is_fast() {
-            return Err(TantivyError::InvalidArgument(format!(
-                "Field {field_name:?} is not configured as fast field"
-            )));
+            return Ok(None);
         }
         Ok(match (field_entry.field_type(), path) {
             (FieldType::JsonObject(json_options), path) if !path.is_empty() => {
@@ -145,50 +142,43 @@ impl FastFieldReaders {
     /// In that column value:
     /// - Rows with no value are associated with the default value.
     /// - Rows with several values are associated with the first value.
-    pub fn column_first_or_default<T>(&self, field: &str) -> crate::Result<Arc<dyn ColumnValues<T>>>
+    #[deprecated(since = "0.22.0", note = "use column_opt + first_or_default_col instead")]
+    pub fn column_first_or_default<T>(
+        &self,
+        field: &str,
+    ) -> crate::Result<Arc<dyn ColumnValues<T>>>
     where
-        T: PartialOrd + Copy + HasAssociatedColumnType + Send + Sync + 'static,
-        DynamicColumn: Into<Option<Column<T>>>,
-    {
-        let col: Column<T> = self.column(field)?;
-        Ok(col.first_or_default_col(T::default_value()))
-    }
-
-    /// Returns a typed column associated to a given field name.
-    ///
-    /// Returns an error if no column associated with that field_name exists.
-    fn column<T>(&self, field: &str) -> crate::Result<Column<T>>
-    where
-        T: PartialOrd + Copy + HasAssociatedColumnType + Send + Sync + 'static,
+        T: PartialOrd + Copy + Default + HasAssociatedColumnType + Send + Sync + 'static,
         DynamicColumn: Into<Option<Column<T>>>,
     {
         let col_opt: Option<Column<T>> = self.column_opt(field)?;
-        col_opt.ok_or_else(|| {
-            crate::TantivyError::SchemaError(format!(
-                "Field `{field}` is missing or is not configured as a fast field."
-            ))
-        })
+        Ok(col_opt
+            .unwrap_or_else(|| Column::build_empty_column(0))
+            .first_or_default_col(T::default_value()))
     }
 
     /// Returns the `u64` fast field reader reader associated with `field`.
     ///
-    /// If `field` is not a u64 fast field, this method returns an Error.
-    pub fn u64(&self, field: &str) -> crate::Result<Column<u64>> {
-        self.column(field)
+    /// Returns Ok(None) if no column exists for this field.
+    /// Returns an error if the field is not a u64 fast field.
+    pub fn u64(&self, field: &str) -> crate::Result<Option<Column<u64>>> {
+        self.column_opt(field)
     }
 
     /// Returns the `date` fast field reader reader associated with `field`.
     ///
-    /// If `field` is not a date fast field, this method returns an Error.
-    pub fn date(&self, field: &str) -> crate::Result<Column<common::DateTime>> {
-        self.column(field)
+    /// Returns Ok(None) if no column exists for this field.
+    /// Returns an error if the field is not a date fast field.
+    pub fn date(&self, field: &str) -> crate::Result<Option<Column<common::DateTime>>> {
+        self.column_opt(field)
     }
 
     /// Returns the `ip` fast field reader reader associated to `field`.
     ///
-    /// If `field` is not a u128 fast field, this method returns an Error.
-    pub fn ip_addr(&self, field: &str) -> crate::Result<Column<Ipv6Addr>> {
-        self.column(field)
+    /// Returns Ok(None) if no column exists for this field.
+    /// Returns an error if the field is not an ip fast field.
+    pub fn ip_addr(&self, field: &str) -> crate::Result<Option<Column<Ipv6Addr>>> {
+        self.column_opt(field)
     }
 
     /// Returns a `str` column.
@@ -354,28 +344,32 @@ impl FastFieldReaders {
         &self,
         field_name: &str,
     ) -> crate::Result<Option<(Column<u64>, ColumnType)>> {
-        self.u64_lenient_for_type(None, field_name)
+        let results = self.u64_lenient_for_type_all(None, field_name)?;
+        Ok(results.into_iter().next())
     }
 
     /// Returns the `i64` fast field reader reader associated with `field`.
     ///
-    /// If `field` is not a i64 fast field, this method returns an Error.
-    pub fn i64(&self, field_name: &str) -> crate::Result<Column<i64>> {
-        self.column(field_name)
+    /// Returns Ok(None) if no column exists for this field.
+    /// Returns an error if the field is not a i64 fast field.
+    pub fn i64(&self, field_name: &str) -> crate::Result<Option<Column<i64>>> {
+        self.column_opt(field_name)
     }
 
     /// Returns the `f64` fast field reader reader associated with `field`.
     ///
-    /// If `field` is not a f64 fast field, this method returns an Error.
-    pub fn f64(&self, field_name: &str) -> crate::Result<Column<f64>> {
-        self.column(field_name)
+    /// Returns Ok(None) if no column exists for this field.
+    /// Returns an error if the field is not a f64 fast field.
+    pub fn f64(&self, field_name: &str) -> crate::Result<Option<Column<f64>>> {
+        self.column_opt(field_name)
     }
 
     /// Returns the `bool` fast field reader reader associated with `field`.
     ///
-    /// If `field` is not a bool fast field, this method returns an Error.
-    pub fn bool(&self, field_name: &str) -> crate::Result<Column<bool>> {
-        self.column(field_name)
+    /// Returns Ok(None) if no column exists for this field.
+    /// Returns an error if the field is not a bool fast field.
+    pub fn bool(&self, field_name: &str) -> crate::Result<Option<Column<bool>>> {
+        self.column_opt(field_name)
     }
 }
 

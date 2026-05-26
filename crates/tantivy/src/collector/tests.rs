@@ -184,7 +184,7 @@ impl Collector for FastFieldTestCollector {
     ) -> crate::Result<FastFieldSegmentCollector> {
         let reader = segment_reader
             .fast_fields()
-            .u64(&self.field)
+            .u64(&self.field)?
             .expect("Requested field is not a fast field.");
         Ok(FastFieldSegmentCollector {
             vals: Vec::new(),

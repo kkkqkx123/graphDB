@@ -170,7 +170,7 @@ impl SegmentReader {
         let schema = segment.schema();
 
         let fast_fields_data = segment.open_read(SegmentComponent::FastFields)?;
-        let fast_fields_readers = FastFieldReaders::open(fast_fields_data, schema.clone())?;
+        let fast_fields_readers = FastFieldReaders::load(fast_fields_data, schema.clone())?;
         let fieldnorm_data = segment.open_read(SegmentComponent::FieldNorms)?;
         let fieldnorm_readers = FieldNormReaders::open(fieldnorm_data)?;
 

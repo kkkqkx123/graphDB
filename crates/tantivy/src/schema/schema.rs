@@ -213,6 +213,106 @@ impl SchemaBuilder {
             fields_map: self.fields_map,
         }))
     }
+
+    /// Adds a new u64 field (fluent API, returns &mut Self).
+    pub fn with_u64_field<T: Into<NumericOptions>>(
+        &mut self,
+        field_name_str: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_u64_field(field_name_str, field_options);
+        self
+    }
+
+    /// Adds a new i64 field (fluent API, returns &mut Self).
+    pub fn with_i64_field<T: Into<NumericOptions>>(
+        &mut self,
+        field_name_str: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_i64_field(field_name_str, field_options);
+        self
+    }
+
+    /// Adds a new f64 field (fluent API, returns &mut Self).
+    pub fn with_f64_field<T: Into<NumericOptions>>(
+        &mut self,
+        field_name_str: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_f64_field(field_name_str, field_options);
+        self
+    }
+
+    /// Adds a new bool field (fluent API, returns &mut Self).
+    pub fn with_bool_field<T: Into<NumericOptions>>(
+        &mut self,
+        field_name_str: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_bool_field(field_name_str, field_options);
+        self
+    }
+
+    /// Adds a new date field (fluent API, returns &mut Self).
+    pub fn with_date_field<T: Into<DateOptions>>(
+        &mut self,
+        field_name_str: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_date_field(field_name_str, field_options);
+        self
+    }
+
+    /// Adds a new ip addr field (fluent API, returns &mut Self).
+    pub fn with_ip_addr_field<T: Into<IpAddrOptions>>(
+        &mut self,
+        field_name_str: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_ip_addr_field(field_name_str, field_options);
+        self
+    }
+
+    /// Adds a new text field (fluent API, returns &mut Self).
+    pub fn with_text_field<T: Into<TextOptions>>(
+        &mut self,
+        field_name_str: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_text_field(field_name_str, field_options);
+        self
+    }
+
+    /// Adds a new facet field (fluent API, returns &mut Self).
+    pub fn with_facet_field(
+        &mut self,
+        field_name: &str,
+        facet_options: impl Into<FacetOptions>,
+    ) -> &mut Self {
+        self.add_facet_field(field_name, facet_options);
+        self
+    }
+
+    /// Adds a new bytes field (fluent API, returns &mut Self).
+    pub fn with_bytes_field<T: Into<BytesOptions>>(
+        &mut self,
+        field_name: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_bytes_field(field_name, field_options);
+        self
+    }
+
+    /// Adds a new json field (fluent API, returns &mut Self).
+    pub fn with_json_field<T: Into<JsonObjectOptions>>(
+        &mut self,
+        field_name: &str,
+        field_options: T,
+    ) -> &mut Self {
+        self.add_json_field(field_name, field_options);
+        self
+    }
 }
 #[derive(Debug)]
 struct InnerSchema {

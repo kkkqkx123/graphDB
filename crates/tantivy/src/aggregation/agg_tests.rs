@@ -999,11 +999,9 @@ fn test_aggregation_invalid_requests() -> crate::Result<()> {
         searcher.search(&AllQuery, &collector)
     };
 
-    let agg_res = avg_on_field("dummy_text").unwrap_err();
-    assert_eq!(
-        format!("{agg_res:?}"),
-        r#"InvalidArgument("Field \"dummy_text\" is not configured as fast field")"#
-    );
+    let agg_res = avg_on_field("dummy_text").unwrap();
+    let agg_res_json = serde_json::to_value(&agg_res).unwrap();
+    assert_eq!(agg_res_json["average"]["value"], serde_json::Value::Null);
 
     let agg_req_1: Result<Aggregations, serde_json::Error> = serde_json::from_value(json!({
         "average": {
