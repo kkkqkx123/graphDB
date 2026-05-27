@@ -234,55 +234,67 @@ pub(crate) fn insert_edge(
         let edge_types = ctx.schema_manager.list_edge_types(space)?;
         for et in edge_types {
             if et.edge_type_name == edge.edge_type {
-                if let Some(src_label_id) = ctx.graph.get_vertex_label_id(&et.src_tag_name) {
-                    if let Some(dst_label_id) = ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
-                        let props: Vec<(String, Value)> = edge
-                            .props
-                            .iter()
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect();
-
-                        let src_int = edge.src.as_int64();
-                        let dst_int = edge.dst.as_int64();
-
-                        if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
-                            ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
-                                edge_label: edge_label_id,
-                                src_label: src_label_id,
-                                src_id,
-                                dst_label: dst_label_id,
-                                dst_id,
-                                properties: &props,
-                                ts,
-                            })?;
-                        } else {
-                            let src_str = edge.src.to_string();
-                            let dst_str = edge.dst.to_string();
-                            ctx.graph.insert_edge(InsertEdgeParams {
-                                edge_label: edge_label_id,
-                                src_label: src_label_id,
-                                src_id: &src_str,
-                                dst_label: dst_label_id,
-                                dst_id: &dst_str,
-                                properties: &props,
-                                ts,
-                            })?;
-                        }
-
-                        let src_value = Value::from(edge.src);
-                        let dst_value = Value::from(edge.dst);
-                        update_edge_indexes(EdgeIndexUpdateParams {
-                            graph: &ctx.graph,
-                            index_metadata_manager: &ctx.index_metadata_manager,
-                            space_id: space_info.space_id,
-                            src: &src_value,
-                            dst: &dst_value,
-                            edge_type: &edge.edge_type,
-                            props: &props,
-                            ts,
-                        })?;
+                let src_label_id = if et.src_tag_name.is_empty() {
+                    0
+                } else {
+                    match ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                        Some(id) => id,
+                        None => { break; }
                     }
+                };
+                let dst_label_id = if et.dst_tag_name.is_empty() {
+                    0
+                } else {
+                    match ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
+                        Some(id) => id,
+                        None => { break; }
+                    }
+                };
+                let props: Vec<(String, Value)> = edge
+                    .props
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+
+                let src_int = edge.src.as_int64();
+                let dst_int = edge.dst.as_int64();
+
+                if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
+                    ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
+                        edge_label: edge_label_id,
+                        src_label: src_label_id,
+                        src_id,
+                        dst_label: dst_label_id,
+                        dst_id,
+                        properties: &props,
+                        ts,
+                    })?;
+                } else {
+                    let src_str = edge.src.to_string();
+                    let dst_str = edge.dst.to_string();
+                    ctx.graph.insert_edge(InsertEdgeParams {
+                        edge_label: edge_label_id,
+                        src_label: src_label_id,
+                        src_id: &src_str,
+                        dst_label: dst_label_id,
+                        dst_id: &dst_str,
+                        properties: &props,
+                        ts,
+                    })?;
                 }
+
+                let src_value = Value::from(edge.src);
+                let dst_value = Value::from(edge.dst);
+                update_edge_indexes(EdgeIndexUpdateParams {
+                    graph: &ctx.graph,
+                    index_metadata_manager: &ctx.index_metadata_manager,
+                    space_id: space_info.space_id,
+                    src: &src_value,
+                    dst: &dst_value,
+                    edge_type: &edge.edge_type,
+                    props: &props,
+                    ts,
+                })?;
                 break;
             }
         }
@@ -310,33 +322,45 @@ pub(crate) fn delete_edge(
         let edge_types = ctx.schema_manager.list_edge_types(space)?;
         for et in edge_types {
             if et.edge_type_name == edge_type {
-                if let Some(src_label_id) = ctx.graph.get_vertex_label_id(&et.src_tag_name) {
-                    if let Some(dst_label_id) = ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
-                        let src_str = src.to_string();
-                        let dst_str = dst.to_string();
-
-                        ctx.graph.delete_edge(
-                            edge_label_id,
-                            src_label_id,
-                            &src_str,
-                            dst_label_id,
-                            &dst_str,
-                            ts,
-                        )?;
-
-                        let src_value = Value::from(*src);
-                        let dst_value = Value::from(*dst);
-                        delete_edge_indexes(
-                            &ctx.graph,
-                            &ctx.index_metadata_manager,
-                            space_info.space_id,
-                            &src_value,
-                            &dst_value,
-                            edge_type,
-                            ts,
-                        )?;
+                let src_label_id = if et.src_tag_name.is_empty() {
+                    0
+                } else {
+                    match ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                        Some(id) => id,
+                        None => { break; }
                     }
-                }
+                };
+                let dst_label_id = if et.dst_tag_name.is_empty() {
+                    0
+                } else {
+                    match ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
+                        Some(id) => id,
+                        None => { break; }
+                    }
+                };
+                let src_str = src.to_string();
+                let dst_str = dst.to_string();
+
+                ctx.graph.delete_edge(
+                    edge_label_id,
+                    src_label_id,
+                    &src_str,
+                    dst_label_id,
+                    &dst_str,
+                    ts,
+                )?;
+
+                let src_value = Value::from(*src);
+                let dst_value = Value::from(*dst);
+                delete_edge_indexes(
+                    &ctx.graph,
+                    &ctx.index_metadata_manager,
+                    space_info.space_id,
+                    &src_value,
+                    &dst_value,
+                    edge_type,
+                    ts,
+                )?;
                 break;
             }
         }
@@ -442,56 +466,68 @@ pub(crate) fn insert_edge_data(
         let edge_types = ctx.schema_manager.list_edge_types(space)?;
         for et in edge_types {
             if et.edge_type_name == info.edge_name {
-                if let Some(src_label_id) = ctx.graph.get_vertex_label_id(&et.src_tag_name) {
-                    if let Some(dst_label_id) = ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
-                        let src_int = src_vid.as_int64();
-                        let dst_int = dst_vid.as_int64();
+                let src_label_id = if et.src_tag_name.is_empty() {
+                    0
+                } else {
+                    match ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                        Some(id) => id,
+                        None => { break; }
+                    }
+                };
+                let dst_label_id = if et.dst_tag_name.is_empty() {
+                    0
+                } else {
+                    match ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
+                        Some(id) => id,
+                        None => { break; }
+                    }
+                };
+                let src_int = src_vid.as_int64();
+                let dst_int = dst_vid.as_int64();
 
-                        let result = if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
-                            ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
-                                edge_label: edge_label_id,
-                                src_label: src_label_id,
-                                src_id,
-                                dst_label: dst_label_id,
-                                dst_id,
-                                properties: &info.props,
-                                ts,
-                            })
-                        } else {
-                            let src_id = src_vid.to_string();
-                            let dst_id = dst_vid.to_string();
-                            ctx.graph.insert_edge(InsertEdgeParams {
-                                edge_label: edge_label_id,
-                                src_label: src_label_id,
-                                src_id: &src_id,
-                                dst_label: dst_label_id,
-                                dst_id: &dst_id,
-                                properties: &info.props,
-                                ts,
-                            })
-                        };
+                let result = if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
+                    ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
+                        edge_label: edge_label_id,
+                        src_label: src_label_id,
+                        src_id,
+                        dst_label: dst_label_id,
+                        dst_id,
+                        properties: &info.props,
+                        ts,
+                    })
+                } else {
+                    let src_id = src_vid.to_string();
+                    let dst_id = dst_vid.to_string();
+                    ctx.graph.insert_edge(InsertEdgeParams {
+                        edge_label: edge_label_id,
+                        src_label: src_label_id,
+                        src_id: &src_id,
+                        dst_label: dst_label_id,
+                        dst_id: &dst_id,
+                        properties: &info.props,
+                        ts,
+                    })
+                };
 
-                        match result {
-                            Ok(_) => {
-                                update_edge_indexes(EdgeIndexUpdateParams {
-                                    graph: &ctx.graph,
-                                    index_metadata_manager: &ctx.index_metadata_manager,
-                                    space_id: space_info.space_id,
-                                    src: &info.src_vertex_id,
-                                    dst: &info.dst_vertex_id,
-                                    edge_type: &info.edge_name,
-                                    props: &info.props,
-                                    ts,
-                                })?;
-                                return Ok(true);
-                            }
-                            Err(e) => {
-                                if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists {
-                                    return Ok(false);
-                                }
-                                return Err(e);
-                            }
+                match result {
+                    Ok(_) => {
+                        update_edge_indexes(EdgeIndexUpdateParams {
+                            graph: &ctx.graph,
+                            index_metadata_manager: &ctx.index_metadata_manager,
+                            space_id: space_info.space_id,
+                            src: &info.src_vertex_id,
+                            dst: &info.dst_vertex_id,
+                            edge_type: &info.edge_name,
+                            props: &info.props,
+                            ts,
+                        })?;
+                        return Ok(true);
+                    }
+                    Err(e) => {
+                        if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists {
+                            return Ok(false);
                         }
+                        return Err(e);
                     }
                 }
             }
@@ -555,25 +591,37 @@ pub(crate) fn delete_edge_data(
 
     for et in edge_types {
         if let Some(edge_label_id) = ctx.graph.get_edge_label_id(&et.edge_type_name) {
-            if let Some(src_label_id) = ctx.graph.get_vertex_label_id(&et.src_tag_name) {
-                if let Some(dst_label_id) = ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
-                    if ctx
-                        .graph
-                        .delete_edge(edge_label_id, src_label_id, src, dst_label_id, dst, ts)
-                        .is_ok()
-                    {
-                        delete_edge_indexes(
-                            &ctx.graph,
-                            &ctx.index_metadata_manager,
-                            space_info.space_id,
-                            &Value::String(src.to_string()),
-                            &Value::String(dst.to_string()),
-                            &et.edge_type_name,
-                            ts,
-                        )?;
-                        deleted = true;
-                    }
+            let src_label_id = if et.src_tag_name.is_empty() {
+                0
+            } else {
+                match ctx.graph.get_vertex_label_id(&et.src_tag_name) {
+                    Some(id) => id,
+                    None => continue,
                 }
+            };
+            let dst_label_id = if et.dst_tag_name.is_empty() {
+                0
+            } else {
+                match ctx.graph.get_vertex_label_id(&et.dst_tag_name) {
+                    Some(id) => id,
+                    None => continue,
+                }
+            };
+            if ctx
+                .graph
+                .delete_edge(edge_label_id, src_label_id, src, dst_label_id, dst, ts)
+                .is_ok()
+            {
+                delete_edge_indexes(
+                    &ctx.graph,
+                    &ctx.index_metadata_manager,
+                    space_info.space_id,
+                    &Value::String(src.to_string()),
+                    &Value::String(dst.to_string()),
+                    &et.edge_type_name,
+                    ts,
+                )?;
+                deleted = true;
             }
         }
     }

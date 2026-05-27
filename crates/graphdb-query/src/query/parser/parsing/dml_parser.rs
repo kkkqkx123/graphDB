@@ -52,8 +52,115 @@ impl DmlParser {
         let is_upsert = ctx.is_upsert_mode();
 
         let target = if ctx.match_token(TokenKind::Vertex) {
+            if is_upsert && ctx.check_token(TokenKind::On) {
+                // UPSERT VERTEX ON <tag> SET ... WHERE id(vid) == <n>
+                ctx.match_token(TokenKind::On);
+                let tag_name = ctx.expect_identifier()?;
+                // Parse SET clause
+                let set_clause = if ctx.match_token(TokenKind::Set) {
+                    ClauseParser::new().parse_set_clause(ctx)?
+                } else {
+                    SetClause {
+                        span: ctx.current_span(),
+                        assignments: Vec::new(),
+                    }
+                };
+                // Parse WHERE clause (used to specify vertex ID)
+                let where_clause = if ctx.match_token(TokenKind::Where) {
+                    Some(self.parse_expression(ctx)?)
+                } else {
+                    None
+                };
+                // Parse YIELD clause
+                let yield_clause = if ctx.match_token(TokenKind::Yield) {
+                    Some(ClauseParser::new().parse_yield_clause(ctx)?)
+                } else {
+                    None
+                };
+                // Extract vid from WHERE clause condition.
+                // The WHERE clause is used to specify the vertex ID, so we clear it
+                // after extraction since the ID is now in the target.
+                let vid_value = Self::extract_id_from_condition(
+                    where_clause.as_ref(),
+                    &["vid"],
+                ).unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
+                let vid_expr = CoreExpression::Literal(vid_value);
+                let vid_expr_meta = crate::core::types::expr::ExpressionMeta::with_span(
+                    vid_expr,
+                    ctx.current_span(),
+                );
+                let vid_id = ctx.expression_context_clone().register_expression(vid_expr_meta);
+                let vid = ContextualExpression::new(vid_id, ctx.expression_context_clone());
+                let end_span = ctx.current_span();
+                let span = ctx.merge_span(start_span.start, end_span.end);
+                return Ok(Stmt::Update(UpdateStmt {
+                    span,
+                    target: UpdateTarget::TagOnVertex {
+                        vid: Box::new(vid),
+                        tag_name,
+                    },
+                    set_clause,
+                    where_clause: None,
+                    yield_clause,
+                    is_upsert,
+                }));
+            }
             self.parse_update_vertex(ctx)?
         } else if ctx.match_token(TokenKind::Edge) {
+            if is_upsert && ctx.check_token(TokenKind::On) {
+                // UPSERT EDGE ON <edge_type> SET ... WHERE id(src) == <n> AND id(dst) == <m>
+                ctx.match_token(TokenKind::On);
+                let edge_type = ctx.expect_identifier()?;
+                // Parse SET clause
+                let set_clause = if ctx.match_token(TokenKind::Set) {
+                    ClauseParser::new().parse_set_clause(ctx)?
+                } else {
+                    SetClause {
+                        span: ctx.current_span(),
+                        assignments: Vec::new(),
+                    }
+                };
+                // Parse WHERE clause
+                let where_clause = if ctx.match_token(TokenKind::Where) {
+                    Some(self.parse_expression(ctx)?)
+                } else {
+                    None
+                };
+                // Extract src and dst from WHERE clause.
+                // The WHERE clause is used to specify src/dst, so we clear it
+                // after extraction since the IDs are now in the target.
+                let make_literal_expr = |ctx: &mut ParseContext, value: crate::core::Value| -> ContextualExpression {
+                    let expr = CoreExpression::Literal(value);
+                    let meta = crate::core::types::expr::ExpressionMeta::with_span(expr, ctx.current_span());
+                    let id = ctx.expression_context_clone().register_expression(meta);
+                    ContextualExpression::new(id, ctx.expression_context_clone())
+                };
+                let src_value = Self::extract_id_from_condition(
+                    where_clause.as_ref(),
+                    &["src", "source"],
+                ).unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
+                let dst_value = Self::extract_id_from_condition(
+                    where_clause.as_ref(),
+                    &["dst", "dest", "destination"],
+                ).unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
+                let src = make_literal_expr(ctx, src_value);
+                let dst = make_literal_expr(ctx, dst_value);
+                let end_span = ctx.current_span();
+                let span = ctx.merge_span(start_span.start, end_span.end);
+                return Ok(Stmt::Update(UpdateStmt {
+                    span,
+                    target: UpdateTarget::Edge {
+                        edge_type: Some(edge_type),
+                        src,
+                        dst,
+                        rank: None,
+                    },
+                    set_clause,
+                    where_clause: None,
+                    is_upsert,
+                    yield_clause: None,
+                }));
+            }
             self.parse_update_edge(ctx)?
         } else {
             // Check whether the syntax is correct for the UPSERT VERTEX vid ON tag_name command.
@@ -115,14 +222,54 @@ impl DmlParser {
         Ok(UpdateTarget::Vertex(vid))
     }
 
+    /// Extract a literal value from a WHERE clause expression matching `id(<var_name>) == <literal>`.
+    fn extract_id_from_condition(
+        where_clause: Option<&ContextualExpression>,
+        var_names: &[&str],
+    ) -> Option<crate::core::Value> {
+        let expr = where_clause?.get_expression()?;
+        Self::extract_id_from_expr(&expr, var_names)
+    }
+
+    fn extract_id_from_expr(expr: &CoreExpression, var_names: &[&str]) -> Option<crate::core::Value> {
+        match expr {
+            CoreExpression::Binary { left, op, right } => {
+                use crate::core::types::operators::BinaryOperator;
+                match op {
+                    BinaryOperator::Equal => {
+                        if let CoreExpression::Function { name, args } = left.as_ref() {
+                            if name == "id" && args.len() == 1 {
+                                if let CoreExpression::Variable(v) = &args[0] {
+                                    if var_names.iter().any(|n| *n == *v) {
+                                        if let CoreExpression::Literal(value) = right.as_ref() {
+                                            return Some(value.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        None
+                    }
+                    BinaryOperator::And => {
+                        Self::extract_id_from_expr(left, var_names)
+                            .or_else(|| Self::extract_id_from_expr(right, var_names))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn parse_update_edge(&mut self, ctx: &mut ParseContext) -> Result<UpdateTarget, ParseError> {
         // Check whether it is UPSERT EDGE syntax: src -> dst @rank OF edge_type
         // or UPDATE EDGE Syntax: OF edge_type FROM src TO dst [@rank]
+        // or UPDATE EDGE Syntax (short): src -> dst [@rank] OF edge_type
         let is_upsert = ctx.is_upsert_mode();
+        let is_literal = ctx.peek_token().kind.is_literal();
 
-        if is_upsert {
-            // UPSERT EDGE Syntax: src -> dst [@rank] OF edge_type
-            // The EDGE token has already been consumed within the `parse_update_after_token` function.
+        if is_upsert || is_literal {
+            // UPSERT EDGE or short UPDATE EDGE Syntax: src -> dst [@rank] OF edge_type
             let src = self.parse_expression(ctx)?;
             ctx.expect_token(TokenKind::Arrow)?;
             let dst = self.parse_expression(ctx)?;
@@ -225,27 +372,60 @@ impl DmlParser {
             }
             DeleteTarget::Vertices(vids)
         } else if ctx.match_token(TokenKind::Edge) {
-            // DELETE EDGE edge_type src -> dst [@rank]
-            let edge_type = Some(ctx.expect_identifier()?);
+            // Two syntaxes:
+            // 1) DELETE EDGE <edge_type> <src> -> <dst> [@rank] [, ...]
+            // 2) DELETE EDGE <src> -> <dst> [@rank] OF <edge_type> [, ...]
+            // Disambiguate: if the next token is a literal, it's syntax 2 (src -> dst OF edge_type)
+            let is_literal = ctx.peek_token().kind.is_literal();
 
-            let mut edges = vec![];
-            loop {
-                let src = self.parse_expression(ctx)?;
-                ctx.expect_token(TokenKind::Arrow)?;
-                let dst = self.parse_expression(ctx)?;
+            let (edge_type, edges) = if is_literal {
+                // Syntax 2: <src> -> <dst> [@rank] OF <edge_type>
+                let mut edges = vec![];
+                loop {
+                    let src = self.parse_expression(ctx)?;
+                    ctx.expect_token(TokenKind::Arrow)?;
+                    let dst = self.parse_expression(ctx)?;
 
-                let rank = if ctx.match_token(TokenKind::At) {
-                    Some(self.parse_expression(ctx)?)
-                } else {
-                    None
-                };
+                    let rank = if ctx.match_token(TokenKind::At) {
+                        Some(self.parse_expression(ctx)?)
+                    } else {
+                        None
+                    };
 
-                edges.push((src, dst, rank));
+                    edges.push((src, dst, rank));
 
-                if !ctx.match_token(TokenKind::Comma) {
-                    break;
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
                 }
-            }
+                ctx.expect_token(TokenKind::Of)?;
+                let edge_type = Some(ctx.expect_identifier()?);
+
+                (edge_type, edges)
+            } else {
+                // Syntax 1: <edge_type> <src> -> <dst> [@rank] [, ...]
+                let edge_type = Some(ctx.expect_identifier()?);
+
+                let mut edges = vec![];
+                loop {
+                    let src = self.parse_expression(ctx)?;
+                    ctx.expect_token(TokenKind::Arrow)?;
+                    let dst = self.parse_expression(ctx)?;
+
+                    let rank = if ctx.match_token(TokenKind::At) {
+                        Some(self.parse_expression(ctx)?)
+                    } else {
+                        None
+                    };
+
+                    edges.push((src, dst, rank));
+
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
+                }
+                (edge_type, edges)
+            };
 
             DeleteTarget::Edges { edge_type, edges }
         } else if ctx.match_token(TokenKind::Tag) {
@@ -297,6 +477,13 @@ impl DmlParser {
             DeleteTarget::Vertices(vids)
         };
 
+        let with_edge = if ctx.match_token(TokenKind::With) {
+            ctx.expect_token(TokenKind::Edge)?;
+            true
+        } else {
+            false
+        };
+
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
@@ -304,7 +491,7 @@ impl DmlParser {
             span,
             target,
             where_clause: None,
-            with_edge: false,
+            with_edge,
         }))
     }
 
@@ -449,6 +636,13 @@ impl DmlParser {
     ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget};
 
+        let mut if_not_exists = false;
+        if ctx.match_token(TokenKind::If) {
+            ctx.expect_token(TokenKind::Not)?;
+            ctx.expect_token(TokenKind::Exists)?;
+            if_not_exists = true;
+        }
+
         // Analyzing the list of edge types and attribute names
         let edge_name = ctx.expect_identifier()?;
         let mut prop_names = vec![];
@@ -462,13 +656,6 @@ impl DmlParser {
                 }
             }
             ctx.expect_token(TokenKind::RParen)?;
-        }
-
-        let mut if_not_exists = false;
-        if ctx.match_token(TokenKind::If) {
-            ctx.expect_token(TokenKind::Not)?;
-            ctx.expect_token(TokenKind::Exists)?;
-            if_not_exists = true;
         }
 
         if ctx.check_token(TokenKind::Values) {

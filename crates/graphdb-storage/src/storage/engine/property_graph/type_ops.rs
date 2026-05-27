@@ -162,13 +162,13 @@ pub fn create_edge_type_with_id(
         return Err(StorageError::storage_not_open());
     }
     
-    if !graph.data_store.vertex_tables().read().contains_key(&params.src_label) {
+    if params.src_label != 0 && !graph.data_store.vertex_tables().read().contains_key(&params.src_label) {
         return Err(StorageError::label_not_found(format!(
             "source label {}",
             params.src_label
         )));
     }
-    if !graph.data_store.vertex_tables().read().contains_key(&params.dst_label) {
+    if params.dst_label != 0 && !graph.data_store.vertex_tables().read().contains_key(&params.dst_label) {
         return Err(StorageError::label_not_found(format!(
             "destination label {}",
             params.dst_label

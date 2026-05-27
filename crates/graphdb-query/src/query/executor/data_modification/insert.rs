@@ -188,6 +188,19 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
         if let Some(edges) = &self.edge_data {
             let mut storage = self.get_storage().write();
             for edge in edges {
+                if self.if_not_exists
+                    && storage
+                        .get_edge(
+                            &self.space_name,
+                            &edge.src,
+                            &edge.dst,
+                            &edge.edge_type,
+                            edge.ranking,
+                        )?
+                        .is_some()
+                {
+                    continue;
+                }
                 storage.insert_edge(&self.space_name, edge.clone())?;
                 total_inserted += 1;
             }

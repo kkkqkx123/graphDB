@@ -218,9 +218,24 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
                         update_result.returned_props = evaluated_props;
                     } else if self.insertable {
+                        let tags: Vec<crate::core::Tag> = update
+                            .tags_to_add
+                            .as_ref()
+                            .map(|tag_names| {
+                                tag_names
+                                    .iter()
+                                    .map(|name| {
+                                        crate::core::Tag::new(
+                                            name.clone(),
+                                            update.properties.clone(),
+                                        )
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default();
                         let new_vertex = crate::core::Vertex::new_with_properties(
                             vertex_vid,
-                            Vec::new(),
+                            tags,
                             update.properties.clone(),
                         );
                         storage.insert_vertex(&self.space_name, new_vertex)?;

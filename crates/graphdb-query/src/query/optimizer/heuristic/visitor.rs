@@ -33,7 +33,7 @@ use crate::query::planning::plan::core::nodes::graph_operations::set_operations_
 };
 use crate::query::planning::plan::core::nodes::join::join_node::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
-    LeftJoinNode,
+    LeftJoinNode, RightJoinNode, SemiJoinNode,
 };
 use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
@@ -42,16 +42,18 @@ use crate::query::planning::plan::core::nodes::operation::sort_node::{
     LimitNode, SortNode, TopNNode,
 };
 use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
-    AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
+    AppendVerticesNode, BiExpandNode, BiTraverseNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
 
 use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
-    ArgumentNode, LoopNode, PassThroughNode, SelectNode,
+    ArgumentNode, BeginTransactionNode, CommitNode, LoopNode, PassThroughNode, RollbackNode,
+    SelectNode,
 };
 use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 use crate::query::planning::plan::core::nodes::data_modification::{
-    DeleteEdgesNode, DeleteVerticesNode, InsertEdgesNode, InsertVerticesNode, UpdateEdgesNode,
-    UpdateNode, UpdateVerticesNode,
+    DeleteEdgesNode, DeleteIndexNode, DeleteTagsNode, DeleteVerticesNode, InsertEdgesNode,
+    InsertVerticesNode, PipeDeleteEdgesNode, PipeDeleteVerticesNode, UpdateEdgesNode, UpdateNode,
+    UpdateVerticesNode,
 };
 use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
     EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
@@ -60,6 +62,10 @@ use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
 use crate::query::planning::plan::core::nodes::RemoveNode;
 
 use crate::query::planning::plan::core::nodes::access::IndexScanNode;
+use crate::query::planning::plan::core::nodes::management::stats_nodes::ShowStatsNode;
+use crate::query::planning::plan::core::nodes::search::fulltext::data_access::{
+    FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
+};
 use crate::query::planning::plan::core::nodes::traversal::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
@@ -220,6 +226,10 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         visit_left_join => LeftJoinNode, LeftJoin,
         visit_cross_join => CrossJoinNode, CrossJoin,
         visit_full_outer_join => FullOuterJoinNode, FullOuterJoin,
+        visit_right_join => RightJoinNode, RightJoin,
+        visit_semi_join => SemiJoinNode, SemiJoin,
+        visit_bi_expand => BiExpandNode, BiExpand,
+        visit_bi_traverse => BiTraverseNode, BiTraverse,
         visit_multi_shortest_path => MultiShortestPathNode, MultiShortestPath,
         visit_bfs_shortest => BFSShortestNode, BFSShortest,
         visit_all_paths => AllPathsNode, AllPaths,
@@ -243,6 +253,17 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         visit_update_edges => UpdateEdgesNode, UpdateEdges,
         visit_delete_vertices => DeleteVerticesNode, DeleteVertices,
         visit_delete_edges => DeleteEdgesNode, DeleteEdges,
+        visit_delete_tags => DeleteTagsNode, DeleteTags,
+        visit_delete_index => DeleteIndexNode, DeleteIndex,
+        visit_pipe_delete_vertices => PipeDeleteVerticesNode, PipeDeleteVertices,
+        visit_pipe_delete_edges => PipeDeleteEdgesNode, PipeDeleteEdges,
+        visit_show_stats => ShowStatsNode, ShowStats,
+        visit_begin_transaction => BeginTransactionNode, BeginTransaction,
+        visit_commit => CommitNode, Commit,
+        visit_rollback => RollbackNode, Rollback,
+        visit_fulltext_search => FulltextSearchNode, FulltextSearch,
+        visit_fulltext_lookup => FulltextLookupNode, FulltextLookup,
+        visit_match_fulltext => MatchFulltextNode, MatchFulltext,
     );
 
     // Management nodes (parameterized sub-enums)

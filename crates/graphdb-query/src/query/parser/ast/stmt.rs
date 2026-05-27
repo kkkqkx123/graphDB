@@ -187,7 +187,7 @@ impl Stmt {
             Stmt::Create(_) => "CREATE",
             Stmt::Match(_) => "MATCH",
             Stmt::Delete(_) => "DELETE",
-            Stmt::Update(_) => "UPDATE",
+            Stmt::Update(s) => if s.is_upsert { "UPSERT" } else { "UPDATE" },
             Stmt::Go(_) => "GO",
             Stmt::Fetch(_) => "FETCH",
             Stmt::Use(_) => "USE",

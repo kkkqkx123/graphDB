@@ -481,7 +481,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                     } else {
                         None
                     },
-                    tags_to_add: None,
+                    tags_to_add: info.tag_name.clone().map(|t| vec![t]),
                     tags_to_remove: None,
                 };
 

@@ -3,6 +3,7 @@
 //! Responsible for deleting vertex and edge data.
 //! Supports both standalone deletion and pipe-based deletion (e.g., GO ... | DELETE VERTEX $-.id).
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -219,9 +220,17 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 
         if let Some(edges) = &self.edge_ids {
             let mut storage = self.get_storage().write();
-            for (src, dst, edge_type) in edges {
-                let src_vid = VertexId::try_from(src).map_err(DBError::from)?;
-                let dst_vid = VertexId::try_from(dst).map_err(DBError::from)?;
+    for (src, dst, edge_type) in edges {
+        // Handle Value::Edge: extract src/dst from the edge value
+        // This is needed for MATCH ... DELETE EDGE e where e is an edge variable
+        let src_vid = match src {
+            Value::Edge(ref e) => e.src.clone(),
+            other => VertexId::try_from(other).map_err(DBError::from)?,
+        };
+        let dst_vid = match dst {
+            Value::Edge(ref e) => e.dst.clone(),
+            other => VertexId::try_from(other).map_err(DBError::from)?,
+        };
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(edge)) =
                         storage.get_edge(&self.space_name, &src_vid, &dst_vid, edge_type, 0)
@@ -546,8 +555,17 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                 for (src_expr, dst_expr, _rank_expr) in &self.edge_expressions {
                     let src = self.evaluate_expression_with_row(src_expr, col_names, row)?;
                     let dst = self.evaluate_expression_with_row(dst_expr, col_names, row)?;
-                    let src_vid = VertexId::try_from(&src).map_err(DBError::from)?;
-                    let dst_vid = VertexId::try_from(&dst).map_err(DBError::from)?;
+
+                    // Handle Value::Edge: extract src/dst from the edge value
+                    // This is needed for MATCH ... DELETE EDGE e where e is an edge variable
+                    let src_vid = match &src {
+                        Value::Edge(e) => e.src.clone(),
+                        other => VertexId::try_from(other).map_err(DBError::from)?,
+                    };
+                    let dst_vid = match &dst {
+                        Value::Edge(e) => e.dst.clone(),
+                        other => VertexId::try_from(other).map_err(DBError::from)?,
+                    };
 
                     let edges = storage
                         .scan_edges_by_type(&self.space_name, &edge_type)
@@ -591,6 +609,17 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
             if i < row.len() {
                 context.set_variable(col_name.clone(), row[i].clone());
             }
+        }
+
+        // Set $- as a map of all column values for pipe references like $-.id
+        if !col_names.is_empty() {
+            let mut pipe_map = HashMap::new();
+            for (i, col_name) in col_names.iter().enumerate() {
+                if i < row.len() {
+                    pipe_map.insert(col_name.clone(), row[i].clone());
+                }
+            }
+            context.set_variable("$-".to_string(), Value::Map(Box::new(pipe_map)));
         }
 
         ExpressionEvaluator::evaluate(&expression, &mut context)

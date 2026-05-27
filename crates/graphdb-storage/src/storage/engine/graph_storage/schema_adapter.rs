@@ -128,21 +128,18 @@ pub(crate) fn alter_tag(
 pub(crate) fn create_edge_type(ctx: &GraphStorageContext, space: &str, edge_type: &EdgeTypeInfo) -> StorageResult<u32> {
     let edge_type_id = ctx.schema_manager.create_edge_type(space, edge_type)?;
 
-    let src_label_id = ctx
-        .graph
-        .get_vertex_label_id(&edge_type.src_tag_name)
-        .ok_or_else(|| {
-            StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name))
-        })?;
-    let dst_label_id = ctx
-        .graph
-        .get_vertex_label_id(&edge_type.dst_tag_name)
-        .ok_or_else(|| {
-            StorageError::not_found(format!(
-                "Destination tag {} not found",
-                edge_type.dst_tag_name
-            ))
-        })?;
+    let src_label_id = if edge_type.src_tag_name.is_empty() {
+        0
+    } else {
+        ctx.graph.get_vertex_label_id(&edge_type.src_tag_name)
+            .ok_or_else(|| StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name)))?
+    };
+    let dst_label_id = if edge_type.dst_tag_name.is_empty() {
+        0
+    } else {
+        ctx.graph.get_vertex_label_id(&edge_type.dst_tag_name)
+            .ok_or_else(|| StorageError::not_found(format!("Destination tag {} not found", edge_type.dst_tag_name)))?
+    };
 
     let properties: Vec<StoragePropertyDef> =
         edge_type.properties.iter().map(StoragePropertyDef::from_core).collect();

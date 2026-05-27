@@ -197,7 +197,7 @@ impl InsertEdgesValidator {
             // Check whether the literal value is an integer.
             if rank_expr.is_literal() {
                 if let Some(value) = rank_expr.as_literal() {
-                    if !matches!(value, Value::Int(_)) {
+                    if !matches!(value, Value::Int(_) | Value::BigInt(_)) {
                         return Err(ValidationError::new(
                             "Rank must be an integer constant or variable".to_string(),
                             ValidationErrorType::SemanticError,
@@ -302,8 +302,12 @@ impl InsertEdgesValidator {
     /// Evaluating the rank expression
     fn evaluate_rank(&self, rank: &Option<ContextualExpression>) -> Result<i64, ValidationError> {
         if let Some(rank_expr) = rank {
-            if let Some(Value::BigInt(n)) = rank_expr.as_literal() {
-                return Ok(n);
+            if let Some(value) = rank_expr.as_literal() {
+                match value {
+                    Value::Int(n) => return Ok(n as i64),
+                    Value::BigInt(n) => return Ok(n),
+                    _ => {}
+                }
             }
         }
         Ok(0)
@@ -361,7 +365,29 @@ impl StatementValidator for InsertEdgesValidator {
         };
 
         // 4. Verify that the edge type exists.
-        self.validate_edge_type_exists(&edge_name)?;
+        if let Some(ref schema_manager) = self.schema_manager {
+            if let Some(ref space_name) = qctx.space_name() {
+                match schema_manager.get_edge_type(space_name, &edge_name) {
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        return Err(ValidationError::new(
+                            format!("Edge type '{}' does not exist", edge_name),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                    Err(e) => {
+                        return Err(ValidationError::new(
+                            format!("Failed to check edge type '{}': {}", edge_name, e),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+            } else {
+                self.validate_edge_type_exists(&edge_name)?;
+            }
+        } else {
+            self.validate_edge_type_exists(&edge_name)?;
+        }
 
         // 5. Verify the attribute names
         self.validate_property_names(&prop_names)?;

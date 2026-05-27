@@ -204,6 +204,7 @@ impl TryFrom<&Value> for VertexId {
             Value::Int(i) => Ok(Self::from_int64(*i as i64)),
             Value::BigInt(i) => Ok(Self::from_int64(*i)),
             Value::String(s) => Ok(Self::from_string(s)),
+            Value::Vertex(v) => Ok(v.vid.clone()),
             _ => Err(crate::core::StorageError::invalid_input(
                 "Cannot convert Value to VertexId",
             )),

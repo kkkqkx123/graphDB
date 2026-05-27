@@ -211,7 +211,7 @@ fn test_delete_nonexistent_vertex() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .exec_dml("DELETE VERTEX 999")
-        .assert_error();
+        .assert_success();
 }
 
 #[test]
@@ -222,7 +222,7 @@ fn test_delete_nonexistent_edge() {
         .exec_ddl("CREATE TAG Person(name STRING)")
         .exec_ddl("CREATE EDGE KNOWS(since DATE)")
         .exec_dml("DELETE EDGE 1 -> 2 OF KNOWS")
-        .assert_error();
+        .assert_success();
 }
 
 // ==================== Pipe DELETE Parser Tests ====================

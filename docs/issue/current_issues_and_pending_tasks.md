@@ -76,44 +76,95 @@
 
 ## 三、待修复的问题
 
-### 1. MATCH with edge - variable binding in edge expansion
+### 1. Edge 持久化问题 (最高优先级)
 - **状态**: 未开始
-- **描述**: MATCH 查询中边扩展的变量绑定问题
-- **相关文件**: 待分析
+- **描述**: INSERT EDGE 报告成功但边不可检索。所有依赖边的操作（MATCH 遍历、GO、FIND PATH、DELETE EDGE、UPDATE EDGE）均返回 0 结果或失败。影响 35+ 个测试。
+- **详细分析**: `docs/issue/dml_edge_persistence.md`
+- **相关文件**:
+  - `crates/graphdb-query/src/query/executor/dml/insert_edge_executor.rs`
+  - `crates/graphdb-storage/src/storage/edge/edge_table.rs`
+  - `crates/graphdb-storage/src/storage/vertex/vertex_table.rs`
+  - `crates/graphdb-storage/src/storage/edge/adjacency_list.rs`
 
-### 2. Optimizer plan operators issue (DescribeVisitor)
-- **状态**: 未开始
-- **描述**: 优化器计划算子问题
-- **相关文件**: 待分析
+### 2. FIND PATH 与 Graph Traversal 执行问题
+- **状态**: 未开始（依赖问题 1 的修复）
+- **描述**: 所有 FIND SHORTEST/ALL PATH 和 MATCH/GO 带边遍历的查询返回 0 行。Parser 测试全部通过，执行器始终返回空结果。
+- **详细分析**: `docs/issue/dql_find_path_and_traversal.md`
 
-### 3. 其他失败的测试
+### 3. Optimizer Visitor panic (DELETE with pipe/MATCH)
 - **状态**: 未开始
-- **包括**:
-  - fetch 测试
-  - yield where 测试
-  - find path 测试
-  - dangling edges 测试
+- **描述**: MATCH/PIPE DELETE 执行时在 `heuristic/visitor.rs:185` panic (`visit_default should not be called`)
+- **影响**: 10 个 DELETE 测试全部崩溃（而非优雅报错）
+- **详细分析**: `docs/issue/optimizer_visitor_panic.md`
+- **修复建议**: 临时将 `unreachable!()` 替换为 `self.visit_children(node)` 可避免 panic
+
+### 4. UPSERT 语法不支持
+- **状态**: 未开始
+- **描述**: `UPSERT VERTEX ... ON DUPLICATE ...` 中 parser 拒绝 `ON` 关键字 — `Unexpected token in expression: On`
+- **影响**: 10 个 UPSERT 测试失败
+- **注意**: `MERGE VERTEX` (无 ON DUPLICATE) 正常工作
+
+### 5. DELETE EDGE 语法问题
+- **状态**: 未开始
+- **描述**: `DELETE EDGE 1 -> 2` 中 parser 期望 identifier 但找到 IntegerLiteral(1)
+- **影响**: 2 个 parser 测试失败
+
+### 6. UPDATE EDGE 语法问题
+- **状态**: 未开始
+- **描述**: `UPDATE EDGE ON 1 -> 2` 中 parser 期望 `OF` 关键字
+- **影响**: 2 个测试失败
+
+### 7. DDL Constraint 执行失效
+- **状态**: 未开始
+- **描述**: DEFAULT 值在 INSERT 时不生效，NOT NULL 不拒绝 NULL。Schema 层约束被正确解析和存储但 DML 执行层不强制执行。
+- **影响**: 5 个 DDL 测试失败
+- **相关测试**: `tests/ddl/constraints.rs`
+
+### 8. Aggregation 类型错误
+- **状态**: 未开始
+- **描述**: SUM/MIN/MAX 返回 `Value::String("30.0")` 而非数值类型
+- **影响**: 3 个 DQL 测试失败
+- **示例**:
+  - `SUM(price)` → `String("30.0")` (应为 `Double(30.0)` 或 `BigInt`)
+  - `MIN(age)` → `String("25")` (应为 `Int(25)`)
+
+### 9. MATCH ORDER BY 变量解析错误
+- **状态**: 未开始
+- **描述**: `MATCH (v:Person) RETURN v.name ORDER BY v.name` → `UndefinedVariable: v`
+- **影响**: 1 个测试失败
+
+### 10. 权限架构缺口
+- **状态**: 部分修复
+- **描述**: `extract_permission_from_statement` 将 CREATE（含 TAG/EDGE/SPACE）分类为 `Write` 而非 `Schema`。`PermissionManager` 与存储层用户数据不同步（GRANT 通过 pipeline 执行不更新 PermissionManager）。
+- **已修复**: USE 语句跳过权限检查（session 级操作）
+
+### 11. DCL 执行未实现
+- **状态**: 确认已知限制
+- **描述**: CreateUser/DropUser/AlterUser 被 parser 正确解析但 `MaintainPlanner` 拒绝执行：`Statement CreateUser is not supported by MaintainPlanner`
+- **影响**: 23 个 DCL 执行测试失败
 
 ---
 
 ## 四、待执行的任务
 
-### 1. 修复当前阻塞问题 (FilterExecutor 不在执行链中)
-- [ ] 调查优化器是否移除了 FilterNode
-- [ ] 检查 ProjectNode 的 input 和 deps 字段一致性
-- [ ] 修复 build_executor_chain 或优化器逻辑
+### P0 — 核心修复
+- [ ] 修复 Edge 持久化问题（详见 `dml_edge_persistence.md`）
+- [ ] 修复 Optimizer visitor panic（临时或永久方案）
 
-### 2. 修复其他查询问题
-- [ ] MATCH with edge - variable binding
-- [ ] Optimizer plan operators (DescribeVisitor)
-- [ ] 其他失败测试 (fetch, yield where, find path, dangling edges)
+### P1 — 查询执行
+- [ ] 修复 FIND PATH / MATCH / GO 遍历执行（依赖 P0 Edge 修复）
+- [ ] 修复 Aggregation 类型转换
 
-### 3. 更新测试
-- [ ] 更新单元测试
-- [ ] 更新 tests/ 目录下的集成测试
+### P2 — 语法 & 约束
+- [ ] 修复 UPSERT parser `ON` 关键字支持
+- [ ] 修复 DELETE EDGE parser identifier 支持
+- [ ] 修复 UPDATE EDGE parser `OF` 关键字支持
+- [ ] 修复 DDL Constraint 执行（DEFAULT, NOT NULL）
 
-### 4. 验证修复
-- [ ] 运行 cargo test 验证所有修复
+### P3 — 架构
+- [ ] 重新设计 `extract_permission_from_statement` 确保 Schema/Write 分类正确
+- [ ] 实现 PermissionManager 与存储层用户数据同步
+- [ ] 实现 DCL 语句的 pipeline 执行支持
 
 ---
 
@@ -132,6 +183,10 @@
 ## 六、相关文档
 
 - `docs/issue/e2e_test_report_2025_04_28.md` - E2E 测试报告
+- `docs/issue/test_failure_summary_2026_05_27.md` - 集成测试失败汇总（新版）
+- `docs/issue/dml_edge_persistence.md` - Edge 持久化问题分析
+- `docs/issue/dql_find_path_and_traversal.md` - Graph 遍历执行分析
+- `docs/issue/optimizer_visitor_panic.md` - Optimizer Visitor panic 分析
 - `docs/issue/code_analysis_go_traversal_variable_binding.md` - GO 遍历变量绑定分析
 - `docs/issue/code_analysis_match_variable_binding.md` - MATCH 变量绑定分析
 - `docs/issue/code_analysis_optimizer_plan_operators.md` - 优化器计划算子分析

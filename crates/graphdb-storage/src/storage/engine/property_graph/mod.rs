@@ -400,6 +400,13 @@ impl PropertyGraph {
             .map(|k| k.to_string())
     }
 
+    pub fn get_external_id_any(&self, internal_id: u32, ts: Timestamp) -> Option<String> {
+        let vertex_tables = self.data_store.vertex_tables().read();
+        vertex_tables.values()
+            .find_map(|t| t.get_external_id(internal_id, ts))
+            .map(|k| k.to_string())
+    }
+
     pub fn delete_vertex(
         &self,
         label: LabelId,
