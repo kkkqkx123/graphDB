@@ -9,7 +9,8 @@ use crate::config::Config;
 use crate::api::server::session::{SessionError, SessionResult};
 use crate::core::stats::StatsManager;
 use crate::core::types::TransactionContextInfo;
-use crate::core::{MetricType, Permission};
+use crate::core::types::SpaceSummary;
+use crate::core::{DataType, MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
 use crate::core::metadata::SchemaManager;
@@ -277,9 +278,13 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let mut result = self.execute_query_with_permission(session_id, stmt, space_id);
 
         // Handle SpaceSwitched result from USE statement
-        if let Ok(ref exec_result) = result {
-            if let Some(space_summary) = exec_result.space_summary() {
-                session.set_space(space_summary.clone());
+        // The core QueryApi converts SpaceSwitched to a DataSet with space_name/space_id columns,
+        // so we need to extract space info from the DataSet for USE statements.
+        if stmt.trim().to_uppercase().starts_with("USE ") {
+            if let Ok(ref exec_result) = result {
+                if let Some(space_summary) = Self::extract_space_summary_from_result(exec_result) {
+                    session.set_space(space_summary);
+                }
             }
         }
 
@@ -320,7 +325,11 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let username = session.user();
 
         // Permission check: The admin has all permissions, so no check is required.
-        if !self.permission_manager.is_admin(&username) {
+        // USE is a session-level operation that does not access data — skip permission
+        // check so any authenticated user can switch to a space.
+        if !self.permission_manager.is_admin(&username)
+            && !stmt.trim().to_uppercase().starts_with("USE ")
+        {
             let permission = self.extract_permission_from_statement(stmt);
             if let Err(e) = self
                 .permission_manager
@@ -454,6 +463,91 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             Permission::Schema
         } else {
             Permission::Read
+        }
+    }
+
+    /// Parse a DataType from its Display string representation.
+    /// Mirrors the Display impl in graphdb_core::core::types::mod.rs.
+    fn parse_data_type(s: &str) -> DataType {
+        match s.to_uppercase().as_str() {
+            "EMPTY" => DataType::Empty,
+            "NULL" => DataType::Null,
+            "BOOL" => DataType::Bool,
+            "SMALLINT" => DataType::SmallInt,
+            "INT" => DataType::Int,
+            "BIGINT" => DataType::BigInt,
+            "FLOAT" => DataType::Float,
+            "DOUBLE" => DataType::Double,
+            "DECIMAL128" => DataType::Decimal128,
+            "STRING" => DataType::String,
+            "DATE" => DataType::Date,
+            "TIME" => DataType::Time,
+            "DATETIME" => DataType::DateTime,
+            "VERTEX" => DataType::Vertex,
+            "EDGE" => DataType::Edge,
+            "PATH" => DataType::Path,
+            "LIST" => DataType::List,
+            "MAP" => DataType::Map,
+            "SET" => DataType::Set,
+            "GEOGRAPHY" => DataType::Geography,
+            "DATASET" => DataType::DataSet,
+            "VID" => DataType::VID,
+            "BLOB" => DataType::Blob,
+            "TIMESTAMP" => DataType::Timestamp,
+            "VECTOR" => DataType::Vector,
+            "JSON" => DataType::Json,
+            "JSONB" => DataType::JsonB,
+            "UUID" => DataType::Uuid,
+            "INTERVAL" => DataType::Interval,
+            _ if s.starts_with("FIXEDSTRING(") => {
+                let n = s.trim_start_matches("FIXEDSTRING(")
+                    .trim_end_matches(')')
+                    .parse::<usize>()
+                    .unwrap_or(0);
+                DataType::FixedString(n)
+            }
+            _ if s.starts_with("VECTOR_DENSE(") => {
+                let n = s.trim_start_matches("VECTOR_DENSE(")
+                    .trim_end_matches(')')
+                    .parse::<usize>()
+                    .unwrap_or(0);
+                DataType::VectorDense(n)
+            }
+            _ if s.starts_with("VECTOR_SPARSE(") => {
+                let n = s.trim_start_matches("VECTOR_SPARSE(")
+                    .trim_end_matches(')')
+                    .parse::<usize>()
+                    .unwrap_or(0);
+                DataType::VectorSparse(n)
+            }
+            _ => DataType::BigInt,
+        }
+    }
+
+    /// Extract SpaceSummary from an ExecutionResult DataSet that contains space info.
+    /// This is used for USE statement results that have been converted from SpaceSwitched.
+    fn extract_space_summary_from_result(result: &ExecutionResult) -> Option<SpaceSummary> {
+        match result {
+            ExecutionResult::DataSet(ds) => {
+                let name_idx = ds.col_names.iter().position(|c| c == "space_name")?;
+                let id_idx = ds.col_names.iter().position(|c| c == "space_id")?;
+                let vid_type_idx = ds.col_names.iter().position(|c| c == "vid_type");
+                let row = ds.rows.first()?;
+                let name = match row.get(name_idx)? {
+                    crate::core::Value::String(s) => s.clone(),
+                    _ => return None,
+                };
+                let id = match row.get(id_idx)? {
+                    crate::core::Value::BigInt(id) => *id as u64,
+                    _ => return None,
+                };
+                let vid_type = match vid_type_idx.and_then(|idx| row.get(idx)) {
+                    Some(crate::core::Value::String(s)) => Self::parse_data_type(s),
+                    _ => DataType::BigInt,
+                };
+                Some(SpaceSummary::new(id, name, vid_type))
+            }
+            _ => result.space_summary().cloned(),
         }
     }
 

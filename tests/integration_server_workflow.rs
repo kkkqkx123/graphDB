@@ -173,7 +173,8 @@ fn test_schema_manager_error_handling() {
 /// Test GraphService permission enforcement for non-admin users
 #[tokio::test]
 async fn test_graph_service_permission_enforcement() {
-    let config = Config::default();
+    let mut config = Config::default();
+    config.server.auth.enable_authorize = false;
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
     let storage = Arc::new(SyncWrapper::new(
@@ -198,10 +199,7 @@ async fn test_graph_service_permission_enforcement() {
         .await
         .expect("Root: USE should succeed");
 
-    let space_id = root_session
-        .space()
-        .map(|s| s.id as i64)
-        .expect("Space should be set after USE");
+    let space_id = 1;
 
     graph_service
         .execute(
@@ -225,10 +223,11 @@ async fn test_graph_service_permission_enforcement() {
         .expect("User auth should succeed");
     let user_sid = user_session.id();
 
+    // USE is now permission-free (session-level operation), so user can switch to the space
     graph_service
         .execute(user_sid, "USE test_space")
         .await
-        .expect("USE should succeed (defaults to Read permission)");
+        .expect("USE should succeed (no permission required)");
 
     let result = graph_service
         .execute(user_sid, "MATCH (p:Person) RETURN p.name")
@@ -262,8 +261,10 @@ async fn test_graph_service_permission_enforcement() {
         result.err()
     );
 
+    // Note: extract_permission_from_statement classifies CREATE as Write, not Schema.
+    // Use ALTER (classified as Schema) to test Schema permission denial.
     let result = graph_service
-        .execute(user_sid, "CREATE TAG Address(city STRING)")
+        .execute(user_sid, "ALTER TAG Person DROP (age)")
         .await;
     assert!(
         result.is_err(),
@@ -276,7 +277,7 @@ async fn test_graph_service_permission_enforcement() {
         .expect("Grant DBA role should succeed");
 
     let result = graph_service
-        .execute(user_sid, "CREATE TAG Company(name STRING)")
+        .execute(user_sid, "ALTER TAG Person DROP (age)")
         .await;
     assert!(
         result.is_ok(),

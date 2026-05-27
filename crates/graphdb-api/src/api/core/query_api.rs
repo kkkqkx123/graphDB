@@ -237,8 +237,16 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                     "space_id".to_string(),
                     crate::core::Value::BigInt(summary.id as i64),
                 );
+                row.values.insert(
+                    "vid_type".to_string(),
+                    crate::core::Value::String(summary.vid_type.to_string()),
+                );
                 Ok(QueryResult {
-                    columns: vec!["space_name".to_string(), "space_id".to_string()],
+                    columns: vec![
+                        "space_name".to_string(),
+                        "space_id".to_string(),
+                        "vid_type".to_string(),
+                    ],
                     rows: vec![row],
                     metadata: ExecutionMetadata::default(),
                 })

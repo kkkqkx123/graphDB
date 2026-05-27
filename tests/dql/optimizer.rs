@@ -344,8 +344,9 @@ fn test_optimizer_complex_join() {
 fn test_optimizer_result_equivalence() {
     let test_storage = TestStorage::new().expect("Failed to create test storage");
     let storage = test_storage.storage();
+    let schema_manager = test_storage.schema_manager();
 
-    // Create data once
+    // Create data once (space + tag + vertex)
     {
         let stats_manager = Arc::new(StatsManager::new());
         let opt_enabled = Arc::new(OptimizerEngine::default());
@@ -354,22 +355,47 @@ fn test_optimizer_result_equivalence() {
             stats_manager,
             opt_enabled,
         )
-        .with_schema_manager(test_storage.schema_manager());
+        .with_schema_manager(schema_manager.clone());
         pipeline
             .execute_query("CREATE SPACE opt_equiv (vid_type=INT64)")
             .expect("CREATE SPACE");
-        pipeline
-            .execute_query("USE opt_equiv")
-            .expect("USE");
-        pipeline
-            .execute_query("CREATE TAG Item(name STRING, price DOUBLE)")
-            .expect("CREATE TAG");
-        pipeline
-            .execute_query("INSERT VERTEX Item(name, price) VALUES 1:('A', 10.0), 2:('B', 20.0), 3:('C', 30.0)")
-            .expect("INSERT");
+        // USE does not persist across execute_query calls — the space must be
+        // passed via execute_query_with_space for each query.
     }
 
-    let schema_manager = test_storage.schema_manager();
+    // Construct SpaceInfo for opt_equiv (space_id is 1 as it's the first space created)
+    use graphdb::core::types::SpaceInfo;
+    let space_info = SpaceInfo {
+        space_id: 1,
+        space_name: "opt_equiv".to_string(),
+        vid_type: graphdb::core::DataType::BigInt,
+        ..Default::default()
+    };
+    let space_info: SpaceInfo = space_info;
+
+    // Create data inside the space by passing SpaceInfo
+    {
+        let stats_manager = Arc::new(StatsManager::new());
+        let opt_enabled = Arc::new(OptimizerEngine::default());
+        let mut pipeline = QueryPipelineManager::with_optimizer(
+            storage.clone(),
+            stats_manager,
+            opt_enabled,
+        )
+        .with_schema_manager(schema_manager.clone());
+        pipeline
+            .execute_query_with_space(
+                "CREATE TAG Item(name STRING, price DOUBLE)",
+                Some(space_info.clone()),
+            )
+            .expect("CREATE TAG");
+        pipeline
+            .execute_query_with_space(
+                "INSERT VERTEX Item(name, price) VALUES 1:('A', 10.0), 2:('B', 20.0), 3:('C', 30.0)",
+                Some(space_info.clone()),
+            )
+            .expect("INSERT");
+    }
 
     // Pipeline with optimization enabled
     let stats1 = Arc::new(StatsManager::new());
@@ -396,7 +422,6 @@ fn test_optimizer_result_equivalence() {
 
     // Test: MATCH query results should be identical with or without optimization
     let queries = vec![
-        "USE opt_equiv",
         "MATCH (i:Item) RETURN i.name, i.price ORDER BY i.name",
         "MATCH (i:Item) WHERE i.price > 15.0 RETURN i.name",
         "MATCH (i:Item) RETURN COUNT(i) AS total",
@@ -404,8 +429,8 @@ fn test_optimizer_result_equivalence() {
     ];
 
     for query in queries {
-        let result_on = pipeline_on.execute_query(query);
-        let result_off = pipeline_off.execute_query(query);
+        let result_on = pipeline_on.execute_query_with_space(query, Some(space_info.clone()));
+        let result_off = pipeline_off.execute_query_with_space(query, Some(space_info.clone()));
 
         assert!(
             result_on.is_ok(),

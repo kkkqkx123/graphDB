@@ -98,7 +98,11 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
         ),
         ExecutionResult::SpaceSwitched(summary) => QueryResponse::success(
             QueryData::new(
-                vec!["space_name".to_string(), "space_id".to_string()],
+                vec![
+                    "space_name".to_string(),
+                    "space_id".to_string(),
+                    "vid_type".to_string(),
+                ],
                 vec![std::collections::HashMap::from([
                     (
                         "space_name".to_string(),
@@ -107,6 +111,10 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
                     (
                         "space_id".to_string(),
                         serde_json::Value::Number(summary.id.into()),
+                    ),
+                    (
+                        "vid_type".to_string(),
+                        serde_json::Value::String(format!("{:?}", summary.vid_type)),
                     ),
                 ])],
             ),
