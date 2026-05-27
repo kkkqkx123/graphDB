@@ -118,17 +118,21 @@ fn test_grant_revoke_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = [
-        "CREATE USER alice WITH PASSWORD 'password123'",
-        "GRANT ADMIN ON test_space TO alice",
-        "REVOKE ADMIN ON test_space FROM alice",
-        "DROP USER alice",
-    ];
+    // Create user first
+    let create_result = pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'");
+    assert!(create_result.is_ok(), "CREATE USER should succeed: {:?}", create_result.err());
 
-    for query in queries.iter() {
-        let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
-    }
+    // Grant role
+    let grant_result = pipeline_manager.execute_query("GRANT ADMIN ON test_space TO alice");
+    assert!(grant_result.is_ok(), "GRANT should succeed: {:?}", grant_result.err());
+
+    // Revoke role
+    let revoke_result = pipeline_manager.execute_query("REVOKE ADMIN ON test_space FROM alice");
+    assert!(revoke_result.is_ok(), "REVOKE should succeed: {:?}", revoke_result.err());
+
+    // Drop user
+    let drop_result = pipeline_manager.execute_query("DROP USER alice");
+    assert!(drop_result.is_ok(), "DROP USER should succeed: {:?}", drop_result.err());
 }
 
 #[test]
@@ -143,21 +147,31 @@ fn test_grant_multiple_roles() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = [
-        "CREATE USER multi_role_user WITH PASSWORD 'password'",
+    let create_result = pipeline_manager.execute_query("CREATE USER multi_role_user WITH PASSWORD 'password'");
+    assert!(create_result.is_ok(), "CREATE USER should succeed: {:?}", create_result.err());
+
+    let grant_queries = [
         "GRANT ADMIN ON space1 TO multi_role_user",
         "GRANT DBA ON space2 TO multi_role_user",
         "GRANT USER ON space3 TO multi_role_user",
+    ];
+    for (i, q) in grant_queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(q);
+        assert!(result.is_ok(), "GRANT {} should succeed: {:?}", i, result.err());
+    }
+
+    let revoke_queries = [
         "REVOKE ADMIN ON space1 FROM multi_role_user",
         "REVOKE DBA ON space2 FROM multi_role_user",
         "REVOKE USER ON space3 FROM multi_role_user",
-        "DROP USER multi_role_user",
     ];
-
-    for query in queries.iter() {
-        let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
+    for (i, q) in revoke_queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(q);
+        assert!(result.is_ok(), "REVOKE {} should succeed: {:?}", i, result.err());
     }
+
+    let drop_result = pipeline_manager.execute_query("DROP USER multi_role_user");
+    assert!(drop_result.is_ok(), "DROP USER should succeed: {:?}", drop_result.err());
 }
 
 #[test]
@@ -175,7 +189,7 @@ fn test_grant_nonexistent_user() {
     let query = "GRANT ADMIN ON test_space TO nonexistent_user";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_err(), "GRANT to nonexistent user should fail");
 }
 
 #[test]
@@ -190,14 +204,13 @@ fn test_revoke_nonexistent_permission() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = [
-        "CREATE USER testuser WITH PASSWORD 'password'",
-        "REVOKE ADMIN ON test_space FROM testuser",
-        "DROP USER testuser",
-    ];
+    let create_result = pipeline_manager.execute_query("CREATE USER testuser WITH PASSWORD 'password'");
+    assert!(create_result.is_ok(), "CREATE USER should succeed: {:?}", create_result.err());
 
-    for query in queries.iter() {
-        let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
-    }
+    // Revoking a permission that doesn't exist may succeed (no-op) or fail depending on implementation
+    let revoke_result = pipeline_manager.execute_query("REVOKE ADMIN ON test_space FROM testuser");
+    assert!(revoke_result.is_ok(), "REVOKE should handle nonexistent permission gracefully: {:?}", revoke_result.err());
+
+    let drop_result = pipeline_manager.execute_query("DROP USER testuser");
+    assert!(drop_result.is_ok(), "DROP USER should succeed: {:?}", drop_result.err());
 }

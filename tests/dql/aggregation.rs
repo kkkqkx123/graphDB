@@ -10,6 +10,7 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 
 // ==================== GROUP BY Parser Tests ====================
@@ -174,7 +175,8 @@ fn test_count_execution() {
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('A'), 2:('B'), 3:('C')")
         .assert_success()
         .query("MATCH (v:Person) RETURN COUNT(v) AS total")
-        .assert_success();
+        .assert_success()
+        .assert_result_contains(vec![Value::BigInt(3)]);
 }
 
 #[test]
@@ -227,7 +229,8 @@ fn test_sum_execution() {
         .assert_success()
         .query("MATCH (p:Product) RETURN SUM(p.price) AS total_price")
         .assert_success()
-        .assert_result_count(1);
+        .assert_result_count(1)
+        .assert_result_contains(vec![Value::Double(999.99 + 29.99 + 79.99)]);
 }
 
 #[test]
@@ -253,7 +256,35 @@ fn test_min_max_execution() {
         .assert_success()
         .query("MATCH (p:Product) RETURN MIN(p.price) AS min_price, MAX(p.price) AS max_price")
         .assert_success()
-        .assert_result_count(1);
+        .assert_result_count(1)
+        .assert_result_contains(vec![Value::Double(29.99)])
+        .assert_result_contains(vec![Value::Double(999.99)]);
+}
+
+#[test]
+fn test_sum_int_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Item(name STRING, quantity INT)")
+        .exec_dml("INSERT VERTEX Item(name, quantity) VALUES 1:('A', 10), 2:('B', 20), 3:('C', 30)")
+        .assert_success()
+        .query("MATCH (i:Item) RETURN SUM(i.quantity) AS total_qty")
+        .assert_success()
+        .assert_result_contains(vec![Value::BigInt(60)]);
+}
+
+#[test]
+fn test_group_by_with_sum_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Sale(category STRING, amount INT)")
+        .exec_dml("INSERT VERTEX Sale(category, amount) VALUES 1:('A', 100), 2:('A', 200), 3:('B', 150)")
+        .assert_success()
+        .query("MATCH (s:Sale) RETURN s.category, SUM(s.amount) AS total GROUP BY s.category")
+        .assert_success()
+        .assert_result_count(2);
 }
 
 #[test]

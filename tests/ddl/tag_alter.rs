@@ -8,7 +8,9 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::Value;
 use graphdb::query::parser::Parser;
+use std::collections::HashMap;
 
 // ==================== ALTER TAG Parser Tests ====================
 
@@ -162,4 +164,32 @@ fn test_alter_tag_drop_nonexistent_field() {
         .assert_success()
         .exec_ddl("ALTER TAG Person DROP (nonexistent_field)")
         .assert_error();
+}
+
+// ==================== ALTER TAG CHANGE Execution Tests ====================
+
+#[test]
+fn test_alter_tag_change_with_data() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(old_name: STRING, age: INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(old_name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .exec_ddl("ALTER TAG Person CHANGE (old_name name: STRING)")
+        .assert_success()
+        .query("DESC TAG Person")
+        .assert_success()
+        .assert_result_contains(vec![
+            Value::String("name".into()),
+            Value::String("STRING".into()),
+        ])
+        .exec_dml("UPDATE 1 SET name = 'Updated Alice'")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([("name", Value::String("Updated Alice".into()))]),
+        );
 }

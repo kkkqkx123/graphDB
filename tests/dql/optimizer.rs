@@ -6,10 +6,16 @@
 //! - Aggregation optimization (HashAggregate)
 //! - TopN optimization (Sort+Limit -> TopN)
 //! - EXPLAIN output validation
+//! - Optimizer result equivalence (with vs without optimization)
 
 use super::common;
 
 use common::test_scenario::TestScenario;
+use common::TestStorage;
+use graphdb::core::stats::StatsManager;
+use graphdb::query::optimizer::OptimizerEngine;
+use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use std::sync::Arc;
 
 // ==================== Index Selection Tests ====================
 
@@ -330,4 +336,96 @@ fn test_optimizer_complex_join() {
         .query("EXPLAIN MATCH (p:person)-[:works_at]->(c:company)-[:belongs_to]->(d:department) RETURN p.name, c.name, d.name")
         .assert_success()
         .assert_plan_contains_any(&["Join", "join", "Expand", "expand"]);
+}
+
+// ==================== Optimizer Result Equivalence Tests ====================
+
+#[test]
+fn test_optimizer_result_equivalence() {
+    let test_storage = TestStorage::new().expect("Failed to create test storage");
+    let storage = test_storage.storage();
+
+    // Create data once
+    {
+        let stats_manager = Arc::new(StatsManager::new());
+        let opt_enabled = Arc::new(OptimizerEngine::default());
+        let mut pipeline = QueryPipelineManager::with_optimizer(
+            storage.clone(),
+            stats_manager,
+            opt_enabled,
+        )
+        .with_schema_manager(test_storage.schema_manager());
+        pipeline
+            .execute_query("CREATE SPACE opt_equiv (vid_type=INT64)")
+            .expect("CREATE SPACE");
+        pipeline
+            .execute_query("USE opt_equiv")
+            .expect("USE");
+        pipeline
+            .execute_query("CREATE TAG Item(name STRING, price DOUBLE)")
+            .expect("CREATE TAG");
+        pipeline
+            .execute_query("INSERT VERTEX Item(name, price) VALUES 1:('A', 10.0), 2:('B', 20.0), 3:('C', 30.0)")
+            .expect("INSERT");
+    }
+
+    let schema_manager = test_storage.schema_manager();
+
+    // Pipeline with optimization enabled
+    let stats1 = Arc::new(StatsManager::new());
+    let opt_on = Arc::new(OptimizerEngine::default());
+    let mut pipeline_on = QueryPipelineManager::with_optimizer(
+        storage.clone(),
+        stats1,
+        opt_on,
+    )
+    .with_schema_manager(schema_manager.clone());
+
+    // Pipeline with optimization disabled
+    let stats2 = Arc::new(StatsManager::new());
+    let mut opt_off_engine = OptimizerEngine::default();
+    opt_off_engine.set_enable_heuristic(false);
+    opt_off_engine.set_enable_cost_based(false);
+    let opt_off = Arc::new(opt_off_engine);
+    let mut pipeline_off = QueryPipelineManager::with_optimizer(
+        storage.clone(),
+        stats2,
+        opt_off,
+    )
+    .with_schema_manager(schema_manager);
+
+    // Test: MATCH query results should be identical with or without optimization
+    let queries = vec![
+        "USE opt_equiv",
+        "MATCH (i:Item) RETURN i.name, i.price ORDER BY i.name",
+        "MATCH (i:Item) WHERE i.price > 15.0 RETURN i.name",
+        "MATCH (i:Item) RETURN COUNT(i) AS total",
+        "MATCH (i:Item) RETURN SUM(i.price) AS total_price",
+    ];
+
+    for query in queries {
+        let result_on = pipeline_on.execute_query(query);
+        let result_off = pipeline_off.execute_query(query);
+
+        assert!(
+            result_on.is_ok(),
+            "Optimized query should succeed: {} (error: {:?})",
+            query,
+            result_on.err()
+        );
+        assert!(
+            result_off.is_ok(),
+            "Non-optimized query should succeed: {} (error: {:?})",
+            query,
+            result_off.err()
+        );
+
+        // Compare result counts
+        assert_eq!(
+            result_on.unwrap().count(),
+            result_off.unwrap().count(),
+            "Result count mismatch for query with/without optimization: {}",
+            query
+        );
+    }
 }

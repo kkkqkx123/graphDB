@@ -184,3 +184,54 @@ fn test_lookup_empty_result() {
         .assert_success()
         .assert_result_count(0);
 }
+
+// ==================== LOOKUP with/without Index Comparison Tests ====================
+
+#[test]
+fn test_lookup_without_index_fallback() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)")
+        .assert_success()
+        // No index created — LOOKUP should still work (full scan fallback)
+        .query("LOOKUP ON Person WHERE Person.name == 'Alice'")
+        .assert_success()
+        .assert_result_count(1);
+}
+
+#[test]
+fn test_lookup_with_index_edge() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_ddl("CREATE EDGE INDEX idx_knows_since ON KNOWS(since)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
+        .assert_success()
+        .query("LOOKUP ON KNOWS WHERE KNOWS.since == '2024-01-01'")
+        .assert_success();
+}
+
+#[test]
+fn test_lookup_after_drop_index() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_ddl("CREATE TAG INDEX idx_person_age ON Person(age)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)")
+        .assert_success()
+        .query("LOOKUP ON Person WHERE Person.age == 30")
+        .assert_success()
+        .assert_result_count(1)
+        .exec_ddl("DROP TAG INDEX idx_person_age")
+        .assert_success()
+        // After dropping index, LOOKUP should still work via fallback
+        .query("LOOKUP ON Person WHERE Person.age == 30")
+        .assert_success()
+        .assert_result_count(1);
+}

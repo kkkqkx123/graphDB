@@ -99,7 +99,7 @@ fn test_create_user_execution_basic() {
     let query = "CREATE USER alice WITH PASSWORD 'password123'";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_ok(), "CREATE USER should succeed: {:?}", result.err());
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn test_create_user_execution_with_if_not_exists() {
     let query = "CREATE USER IF NOT EXISTS alice WITH PASSWORD 'password123'";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_ok(), "CREATE USER IF NOT EXISTS should succeed: {:?}", result.err());
 }
 
 #[test]
@@ -134,11 +134,10 @@ fn test_create_user_duplicate() {
 
     let query = "CREATE USER alice WITH PASSWORD 'password123'";
     let result1 = pipeline_manager.execute_query(query);
+    assert!(result1.is_ok(), "First CREATE USER should succeed: {:?}", result1.err());
 
     let result2 = pipeline_manager.execute_query(query);
-
-    assert!(result1.is_ok() || result1.is_err());
-    assert!(result2.is_ok() || result2.is_err());
+    assert!(result2.is_err(), "Duplicate CREATE USER should fail");
 }
 
 // ==================== ALTER USER Parser Tests ====================
@@ -205,10 +204,13 @@ fn test_alter_user_execution_basic() {
         Arc::new(OptimizerEngine::default()),
     );
 
+    pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'")
+        .expect("CREATE USER should succeed before ALTER");
+
     let query = "ALTER USER alice WITH PASSWORD 'newpassword123'";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_ok(), "ALTER USER on existing user should succeed: {:?}", result.err());
 }
 
 #[test]
@@ -226,7 +228,7 @@ fn test_alter_user_nonexistent() {
     let query = "ALTER USER nonexistent_user WITH PASSWORD 'newpassword'";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_err(), "ALTER USER on nonexistent user should fail");
 }
 
 // ==================== DROP USER Parser Tests ====================
@@ -293,10 +295,13 @@ fn test_drop_user_execution_basic() {
         Arc::new(OptimizerEngine::default()),
     );
 
+    pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'")
+        .expect("CREATE USER should succeed before DROP");
+
     let query = "DROP USER alice";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_ok(), "DROP USER on existing user should succeed: {:?}", result.err());
 }
 
 #[test]
@@ -311,10 +316,13 @@ fn test_drop_user_with_if_exists() {
         Arc::new(OptimizerEngine::default()),
     );
 
+    pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'")
+        .expect("CREATE USER should succeed before DROP IF EXISTS");
+
     let query = "DROP USER IF EXISTS alice";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_ok(), "DROP USER IF EXISTS on existing user should succeed: {:?}", result.err());
 }
 
 #[test]
@@ -332,7 +340,7 @@ fn test_drop_user_nonexistent() {
     let query = "DROP USER nonexistent_user";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_err(), "DROP USER on nonexistent user should fail");
 }
 
 #[test]
@@ -350,7 +358,7 @@ fn test_drop_user_nonexistent_with_if_exists() {
     let query = "DROP USER IF EXISTS nonexistent_user";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_ok(), "DROP USER IF EXISTS on nonexistent user should succeed: {:?}", result.err());
 }
 
 // ==================== CHANGE PASSWORD Tests ====================
@@ -415,10 +423,13 @@ fn test_change_password_execution_basic() {
         Arc::new(OptimizerEngine::default()),
     );
 
+    pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'oldpassword'")
+        .expect("CREATE USER should succeed before CHANGE PASSWORD");
+
     let query = "CHANGE PASSWORD 'oldpassword' TO 'newpassword'";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_ok(), "CHANGE PASSWORD should succeed: {:?}", result.err());
 }
 
 #[test]
@@ -433,10 +444,13 @@ fn test_change_password_wrong_old_password() {
         Arc::new(OptimizerEngine::default()),
     );
 
+    pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'oldpassword'")
+        .expect("CREATE USER should succeed before CHANGE PASSWORD");
+
     let query = "CHANGE PASSWORD 'wrongpassword' TO 'newpassword'";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.is_err(), "CHANGE PASSWORD with wrong old password should fail");
 }
 
 // ==================== User Lifecycle Tests ====================
@@ -462,7 +476,7 @@ fn test_dcl_user_lifecycle() {
 
     for query in lifecycle_queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "Lifecycle query '{}' should succeed: {:?}", query, result.err());
     }
 }
 
@@ -486,14 +500,14 @@ fn test_dcl_multiple_users() {
 
     for query in create_queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "CREATE USER '{}' should succeed: {:?}", query, result.err());
     }
 
     let drop_queries = ["DROP USER alice", "DROP USER bob", "DROP USER charlie"];
 
     for query in drop_queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "DROP USER '{}' should succeed: {:?}", query, result.err());
     }
 }
 
@@ -518,7 +532,7 @@ fn test_dcl_if_not_exists_if_exists() {
 
     for query in queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "IF NOT EXISTS/IF EXISTS query '{}' should succeed: {:?}", query, result.err());
     }
 }
 
@@ -573,10 +587,17 @@ fn test_dcl_password_security() {
         "CHANGE PASSWORD 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'",
     ];
 
-    for query in password_queries.iter() {
-        let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
-    }
+    // First create the user
+    let create_result = pipeline_manager.execute_query(password_queries[0]);
+    assert!(create_result.is_ok(), "CREATE USER should succeed: {:?}", create_result.err());
+
+    // Then alter
+    let alter_result = pipeline_manager.execute_query(password_queries[1]);
+    assert!(alter_result.is_ok(), "ALTER USER should succeed: {:?}", alter_result.err());
+
+    // Then change password
+    let change_result = pipeline_manager.execute_query(password_queries[2]);
+    assert!(change_result.is_ok(), "CHANGE PASSWORD should succeed: {:?}", change_result.err());
 }
 
 #[test]
@@ -602,7 +623,7 @@ fn test_dcl_user_management_workflow() {
 
     for query in workflow_queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "Workflow query '{}' should succeed: {:?}", query, result.err());
     }
 }
 
@@ -629,6 +650,6 @@ fn test_dcl_special_usernames() {
 
     for query in special_username_queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok(), "Query with special username '{}' should succeed: {:?}", query, result.err());
     }
 }

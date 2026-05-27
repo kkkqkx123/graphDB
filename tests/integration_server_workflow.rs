@@ -170,6 +170,134 @@ fn test_schema_manager_error_handling() {
     );
 }
 
+/// Test GraphService permission enforcement for non-admin users
+#[tokio::test]
+async fn test_graph_service_permission_enforcement() {
+    let config = Config::default();
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let db_path = temp_dir.path().join("test.db");
+    let storage = Arc::new(SyncWrapper::new(
+        GraphStorage::new_with_path(db_path).expect("Failed to create storage"),
+    ));
+
+    let graph_service = GraphService::new(config, storage).await;
+
+    // 1. Root session — create space and data
+    let root_session = graph_service
+        .authenticate("root", "root")
+        .await
+        .expect("Root auth should succeed");
+    let root_sid = root_session.id();
+
+    graph_service
+        .execute(root_sid, "CREATE SPACE test_space (vid_type=INT64)")
+        .await
+        .expect("Root: CREATE SPACE should succeed");
+    graph_service
+        .execute(root_sid, "USE test_space")
+        .await
+        .expect("Root: USE should succeed");
+
+    let space_id = root_session
+        .space()
+        .map(|s| s.id as i64)
+        .expect("Space should be set after USE");
+
+    graph_service
+        .execute(
+            root_sid,
+            "CREATE TAG Person(name STRING, age INT)",
+        )
+        .await
+        .expect("Root: CREATE TAG should succeed");
+    graph_service
+        .execute(
+            root_sid,
+            "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)",
+        )
+        .await
+        .expect("Root: INSERT should succeed");
+
+    // 2. Non-admin user has no roles — all operations fail
+    let user_session = graph_service
+        .authenticate("testuser", "test123")
+        .await
+        .expect("User auth should succeed");
+    let user_sid = user_session.id();
+
+    graph_service
+        .execute(user_sid, "USE test_space")
+        .await
+        .expect("USE should succeed (defaults to Read permission)");
+
+    let result = graph_service
+        .execute(user_sid, "MATCH (p:Person) RETURN p.name")
+        .await;
+    assert!(
+        result.is_err(),
+        "User without role should be denied Read: {:?}",
+        result
+    );
+
+    // 3. Grant USER role — Read/Write/Delete allowed, Schema denied
+    let pm = graph_service.get_permission_manager();
+    pm.grant_role("testuser", space_id, graphdb::core::RoleType::User)
+        .expect("Grant USER role should succeed");
+
+    let result = graph_service
+        .execute(user_sid, "MATCH (p:Person) RETURN p.name")
+        .await;
+    assert!(
+        result.is_ok(),
+        "USER role should allow Read: {:?}",
+        result.err()
+    );
+
+    let result = graph_service
+        .execute(user_sid, "INSERT VERTEX Person(name, age) VALUES 3:('Charlie', 35)")
+        .await;
+    assert!(
+        result.is_ok(),
+        "USER role should allow Write: {:?}",
+        result.err()
+    );
+
+    let result = graph_service
+        .execute(user_sid, "CREATE TAG Address(city STRING)")
+        .await;
+    assert!(
+        result.is_err(),
+        "USER role should deny Schema: {:?}",
+        result
+    );
+
+    // 4. Upgrade to DBA role — Schema now allowed
+    pm.grant_role("testuser", space_id, graphdb::core::RoleType::Dba)
+        .expect("Grant DBA role should succeed");
+
+    let result = graph_service
+        .execute(user_sid, "CREATE TAG Company(name STRING)")
+        .await;
+    assert!(
+        result.is_ok(),
+        "DBA role should allow Schema: {:?}",
+        result.err()
+    );
+
+    // 5. Revoke all roles — should deny again
+    pm.revoke_role("testuser", space_id)
+        .expect("Revoke role should succeed");
+
+    let result = graph_service
+        .execute(user_sid, "MATCH (p:Person) RETURN p.name")
+        .await;
+    assert!(
+        result.is_err(),
+        "User without role should be denied operation after revoke: {:?}",
+        result
+    );
+}
+
 /// Integration test: Complete workflow from storage to query execution
 #[test]
 fn test_complete_storage_to_query_workflow() {

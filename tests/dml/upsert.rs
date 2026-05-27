@@ -8,7 +8,9 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::Value;
 use graphdb::query::parser::Parser;
+use std::collections::HashMap;
 
 // ==================== UPSERT VERTEX Parser Tests ====================
 
@@ -70,7 +72,15 @@ fn test_upsert_execution_vertex_insert() {
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .exec_dml("UPSERT VERTEX ON Person SET name = 'Alice', age = 30 WHERE id(vid) == 1")
         .assert_success()
-        .assert_vertex_exists(1, "Person");
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(30)),
+            ]),
+        );
 }
 
 #[test]
@@ -82,7 +92,36 @@ fn test_upsert_execution_vertex_update() {
         .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
         .assert_success()
         .exec_dml("UPSERT VERTEX ON Person SET name = 'Bob', age = 35 WHERE id(vid) == 1")
-        .assert_success();
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Bob".into())),
+                ("age", Value::Int(35)),
+            ]),
+        );
+}
+
+#[test]
+fn test_upsert_vertex_update_partial() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT, city STRING)")
+        .exec_dml("INSERT VERTEX Person(name, age, city) VALUES 1:('Alice', 30, 'NYC')")
+        .assert_success()
+        .exec_dml("UPSERT VERTEX ON Person SET age = 31 WHERE id(vid) == 1")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(31)),
+                ("city", Value::String("NYC".into())),
+            ]),
+        );
 }
 
 // ==================== UPSERT EDGE Tests ====================
@@ -131,10 +170,30 @@ fn test_upsert_execution_edge_update() {
         .exec_dml(
             "UPSERT EDGE ON KNOWS SET since = '2024-02-01' WHERE id(src) == 1 AND id(dst) == 2",
         )
-        .assert_success();
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS");
 }
 
-// ==================== MERGE Tests ====================
+// ==================== UPSERT EDGE Insert Tests ====================
+
+#[test]
+fn test_upsert_edge_replaces_existing() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2:('2020-01-01', 0.5)")
+        .assert_success()
+        .exec_dml(
+            "UPSERT EDGE ON KNOWS SET since = '2024-01-01', strength = 0.9 WHERE id(src) == 1 AND id(dst) == 2",
+        )
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS");
+}
+
+// ==================== MERGE Execution Tests ====================
 
 #[test]
 fn test_merge_parser_vertex() {
@@ -166,4 +225,26 @@ fn test_merge_parser_edge() {
 
     let stmt = result.expect("MERGE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "MERGE");
+}
+
+#[test]
+fn test_merge_execution_vertex_create() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("MERGE (v:Person {name: 'Alice'}) SET v.age = 30")
+        .assert_success();
+}
+
+#[test]
+fn test_merge_execution_vertex_match() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 25)")
+        .assert_success()
+        .exec_dml("MERGE (v:Person {name: 'Alice'}) SET v.age = 30")
+        .assert_success();
 }

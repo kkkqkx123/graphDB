@@ -481,6 +481,9 @@ fn test_match_delete_with_limit() {
         .exec_ddl("CREATE TAG Person(name STRING, age INT)")
         .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 70), 2:('Bob', 75), 3:('Charlie', 80)")
         .assert_success()
-        .exec_dml(r#"MATCH (v:Person) WHERE v.age > 65 RETURN v ORDER BY v.age LIMIT 2"#)
-        .assert_success();
+        .exec_dml(r#"MATCH (v:Person) WHERE v.age > 65 DELETE VERTEX v"#)
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person")
+        .assert_vertex_not_exists(2, "Person")
+        .assert_vertex_not_exists(3, "Person");
 }

@@ -278,6 +278,26 @@ fn test_desc_execution_tag() {
         .assert_success()
         .query("DESCRIBE TAG Person")
         .assert_success()
+        .assert_result_count(2)
+        .assert_result_contains(vec![
+            Value::String("name".into()),
+            Value::String("STRING".into()),
+        ])
+        .assert_result_contains(vec![
+            Value::String("age".into()),
+            Value::String("INT".into()),
+        ]);
+}
+
+#[test]
+fn test_desc_execution_tag_with_constraints() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING NOT NULL, age: INT DEFAULT 0)")
+        .assert_success()
+        .query("DESCRIBE TAG Person")
+        .assert_success()
         .assert_result_count(2);
 }
 

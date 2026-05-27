@@ -7,11 +7,14 @@
 
 use super::common;
 
+use common::test_scenario::TestScenario;
 use common::TestStorage;
 use graphdb::core::stats::StatsManager;
+use graphdb::core::Value;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 // ==================== DEFAULT Value Tests ====================
@@ -207,4 +210,117 @@ fn test_ddl_error_handling() {
             query
         );
     }
+}
+
+// ==================== DEFAULT Value Execution Tests ====================
+
+#[test]
+fn test_default_value_execution_insert() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT DEFAULT 18)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice')")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(18)),
+            ]),
+        );
+}
+
+#[test]
+fn test_default_value_execution_override() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING, age: INT DEFAULT 18)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 25)")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Alice".into())),
+                ("age", Value::Int(25)),
+            ]),
+        );
+}
+
+#[test]
+fn test_default_value_string_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING DEFAULT 'unknown')")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person() VALUES 1:()")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([("name", Value::String("unknown".into()))]),
+        );
+}
+
+// ==================== NOT NULL Execution Tests ====================
+
+#[test]
+fn test_not_null_constraint_insert_with_value() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING NOT NULL, age: INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .assert_vertex_exists(1, "Person");
+}
+
+#[test]
+fn test_not_null_constraint_reject_null() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING NOT NULL, age: INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(age) VALUES 1:(30)")
+        .assert_error();
+}
+
+#[test]
+fn test_default_with_not_null_constraint() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING NOT NULL DEFAULT 'unknown', age: INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(age) VALUES 1:(30)")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("unknown".into())),
+                ("age", Value::Int(30)),
+            ]),
+        );
+}
+
+#[test]
+fn test_edge_default_value_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name: STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since: DATE DEFAULT '2024-01-01', strength: DOUBLE DEFAULT 1.0)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(strength) VALUES 1 -> 2:(0.5)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS");
 }
