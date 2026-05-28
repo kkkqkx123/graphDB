@@ -169,7 +169,7 @@ fn test_update_vertex_with_condition() {
             map
         })
         .query("FETCH PROP ON Person 2")
-        .assert_result_contains(vec![graphdb::core::Value::Int(2), graphdb::core::Value::String("state".into()), graphdb::core::Value::String("inactive".into())]);
+        .assert_vertex_or_edge_has_property("state", graphdb::core::Value::String("inactive".into()));
 }
 
 #[test]
@@ -187,12 +187,7 @@ fn test_update_edge_and_verify() {
         .exec_dml("UPDATE 1 -> 2 OF KNOWS SET strength = 0.9")
         .assert_success()
         .query("FETCH PROP ON KNOWS 1 -> 2")
-        .assert_result_contains(vec![
-            graphdb::core::Value::Int(1),
-            graphdb::core::Value::Int(2),
-            graphdb::core::Value::String("strength".into()),
-            graphdb::core::Value::Float(0.9),
-        ]);
+        .assert_vertex_or_edge_has_property("strength", graphdb::core::Value::Double(0.9));
 }
 
 // ==================== Error Handling Tests ====================

@@ -134,10 +134,10 @@ pub(crate) fn delete_vertex(
     for tag in &tags {
         if let Some(label_id) = ctx.graph.get_vertex_label_id(&tag.tag_name) {
             if let Some(vid_int) = id_int {
-                let _ = ctx.graph.delete_vertex_by_i64(label_id, vid_int, ts);
+                let result = ctx.graph.delete_vertex_by_i64(label_id, vid_int, ts);
             } else {
                 let id_str = id.to_string();
-                let _ = ctx.graph.delete_vertex(label_id, &id_str, ts);
+                let result = ctx.graph.delete_vertex(label_id, &id_str, ts);
             }
 
             let id_value = Value::from(*id);

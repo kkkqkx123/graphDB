@@ -240,6 +240,11 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         );
                         storage.insert_vertex(&self.space_name, new_vertex)?;
                         update_result.returned_props = update.properties.clone();
+                    } else {
+                        return Err(DBError::query(format!(
+                            "Vertex {} not found, cannot update",
+                            vertex_vid
+                        )));
                     }
                 }
 

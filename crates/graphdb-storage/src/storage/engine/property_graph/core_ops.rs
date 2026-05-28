@@ -240,7 +240,6 @@ pub fn delete_vertex_by_i64(
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
 
     let internal_id = table.get_internal_id_by_i64(external_id, ts);
-
     table.delete_by_i64(external_id, ts)?;
 
     // Invalidate cache entries after successful deletion

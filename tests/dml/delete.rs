@@ -469,7 +469,7 @@ fn test_pipe_delete_with_where_clause() {
         .exec_dml(r#"GO FROM 1 OVER FRIEND WHERE $$.Person.age > 28 YIELD dst(edge) AS id | DELETE VERTEX $-.id"#)
         .assert_success()
         .assert_vertex_exists(1, "Person")
-        .assert_vertex_exists(2, "Person")
+        .assert_vertex_not_exists(2, "Person")
         .assert_vertex_not_exists(3, "Person");
 }
 

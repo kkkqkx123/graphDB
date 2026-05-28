@@ -161,11 +161,7 @@ fn test_complete_crud_flow() {
         })
         .query("FETCH PROP ON Product 101")
         .assert_result_count(1)
-        .assert_result_contains(vec![
-            graphdb::core::Value::Int(101),
-            graphdb::core::Value::String("name".into()),
-            graphdb::core::Value::String("Laptop".into()),
-        ])
+        .assert_vertex_or_edge_has_property("name", graphdb::core::Value::String("Laptop".into()))
         .exec_dml("UPDATE 101 SET stock = 9")
         .assert_success()
         .assert_vertex_props(101, "Product", {

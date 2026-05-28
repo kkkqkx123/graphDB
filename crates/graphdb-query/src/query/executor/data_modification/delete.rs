@@ -495,7 +495,6 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
 
         if !self.vertex_id_expressions.is_empty() {
             let mut storage = self.get_storage().write();
-
             for row in &input_data.rows {
                 for vid_expr in &self.vertex_id_expressions {
                     let id = self.evaluate_expression_with_row(vid_expr, col_names, row)?;
@@ -536,8 +535,13 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                             }
                         }
 
-                        if storage.delete_vertex(&self.space_name, &vid).is_ok() {
-                            total_deleted += 1;
+                        match storage.delete_vertex(&self.space_name, &vid) {
+                            Ok(_) => {
+                                total_deleted += 1;
+                            }
+                            Err(e) => {
+                                log::warn!("PipeDeleteExecutor: delete_vertex failed: {:?}", e);
+                            }
                         }
                     }
                 }
@@ -546,15 +550,26 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
 
         if !self.edge_expressions.is_empty() {
             let mut storage = self.get_storage().write();
-            let edge_type = self
-                .edge_type
-                .clone()
-                .unwrap_or_else(|| "UNKNOWN".to_string());
 
             for row in &input_data.rows {
                 for (src_expr, dst_expr, _rank_expr) in &self.edge_expressions {
                     let src = self.evaluate_expression_with_row(src_expr, col_names, row)?;
                     let dst = self.evaluate_expression_with_row(dst_expr, col_names, row)?;
+
+                    // Determine edge type: first try explicit edge_type, then try to extract
+                    // from Value::Edge (needed for MATCH ... DELETE EDGE e)
+                    let edge_type = self
+                        .edge_type
+                        .clone()
+                        .or_else(|| match &src {
+                            Value::Edge(e) => Some(e.edge_type.clone()),
+                            _ => None,
+                        })
+                        .or_else(|| match &dst {
+                            Value::Edge(e) => Some(e.edge_type.clone()),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| "UNKNOWN".to_string());
 
                     // Handle Value::Edge: extract src/dst from the edge value
                     // This is needed for MATCH ... DELETE EDGE e where e is an edge variable
@@ -571,7 +586,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                         .scan_edges_by_type(&self.space_name, &edge_type)
                         .map_err(DBError::from)?;
 
-                    for edge in edges {
+                    for edge in &edges {
                         if edge.src == src_vid && edge.dst == dst_vid {
                             storage
                                 .delete_edge(

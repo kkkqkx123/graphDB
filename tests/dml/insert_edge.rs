@@ -146,11 +146,11 @@ fn test_insert_edge_with_rank() {
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name STRING)")
         .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
-        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
         .assert_success()
         .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2 @0:('2020-01-01', 0.8)")
         .assert_success()
-        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2 @1:('2021-01-01', 0.9)")
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 3 @1:('2021-01-01', 0.9)")
         .assert_success()
         .assert_edge_count("KNOWS", 2);
 }

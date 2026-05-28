@@ -232,9 +232,13 @@ pub(crate) fn get_node_edges(
                 ) {
                     for record in out_edges {
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
-                        let dst_external = ctx.graph
-                            .get_external_id(dst_label_id, dst_internal, ts)
-                            .unwrap_or_else(|| format!("{}", record.dst_vid));
+                        let dst_external = if dst_label_id != 0 {
+                            ctx.graph.get_external_id(dst_label_id, dst_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                        } else {
+                            ctx.graph.get_external_id_any(dst_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                        };
 
                         let edge = edge_record_to_edge(
                             &record,
@@ -256,9 +260,13 @@ pub(crate) fn get_node_edges(
                 ) {
                     for record in in_edges {
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
-                        let src_external = ctx.graph
-                            .get_external_id(src_label_id, src_internal, ts)
-                            .unwrap_or_else(|| format!("{}", record.src_vid));
+                        let src_external = if src_label_id != 0 {
+                            ctx.graph.get_external_id(src_label_id, src_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                        } else {
+                            ctx.graph.get_external_id_any(src_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                        };
 
                         let edge = edge_record_to_edge(
                             &record,
@@ -280,9 +288,13 @@ pub(crate) fn get_node_edges(
                 ) {
                     for record in out_edges {
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
-                        let dst_external = ctx.graph
-                            .get_external_id(dst_label_id, dst_internal, ts)
-                            .unwrap_or_else(|| format!("{}", record.dst_vid));
+                        let dst_external = if dst_label_id != 0 {
+                            ctx.graph.get_external_id(dst_label_id, dst_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                        } else {
+                            ctx.graph.get_external_id_any(dst_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                        };
 
                         let edge = edge_record_to_edge(
                             &record,
@@ -302,9 +314,13 @@ pub(crate) fn get_node_edges(
                 ) {
                     for record in in_edges {
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
-                        let src_external = ctx.graph
-                            .get_external_id(src_label_id, src_internal, ts)
-                            .unwrap_or_else(|| format!("{}", record.src_vid));
+                        let src_external = if src_label_id != 0 {
+                            ctx.graph.get_external_id(src_label_id, src_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                        } else {
+                            ctx.graph.get_external_id_any(src_internal, ts)
+                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                        };
 
                         let edge = edge_record_to_edge(
                             &record,
