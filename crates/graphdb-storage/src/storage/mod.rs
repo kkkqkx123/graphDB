@@ -1,16 +1,13 @@
 //! Storage Module
 //!
 //! Core storage layer for the graph database, providing:
-//! - Container: Memory-mapped storage containers
-//! - CSR: Compressed Sparse Row graph structures
-//! - Vertex/Edge: Vertex and edge storage
+//! - Columnar storage for vertices and edges (CSR)
 //! - Index: Primary and secondary indexes
 //! - Cache: Record caching
 //! - Engine: Storage engine core
 
 pub mod cache;
 pub mod compression;
-pub mod container;
 pub mod edge;
 pub mod engine;
 pub mod extend;
@@ -46,12 +43,6 @@ pub use crate::core::StorageError;
 pub use crate::core::StorageResult;
 
 pub use compression::CompressionType;
-
-pub use container::{
-    open_container, open_container_from_file, ContainerConfig, ContainerError, ContainerResult,
-    ContainerStats, FileHeader, IDataContainer, PersistentContainer, StorageBackend,
-    VolatileContainer, DEFAULT_HUGE_PAGE_SIZE,
-};
 
 pub use engine::config::FlushConfig;
 
