@@ -1,11 +1,11 @@
 [build-dependencies]
-tonic-build = { version = "0.12", optional = true }
-prost-build = { version = "0.13", optional = true }
+tonic-build = { workspace = true, optional = true }
+prost-build = { workspace = true, optional = true }
 
 [package]
 name = "graphdb-api"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 graphdb-core = { path = "../graphdb-core" }
@@ -21,7 +21,7 @@ thiserror.workspace = true
 log.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
-clap = { version = "4.5.53", features = ["derive"] }
+clap.workspace = true
 futures.workspace = true
 tracing.workspace = true
 parking_lot.workspace = true
@@ -29,17 +29,17 @@ dashmap.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 regex.workspace = true
-sysinfo = "0.30"
+sysinfo.workspace = true
 num_cpus.workspace = true
 bcrypt.workspace = true
 
-axum = { version = "0.8", features = ["macros"], optional = true }
-tower = { version = "0.5", optional = true }
-tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "limit"], optional = true }
-http = { version = "1.1", optional = true }
-tonic = { version = "0.12", optional = true }
-prost = { version = "0.13", optional = true }
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"], optional = true }
+axum = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+tonic = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 vector-client = { path = "../vector-client", features = ["qdrant-http"], optional = true }
 
