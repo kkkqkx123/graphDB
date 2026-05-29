@@ -125,6 +125,13 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         } else {
             Some(node.edge_types().to_vec())
         };
+        let space_name = {
+            let storage_guard = storage.read();
+            match storage_guard.get_space_by_id(node.space_id()) {
+                Ok(Some(space_info)) => space_info.space_name,
+                _ => "default".to_string(),
+            }
+        };
         let executor = GetNeighborsExecutor::new(
             node.id(),
             storage,
@@ -132,6 +139,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
             edge_direction,
             edge_types,
             context.expression_context().clone(),
+            space_name,
         );
         Ok(ExecutorEnum::GetNeighbors(executor))
     }

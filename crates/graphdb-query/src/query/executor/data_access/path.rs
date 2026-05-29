@@ -18,6 +18,7 @@ pub struct AllPathsExecutor<S: StorageClient> {
     max_hops: usize,
     edge_types: Option<Vec<String>>,
     direction: EdgeDirection,
+    space_name: String,
 }
 
 impl<S: StorageClient> AllPathsExecutor<S> {
@@ -26,6 +27,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         config: PathConfig,
+        space_name: String,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage, expr_context),
@@ -34,6 +36,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             max_hops: config.max_hops,
             edge_types: config.edge_types,
             direction: config.direction,
+            space_name,
         }
     }
 }
@@ -46,7 +49,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
 
         let start_vid = VertexId::try_from(&self.start_vertex).map_err(DBError::from)?;
 
-        let start_vertex_obj = if let Some(vertex) = storage.get_vertex("default", &start_vid)? {
+        let start_vertex_obj = if let Some(vertex) = storage.get_vertex(&self.space_name, &start_vid)? {
             vertex
         } else {
             return Ok(ExecutionResult::DataSet(DataSet::new()));
@@ -63,7 +66,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
             for path in &current_paths {
                 let direction = self.direction;
 
-                let edges = storage.get_node_edges("default", &start_vid, direction)?;
+                let edges = storage.get_node_edges(&self.space_name, &start_vid, direction)?;
 
                 for edge in edges {
                     let neighbor_id = edge.dst;
@@ -78,7 +81,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
                         }
                     }
 
-                    if let Some(neighbor) = storage.get_vertex("default", &neighbor_id)? {
+                    if let Some(neighbor) = storage.get_vertex(&self.space_name, &neighbor_id)? {
                         let mut new_path = path.clone();
                         new_path.steps.push(Step {
                             dst: Box::new(neighbor),

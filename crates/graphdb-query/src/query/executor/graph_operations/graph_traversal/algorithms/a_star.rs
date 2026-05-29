@@ -61,16 +61,18 @@ pub struct AStar<S: StorageClient> {
     weight_config: EdgeWeightConfig,
     /// Heuristic function configuration
     heuristic_config: HeuristicFunction,
+    space_name: String,
 }
 
 impl<S: StorageClient> AStar<S> {
-    pub fn new(storage: Arc<RwLock<S>>) -> Self {
+    pub fn new(storage: Arc<RwLock<S>>, space_name: String) -> Self {
         Self {
             storage,
             stats: AlgorithmStats::new(),
             edge_direction: crate::core::types::EdgeDirection::Both,
             weight_config: EdgeWeightConfig::Unweighted,
             heuristic_config: HeuristicFunction::Zero,
+            space_name,
         }
     }
 
@@ -147,7 +149,7 @@ impl<S: StorageClient> AStar<S> {
     ) -> Result<Option<std::collections::HashMap<String, crate::core::Value>>, QueryError> {
         let storage = self.storage.read();
         storage
-            .get_vertex("default", vid)
+            .get_vertex(&self.space_name, vid)
             .map(|v| v.map(|vertex| vertex.properties))
             .map_err(|e| QueryError::storage(e.to_string()))
     }
@@ -161,7 +163,7 @@ impl<S: StorageClient> AStar<S> {
         let storage = self.storage.read();
 
         let edges = storage
-            .get_node_edges("default", node_id, self.edge_direction)
+            .get_node_edges(&self.space_name, node_id, self.edge_direction)
             .map_err(|e| QueryError::storage(e.to_string()))?;
 
         let filtered_edges = if let Some(types) = edge_types {
@@ -216,7 +218,7 @@ impl<S: StorageClient> AStar<S> {
     fn get_vertex(&self, vid: &VertexId) -> Result<Option<Vertex>, QueryError> {
         let storage = self.storage.read();
         storage
-            .get_vertex("default", vid)
+            .get_vertex(&self.space_name, vid)
             .map_err(|e| QueryError::storage(e.to_string()))
     }
 

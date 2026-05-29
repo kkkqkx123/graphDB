@@ -40,6 +40,8 @@ pub struct SubgraphConfig {
     pub with_properties: bool,
     /// Result limitations
     pub limit: Option<usize>,
+    /// Space name for edge lookups
+    pub space_name: String,
 }
 
 impl Default for SubgraphConfig {
@@ -53,6 +55,7 @@ impl Default for SubgraphConfig {
             vertex_filter: None,
             with_properties: true,
             limit: None,
+            space_name: "default".to_string(),
         }
     }
 }
@@ -191,7 +194,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         let storage = storage.read();
 
         let edges = storage
-            .get_node_edges("default", node_id, self.config.edge_direction)
+            .get_node_edges(&self.config.space_name, node_id, self.config.edge_direction)
             .map_err(|e| DBError::storage(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.config.edge_types {
@@ -278,7 +281,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         let storage = storage.read();
 
         for vid in &self.valid_vids {
-            match storage.get_vertex("default", vid) {
+            match storage.get_vertex(&self.config.space_name, vid) {
                 Ok(Some(vertex)) => {
                     self.result.vertices.insert(*vid, vertex);
                 }

@@ -131,6 +131,7 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     pub step_filter: Option<String>,
     pub filter: Option<String>,
     pub with_loop: bool,
+    space_name: String,
     left_steps: usize,
     right_steps: usize,
     left_visited: HashSet<VertexId>,
@@ -168,6 +169,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             step_filter: None,
             filter: None,
             with_loop: false,
+            space_name: config.space_name,
             left_steps: 0,
             right_steps: 0,
             left_visited: HashSet::new(),
@@ -222,7 +224,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         let storage = storage.read();
 
         let edges = storage
-            .get_node_edges("default", node_id, direction)
+            .get_node_edges(&self.space_name, node_id, direction)
             .map_err(|e| DBError::storage(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -302,7 +304,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .as_ref()
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.read();
-                if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
+                if let Ok(Some(neighbor_vertex)) = storage.get_vertex(&self.space_name, &neighbor_id) {
                     // Using NPath expansion, O(1) operation, sharing prefixes
                     let new_npath = Arc::new(NPath::extend(
                         current_npath.clone(),
@@ -361,7 +363,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .as_ref()
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.read();
-                if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
+                if let Ok(Some(neighbor_vertex)) = storage.get_vertex(&self.space_name, &neighbor_id) {
                     // Using the NPath extension
                     let new_npath = Arc::new(NPath::extend(
                         current_npath.clone(),
@@ -478,7 +480,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
         // Initialize the left queue
         for left_id in &self.left_start_ids {
-            if let Ok(Some(vertex)) = storage.get_vertex("default", left_id) {
+            if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, left_id) {
                 let npath = Arc::new(NPath::new(Arc::new(vertex)));
                 self.left_queue.push_back((*left_id, npath));
             }
@@ -486,7 +488,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
         // Initialize the right queue
         for right_id in &self.right_start_ids {
-            if let Ok(Some(vertex)) = storage.get_vertex("default", right_id) {
+            if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, right_id) {
                 let npath = Arc::new(NPath::new(Arc::new(vertex)));
                 self.right_queue.push_back((*right_id, npath));
             }

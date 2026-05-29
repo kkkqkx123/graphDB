@@ -39,6 +39,15 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         }
     }
 
+    /// Resolve space name from space_id using storage
+    fn resolve_space_name(storage: &Arc<RwLock<S>>, space_id: u64) -> String {
+        let storage_guard = storage.read();
+        match storage_guard.get_space_by_id(space_id) {
+            Ok(Some(space_info)) => space_info.space_name,
+            _ => "default".to_string(),
+        }
+    }
+
     /// Constructing the Expand executor
     pub fn build_expand(
         node: &ExpandNode,
@@ -69,13 +78,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         let edge_direction = EdgeDirection::from(node.direction());
 
         // Get space name from storage using space_id
-        let space_name = {
-            let storage_guard = storage.read();
-            match storage_guard.get_space_by_id(node.space_id()) {
-                Ok(Some(space_info)) => space_info.space_name,
-                _ => "default".to_string(), // Fallback to default if space not found
-            }
-        };
+        let space_name = Self::resolve_space_name(&storage, node.space_id());
 
         let params = ExpandAllExecutorParams {
             id: node.id(),
@@ -145,6 +148,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        let space_name = Self::resolve_space_name(&storage, node.space_id());
         let executor = AllPathsExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             AllPathsConfig {
@@ -153,6 +157,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
                 max_hops: node.max_hop(),
                 edge_types: Some(node.edge_types().to_vec()),
                 direction: EdgeDirection::Out,
+                space_name,
             },
         );
         Ok(ExecutorEnum::AllPaths(executor))
@@ -177,12 +182,14 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             .filter_map(|v| VertexId::try_from(v).ok())
             .collect();
 
+        let space_name = Self::resolve_space_name(&storage, node.space_id());
         let mut executor = ShortestPathExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             ShortestPathConfig {
                 start_vertex_ids,
                 direction: EdgeDirection::Out,
                 edge_types: Some(node.edge_types().to_vec()),
+                space_name,
             },
             ShortestPathAlgorithmType::BFS,
         );
@@ -199,6 +206,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::graph_operations::graph_traversal::algorithms::BFSShortestExecutor;
 
+        let space_name = Self::resolve_space_name(&storage, node.space_id());
         // BFSShortestExecutor::new parameters: id, storage, steps, edge_types, with_cycle, max_depth, single_shortest, limit, start_vertex, end_vertex, expr_context
         let executor = BFSShortestExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
@@ -211,6 +219,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
                 limit: usize::MAX,
                 start_vertex: VertexId::new(),
                 end_vertex: VertexId::new(),
+                space_name,
             },
         );
         Ok(ExecutorEnum::BFSShortest(executor))
@@ -226,6 +235,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         let start_vids: Vec<crate::core::types::VertexId> = Vec::new();
         let _end_vids: Vec<crate::core::types::VertexId> = Vec::new();
 
+        let space_name = Self::resolve_space_name(&storage, 0);
         let executor = MultiShortestPathExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             MultiShortestPathConfig {
@@ -233,6 +243,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
                 direction: EdgeDirection::Out,
                 edge_types: None,
                 max_steps: node.steps(),
+                space_name,
             },
         );
         Ok(ExecutorEnum::MultiShortestPath(executor))

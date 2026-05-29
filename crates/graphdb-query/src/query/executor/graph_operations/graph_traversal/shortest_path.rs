@@ -45,6 +45,7 @@ pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     pub max_depth_reached: usize,
     pub single_shortest: bool,
     pub limit: usize,
+    space_name: String,
 }
 
 impl<S: StorageClient> std::fmt::Debug for ShortestPathExecutor<S> {
@@ -95,6 +96,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             max_depth_reached: 0,
             single_shortest: false,
             limit: usize::MAX,
+            space_name: config.space_name,
         }
     }
 
@@ -142,11 +144,12 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
     fn execute_algorithm(&mut self) -> Result<Vec<Path>, QueryError> {
         let storage = self.base.storage.clone().expect("Storage not initialized");
         let edge_types = self.edge_types.as_deref();
+        let space_name = &self.space_name;
 
         match self.algorithm_type {
             ShortestPathAlgorithmType::BFS => {
                 let mut algorithm =
-                    BidirectionalBFS::new(storage).with_edge_direction(self.edge_direction);
+                    BidirectionalBFS::new(storage.clone(), space_name.clone()).with_edge_direction(self.edge_direction);
                 let paths = algorithm.find_paths(
                     &self.start_vertex_ids,
                     &self.end_vertex_ids,
@@ -159,7 +162,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 Ok(paths)
             }
             ShortestPathAlgorithmType::Dijkstra => {
-                let mut algorithm = Dijkstra::new(storage)
+                let mut algorithm = Dijkstra::new(storage.clone(), space_name.clone())
                     .with_edge_direction(self.edge_direction)
                     .with_weight_config(self.weight_config.clone());
                 let paths = algorithm.find_paths(
@@ -174,7 +177,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 Ok(paths)
             }
             ShortestPathAlgorithmType::AStar => {
-                let mut algorithm = AStar::new(storage)
+                let mut algorithm = AStar::new(storage.clone(), space_name.clone())
                     .with_edge_direction(self.edge_direction)
                     .with_weight_config(self.weight_config.clone())
                     .with_heuristic(self.heuristic_config.clone());

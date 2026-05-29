@@ -83,6 +83,7 @@ define_binary_input_node! {
     /// Use a bidirectional BFS algorithm to find the shortest path.
     /// The selection of the algorithm was completed during the Planner phase. This node is specifically designed for bidirectional BFS (Breadth-First Search).
     pub struct BFSShortestNode {
+        space_id: u64,
         steps: usize,
         edge_types: Vec<String>,
         with_cycle: bool,
@@ -97,6 +98,7 @@ impl BFSShortestNode {
     pub fn new(
         left: PlanNodeEnum,
         right: PlanNodeEnum,
+        space_id: u64,
         steps: usize,
         edge_types: Vec<String>,
         with_cycle: bool,
@@ -108,6 +110,7 @@ impl BFSShortestNode {
             left: left_box.clone(),
             right: right_box.clone(),
             deps: vec![*left_box, *right_box],
+            space_id,
             steps,
             edge_types,
             with_cycle,
@@ -116,6 +119,10 @@ impl BFSShortestNode {
             output_var: None,
             col_names: vec!["path".to_string()],
         }
+    }
+
+    pub fn space_id(&self) -> u64 {
+        self.space_id
     }
 
     pub fn set_loop(&mut self, with_loop: bool) {
@@ -157,6 +164,7 @@ impl BFSShortestNode {
 define_binary_input_node! {
     /// All path planning nodes
     pub struct AllPathsNode {
+        space_id: u64,
         steps: usize,
         edge_types: Vec<String>,
         min_hop: usize,
@@ -177,6 +185,7 @@ impl AllPathsNode {
     pub fn new(
         left: PlanNodeEnum,
         right: PlanNodeEnum,
+        space_id: u64,
         steps: usize,
         edge_types: Vec<String>,
         min_hop: usize,
@@ -190,6 +199,7 @@ impl AllPathsNode {
             left: left_box.clone(),
             right: right_box.clone(),
             deps: vec![*left_box, *right_box],
+            space_id,
             steps,
             edge_types,
             min_hop,
@@ -204,6 +214,10 @@ impl AllPathsNode {
             output_var: None,
             col_names: vec!["path".to_string()],
         }
+    }
+
+    pub fn space_id(&self) -> u64 {
+        self.space_id
     }
 
     pub fn start_vertex_ids(&self) -> &[VertexId] {
@@ -277,6 +291,7 @@ impl AllPathsNode {
 define_binary_input_node! {
     /// Shortest Path Planning Node
     pub struct ShortestPathNode {
+        space_id: u64,
         edge_types: Vec<String>,
         max_step: usize,
         weight_expression: Option<String>,
@@ -293,6 +308,7 @@ impl ShortestPathNode {
     pub fn new(
         left: PlanNodeEnum,
         right: PlanNodeEnum,
+        space_id: u64,
         edge_types: Vec<String>,
         max_step: usize,
     ) -> Self {
@@ -303,6 +319,7 @@ impl ShortestPathNode {
             left: left_box.clone(),
             right: right_box.clone(),
             deps: vec![*left_box, *right_box],
+            space_id,
             edge_types,
             max_step,
             weight_expression: None,
@@ -313,6 +330,10 @@ impl ShortestPathNode {
             output_var: None,
             col_names: vec!["path".to_string()],
         }
+    }
+
+    pub fn space_id(&self) -> u64 {
+        self.space_id
     }
 
     pub fn max_step(&self) -> usize {

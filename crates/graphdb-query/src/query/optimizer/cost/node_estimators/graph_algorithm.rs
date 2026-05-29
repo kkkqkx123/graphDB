@@ -100,6 +100,7 @@ mod tests {
         let node = PlanNodeEnum::ShortestPath(ShortestPathNode::new(
             left,
             right,
+            0,
             vec!["friend".to_string()],
             5,
         ));
@@ -123,6 +124,7 @@ mod tests {
         let node = PlanNodeEnum::AllPaths(AllPathsNode::new(
             left,
             right,
+            0,
             3,
             vec!["friend".to_string()],
             1,
@@ -167,6 +169,7 @@ mod tests {
         let node = PlanNodeEnum::BFSShortest(BFSShortestNode::new(
             left,
             right,
+            0,
             3,
             vec!["friend".to_string()],
             false,
@@ -204,6 +207,7 @@ mod tests {
             let node = PlanNodeEnum::ShortestPath(ShortestPathNode::new(
                 left,
                 right,
+                0,
                 vec!["friend".to_string()],
                 max_step,
             ));
@@ -227,6 +231,7 @@ mod tests {
         let node = PlanNodeEnum::AllPaths(AllPathsNode::new(
             left,
             right,
+            0,
             15,
             vec!["friend".to_string()],
             1,

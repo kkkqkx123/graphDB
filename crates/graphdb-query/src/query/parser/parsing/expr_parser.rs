@@ -669,7 +669,12 @@ impl<'a> ExprParser<'a> {
             let field_name = match &arg {
                 Expression::Variable(name) => name.clone(),
                 Expression::Property { property, .. } => property.clone(),
-                Expression::TagProperty { property, .. } => property.clone(),
+                Expression::TagProperty { tag_name, property } => {
+                    format!("{}.{}", tag_name, property)
+                }
+                Expression::EdgeProperty { edge_name, property } => {
+                    format!("{}.{}", edge_name, property)
+                }
                 _ => "_value".to_string(),
             };
 

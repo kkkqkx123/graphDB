@@ -39,7 +39,7 @@ impl Planner for PathPlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let find_path_stmt = match validated.stmt() {
             Stmt::FindPath(find_path_stmt) => find_path_stmt,
@@ -49,6 +49,12 @@ impl Planner for PathPlanner {
                 ));
             }
         };
+
+        let space_id = qctx.space_id().ok_or_else(|| {
+            PlannerError::InvalidOperation(
+                "No graph space selected, please execute USE <space> first".to_string(),
+            )
+        })?;
 
         let start_node = StartNode::new();
         let start_node_enum = PlanNodeEnum::Start(start_node);
@@ -62,6 +68,7 @@ impl Planner for PathPlanner {
         let root_node = if self.is_shortest_path_stmt(find_path_stmt) {
             self.build_shortest_path_plan(
                 start_node_enum.clone(),
+                space_id,
                 edge_types,
                 max_steps,
                 start_vertex_ids,
@@ -70,6 +77,7 @@ impl Planner for PathPlanner {
         } else {
             self.build_all_paths_plan(
                 start_node_enum.clone(),
+                space_id,
                 edge_types,
                 max_steps,
                 start_vertex_ids,
@@ -94,6 +102,7 @@ impl PathPlanner {
     fn build_shortest_path_plan(
         &self,
         left_input: PlanNodeEnum,
+        space_id: u64,
         edge_types: Vec<String>,
         max_steps: usize,
         start_vertex_ids: Vec<Value>,
@@ -103,7 +112,7 @@ impl PathPlanner {
         let right_node_enum = PlanNodeEnum::Start(right_node);
 
         let mut shortest_path_node =
-            ShortestPathNode::new(left_input, right_node_enum, edge_types, max_steps);
+            ShortestPathNode::new(left_input, right_node_enum, space_id, edge_types, max_steps);
         shortest_path_node.set_start_vertex_ids(start_vertex_ids);
         shortest_path_node.set_end_vertex_ids(end_vertex_ids);
 
@@ -113,6 +122,7 @@ impl PathPlanner {
     fn build_all_paths_plan(
         &self,
         left_input: PlanNodeEnum,
+        space_id: u64,
         edge_types: Vec<String>,
         max_steps: usize,
         start_vertex_ids: Vec<Value>,
@@ -124,6 +134,7 @@ impl PathPlanner {
         let mut all_paths_node = AllPathsNode::new(
             left_input,
             right_node_enum,
+            space_id,
             max_steps,
             edge_types,
             1,

@@ -39,6 +39,7 @@ pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     single_shortest: bool,
     limit: usize,
     step: usize,
+    space_name: String,
     history_left_paths: Interims,
     history_right_paths: Interims,
     left_paths: Interims,
@@ -86,6 +87,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             edge_direction: config.direction,
             edge_types: config.edge_types,
             max_steps: config.max_steps,
+            space_name: config.space_name,
             single_shortest: false,
             limit: usize::MAX,
             step: 1,
@@ -148,7 +150,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         let storage = storage.read();
 
         let edges = storage
-            .get_node_edges("default", node_id, direction)
+            .get_node_edges(&self.space_name, node_id, direction)
             .map_err(|e| DBError::storage(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {

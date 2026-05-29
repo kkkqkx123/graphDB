@@ -24,6 +24,7 @@ pub struct BfsShortestPathConfig {
     pub limit: usize,
     pub start_vertex: VertexId,
     pub end_vertex: VertexId,
+    pub space_name: String,
 }
 
 /// BFSShortestExecutor – The BFS shortest path executor
@@ -41,6 +42,7 @@ pub struct BFSShortestExecutor<S: StorageClient + 'static> {
     limit: usize,
     start_vertex: VertexId,
     end_vertex: VertexId,
+    space_name: String,
 
     // Status of translation:
     step: usize,
@@ -75,6 +77,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             limit: config.limit,
             start_vertex: config.start_vertex,
             end_vertex: config.end_vertex,
+            space_name: config.space_name,
             step: 1,
             left_visited_vids: HashSet::new(),
             right_visited_vids: HashSet::new(),
@@ -157,16 +160,16 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             // Obtain the outgoing or incoming edges of the current vertex.
             let edges = if self.edge_types.is_empty() {
                 if reverse {
-                    storage.get_node_edges("default", start_vid, EdgeDirection::In)?
+                    storage.get_node_edges(&self.space_name, start_vid, EdgeDirection::In)?
                 } else {
-                    storage.get_node_edges("default", start_vid, EdgeDirection::Out)?
+                    storage.get_node_edges(&self.space_name, start_vid, EdgeDirection::Out)?
                 }
             } else {
                 // Filter by edge type
                 let all_edges = if reverse {
-                    storage.get_node_edges("default", start_vid, EdgeDirection::In)?
+                    storage.get_node_edges(&self.space_name, start_vid, EdgeDirection::In)?
                 } else {
-                    storage.get_node_edges("default", start_vid, EdgeDirection::Out)?
+                    storage.get_node_edges(&self.space_name, start_vid, EdgeDirection::Out)?
                 };
                 // Filter out edges of the specified type.
                 all_edges

@@ -425,6 +425,64 @@ impl<S: StorageClient> AggregateExecutor<S> {
         self.build_result_dataset(group_state)
     }
 
+    /// Extract a property value from a Vertex or Edge value
+fn extract_property_from_value(value: &Value, property: &str) -> Value {
+    match value {
+        Value::Vertex(vertex) => {
+            if let Some(val) = vertex.properties.get(property) {
+                return val.clone();
+            }
+            for tag in &vertex.tags {
+                if let Some(val) = tag.properties.get(property) {
+                    return val.clone();
+                }
+            }
+            Value::Null(NullType::Null)
+        }
+        Value::Edge(edge) => edge
+            .properties()
+            .get(property)
+            .cloned()
+            .unwrap_or(Value::Null(NullType::Null)),
+        _ => Value::Null(NullType::Null),
+    }
+}
+
+/// Try to resolve a field name that may be in "var.property" format
+fn resolve_field_value(
+    context: &mut DefaultExpressionContext,
+    field: &str,
+    row: &[Value],
+    col_names: &[String],
+) -> Value {
+    // First try direct lookup
+    if let Some(val) = context.get_variable(field) {
+        return val;
+    }
+    if let Some(col_index) = col_names.iter().position(|name| name == field) {
+        if col_index < row.len() {
+            return row[col_index].clone();
+        }
+    }
+
+    // Try dotted format: "var.property"
+    if let Some(dot_pos) = field.find('.') {
+        let var_name = &field[..dot_pos];
+        let property = &field[dot_pos + 1..];
+
+        if let Some(val) = context.get_variable(var_name) {
+            return extract_property_from_value(&val, property);
+        }
+        if let Some(col_index) = col_names.iter().position(|name| name == var_name) {
+            if col_index < row.len() {
+                return extract_property_from_value(&row[col_index], property);
+            }
+        }
+    }
+
+    Value::Null(NullType::Null)
+}
+
     /// Obtaining the values required for the aggregate functions
     fn get_value_for_agg(
         &self,
@@ -449,70 +507,19 @@ impl<S: StorageClient> AggregateExecutor<S> {
             | AggregateFunction::Std(field)
             | AggregateFunction::BitAnd(field)
             | AggregateFunction::BitOr(field) => {
-                // Retrieve field values from the context.
-                if let Some(val) = context.get_variable(field) {
-                    val.clone()
-                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
-                    if col_index < row.len() {
-                        row[col_index].clone()
-                    } else {
-                        Value::Null(NullType::Null)
-                    }
-                } else {
-                    Value::Null(NullType::Null)
-                }
+                resolve_field_value(context, field, row, col_names)
             }
             AggregateFunction::Percentile(field, _) => {
-                if let Some(val) = context.get_variable(field) {
-                    val.clone()
-                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
-                    if col_index < row.len() {
-                        row[col_index].clone()
-                    } else {
-                        Value::Null(NullType::Null)
-                    }
-                } else {
-                    Value::Null(NullType::Null)
-                }
+                resolve_field_value(context, field, row, col_names)
             }
             AggregateFunction::GroupConcat(field, _) => {
-                if let Some(val) = context.get_variable(field) {
-                    val.clone()
-                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
-                    if col_index < row.len() {
-                        row[col_index].clone()
-                    } else {
-                        Value::Null(NullType::Null)
-                    }
-                } else {
-                    Value::Null(NullType::Null)
-                }
+                resolve_field_value(context, field, row, col_names)
             }
             AggregateFunction::VecSum(field) => {
-                if let Some(val) = context.get_variable(field) {
-                    val.clone()
-                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
-                    if col_index < row.len() {
-                        row[col_index].clone()
-                    } else {
-                        Value::Null(NullType::Null)
-                    }
-                } else {
-                    Value::Null(NullType::Null)
-                }
+                resolve_field_value(context, field, row, col_names)
             }
             AggregateFunction::VecAvg(field) => {
-                if let Some(val) = context.get_variable(field) {
-                    val.clone()
-                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
-                    if col_index < row.len() {
-                        row[col_index].clone()
-                    } else {
-                        Value::Null(NullType::Null)
-                    }
-                } else {
-                    Value::Null(NullType::Null)
-                }
+                resolve_field_value(context, field, row, col_names)
             }
         }
     }
@@ -581,17 +588,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                             | AggregateFunction::Std(field)
                             | AggregateFunction::BitAnd(field)
                             | AggregateFunction::BitOr(field) => {
-                                if let Some(col_index) =
-                                    col_names.iter().position(|name| name == field)
-                                {
-                                    if col_index < row.len() {
-                                        row[col_index].clone()
-                                    } else {
-                                        Value::Null(NullType::Null)
-                                    }
-                                } else {
-                                    Value::Null(NullType::Null)
-                                }
+                                resolve_field_value(&mut context, field, row, &col_names)
                             }
                             _ => Value::Null(NullType::Null),
                         };

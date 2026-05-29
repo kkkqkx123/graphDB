@@ -62,6 +62,7 @@ pub struct BfsShortestConfig {
     pub steps: usize,
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
+    pub space_name: String,
 }
 
 /// Multiple Starting Point Shortest Path Configuration
@@ -70,6 +71,7 @@ pub struct MultiShortestPathConfig {
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_steps: usize,
+    pub space_name: String,
 }
 
 /// All path configurations
@@ -79,6 +81,7 @@ pub struct AllPathsConfig {
     pub max_hops: usize,
     pub edge_types: Option<Vec<String>>,
     pub direction: crate::core::types::EdgeDirection,
+    pub space_name: String,
 }
 
 /// Shortest Path Configuration
@@ -86,6 +89,7 @@ pub struct ShortestPathConfig {
     pub start_vertex_ids: Vec<VertexId>,
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
+    pub space_name: String,
 }
 
 /// Connected Actuator Configuration

@@ -16,6 +16,7 @@ pub struct GetNeighborsExecutor<S: StorageClient + 'static> {
     vertex_ids: Vec<Value>,
     edge_direction: EdgeDirection,
     edge_types: Option<Vec<String>>,
+    space_name: String,
 }
 
 impl<S: StorageClient> GetNeighborsExecutor<S> {
@@ -26,6 +27,7 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         expr_context: Arc<ExpressionAnalysisContext>,
+        space_name: String,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -37,6 +39,7 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
             vertex_ids,
             edge_direction,
             edge_types,
+            space_name,
         }
     }
 }
@@ -111,7 +114,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
 
         for vertex_id in &self.vertex_ids {
             let vid = VertexId::try_from(vertex_id).map_err(DBError::from)?;
-            let edges = storage.get_node_edges("default", &vid, direction)?;
+            let edges = storage.get_node_edges(&self.space_name, &vid, direction)?;
 
             for edge in edges {
                 if let Some(filter_types) = edge_types_filter {
@@ -137,7 +140,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
         let mut failed_count = 0;
 
         for neighbor_id in &neighbor_ids {
-            match storage.get_vertex("default", neighbor_id) {
+            match storage.get_vertex(&self.space_name, neighbor_id) {
                 Ok(Some(vertex)) => {
                     neighbors.push(crate::core::Value::Vertex(Box::new(vertex)));
                 }

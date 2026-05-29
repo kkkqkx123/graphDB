@@ -83,6 +83,7 @@ fn test_multi_shortest_path_executor_creation() {
             direction: ExecEdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
+            space_name: "test".to_string(),
         },
     );
 
@@ -107,6 +108,7 @@ fn test_multi_shortest_path_with_edge_filter() {
             direction: ExecEdgeDirection::Out,
             edge_types: Some(vec!["KNOWS".to_string()]),
             max_steps: 10,
+            space_name: "test".to_string(),
         },
     );
 
@@ -130,6 +132,7 @@ fn test_multi_shortest_path_bidirectional_direction() {
             direction: ExecEdgeDirection::Both,
             edge_types: None,
             max_steps: 10,
+            space_name: "test".to_string(),
         },
     );
 
@@ -312,6 +315,7 @@ fn test_multi_shortest_path_empty_start() {
             direction: ExecEdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
+            space_name: "test".to_string(),
         },
     );
 
@@ -335,6 +339,7 @@ fn test_multi_shortest_path_empty_end() {
             direction: ExecEdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
+            space_name: "test".to_string(),
         },
     );
 
@@ -479,6 +484,7 @@ fn test_all_paths_executor_with_loop() {
             max_hops: 5,
             edge_types: None,
             direction: ExecEdgeDirection::Both,
+            space_name: "test".to_string(),
         },
     );
     assert!(!executor_default.with_loop);
@@ -496,6 +502,7 @@ fn test_all_paths_executor_with_loop() {
             max_hops: 5,
             edge_types: None,
             direction: ExecEdgeDirection::Both,
+            space_name: "test".to_string(),
         },
     )
     .with_loop(true);
@@ -525,6 +532,7 @@ fn test_weighted_shortest_path_executor_creation() {
             start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: Some(vec!["connect".to_string()]),
+            space_name: "test".to_string(),
         },
         ShortestPathAlgorithmType::Dijkstra,
     )
@@ -555,6 +563,7 @@ fn test_weighted_shortest_path_with_ranking() {
             start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
+            space_name: "test".to_string(),
         },
         ShortestPathAlgorithmType::Dijkstra,
     )
@@ -584,6 +593,7 @@ fn test_weighted_shortest_path_astar() {
             start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
+            space_name: "test".to_string(),
         },
         ShortestPathAlgorithmType::AStar,
     )
