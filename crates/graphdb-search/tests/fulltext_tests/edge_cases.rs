@@ -11,7 +11,7 @@
 //! Test cases: TC-FT-EDGE-001 ~ TC-FT-EDGE-015
 
 use super::common::{assert_search_result_count, FulltextTestContext};
-use graphdb::search::EngineType;
+use graphdb_search::search::EngineType;
 
 /// TC-FT-EDGE-001: Search on Non-Existent Index
 #[tokio::test]
@@ -24,7 +24,7 @@ async fn test_search_non_existent_index() {
     assert!(
         matches!(
             result.unwrap_err(),
-            graphdb::search::SearchError::IndexNotFound(_)
+            graphdb_search::search::SearchError::IndexNotFound(_)
         ),
         "Should return IndexNotFound error"
     );
@@ -220,7 +220,7 @@ async fn test_multi_space_isolation() {
 
     assert_search_result_count(&results_space_1, 1).expect("Space 1 should have 1 result");
     assert!(
-        results_space_1[0].doc_id == graphdb::core::Value::String("doc_1".to_string()),
+        results_space_1[0].doc_id == graphdb_core::core::Value::String("doc_1".to_string()),
         "Space 1 should return doc_1"
     );
 
@@ -231,7 +231,7 @@ async fn test_multi_space_isolation() {
 
     assert_search_result_count(&results_space_2, 1).expect("Space 2 should have 1 result");
     assert!(
-        results_space_2[0].doc_id == graphdb::core::Value::String("doc_2".to_string()),
+        results_space_2[0].doc_id == graphdb_core::core::Value::String("doc_2".to_string()),
         "Space 2 should return doc_2"
     );
 

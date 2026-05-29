@@ -3,8 +3,8 @@
 //! These tests verify the end-to-end flow of metadata pre-resolution
 //! from planner to executor.
 
-use graphdb::query::metadata::provider::MetadataProviderError;
-use graphdb::query::metadata::{IndexMetadata, IndexType, MetadataContext, MetadataProvider};
+use graphdb_query::query::metadata::provider::MetadataProviderError;
+use graphdb_query::query::metadata::{IndexMetadata, IndexType, MetadataContext, MetadataProvider};
 use std::sync::Arc;
 
 /// Mock metadata provider for testing
@@ -58,8 +58,8 @@ impl MetadataProvider for MockMetadataProvider {
         &self,
         _space_id: u64,
         tag_name: &str,
-    ) -> Result<graphdb::query::metadata::TagMetadata, MetadataProviderError> {
-        Ok(graphdb::query::metadata::TagMetadata::new(
+    ) -> Result<graphdb_query::query::metadata::TagMetadata, MetadataProviderError> {
+        Ok(graphdb_query::query::metadata::TagMetadata::new(
             tag_name.to_string(),
             1,
         ))
@@ -69,8 +69,8 @@ impl MetadataProvider for MockMetadataProvider {
         &self,
         _space_id: u64,
         edge_type: &str,
-    ) -> Result<graphdb::query::metadata::EdgeTypeMetadata, MetadataProviderError> {
-        Ok(graphdb::query::metadata::EdgeTypeMetadata::new(
+    ) -> Result<graphdb_query::query::metadata::EdgeTypeMetadata, MetadataProviderError> {
+        Ok(graphdb_query::query::metadata::EdgeTypeMetadata::new(
             edge_type.to_string(),
             1,
         ))
@@ -88,14 +88,14 @@ impl MetadataProvider for MockMetadataProvider {
     fn list_tags(
         &self,
         _space_id: u64,
-    ) -> Result<Vec<graphdb::query::metadata::TagMetadata>, MetadataProviderError> {
+    ) -> Result<Vec<graphdb_query::query::metadata::TagMetadata>, MetadataProviderError> {
         Ok(vec![])
     }
 
     fn list_edge_types(
         &self,
         _space_id: u64,
-    ) -> Result<Vec<graphdb::query::metadata::EdgeTypeMetadata>, MetadataProviderError> {
+    ) -> Result<Vec<graphdb_query::query::metadata::EdgeTypeMetadata>, MetadataProviderError> {
         Ok(vec![])
     }
 }

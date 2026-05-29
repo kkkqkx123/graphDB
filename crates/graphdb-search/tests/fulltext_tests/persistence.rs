@@ -12,14 +12,14 @@
 use std::sync::Arc;
 use tempfile::TempDir;
 
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
+use graphdb_search::search::{EngineType, FulltextConfig, FulltextIndexManager};
 
 fn create_manager_with_path(path: &std::path::Path) -> Arc<FulltextIndexManager> {
     let config = FulltextConfig {
         enabled: true,
         index_path: path.to_path_buf(),
         default_engine: EngineType::Bm25,
-        sync: graphdb::search::SyncConfig::default(),
+        sync: graphdb_search::search::SyncConfig::default(),
         tantivy: Default::default(),
         cache_size: 100,
         max_result_cache: 1000,

@@ -3,22 +3,20 @@
 //! These tests verify that space_id, tag_name, and field_name are properly
 //! pre-resolved during query planning and passed to executors.
 
-mod common;
-
 use std::sync::Arc;
 
-use graphdb::core::types::span::Span;
-use graphdb::query::metadata::{IndexMetadata, IndexType, MetadataContext};
-use graphdb::query::parser::ast::fulltext::FulltextQueryExpr;
-use graphdb::query::parser::ast::vector::{VectorQueryExpr, VectorQueryType};
-use graphdb::query::planning::fulltext_planner::FulltextSearchPlanner;
-use graphdb::query::planning::plan::core::nodes::search::fulltext::data_access::{
+use graphdb_query::core::types::span::Span;
+use graphdb_query::query::metadata::{IndexMetadata, IndexType, MetadataContext};
+use graphdb_query::query::parser::ast::fulltext::FulltextQueryExpr;
+use graphdb_query::query::parser::ast::vector::{VectorQueryExpr, VectorQueryType};
+use graphdb_query::query::planning::fulltext_planner::FulltextSearchPlanner;
+use graphdb_query::query::planning::plan::core::nodes::search::fulltext::data_access::{
     FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
 };
-use graphdb::query::planning::plan::core::nodes::search::vector::data_access::{
+use graphdb_query::query::planning::plan::core::nodes::search::vector::data_access::{
     OutputField, VectorMatchNode, VectorSearchNode, VectorSearchParams,
 };
-use graphdb::query::planning::vector_planner::VectorSearchPlanner;
+use graphdb_query::query::planning::vector_planner::VectorSearchPlanner;
 
 fn create_test_metadata_context() -> MetadataContext {
     let mut context = MetadataContext::new();
@@ -104,7 +102,7 @@ fn test_fulltext_lookup_node_metadata_resolution() {
 
 #[test]
 fn test_match_fulltext_node_metadata_resolution() {
-    use graphdb::query::parser::ast::fulltext::FulltextMatchCondition;
+    use graphdb_query::query::parser::ast::fulltext::FulltextMatchCondition;
 
     let condition = FulltextMatchCondition {
         index_name: Some("idx_article_content".to_string()),

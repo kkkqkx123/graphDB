@@ -10,10 +10,10 @@
 //! Test cases: TC-FT-TXN-001 ~ TC-FT-TXN-010
 
 use super::common::FulltextTestContext;
-use graphdb::search::EngineType;
-use graphdb::sync::batch::BatchConfig;
-use graphdb::sync::coordinator::{ChangeContext, ChangeType, SyncCoordinator};
-use graphdb::sync::manager::SyncManager;
+use graphdb_search::search::EngineType;
+use graphdb_sync::sync::batch::BatchConfig;
+use graphdb_sync::sync::coordinator::{ChangeContext, ChangeType, SyncCoordinator};
+use graphdb_sync::sync::manager::SyncManager;
 use std::sync::Arc;
 
 #[allow(dead_code)]
@@ -58,7 +58,7 @@ impl Drop for TransactionTestContext {
     }
 }
 
-fn generate_txn_id(id: u64) -> graphdb::transaction::types::TransactionId {
+fn generate_txn_id(id: u64) -> u64 {
     id
 }
 

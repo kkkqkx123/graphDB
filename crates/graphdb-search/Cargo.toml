@@ -24,4 +24,4 @@ jieba = ["tantivy/jieba"]
 
 [dev-dependencies]
 tempfile.workspace = true
-graphdb-sync = { path = "../graphdb-sync" }
+graphdb-sync = { path = "../graphdb-sync", features = ["fulltext-search"] }

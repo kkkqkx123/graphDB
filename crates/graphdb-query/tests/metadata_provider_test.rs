@@ -7,7 +7,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use graphdb::query::metadata::{
+    use graphdb_query::query::metadata::{
         CachedMetadataProvider, EdgeTypeMetadata, IndexMetadata, IndexType, MetadataContext,
         MetadataProvider, TagMetadata,
     };
@@ -54,10 +54,10 @@ mod tests {
             &self,
             _space_id: u64,
             index_name: &str,
-        ) -> Result<IndexMetadata, graphdb::query::metadata::provider::MetadataProviderError>
+        ) -> Result<IndexMetadata, graphdb_query::query::metadata::provider::MetadataProviderError>
         {
             self.indexes.get(index_name).cloned().ok_or_else(|| {
-                graphdb::query::metadata::provider::MetadataProviderError::NotFound(format!(
+                graphdb_query::query::metadata::provider::MetadataProviderError::NotFound(format!(
                     "Index '{}' not found",
                     index_name
                 ))
@@ -68,10 +68,10 @@ mod tests {
             &self,
             _space_id: u64,
             tag_name: &str,
-        ) -> Result<TagMetadata, graphdb::query::metadata::provider::MetadataProviderError>
+        ) -> Result<TagMetadata, graphdb_query::query::metadata::provider::MetadataProviderError>
         {
             self.tags.get(tag_name).cloned().ok_or_else(|| {
-                graphdb::query::metadata::provider::MetadataProviderError::NotFound(format!(
+                graphdb_query::query::metadata::provider::MetadataProviderError::NotFound(format!(
                     "Tag '{}' not found",
                     tag_name
                 ))
@@ -82,10 +82,10 @@ mod tests {
             &self,
             _space_id: u64,
             edge_type: &str,
-        ) -> Result<EdgeTypeMetadata, graphdb::query::metadata::provider::MetadataProviderError>
+        ) -> Result<EdgeTypeMetadata, graphdb_query::query::metadata::provider::MetadataProviderError>
         {
             self.edge_types.get(edge_type).cloned().ok_or_else(|| {
-                graphdb::query::metadata::provider::MetadataProviderError::NotFound(format!(
+                graphdb_query::query::metadata::provider::MetadataProviderError::NotFound(format!(
                     "Edge type '{}' not found",
                     edge_type
                 ))
@@ -95,7 +95,7 @@ mod tests {
         fn list_indexes(
             &self,
             _space_id: u64,
-        ) -> Result<Vec<IndexMetadata>, graphdb::query::metadata::provider::MetadataProviderError>
+        ) -> Result<Vec<IndexMetadata>, graphdb_query::query::metadata::provider::MetadataProviderError>
         {
             Ok(self.indexes.values().cloned().collect())
         }
@@ -103,7 +103,7 @@ mod tests {
         fn list_tags(
             &self,
             _space_id: u64,
-        ) -> Result<Vec<TagMetadata>, graphdb::query::metadata::provider::MetadataProviderError>
+        ) -> Result<Vec<TagMetadata>, graphdb_query::query::metadata::provider::MetadataProviderError>
         {
             Ok(self.tags.values().cloned().collect())
         }
@@ -111,7 +111,7 @@ mod tests {
         fn list_edge_types(
             &self,
             _space_id: u64,
-        ) -> Result<Vec<EdgeTypeMetadata>, graphdb::query::metadata::provider::MetadataProviderError>
+        ) -> Result<Vec<EdgeTypeMetadata>, graphdb_query::query::metadata::provider::MetadataProviderError>
         {
             Ok(self.edge_types.values().cloned().collect())
         }
