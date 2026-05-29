@@ -27,7 +27,7 @@ use crate::directory::error::{
 };
 use crate::directory::{
     AntiCallToken, Directory, DirectoryLock, FileHandle, Lock, OwnedBytes, TerminatingWrite,
-    WatchCallback, WatchHandle, WriterKind, WritePtr,
+    WatchCallback, WatchHandle, WritePtr, WriterKind,
 };
 
 pub type ArcBytes = Arc<dyn Deref<Target = [u8]> + Send + Sync + 'static>;
@@ -258,7 +258,6 @@ impl MmapDirectory {
                 directory_path,
             )));
         }
-        #[expect(clippy::bind_instead_of_map)]
         let canonical_path: PathBuf = directory_path.canonicalize().or_else(|io_err| {
             let directory_path = directory_path.to_owned();
 

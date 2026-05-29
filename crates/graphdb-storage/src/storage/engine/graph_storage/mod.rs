@@ -15,6 +15,9 @@ pub(crate) mod type_utils;
 mod user_ops;
 mod writer;
 
+#[cfg(test)]
+mod test;
+
 pub use context::GraphStorageContext;
 
 pub use crate::storage::engine::transaction::{execute_in_transaction, with_rollback, TransactionWriter};

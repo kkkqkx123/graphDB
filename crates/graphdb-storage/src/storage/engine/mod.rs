@@ -17,6 +17,11 @@ pub mod sync_wrapper;
 pub mod transaction;
 pub mod wal_manager;
 
+#[cfg(test)]
+mod data_store_test;
+#[cfg(test)]
+mod persistence_test;
+
 pub use batch::{
     batch_import_edges, batch_import_vertices, BatchImportStats, EdgeBatchReader, EdgeBatchWriter,
     VertexBatchReader, VertexBatchWriter, DEFAULT_BATCH_SIZE,

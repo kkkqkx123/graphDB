@@ -49,7 +49,6 @@ pub struct RecordCacheStats {
     pub memory_usage: usize,
     pub max_memory: usize,
     pub uptime_seconds: u64,
-    pub memory_fragmentation_estimate: f64,
     pub vertex_memory_bytes: u64,
     pub id_index_memory_bytes: u64,
 }
@@ -91,9 +90,8 @@ impl std::fmt::Display for RecordCacheStats {
         )?;
         writeln!(
             f,
-            "  Uptime: {}s, Fragmentation: {:.1}%",
+            "  Uptime: {}s",
             self.uptime_seconds,
-            self.memory_fragmentation_estimate * 100.0
         )?;
         writeln!(
             f,

@@ -5,9 +5,6 @@ authors = ["Paul Masurel <paul.masurel@gmail.com>"]
 license = "MIT"
 categories = ["database-implementations", "data-structures"]
 description = """Search engine library"""
-documentation = "https://docs.rs/tantivy/"
-homepage = "https://github.com/quickwit-oss/tantivy"
-repository = "https://github.com/quickwit-oss/tantivy"
 readme = "README.md"
 keywords = ["search", "information", "retrieval"]
 edition = "2021"
@@ -99,20 +96,6 @@ criterion = { version = "0.8", default-features = false }
 version = "0.5.0"
 features = ["failpoints"]
 
-[profile.release]
-opt-level = 3
-debug = false
-debug-assertions = false
-
-[profile.bench]
-opt-level = 3
-debug = true
-debug-assertions = false
-
-[profile.test]
-debug-assertions = true
-overflow-checks = true
-
 [features]
 default = ["mmap", "stopwords", "lz4-compression", "columnar-zstd-compression", "stemmer"]
 jieba = ["dep:jieba-rs"]
@@ -149,5 +132,3 @@ compare_hash_only = ["stacker/compare_hash_only"]
 name = "failpoints"
 path = "tests/failpoints/mod.rs"
 required-features = ["failpoints"]
-
-# All benchmarks removed — bench source files are not present in this vendored fork.

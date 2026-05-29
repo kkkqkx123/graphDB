@@ -1,58 +1,23 @@
-//! Cache Configuration
-//!
-//! Configuration types for cache behavior tuning.
-
 use std::time::Duration;
 
-/// Memory pressure level for cache management
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MemoryPressureLevel {
-    /// Normal operation
-    Normal,
-    /// Memory usage is high, consider reducing cache
-    Warning,
-    /// Memory usage is critical, clear cache immediately
-    Critical,
-}
-
-/// Configuration for memory pressure response
-#[derive(Debug, Clone)]
-pub struct MemoryPressureConfig {
-    /// Enable memory pressure response
-    pub enabled: bool,
-    /// High watermark ratio (0.0 - 1.0) to trigger warning
-    pub high_watermark: f32,
-    /// Low watermark ratio (0.0 - 1.0) to stop reduction
-    pub low_watermark: f32,
-    /// Factor to reduce cache size when under pressure
-    pub reduction_factor: f32,
-}
-
-impl Default for MemoryPressureConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            high_watermark: 0.9,
-            low_watermark: 0.7,
-            reduction_factor: 0.5,
-        }
-    }
-}
-
 /// Configuration for record cache
+///
+/// Note: `max_memory` and `memory_ratio` are applied at build time via
+/// Moka's `Cache::builder().max_capacity(...)`. They cannot be changed
+/// at runtime — recreate `RecordCache` to apply new values.
 #[derive(Debug, Clone)]
 pub struct RecordCacheConfig {
-    /// Maximum memory usage in bytes
+    /// Maximum memory usage in bytes (applied at build time)
     pub max_memory: usize,
     /// Memory distribution ratio: (vertex, id_index)
-    /// - vertex: Vertex record cache
-    /// - id_index: External ID to internal ID mapping cache
+    /// Applied at build time — runtime changes require recreating RecordCache.
     pub memory_ratio: (u32, u32),
     /// Time-to-live for cache entries
     pub ttl: Option<Duration>,
     /// Time-to-idle for cache entries
     pub tti: Option<Duration>,
-    /// Ratio of memory allocated for high-priority entries (id_index)
+    /// Ratio of memory allocated for high-priority entries (id_index).
+    /// Applied at build time.
     pub high_priority_ratio: f32,
 }
 

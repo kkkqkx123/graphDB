@@ -83,7 +83,7 @@ pub fn get_vertex(
             id
         })?;
 
-    if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id) {
+    if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id, ts) {
         return Some(VertexRecord {
             internal_id: cached.internal_id,
             vid: VertexId::from_u64(cached.internal_id as u64),
@@ -101,6 +101,7 @@ pub fn get_vertex(
         internal_id,
         external_id.to_string(),
         record.properties.clone(),
+        ts,
     );
 
     Some(record)
@@ -131,7 +132,7 @@ pub fn get_vertex_by_i64(
             id
         })?;
 
-    if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id) {
+    if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id, ts) {
         return Some(VertexRecord {
             internal_id: cached.internal_id,
             vid: VertexId::from_int64(external_id),
@@ -149,6 +150,7 @@ pub fn get_vertex_by_i64(
         internal_id,
         external_id_str,
         record.properties.clone(),
+        ts,
     );
 
     Some(record)
@@ -164,7 +166,7 @@ pub fn get_vertex_by_internal_id(
         return None;
     }
 
-    if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id) {
+    if let Some(cached) = graph.cache_manager.get_cached_vertex(label, internal_id, ts) {
         return Some(VertexRecord {
             internal_id: cached.internal_id,
             vid: VertexId::from_u64(cached.internal_id as u64),
@@ -193,7 +195,7 @@ pub fn get_vertex_by_internal_id(
 
     graph
         .cache_manager
-        .cache_vertex(label, internal_id, external_id, record.properties.clone());
+        .cache_vertex(label, internal_id, external_id, record.properties.clone(), ts);
 
     Some(record)
 }

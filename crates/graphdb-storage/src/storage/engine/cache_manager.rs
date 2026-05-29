@@ -71,10 +71,10 @@ impl CacheManager {
 
     // ==================== Vertex Cache Operations ====================
 
-    pub fn get_cached_vertex(&self, label: LabelId, internal_id: u32) -> Option<CachedVertex> {
+    pub fn get_cached_vertex(&self, label: LabelId, internal_id: u32, ts: Timestamp) -> Option<CachedVertex> {
         self.record_cache.as_ref().and_then(|rc| {
             let key = VertexCacheKey::new(label, internal_id);
-            rc.get_vertex(&key)
+            rc.get_vertex(&key, ts)
         })
     }
 
@@ -84,6 +84,7 @@ impl CacheManager {
         internal_id: u32,
         external_id: String,
         properties: Vec<(String, crate::core::Value)>,
+        ts: Timestamp,
     ) {
         if let Some(ref rc) = self.record_cache {
             let key = VertexCacheKey::new(label, internal_id);
@@ -91,6 +92,7 @@ impl CacheManager {
                 internal_id,
                 external_id,
                 properties,
+                cached_at_ts: ts,
             };
             rc.insert_vertex(key, cached);
         }

@@ -33,7 +33,10 @@ impl From<RemovalCause> for EvictionCause {
     }
 }
 
-/// Callback type for eviction notifications
+/// Callback type for eviction notifications.
+///
+/// # Deadlock warning
+/// Called from within Moka's internal locks. The callback must NOT access the same Moka cache.
 pub type EvictionCallback = Arc<dyn Fn(&str, EvictionCause) + Send + Sync>;
 
 /// Key for vertex cache: (label_id, internal_id)
@@ -56,11 +59,11 @@ impl VertexCacheKey {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdIndexCacheKey {
     pub label_id: u32,
-    pub external_id: Arc<str>,
+    pub external_id: String,
 }
 
 impl IdIndexCacheKey {
-    pub fn new(label_id: u32, external_id: Arc<str>) -> Self {
+    pub fn new(label_id: u32, external_id: String) -> Self {
         Self {
             label_id,
             external_id,
@@ -74,14 +77,10 @@ pub struct CachedVertex {
     pub internal_id: u32,
     pub external_id: String,
     pub properties: Vec<(String, Value)>,
+    pub cached_at_ts: Timestamp,
 }
 
 /// Cached ID index value with timestamp for validation.
-///
-/// Stores the internal_id along with the timestamp at which the mapping
-/// was last verified. On cache lookup, if the cached timestamp is older
-/// than the query timestamp, the entry is treated as stale and re-fetched
-/// from storage.
 #[derive(Debug, Clone, Copy)]
 pub struct IdIndexCacheValue {
     pub internal_id: u32,
@@ -103,45 +102,15 @@ impl CachedVertex {
     }
 }
 
-/// Snapshot entry for transaction rollback
-#[derive(Debug, Clone)]
-pub enum CacheSnapshotEntry {
-    /// Previous vertex value before modification
-    Vertex(VertexCacheKey, Option<CachedVertex>),
-    /// Previous ID index value before modification
-    IdIndex(IdIndexCacheKey, Option<IdIndexCacheValue>),
+/// Result of batch insert operation
+pub struct BatchInsertResult {
+    pub inserted: usize,
+    pub total_size: usize,
 }
 
-/// Transaction-level cache snapshot for rollback support
-#[derive(Debug)]
-pub struct TransactionCacheSnapshot {
-    entries: Vec<CacheSnapshotEntry>,
-}
-
-impl Default for TransactionCacheSnapshot {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TransactionCacheSnapshot {
-    pub fn new() -> Self {
-        Self {
-            entries: Vec::new(),
-        }
-    }
-
-    pub fn record_vertex(&mut self, key: VertexCacheKey, old_value: Option<CachedVertex>) {
-        self.entries
-            .push(CacheSnapshotEntry::Vertex(key, old_value));
-    }
-
-    pub fn record_id_index(&mut self, key: IdIndexCacheKey, old_value: Option<IdIndexCacheValue>) {
-        self.entries
-            .push(CacheSnapshotEntry::IdIndex(key, old_value));
-    }
-
-    pub fn into_entries(self) -> Vec<CacheSnapshotEntry> {
-        self.entries
-    }
+/// Result of batch get operation
+pub struct BatchGetResult<T> {
+    pub results: Vec<Option<T>>,
+    pub hits: usize,
+    pub misses: usize,
 }

@@ -5,11 +5,9 @@
 //! These inner types are `pub(crate)` because they are implementation details
 //! of specific `Directory` backends. External users interact with them via
 //! `Write` and `TerminatingWrite` trait methods.
-#![cfg_attr(
-
-    not(test),
-    allow(private_interfaces)
-)]
+// These inner types are intentionally `pub(crate)` — they are implementation
+// details of specific Directory backends, exposed through enum variant fields.
+#![allow(private_interfaces)]
 
 #[cfg(feature = "mmap")]
 mod mmap_directory;

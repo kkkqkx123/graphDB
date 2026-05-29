@@ -1,19 +1,3 @@
-//! Record Cache
-//!
-//! High-performance cache for vertex records using Moka.
-//! Provides O(1) operations with TinyLFU eviction policy for optimal hit rate.
-//!
-//! ## Features
-//!
-//! - Fine-grained statistics per cache type (vertex, id_index)
-//! - Eviction listener support for custom cleanup logic
-//! - High priority pool configuration for index cache protection
-//! - TTL/TTI expiration support
-//! - Memory-weighted eviction
-//! - Batch operations for improved throughput
-//! - Memory pressure response
-
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -24,24 +8,27 @@ use crate::core::stats::CacheStats;
 use crate::core::stats::StatsManager;
 use crate::core::types::Timestamp;
 
-use super::batch::*;
 use super::config::*;
 use super::stats::*;
 use super::types::*;
 
-/// Record cache for vertex data, ID index mappings, and optional edge records
+/// Record cache for vertex data and ID index mappings.
+///
+/// Backed by two independent Moka caches with weight-based eviction.
+/// Moka's `max_capacity` is set at build time and cannot be changed at runtime.
+///
+/// ## Timestamp validation
+/// Both `get_vertex` and `get_id_index` accept a `query_ts` parameter.
+/// Entries with `cached_at_ts > query_ts` are treated as misses to prevent
+/// serving data from the future in MVCC time-travel queries.
 pub struct RecordCache {
     vertex_cache: Cache<VertexCacheKey, CachedVertex>,
     id_index_cache: Cache<IdIndexCacheKey, IdIndexCacheValue>,
-    config: Mutex<RecordCacheConfig>,
+    config: RecordCacheConfig,
     vertex_stats: Arc<CacheStats>,
     id_index_stats: Arc<CacheStats>,
     eviction_callback: Arc<Mutex<Option<EvictionCallback>>>,
-    memory_pressure_config: MemoryPressureConfig,
-    original_max_memory: usize,
-    current_max_memory: AtomicUsize,
     stats_manager: Option<Arc<StatsManager>>,
-    transaction_snapshot: Arc<Mutex<Option<TransactionCacheSnapshot>>>,
     created_at: Instant,
 }
 
@@ -99,20 +86,14 @@ impl RecordCache {
             config.tti,
         );
 
-        let original_max_memory = config.max_memory;
-
         Self {
             vertex_cache,
             id_index_cache,
-            config: Mutex::new(config),
+            config,
             vertex_stats,
             id_index_stats,
             eviction_callback,
-            memory_pressure_config: MemoryPressureConfig::default(),
-            original_max_memory,
-            current_max_memory: AtomicUsize::new(original_max_memory),
             stats_manager: None,
-            transaction_snapshot: Arc::new(Mutex::new(None)),
             created_at: Instant::now(),
         }
     }
@@ -129,14 +110,16 @@ impl RecordCache {
             .weigher(|_key: &VertexCacheKey, value: &CachedVertex| {
                 let key_size = std::mem::size_of::<VertexCacheKey>() as u32;
                 let value_size = value.estimated_size();
-                key_size.wrapping_add(value_size)
+                key_size.saturating_add(value_size)
             })
             .support_invalidation_closures()
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
                 let cause = EvictionCause::from(cause);
-                if let Some(ref callback) = *eviction_callback.lock() {
-                    callback("vertex", cause);
+                if let Some(guard) = eviction_callback.try_lock() {
+                    if let Some(ref callback) = *guard {
+                        callback("vertex", cause);
+                    }
                 }
             });
 
@@ -160,16 +143,19 @@ impl RecordCache {
         let mut builder = Cache::builder()
             .max_capacity(max_capacity)
             .weigher(|key: &IdIndexCacheKey, _value: &IdIndexCacheValue| {
-                let key_size = std::mem::size_of::<IdIndexCacheKey>() + key.external_id.len();
-                let value_size = std::mem::size_of::<IdIndexCacheValue>();
-                (key_size + value_size) as u32
+                let key_size = std::mem::size_of::<IdIndexCacheKey>() as u32
+                    + key.external_id.capacity() as u32;
+                let value_size = std::mem::size_of::<IdIndexCacheValue>() as u32;
+                key_size.saturating_add(value_size)
             })
             .support_invalidation_closures()
             .eviction_listener(move |_key, _value, cause| {
                 stats.record_eviction();
                 let cause = EvictionCause::from(cause);
-                if let Some(ref callback) = *eviction_callback.lock() {
-                    callback("id_index", cause);
+                if let Some(guard) = eviction_callback.try_lock() {
+                    if let Some(ref callback) = *guard {
+                        callback("id_index", cause);
+                    }
                 }
             });
 
@@ -192,18 +178,9 @@ impl RecordCache {
         *self.eviction_callback.lock() = Some(callback);
     }
 
-    pub fn with_memory_pressure_config(mut self, config: MemoryPressureConfig) -> Self {
-        self.memory_pressure_config = config;
-        self
-    }
-
     pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
         self.stats_manager = Some(stats_manager);
         self
-    }
-
-    pub fn set_memory_pressure_config(&mut self, config: MemoryPressureConfig) {
-        self.memory_pressure_config = config;
     }
 
     fn notify_eviction(&self, cache_type: &str, cause: EvictionCause) {
@@ -215,7 +192,7 @@ impl RecordCache {
     // ==================== ID Index Operations ====================
 
     pub fn get_id_index(&self, label_id: u32, external_id: &str, query_ts: Timestamp) -> Option<u32> {
-        let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
+        let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         let result = match self.id_index_cache.get(&key) {
             Some(cached) if cached.cached_at_ts <= query_ts => {
                 self.id_index_stats.record_hit();
@@ -237,11 +214,7 @@ impl RecordCache {
     }
 
     pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32, ts: Timestamp) {
-        let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
-        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
-            let old_value = self.id_index_cache.get(&key);
-            snapshot.record_id_index(key.clone(), old_value);
-        }
+        let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         self.id_index_cache.insert(key, IdIndexCacheValue {
             internal_id,
             cached_at_ts: ts,
@@ -249,11 +222,7 @@ impl RecordCache {
     }
 
     pub fn remove_id_index(&self, label_id: u32, external_id: &str) {
-        let key = IdIndexCacheKey::new(label_id, Arc::from(external_id));
-        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
-            let old_value = self.id_index_cache.get(&key);
-            snapshot.record_id_index(key.clone(), old_value);
-        }
+        let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         if self.id_index_cache.remove(&key).is_some() {
             self.notify_eviction("id_index", EvictionCause::Explicit);
         }
@@ -261,11 +230,15 @@ impl RecordCache {
 
     // ==================== Vertex Operations ====================
 
-    pub fn get_vertex(&self, key: &VertexCacheKey) -> Option<CachedVertex> {
+    pub fn get_vertex(&self, key: &VertexCacheKey, query_ts: Timestamp) -> Option<CachedVertex> {
         let result = match self.vertex_cache.get(key) {
-            Some(vertex) => {
+            Some(vertex) if vertex.cached_at_ts <= query_ts => {
                 self.vertex_stats.record_hit();
                 Some(vertex)
+            }
+            Some(_) => {
+                self.vertex_stats.record_miss();
+                None
             }
             None => {
                 self.vertex_stats.record_miss();
@@ -279,18 +252,10 @@ impl RecordCache {
     }
 
     pub fn insert_vertex(&self, key: VertexCacheKey, vertex: CachedVertex) {
-        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
-            let old_value = self.vertex_cache.get(&key);
-            snapshot.record_vertex(key, old_value);
-        }
         self.vertex_cache.insert(key, vertex);
     }
 
     pub fn remove_vertex(&self, key: &VertexCacheKey) {
-        if let Some(ref mut snapshot) = *self.transaction_snapshot.lock() {
-            let old_value = self.vertex_cache.get(key);
-            snapshot.record_vertex(*key, old_value);
-        }
         if let Some(_vertex) = self.vertex_cache.remove(key) {
             self.notify_eviction("vertex", EvictionCause::Explicit);
         }
@@ -298,16 +263,19 @@ impl RecordCache {
 
     // ==================== Invalidation ====================
 
+    /// Invalidate all vertex entries for a given label.
+    ///
+    /// Note: Moka does not expose which entries were actually removed,
+    /// so this cannot be rolled back at the cache level.
     pub fn invalidate_vertices_by_label(&self, label_id: u32) {
-        let _ = self
-            .vertex_cache
+        let _ = self.vertex_cache
             .invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.vertex_cache.run_pending_tasks();
     }
 
+    /// Invalidate all ID index entries for a given label.
     pub fn invalidate_id_indexes_by_label(&self, label_id: u32) {
-        let _ = self
-            .id_index_cache
+        let _ = self.id_index_cache
             .invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.id_index_cache.run_pending_tasks();
     }
@@ -326,12 +294,25 @@ impl RecordCache {
 
     // ==================== Statistics ====================
 
+    fn effective_capacity(&self) -> usize {
+        let max_memory = self.config.max_memory as u64;
+        let total_ratio = self.config.memory_ratio.0 + self.config.memory_ratio.1;
+        let base_vertex = max_memory * self.config.memory_ratio.0 as u64 / total_ratio as u64;
+        let base_id_index = max_memory * self.config.memory_ratio.1 as u64 / total_ratio as u64;
+        let high_priority_extra = if self.config.high_priority_ratio > 0.0 {
+            (max_memory as f64 * self.config.high_priority_ratio as f64) as u64
+        } else {
+            0
+        };
+        (base_vertex + base_id_index + high_priority_extra) as usize
+    }
+
     pub fn memory_usage(&self) -> usize {
         (self.vertex_cache.weighted_size() + self.id_index_cache.weighted_size()) as usize
     }
 
     pub fn max_memory(&self) -> usize {
-        self.current_max_memory.load(Ordering::Relaxed)
+        self.effective_capacity()
     }
 
     pub fn stats(&self) -> RecordCacheStats {
@@ -355,21 +336,7 @@ impl RecordCache {
         let total_operations = total_hits + total_misses + total_evictions;
 
         let memory_usage = (vertex_weighted + id_index_weighted) as usize;
-        let max_memory = self.current_max_memory.load(Ordering::Relaxed);
-
-        // Estimate memory fragmentation: ratio of weighted size to expected size
-        let vertex_count = self.vertex_cache.entry_count();
-        let id_index_count = self.id_index_cache.entry_count();
-        let expected_vertex_memory = vertex_count * std::mem::size_of::<CachedVertex>() as u64;
-        let expected_id_index_memory =
-            id_index_count * std::mem::size_of::<IdIndexCacheKey>() as u64;
-        let total_expected = expected_vertex_memory + expected_id_index_memory;
-        let total_weighted = vertex_weighted + id_index_weighted;
-        let fragmentation = if total_expected > 0 {
-            1.0 - total_expected as f64 / total_weighted.max(1) as f64
-        } else {
-            0.0
-        };
+        let max_memory = self.effective_capacity();
 
         RecordCacheStats {
             vertex: vertex_snapshot,
@@ -390,14 +357,13 @@ impl RecordCache {
             memory_usage,
             max_memory,
             uptime_seconds: self.created_at.elapsed().as_secs(),
-            memory_fragmentation_estimate: fragmentation,
             vertex_memory_bytes: vertex_weighted,
             id_index_memory_bytes: id_index_weighted,
         }
     }
 
     pub fn utilization(&self) -> f32 {
-        let max_memory = self.current_max_memory.load(Ordering::Relaxed);
+        let max_memory = self.effective_capacity();
         if max_memory == 0 {
             return 0.0;
         }
@@ -412,21 +378,25 @@ impl RecordCache {
         &self.id_index_stats
     }
 
+    pub fn config(&self) -> &RecordCacheConfig {
+        &self.config
+    }
+
     // ==================== Batch Operations ====================
 
-    pub fn get_vertices_batch(&self, keys: &[VertexCacheKey]) -> BatchGetResult<CachedVertex> {
+    pub fn get_vertices_batch(&self, keys: &[VertexCacheKey], query_ts: Timestamp) -> BatchGetResult<CachedVertex> {
         let mut results = Vec::with_capacity(keys.len());
         let mut hits = 0usize;
         let mut misses = 0usize;
 
         for key in keys {
             match self.vertex_cache.get(key) {
-                Some(vertex) => {
+                Some(vertex) if vertex.cached_at_ts <= query_ts => {
                     self.vertex_stats.record_hit();
                     hits += 1;
                     results.push(Some(vertex));
                 }
-                None => {
+                _ => {
                     self.vertex_stats.record_miss();
                     misses += 1;
                     results.push(None);
@@ -446,152 +416,18 @@ impl RecordCache {
         entries: Vec<(VertexCacheKey, CachedVertex)>,
     ) -> BatchInsertResult {
         let mut total_size = 0usize;
-        let mut pre_checked = Vec::with_capacity(entries.len());
+        let mut inserted = 0usize;
 
         for (key, vertex) in entries {
-            let size = vertex.estimated_size() as usize;
-            total_size += size;
-            pre_checked.push((key, vertex, size));
-        }
-
-        let mut inserted = 0usize;
-        for (key, vertex, _size) in pre_checked {
+            total_size += vertex.estimated_size() as usize;
             self.vertex_cache.insert(key, vertex);
             inserted += 1;
         }
+        self.vertex_cache.run_pending_tasks();
 
         BatchInsertResult {
             inserted,
             total_size,
-        }
-    }
-
-    pub fn invalidate_batch(&self, keys: &[CacheKeyRef<'_>]) -> usize {
-        let mut invalidated = 0usize;
-
-        for key in keys {
-            match key {
-                CacheKeyRef::Vertex(k) => {
-                    if self.vertex_cache.remove(k).is_some() {
-                        invalidated += 1;
-                    }
-                }
-                CacheKeyRef::IdIndex(label_id, external_id) => {
-                    let cache_key = IdIndexCacheKey::new(*label_id, Arc::from(*external_id));
-                    if self.id_index_cache.remove(&cache_key).is_some() {
-                        invalidated += 1;
-                    }
-                }
-            }
-        }
-
-        invalidated
-    }
-
-    // ==================== Memory Pressure ====================
-
-    pub fn handle_memory_pressure(&self, level: MemoryPressureLevel) {
-        if !self.memory_pressure_config.enabled {
-            return;
-        }
-
-        match level {
-            MemoryPressureLevel::Normal => {}
-            MemoryPressureLevel::Warning => {
-                let factor = self.memory_pressure_config.reduction_factor;
-                let retain_ratio = factor.max(0.1_f32);
-
-                let vertex_target = (self.vertex_cache.entry_count() as f32 * retain_ratio) as u64;
-                let id_index_target =
-                    (self.id_index_cache.entry_count() as f32 * retain_ratio) as u64;
-
-                let vertex_count = AtomicU64::new(0);
-                let _ = self.vertex_cache.invalidate_entries_if(move |_, _| {
-                    let c = vertex_count.fetch_add(1, Ordering::Relaxed);
-                    c >= vertex_target
-                });
-
-                let id_index_count = AtomicU64::new(0);
-                let _ = self.id_index_cache.invalidate_entries_if(move |_, _| {
-                    let c = id_index_count.fetch_add(1, Ordering::Relaxed);
-                    c >= id_index_target
-                });
-
-                self.vertex_cache.run_pending_tasks();
-                self.id_index_cache.run_pending_tasks();
-
-                let mut config = self.config.lock();
-                let new_max = (config.max_memory as f64 * factor as f64) as usize;
-                config.max_memory = new_max;
-                self.current_max_memory.store(new_max, Ordering::Relaxed);
-            }
-            MemoryPressureLevel::Critical => {
-                self.clear();
-                let mut config = self.config.lock();
-                config.max_memory = 0;
-                self.current_max_memory.store(0, Ordering::Relaxed);
-            }
-        }
-    }
-
-    pub fn restore_memory(&self) {
-        self.current_max_memory
-            .fetch_max(self.original_max_memory, Ordering::Relaxed);
-    }
-
-    // ==================== Runtime Configuration ====================
-
-    pub fn update_config(&self, new_config: RecordCacheConfig) {
-        let mut config = self.config.lock();
-        config.max_memory = new_config.max_memory;
-        config.memory_ratio = new_config.memory_ratio;
-        config.high_priority_ratio = new_config.high_priority_ratio;
-        self.current_max_memory
-            .store(new_config.max_memory, Ordering::Relaxed);
-    }
-
-    pub fn set_max_memory(&self, max_memory: usize) {
-        self.config.lock().max_memory = max_memory;
-        self.current_max_memory.store(max_memory, Ordering::Relaxed);
-    }
-
-    pub fn set_memory_ratio(&self, vertex_ratio: u32, id_index_ratio: u32) {
-        self.config.lock().memory_ratio = (vertex_ratio, id_index_ratio);
-    }
-
-    pub fn config(&self) -> RecordCacheConfig {
-        self.config.lock().clone()
-    }
-
-    // ==================== Transaction Support ====================
-
-    pub fn begin_transaction(&self) {
-        *self.transaction_snapshot.lock() = Some(TransactionCacheSnapshot::new());
-    }
-
-    pub fn commit_transaction(&self) {
-        *self.transaction_snapshot.lock() = None;
-    }
-
-    pub fn rollback_transaction(&self) {
-        let snapshot = self.transaction_snapshot.lock().take();
-        if let Some(snapshot) = snapshot {
-            for entry in snapshot.into_entries() {
-                match entry {
-                    CacheSnapshotEntry::Vertex(key, Some(old_value)) => {
-                        self.vertex_cache.insert(key, old_value);
-                    }
-                    CacheSnapshotEntry::Vertex(key, None) => {
-                        self.vertex_cache.remove(&key);
-                    }
-                    CacheSnapshotEntry::IdIndex(key, Some(old_value)) => {
-                        self.id_index_cache.insert(key, old_value);
-                    }
-                    CacheSnapshotEntry::IdIndex(key, None) => {
-                        self.id_index_cache.remove(&key);
-                    }
-                }
-            }
         }
     }
 }
