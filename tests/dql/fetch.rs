@@ -165,7 +165,11 @@ fn test_fetch_execution_edge_properties() {
         .assert_result_count(1)
         .assert_vertex_or_edge_has_property(
             "since",
-            graphdb::core::Value::String("2020-01-01".into()),
+            graphdb::core::Value::Date(graphdb::core::DateValue {
+                year: 2020,
+                month: 1,
+                day: 1,
+            }),
         );
 }
 

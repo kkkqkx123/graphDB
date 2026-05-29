@@ -2,7 +2,7 @@
 //!
 //! Use a bidirectional breadth-first search to find the shortest path.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use crate::core::types::{EdgeDirection, VertexId};
@@ -214,6 +214,22 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                     self.stats.increment_nodes_visited();
 
                     if visited_left.contains_key(&current_id) {
+                        // This vertex was already reached from the left side.
+                        // Combine the left path (start -> meeting) and right path (end -> meeting).
+                        if let Some(left_npath) = visited_left.get(&current_id) {
+                            let total_len = left_npath.len() + current_npath.len();
+                            let exceeds_depth = max_depth.map_or(false, |max_d| total_len > max_d);
+                            if !exceeds_depth {
+                                if let Some(combined_path) = combine_npaths(left_npath, &current_npath) {
+                                    if !has_duplicate_edges(&combined_path) {
+                                        result_paths.push(combined_path);
+                                        if single_shortest || result_paths.len() >= limit {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         continue;
                     }
 
@@ -245,22 +261,30 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             }
 
             // After right expansion, check if any newly discovered vertex is in visited_left
+            let mut combined_vertices: HashSet<VertexId> = HashSet::new();
             for (ref next_id, ref next_npath) in &right_next {
                 if let Some(left_npath) = visited_left.get(next_id) {
-                    if let Some(combined_path) = combine_npaths(left_npath, next_npath) {
-                        if !has_duplicate_edges(&combined_path) {
-                            result_paths.push(combined_path);
-                            if single_shortest || result_paths.len() >= limit {
-                                break;
+                    let total_len = left_npath.len() + next_npath.len();
+                    let exceeds_depth = max_depth.map_or(false, |max_d| total_len > max_d);
+                    if !exceeds_depth {
+                        if let Some(combined_path) = combine_npaths(left_npath, next_npath) {
+                            if !has_duplicate_edges(&combined_path) {
+                                result_paths.push(combined_path);
+                                combined_vertices.insert(*next_id);
+                                if single_shortest || result_paths.len() >= limit {
+                                    break;
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Extend right_queue with next level
+            // Extend right_queue with next level, skipping vertices already combined
             for (id, npath) in right_next.drain(..) {
-                right_queue.push_back((id, npath));
+                if !combined_vertices.contains(&id) {
+                    right_queue.push_back((id, npath));
+                }
             }
 
             if left_queue.is_empty() && right_queue.is_empty() {

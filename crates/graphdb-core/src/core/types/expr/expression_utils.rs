@@ -72,9 +72,7 @@ pub fn generate_default_alias_from_contextual(expression: &ContextualExpression)
     }
 
     if expression.is_property() {
-        if let Some(prop) = expression.as_property_name() {
-            return format!("prop.{}", prop);
-        }
+        return expression.to_expression_string();
     }
 
     if expression.is_binary() {

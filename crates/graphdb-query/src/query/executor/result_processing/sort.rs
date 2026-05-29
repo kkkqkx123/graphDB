@@ -484,6 +484,27 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         Ok(())
     }
 
+    /// Convert an Expression to a column name string for direct lookup
+    fn expression_to_col_name(expr: &Expression) -> Option<String> {
+        match expr {
+            Expression::Property { object, property } => {
+                if let Expression::Variable(var_name) = object.as_ref() {
+                    Some(format!("{}.{}", var_name, property))
+                } else {
+                    None
+                }
+            }
+            Expression::Variable(name) => Some(name.clone()),
+            Expression::TagProperty { tag_name, property } => {
+                Some(format!("{}.{}", tag_name, property))
+            }
+            Expression::EdgeProperty { edge_name, property } => {
+                Some(format!("{}.{}", edge_name, property))
+            }
+            _ => None,
+        }
+    }
+
     /// The sorting key values for the calculation rows
     fn calculate_sort_values(&self, row: &[Value], col_names: &[String]) -> DBResult<Vec<Value>> {
         let mut sort_values = Vec::new();
@@ -502,18 +523,30 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                     )));
                 }
             } else {
-                // Use an expression evaluator to process other types of expressions.
-                let mut expr_context = DefaultExpressionContext::new();
-                for (i, col_name) in col_names.iter().enumerate() {
-                    if i < row.len() {
-                        expr_context.set_variable(col_name.clone(), row[i].clone());
-                    }
-                }
+                // First try direct column name lookup
+                let col_lookup = Self::expression_to_col_name(&sort_key.expression)
+                    .and_then(|col_name| {
+                        col_names.iter().position(|name| name == &col_name).map(|idx| idx)
+                    })
+                    .filter(|&idx| idx < row.len())
+                    .map(|idx| row[idx].clone());
 
-                let sort_value =
-                    ExpressionEvaluator::evaluate(&sort_key.expression, &mut expr_context)
-                        .map_err(|e| DBError::query(e.to_string()))?;
-                sort_values.push(sort_value);
+                if let Some(value) = col_lookup {
+                    sort_values.push(value);
+                } else {
+                    // Fall back to expression evaluator
+                    let mut expr_context = DefaultExpressionContext::new();
+                    for (i, col_name) in col_names.iter().enumerate() {
+                        if i < row.len() {
+                            expr_context.set_variable(col_name.clone(), row[i].clone());
+                        }
+                    }
+
+                    let sort_value =
+                        ExpressionEvaluator::evaluate(&sort_key.expression, &mut expr_context)
+                            .map_err(|e| DBError::query(e.to_string()))?;
+                    sort_values.push(sort_value);
+                }
             }
         }
 

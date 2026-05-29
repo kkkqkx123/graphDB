@@ -362,7 +362,7 @@ mod tests {
         let id = ctx.register_expression(expr_meta);
         let contextual = ContextualExpression::new(id, ctx.clone());
         let alias = generate_default_alias_from_contextual(&contextual);
-        assert_eq!(alias, "prop.name");
+        assert_eq!(alias, "n.name");
 
         let expr = Expression::Function {
             name: "count".to_string(),

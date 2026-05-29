@@ -518,14 +518,46 @@ impl<S: StorageClient> TopNExecutor<S> {
 
         let mut sort_values = Vec::new();
         for sort_key in &self.sort_keys {
-            let value =
+            // First try direct column name lookup
+            let col_lookup = Self::expression_to_col_name(&sort_key.expression)
+                .and_then(|col_name| {
+                    col_names.iter().position(|name| name == &col_name)
+                })
+                .filter(|&idx| idx < row.len())
+                .map(|idx| row[idx].clone());
+
+            let value = if let Some(v) = col_lookup {
+                v
+            } else {
                 ExpressionEvaluator::evaluate(&sort_key.expression, &mut context).map_err(|e| {
                     DBError::query(format!("Failed to evaluate sort expression: {}", e))
-                })?;
+                })?
+            };
             sort_values.push(value);
         }
 
         Ok(sort_values)
+    }
+
+    /// Convert an Expression to a column name string for direct lookup
+    fn expression_to_col_name(expr: &Expression) -> Option<String> {
+        match expr {
+            Expression::Property { object, property } => {
+                if let Expression::Variable(var_name) = object.as_ref() {
+                    Some(format!("{}.{}", var_name, property))
+                } else {
+                    None
+                }
+            }
+            Expression::Variable(name) => Some(name.clone()),
+            Expression::TagProperty { tag_name, property } => {
+                Some(format!("{}.{}", tag_name, property))
+            }
+            Expression::EdgeProperty { edge_name, property } => {
+                Some(format!("{}.{}", edge_name, property))
+            }
+            _ => None,
+        }
     }
 
     /// Determine whether it is in ascending order.

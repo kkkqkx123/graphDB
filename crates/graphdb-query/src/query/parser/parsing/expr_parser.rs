@@ -668,7 +668,16 @@ impl<'a> ExprParser<'a> {
 
             let field_name = match &arg {
                 Expression::Variable(name) => name.clone(),
-                Expression::Property { property, .. } => property.clone(),
+                Expression::Property {
+                    object,
+                    property,
+                } => {
+                    if let Expression::Variable(var_name) = object.as_ref() {
+                        format!("{}.{}", var_name, property)
+                    } else {
+                        property.clone()
+                    }
+                }
                 Expression::TagProperty { tag_name, property } => {
                     format!("{}.{}", tag_name, property)
                 }
