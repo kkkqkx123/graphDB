@@ -58,11 +58,13 @@ impl PushFilterDownAggregateRule {
         condition: &Expression,
         group_keys: &[String],
         agg_funcs: &[AggregateFunction],
+        agg_col_names: &[String],
     ) -> bool {
         fn check_expr(
             expr: &Expression,
             group_keys: &[String],
             agg_funcs: &[AggregateFunction],
+            agg_col_names: &[String],
         ) -> bool {
             // First, check whether there are any expressions containing aggregate function statements.
             if AggregateFunctionChecker::check(expr) {
@@ -82,6 +84,10 @@ impl PushFilterDownAggregateRule {
                     {
                         return true;
                     }
+                }
+                // Check if the variable name is an aggregate alias (in col_names but not in group_keys)
+                if agg_col_names.contains(name) {
+                    return true;
                 }
                 // For the other variables, it is assumed that they can be determined based on the input data (i.e., they are dependent on the columns of input data).
                 return false;
@@ -109,23 +115,23 @@ impl PushFilterDownAggregateRule {
 
             // Recursively checking the subexpressions of a binary expression
             if let Expression::Binary { left, right, .. } = expr {
-                if check_expr(left, group_keys, agg_funcs) {
+                if check_expr(left, group_keys, agg_funcs, agg_col_names) {
                     return true;
                 }
-                if check_expr(right, group_keys, agg_funcs) {
+                if check_expr(right, group_keys, agg_funcs, agg_col_names) {
                     return true;
                 }
             }
 
             // Recursively check other composite expressions.
             if let Expression::Unary { operand, .. } = expr {
-                return check_expr(operand, group_keys, agg_funcs);
+                return check_expr(operand, group_keys, agg_funcs, agg_col_names);
             }
 
             false
         }
 
-        check_expr(condition, group_keys, agg_funcs)
+        check_expr(condition, group_keys, agg_funcs, agg_col_names)
     }
 
     /// Rewrite the variable references in the filter conditions.
@@ -205,7 +211,7 @@ impl RewriteRule for PushFilterDownAggregateRule {
 
         // Check whether the filter conditions contain references to aggregate functions.
         // 如果条件引用了聚合结果（如 HAVING COUNT(*) > 10），则不能下推
-        if Self::has_aggregate_function_reference(&filter_expr, group_keys, agg_funcs) {
+        if Self::has_aggregate_function_reference(&filter_expr, group_keys, agg_funcs, agg_node.col_names()) {
             return Ok(None);
         }
 
@@ -300,7 +306,8 @@ mod tests {
             PushFilterDownAggregateRule::has_aggregate_function_reference(
                 &condition,
                 &[],
-                &[AggregateFunction::Count(None)]
+                &[AggregateFunction::Count(None)],
+                &[]
             )
         );
     }
@@ -319,6 +326,7 @@ mod tests {
             !PushFilterDownAggregateRule::has_aggregate_function_reference(
                 &condition,
                 &["name".to_string()],
+                &[],
                 &[]
             )
         );
@@ -335,7 +343,8 @@ mod tests {
             PushFilterDownAggregateRule::has_aggregate_function_reference(
                 &condition,
                 &[],
-                &[AggregateFunction::Sum("amount".to_string())]
+                &[AggregateFunction::Sum("amount".to_string())],
+                &[]
             )
         );
     }

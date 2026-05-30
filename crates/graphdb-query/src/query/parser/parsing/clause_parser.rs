@@ -98,6 +98,24 @@ impl ClauseParser {
             });
         }
 
+        // Consume GROUP BY items if present (group keys are extracted from non-aggregate return columns)
+        if ctx.match_token(TokenKind::Group) {
+            ctx.expect_token(TokenKind::By)?;
+            loop {
+                self.parse_expression(ctx)?;
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+
+        // Parse optional HAVING clause
+        let having_clause = if ctx.match_token(TokenKind::Having) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
         Ok(ReturnClause {
             span,
             items,
@@ -106,6 +124,7 @@ impl ClauseParser {
             limit,
             skip,
             sample: None,
+            having_clause,
         })
     }
 

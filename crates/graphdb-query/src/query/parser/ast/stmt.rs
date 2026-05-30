@@ -714,6 +714,7 @@ pub struct ReturnClause {
     pub limit: Option<super::types::LimitClause>,
     pub skip: Option<super::types::SkipClause>,
     pub sample: Option<super::types::SampleClause>,
+    pub having_clause: Option<ContextualExpression>,
 }
 
 /// Return items

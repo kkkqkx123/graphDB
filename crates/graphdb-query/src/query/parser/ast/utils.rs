@@ -627,6 +627,7 @@ impl AstBuilder {
             limit: None,
             skip: None,
             sample: None,
+            having_clause: None,
         };
 
         StmtFactory::match_stmt(

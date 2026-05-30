@@ -2,8 +2,11 @@
 //!
 //! Responsible for planning the execution of the RETURN statement and implementing the projection of the results.
 
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::expression::ExpressionMeta;
 use crate::core::types::expr::expression_utils::generate_default_alias_from_contextual;
 use crate::core::types::operators::AggregateFunction;
+use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
@@ -18,6 +21,8 @@ use crate::query::QueryContext;
 use std::sync::Arc;
 
 pub use crate::query::planning::plan::core::PlanNodeEnum;
+
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 
 /// RETURN Statement Planner
 ///
@@ -59,6 +64,15 @@ fn extract_distinct_flag(stmt: &Stmt) -> bool {
         }
     }
     false
+}
+
+fn extract_having_clause(stmt: &Stmt) -> Option<crate::core::types::ContextualExpression> {
+    if let Stmt::Match(match_stmt) = stmt {
+        if let Some(return_clause) = &match_stmt.return_clause {
+            return return_clause.having_clause.clone();
+        }
+    }
+    None
 }
 
 fn extract_return_columns(stmt: &Stmt) -> Result<Vec<YieldColumn>, PlannerError> {
@@ -125,7 +139,7 @@ impl ClausePlanner for ReturnClausePlanner {
         if has_aggregate {
             let (group_keys, agg_functions, agg_aliases) = extract_aggregate_info(&yield_columns)?;
 
-            let project_columns: Vec<YieldColumn> = yield_columns
+            let mut project_columns: Vec<YieldColumn> = yield_columns
                 .iter()
                 .filter(|col| {
                     if let Some(expr_meta) = col.expression.expression() {
@@ -137,6 +151,30 @@ impl ClausePlanner for ReturnClausePlanner {
                 .cloned()
                 .collect();
 
+            // Also project the argument expressions from aggregate functions
+            // so they are available as input columns for the AggregateExecutor
+            let existing_aliases: Vec<String> = project_columns.iter().map(|pc| pc.alias.clone()).collect();
+            for col in &yield_columns {
+                if let Some(expr_meta) = col.expression.expression() {
+                    let inner = expr_meta.inner();
+                    if let Expression::Aggregate { arg, .. } = inner {
+                        let arg_expr_str = arg.to_expression_string();
+                        // Only add if not already projected (avoid duplicates)
+                        if !existing_aliases.contains(&arg_expr_str) {
+                            let ctx = col.expression.context();
+                            let meta = ExpressionMeta::new(arg.as_ref().clone());
+                            let id = ctx.register_expression(meta);
+                            let ctx_expr = ContextualExpression::new(id, ctx.clone());
+                            project_columns.push(YieldColumn {
+                                expression: ctx_expr,
+                                alias: arg_expr_str,
+                                is_matched: false,
+                            });
+                        }
+                    }
+                }
+            }
+
             let project_node = ProjectNode::new(input_node.clone(), project_columns)?;
             let project_plan = SubPlan::new(Some(project_node.into_enum()), input_plan.tail);
 
@@ -147,16 +185,26 @@ impl ClausePlanner for ReturnClausePlanner {
                 agg_aliases,
             )?;
 
-            let aggregate_enum = aggregate_node.into_enum();
+            let mut final_node: PlanNodeEnum = aggregate_node.into_enum();
 
-            let final_node = if self.distinct {
-                match DedupNode::new(aggregate_enum.clone()) {
-                    Ok(dedup) => dedup.into_enum(),
-                    Err(_) => aggregate_enum,
+            // Apply HAVING clause filter if present
+            if let Some(having_expr) = extract_having_clause(stmt) {
+                let filter_node =
+                    FilterNode::new(final_node.clone(), having_expr).map_err(|e| {
+                        PlannerError::PlanGenerationFailed(format!(
+                            "Failed to create FilterNode for HAVING: {}",
+                            e
+                        ))
+                    })?;
+                final_node = PlanNodeEnum::Filter(filter_node);
+            }
+
+            if self.distinct {
+                match DedupNode::new(final_node.clone()) {
+                    Ok(dedup) => final_node = dedup.into_enum(),
+                    Err(_) => {}
                 }
-            } else {
-                aggregate_enum
-            };
+            }
 
             Ok(SubPlan::new(Some(final_node), project_plan.tail))
         } else {
@@ -270,6 +318,7 @@ mod tests {
                 limit: None,
                 skip: None,
                 sample: None,
+                having_clause: None,
             }),
             order_by: None,
             limit: None,
@@ -305,6 +354,7 @@ mod tests {
                 limit: None,
                 skip: None,
                 sample: None,
+                having_clause: None,
             }),
             order_by: None,
             limit: None,
@@ -332,6 +382,7 @@ mod tests {
                 limit: None,
                 skip: None,
                 sample: None,
+                having_clause: None,
             }),
             order_by: None,
             limit: None,
@@ -398,6 +449,7 @@ mod tests {
                 limit: None,
                 skip: None,
                 sample: None,
+                having_clause: None,
             }),
             order_by: None,
             limit: None,
@@ -460,6 +512,7 @@ mod tests {
                 limit: None,
                 skip: None,
                 sample: None,
+                having_clause: None,
             }),
             order_by: None,
             limit: None,
@@ -521,6 +574,7 @@ mod tests {
                 limit: None,
                 skip: None,
                 sample: None,
+                having_clause: None,
             }),
             order_by: None,
             limit: None,

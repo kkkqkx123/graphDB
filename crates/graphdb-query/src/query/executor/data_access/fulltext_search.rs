@@ -748,7 +748,7 @@ impl<S: StorageClient> HasStorage<S> for FulltextScanExecutor<S> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "fulltext-search"))]
 mod tests {
     use super::*;
     use crate::storage::test_mock::MockStorage;

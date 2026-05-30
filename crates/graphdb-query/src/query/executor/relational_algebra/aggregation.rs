@@ -285,7 +285,13 @@ impl<S: StorageClient> AggregateExecutor<S> {
         };
 
         match input_result {
-            ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset),
+            ExecutionResult::DataSet(dataset) => {
+                eprintln!("[DEBUG] AggregateExecutor::process_input: input col_names={:?}, rows={}", dataset.col_names, dataset.rows.len());
+                for (i, row) in dataset.rows.iter().enumerate() {
+                    eprintln!("[DEBUG] AggregateExecutor input row {}: {:?}", i, row);
+                }
+                self.aggregate_dataset(dataset)
+            }
             ExecutionResult::Empty
             | ExecutionResult::Success
             | ExecutionResult::SpaceSwitched(_) => {
@@ -810,6 +816,11 @@ impl<S: StorageClient> AggregateExecutor<S> {
             }
 
             result_dataset.rows.push(result_row);
+        }
+
+        eprintln!("[DEBUG] AggregateExecutor::build_result_dataset: col_names={:?}, rows={}", result_dataset.col_names, result_dataset.rows.len());
+        for (i, row) in result_dataset.rows.iter().enumerate() {
+            eprintln!("[DEBUG] AggregateExecutor row {}: {:?}", i, row);
         }
 
         Ok(result_dataset)

@@ -161,6 +161,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -262,6 +263,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Create an executor using attribute weights.
@@ -290,6 +292,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Create an executor using “ranking” as a weight.
@@ -319,6 +322,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -426,6 +430,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Using the A* algorithm, with a space-heuristic approach
@@ -458,6 +463,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Use the A* algorithm, but without any heuristic methods (which reduces it to the Dijkstra algorithm).
@@ -487,6 +493,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Using the A* algorithm with a fixed scaling factor as a heuristic approach
@@ -517,6 +524,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Testing the Dijkstra algorithm using attribute weights
@@ -551,6 +559,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Create an executor with weights, and verify the automatic selection of the Dijkstra algorithm.
@@ -588,6 +597,7 @@ mod tests {
             start_vertex_ids: vec![VertexId::from("A")],
             direction: EdgeDirection::Out,
             edge_types: None,
+            space_name: String::new(),
         };
 
         // Create an executor without any weights, and verify its functionality using the BFS (Breadth-First Search) algorithm.

@@ -616,6 +616,7 @@ mod tests {
             direction: EdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
+            space_name: String::new(),
         };
 
         let base_config = ExecutorConfig::new(1, storage, expr_context);
