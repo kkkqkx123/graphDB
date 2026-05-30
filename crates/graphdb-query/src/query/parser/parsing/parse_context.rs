@@ -241,6 +241,22 @@ impl<'a> ParseContext<'a> {
                 self.next_token();
                 Ok("tag".to_string())
             }
+            TokenKind::Path => {
+                self.next_token();
+                Ok("path".to_string())
+            }
+            TokenKind::Vertex => {
+                self.next_token();
+                Ok("vertex".to_string())
+            }
+            TokenKind::Vertices => {
+                self.next_token();
+                Ok("vertices".to_string())
+            }
+            TokenKind::Edges => {
+                self.next_token();
+                Ok("edges".to_string())
+            }
             _ => {
                 let pos = self.current_position();
                 Err(ParseError::new(
@@ -336,6 +352,12 @@ impl<'a> ParseContext<'a> {
                 | TokenKind::Order
                 | TokenKind::Status
                 | TokenKind::Contains
+                | TokenKind::Tag
+                | TokenKind::Tags
+                | TokenKind::Path
+                | TokenKind::Vertex
+                | TokenKind::Vertices
+                | TokenKind::Edges
         )
     }
 

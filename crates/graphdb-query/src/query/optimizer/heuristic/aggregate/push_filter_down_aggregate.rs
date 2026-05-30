@@ -52,8 +52,9 @@ impl PushFilterDownAggregateRule {
 
     /// Check whether the condition contains references to aggregate functions.
     ///
-    /// 如果条件引用了聚合函数的结果（如 COUNT(*), SUM(amount) 等），
-    /// Therefore, the Filter cannot be applied “downstream” (to subsequent processing steps), because the aggregated results do not exist before the aggregation process is completed.
+    /// If the condition references the result of an aggregate function (e.g., COUNT(*), SUM(amount)),
+    /// the filter cannot be applied "downstream" (to subsequent processing steps), because these
+    /// aggregated results do not exist until the aggregation process is completed.
     fn has_aggregate_function_reference(
         condition: &Expression,
         group_keys: &[String],

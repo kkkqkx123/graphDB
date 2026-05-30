@@ -474,7 +474,11 @@ impl<'a> ExprParser<'a> {
             | TokenKind::Status
             | TokenKind::Contains
             | TokenKind::Tag
-            | TokenKind::Tags => {
+            | TokenKind::Tags
+            | TokenKind::Path
+            | TokenKind::Vertex
+            | TokenKind::Vertices
+            | TokenKind::Edges => {
                 let name = token.lexeme.clone();
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
