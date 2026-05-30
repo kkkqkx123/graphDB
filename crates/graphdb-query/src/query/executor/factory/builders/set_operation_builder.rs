@@ -8,6 +8,7 @@ use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::relational_algebra::set_operations::{
     IntersectExecutor, MinusExecutor, UnionExecutor,
 };
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::{IntersectNode, MinusNode, UnionNode};
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
@@ -33,19 +34,26 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The UnionExecutor requires left_input_var and right_input_var.
-        // Use `output_var` or generate a default value.
+        // The left var must match how the engine stores the left child's result:
+        // children[0].output_var() or left_{plan_node.id()}
         let left_var = node
+            .input()
             .output_var()
             .map(|v| v.to_string())
             .unwrap_or_else(|| format!("left_{}", node.id()));
-        let right_var = format!("right_{}", node.id());
+        let right_var = node
+            .union_input()
+            .output_var()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("right_{}", node.id()));
 
-        let executor = UnionExecutor::new(
+        let executor = UnionExecutor::with_context(
             node.id(),
             storage,
             left_var,
             right_var,
-            context.expression_context().clone(),
+            node.distinct(),
+            context.clone(),
         );
         Ok(ExecutorEnum::Union(executor))
     }
@@ -57,18 +65,25 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The `MinusExecutor` requires `left_input_var` and `right_input_var`.
+        // The left var must match how the engine stores the left child's result:
+        // children[0].output_var() or left_{plan_node.id()}
         let left_var = node
+            .input()
             .output_var()
             .map(|v| v.to_string())
             .unwrap_or_else(|| format!("left_{}", node.id()));
-        let right_var = format!("right_{}", node.id());
+        let right_var = node
+            .minus_input()
+            .output_var()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("right_{}", node.id()));
 
-        let executor = MinusExecutor::new(
+        let executor = MinusExecutor::with_context(
             node.id(),
             storage,
             left_var,
             right_var,
-            context.expression_context().clone(),
+            context.clone(),
         );
         Ok(ExecutorEnum::Minus(executor))
     }
@@ -80,18 +95,25 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // The IntersectExecutor requires the left_input_var and right_input_var parameters.
+        // The left var must match how the engine stores the left child's result:
+        // children[0].output_var() or left_{plan_node.id()}
         let left_var = node
+            .input()
             .output_var()
             .map(|v| v.to_string())
             .unwrap_or_else(|| format!("left_{}", node.id()));
-        let right_var = format!("right_{}", node.id());
+        let right_var = node
+            .intersect_input()
+            .output_var()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("right_{}", node.id()));
 
-        let executor = IntersectExecutor::new(
+        let executor = IntersectExecutor::with_context(
             node.id(),
             storage,
             left_var,
             right_var,
-            context.expression_context().clone(),
+            context.clone(),
         );
         Ok(ExecutorEnum::Intersect(executor))
     }

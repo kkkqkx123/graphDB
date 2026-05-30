@@ -100,13 +100,13 @@ impl SetOperationPlanner {
 
         let final_node = match set_op_stmt.op_type {
             SetOperationType::Union => {
-                let union_node = UnionNode::new(left_root, true).map_err(|e| {
+                let union_node = UnionNode::new(left_root, right_root, true).map_err(|e| {
                     PlannerError::PlanGenerationFailed(format!("Failed to create UnionNode: {}", e))
                 })?;
                 PlanNodeEnum::Union(union_node)
             }
             SetOperationType::UnionAll => {
-                let union_node = UnionNode::new(left_root, false).map_err(|e| {
+                let union_node = UnionNode::new(left_root, right_root, false).map_err(|e| {
                     PlannerError::PlanGenerationFailed(format!("Failed to create UnionNode: {}", e))
                 })?;
                 PlanNodeEnum::Union(union_node)

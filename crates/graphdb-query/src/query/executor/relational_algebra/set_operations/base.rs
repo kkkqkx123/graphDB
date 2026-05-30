@@ -43,6 +43,23 @@ impl<S: StorageClient> SetExecutor<S> {
         }
     }
 
+    /// Create a new set operation executor with a shared execution context.
+    pub fn with_context(
+        id: i64,
+        name: String,
+        storage: Arc<RwLock<S>>,
+        left_input_var: String,
+        right_input_var: String,
+        context: crate::query::executor::base::ExecutionContext,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::with_context(id, name, storage, context),
+            left_input_var,
+            right_input_var,
+            col_names: Vec::new(),
+        }
+    }
+
     /// Obtain a variable reference to the internal base executor.
     pub fn base_mut(&mut self) -> &mut BaseExecutor<S> {
         &mut self.base

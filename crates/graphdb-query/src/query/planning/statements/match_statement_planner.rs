@@ -1323,7 +1323,7 @@ impl MatchStatementPlanner {
             None => return Ok(right),
         };
 
-        let _right_root = match right.root {
+        let right_root = match right.root {
             Some(ref r) => r,
             None => return Ok(left),
         };
@@ -1331,6 +1331,7 @@ impl MatchStatementPlanner {
         // Create an union node to remove duplicates.
         let union_node = UnionNode::new(
             left_root.clone(),
+            right_root.clone(),
             true, // `distinct = true` – to remove duplicates.
         )
         .map_err(|e| {

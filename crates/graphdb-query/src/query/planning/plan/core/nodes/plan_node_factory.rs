@@ -238,9 +238,10 @@ impl PlanNodeFactory {
     /// Create a joint node.
     pub fn create_union(
         input: PlanNodeEnum,
+        union_input: PlanNodeEnum,
         distinct: bool,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
-        let union_node = UnionNode::new(input, distinct)?;
+        let union_node = UnionNode::new(input, union_input, distinct)?;
         Ok(PlanNodeEnum::Union(union_node))
     }
 

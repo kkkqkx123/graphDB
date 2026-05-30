@@ -15,11 +15,13 @@ use super::base::SetExecutor;
 
 /// Union Executor
 ///
-/// Implement the UNION operation to merge two datasets and remove duplicate rows.
-/// Something similar to the SQL UNION command (but not UNION ALL).
+/// Implement the UNION operation to merge two datasets.
+/// When `distinct` is true, duplicate rows are removed (SQL UNION).
+/// When `distinct` is false, all rows are kept (SQL UNION ALL).
 #[derive(Debug)]
 pub struct UnionExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
+    pub distinct: bool,
 }
 
 impl<S: StorageClient> UnionExecutor<S> {
@@ -29,6 +31,7 @@ impl<S: StorageClient> UnionExecutor<S> {
         storage: Arc<RwLock<S>>,
         left_input_var: String,
         right_input_var: String,
+        distinct: bool,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -40,6 +43,29 @@ impl<S: StorageClient> UnionExecutor<S> {
                 right_input_var,
                 expr_context,
             ),
+            distinct,
+        }
+    }
+
+    /// Create a new Union executor with a shared execution context.
+    pub fn with_context(
+        id: i64,
+        storage: Arc<RwLock<S>>,
+        left_input_var: String,
+        right_input_var: String,
+        distinct: bool,
+        context: crate::query::executor::base::ExecutionContext,
+    ) -> Self {
+        Self {
+            set_executor: SetExecutor::with_context(
+                id,
+                "UnionExecutor".to_string(),
+                storage,
+                left_input_var,
+                right_input_var,
+                context,
+            ),
+            distinct,
         }
     }
 
@@ -49,6 +75,7 @@ impl<S: StorageClient> UnionExecutor<S> {
     /// 1. Obtain the two input datasets on the left and right sides.
     /// 2. Verify whether the column names are consistent.
     /// 3. Merge all rows from the two datasets.
+    /// 4. Remove duplicate rows if `distinct` is true (UNION).
     fn execute_union(&mut self) -> Result<DataSet, QueryError> {
         // Obtaining the left and right input datasets
         let left_dataset = self.set_executor.get_left_input_data()?;
@@ -61,13 +88,17 @@ impl<S: StorageClient> UnionExecutor<S> {
         // Merge two datasets
         let combined_dataset = SetExecutor::<S>::concat_datasets(left_dataset, right_dataset);
 
-        // Remove duplicate rows.
-        let deduped_rows = SetExecutor::<S>::dedup_rows(combined_dataset.rows);
+        // Remove duplicate rows only for UNION (not UNION ALL).
+        let rows = if self.distinct {
+            SetExecutor::<S>::dedup_rows(combined_dataset.rows)
+        } else {
+            combined_dataset.rows
+        };
 
         // Constructing the resulting dataset
         let result_dataset = DataSet {
             col_names: self.set_executor.get_col_names().clone(),
-            rows: deduped_rows,
+            rows,
         };
 
         Ok(result_dataset)
@@ -139,6 +170,7 @@ mod tests {
             storage,
             "left_input".to_string(),
             "right_input".to_string(),
+            true,
             expr_context,
         );
 
@@ -192,6 +224,7 @@ mod tests {
             storage,
             "empty_left".to_string(),
             "empty_right".to_string(),
+            true,
             expr_context,
         );
 
@@ -234,6 +267,7 @@ mod tests {
             storage,
             "left_mismatch".to_string(),
             "right_mismatch".to_string(),
+            true,
             expr_context,
         );
 

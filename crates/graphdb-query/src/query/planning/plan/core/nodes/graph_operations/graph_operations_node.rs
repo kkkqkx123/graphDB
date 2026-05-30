@@ -18,6 +18,7 @@ define_plan_node_with_deps! {
 impl UnionNode {
     pub fn new(
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        union_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         distinct: bool,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -25,7 +26,7 @@ impl UnionNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![input],
+            deps: vec![input, union_input],
             distinct,
             output_var: None,
             col_names,
@@ -34,6 +35,12 @@ impl UnionNode {
 
     pub fn distinct(&self) -> bool {
         self.distinct
+    }
+
+    pub fn union_input(
+        &self,
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        &self.deps[1]
     }
 }
 
@@ -797,12 +804,16 @@ mod tests {
             crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
                 StartNode::new(),
             );
+        let start_node2 =
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
         let union_node =
-            UnionNode::new(start_node, true).expect("Union node should be created successfully");
+            UnionNode::new(start_node, start_node2, true).expect("Union node should be created successfully");
 
         assert_eq!(union_node.type_name(), "UnionNode");
-        assert_eq!(union_node.dependencies().len(), 1);
+        assert_eq!(union_node.dependencies().len(), 2);
         assert!(union_node.distinct());
     }
 

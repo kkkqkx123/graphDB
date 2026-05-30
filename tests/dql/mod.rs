@@ -9,6 +9,7 @@
 //! - Subquery - WITH, UNWIND
 //! - FIND PATH - Path finding
 //! - SUBGRAPH - Subgraph retrieval
+//! - Set Operations - UNION, INTERSECT, MINUS
 //! - Optimizer - Query plan optimization tests
 
 mod aggregation;
@@ -19,5 +20,6 @@ mod go;
 mod lookup;
 mod match_query;
 mod optimizer;
+mod set_operations;
 mod subgraph;
 mod subquery;

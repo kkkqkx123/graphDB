@@ -43,6 +43,26 @@ impl<S: StorageClient> MinusExecutor<S> {
         }
     }
 
+    /// Create a new Minus executor with a shared execution context.
+    pub fn with_context(
+        id: i64,
+        storage: Arc<RwLock<S>>,
+        left_input_var: String,
+        right_input_var: String,
+        context: crate::query::executor::base::ExecutionContext,
+    ) -> Self {
+        Self {
+            set_executor: SetExecutor::with_context(
+                id,
+                "MinusExecutor".to_string(),
+                storage,
+                left_input_var,
+                right_input_var,
+                context,
+            ),
+        }
+    }
+
     /// Perform the MINUS operation
     ///
     /// Algorithm steps:

@@ -5,6 +5,9 @@
 //! - MATCH with WHERE clause
 //! - MATCH with RETURN
 //! - MATCH with multiple patterns
+//! - OPTIONAL MATCH
+//! - MATCH with complex WHERE conditions
+//! - MATCH with DISTINCT
 
 use super::common;
 
@@ -328,4 +331,103 @@ fn test_match_invalid_pattern() {
         .setup_space("test_space")
         .query("MATCH (a)-[r]-> RETURN a")
         .assert_error();
+}
+
+// ==================== OPTIONAL MATCH Tests ====================
+
+#[test]
+fn test_optional_match_parser() {
+    let query = "OPTIONAL MATCH (v:Person) RETURN v";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "OPTIONAL MATCH parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_optional_match_edge_parser() {
+    let query = "OPTIONAL MATCH (a:Person)-[r:KNOWS]->(b:Person) RETURN a, b";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "OPTIONAL MATCH with edge parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_optional_match_where_parser() {
+    let query = "OPTIONAL MATCH (v:Person) WHERE v.age > 25 RETURN v";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "OPTIONAL MATCH with WHERE parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+// ==================== Complex WHERE Tests ====================
+
+#[test]
+fn test_match_where_and_or_parser() {
+    let query = "MATCH (v:Person) WHERE v.age > 25 AND v.city == 'NYC' RETURN v";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH with AND/OR parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_distinct_parser() {
+    let query = "MATCH (v:Person) RETURN DISTINCT v.city";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH with DISTINCT parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+// ==================== OPTIONAL MATCH Execution Tests ====================
+
+#[test]
+fn test_optional_match_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .assert_success()
+        .query("OPTIONAL MATCH (v:Person) RETURN v.name")
+        .assert_success()
+        .assert_result_count(2);
+}
+
+#[test]
+fn test_optional_match_execution_with_edge() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')")
+        .assert_success()
+        .query("OPTIONAL MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN a.name, b.name")
+        .assert_success()
+        .assert_result_count(1);
 }
