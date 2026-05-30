@@ -11,7 +11,7 @@
 use super::encoding::{
     ColumnEncoding, ColumnStats, CompressionSelector, EncodingType, FsstColumn, FsstEncoder,
 };
-use crate::core::value::DateValue;
+use crate::core::value::{DateValue, DateTimeValue, TimeValue};
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::utils::NullBitmap;
 use bitvec::prelude::*;
@@ -68,6 +68,7 @@ pub fn element_size(data_type: &DataType) -> usize {
         DataType::Double => 8,
         DataType::Date => 12,
         DataType::Time => 8,
+        DataType::DateTime | DataType::Timestamp => 28,
         DataType::Uuid => 16,
         _ => 0,
     }
@@ -75,7 +76,7 @@ pub fn element_size(data_type: &DataType) -> usize {
 
 /// Returns true if the data type is variable-length.
 pub fn is_variable_length_type(data_type: &DataType) -> bool {
-    matches!(data_type, DataType::String | DataType::Geography | DataType::DateTime | DataType::Timestamp | DataType::List | DataType::Map | DataType::Set | DataType::Vertex | DataType::Edge | DataType::Path | DataType::Vector | DataType::DataSet | DataType::Json | DataType::JsonB | DataType::Interval | DataType::Null)
+    matches!(data_type, DataType::String | DataType::Geography | DataType::List | DataType::Map | DataType::Set | DataType::Vertex | DataType::Edge | DataType::Path | DataType::Vector | DataType::DataSet | DataType::Json | DataType::JsonB | DataType::Interval | DataType::Null)
 }
 
 // ---------------------------------------------------------------------------
@@ -577,6 +578,8 @@ fn write_fixed_value(
         Value::Float(_) => 4,
         Value::Double(_) => 8,
         Value::Date(_) => 12,
+        Value::Time(_) => 8,
+        Value::DateTime(_) => 28,
         _ => {
             return Err(StorageError::type_mismatch(
                 value.data_type(),
@@ -615,6 +618,22 @@ fn write_fixed_value(
             data[offset..offset + 4].copy_from_slice(&d.year.to_le_bytes());
             data[offset + 4..offset + 8].copy_from_slice(&d.month.to_le_bytes());
             data[offset + 8..offset + 12].copy_from_slice(&d.day.to_le_bytes());
+        }
+        Value::Time(t) => {
+            let micros = t.hour as u64 * 3_600_000_000
+                + t.minute as u64 * 60_000_000
+                + t.sec as u64 * 1_000_000
+                + t.microsec as u64;
+            data[offset..offset + 8].copy_from_slice(&micros.to_le_bytes());
+        }
+        Value::DateTime(dt) => {
+            data[offset..offset + 4].copy_from_slice(&dt.year.to_le_bytes());
+            data[offset + 4..offset + 8].copy_from_slice(&dt.month.to_le_bytes());
+            data[offset + 8..offset + 12].copy_from_slice(&dt.day.to_le_bytes());
+            data[offset + 12..offset + 16].copy_from_slice(&dt.hour.to_le_bytes());
+            data[offset + 16..offset + 20].copy_from_slice(&dt.minute.to_le_bytes());
+            data[offset + 20..offset + 24].copy_from_slice(&dt.sec.to_le_bytes());
+            data[offset + 24..offset + 28].copy_from_slice(&dt.microsec.to_le_bytes());
         }
         _ => {
             return Err(StorageError::type_mismatch(
@@ -673,6 +692,24 @@ fn read_fixed_value(data: &[u8], offset: usize, element_size: usize) -> Option<V
                 day: u32::from_le_bytes(day_bytes),
             }))
         }
+        28 => {
+            let year_bytes: [u8; 4] = data[offset..offset + 4].try_into().ok()?;
+            let month_bytes: [u8; 4] = data[offset + 4..offset + 8].try_into().ok()?;
+            let day_bytes: [u8; 4] = data[offset + 8..offset + 12].try_into().ok()?;
+            let hour_bytes: [u8; 4] = data[offset + 12..offset + 16].try_into().ok()?;
+            let minute_bytes: [u8; 4] = data[offset + 16..offset + 20].try_into().ok()?;
+            let sec_bytes: [u8; 4] = data[offset + 20..offset + 24].try_into().ok()?;
+            let microsec_bytes: [u8; 4] = data[offset + 24..offset + 28].try_into().ok()?;
+            Some(Value::DateTime(DateTimeValue {
+                year: i32::from_le_bytes(year_bytes),
+                month: u32::from_le_bytes(month_bytes),
+                day: u32::from_le_bytes(day_bytes),
+                hour: u32::from_le_bytes(hour_bytes),
+                minute: u32::from_le_bytes(minute_bytes),
+                sec: u32::from_le_bytes(sec_bytes),
+                microsec: u32::from_le_bytes(microsec_bytes),
+            }))
+        }
         _ => None,
     }
 }
@@ -684,6 +721,16 @@ fn convert_to_type(raw: Value, data_type: &DataType) -> Value {
         (DataType::Double, Value::BigInt(n)) => Value::Double(f64::from_bits(*n as u64)),
         (DataType::Float, Value::Int(n)) => Value::Float(f32::from_bits(*n as u32)),
         (DataType::Float, Value::BigInt(n)) => Value::Float(f32::from_bits(*n as u32)),
+        (DataType::Time, Value::BigInt(n)) => {
+            let micros = *n as u64;
+            let hour = (micros / 3_600_000_000) as u32;
+            let rem = micros % 3_600_000_000;
+            let minute = (rem / 60_000_000) as u32;
+            let rem = rem % 60_000_000;
+            let sec = (rem / 1_000_000) as u32;
+            let microsec = (rem % 1_000_000) as u32;
+            Value::Time(TimeValue { hour, minute, sec, microsec })
+        }
         _ => raw,
     }
 }

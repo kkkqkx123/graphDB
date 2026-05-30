@@ -3,10 +3,14 @@
 //! Test coverage:
 //! - INSERT VERTEX - Insert vertex data
 //! - INSERT VERTEX IF NOT EXISTS
+//! - INSERT vertex with all supported data types
+//! - INSERT vertex with NULL values
+//! - INSERT vertex without specifying properties
 
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::value::date_time::{DateValue, DateTimeValue};
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use std::collections::HashMap;
@@ -199,4 +203,217 @@ fn test_insert_vertex_with_all_types() {
             map.insert("bool_field", Value::Bool(true));
             map
         });
+}
+
+// ==================== Extended Data Types Tests ====================
+
+#[test]
+fn test_insert_vertex_with_date_type() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl(
+            r#"
+            CREATE TAG DateTypes(
+                date_field DATE
+            )
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX DateTypes(date_field) 
+            VALUES 1:('2024-06-15')
+        "#,
+        )
+        .assert_success()
+        .assert_vertex_props(1, "DateTypes", {
+            let mut map = HashMap::new();
+            map.insert("date_field", Value::Date(DateValue { year: 2024, month: 6, day: 15 }));
+            map
+        });
+}
+
+#[test]
+fn test_insert_vertex_with_date_alternative_formats() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG AltDate(d DATE)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX AltDate(d) VALUES 1:('2024/06/15')")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "AltDate",
+            HashMap::from([("d", Value::Date(DateValue { year: 2024, month: 6, day: 15 }))]),
+        );
+}
+
+#[test]
+fn test_insert_vertex_with_datetime_type() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl(
+            r#"
+            CREATE TAG DTTest(
+                dt_field DATETIME
+            )
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX DTTest(dt_field) 
+            VALUES 1:('2024-06-15 10:30:45')
+        "#,
+        )
+        .assert_success()
+        .assert_vertex_props(1, "DTTest", {
+            let mut map = HashMap::new();
+            map.insert("dt_field", Value::DateTime(DateTimeValue {
+                year: 2024,
+                month: 6,
+                day: 15,
+                hour: 10,
+                minute: 30,
+                sec: 45,
+                microsec: 0,
+            }));
+            map
+        });
+}
+
+// ==================== Numeric Types Tests ====================
+
+#[test]
+fn test_insert_vertex_with_numeric_types() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl(
+            r#"
+            CREATE TAG NumericTypes(
+                int_field INT,
+                float_field FLOAT
+            )
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX NumericTypes(int_field, float_field) 
+            VALUES 1:(100, 3.14)
+        "#,
+        )
+        .assert_success()
+        .assert_vertex_props(1, "NumericTypes", {
+            let mut map = HashMap::new();
+            map.insert("int_field", Value::Int(100));
+            map.insert("float_field", Value::Float(3.14));
+            map
+        });
+}
+
+// ==================== NULL Values Tests ====================
+
+#[test]
+fn test_insert_vertex_with_null_values() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl(
+            r#"
+            CREATE TAG NullableTypes(
+                name STRING,
+                age INT NULL,
+                email STRING NULL
+            )
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX NullableTypes(name, age, email) 
+            VALUES 1:('Alice', NULL, 'alice@example.com')
+        "#,
+        )
+        .assert_success()
+        .assert_vertex_exists(1, "NullableTypes");
+}
+
+#[test]
+fn test_insert_vertex_with_partial_properties() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl(
+            r#"
+            CREATE TAG PartialFields(
+                name STRING,
+                age INT NULL,
+                email STRING NULL
+            )
+        "#,
+        )
+        .assert_success()
+        .exec_dml(
+            r#"
+            INSERT VERTEX PartialFields(name) 
+            VALUES 1:('Bob')
+        "#,
+        )
+        .assert_success()
+        .assert_vertex_exists(1, "PartialFields")
+        .assert_vertex_props(
+            1,
+            "PartialFields",
+            HashMap::from([("name", Value::String("Bob".into()))]),
+        );
+}
+
+// ==================== FIXED_STRING Type Tests ====================
+
+#[test]
+fn test_insert_vertex_with_fixed_string() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG FixedStr(code STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX FixedStr(code) VALUES 1:('ABC123')")
+        .assert_success()
+        .assert_vertex_exists(1, "FixedStr");
+}
+
+// ==================== GEOGRAPHY Type Tests ====================
+
+#[test]
+fn test_insert_vertex_with_geography_type() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG GeoTypes(geo_field GEOGRAPHY)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX GeoTypes(geo_field) VALUES 1:(NULL)")
+        .assert_success()
+        .assert_vertex_exists(1, "GeoTypes");
+}
+
+#[test]
+fn test_insert_vertex_with_geography_and_other_fields() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Place(name STRING, location GEOGRAPHY)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Place(name, location) VALUES 1:('Beijing', NULL)")
+        .assert_success()
+        .assert_vertex_exists(1, "Place")
+        .assert_vertex_props(
+            1,
+            "Place",
+            HashMap::from([("name", Value::String("Beijing".into()))]),
+        );
 }

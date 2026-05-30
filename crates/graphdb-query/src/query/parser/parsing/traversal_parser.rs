@@ -86,8 +86,40 @@ impl TraversalParser {
             let vertex_ids = self.parse_expression_list(ctx)?;
             MatchDeleteTarget::Vertices(vertex_ids)
         } else if ctx.match_token(TokenKind::Edge) {
-            let edge_refs = self.parse_expression_list(ctx)?;
-            MatchDeleteTarget::Edges(edge_refs)
+            // Two sub-syntaxes:
+            // 1) Edge variable: DELETE EDGE e [, e2, ...]
+            // 2) Edge refs:     DELETE EDGE a -> b [@rank] [, a2 -> b2 @rank2, ...]
+            // Disambiguate: parse first expression, then check for Arrow token
+            let first_expr = self.parse_expression(ctx)?;
+            let target = if ctx.check_token(TokenKind::Arrow) {
+                // Syntax 2: a -> b [@rank] [, ...]
+                let mut edge_refs = Vec::new();
+                let mut current_src = first_expr;
+                loop {
+                    ctx.expect_token(TokenKind::Arrow)?;
+                    let dst = self.parse_expression(ctx)?;
+                    let rank = if ctx.match_token(TokenKind::At) {
+                        Some(self.parse_expression(ctx)?)
+                    } else {
+                        None
+                    };
+                    edge_refs.push((current_src, dst, rank));
+                    if ctx.match_token(TokenKind::Comma) {
+                        current_src = self.parse_expression(ctx)?;
+                    } else {
+                        break;
+                    }
+                }
+                MatchDeleteTarget::EdgeRefs(edge_refs)
+            } else {
+                // Syntax 1: edge variable e [, e2, ...]
+                let mut edge_refs = vec![first_expr];
+                while ctx.match_token(TokenKind::Comma) {
+                    edge_refs.push(self.parse_expression(ctx)?);
+                }
+                MatchDeleteTarget::Edges(edge_refs)
+            };
+            target
         } else {
             return Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,

@@ -10,6 +10,7 @@
 
 mod batch_operations;
 mod common;
+mod constraints;
 mod delete;
 mod insert_edge;
 mod insert_vertex;

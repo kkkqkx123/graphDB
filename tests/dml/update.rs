@@ -8,7 +8,9 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::Value;
 use graphdb::query::parser::Parser;
+use std::collections::HashMap;
 
 // ==================== UPDATE VERTEX Parser Tests ====================
 
@@ -212,4 +214,212 @@ fn test_update_nonexistent_property() {
         .assert_success()
         .exec_dml("UPDATE 1 SET nonexistent = 'value'")
         .assert_error();
+}
+
+// ==================== UPDATE Arithmetic Expression Tests ====================
+
+#[test]
+fn test_update_arithmetic_add() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Counter(val INT)")
+        .exec_dml("INSERT VERTEX Counter(val) VALUES 1:(10)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET val = val + 5")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Counter",
+            HashMap::from([("val", Value::Int(15))]),
+        );
+}
+
+#[test]
+fn test_update_arithmetic_subtract() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Counter(val INT)")
+        .exec_dml("INSERT VERTEX Counter(val) VALUES 1:(10)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET val = val - 3")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Counter",
+            HashMap::from([("val", Value::Int(7))]),
+        );
+}
+
+#[test]
+fn test_update_arithmetic_multiply() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Counter(val INT)")
+        .exec_dml("INSERT VERTEX Counter(val) VALUES 1:(10)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET val = val * 2")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Counter",
+            HashMap::from([("val", Value::Int(20))]),
+        );
+}
+
+#[test]
+fn test_update_arithmetic_divide() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Counter(val DOUBLE)")
+        .exec_dml("INSERT VERTEX Counter(val) VALUES 1:(10.0)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET val = val / 3")
+        .assert_success();
+}
+
+#[test]
+fn test_update_double_decrement() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Counter(val INT)")
+        .exec_dml("INSERT VERTEX Counter(val) VALUES 1:(5)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET val = val - 1")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Counter",
+            HashMap::from([("val", Value::Int(4))]),
+        )
+        .exec_dml("UPDATE 1 SET val = val - 1")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Counter",
+            HashMap::from([("val", Value::Int(3))]),
+        );
+}
+
+#[test]
+fn test_update_arithmetic_multiple_fields() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Counter(a INT, b INT, total INT)")
+        .exec_dml("INSERT VERTEX Counter(a, b, total) VALUES 1:(3, 7, 0)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET total = a + b")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Counter",
+            HashMap::from([
+                ("a", Value::Int(3)),
+                ("b", Value::Int(7)),
+                ("total", Value::Int(10)),
+            ]),
+        );
+}
+
+#[test]
+fn test_update_arithmetic_chain() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Calc(val INT)")
+        .exec_dml("INSERT VERTEX Calc(val) VALUES 1:(2)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET val = val * 2 + 1")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Calc",
+            HashMap::from([("val", Value::Int(5))]),
+        );
+}
+
+// ==================== UPDATE to NULL Tests ====================
+
+#[test]
+fn test_update_property_to_null() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET age = NULL")
+        .assert_success();
+}
+
+// ==================== UPDATE WHEN False Tests ====================
+
+#[test]
+fn test_update_when_false_condition() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET age = 99 WHEN age > 100")
+        .assert_success()
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([("age", Value::Int(30))]),
+        );
+}
+
+// ==================== UPDATE EDGE with Rank Tests ====================
+
+#[test]
+fn test_update_edge_ranked() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2 @0:('2020-01-01', 0.5)")
+        .assert_success()
+        .exec_dml("UPDATE 1 -> 2 OF KNOWS SET strength = 0.9")
+        .assert_success()
+        .query("FETCH PROP ON KNOWS 1 -> 2")
+        .assert_vertex_or_edge_has_property("strength", Value::Double(0.9));
+}
+
+// ==================== UPDATE YIELD Verification Tests ====================
+
+#[test]
+fn test_update_yield_parser() {
+    let query = "UPDATE 1 SET name = 'Bob' YIELD name, age";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "UPDATE with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("UPDATE statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
+}
+
+#[test]
+fn test_update_yield_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .exec_dml("UPDATE 1 SET name = 'Bob', age = 35 YIELD name, age")
+        .assert_success();
 }

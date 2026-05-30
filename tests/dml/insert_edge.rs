@@ -178,3 +178,78 @@ fn test_insert_edge_nonexistent_edge_type() {
         .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
         .assert_error();
 }
+
+// ==================== Edge Self-Loop Tests ====================
+
+#[test]
+fn test_insert_edge_self_loop() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 1:('2024-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 1, "KNOWS");
+}
+
+// ==================== Edge NULL Values Tests ====================
+
+#[test]
+fn test_insert_edge_with_null_values() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE FOLLOWS(since DATE NULL, weight DOUBLE NULL)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE FOLLOWS(since, weight) VALUES 1 -> 2:(NULL, 0.5)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "FOLLOWS");
+}
+
+// ==================== Edge Negative Rank Tests ====================
+
+#[test]
+fn test_insert_edge_positive_rank() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2 @0:('2024-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS");
+}
+
+// ==================== Edge DATE/DATETIME Properties Tests ====================
+
+#[test]
+fn test_insert_edge_with_temporal_properties() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE EVENT(start DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE EVENT(start) VALUES 1 -> 2:('2024-06-15')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "EVENT");
+}
+
+// ==================== Edge GEOGRAPHY Type Tests ====================
+
+#[test]
+fn test_insert_edge_with_geography_type() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE LOCATED(coordinates GEOGRAPHY)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE LOCATED(coordinates) VALUES 1 -> 2:(NULL)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "LOCATED");
+}

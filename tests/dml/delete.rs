@@ -325,6 +325,92 @@ fn test_pipe_delete_edge_execution() {
         .assert_vertex_exists(3, "Person");
 }
 
+// ==================== MATCH...DELETE EDGE a -> b Tests ====================
+
+#[test]
+fn test_match_delete_edge_ref_parser() {
+    let query = r#"MATCH (a:Person)-[e:KNOWS]->(b:Person) DELETE EDGE a -> b"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH...DELETE EDGE a -> b parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_delete_edge_ref_with_rank_parser() {
+    let query = r#"MATCH (a:Person)-[e:KNOWS]->(b:Person) DELETE EDGE a -> b @0"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH...DELETE EDGE a -> b @rank parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_delete_edge_ref_multiple_parser() {
+    let query = r#"MATCH (a:Person)-[e:KNOWS]->(b:Person) DELETE EDGE a -> b, a -> b"#;
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "MATCH...DELETE EDGE a -> b, a -> b parsing should succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_match_delete_edge_ref_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since INT)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:(2019), 1 -> 3:(2022)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .assert_edge_exists(1, 3, "KNOWS")
+        .exec_dml(
+            r#"MATCH (a:Person)-[e:KNOWS]->(b:Person) WHERE e.since < 2020 DELETE EDGE a -> b"#,
+        )
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_exists(1, 3, "KNOWS")
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_exists(3, "Person");
+}
+
+#[test]
+fn test_match_delete_edge_ref_with_rank_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since INT)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2 @0:(2019), 1 -> 3 @1:(2022)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .exec_dml(
+            r#"MATCH (a:Person)-[e:KNOWS]->(b:Person) WHERE e.since < 2020 DELETE EDGE a -> b @0"#,
+        )
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_exists(1, 3, "KNOWS")
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_exists(3, "Person");
+}
+
 // ==================== MATCH...DELETE Parser Tests ====================
 
 #[test]
@@ -486,4 +572,45 @@ fn test_match_delete_with_limit() {
         .assert_vertex_not_exists(1, "Person")
         .assert_vertex_not_exists(2, "Person")
         .assert_vertex_not_exists(3, "Person");
+}
+
+// ==================== Rank-based Edge Deletion Tests ====================
+
+#[test]
+fn test_delete_edge_by_rank() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since, strength) VALUES 1 -> 2 @0:('2020-01-01', 0.5)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .exec_dml("DELETE EDGE 1 -> 2 OF KNOWS")
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS");
+}
+
+// ==================== Multi-hop MATCH...DELETE Tests ====================
+
+#[test]
+fn test_match_delete_multi_hop() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01'), 2 -> 3:('2024-02-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .assert_edge_exists(2, 3, "KNOWS")
+        .exec_dml("DELETE EDGE 1 -> 2, 2 -> 3 OF KNOWS")
+        .assert_success()
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_edge_not_exists(2, 3, "KNOWS")
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(2, "Person")
+        .assert_vertex_exists(3, "Person");
 }

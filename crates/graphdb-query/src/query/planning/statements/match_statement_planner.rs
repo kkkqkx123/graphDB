@@ -265,7 +265,7 @@ impl MatchStatementPlanner {
                 }
 
                 if let Some(delete_clause) = &match_stmt.delete_clause {
-                    plan = self.plan_match_delete(plan, delete_clause, space_name)?;
+                    plan = self.plan_match_delete(plan, delete_clause, space_name, match_stmt)?;
                 }
 
                 Ok(plan)
@@ -1135,6 +1135,7 @@ impl MatchStatementPlanner {
         input_plan: SubPlan,
         delete_clause: &crate::query::parser::ast::stmt::MatchDeleteClause,
         space_name: &str,
+        match_stmt: &crate::query::parser::ast::stmt::MatchStmt,
     ) -> Result<SubPlan, PlannerError> {
         use crate::query::planning::plan::core::next_node_id;
         use crate::query::planning::plan::core::nodes::data_modification::delete_nodes::{
@@ -1168,6 +1169,20 @@ impl MatchStatementPlanner {
                     space_name: space_name.to_string(),
                     edges,
                     edge_type: None,
+                    condition: None,
+                };
+                PipeDeleteEdgesNode::new(next_node_id(), info, input_node.clone()).into_enum()
+            }
+            crate::query::parser::ast::stmt::MatchDeleteTarget::EdgeRefs(edge_refs) => {
+                use crate::query::planning::plan::core::nodes::data_modification::info::EdgeDeleteInfo;
+
+                let edges = edge_refs.clone();
+                let edge_type = extract_edge_type_from_patterns(&match_stmt.patterns);
+
+                let info = EdgeDeleteInfo {
+                    space_name: space_name.to_string(),
+                    edges,
+                    edge_type,
                     condition: None,
                 };
                 PipeDeleteEdgesNode::new(next_node_id(), info, input_node.clone()).into_enum()
@@ -1522,6 +1537,21 @@ impl MatchStatementPlanner {
             None
         }
     }
+}
+
+fn extract_edge_type_from_patterns(patterns: &[Pattern]) -> Option<String> {
+    for pattern in patterns {
+        if let Pattern::Path(path_pattern) = pattern {
+            for element in &path_pattern.elements {
+                if let PathElement::Edge(edge_pattern) = element {
+                    if let Some(edge_type) = edge_pattern.edge_types.first() {
+                        return Some(edge_type.clone());
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 fn extract_distinct_flag_from_stmt(stmt: &crate::query::parser::ast::Stmt) -> bool {

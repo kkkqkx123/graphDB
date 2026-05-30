@@ -182,23 +182,34 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                     returned_props: HashMap::new(),
                 };
 
-                let should_update = if let Some(ref expression) = condition_expression {
-                    self.evaluate_condition(
-                        expression,
-                        update.vertex_id.clone(),
-                        None,
-                        None,
-                        None,
-                        &update.properties,
-                    )?
-                } else {
-                    true
-                };
+                let vertex_vid =
+                    VertexId::try_from(&update.vertex_id).map_err(DBError::from)?;
+                if let Some(mut vertex) = storage.get_vertex(&self.space_name, &vertex_vid)? {
+                    // Build current vertex properties for condition evaluation
+                    let mut current_props = HashMap::new();
+                    for tag in &vertex.tags {
+                        for (k, v) in &tag.properties {
+                            current_props.insert(k.clone(), v.clone());
+                        }
+                    }
+                    for (k, v) in &vertex.properties {
+                        current_props.insert(k.clone(), v.clone());
+                    }
 
-                if should_update {
-                    let vertex_vid =
-                        VertexId::try_from(&update.vertex_id).map_err(DBError::from)?;
-                    if let Some(mut vertex) = storage.get_vertex(&self.space_name, &vertex_vid)? {
+                    let should_update = if let Some(ref expression) = condition_expression {
+                        self.evaluate_condition(
+                            expression,
+                            update.vertex_id.clone(),
+                            None,
+                            None,
+                            None,
+                            &current_props,
+                        )?
+                    } else {
+                        true
+                    };
+
+                    if should_update {
                         let evaluated_props = self.evaluate_property_expressions(
                             &update.properties,
                             update.property_expressions.as_ref(),
@@ -217,35 +228,35 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         storage.update_vertex(&self.space_name, vertex.clone())?;
 
                         update_result.returned_props = evaluated_props;
-                    } else if self.insertable {
-                        let tags: Vec<crate::core::Tag> = update
-                            .tags_to_add
-                            .as_ref()
-                            .map(|tag_names| {
-                                tag_names
-                                    .iter()
-                                    .map(|name| {
-                                        crate::core::Tag::new(
-                                            name.clone(),
-                                            update.properties.clone(),
-                                        )
-                                    })
-                                    .collect()
-                            })
-                            .unwrap_or_default();
-                        let new_vertex = crate::core::Vertex::new_with_properties(
-                            vertex_vid,
-                            tags,
-                            update.properties.clone(),
-                        );
-                        storage.insert_vertex(&self.space_name, new_vertex)?;
-                        update_result.returned_props = update.properties.clone();
-                    } else {
-                        return Err(DBError::query(format!(
-                            "Vertex {} not found, cannot update",
-                            vertex_vid
-                        )));
                     }
+                } else if self.insertable {
+                    let tags: Vec<crate::core::Tag> = update
+                        .tags_to_add
+                        .as_ref()
+                        .map(|tag_names| {
+                            tag_names
+                                .iter()
+                                .map(|name| {
+                                    crate::core::Tag::new(
+                                        name.clone(),
+                                        update.properties.clone(),
+                                    )
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let new_vertex = crate::core::Vertex::new_with_properties(
+                        vertex_vid,
+                        tags,
+                        update.properties.clone(),
+                    );
+                    storage.insert_vertex(&self.space_name, new_vertex)?;
+                    update_result.returned_props = update.properties.clone();
+                } else {
+                    return Err(DBError::query(format!(
+                        "Vertex {} not found, cannot update",
+                        vertex_vid
+                    )));
                 }
 
                 results.push(update_result);
@@ -262,30 +273,30 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                     returned_props: HashMap::new(),
                 };
 
-                let should_update = if let Some(ref expression) = condition_expression {
-                    self.evaluate_condition(
-                        expression,
-                        update.src.clone(),
-                        Some(update.dst.clone()),
-                        Some(&update.edge_type),
-                        None,
-                        &update.properties,
-                    )?
-                } else {
-                    true
-                };
+                let rank = update.rank.unwrap_or(0);
+                let edge_src = VertexId::try_from(&update.src).map_err(DBError::from)?;
+                let edge_dst = VertexId::try_from(&update.dst).map_err(DBError::from)?;
+                if let Some(mut edge) = storage.get_edge(
+                    &self.space_name,
+                    &edge_src,
+                    &edge_dst,
+                    &update.edge_type,
+                    rank,
+                )? {
+                    let should_update = if let Some(ref expression) = condition_expression {
+                        self.evaluate_condition(
+                            expression,
+                            update.src.clone(),
+                            Some(update.dst.clone()),
+                            Some(&update.edge_type),
+                            None,
+                            &edge.props,
+                        )?
+                    } else {
+                        true
+                    };
 
-                if should_update {
-                    let rank = update.rank.unwrap_or(0);
-                    let edge_src = VertexId::try_from(&update.src).map_err(DBError::from)?;
-                    let edge_dst = VertexId::try_from(&update.dst).map_err(DBError::from)?;
-                    if let Some(mut edge) = storage.get_edge(
-                        &self.space_name,
-                        &edge_src,
-                        &edge_dst,
-                        &update.edge_type,
-                        rank,
-                    )? {
+                    if should_update {
                         let evaluated_props = self.evaluate_edge_property_expressions(
                             &update.properties,
                             update.property_expressions.as_ref(),
@@ -305,17 +316,17 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                         edge.id = 0;
                         storage.insert_edge(&self.space_name, edge)?;
                         update_result.returned_props = evaluated_props;
-                    } else if self.insertable {
-                        let new_edge = crate::core::Edge::new(
-                            edge_src,
-                            edge_dst,
-                            update.edge_type.clone(),
-                            update.rank.unwrap_or(0),
-                            update.properties.clone(),
-                        );
-                        storage.insert_edge(&self.space_name, new_edge)?;
-                        update_result.returned_props = update.properties.clone();
                     }
+                } else if self.insertable {
+                    let new_edge = crate::core::Edge::new(
+                        edge_src,
+                        edge_dst,
+                        update.edge_type.clone(),
+                        update.rank.unwrap_or(0),
+                        update.properties.clone(),
+                    );
+                    storage.insert_edge(&self.space_name, new_edge)?;
+                    update_result.returned_props = update.properties.clone();
                 }
 
                 results.push(update_result);

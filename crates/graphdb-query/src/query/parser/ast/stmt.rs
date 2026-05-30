@@ -700,6 +700,8 @@ pub struct MatchDeleteClause {
 pub enum MatchDeleteTarget {
     Vertices(Vec<ContextualExpression>),
     Edges(Vec<ContextualExpression>),
+    /// Edge references in the form of (src, dst, rank)
+    EdgeRefs(Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>),
 }
 
 /// Return the subquery.

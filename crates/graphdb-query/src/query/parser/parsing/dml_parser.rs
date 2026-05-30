@@ -198,7 +198,7 @@ impl DmlParser {
             }
         };
 
-        let where_clause = if ctx.match_token(TokenKind::Where) {
+        let where_clause = if ctx.match_token(TokenKind::Where) || ctx.match_token(TokenKind::When) {
             Some(self.parse_expression(ctx)?)
         } else {
             None
@@ -712,6 +712,14 @@ impl DmlParser {
     pub fn parse_merge_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Merge)?;
+
+        // Support MERGE EDGE/VERTEX ON ... SET ... WHERE ... (UPSERT-style syntax)
+        if ctx.check_token(TokenKind::Edge) || ctx.check_token(TokenKind::Vertex) {
+            ctx.set_upsert_mode(true);
+            let result = self.parse_update_after_token(ctx, start_span);
+            ctx.set_upsert_mode(false);
+            return result;
+        }
 
         let pattern = TraversalParser::new().parse_pattern(ctx)?;
 
