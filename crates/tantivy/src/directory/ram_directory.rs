@@ -11,7 +11,7 @@ use crate::core::META_FILEPATH;
 use crate::directory::error::{DeleteError, OpenReadError, OpenWriteError};
 use crate::directory::{
     AntiCallToken, Directory, FileSlice, TerminatingWrite, WatchCallback, WatchCallbackList,
-    WatchHandle, WriterKind, WritePtr,
+    WatchHandle, WritePtr, WriterKind,
 };
 
 /// Writer associated with the [`RamDirectory`].

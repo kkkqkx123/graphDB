@@ -142,11 +142,11 @@ impl FastFieldReaders {
     /// In that column value:
     /// - Rows with no value are associated with the default value.
     /// - Rows with several values are associated with the first value.
-    #[deprecated(since = "0.22.0", note = "use column_opt + first_or_default_col instead")]
-    pub fn column_first_or_default<T>(
-        &self,
-        field: &str,
-    ) -> crate::Result<Arc<dyn ColumnValues<T>>>
+    #[deprecated(
+        since = "0.22.0",
+        note = "use column_opt + first_or_default_col instead"
+    )]
+    pub fn column_first_or_default<T>(&self, field: &str) -> crate::Result<Arc<dyn ColumnValues<T>>>
     where
         T: PartialOrd + Copy + Default + HasAssociatedColumnType + Send + Sync + 'static,
         DynamicColumn: Into<Option<Column<T>>>,

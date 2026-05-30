@@ -134,8 +134,12 @@ impl<'a, W: Write> FieldSerializer<'a, W> {
             .as_ref()
             .map(|ff_reader| total_num_tokens as Score / ff_reader.num_docs() as Score)
             .unwrap_or(0.0);
-        let postings_serializer =
-            PostingsSerializer::new(average_fieldnorm, index_record_option, fieldnorm_reader, bm25_params);
+        let postings_serializer = PostingsSerializer::new(
+            average_fieldnorm,
+            index_record_option,
+            fieldnorm_reader,
+            bm25_params,
+        );
         let positions_serializer_opt = if index_record_option.has_positions() {
             Some(PositionSerializer::new(positions_write))
         } else {
@@ -225,7 +229,7 @@ impl<'a, W: Write> FieldSerializer<'a, W> {
     /// using `VInt` encoding.
     pub fn close_term(&mut self) -> io::Result<()> {
         crate::fail_point!("FieldSerializer::close_term", |msg: Option<String>| {
-            Err(io::Error::new(io::ErrorKind::Other, format!("{msg:?}")))
+            Err(io::Error::other(format!("{msg:?}")))
         });
 
         if !self.term_open {

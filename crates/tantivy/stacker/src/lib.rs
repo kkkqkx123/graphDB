@@ -1,10 +1,6 @@
-#![cfg_attr(all(feature = "unstable", test), feature(test))]
-
-#[cfg(all(test, feature = "unstable"))]
-extern crate test;
-
 mod arena_hashmap;
 mod expull;
+#[allow(dead_code)]
 mod fastcmp;
 mod fastcpy;
 mod memory_arena;

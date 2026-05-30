@@ -1,12 +1,17 @@
 use tantivy_stacker::ArenaHashMap;
 
-const ALICE: &str = include_str!("../../benches/alice.txt");
+const ALICE_WORDS: &[&str] = &[
+    "Alice", "was", "beginning", "to", "get", "very", "tired", "of", "sitting",
+    "by", "her", "sister", "on", "the", "bank", "and", "of", "having", "nothing",
+    "to", "do", "once", "or", "twice", "she", "had", "peeped", "into", "the",
+    "book", "her", "sister", "was", "reading",
+];
 
 fn main() {
     create_hash_map((0..100_000_000).map(|el| el.to_string()));
 
     for _ in 0..1000 {
-        create_hash_map(ALICE.split_whitespace());
+        create_hash_map(ALICE_WORDS.iter().copied());
     }
 }
 

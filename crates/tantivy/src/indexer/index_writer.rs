@@ -2206,7 +2206,8 @@ mod tests {
             let ff_reader = segment_reader
                 .fast_fields()
                 .u64("id")
-                .unwrap().unwrap()
+                .unwrap()
+                .unwrap()
                 .first_or_default_col(9999);
             for doc_id in segment_reader.doc_ids_alive() {
                 let id = ff_reader.get_val(doc_id);

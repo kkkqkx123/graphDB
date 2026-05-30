@@ -161,23 +161,25 @@ impl ManagedDirectory {
                     match self.directory.delete(&file_to_delete) {
                         Ok(_) => {
                             info!("Deleted {file_to_delete:?}");
-                            meta_informations_wlock.managed_paths.remove(&file_to_delete);
+                            meta_informations_wlock
+                                .managed_paths
+                                .remove(&file_to_delete);
                             deleted_files.push(file_to_delete);
                         }
-                        Err(file_error) => {
-                            match file_error {
-                                DeleteError::FileDoesNotExist(_) => {
-                                    meta_informations_wlock.managed_paths.remove(&file_to_delete);
-                                    deleted_files.push(file_to_delete);
-                                }
-                                DeleteError::IoError { .. } => {
-                                    failed_to_delete_files.push(file_to_delete);
-                                    if !cfg!(target_os = "windows") {
-                                        error!("Failed to delete file during GC");
-                                    }
+                        Err(file_error) => match file_error {
+                            DeleteError::FileDoesNotExist(_) => {
+                                meta_informations_wlock
+                                    .managed_paths
+                                    .remove(&file_to_delete);
+                                deleted_files.push(file_to_delete);
+                            }
+                            DeleteError::IoError { .. } => {
+                                failed_to_delete_files.push(file_to_delete);
+                                if !cfg!(target_os = "windows") {
+                                    error!("Failed to delete file during GC");
                                 }
                             }
-                        }
+                        },
                     }
                 }
 

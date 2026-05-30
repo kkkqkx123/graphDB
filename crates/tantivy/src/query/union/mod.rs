@@ -76,7 +76,9 @@ mod tests {
         }
     }
     fn aux_test_union_with_constructor<F>(constructor: F, docs_list: &[Vec<DocId>])
-    where F: Fn(&[Vec<DocId>]) -> Box<dyn DocSet> {
+    where
+        F: Fn(&[Vec<DocId>]) -> Box<dyn DocSet>,
+    {
         let mut val_set: BTreeSet<u32> = BTreeSet::new();
         for vs in docs_list {
             for &v in vs {
@@ -274,59 +276,5 @@ mod tests {
             union_scorer.seek_danger(TERMINATED),
             SeekDangerResult::SeekLowerBound(TERMINATED)
         );
-    }
-}
-
-#[cfg(all(test, feature = "unstable"))]
-mod bench {
-
-    use test::Bencher;
-
-    use crate::query::score_combiner::DoNothingCombiner;
-    use crate::query::{BufferedUnionScorer, ConstScorer, VecDocSet};
-    use crate::{tests, DocId, DocSet, TERMINATED};
-
-    #[bench]
-    fn bench_union_3_high(bench: &mut Bencher) {
-        let union_docset: Vec<Vec<DocId>> = vec![
-            tests::sample_with_seed(100_000, 0.1, 0),
-            tests::sample_with_seed(100_000, 0.2, 1),
-        ];
-        bench.iter(|| {
-            let mut v = BufferedUnionScorer::build(
-                union_docset
-                    .iter()
-                    .map(|doc_ids| VecDocSet::from(doc_ids.clone()))
-                    .map(|docset| ConstScorer::new(docset, 1.0))
-                    .collect::<Vec<_>>(),
-                DoNothingCombiner::default,
-                100_000,
-            );
-            while v.doc() != TERMINATED {
-                v.advance();
-            }
-        });
-    }
-    #[bench]
-    fn bench_union_3_low(bench: &mut Bencher) {
-        let union_docset: Vec<Vec<DocId>> = vec![
-            tests::sample_with_seed(100_000, 0.01, 0),
-            tests::sample_with_seed(100_000, 0.05, 1),
-            tests::sample_with_seed(100_000, 0.001, 2),
-        ];
-        bench.iter(|| {
-            let mut v = BufferedUnionScorer::build(
-                union_docset
-                    .iter()
-                    .map(|doc_ids| VecDocSet::from(doc_ids.clone()))
-                    .map(|docset| ConstScorer::new(docset, 1.0))
-                    .collect::<Vec<_>>(),
-                DoNothingCombiner::default,
-                100_000,
-            );
-            while v.doc() != TERMINATED {
-                v.advance();
-            }
-        });
     }
 }

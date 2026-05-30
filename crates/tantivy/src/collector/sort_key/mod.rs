@@ -114,7 +114,8 @@ pub(crate) mod tests {
                 let column = searcher.segment_readers()[doc_address.segment_ord as usize]
                     .fast_fields()
                     .u64("id")
-                    .unwrap().unwrap();
+                    .unwrap()
+                    .unwrap();
                 (doc_address, column.first(doc_address.doc_id).unwrap())
             })
             .collect()

@@ -123,7 +123,11 @@ impl PhraseQuery {
                 searcher,
             } => {
                 let bm25_params = searcher.bm25_params();
-                Some(Bm25Weight::for_terms(statistics_provider, &terms, bm25_params)?)
+                Some(Bm25Weight::for_terms(
+                    statistics_provider,
+                    &terms,
+                    bm25_params,
+                )?)
             }
             EnableScoring::Disabled { .. } => None,
         };

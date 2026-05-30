@@ -218,7 +218,9 @@ impl FacetCollector {
     /// If you need the correct number of unique documents for two such facets,
     /// just add them in a separate `FacetCollector`.
     pub fn add_facet<T>(&mut self, facet_from: T)
-    where Facet: From<T> {
+    where
+        Facet: From<T>,
+    {
         let facet = Facet::from(facet_from);
         for old_facet in &self.facets {
             assert!(
@@ -438,7 +440,9 @@ impl FacetCounts {
     /// Returns an iterator over all of the facet count pairs inside this result.
     /// See the documentation for [`FacetCollector`] for a usage example.
     pub fn get<T>(&self, facet_from: T) -> FacetChildIterator<'_>
-    where Facet: From<T> {
+    where
+        Facet: From<T>,
+    {
         let facet = Facet::from(facet_from);
         let lower_bound = Bound::Excluded(facet.clone());
         let upper_bound = if facet.is_root() {
@@ -457,7 +461,9 @@ impl FacetCounts {
     /// Returns a vector of top `k` facets with their counts, sorted highest-to-lowest by counts.
     /// See the documentation for [`FacetCollector`] for a usage example.
     pub fn top_k<T>(&self, facet: T, k: usize) -> Vec<(&Facet, u64)>
-    where Facet: From<T> {
+    where
+        Facet: From<T>,
+    {
         let mut heap = BinaryHeap::with_capacity(k);
         let mut it = self.get(facet);
 
@@ -877,48 +883,5 @@ mod tests {
             ]
         );
         Ok(())
-    }
-}
-
-#[cfg(all(test, feature = "unstable"))]
-mod bench {
-
-    use rand::rng;
-    use rand::seq::SliceRandom;
-    use test::Bencher;
-
-    use crate::collector::FacetCollector;
-    use crate::query::AllQuery;
-    use crate::schema::{Facet, Schema, INDEXED};
-    use crate::{Index, IndexWriter};
-
-    #[bench]
-    fn bench_facet_collector(b: &mut Bencher) {
-        let mut schema_builder = Schema::builder();
-        let facet_field = schema_builder.add_facet_field("facet", INDEXED);
-        let schema = schema_builder.build();
-        let index = Index::create_in_ram(schema);
-
-        let mut docs = vec![];
-        for val in 0..50 {
-            let facet = Facet::from(&format!("/facet_{val}"));
-            for _ in 0..val * val {
-                docs.push(doc!(facet_field=>facet.clone()));
-            }
-        }
-        // 40425 docs
-        docs[..].shuffle(&mut rng());
-
-        let mut index_writer: IndexWriter = index.writer_for_tests().unwrap();
-        for doc in docs {
-            index_writer.add_document(doc).unwrap();
-        }
-        index_writer.commit().unwrap();
-        let reader = index.reader().unwrap();
-        b.iter(|| {
-            let searcher = reader.searcher();
-            let facet_collector = FacetCollector::for_field("facet");
-            searcher.search(&AllQuery, &facet_collector).unwrap();
-        });
     }
 }

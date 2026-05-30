@@ -1,5 +1,4 @@
 #![doc(html_logo_url = "http://fulmicoton.com/tantivy-logo/tantivy-logo.png")]
-#![cfg_attr(all(feature = "unstable", test), feature(test))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 #![warn(missing_docs)]
 #![allow(
@@ -156,9 +155,6 @@ extern crate log;
 
 #[macro_use]
 extern crate thiserror;
-
-#[cfg(all(test, feature = "unstable"))]
-extern crate test;
 
 #[cfg(feature = "mmap")]
 #[cfg(test)]

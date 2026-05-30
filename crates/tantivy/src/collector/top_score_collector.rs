@@ -548,7 +548,8 @@ impl<Score, D, C> From<TopNComputerDeser<Score, D, C>> for TopNComputer<Score, D
 }
 
 impl<Score: std::fmt::Debug, D, C> std::fmt::Debug for TopNComputer<Score, D, C>
-where C: Comparator<Score>
+where
+    C: Comparator<Score>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> std::fmt::Result {
         f.debug_struct("TopNComputer")
@@ -1811,28 +1812,5 @@ mod tests {
         let docs_limit_3 = top_collector_limit_3.into_sorted_vec();
 
         assert_eq!(&docs_limit_2, &docs_limit_3[..2],);
-    }
-}
-
-#[cfg(all(test, feature = "unstable"))]
-mod bench {
-    use test::Bencher;
-
-    use super::TopNComputer;
-    use crate::collector::sort_key::NaturalComparator;
-
-    #[bench]
-    fn bench_top_segment_collector_collect_at_capacity(b: &mut Bencher) {
-        let mut top_collector = TopNComputer::new_with_comparator(100, NaturalComparator);
-
-        for i in 0..100 {
-            top_collector.append_doc(i, 0.8);
-        }
-
-        b.iter(|| {
-            for i in 0..100 {
-                top_collector.append_doc(i, 0.8);
-            }
-        });
     }
 }
