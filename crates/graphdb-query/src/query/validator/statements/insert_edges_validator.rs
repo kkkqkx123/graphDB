@@ -4,7 +4,9 @@
 
 use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
-use crate::core::{NullType, Value};
+use crate::core::types::expr::Expression;
+use crate::core::types::operators::UnaryOperator;
+use crate::core::{DataType, NullType, Value};
 use crate::query::parser::ast::stmt::{Ast, InsertTarget};
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::structs::validation_info::ValidationInfo;
@@ -173,6 +175,21 @@ impl InsertEdgesValidator {
             }
         }
 
+        // Check for Unary(Minus, Literal(Int)) or Unary(Minus, Literal(BigInt))
+        if let Some(meta) = expr.expression() {
+            if let Expression::Unary {
+                op: UnaryOperator::Minus,
+                operand,
+            } = meta.inner()
+            {
+                match operand.as_ref() {
+                    Expression::Literal(Value::Int(_)) => return Ok(()),
+                    Expression::Literal(Value::BigInt(_)) => return Ok(()),
+                    _ => {}
+                }
+            }
+        }
+
         Err(ValidationError::new(
             format!("{} vertex ID must be a string, integer, or variable", role),
             ValidationErrorType::SemanticError,
@@ -182,31 +199,52 @@ impl InsertEdgesValidator {
     /// Verify the rank.
     fn validate_rank(&self, rank: &Option<ContextualExpression>) -> Result<(), ValidationError> {
         if let Some(rank_expr) = rank {
-            if rank_expr.expression().is_none() {
-                return Err(ValidationError::new(
-                    "Rank expression is invalid".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
+            let inner_expr = match rank_expr.expression() {
+                Some(m) => m,
+                None => {
+                    return Err(ValidationError::new(
+                        "Rank expression is invalid".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+            };
+
+            // Accept variables
+            if inner_expr.is_variable() {
+                return Ok(());
             }
-            if !rank_expr.is_variable() && !rank_expr.is_literal() {
-                return Err(ValidationError::new(
+
+            // Try to extract the integer value, handling Unary(Minus, Literal(int)) as well
+            let rank_value = Self::extract_integer_value(inner_expr.inner());
+            match rank_value {
+                Some(_) => Ok(()),
+                None => Err(ValidationError::new(
                     "Rank must be an integer constant or variable".to_string(),
                     ValidationErrorType::SemanticError,
-                ));
+                )),
             }
-            // Check whether the literal value is an integer.
-            if rank_expr.is_literal() {
-                if let Some(value) = rank_expr.as_literal() {
-                    if !matches!(value, Value::Int(_) | Value::BigInt(_)) {
-                        return Err(ValidationError::new(
-                            "Rank must be an integer constant or variable".to_string(),
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Extract integer value from an expression, handling Literal and Unary(Minus, Literal)
+    fn extract_integer_value(expr: &Expression) -> Option<i64> {
+        match expr {
+            Expression::Literal(Value::Int(n)) => Some(*n as i64),
+            Expression::Literal(Value::BigInt(n)) => Some(*n),
+            Expression::Unary {
+                op: UnaryOperator::Minus,
+                operand,
+            } => {
+                match operand.as_ref() {
+                    Expression::Literal(Value::Int(n)) => Some(-(*n as i64)),
+                    Expression::Literal(Value::BigInt(n)) => Some(-n),
+                    _ => None,
                 }
             }
+            _ => None,
         }
-        Ok(())
     }
 
     /// Number of validation values
@@ -231,9 +269,10 @@ impl InsertEdgesValidator {
     /// Verify the attribute values
     fn validate_property_values(
         &self,
-        _edge_name: &str,
+        edge_name: &str,
         prop_names: &[String],
         values: &[ContextualExpression],
+        space_name: Option<&str>,
     ) -> Result<(), ValidationError> {
         for (prop_idx, value) in values.iter().enumerate() {
             if let Err(e) = self.validate_property_value(&prop_names[prop_idx], value) {
@@ -246,6 +285,50 @@ impl InsertEdgesValidator {
                 ));
             }
         }
+
+        // Validate property constraints (NOT NULL, type compatibility) if schema manager is available
+        if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
+            match schema_manager.get_edge_type(space_name, edge_name) {
+                Ok(Some(edge_type_info)) => {
+                    for (prop_name, value_expr) in prop_names.iter().zip(values.iter()) {
+                        if let Some(prop_def) = edge_type_info.properties.iter().find(|p| &p.name == prop_name) {
+                            let value = self.evaluate_expression(value_expr)?;
+
+                            // Check NOT NULL constraint
+                            if !prop_def.nullable && value.is_null() {
+                                return Err(ValidationError::new(
+                                    format!(
+                                        "NOT NULL constraint violation for edge property '{}': NULL value is not allowed",
+                                        prop_name,
+                                    ),
+                                    ValidationErrorType::SemanticError,
+                                ));
+                            }
+
+                            // Check type compatibility for literal values
+                            if !value.is_null() && !value.is_empty() {
+                                let value_type = value.get_type();
+                                let schema_type = &prop_def.data_type;
+
+                                if !Self::is_type_compatible_for_insert(&value_type, schema_type) {
+                                    return Err(ValidationError::new(
+                                        format!(
+                                            "Type mismatch for edge property '{}': expected type {}, got value type {}",
+                                            prop_name,
+                                            schema_type,
+                                            value_type,
+                                        ),
+                                        ValidationErrorType::SemanticError,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
         Ok(())
     }
 
@@ -271,6 +354,47 @@ impl InsertEdgesValidator {
         // Note: More detailed verification is required in this case, but ContextualExpression does not provide a way to access the function parameters.
         // Temporarily accept all other types of expressions.
         Ok(())
+    }
+
+    /// Check if a value type is compatible with a schema type for INSERT operations.
+    fn is_type_compatible_for_insert(value_type: &DataType, schema_type: &DataType) -> bool {
+        // Same type is always compatible
+        if value_type == schema_type {
+            return true;
+        }
+
+        // Null is compatible with any type (NOT NULL is checked separately)
+        if value_type == &DataType::Null {
+            return true;
+        }
+
+        // Numeric types are compatible with each other
+        let is_numeric = |dt: &DataType| -> bool {
+            matches!(dt, DataType::SmallInt | DataType::Int | DataType::BigInt | DataType::Float | DataType::Double | DataType::Decimal128)
+        };
+
+        if is_numeric(value_type) && is_numeric(schema_type) {
+            return true;
+        }
+
+        // String types are compatible
+        if value_type == &DataType::String && matches!(schema_type, DataType::String | DataType::FixedString(_)) {
+            return true;
+        }
+
+        if matches!(value_type, DataType::FixedString(_)) && schema_type == &DataType::String {
+            return true;
+        }
+
+        // String values are accepted for Date/DateTime/Time/Timestamp types
+        // (conversion happens at runtime)
+        if value_type == &DataType::String {
+            if matches!(schema_type, DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp) {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Generate a column of outputs.
@@ -302,11 +426,18 @@ impl InsertEdgesValidator {
     /// Evaluating the rank expression
     fn evaluate_rank(&self, rank: &Option<ContextualExpression>) -> Result<i64, ValidationError> {
         if let Some(rank_expr) = rank {
+            // First try as_literal() for simple literal cases
             if let Some(value) = rank_expr.as_literal() {
                 match value {
                     Value::Int(n) => return Ok(n as i64),
                     Value::BigInt(n) => return Ok(n),
                     _ => {}
+                }
+            }
+            // Then try to extract integer from expression (handles UnaryMinus cases like @(-1))
+            if let Some(meta) = rank_expr.expression() {
+                if let Some(val) = Self::extract_integer_value(meta.inner()) {
+                    return Ok(val);
                 }
             }
         }
@@ -402,7 +533,7 @@ impl StatementValidator for InsertEdgesValidator {
             self.validate_vertex_id_format(dst, "destination", space_name.as_deref())?;
             self.validate_rank(rank)?;
             self.validate_values_count(&prop_names, values)?;
-            self.validate_property_values(&edge_name, &prop_names, values)?;
+            self.validate_property_values(&edge_name, &prop_names, values, space_name.as_deref())?;
 
             // Evaluate and convert
             let src_id = self.evaluate_expression(src)?;

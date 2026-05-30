@@ -14,6 +14,7 @@ mod common;
 
 use common::{assertions::assert_ok, TestStorage};
 
+use graphdb::core::types::SpaceInfo;
 use graphdb::core::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
@@ -29,7 +30,10 @@ use std::sync::Arc;
 /// Creating a query context for testing
 fn create_test_query_context() -> Arc<QueryContext> {
     let request_context = Arc::new(QueryRequestContext::new("TEST".to_string()));
-    Arc::new(QueryContext::new(request_context))
+    let mut qctx = QueryContext::new(request_context);
+    let space_info = SpaceInfo::new("test_space".to_string());
+    qctx.set_space_info(space_info);
+    Arc::new(qctx)
 }
 
 // ==================== Parser Integration Testing ====================

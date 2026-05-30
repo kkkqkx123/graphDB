@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression;
+use crate::core::types::operators::UnaryOperator;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, InsertTarget, TagInsertSpec, VertexRow};
 use crate::query::parser::ast::Stmt;
@@ -150,9 +151,35 @@ impl InsertVerticesValidator {
                     ));
                 }
 
-                // Validate vector dimensions if schema manager is available
+                // Validate property constraints if schema manager is available
                 if let Some(schema_mgr) = schema_manager {
+                    // Check that all NOT NULL properties are present in the insert
+                    if let Ok(Some(tag_info)) = schema_mgr.get_tag(space_name, &tag_spec.tag_name) {
+                        for prop_def in &tag_info.properties {
+                            if !prop_def.nullable && !tag_spec.prop_names.contains(&prop_def.name) {
+                                return Err(ValidationError::new(
+                                    format!(
+                                        "NOT NULL constraint violation for property '{}' in tag '{}': property is required and cannot be omitted",
+                                        prop_def.name,
+                                        tag_spec.tag_name,
+                                    ),
+                                    ValidationErrorType::SemanticError,
+                                ));
+                            }
+                        }
+                    }
+
                     self.validate_vector_dimensions(VectorValidationContext {
+                        schema_manager: schema_mgr,
+                        space_name,
+                        tag_name: &tag_spec.tag_name,
+                        prop_names: &tag_spec.prop_names,
+                        values,
+                        row_idx,
+                        tag_idx,
+                    })?;
+
+                    self.validate_property_constraints(VectorValidationContext {
                         schema_manager: schema_mgr,
                         space_name,
                         tag_name: &tag_spec.tag_name,
@@ -240,6 +267,140 @@ impl InsertVerticesValidator {
         Ok(())
     }
 
+    /// Validate property constraints (NOT NULL, type compatibility)
+    fn validate_property_constraints(
+        &self,
+        ctx: VectorValidationContext<'_>,
+    ) -> Result<(), ValidationError> {
+        let tag_info = ctx
+            .schema_manager
+            .get_tag(ctx.space_name, ctx.tag_name)
+            .map_err(|e| {
+                ValidationError::new(
+                    format!("Failed to get tag schema for '{}': {}", ctx.tag_name, e),
+                    ValidationErrorType::SemanticError,
+                )
+            })?;
+
+        let tag_info = tag_info.ok_or_else(|| {
+            ValidationError::new(
+                format!(
+                    "Tag '{}' does not exist in space '{}'",
+                    ctx.tag_name, ctx.space_name
+                ),
+                ValidationErrorType::SemanticError,
+            )
+        })?;
+
+        for (prop_name, value_expr) in ctx.prop_names.iter().zip(ctx.values.iter()) {
+            if let Some(prop_def) = tag_info.properties.iter().find(|p| &p.name == prop_name) {
+                let value = self.evaluate_expression(value_expr)?;
+
+                // Check NOT NULL constraint
+                if !prop_def.nullable {
+                    if value.is_null() {
+                        return Err(ValidationError::new(
+                            format!(
+                                "NOT NULL constraint violation for property '{}' in vertex {}, tag {}: NULL value is not allowed",
+                                prop_name,
+                                ctx.row_idx + 1,
+                                ctx.tag_idx + 1,
+                            ),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+
+                // Check type compatibility for literal values
+                if !value.is_null() && !value.is_empty() {
+                    let value_type = value.get_type();
+                    let schema_type = &prop_def.data_type;
+
+                    if !Self::is_type_compatible_for_insert(&value_type, schema_type) {
+                        return Err(ValidationError::new(
+                            format!(
+                                "Type mismatch for property '{}' in vertex {}, tag {}: expected type {}, got value type {}",
+                                prop_name,
+                                ctx.row_idx + 1,
+                                ctx.tag_idx + 1,
+                                schema_type,
+                                value_type,
+                            ),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check if a value type is compatible with a schema type for INSERT operations.
+    /// Uses strict checking: the value type should match or be implicitly castable.
+    fn is_type_compatible_for_insert(value_type: &crate::core::DataType, schema_type: &crate::core::DataType) -> bool {
+        use crate::core::DataType;
+
+        // Same type is always compatible
+        if value_type == schema_type {
+            return true;
+        }
+
+        // Null is compatible with any type (NOT NULL is checked separately)
+        if value_type == &DataType::Null {
+            return true;
+        }
+
+        // Numeric types are compatible with each other
+        let is_numeric = |dt: &DataType| -> bool {
+            matches!(dt, DataType::SmallInt | DataType::Int | DataType::BigInt | DataType::Float | DataType::Double | DataType::Decimal128)
+        };
+
+        if is_numeric(value_type) && is_numeric(schema_type) {
+            return true;
+        }
+
+        // String types are compatible
+        if value_type == &DataType::String && matches!(schema_type, DataType::String | DataType::FixedString(_)) {
+            return true;
+        }
+
+        if matches!(value_type, DataType::FixedString(_)) && schema_type == &DataType::String {
+            return true;
+        }
+
+        // String values are accepted for Date/DateTime/Time/Timestamp types
+        // (conversion happens at runtime)
+        if value_type == &DataType::String {
+            if matches!(schema_type, DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp) {
+                return true;
+            }
+        }
+
+        // Bool is compatible with Bool
+        if value_type == &DataType::Bool && schema_type == &DataType::Bool {
+            return true;
+        }
+
+        // Date/DateTime/Time/Timestamp types
+        if value_type == &DataType::Date && schema_type == &DataType::Date {
+            return true;
+        }
+        if value_type == &DataType::DateTime && schema_type == &DataType::DateTime {
+            return true;
+        }
+        if value_type == &DataType::Time && schema_type == &DataType::Time {
+            return true;
+        }
+
+        // Geography
+        if value_type == &DataType::Geography && schema_type == &DataType::Geography {
+            return true;
+        }
+
+        false
+    }
+
     /// Verify the VID expression
     fn validate_vid_expression(
         &self,
@@ -279,6 +440,20 @@ impl InsertVerticesValidator {
             Expression::Literal(Value::Int(_)) => Ok(()),
             Expression::Literal(Value::BigInt(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
+            Expression::Unary {
+                op: UnaryOperator::Minus,
+                operand,
+            } => {
+                // Accept Unary(Minus, Literal(Int)) and Unary(Minus, Literal(BigInt))
+                match operand.as_ref() {
+                    Expression::Literal(Value::Int(_)) => Ok(()),
+                    Expression::Literal(Value::BigInt(_)) => Ok(()),
+                    _ => Err(ValidationError::new(
+                        format!("Invalid vertex ID expression type for vertex {}", idx + 1),
+                        ValidationErrorType::SemanticError,
+                    )),
+                }
+            }
             _ => Err(ValidationError::new(
                 format!("Invalid vertex ID expression type for vertex {}", idx + 1),
                 ValidationErrorType::SemanticError,
@@ -307,6 +482,17 @@ impl InsertVerticesValidator {
             Expression::Variable(name) => {
                 // Variables are parsed at runtime.
                 Ok(Value::String(format!("${}", name)))
+            }
+            Expression::Unary {
+                op: UnaryOperator::Minus,
+                operand,
+            } => {
+                // Evaluate Unary(Minus, Literal(val)) for integer types
+                match operand.as_ref() {
+                    Expression::Literal(Value::Int(n)) => Ok(Value::Int(-n)),
+                    Expression::Literal(Value::BigInt(n)) => Ok(Value::BigInt(-n)),
+                    _ => Ok(Value::Null(crate::core::NullType::Null)),
+                }
             }
             _ => Ok(Value::Null(crate::core::NullType::Null)),
         }

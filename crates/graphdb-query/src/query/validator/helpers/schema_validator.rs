@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use crate::query::validator::error::{ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::operators::UnaryOperator;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::query::validator::validator_trait::ValueType;
@@ -416,6 +417,35 @@ impl SchemaValidator {
             Expression::Variable(_) => {
                 // The specific value of the variable cannot be determined during the validation phase; it is assumed to be valid.
                 Ok(())
+            }
+            Expression::Unary {
+                op: UnaryOperator::Minus,
+                operand,
+            } => {
+                // Accept Unary(Minus, Literal(Int)) and Unary(Minus, Literal(BigInt))
+                match operand.as_ref() {
+                    Expression::Literal(Value::SmallInt(_))
+                    | Expression::Literal(Value::Int(_))
+                    | Expression::Literal(Value::BigInt(_)) => {
+                        if !matches!(
+                            vid_type,
+                            DataType::SmallInt | DataType::Int | DataType::BigInt | DataType::VID
+                        ) {
+                            return Err(CoreValidationError::new(
+                                format!(
+                                    "{} vertex ID expectation {:?} type, actually a negative integer",
+                                    role, vid_type
+                                ),
+                                ValidationErrorType::TypeMismatch,
+                            ));
+                        }
+                        Ok(())
+                    }
+                    _ => Err(CoreValidationError::new(
+                        format!("{} vertex ID must be a constant or variable.", role),
+                        ValidationErrorType::SemanticError,
+                    )),
+                }
             }
             _ => Err(CoreValidationError::new(
                 format!("{} vertex ID must be a constant or variable.", role),

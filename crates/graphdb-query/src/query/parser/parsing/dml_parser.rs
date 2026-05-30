@@ -594,8 +594,9 @@ impl DmlParser {
             // Analyzing the video…
             let vid = self.parse_expression(ctx)?;
 
-            // Parse the attribute list
-            let tag_values = if ctx.match_token(TokenKind::Colon) {
+            // Parse the attribute list (supports multiple tag value groups)
+            let mut tag_values = vec![];
+            if ctx.match_token(TokenKind::Colon) {
                 ctx.expect_token(TokenKind::LParen)?;
                 let mut props = vec![];
                 loop {
@@ -606,10 +607,23 @@ impl DmlParser {
                     }
                 }
                 ctx.expect_token(TokenKind::RParen)?;
-                vec![props]
-            } else {
-                vec![]
-            };
+                tag_values.push(props);
+
+                // Additional value groups for multi-tag insert (colon-separated groups)
+                while ctx.match_token(TokenKind::Colon) {
+                    ctx.expect_token(TokenKind::LParen)?;
+                    let mut props = vec![];
+                    loop {
+                        let value = self.parse_expression(ctx)?;
+                        props.push(value);
+                        if !ctx.match_token(TokenKind::Comma) {
+                            break;
+                        }
+                    }
+                    ctx.expect_token(TokenKind::RParen)?;
+                    tag_values.push(props);
+                }
+            }
 
             values.push(VertexRow { vid, tag_values });
 
@@ -648,11 +662,14 @@ impl DmlParser {
         let mut prop_names = vec![];
 
         if ctx.match_token(TokenKind::LParen) {
-            loop {
-                let prop_name = ctx.expect_identifier()?;
-                prop_names.push(prop_name);
-                if !ctx.match_token(TokenKind::Comma) {
-                    break;
+            // Support empty property list: EDGE_NAME()
+            if !ctx.check_token(TokenKind::RParen) {
+                loop {
+                    let prop_name = ctx.expect_identifier()?;
+                    prop_names.push(prop_name);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
                 }
             }
             ctx.expect_token(TokenKind::RParen)?;
@@ -677,11 +694,14 @@ impl DmlParser {
             let mut values = vec![];
             if ctx.match_token(TokenKind::Colon) {
                 ctx.expect_token(TokenKind::LParen)?;
-                loop {
-                    let value = self.parse_expression(ctx)?;
-                    values.push(value);
-                    if !ctx.match_token(TokenKind::Comma) {
-                        break;
+                // Support empty value list: :()
+                if !ctx.check_token(TokenKind::RParen) {
+                    loop {
+                        let value = self.parse_expression(ctx)?;
+                        values.push(value);
+                        if !ctx.match_token(TokenKind::Comma) {
+                            break;
+                        }
                     }
                 }
                 ctx.expect_token(TokenKind::RParen)?;

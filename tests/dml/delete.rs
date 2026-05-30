@@ -592,6 +592,47 @@ fn test_delete_edge_by_rank() {
         .assert_edge_not_exists(1, 2, "KNOWS");
 }
 
+// ==================== DELETE Vertex Without WITH EDGE (Dangling Edge) Tests ====================
+
+#[test]
+fn test_delete_vertex_with_edges_no_with_edge() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS")
+        .exec_dml("DELETE VERTEX 1")
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person")
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_vertex_exists(2, "Person");
+}
+
+// ==================== Multi-Hop Cascading Delete Tests ====================
+
+#[test]
+fn test_delete_multi_hop_cascade() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01'), 2 -> 3:('2024-02-01')")
+        .assert_success()
+        .exec_dml("DELETE VERTEX 1 WITH EDGE")
+        .assert_success()
+        .assert_vertex_not_exists(1, "Person")
+        .assert_edge_not_exists(1, 2, "KNOWS")
+        .assert_vertex_exists(2, "Person")
+        .assert_edge_exists(2, 3, "KNOWS")
+        .assert_vertex_exists(3, "Person");
+}
+
 // ==================== Multi-hop MATCH...DELETE Tests ====================
 
 #[test]

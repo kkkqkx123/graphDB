@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::operators::UnaryOperator;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, FetchStmt, FetchTarget};
@@ -233,6 +234,21 @@ impl FetchVerticesValidator {
                     }
                 }
                 return Ok(());
+            }
+        }
+
+        // Check for Unary(Minus, Literal(Int)) or Unary(Minus, Literal(BigInt))
+        if let Some(meta) = expr.expression() {
+            if let Expression::Unary {
+                op: UnaryOperator::Minus,
+                operand,
+            } = meta.inner()
+            {
+                match operand.as_ref() {
+                    Expression::Literal(Value::Int(_)) => return Ok(()),
+                    Expression::Literal(Value::BigInt(_)) => return Ok(()),
+                    _ => {}
+                }
             }
         }
 

@@ -417,3 +417,86 @@ fn test_insert_vertex_with_geography_and_other_fields() {
             HashMap::from([("name", Value::String("Beijing".into()))]),
         );
 }
+
+// ==================== Multi-Tag Insert Execution Tests ====================
+
+#[test]
+fn test_insert_multiple_tags_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_ddl("CREATE TAG Employee(department STRING, salary INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name, age), Employee(department, salary) VALUES 1:('Alice', 30):('Engineering', 100000)")
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_exists(1, "Employee");
+}
+
+// ==================== Type Mismatch Error Tests ====================
+
+#[test]
+fn test_insert_type_mismatch_string_to_int() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG TestTypes(int_field INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX TestTypes(int_field) VALUES 1:('not_a_number')")
+        .assert_error();
+}
+
+#[test]
+fn test_insert_type_mismatch_bool_to_int() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG TestTypes(int_field INT)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX TestTypes(int_field) VALUES 1:(true)")
+        .assert_error();
+}
+
+// ==================== Non-Existent Tag Error Tests ====================
+
+#[test]
+fn test_insert_vertex_nonexistent_tag() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_dml("INSERT VERTEX NonExistent(name) VALUES 1:('test')")
+        .assert_error();
+}
+
+// ==================== Negative Vertex ID Tests ====================
+
+#[test]
+fn test_insert_vertex_negative_id() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES (-1):('Negative')")
+        .assert_error();
+}
+
+// ==================== Empty String Property Tests ====================
+
+#[test]
+fn test_insert_vertex_empty_string() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .assert_success()
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('')")
+        .assert_success()
+        .assert_vertex_exists(1, "Person")
+        .assert_vertex_props(
+            1,
+            "Person",
+            HashMap::from([("name", Value::String("".into()))]),
+        );
+}

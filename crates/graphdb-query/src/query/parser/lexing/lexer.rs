@@ -480,10 +480,26 @@ impl<'a> Lexer<'a> {
 
         match self.peek_char() {
             Some(&'/') => {
-                self.read_char();
-                match self.peek_char() {
-                    Some(&'/') | Some(&'*') => {
-                        self.read_char();
+                // Use clone to peek ahead without consuming characters
+                let mut temp_chars = self.chars.clone();
+                temp_chars.next(); // Skip the first /
+                match temp_chars.peek() {
+                    Some(&'/') => {
+                        // Line comment: // ...
+                        self.read_char(); // consume /
+                        self.read_char(); // consume /
+                        while let Some(&ch) = self.peek_char() {
+                            if ch == '\n' {
+                                break;
+                            }
+                            self.read_char();
+                        }
+                        Ok(())
+                    }
+                    Some(&'*') => {
+                        // Block comment: /* ... */
+                        self.read_char(); // consume /
+                        self.read_char(); // consume *
                         loop {
                             match self.peek_char() {
                                 Some(&'*') => {
@@ -509,19 +525,22 @@ impl<'a> Lexer<'a> {
                         }
                     }
                     _ => {
-                        self.read_char();
-                        Ok(())
+                        // Not a comment (e.g., / is division operator)
+                        Err(LexError::new(
+                            "Not a comment".to_string(),
+                            self.current_position(),
+                        ))
                     }
                 }
             }
             Some(&'-') => {
-                // Check whether the next character is also “-” (use the “clone” function to avoid consuming the current character).
+                // Check whether the next character is also "-" (use the "clone" function to avoid consuming the current character).
                 let mut temp_chars = self.chars.clone();
                 temp_chars.next(); // Skip the first one.
                 if let Some(&'-') = temp_chars.peek() {
-                    // These are SQL comments; they consume two “-” characters each.
-                    self.read_char(); // Read the first one –
-                    self.read_char(); // Read the second one…
+                    // These are SQL comments; they consume two "-" characters each.
+                    self.read_char(); // Read the first one -
+                    self.read_char(); // Read the second one...
                     while let Some(&ch) = self.peek_char() {
                         if ch == '\n' {
                             break;
@@ -530,7 +549,7 @@ impl<'a> Lexer<'a> {
                     }
                     Ok(())
                 } else {
-                    // Don’t return errors; let the caller handle them.
+                    // Don't return errors; let the caller handle them.
                     Err(LexError::new(
                         "Not a comment".to_string(),
                         self.current_position(),

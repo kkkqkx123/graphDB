@@ -7,7 +7,9 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
+use graphdb::core::Value;
 use graphdb::query::parser::Parser;
+use std::collections::HashMap;
 
 // ==================== INSERT EDGE Parser Tests ====================
 
@@ -252,4 +254,78 @@ fn test_insert_edge_with_geography_type() {
         .exec_dml("INSERT EDGE LOCATED(coordinates) VALUES 1 -> 2:(NULL)")
         .assert_success()
         .assert_edge_exists(1, 2, "LOCATED");
+}
+
+// ==================== Duplicate Edge Error Tests ====================
+
+#[test]
+fn test_insert_duplicate_edge_without_if_not_exists() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .assert_success()
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-01-01')")
+        .assert_success()
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2024-02-01')")
+        .assert_error();
+}
+
+// ==================== Negative Edge Rank Tests ====================
+
+#[test]
+fn test_insert_edge_negative_rank() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2 @(-1):('2024-01-01')")
+        .assert_success();
+}
+
+// ==================== Empty Properties List Tests ====================
+
+#[test]
+fn test_insert_edge_empty_properties() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS() VALUES 1 -> 2:()")
+        .assert_success();
+}
+
+// ==================== Edge Type Mismatch Tests ====================
+
+#[test]
+fn test_insert_edge_type_mismatch() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since) VALUES 1 -> 2:('not_a_date')")
+        .assert_error();
+}
+
+// ==================== Edge All NULL Properties Tests ====================
+
+#[test]
+fn test_insert_edge_all_null_properties() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE NULL, weight DOUBLE NULL)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .exec_dml("INSERT EDGE KNOWS(since, weight) VALUES 1 -> 2:(NULL, NULL)")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS");
 }

@@ -454,3 +454,73 @@ fn test_merge_edge_on_update_execution() {
         .assert_success()
         .assert_edge_exists(1, 2, "KNOWS");
 }
+
+// ==================== UPSERT EDGE with Rank Tests ====================
+
+#[test]
+fn test_upsert_edge_with_rank() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .assert_success()
+        .exec_dml("UPSERT EDGE ON KNOWS SET since = '2024-01-01', strength = 0.5 WHERE id(src) == 1 AND id(dst) == 2 @0")
+        .assert_success()
+        .assert_edge_exists(1, 2, "KNOWS");
+}
+
+// ==================== UPSERT WHERE No Match Tests ====================
+
+#[test]
+fn test_upsert_where_no_match() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING, age INT)")
+        .exec_dml("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)")
+        .assert_success()
+        .exec_dml("UPSERT VERTEX ON Person SET name = 'Bob', age = 25 WHERE id(vid) == 999")
+        .assert_success()
+        .assert_vertex_exists(999, "Person")
+        .assert_vertex_props(
+            999,
+            "Person",
+            HashMap::from([
+                ("name", Value::String("Bob".into())),
+                ("age", Value::Int(25)),
+            ]),
+        );
+}
+
+// ==================== UPSERT EDGE YIELD Tests ====================
+
+#[test]
+fn test_upsert_edge_yield_parser() {
+    let query = "UPSERT EDGE ON KNOWS SET since = '2024-01-01' WHERE id(src) == 1 AND id(dst) == 2 YIELD since";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(
+        result.is_ok(),
+        "UPSERT EDGE with YIELD parsing should succeed: {:?}",
+        result.err()
+    );
+
+    let stmt = result.expect("UPSERT EDGE statement parsing should succeed");
+    assert_eq!(stmt.ast.stmt.kind(), "UPSERT");
+}
+
+#[test]
+fn test_upsert_edge_yield_execution() {
+    TestScenario::new()
+        .expect("Failed to create test scenario")
+        .setup_space("test_space")
+        .exec_ddl("CREATE TAG Person(name STRING)")
+        .exec_ddl("CREATE EDGE KNOWS(since DATE)")
+        .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
+        .assert_success()
+        .exec_dml("UPSERT EDGE ON KNOWS SET since = '2024-01-01' WHERE id(src) == 1 AND id(dst) == 2 YIELD since")
+        .assert_success();
+}

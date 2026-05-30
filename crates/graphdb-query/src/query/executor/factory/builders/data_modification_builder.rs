@@ -53,28 +53,27 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 })?;
 
             // Obtain the tag name
-            let tag_names = node.tag_names();
+            let tags_info = node.tags();
 
             // Create a list of tags.
             let mut tags = Vec::new();
 
             // Add tags and attributes
             for (tag_idx, tag_values) in tag_values_list.iter().enumerate() {
-                if let Some(tag_name) = tag_names.get(tag_idx) {
+                if let Some(tag_info) = tags_info.get(tag_idx) {
+                    let tag_name = &tag_info.tag_name;
                     // Create a mapping of tag attributes.
                     let mut tag_props = HashMap::new();
 
-                    // Add attributes
-                    if let Some(prop_names) = node.prop_names() {
-                        for (prop_idx, prop_value) in tag_values.iter().enumerate() {
-                            if let Some(prop_name) = prop_names.get(prop_idx) {
-                                // Evaluate the expression to get the actual value
-                                let value = prop_value
-                                    .get_expression()
-                                    .and_then(|e| Self::evaluate_literal(&e))
-                                    .unwrap_or(Value::Null(crate::core::NullType::Null));
-                                tag_props.insert(prop_name.clone(), value);
-                            }
+                    // Add attributes using this tag's own property names
+                    for (prop_idx, prop_value) in tag_values.iter().enumerate() {
+                        if let Some(prop_name) = tag_info.prop_names.get(prop_idx) {
+                            // Evaluate the expression to get the actual value
+                            let value = prop_value
+                                .get_expression()
+                                .and_then(|e| Self::evaluate_literal(&e))
+                                .unwrap_or(Value::Null(crate::core::NullType::Null));
+                            tag_props.insert(prop_name.clone(), value);
                         }
                     }
 

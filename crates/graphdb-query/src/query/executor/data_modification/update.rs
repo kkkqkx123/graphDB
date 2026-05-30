@@ -327,6 +327,11 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                     );
                     storage.insert_edge(&self.space_name, new_edge)?;
                     update_result.returned_props = update.properties.clone();
+                } else {
+                    return Err(DBError::query(format!(
+                        "Edge ({}, {}) of type '{}' not found, cannot update",
+                        update.src, update.dst, update.edge_type
+                    )));
                 }
 
                 results.push(update_result);
