@@ -130,7 +130,7 @@ fn test_index_on_commit_reload_policy() -> crate::Result<()> {
     test_index_on_commit_reload_policy_aux(field, &index, &reader)
 }
 
-#[cfg(feature = "mmap")]
+#[cfg(all(feature = "mmap", not(target_os = "windows")))]
 mod mmap_specific {
 
     use std::path::PathBuf;

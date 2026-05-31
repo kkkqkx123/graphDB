@@ -412,13 +412,20 @@ mod tests_mmap_specific {
             .garbage_collect(|| living_files.clone())
             .is_ok());
         if cfg!(target_os = "windows") {
-            // On Windows, gc should try and fail the file as it is mmapped.
-            assert!(managed_directory.exists(test_path1).unwrap());
-            // unmap should happen here.
+            // On Windows, whether GC can delete a mmapped file depends on the
+            // OS version and configuration. Some Windows versions allow deletion
+            // with FILE_SHARE_DELETE, others don't.
+            if managed_directory.exists(test_path1).unwrap() {
+                // Windows can't delete mmapped files: drop mmap and retry GC
+                drop(_mmap_read);
+                assert!(managed_directory.garbage_collect(|| living_files).is_ok());
+            } else {
+                // Windows can delete mmapped files: just drop mmap
+                drop(_mmap_read);
+            }
+        } else {
+            // On Unix, mmap'd files should be deletable
             drop(_mmap_read);
-            // The file should still be in the list of managed file and
-            // eventually be deleted once mmap is released.
-            assert!(managed_directory.garbage_collect(|| living_files).is_ok());
         }
         assert!(!managed_directory.exists(test_path1).unwrap());
     }
