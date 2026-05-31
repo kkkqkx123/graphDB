@@ -462,5 +462,3 @@ mod tests {
         eull.increment_num_blocks();
     }
 }
-
-
