@@ -5,7 +5,9 @@ use std::time::Instant;
 use anyhow::Result;
 use csv::ReaderBuilder;
 
-use crate::io::{BatchProcessor, ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget};
+use crate::io::{
+    BatchProcessor, ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget,
+};
 use crate::session::manager::SessionManager;
 
 pub struct CsvImporter {

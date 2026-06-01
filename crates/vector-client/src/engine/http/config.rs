@@ -111,7 +111,10 @@ fn build_quantization_json(qt: &QuantizationType) -> Value {
         obj.insert("always_ram".to_string(), json!(v));
     }
 
-    if let QuantizationType::Scalar { quantile: Some(v), .. } = qt {
+    if let QuantizationType::Scalar {
+        quantile: Some(v), ..
+    } = qt
+    {
         obj.insert("quantile".to_string(), json!(v));
     }
 
@@ -129,7 +132,13 @@ pub fn build_create_collection_body(
     on_disk_payload: Option<bool>,
     shard_number: Option<usize>,
 ) -> Value {
-    let vectors = build_vectors_json(vector_size, distance, index_type, hnsw_config, quantization_config);
+    let vectors = build_vectors_json(
+        vector_size,
+        distance,
+        index_type,
+        hnsw_config,
+        quantization_config,
+    );
 
     let mut body = serde_json::Map::new();
     body.insert("vectors".to_string(), vectors);
@@ -177,8 +186,14 @@ pub fn build_search_body(
     let mut body = serde_json::Map::new();
     body.insert("vector".to_string(), json!(vector));
     body.insert("limit".to_string(), json!(limit));
-    body.insert("with_payload".to_string(), json!(with_payload.unwrap_or(true)));
-    body.insert("with_vector".to_string(), json!(with_vector.unwrap_or(false)));
+    body.insert(
+        "with_payload".to_string(),
+        json!(with_payload.unwrap_or(true)),
+    );
+    body.insert(
+        "with_vector".to_string(),
+        json!(with_vector.unwrap_or(false)),
+    );
 
     if let Some(off) = offset {
         body.insert("offset".to_string(), json!(off));
@@ -210,8 +225,14 @@ pub fn build_get_body(
 ) -> Value {
     let mut body = serde_json::Map::new();
     body.insert("ids".to_string(), json!(ids));
-    body.insert("with_payload".to_string(), json!(with_payload.unwrap_or(true)));
-    body.insert("with_vector".to_string(), json!(with_vector.unwrap_or(false)));
+    body.insert(
+        "with_payload".to_string(),
+        json!(with_payload.unwrap_or(true)),
+    );
+    body.insert(
+        "with_vector".to_string(),
+        json!(with_vector.unwrap_or(false)),
+    );
     Value::Object(body)
 }
 
@@ -223,8 +244,14 @@ pub fn build_scroll_body(
 ) -> Value {
     let mut body = serde_json::Map::new();
     body.insert("limit".to_string(), json!(limit));
-    body.insert("with_payload".to_string(), json!(with_payload.unwrap_or(true)));
-    body.insert("with_vector".to_string(), json!(with_vector.unwrap_or(false)));
+    body.insert(
+        "with_payload".to_string(),
+        json!(with_payload.unwrap_or(true)),
+    );
+    body.insert(
+        "with_vector".to_string(),
+        json!(with_vector.unwrap_or(false)),
+    );
 
     if let Some(off) = offset {
         body.insert("offset".to_string(), off);
@@ -247,10 +274,7 @@ pub fn build_delete_payload_body(ids: Vec<Value>, keys: Vec<String>) -> Value {
     })
 }
 
-pub fn build_create_payload_index_body(
-    field_name: &str,
-    field_type: PayloadSchemaType,
-) -> Value {
+pub fn build_create_payload_index_body(field_name: &str, field_type: PayloadSchemaType) -> Value {
     json!({
         "field_name": field_name,
         "field_type": field_type_to_qdrant(field_type)

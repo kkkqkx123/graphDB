@@ -1,13 +1,13 @@
 use crate::core::{
     error::StorageError,
     error::StorageResult,
-    value::value_def::Value,
-    value::null::NullType,
     types::DataType,
-    value::date_time::{DateValue, DateTimeValue, TimeValue},
-    value::uuid::UuidValue,
+    value::date_time::{DateTimeValue, DateValue, TimeValue},
     value::interval::IntervalValue,
     value::list::List,
+    value::null::NullType,
+    value::uuid::UuidValue,
+    value::value_def::Value,
 };
 use chrono::{Datelike, Timelike};
 
@@ -645,10 +645,7 @@ impl Value {
                     Value::Int(i as i32)
                 }
                 Value::BigInt(_) => {
-                    return Err(StorageError::type_mismatch(
-                        DataType::Int,
-                        self.data_type(),
-                    ));
+                    return Err(StorageError::type_mismatch(DataType::Int, self.data_type()));
                 }
                 other => other,
             },
@@ -670,7 +667,12 @@ impl Value {
             DataType::Geography => match self {
                 Value::Null(_) | Value::Empty => Value::Null(NullType::Null),
                 Value::Geography(g) => Value::Geography(g.clone()),
-                _ => return Err(StorageError::type_mismatch(target.clone(), self.data_type())),
+                _ => {
+                    return Err(StorageError::type_mismatch(
+                        target.clone(),
+                        self.data_type(),
+                    ))
+                }
             },
             _ => Value::Null(NullType::BadData),
         };

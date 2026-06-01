@@ -31,7 +31,9 @@ impl std::fmt::Display for PointIdValue {
 #[serde(untagged)]
 pub enum VectorValue {
     Single(Vec<f32>),
-    Multi { data: Vec<f32> },
+    Multi {
+        data: Vec<f32>,
+    },
     #[allow(dead_code)]
     Named(std::collections::HashMap<String, Value>),
 }

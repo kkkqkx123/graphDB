@@ -7,8 +7,8 @@
 //! 2. Verify the compatibility of the number of columns and data types in the left and right subqueries.
 //! 3. Support for various types of set operations
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, SetOperationStmt, SetOperationType};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
 use crate::query::validator::validator_trait::{

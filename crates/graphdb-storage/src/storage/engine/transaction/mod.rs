@@ -6,11 +6,11 @@
 //! - targets: Undo/Recovery/Compact implementations for PropertyGraph
 
 mod ops;
-mod transactional;
 mod targets;
+mod transactional;
 
 pub use ops::{
-    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams,
-    InsertEdgeUndoParams, RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
+    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams, InsertEdgeUndoParams,
+    RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
 };
 pub use transactional::{execute_in_transaction, with_rollback, TransactionWriter};

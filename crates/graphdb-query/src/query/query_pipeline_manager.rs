@@ -24,6 +24,7 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
 use crate::core::error::{DBError, DBResult, QueryError};
+use crate::core::metadata::SchemaManager;
 use crate::core::{
     ErrorInfo, ErrorType, MetricType, QueryMetrics, QueryPhase, QueryProfile, StatsManager,
 };
@@ -40,7 +41,6 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
 use crate::query::QueryRequestContext;
-use crate::core::metadata::SchemaManager;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
 use parking_lot::RwLock;
@@ -769,8 +769,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
                 // Resolve tag metadata and their indexes
                 for tag_name in referenced_tags {
-                    let tag_metadata =
-                        metadata_provider.get_tag_metadata(space_id, tag_name).map_err(|e| {
+                    let tag_metadata = metadata_provider
+                        .get_tag_metadata(space_id, tag_name)
+                        .map_err(|e| {
                             DBError::from(QueryError::invalid_query(format!(
                                 "Tag '{}' not found: {}",
                                 tag_name, e
@@ -781,8 +782,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
                 // Resolve edge type metadata
                 for edge_type in referenced_edges {
-                    let edge_metadata =
-                        metadata_provider.get_edge_type_metadata(space_id, edge_type).map_err(|e| {
+                    let edge_metadata = metadata_provider
+                        .get_edge_type_metadata(space_id, edge_type)
+                        .map_err(|e| {
                             DBError::from(QueryError::invalid_query(format!(
                                 "Edge type '{}' not found: {}",
                                 edge_type, e

@@ -1,9 +1,9 @@
 //! Implementation of practical functions
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::query::executor::expression::ExpressionError;
 use serde_json::Value as JsonValue;
 
 /// Enumeration of practical functions

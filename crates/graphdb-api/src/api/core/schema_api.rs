@@ -692,7 +692,7 @@ impl From<PropertyDef> for crate::core::types::PropertyDef {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
 
     fn create_mock_storage() -> Arc<RwLock<MockStorage>> {
         Arc::new(RwLock::new(

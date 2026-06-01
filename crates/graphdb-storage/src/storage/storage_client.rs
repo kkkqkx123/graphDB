@@ -1,10 +1,10 @@
+use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
-use crate::core::metadata::SchemaManager;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryStats};
 use std::sync::Arc;
 
@@ -221,9 +221,7 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
         self.save_to_disk()
     }
 
-    fn create_checkpoint(
-        &self,
-    ) -> StorageResult<Option<crate::storage::engine::persistence_coordinator::CheckpointStats>> {
+    fn create_checkpoint(&self) -> StorageResult<Option<crate::storage::CheckpointStats>> {
         let _ = self;
         Ok(None)
     }
@@ -247,10 +245,7 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
         Ok(false)
     }
 
-    fn auto_checkpoint_if_needed(
-        &self,
-    ) -> StorageResult<Option<crate::storage::engine::persistence_coordinator::CheckpointStats>>
-    {
+    fn auto_checkpoint_if_needed(&self) -> StorageResult<Option<crate::storage::CheckpointStats>> {
         let _ = self;
         Ok(None)
     }
@@ -272,13 +267,14 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
         Err(StorageError::not_supported("WAL recovery not supported"))
     }
 
-    fn recover_from_wal_with_config(&self, _config: RecoveryConfig) -> StorageResult<RecoveryStats> {
+    fn recover_from_wal_with_config(
+        &self,
+        _config: RecoveryConfig,
+    ) -> StorageResult<RecoveryStats> {
         Err(StorageError::not_supported("WAL recovery not supported"))
     }
 
-    fn init_with_recovery(
-        &self,
-    ) -> StorageResult<Option<RecoveryStats>> {
+    fn init_with_recovery(&self) -> StorageResult<Option<RecoveryStats>> {
         if self.needs_recovery() {
             let stats = self.recover_from_wal()?;
             Ok(Some(stats))

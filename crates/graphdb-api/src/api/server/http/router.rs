@@ -143,11 +143,23 @@ fn add_vector_routes<S: crate::storage::StorageClient + Clone + Send + Sync + 's
     router: Router<super::state::AppState<S>>,
 ) -> Router<super::state::AppState<S>> {
     router
-        .route("/vector/indexes", post(vector::create_index).get(vector::list_indexes))
-        .route("/vector/indexes/{space_id}/{tag_name}/{field_name}", get(vector::get_index_info).delete(vector::drop_index))
+        .route(
+            "/vector/indexes",
+            post(vector::create_index).get(vector::list_indexes),
+        )
+        .route(
+            "/vector/indexes/{space_id}/{tag_name}/{field_name}",
+            get(vector::get_index_info).delete(vector::drop_index),
+        )
         .route("/vector/search", post(vector::search))
-        .route("/vector/{space_id}/{tag_name}/{field_name}/{point_id}", get(vector::get_vector))
-        .route("/vector/{space_id}/{tag_name}/{field_name}/count", get(vector::count))
+        .route(
+            "/vector/{space_id}/{tag_name}/{field_name}/{point_id}",
+            get(vector::get_vector),
+        )
+        .route(
+            "/vector/{space_id}/{tag_name}/{field_name}/count",
+            get(vector::count),
+        )
 }
 
 #[cfg(not(feature = "qdrant"))]

@@ -331,11 +331,7 @@ fn test_upsert_arithmetic_insert() {
         .assert_success()
         .exec_dml("UPSERT VERTEX ON Counter SET val = val + 5 WHERE id(vid) == 1")
         .assert_success()
-        .assert_vertex_props(
-            1,
-            "Counter",
-            HashMap::from([("val", Value::Int(15))]),
-        );
+        .assert_vertex_props(1, "Counter", HashMap::from([("val", Value::Int(15))]));
 }
 
 // ==================== MERGE EDGE Execution Tests ====================

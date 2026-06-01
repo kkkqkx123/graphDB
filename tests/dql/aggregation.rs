@@ -235,7 +235,8 @@ fn test_having_parser_basic() {
 
 #[test]
 fn test_having_parser_with_count_star() {
-    let query = "MATCH (v:Person) RETURN v.city, COUNT(*) AS cnt GROUP BY v.city HAVING COUNT(*) >= 2";
+    let query =
+        "MATCH (v:Person) RETURN v.city, COUNT(*) AS cnt GROUP BY v.city HAVING COUNT(*) >= 2";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
@@ -363,7 +364,9 @@ fn test_group_by_with_sum_execution() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Sale(category STRING, amount INT)")
-        .exec_dml("INSERT VERTEX Sale(category, amount) VALUES 1:('A', 100), 2:('A', 200), 3:('B', 150)")
+        .exec_dml(
+            "INSERT VERTEX Sale(category, amount) VALUES 1:('A', 100), 2:('A', 200), 3:('B', 150)",
+        )
         .assert_success()
         .query("MATCH (s:Sale) RETURN s.category, SUM(s.amount) AS total GROUP BY s.category")
         .assert_success()

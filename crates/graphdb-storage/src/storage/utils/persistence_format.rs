@@ -3,8 +3,8 @@
 //! Provides standardized file headers with magic bytes and versioning
 //! for all persistence files in the storage layer.
 
-use crate::core::StorageResult;
 use crate::core::error::StorageError;
+use crate::core::StorageResult;
 
 /// Magic bytes identifying GraphDB persistence files
 pub const PERSISTENCE_MAGIC: [u8; 4] = *b"GRDB";
@@ -57,15 +57,15 @@ pub fn read_header(data: &mut &[u8]) -> StorageResult<(u32, u32)> {
     }
     *data = &data[4..];
 
-    let version_bytes: [u8; 4] = data[..4].try_into().map_err(|_| {
-        StorageError::deserialize_error("failed to read version")
-    })?;
+    let version_bytes: [u8; 4] = data[..4]
+        .try_into()
+        .map_err(|_| StorageError::deserialize_error("failed to read version"))?;
     let version = u32::from_le_bytes(version_bytes);
     *data = &data[4..];
 
-    let section_bytes: [u8; 4] = data[..4].try_into().map_err(|_| {
-        StorageError::deserialize_error("failed to read section_id")
-    })?;
+    let section_bytes: [u8; 4] = data[..4]
+        .try_into()
+        .map_err(|_| StorageError::deserialize_error("failed to read section_id"))?;
     let section_id = u32::from_le_bytes(section_bytes);
     *data = &data[4..];
 
@@ -91,9 +91,9 @@ pub fn read_u64_le(data: &[u8], offset: &mut usize) -> StorageResult<u64> {
             *offset
         )));
     }
-    let bytes: [u8; 8] = data[*offset..end].try_into().map_err(|_| {
-        StorageError::deserialize_error("failed to read u64")
-    })?;
+    let bytes: [u8; 8] = data[*offset..end]
+        .try_into()
+        .map_err(|_| StorageError::deserialize_error("failed to read u64"))?;
     *offset = end;
     Ok(u64::from_le_bytes(bytes))
 }
@@ -109,9 +109,9 @@ pub fn read_u32_le(data: &[u8], offset: &mut usize) -> StorageResult<u32> {
             *offset
         )));
     }
-    let bytes: [u8; 4] = data[*offset..end].try_into().map_err(|_| {
-        StorageError::deserialize_error("failed to read u32")
-    })?;
+    let bytes: [u8; 4] = data[*offset..end]
+        .try_into()
+        .map_err(|_| StorageError::deserialize_error("failed to read u32"))?;
     *offset = end;
     Ok(u32::from_le_bytes(bytes))
 }

@@ -41,8 +41,7 @@ use crate::storage::utils::props_to_map;
 pub use csr::Csr;
 pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
 pub use edge_table::{
-    EdgeTable, EdgeTableScanIterator, EdgeVertexIterator,
-    UpdateEdgePropertyByOffsetParams,
+    EdgeTable, EdgeTableScanIterator, EdgeVertexIterator, UpdateEdgePropertyByOffsetParams,
 };
 
 pub use mutable_csr::{
@@ -97,8 +96,7 @@ impl From<&EdgeRecord> for Edge {
 
 impl EdgeRecord {
     pub fn into_edge_with_type(self, edge_type: &str) -> Edge {
-        let props: std::collections::HashMap<String, Value> =
-            self.properties.into_iter().collect();
+        let props: std::collections::HashMap<String, Value> = self.properties.into_iter().collect();
 
         Edge {
             src: self.src_vid,
@@ -129,7 +127,11 @@ impl EdgeSchema {
         src_label: LabelId,
         dst_label: LabelId,
     ) -> Self {
-        let properties: Vec<StoragePropertyDef> = edge_type.properties.iter().map(StoragePropertyDef::from_core).collect();
+        let properties: Vec<StoragePropertyDef> = edge_type
+            .properties
+            .iter()
+            .map(StoragePropertyDef::from_core)
+            .collect();
         Self {
             label_id,
             label_name: edge_type.edge_type_name.clone(),

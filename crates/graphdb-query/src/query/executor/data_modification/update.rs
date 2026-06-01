@@ -182,8 +182,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                     returned_props: HashMap::new(),
                 };
 
-                let vertex_vid =
-                    VertexId::try_from(&update.vertex_id).map_err(DBError::from)?;
+                let vertex_vid = VertexId::try_from(&update.vertex_id).map_err(DBError::from)?;
                 if let Some(mut vertex) = storage.get_vertex(&self.space_name, &vertex_vid)? {
                     // Build current vertex properties for condition evaluation
                     let mut current_props = HashMap::new();
@@ -237,10 +236,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                             tag_names
                                 .iter()
                                 .map(|name| {
-                                    crate::core::Tag::new(
-                                        name.clone(),
-                                        update.properties.clone(),
-                                    )
+                                    crate::core::Tag::new(name.clone(), update.properties.clone())
                                 })
                                 .collect()
                         })

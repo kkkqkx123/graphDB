@@ -212,7 +212,12 @@ impl RewriteRule for PushFilterDownAggregateRule {
 
         // Check whether the filter conditions contain references to aggregate functions.
         // 如果条件引用了聚合结果（如 HAVING COUNT(*) > 10），则不能下推
-        if Self::has_aggregate_function_reference(&filter_expr, group_keys, agg_funcs, agg_node.col_names()) {
+        if Self::has_aggregate_function_reference(
+            &filter_expr,
+            group_keys,
+            agg_funcs,
+            agg_node.col_names(),
+        ) {
             return Ok(None);
         }
 

@@ -164,9 +164,8 @@ mod tests {
     use crate::core::Value;
 
     // Create a storage engine for testing purposes.
-    fn create_test_storage() -> Arc<RwLock<crate::storage::test_mock::MockStorage>> {
-        let storage =
-            crate::storage::test_mock::MockStorage::new().expect("Failed to create test storage");
+    fn create_test_storage() -> Arc<RwLock<crate::storage::MockStorage>> {
+        let storage = crate::storage::MockStorage::new().expect("Failed to create test storage");
         Arc::new(RwLock::new(storage))
     }
 

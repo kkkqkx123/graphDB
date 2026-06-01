@@ -1,8 +1,8 @@
 //! Implementation of mathematical functions
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::query::executor::expression::ExpressionError;
 
 define_function_enum! {
     /// Enumeration of mathematical functions

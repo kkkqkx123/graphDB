@@ -20,7 +20,9 @@ mod test;
 
 pub use context::GraphStorageContext;
 
-pub use crate::storage::engine::transaction::{execute_in_transaction, with_rollback, TransactionWriter};
+pub use crate::storage::engine::transaction::{
+    execute_in_transaction, with_rollback, TransactionWriter,
+};
 pub use transaction_config::{DurabilityLevel, IsolationLevel, TransactionConfig, WalSyncMode};
 
 use std::path::PathBuf;
@@ -28,6 +30,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
+use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
@@ -35,8 +38,7 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::{PersistenceConfig, PropertyGraph};
-use crate::storage::index::secondary::IndexGcManager;
-use crate::core::metadata::SchemaManager;
+use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
 };
@@ -63,9 +65,7 @@ impl GraphStorage {
     }
 
     pub fn new_with_path(path: PathBuf) -> StorageResult<Self> {
-        Ok(Self {
-            ctx: Arc::new(GraphStorageContext::new_with_path(path)),
-        })
+        GraphStorageContext::new_with_path(path).map(|ctx| Self { ctx: Arc::new(ctx) })
     }
 
     pub fn new_with_persistence(path: PathBuf, config: PersistenceConfig) -> StorageResult<Self> {
@@ -73,10 +73,7 @@ impl GraphStorage {
             .map(|ctx| Self { ctx: Arc::new(ctx) })
     }
 
-    pub fn with_index_gc(
-        mut self,
-        config: crate::storage::index::secondary::IndexGcConfig,
-    ) -> Self {
+    pub fn with_index_gc(mut self, config: IndexGcConfig) -> Self {
         let new_ctx = Arc::new((*self.ctx).clone().with_index_gc(config));
         self.ctx = new_ctx;
         self
@@ -94,11 +91,11 @@ impl GraphStorage {
         self.ctx.is_index_gc_running()
     }
 
-    pub fn index_gc_manager(&self) -> Option<Arc<IndexGcManager>> {
+    pub(crate) fn index_gc_manager(&self) -> Option<Arc<IndexGcManager>> {
         self.ctx.index_gc_manager.clone()
     }
 
-    pub fn get_db(&self) -> Arc<PropertyGraph> {
+    pub(crate) fn get_db(&self) -> Arc<PropertyGraph> {
         self.ctx.graph.clone()
     }
 
@@ -114,7 +111,7 @@ impl GraphStorage {
         self.ctx.set_transaction_context(context);
     }
 
-    pub fn persistence(
+    pub(crate) fn persistence(
         &self,
     ) -> Option<Arc<RwLock<crate::storage::engine::PersistenceCoordinator>>> {
         self.ctx.persistence.clone()
@@ -541,9 +538,7 @@ impl StorageAdmin for GraphStorage {
         persistence::save_data_to_dir(&self.ctx, dir)
     }
 
-    fn create_checkpoint(
-        &self,
-    ) -> StorageResult<Option<crate::storage::engine::persistence_coordinator::CheckpointStats>> {
+    fn create_checkpoint(&self) -> StorageResult<Option<crate::storage::CheckpointStats>> {
         persistence::create_checkpoint(&self.ctx)
     }
 
@@ -555,10 +550,7 @@ impl StorageAdmin for GraphStorage {
         persistence::auto_flush_if_needed(&self.ctx)
     }
 
-    fn auto_checkpoint_if_needed(
-        &self,
-    ) -> StorageResult<Option<crate::storage::engine::persistence_coordinator::CheckpointStats>>
-    {
+    fn auto_checkpoint_if_needed(&self) -> StorageResult<Option<crate::storage::CheckpointStats>> {
         persistence::auto_checkpoint_if_needed(&self.ctx)
     }
 
@@ -607,6 +599,8 @@ impl StorageAdmin for GraphStorage {
                     .load_indexes(&index_meta_path)?;
             }
         }
+
+        schema_adapter::ensure_graph_types_from_schema(&self.ctx)?;
 
         // Try checkpoint recovery first
         let checkpoint_loaded = persistence::load_latest_checkpoint(&self.ctx)?;

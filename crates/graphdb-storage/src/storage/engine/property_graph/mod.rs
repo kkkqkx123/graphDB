@@ -18,8 +18,8 @@ use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{EdgeRecord, EdgeStrategy};
-use crate::storage::engine::edge_params::CreateEdgeTypeParams;
 use crate::storage::engine::data_store::EdgeTableKey;
+use crate::storage::engine::edge_params::CreateEdgeTypeParams;
 use crate::storage::storage_types::{EdgeOffset, StoragePropertyDef};
 use crate::storage::vertex::VertexRecord;
 use crate::transaction::wal::writer::WalWriter;
@@ -28,8 +28,8 @@ use super::cache_manager::CacheManager;
 use super::config::PropertyGraphConfig;
 use super::data_store::GraphDataStore;
 use super::wal_manager::WalManager;
-use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl, IndexGcOps};
 use crate::core::types::{TableId, TableTracker, TableTrackerConfig, TableType};
+use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl, IndexGcOps};
 
 pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
 
@@ -55,8 +55,14 @@ impl std::fmt::Debug for PropertyGraph {
             .field("edge_tables", &edge_tables)
             .field("vertex_label_names", &vertex_label_names)
             .field("edge_label_names", &edge_label_names)
-            .field("vertex_label_counter", &self.data_store.vertex_label_counter().read())
-            .field("edge_label_counter", &self.data_store.edge_label_counter().read())
+            .field(
+                "vertex_label_counter",
+                &self.data_store.vertex_label_counter().read(),
+            )
+            .field(
+                "edge_label_counter",
+                &self.data_store.edge_label_counter().read(),
+            )
             .field("config", &self.config)
             .field("is_open", &self.is_open.load(Ordering::Relaxed))
             .finish_non_exhaustive()
@@ -109,10 +115,7 @@ impl PropertyGraph {
     }
 
     pub fn with_config(config: PropertyGraphConfig) -> Self {
-        let cache_manager = CacheManager::new(
-            config.enable_cache,
-            config.cache_memory,
-        );
+        let cache_manager = CacheManager::new(config.enable_cache, config.cache_memory);
 
         let table_tracker = Arc::new(TableTracker::with_config(TableTrackerConfig {
             flush_threshold: config.flush_config.flush_threshold,
@@ -402,7 +405,8 @@ impl PropertyGraph {
 
     pub fn get_external_id_any(&self, internal_id: u32, ts: Timestamp) -> Option<String> {
         let vertex_tables = self.data_store.vertex_tables().read();
-        vertex_tables.values()
+        vertex_tables
+            .values()
             .find_map(|t| t.get_external_id(internal_id, ts))
             .map(|k| k.to_string())
     }
@@ -448,7 +452,8 @@ impl PropertyGraph {
     }
 
     pub fn vertex_label_ids(&self) -> Vec<LabelId> {
-        self.data_store.vertex_tables()
+        self.data_store
+            .vertex_tables()
             .read()
             .keys()
             .copied()
@@ -552,7 +557,8 @@ impl PropertyGraph {
     }
 
     pub fn edge_count(&self, edge_label: LabelId) -> u64 {
-        self.data_store.edge_tables()
+        self.data_store
+            .edge_tables()
             .read()
             .values()
             .filter_map(|t| {
@@ -568,7 +574,8 @@ impl PropertyGraph {
     // ==================== Label Access ====================
 
     pub fn vertex_label_names(&self) -> Vec<String> {
-        self.data_store.vertex_label_names()
+        self.data_store
+            .vertex_label_names()
             .read()
             .keys()
             .map(|s| s.to_string())
@@ -576,7 +583,8 @@ impl PropertyGraph {
     }
 
     pub fn edge_label_names(&self) -> Vec<String> {
-        self.data_store.edge_label_names()
+        self.data_store
+            .edge_label_names()
             .read()
             .keys()
             .map(|s| s.to_string())
@@ -584,7 +592,11 @@ impl PropertyGraph {
     }
 
     pub fn get_vertex_label_id(&self, name: &str) -> Option<LabelId> {
-        self.data_store.vertex_label_names().read().get(name).copied()
+        self.data_store
+            .vertex_label_names()
+            .read()
+            .get(name)
+            .copied()
     }
 
     pub fn get_edge_label_id(&self, name: &str) -> Option<LabelId> {
@@ -594,7 +606,8 @@ impl PropertyGraph {
     // ==================== Table Access ====================
 
     pub fn get_vertex_table_opt(&self, label: LabelId) -> Option<String> {
-        self.data_store.vertex_tables()
+        self.data_store
+            .vertex_tables()
             .read()
             .get(&label)
             .map(|t| t.label_name().to_string())
@@ -607,7 +620,8 @@ impl PropertyGraph {
         edge_label: LabelId,
         ts: Timestamp,
     ) -> Vec<EdgeRecord> {
-        self.data_store.edge_tables()
+        self.data_store
+            .edge_tables()
             .read()
             .get(&EdgeTableKey::new(src_label, dst_label, edge_label))
             .map(|t| t.scan(ts))
@@ -615,7 +629,8 @@ impl PropertyGraph {
     }
 
     pub fn scan_edges_by_label(&self, edge_label: LabelId, ts: Timestamp) -> Vec<EdgeRecord> {
-        self.data_store.edge_tables()
+        self.data_store
+            .edge_tables()
             .read()
             .values()
             .find(|t| t.label() == edge_label)
@@ -624,11 +639,17 @@ impl PropertyGraph {
     }
 
     pub fn total_vertex_count(&self) -> usize {
-        self.data_store.vertex_tables().read().values().map(|t| t.total_count()).sum()
+        self.data_store
+            .vertex_tables()
+            .read()
+            .values()
+            .map(|t| t.total_count())
+            .sum()
     }
 
     pub fn total_edge_count(&self) -> usize {
-        self.data_store.edge_tables()
+        self.data_store
+            .edge_tables()
             .read()
             .values()
             .map(|t| t.edge_count() as usize)
@@ -641,7 +662,15 @@ impl PropertyGraph {
     ) -> Vec<(LabelId, LabelId, LabelId, EdgeRecord)> {
         let edge_tables = self.data_store.edge_tables().read();
         let mut records = Vec::new();
-        for (EdgeTableKey { src_label, dst_label, edge_label }, table) in &*edge_tables {
+        for (
+            EdgeTableKey {
+                src_label,
+                dst_label,
+                edge_label,
+            },
+            table,
+        ) in &*edge_tables
+        {
             for edge_record in table.scan(ts) {
                 records.push((*src_label, *dst_label, *edge_label, edge_record));
             }

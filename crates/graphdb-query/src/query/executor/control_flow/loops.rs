@@ -87,9 +87,11 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
             Some(expression) => {
                 let result = ExpressionEvaluator::evaluate(expression, &mut self.loop_context)
                     .map_err(|e| {
-                        DBError::from(crate::query::executor::expression::ExpressionError::function_error(
-                            e.to_string(),
-                        ))
+                        DBError::from(
+                            crate::query::executor::expression::ExpressionError::function_error(
+                                e.to_string(),
+                            ),
+                        )
                     })?;
 
                 Ok(self.value_to_bool(&result))
@@ -558,9 +560,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
 
         let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
             .map_err(|e| {
-                DBError::from(crate::query::executor::expression::ExpressionError::function_error(
-                    e.to_string(),
-                ))
+                DBError::from(
+                    crate::query::executor::expression::ExpressionError::function_error(
+                        e.to_string(),
+                    ),
+                )
             })?;
 
         let condition_value = match condition_result {
@@ -648,7 +652,7 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for SelectExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::BinaryOperator;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
     use parking_lot::RwLock;
     use std::sync::Arc;
     use ExpressionAnalysisContext;

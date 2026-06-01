@@ -135,5 +135,3 @@ impl MetadataProvider for VectorIndexMetadataProvider {
         Ok(Vec::new())
     }
 }
-
-

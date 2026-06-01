@@ -10,7 +10,7 @@
 use super::common;
 
 use common::storage_helpers::{create_test_space, knows_edge_type_info, person_tag_info};
-use graphdb::core::types::{Index, IndexField, IndexConfig, IndexType, VertexId};
+use graphdb::core::types::{Index, IndexConfig, IndexField, IndexType, VertexId};
 use graphdb::core::value::DateValue;
 use graphdb::core::{Edge, Value, Vertex};
 use graphdb::storage::{
@@ -25,7 +25,9 @@ fn setup_storage_with_path(path: &PathBuf) -> GraphStorage {
 fn setup_space_and_types(storage: &mut GraphStorage) {
     let mut space = create_test_space("test_space");
     storage.create_space(&mut space).unwrap();
-    storage.create_tag("test_space", &person_tag_info()).unwrap();
+    storage
+        .create_tag("test_space", &person_tag_info())
+        .unwrap();
     storage
         .create_edge_type("test_space", &knows_edge_type_info())
         .unwrap();
@@ -66,9 +68,16 @@ fn insert_test_data(storage: &mut GraphStorage) {
         VertexId::from_int64(2),
         "KNOWS".to_string(),
         0,
-        vec![("since".to_string(), Value::Date(DateValue { year: 2020, month: 1, day: 1 }))]
-            .into_iter()
-            .collect(),
+        vec![(
+            "since".to_string(),
+            Value::Date(DateValue {
+                year: 2020,
+                month: 1,
+                day: 1,
+            }),
+        )]
+        .into_iter()
+        .collect(),
     );
     storage.insert_edge("test_space", edge).unwrap();
 }
@@ -88,10 +97,7 @@ fn verify_data_after_reload(storage: &GraphStorage) {
         .get_vertex("test_space", &VertexId::from_int64(2))
         .unwrap()
         .expect("Bob should exist after reload");
-    assert_eq!(
-        bob.properties.get("age"),
-        Some(&Value::BigInt(25))
-    );
+    assert_eq!(bob.properties.get("age"), Some(&Value::BigInt(25)));
 
     // Check edges survived
     let edge = storage
@@ -135,7 +141,9 @@ fn test_flush_and_reload_preserves_vertices() {
     {
         let mut storage = setup_storage_with_path(&dir);
         setup_space_and_types(&mut storage);
-        storage.load_from_disk().expect("Load from disk should succeed");
+        storage
+            .load_from_disk()
+            .expect("Load from disk should succeed");
 
         verify_data_after_reload(&storage);
     }
@@ -249,10 +257,7 @@ fn test_flush_after_vertex_update() {
             .get_vertex("test_space", &VertexId::from_int64(1))
             .unwrap()
             .unwrap();
-        assert_eq!(
-            alice.properties.get("age"),
-            Some(&Value::BigInt(31))
-        );
+        assert_eq!(alice.properties.get("age"), Some(&Value::BigInt(31)));
     }
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -337,9 +342,7 @@ fn test_flush_with_index_metadata() {
             is_unique: false,
             partial_condition: None,
         });
-        storage
-            .create_tag_index("test_space", &index)
-            .unwrap();
+        storage.create_tag_index("test_space", &index).unwrap();
         insert_test_data(&mut storage);
         storage.flush().unwrap();
     }

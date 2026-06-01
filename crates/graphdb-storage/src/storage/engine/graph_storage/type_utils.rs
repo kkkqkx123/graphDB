@@ -5,11 +5,54 @@
 
 use std::collections::HashMap;
 
-use crate::core::types::VertexId;
+use crate::core::types::{LabelId, VertexId};
 use crate::core::vertex_edge_path::Tag;
-use crate::core::{Edge, Value, Vertex};
+use crate::core::{Edge, StorageResult, Value, Vertex};
 use crate::storage::edge::EdgeRecord;
 use crate::storage::vertex::VertexRecord;
+
+use super::context::GraphStorageContext;
+
+pub(crate) fn vertex_type_storage_name(space_id: u64, tag_name: &str) -> String {
+    format!("space_{space_id}:tag:{tag_name}")
+}
+
+pub(crate) fn edge_type_storage_name(space_id: u64, edge_type_name: &str) -> String {
+    format!("space_{space_id}:edge:{edge_type_name}")
+}
+
+pub(crate) fn tag_label_id(
+    ctx: &GraphStorageContext,
+    space: &str,
+    tag_name: &str,
+) -> StorageResult<Option<LabelId>> {
+    Ok(ctx
+        .schema_manager
+        .get_tag(space, tag_name)?
+        .map(|tag| tag.tag_id))
+}
+
+pub(crate) fn endpoint_label_id(
+    ctx: &GraphStorageContext,
+    space: &str,
+    tag_name: &str,
+) -> StorageResult<Option<LabelId>> {
+    if tag_name.is_empty() {
+        return Ok(Some(0));
+    }
+    tag_label_id(ctx, space, tag_name)
+}
+
+pub(crate) fn edge_label_id(
+    ctx: &GraphStorageContext,
+    space: &str,
+    edge_type_name: &str,
+) -> StorageResult<Option<LabelId>> {
+    Ok(ctx
+        .schema_manager
+        .get_edge_type(space, edge_type_name)?
+        .map(|edge_type| edge_type.edge_type_id))
+}
 
 pub fn vertex_id_to_string(vid: &VertexId) -> String {
     if let Some(i) = vid.as_int64() {
@@ -62,7 +105,7 @@ pub fn edge_record_to_edge(
     } else {
         VertexId::from_string(src_id)
     };
-    
+
     let dst_vid = if let Ok(id) = dst_id.parse::<i64>() {
         VertexId::from_int64(id)
     } else {

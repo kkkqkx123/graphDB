@@ -520,9 +520,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         for sort_key in &self.sort_keys {
             // First try direct column name lookup
             let col_lookup = Self::expression_to_col_name(&sort_key.expression)
-                .and_then(|col_name| {
-                    col_names.iter().position(|name| name == &col_name)
-                })
+                .and_then(|col_name| col_names.iter().position(|name| name == &col_name))
                 .filter(|&idx| idx < row.len())
                 .map(|idx| row[idx].clone());
 
@@ -553,9 +551,10 @@ impl<S: StorageClient> TopNExecutor<S> {
             Expression::TagProperty { tag_name, property } => {
                 Some(format!("{}.{}", tag_name, property))
             }
-            Expression::EdgeProperty { edge_name, property } => {
-                Some(format!("{}.{}", edge_name, property))
-            }
+            Expression::EdgeProperty {
+                edge_name,
+                property,
+            } => Some(format!("{}.{}", edge_name, property)),
             _ => None,
         }
     }
@@ -1294,7 +1293,7 @@ impl<S: StorageClient + Send + Sync + 'static> TopNExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
 
     #[test]
     fn test_topn_executor_basic() {

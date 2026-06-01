@@ -80,16 +80,16 @@ impl DmlParser {
                 // Extract vid from WHERE clause condition.
                 // The WHERE clause is used to specify the vertex ID, so we clear it
                 // after extraction since the ID is now in the target.
-                let vid_value = Self::extract_id_from_condition(
-                    where_clause.as_ref(),
-                    &["vid"],
-                ).unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
+                let vid_value = Self::extract_id_from_condition(where_clause.as_ref(), &["vid"])
+                    .unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
                 let vid_expr = CoreExpression::Literal(vid_value);
                 let vid_expr_meta = crate::core::types::expr::ExpressionMeta::with_span(
                     vid_expr,
                     ctx.current_span(),
                 );
-                let vid_id = ctx.expression_context_clone().register_expression(vid_expr_meta);
+                let vid_id = ctx
+                    .expression_context_clone()
+                    .register_expression(vid_expr_meta);
                 let vid = ContextualExpression::new(vid_id, ctx.expression_context_clone());
                 let end_span = ctx.current_span();
                 let span = ctx.merge_span(start_span.start, end_span.end);
@@ -129,20 +129,24 @@ impl DmlParser {
                 // Extract src and dst from WHERE clause.
                 // The WHERE clause is used to specify src/dst, so we clear it
                 // after extraction since the IDs are now in the target.
-                let make_literal_expr = |ctx: &mut ParseContext, value: crate::core::Value| -> ContextualExpression {
-                    let expr = CoreExpression::Literal(value);
-                    let meta = crate::core::types::expr::ExpressionMeta::with_span(expr, ctx.current_span());
-                    let id = ctx.expression_context_clone().register_expression(meta);
-                    ContextualExpression::new(id, ctx.expression_context_clone())
-                };
-                let src_value = Self::extract_id_from_condition(
-                    where_clause.as_ref(),
-                    &["src", "source"],
-                ).unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
+                let make_literal_expr =
+                    |ctx: &mut ParseContext, value: crate::core::Value| -> ContextualExpression {
+                        let expr = CoreExpression::Literal(value);
+                        let meta = crate::core::types::expr::ExpressionMeta::with_span(
+                            expr,
+                            ctx.current_span(),
+                        );
+                        let id = ctx.expression_context_clone().register_expression(meta);
+                        ContextualExpression::new(id, ctx.expression_context_clone())
+                    };
+                let src_value =
+                    Self::extract_id_from_condition(where_clause.as_ref(), &["src", "source"])
+                        .unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
                 let dst_value = Self::extract_id_from_condition(
                     where_clause.as_ref(),
                     &["dst", "dest", "destination"],
-                ).unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
+                )
+                .unwrap_or_else(|| crate::core::Value::Null(crate::core::NullType::Null));
                 let src = make_literal_expr(ctx, src_value);
                 let dst = make_literal_expr(ctx, dst_value);
                 let end_span = ctx.current_span();
@@ -198,7 +202,8 @@ impl DmlParser {
             }
         };
 
-        let where_clause = if ctx.match_token(TokenKind::Where) || ctx.match_token(TokenKind::When) {
+        let where_clause = if ctx.match_token(TokenKind::Where) || ctx.match_token(TokenKind::When)
+        {
             Some(self.parse_expression(ctx)?)
         } else {
             None
@@ -231,7 +236,10 @@ impl DmlParser {
         Self::extract_id_from_expr(&expr, var_names)
     }
 
-    fn extract_id_from_expr(expr: &CoreExpression, var_names: &[&str]) -> Option<crate::core::Value> {
+    fn extract_id_from_expr(
+        expr: &CoreExpression,
+        var_names: &[&str],
+    ) -> Option<crate::core::Value> {
         match expr {
             CoreExpression::Binary { left, op, right } => {
                 use crate::core::types::operators::BinaryOperator;
@@ -250,10 +258,8 @@ impl DmlParser {
                         }
                         None
                     }
-                    BinaryOperator::And => {
-                        Self::extract_id_from_expr(left, var_names)
-                            .or_else(|| Self::extract_id_from_expr(right, var_names))
-                    }
+                    BinaryOperator::And => Self::extract_id_from_expr(left, var_names)
+                        .or_else(|| Self::extract_id_from_expr(right, var_names)),
                     _ => None,
                 }
             }

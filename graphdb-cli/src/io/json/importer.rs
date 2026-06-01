@@ -4,7 +4,9 @@ use std::time::Instant;
 
 use anyhow::Result;
 
-use crate::io::{BatchProcessor, ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget};
+use crate::io::{
+    BatchProcessor, ErrorHandling, ImportConfig, ImportError, ImportStats, ImportTarget,
+};
 use crate::session::manager::SessionManager;
 
 pub struct JsonImporter {

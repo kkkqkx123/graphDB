@@ -1,8 +1,8 @@
 //! Implementation of type conversion functions
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::query::executor::expression::ExpressionError;
 
 define_function_enum! {
     /// Type conversion function enumeration

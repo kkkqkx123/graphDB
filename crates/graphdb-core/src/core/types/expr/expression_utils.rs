@@ -33,12 +33,7 @@ pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, S
             Value::BigInt(i) => return Ok(i.to_string()),
             Value::Float(f) => return Ok(f.to_string()),
             Value::Bool(b) => return Ok(b.to_string()),
-            _ => {
-                return Err(format!(
-                    "Cannot extract string from literal: {:?}",
-                    literal
-                ))
-            }
+            _ => return Err(format!("Cannot extract string from literal: {:?}", literal)),
         }
     }
 
@@ -135,8 +130,8 @@ pub fn extract_group_info(
 mod tests {
     use super::*;
     use crate::core::types::expr::def::Expression;
+    use crate::core::types::expr::expression_context::ExpressionAnalysisContext;
     use crate::core::types::expr::ExpressionMeta;
-use crate::core::types::expr::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     #[test]

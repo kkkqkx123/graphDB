@@ -27,97 +27,99 @@ pub fn aggregate_from_str(func_name: &str) -> Result<AggregateFunction, Expressi
 }
 
 /// Creating aggregate functions from strings and parameters
-pub fn aggregate_from_str_with_args(func_name: &str, args: &[String]) -> Result<AggregateFunction, ExpressionError> {
-        match func_name.to_uppercase().as_str() {
-            "COUNT" => {
-                if args.is_empty() {
-                    Ok(AggregateFunction::Count(None))
-                } else {
-                    Ok(AggregateFunction::Count(Some(args[0].clone())))
-                }
+pub fn aggregate_from_str_with_args(
+    func_name: &str,
+    args: &[String],
+) -> Result<AggregateFunction, ExpressionError> {
+    match func_name.to_uppercase().as_str() {
+        "COUNT" => {
+            if args.is_empty() {
+                Ok(AggregateFunction::Count(None))
+            } else {
+                Ok(AggregateFunction::Count(Some(args[0].clone())))
             }
-            "SUM" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "SUM function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::Sum(args[0].clone()))
-            }
-            "AVG" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "AVG function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::Avg(args[0].clone()))
-            }
-            "MIN" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "MIN function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::Min(args[0].clone()))
-            }
-            "MAX" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "MAX function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::Max(args[0].clone()))
-            }
-            "COLLECT" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "COLLECT function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::Collect(args[0].clone()))
-            }
-            "DISTINCT" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "DISTINCT function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::Distinct(args[0].clone()))
-            }
-            "PERCENTILE" => {
-                if args.len() < 2 {
-                    return Err(ExpressionError::function_error(
-                        "PERCENTILE function requires a field name and percentile value"
-                            .to_string(),
-                    ));
-                }
-                let percentile = args[1].parse::<f64>().map_err(|_| {
-                    ExpressionError::function_error("Invalid percentile value".to_string())
-                })?;
-                Ok(AggregateFunction::Percentile(args[0].clone(), percentile))
-            }
-            "VEC_SUM" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "VEC_SUM function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::VecSum(args[0].clone()))
-            }
-            "VEC_AVG" => {
-                if args.is_empty() {
-                    return Err(ExpressionError::function_error(
-                        "VEC_AVG function requires a field name".to_string(),
-                    ));
-                }
-                Ok(AggregateFunction::VecAvg(args[0].clone()))
-            }
-            _ => Err(ExpressionError::function_error(format!(
-                "Unknown aggregate function: {}",
-                func_name
-            ))),
         }
+        "SUM" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "SUM function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::Sum(args[0].clone()))
+        }
+        "AVG" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "AVG function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::Avg(args[0].clone()))
+        }
+        "MIN" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "MIN function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::Min(args[0].clone()))
+        }
+        "MAX" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "MAX function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::Max(args[0].clone()))
+        }
+        "COLLECT" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "COLLECT function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::Collect(args[0].clone()))
+        }
+        "DISTINCT" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "DISTINCT function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::Distinct(args[0].clone()))
+        }
+        "PERCENTILE" => {
+            if args.len() < 2 {
+                return Err(ExpressionError::function_error(
+                    "PERCENTILE function requires a field name and percentile value".to_string(),
+                ));
+            }
+            let percentile = args[1].parse::<f64>().map_err(|_| {
+                ExpressionError::function_error("Invalid percentile value".to_string())
+            })?;
+            Ok(AggregateFunction::Percentile(args[0].clone(), percentile))
+        }
+        "VEC_SUM" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "VEC_SUM function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::VecSum(args[0].clone()))
+        }
+        "VEC_AVG" => {
+            if args.is_empty() {
+                return Err(ExpressionError::function_error(
+                    "VEC_AVG function requires a field name".to_string(),
+                ));
+            }
+            Ok(AggregateFunction::VecAvg(args[0].clone()))
+        }
+        _ => Err(ExpressionError::function_error(format!(
+            "Unknown aggregate function: {}",
+            func_name
+        ))),
     }
+}
 
 /// Aggregate expressions
 #[derive(Debug, Clone, Serialize, Deserialize)]

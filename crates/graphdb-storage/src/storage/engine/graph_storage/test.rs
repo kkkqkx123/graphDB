@@ -1,11 +1,12 @@
 #[cfg(test)]
 mod tests {
     use crate::core::types::{
-        EdgeTypeInfo, Index, IndexConfig, IndexField, IndexType, PropertyDef,
-        SpaceInfo, UserInfo, VertexId,
+        EdgeTypeInfo, Index, IndexConfig, IndexField, IndexType, PropertyDef, SpaceInfo, UserInfo,
+        VertexId,
     };
-    use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
+    use crate::core::vertex_edge_path::Tag;
     use crate::core::DataType;
+    use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
     use crate::storage::{
         GraphStorage, StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageWriter,
     };
@@ -23,11 +24,10 @@ mod tests {
     }
 
     fn setup_person_tag(storage: &mut GraphStorage) -> u32 {
-        let tag = crate::core::types::TagInfo::new("Person".to_string())
-            .with_properties(vec![
-                PropertyDef::new("name".to_string(), DataType::String),
-                PropertyDef::new("age".to_string(), DataType::BigInt),
-            ]);
+        let tag = crate::core::types::TagInfo::new("Person".to_string()).with_properties(vec![
+            PropertyDef::new("name".to_string(), DataType::String),
+            PropertyDef::new("age".to_string(), DataType::BigInt),
+        ]);
         storage
             .create_tag("test_space", &tag)
             .expect("Failed to create tag")
@@ -35,10 +35,7 @@ mod tests {
 
     fn setup_knows_edge(storage: &mut GraphStorage) -> u32 {
         let edge = EdgeTypeInfo::new("KNOWS".to_string())
-            .with_properties(vec![PropertyDef::new(
-                "since".to_string(),
-                DataType::Int,
-            )]);
+            .with_properties(vec![PropertyDef::new("since".to_string(), DataType::Int)]);
         storage
             .create_edge_type("test_space", &edge)
             .expect("Failed to create edge type")
@@ -111,14 +108,156 @@ mod tests {
         let edge_id = setup_knows_edge(&mut storage);
         assert!(edge_id > 0);
 
-        let edge = storage
-            .get_edge_type("test_space", "KNOWS")
-            .unwrap();
+        let edge = storage.get_edge_type("test_space", "KNOWS").unwrap();
         assert!(edge.is_some());
         assert_eq!(edge.as_ref().unwrap().edge_type_name, "KNOWS");
 
         let edges = storage.list_edge_types("test_space").unwrap();
         assert_eq!(edges.len(), 1);
+    }
+
+    #[test]
+    fn test_same_schema_names_are_isolated_by_space() {
+        let mut storage = create_test_storage();
+        let mut alpha = SpaceInfo::new("alpha".to_string()).with_vid_type(DataType::BigInt);
+        let mut beta = SpaceInfo::new("beta".to_string()).with_vid_type(DataType::BigInt);
+        storage.create_space(&mut alpha).unwrap();
+        storage.create_space(&mut beta).unwrap();
+
+        let tag = crate::core::types::TagInfo::new("Person".to_string())
+            .with_properties(vec![PropertyDef::new("name".to_string(), DataType::String)]);
+        let alpha_tag_id = storage.create_tag("alpha", &tag).unwrap();
+        let beta_tag_id = storage.create_tag("beta", &tag).unwrap();
+        assert_ne!(alpha_tag_id, beta_tag_id);
+
+        let edge_type = EdgeTypeInfo::new("KNOWS".to_string())
+            .with_src_tag("Person".to_string())
+            .with_dst_tag("Person".to_string());
+        let alpha_edge_id = storage.create_edge_type("alpha", &edge_type).unwrap();
+        let beta_edge_id = storage.create_edge_type("beta", &edge_type).unwrap();
+        assert_ne!(alpha_edge_id, beta_edge_id);
+
+        storage
+            .insert_vertex(
+                "alpha",
+                Vertex::new(
+                    VertexId::from_int64(1),
+                    vec![Tag::new(
+                        "Person".to_string(),
+                        vec![("name".to_string(), Value::String("Alice".to_string()))]
+                            .into_iter()
+                            .collect(),
+                    )],
+                ),
+            )
+            .unwrap();
+        storage
+            .insert_vertex(
+                "beta",
+                Vertex::new(
+                    VertexId::from_int64(1),
+                    vec![Tag::new(
+                        "Person".to_string(),
+                        vec![("name".to_string(), Value::String("Bob".to_string()))]
+                            .into_iter()
+                            .collect(),
+                    )],
+                ),
+            )
+            .unwrap();
+        storage
+            .insert_vertex(
+                "alpha",
+                Vertex::new(
+                    VertexId::from_int64(2),
+                    vec![Tag::new(
+                        "Person".to_string(),
+                        vec![("name".to_string(), Value::String("Carol".to_string()))]
+                            .into_iter()
+                            .collect(),
+                    )],
+                ),
+            )
+            .unwrap();
+        storage
+            .insert_vertex(
+                "beta",
+                Vertex::new(
+                    VertexId::from_int64(2),
+                    vec![Tag::new(
+                        "Person".to_string(),
+                        vec![("name".to_string(), Value::String("Dave".to_string()))]
+                            .into_iter()
+                            .collect(),
+                    )],
+                ),
+            )
+            .unwrap();
+
+        storage
+            .insert_edge(
+                "alpha",
+                Edge::new(
+                    VertexId::from_int64(1),
+                    VertexId::from_int64(2),
+                    "KNOWS".to_string(),
+                    0,
+                    std::collections::HashMap::new(),
+                ),
+            )
+            .unwrap();
+        storage
+            .insert_edge(
+                "beta",
+                Edge::new(
+                    VertexId::from_int64(1),
+                    VertexId::from_int64(2),
+                    "KNOWS".to_string(),
+                    0,
+                    std::collections::HashMap::new(),
+                ),
+            )
+            .unwrap();
+
+        let alpha_vertex = storage
+            .get_vertex("alpha", &VertexId::from_int64(1))
+            .unwrap()
+            .unwrap();
+        let beta_vertex = storage
+            .get_vertex("beta", &VertexId::from_int64(1))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            alpha_vertex.properties.get("name"),
+            Some(&Value::String("Alice".to_string()))
+        );
+        assert_eq!(
+            beta_vertex.properties.get("name"),
+            Some(&Value::String("Bob".to_string()))
+        );
+
+        assert_eq!(
+            storage
+                .scan_vertices_by_tag("alpha", "Person")
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            storage
+                .scan_vertices_by_tag("beta", "Person")
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            storage.scan_edges_by_type("alpha", "KNOWS").unwrap().len(),
+            1
+        );
+        assert_eq!(
+            storage.scan_edges_by_type("beta", "KNOWS").unwrap().len(),
+            1
+        );
     }
 
     #[test]
@@ -156,14 +295,14 @@ mod tests {
             is_unique: false,
             partial_condition: None,
         });
-        storage
-            .create_tag_index("test_space", &index)
-            .unwrap();
+        storage.create_tag_index("test_space", &index).unwrap();
 
         let indexes = storage.list_tag_indexes("test_space").unwrap();
         assert_eq!(indexes.len(), 1);
 
-        storage.drop_tag_index("test_space", "person_name_idx").unwrap();
+        storage
+            .drop_tag_index("test_space", "person_name_idx")
+            .unwrap();
         let indexes = storage.list_tag_indexes("test_space").unwrap();
         assert_eq!(indexes.len(), 0);
     }
@@ -227,7 +366,10 @@ mod tests {
             vec![crate::core::vertex_edge_path::Tag::new(
                 "Person".to_string(),
                 vec![
-                    ("name".to_string(), Value::String("AliceUpdated".to_string())),
+                    (
+                        "name".to_string(),
+                        Value::String("AliceUpdated".to_string()),
+                    ),
                     ("age".to_string(), Value::BigInt(31)),
                 ]
                 .into_iter()
@@ -244,10 +386,7 @@ mod tests {
             v.properties.get("name"),
             Some(&Value::String("AliceUpdated".to_string()))
         );
-        assert_eq!(
-            v.properties.get("age"),
-            Some(&Value::BigInt(31))
-        );
+        assert_eq!(v.properties.get("age"), Some(&Value::BigInt(31)));
     }
 
     #[test]
@@ -260,11 +399,9 @@ mod tests {
             VertexId::from_int64(101),
             vec![crate::core::vertex_edge_path::Tag::new(
                 "Person".to_string(),
-                vec![
-                    ("name".to_string(), Value::String("Alice".to_string())),
-                ]
-                .into_iter()
-                .collect(),
+                vec![("name".to_string(), Value::String("Alice".to_string()))]
+                    .into_iter()
+                    .collect(),
             )],
         );
         storage.insert_vertex("test_space", vertex).unwrap();
@@ -330,7 +467,12 @@ mod tests {
         storage.insert_vertex("test_space", vertex).unwrap();
 
         let results = storage
-            .scan_vertices_by_prop("test_space", "Person", "name", &Value::String("Alice".to_string()))
+            .scan_vertices_by_prop(
+                "test_space",
+                "Person",
+                "name",
+                &Value::String("Alice".to_string()),
+            )
             .unwrap();
         assert_eq!(results.len(), 1);
     }
@@ -347,11 +489,9 @@ mod tests {
                     VertexId::from_int64(i),
                     vec![crate::core::vertex_edge_path::Tag::new(
                         "Person".to_string(),
-                        vec![
-                            ("name".to_string(), Value::String(format!("Person{}", i))),
-                        ]
-                        .into_iter()
-                        .collect(),
+                        vec![("name".to_string(), Value::String(format!("Person{}", i)))]
+                            .into_iter()
+                            .collect(),
                     )],
                 )
             })
@@ -506,9 +646,7 @@ mod tests {
         );
         storage.insert_edge("test_space", edge).unwrap();
 
-        let edges = storage
-            .scan_edges_by_type("test_space", "KNOWS")
-            .unwrap();
+        let edges = storage.scan_edges_by_type("test_space", "KNOWS").unwrap();
         assert_eq!(edges.len(), 1);
     }
 
@@ -536,9 +674,7 @@ mod tests {
         storage
             .grant_role("role_user", space_id, RoleType::Admin)
             .unwrap();
-        storage
-            .revoke_role("role_user", space_id)
-            .unwrap();
+        storage.revoke_role("role_user", space_id).unwrap();
 
         storage.drop_user("role_user").unwrap();
     }

@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use crate::core::metadata::index_manager::IndexMetadataManager;
+use crate::core::metadata::SchemaManager;
 use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
 use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, PropertyDefinition, PropertyType,
     TagMetadata,
 };
-use crate::core::metadata::index_manager::IndexMetadataManager;
-use crate::core::metadata::SchemaManager;
 
 pub struct SchemaMetadataProvider {
     schema_manager: Arc<SchemaManager>,
@@ -280,8 +280,8 @@ impl MetadataProvider for SchemaMetadataProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{DataType, EngineType, PropertyDef, SpaceStatus};
     use crate::core::metadata::IndexManager;
+    use crate::core::types::{DataType, EngineType, PropertyDef, SpaceStatus};
 
     fn create_test_schema_manager() -> Arc<SchemaManager> {
         let manager = SchemaManager::new();

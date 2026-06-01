@@ -321,7 +321,7 @@ pub mod tests {
     use crate::core::Value;
     use crate::query::executor::relational_algebra::join::ExpressionContextStruct;
     use crate::query::DataSet;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
 
     #[test]
     fn test_cross_join_two_tables() {

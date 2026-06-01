@@ -43,9 +43,9 @@ pub use builtin::regex::RegexFunction;
 pub use builtin::string::StringFunction;
 pub use builtin::utility::UtilityFunction;
 
-use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 use std::ffi::c_void;
 
@@ -365,18 +365,12 @@ impl CFunctionContext {
 }
 
 /// Scalar function callback type
-pub type ScalarFunctionCallback = extern "C" fn(
-    *mut CFunctionContext,
-    i32,
-    *mut crate::core::types::c_api::graphdb_value_t,
-);
+pub type ScalarFunctionCallback =
+    extern "C" fn(*mut CFunctionContext, i32, *mut crate::core::types::c_api::graphdb_value_t);
 
 /// Aggregation step callback type
-pub type AggregateStepCallback = extern "C" fn(
-    *mut CFunctionContext,
-    i32,
-    *mut crate::core::types::c_api::graphdb_value_t,
-);
+pub type AggregateStepCallback =
+    extern "C" fn(*mut CFunctionContext, i32, *mut crate::core::types::c_api::graphdb_value_t);
 
 /// Aggregate final callback type
 pub type AggregateFinalCallback = extern "C" fn(*mut CFunctionContext);

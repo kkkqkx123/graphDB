@@ -187,7 +187,13 @@ impl Stmt {
             Stmt::Create(_) => "CREATE",
             Stmt::Match(_) => "MATCH",
             Stmt::Delete(_) => "DELETE",
-            Stmt::Update(s) => if s.is_upsert { "UPSERT" } else { "UPDATE" },
+            Stmt::Update(s) => {
+                if s.is_upsert {
+                    "UPSERT"
+                } else {
+                    "UPDATE"
+                }
+            }
             Stmt::Go(_) => "GO",
             Stmt::Fetch(_) => "FETCH",
             Stmt::Use(_) => "USE",
@@ -701,7 +707,13 @@ pub enum MatchDeleteTarget {
     Vertices(Vec<ContextualExpression>),
     Edges(Vec<ContextualExpression>),
     /// Edge references in the form of (src, dst, rank)
-    EdgeRefs(Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>),
+    EdgeRefs(
+        Vec<(
+            ContextualExpression,
+            ContextualExpression,
+            Option<ContextualExpression>,
+        )>,
+    ),
 }
 
 /// Return the subquery.

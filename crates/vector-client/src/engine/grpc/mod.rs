@@ -93,7 +93,11 @@ impl VectorEngine for QdrantGrpcEngine {
     }
 
     async fn health_check(&self) -> Result<HealthStatus> {
-        match self.collections().list(proto::ListCollectionsRequest {}).await {
+        match self
+            .collections()
+            .list(proto::ListCollectionsRequest {})
+            .await
+        {
             Ok(_) => Ok(HealthStatus::healthy(self.name(), self.version())),
             Err(e) => Ok(HealthStatus::unhealthy(
                 self.name(),
@@ -238,15 +242,10 @@ impl VectorEngine for QdrantGrpcEngine {
         })
     }
 
-    async fn delete_batch(
-        &self,
-        collection: &str,
-        point_ids: Vec<&str>,
-    ) -> Result<DeleteResult> {
+    async fn delete_batch(&self, collection: &str, point_ids: Vec<&str>) -> Result<DeleteResult> {
         debug!("Deleting {} points via gRPC", point_ids.len());
 
-        let ids: Vec<proto::PointId> =
-            point_ids.iter().map(|id| point_id_to_proto(id)).collect();
+        let ids: Vec<proto::PointId> = point_ids.iter().map(|id| point_id_to_proto(id)).collect();
 
         let selector = proto::PointsSelector {
             points_selector_one_of: Some(proto::points_selector::PointsSelectorOneOf::Points(
@@ -281,14 +280,13 @@ impl VectorEngine for QdrantGrpcEngine {
     ) -> Result<DeleteResult> {
         debug!("Deleting points by filter via gRPC");
 
-        let proto_filter = filter_to_proto(&filter)?.ok_or_else(|| {
-            VectorClientError::FilterError("Empty filter".to_string())
-        })?;
+        let proto_filter = filter_to_proto(&filter)?
+            .ok_or_else(|| VectorClientError::FilterError("Empty filter".to_string()))?;
 
         let selector = proto::PointsSelector {
-            points_selector_one_of: Some(
-                proto::points_selector::PointsSelectorOneOf::Filter(proto_filter),
-            ),
+            points_selector_one_of: Some(proto::points_selector::PointsSelectorOneOf::Filter(
+                proto_filter,
+            )),
         };
 
         let request = proto::DeletePoints {
@@ -311,11 +309,7 @@ impl VectorEngine for QdrantGrpcEngine {
         })
     }
 
-    async fn search(
-        &self,
-        collection: &str,
-        query: SearchQuery,
-    ) -> Result<Vec<SearchResult>> {
+    async fn search(&self, collection: &str, query: SearchQuery) -> Result<Vec<SearchResult>> {
         debug!("Searching in collection '{}' via gRPC", collection);
 
         let request = search_query_to_proto(collection, &query);
@@ -377,9 +371,7 @@ impl VectorEngine for QdrantGrpcEngine {
                 selector_options: Some(proto::with_payload_selector::SelectorOptions::Enable(true)),
             }),
             with_vectors: Some(proto::WithVectorsSelector {
-                selector_options: Some(
-                    proto::with_vectors_selector::SelectorOptions::Enable(true),
-                ),
+                selector_options: Some(proto::with_vectors_selector::SelectorOptions::Enable(true)),
             }),
             read_consistency: None,
             shard_key_selector: None,
@@ -402,8 +394,7 @@ impl VectorEngine for QdrantGrpcEngine {
     ) -> Result<Vec<Option<VectorPoint>>> {
         debug!("Getting {} points via gRPC", point_ids.len());
 
-        let ids: Vec<proto::PointId> =
-            point_ids.iter().map(|id| point_id_to_proto(id)).collect();
+        let ids: Vec<proto::PointId> = point_ids.iter().map(|id| point_id_to_proto(id)).collect();
 
         let request = proto::GetPoints {
             collection_name: collection.to_string(),
@@ -412,9 +403,7 @@ impl VectorEngine for QdrantGrpcEngine {
                 selector_options: Some(proto::with_payload_selector::SelectorOptions::Enable(true)),
             }),
             with_vectors: Some(proto::WithVectorsSelector {
-                selector_options: Some(
-                    proto::with_vectors_selector::SelectorOptions::Enable(true),
-                ),
+                selector_options: Some(proto::with_vectors_selector::SelectorOptions::Enable(true)),
             }),
             read_consistency: None,
             shard_key_selector: None,
@@ -467,8 +456,7 @@ impl VectorEngine for QdrantGrpcEngine {
     ) -> Result<()> {
         debug!("Setting payload for {} points via gRPC", point_ids.len());
 
-        let ids: Vec<proto::PointId> =
-            point_ids.iter().map(|id| point_id_to_proto(id)).collect();
+        let ids: Vec<proto::PointId> = point_ids.iter().map(|id| point_id_to_proto(id)).collect();
         let proto_payload = convert::payload_to_proto_map(&payload);
 
         let points_selector = proto::PointsSelector {
@@ -502,8 +490,7 @@ impl VectorEngine for QdrantGrpcEngine {
             point_ids.len()
         );
 
-        let ids: Vec<proto::PointId> =
-            point_ids.iter().map(|id| point_id_to_proto(id)).collect();
+        let ids: Vec<proto::PointId> = point_ids.iter().map(|id| point_id_to_proto(id)).collect();
         let keys_owned: Vec<String> = keys.iter().map(|k| k.to_string()).collect();
 
         let points_selector = proto::PointsSelector {
@@ -543,18 +530,14 @@ impl VectorEngine for QdrantGrpcEngine {
             offset: offset_id,
             limit: Some(limit as u32),
             with_payload: Some(proto::WithPayloadSelector {
-                selector_options: Some(
-                    proto::with_payload_selector::SelectorOptions::Enable(
-                        with_payload.unwrap_or(true),
-                    ),
-                ),
+                selector_options: Some(proto::with_payload_selector::SelectorOptions::Enable(
+                    with_payload.unwrap_or(true),
+                )),
             }),
             with_vectors: Some(proto::WithVectorsSelector {
-                selector_options: Some(
-                    proto::with_vectors_selector::SelectorOptions::Enable(
-                        with_vector.unwrap_or(false),
-                    ),
-                ),
+                selector_options: Some(proto::with_vectors_selector::SelectorOptions::Enable(
+                    with_vector.unwrap_or(false),
+                )),
             }),
             read_consistency: None,
             shard_key_selector: None,

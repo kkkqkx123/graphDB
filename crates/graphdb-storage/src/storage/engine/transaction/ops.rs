@@ -9,10 +9,8 @@ use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::Value;
 use crate::storage::edge::UpdateEdgePropertyByOffsetParams;
 use crate::storage::storage_types::EdgeOffset;
-use crate::transaction::insert_transaction::{
-    InsertTransactionError, InsertTransactionResult,
-};
 use crate::transaction::codec::{bytes_to_value, property_value_to_value};
+use crate::transaction::insert_transaction::{InsertTransactionError, InsertTransactionResult};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult};
 
 use crate::storage::edge::EdgeTable;
@@ -263,7 +261,7 @@ impl TransactionOps {
         edge_label_names: &mut HashMap<String, LabelId>,
         params: DeleteEdgeTypeParams,
     ) -> UndoLogResult<()> {
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label,);
+        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
         if let Some(table) = edge_tables.get(&key) {
             let label_name = table.label_name().to_string();
             edge_label_names.remove(&label_name);
@@ -307,7 +305,7 @@ impl TransactionOps {
         ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label,);
+        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
         if let Some(table) = edge_tables.get_mut(&key) {
             table
                 .delete_edge_by_offset(params.src_vid, params.dst_vid, oe_offset, ie_offset, ts)
@@ -323,7 +321,7 @@ impl TransactionOps {
         ie_offset: i32,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label,);
+        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
         if let Some(table) = edge_tables.get_mut(&key) {
             table
                 .revert_delete_edge_by_offset(
@@ -371,7 +369,7 @@ impl TransactionOps {
             .map(|(k, v)| (k.clone(), property_value_to_value(v.clone())))
             .collect();
 
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label,);
+        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
         let table = edge_tables
             .get_mut(&key)
             .ok_or(UndoLogError::LabelNotFound(params.edge_label))?;
@@ -471,7 +469,7 @@ impl TransactionOps {
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label,);
+        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
         let table = edge_tables
             .get_mut(&key)
             .ok_or(UndoLogError::LabelNotFound(0))?;
@@ -571,7 +569,11 @@ impl TransactionOps {
         if let Some(table) = vertex_tables.get_mut(&label_id) {
             let mut new_schema = table.schema().clone();
             for (current, original) in current_names.iter().zip(original_names.iter()) {
-                if let Some(prop) = new_schema.properties.iter_mut().find(|p| p.name == *current) {
+                if let Some(prop) = new_schema
+                    .properties
+                    .iter_mut()
+                    .find(|p| p.name == *current)
+                {
                     prop.name = original.clone();
                 }
             }
@@ -608,7 +610,11 @@ impl TransactionOps {
         if let Some(table) = edge_tables.get_mut(&key) {
             let mut new_schema = table.schema().clone();
             for (current, original) in current_names.iter().zip(original_names.iter()) {
-                if let Some(prop) = new_schema.properties.iter_mut().find(|p| p.name == *current) {
+                if let Some(prop) = new_schema
+                    .properties
+                    .iter_mut()
+                    .find(|p| p.name == *current)
+                {
                     prop.name = original.clone();
                 }
             }

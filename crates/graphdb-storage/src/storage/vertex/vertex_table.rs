@@ -9,9 +9,11 @@ use super::{
     ColumnStore, IdIndexer, IdKey, LabelId, Timestamp, VertexId, VertexRecord, VertexSchema,
     VertexTimestamp,
 };
-use crate::storage::storage_types::StoragePropertyDef;
-use crate::storage::utils::persistence_format::{read_header, section, write_header_to, HEADER_SIZE};
 use crate::core::{StorageError, StorageResult, Value};
+use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::utils::persistence_format::{
+    read_header, section, write_header_to, HEADER_SIZE,
+};
 
 #[derive(Debug, Clone)]
 pub struct VertexTableConfig {
@@ -642,8 +644,9 @@ impl VertexTable {
         use std::io::Write;
 
         let mut file = File::create(path)?;
-        write_header_to(&mut file, section::VERTEX_ID_INDEXER)
-            .map_err(|e| StorageError::io_error(format!("Failed to write id_indexer header: {}", e)))?;
+        write_header_to(&mut file, section::VERTEX_ID_INDEXER).map_err(|e| {
+            StorageError::io_error(format!("Failed to write id_indexer header: {}", e))
+        })?;
 
         let count = self.id_indexer.len() as u32;
         file.write_all(&count.to_le_bytes())?;
@@ -664,8 +667,9 @@ impl VertexTable {
         use std::io::Write;
 
         let mut file = File::create(path)?;
-        write_header_to(&mut file, section::VERTEX_COLUMNS)
-            .map_err(|e| StorageError::io_error(format!("Failed to write columns header: {}", e)))?;
+        write_header_to(&mut file, section::VERTEX_COLUMNS).map_err(|e| {
+            StorageError::io_error(format!("Failed to write columns header: {}", e))
+        })?;
 
         let column_count = self.columns.column_count() as u32;
         file.write_all(&column_count.to_le_bytes())?;
@@ -711,8 +715,9 @@ impl VertexTable {
         use std::io::Write;
 
         let mut file = File::create(path)?;
-        write_header_to(&mut file, section::VERTEX_TIMESTAMPS)
-            .map_err(|e| StorageError::io_error(format!("Failed to write timestamps header: {}", e)))?;
+        write_header_to(&mut file, section::VERTEX_TIMESTAMPS).map_err(|e| {
+            StorageError::io_error(format!("Failed to write timestamps header: {}", e))
+        })?;
 
         let timestamps = self.timestamps.dump();
         let count = timestamps.len() as u32;

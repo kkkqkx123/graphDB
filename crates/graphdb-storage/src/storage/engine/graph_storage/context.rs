@@ -8,13 +8,13 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::core::UserStorage;
+use crate::core::metadata::{IndexManager, SchemaManager};
 use crate::core::mvcc::VersionManager;
 use crate::core::types::TransactionContextInfo;
+use crate::core::UserStorage;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
 use crate::storage::engine::PropertyGraph;
 use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
-use crate::core::metadata::{IndexManager, SchemaManager};
 
 #[derive(Clone)]
 pub struct GraphStorageContext {
@@ -52,7 +52,7 @@ impl GraphStorageContext {
         }
     }
 
-    pub fn new_with_path(path: PathBuf) -> Self {
+    pub fn new_with_path(path: PathBuf) -> crate::core::StorageResult<Self> {
         use crate::storage::engine::PersistenceConfig;
 
         let graph = Arc::new(PropertyGraph::new());
@@ -69,22 +69,22 @@ impl GraphStorageContext {
             ..Default::default()
         };
 
-        let persistence = PersistenceCoordinator::new(persistence_config)
-            .map(|p| Arc::new(RwLock::new(p)))
-            .ok();
+        let persistence = Arc::new(RwLock::new(PersistenceCoordinator::new(
+            persistence_config,
+        )?));
 
-        Self {
+        Ok(Self {
             graph,
             schema_manager,
             index_metadata_manager,
             version_manager,
             user_storage,
             current_txn_context: Arc::new(RwLock::new(None)),
-            persistence,
+            persistence: Some(persistence),
             index_gc_manager: None,
             work_dir: Some(path.clone()),
             db_path: path.to_string_lossy().to_string(),
-        }
+        })
     }
 
     pub fn new_with_persistence(
@@ -168,7 +168,6 @@ impl GraphStorageContext {
     pub fn is_persistence_enabled(&self) -> bool {
         self.persistence.is_some()
     }
-
 }
 
 impl std::fmt::Debug for GraphStorageContext {

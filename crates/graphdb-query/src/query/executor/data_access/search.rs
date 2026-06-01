@@ -292,9 +292,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     Ok(results)
                 }
             }
-            _ => {
-                Ok(Vec::new())
-            }
+            _ => Ok(Vec::new()),
         }
     }
 

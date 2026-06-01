@@ -19,17 +19,17 @@ pub mod vertex_timestamp;
 use crate::storage::storage_types::StoragePropertyDef;
 
 pub use column_store::{
-    Column, ColumnStorage, ColumnStore, FixedWidthColumn, VariableWidthColumn, element_size,
-    is_variable_length_type,
+    element_size, is_variable_length_type, Column, ColumnStorage, ColumnStore, FixedWidthColumn,
+    VariableWidthColumn,
 };
 pub use encoding::{select_encoding, EncodingStats, EncodingType};
 pub use id_indexer::{IdIndexer, IdKey};
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
 
-use crate::core::Value;
-use crate::core::vertex_edge_path::Tag;
 use crate::core::types::TagInfo;
+use crate::core::vertex_edge_path::Tag;
+use crate::core::Value;
 use crate::storage::utils::props_to_map;
 
 pub use crate::core::types::{LabelId, Timestamp, VertexId, INVALID_TIMESTAMP, MAX_TIMESTAMP};
@@ -90,7 +90,11 @@ pub struct VertexSchema {
 
 impl VertexSchema {
     pub fn from_tag_info(tag: &TagInfo, label_id: LabelId) -> Self {
-        let properties: Vec<StoragePropertyDef> = tag.properties.iter().map(StoragePropertyDef::from_core).collect();
+        let properties: Vec<StoragePropertyDef> = tag
+            .properties
+            .iter()
+            .map(StoragePropertyDef::from_core)
+            .collect();
         let primary_key_index = 0;
         Self {
             label_id,

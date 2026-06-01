@@ -4,8 +4,8 @@
 
 use crate::core::types::{LabelId, Timestamp};
 use crate::storage::cache::{
-    CachedVertex, RecordCache, RecordCacheConfig, RecordCacheStats,
-    SharedRecordCache, VertexCacheKey,
+    CachedVertex, RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache,
+    VertexCacheKey,
 };
 
 /// Manager for storage caches
@@ -14,10 +14,7 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    pub fn new(
-        enable_cache: bool,
-        cache_memory: usize,
-    ) -> Self {
+    pub fn new(enable_cache: bool, cache_memory: usize) -> Self {
         let record_cache = if enable_cache {
             let config = RecordCacheConfig {
                 max_memory: cache_memory,
@@ -28,9 +25,7 @@ impl CacheManager {
             None
         };
 
-        Self {
-            record_cache,
-        }
+        Self { record_cache }
     }
 
     pub fn record_cache(&self) -> Option<&SharedRecordCache> {
@@ -51,13 +46,24 @@ impl CacheManager {
 
     // ==================== ID Index Cache Operations ====================
 
-    pub fn get_cached_vertex_id(&self, label: LabelId, external_id: &str, ts: Timestamp) -> Option<u32> {
+    pub fn get_cached_vertex_id(
+        &self,
+        label: LabelId,
+        external_id: &str,
+        ts: Timestamp,
+    ) -> Option<u32> {
         self.record_cache
             .as_ref()
             .and_then(|rc| rc.get_id_index(label, external_id, ts))
     }
 
-    pub fn cache_vertex_id(&self, label: LabelId, external_id: &str, internal_id: u32, ts: Timestamp) {
+    pub fn cache_vertex_id(
+        &self,
+        label: LabelId,
+        external_id: &str,
+        internal_id: u32,
+        ts: Timestamp,
+    ) {
         if let Some(ref rc) = self.record_cache {
             rc.insert_id_index(label, external_id, internal_id, ts);
         }
@@ -71,7 +77,12 @@ impl CacheManager {
 
     // ==================== Vertex Cache Operations ====================
 
-    pub fn get_cached_vertex(&self, label: LabelId, internal_id: u32, ts: Timestamp) -> Option<CachedVertex> {
+    pub fn get_cached_vertex(
+        &self,
+        label: LabelId,
+        internal_id: u32,
+        ts: Timestamp,
+    ) -> Option<CachedVertex> {
         self.record_cache.as_ref().and_then(|rc| {
             let key = VertexCacheKey::new(label, internal_id);
             rc.get_vertex(&key, ts)

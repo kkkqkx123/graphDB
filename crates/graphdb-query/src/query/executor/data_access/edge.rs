@@ -2,9 +2,9 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::super::base::{BaseExecutor, ExecutorStats};
+use crate::core::types::storage_ids::VertexId;
 use crate::core::vertex_edge_path;
 use crate::core::Value;
-use crate::core::types::storage_ids::VertexId;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;

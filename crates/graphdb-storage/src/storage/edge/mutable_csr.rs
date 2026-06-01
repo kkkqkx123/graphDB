@@ -243,7 +243,9 @@ impl MutableCsr {
         }
 
         // Write to primary if space available and overflow not yet allocated
-        if self.overflow_starts[src_idx] == NO_OVERFLOW && degree < self.primary_capacities[src_idx] as usize {
+        if self.overflow_starts[src_idx] == NO_OVERFLOW
+            && degree < self.primary_capacities[src_idx] as usize
+        {
             self.nbr_list[base + degree] = Nbr::new(dst, edge_id, prop_offset, ts);
             self.degrees[src_idx] += 1;
             self.edge_count.fetch_add(1, Ordering::Relaxed);
@@ -563,7 +565,8 @@ impl MutableCsr {
                 if i + PREFETCH_DISTANCE < o_count {
                     unsafe {
                         _mm_prefetch(
-                            &self.nbr_list[o_start + i + PREFETCH_DISTANCE] as *const Nbr as *const i8,
+                            &self.nbr_list[o_start + i + PREFETCH_DISTANCE] as *const Nbr
+                                as *const i8,
                             _MM_HINT_T0,
                         );
                     }
@@ -660,7 +663,8 @@ impl MutableCsr {
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
-                if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+                if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP
+                {
                     return true;
                 }
             }
@@ -692,7 +696,8 @@ impl MutableCsr {
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
-                if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+                if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP
+                {
                     return Some(*nbr);
                 }
             }
@@ -724,7 +729,10 @@ impl MutableCsr {
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
-                if nbr.edge_id == edge_id && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+                if nbr.edge_id == edge_id
+                    && nbr.timestamp <= ts
+                    && nbr.timestamp != INVALID_TIMESTAMP
+                {
                     return Some(*nbr);
                 }
             }
@@ -847,7 +855,7 @@ impl MutableCsr {
         }
     }
 
-/// Batch insert edges with parallel optimization
+    /// Batch insert edges with parallel optimization
     ///
     /// Uses a two-phase approach:
     /// - Phase 1 (sequential): Group edges by source, calculate primary/overflow split
@@ -1378,17 +1386,22 @@ impl<'a> MutableCsrEdgeIterator<'a> {
     pub fn new(csr: &'a MutableCsr, src: VertexId, ts: Timestamp) -> Self {
         let src_idx = src.as_int64().unwrap_or(0) as usize;
         let (offset, degree) = if src_idx < csr.vertex_capacity {
-            (csr.adj_offsets[src_idx] as usize, csr.degrees[src_idx] as usize)
+            (
+                csr.adj_offsets[src_idx] as usize,
+                csr.degrees[src_idx] as usize,
+            )
         } else {
             (0, 0)
         };
-        let (overflow_start, overflow_count) = if src_idx < csr.vertex_capacity
-            && csr.overflow_starts[src_idx] != NO_OVERFLOW
-        {
-            (csr.overflow_starts[src_idx] as usize, csr.overflow_counts[src_idx] as usize)
-        } else {
-            (0, 0)
-        };
+        let (overflow_start, overflow_count) =
+            if src_idx < csr.vertex_capacity && csr.overflow_starts[src_idx] != NO_OVERFLOW {
+                (
+                    csr.overflow_starts[src_idx] as usize,
+                    csr.overflow_counts[src_idx] as usize,
+                )
+            } else {
+                (0, 0)
+            };
 
         Self {
             csr,

@@ -9,10 +9,10 @@
 
 #[cfg(test)]
 mod tests {
+    use crate::core::metadata::SchemaManager;
     use crate::core::types::{IsolationLevel, SpaceInfo, TagInfo};
     use crate::search::metadata::IndexKey;
     use crate::search::{EngineType, FulltextConfig, FulltextIndexManager, SearchError};
-    use crate::core::metadata::SchemaManager;
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;

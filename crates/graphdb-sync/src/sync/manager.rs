@@ -2,10 +2,10 @@
 //!
 //! Unified synchronization manager using SyncCoordinator.
 
-use crate::sync::external_index::CoordinatorError;
 use crate::core::Value;
 use crate::search::SyncConfig;
 use crate::sync::coordinator::{ChangeType, SyncCoordinator};
+use crate::sync::external_index::CoordinatorError;
 #[cfg(feature = "qdrant")]
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use std::sync::Arc;

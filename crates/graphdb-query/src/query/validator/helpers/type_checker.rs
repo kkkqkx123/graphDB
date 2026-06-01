@@ -1,10 +1,10 @@
 //! Type checking tool
 //! Responsible for the derivation of expression types, type validation, and type compatibility checks.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
 use crate::core::Expression;
 use crate::core::TypeUtils;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::ValueType;
 use std::collections::HashMap;

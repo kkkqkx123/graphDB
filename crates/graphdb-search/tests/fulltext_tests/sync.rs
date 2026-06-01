@@ -369,7 +369,8 @@ async fn test_sync_multiple_batches() {
         .await
         .expect("Failed to create index");
 
-    let vertex_ids: Vec<graphdb_core::core::Value> = (1..=10).map(graphdb_core::core::Value::Int).collect();
+    let vertex_ids: Vec<graphdb_core::core::Value> =
+        (1..=10).map(graphdb_core::core::Value::Int).collect();
 
     // First batch
     for (idx, vertex_id) in vertex_ids.iter().take(5).enumerate() {

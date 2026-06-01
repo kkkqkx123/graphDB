@@ -27,8 +27,14 @@ impl ExportStream {
         }
     }
 
-    pub async fn next_chunk(&mut self, session: &mut SessionManager) -> anyhow::Result<Option<QueryResult>> {
-        let paginated_query = format!("{} SKIP {} LIMIT {}", self.query, self.offset, self.chunk_size);
+    pub async fn next_chunk(
+        &mut self,
+        session: &mut SessionManager,
+    ) -> anyhow::Result<Option<QueryResult>> {
+        let paginated_query = format!(
+            "{} SKIP {} LIMIT {}",
+            self.query, self.offset, self.chunk_size
+        );
 
         match session.execute_query(&paginated_query).await {
             Ok(result) => {

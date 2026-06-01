@@ -1,9 +1,10 @@
 //! With the statement validator…
 //! Used to validate WITH statements (Cypher-style pipeline clauses)
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
+use crate::core::metadata::SchemaManager;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, WithStmt};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
@@ -11,7 +12,6 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::core::metadata::SchemaManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 

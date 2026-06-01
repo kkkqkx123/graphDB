@@ -5,9 +5,9 @@
 //! - Vector property functions (dimension, l2_norm, nnz, normalize)
 //! - Vector access functions (element access, slicing)
 
-use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::Value;
 use crate::query::executor::expression::functions::signature::{FunctionSignature, ValueType};
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 /// Vector function enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

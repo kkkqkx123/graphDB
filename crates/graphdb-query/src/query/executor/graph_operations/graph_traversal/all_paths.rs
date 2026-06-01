@@ -304,7 +304,9 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .as_ref()
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.read();
-                if let Ok(Some(neighbor_vertex)) = storage.get_vertex(&self.space_name, &neighbor_id) {
+                if let Ok(Some(neighbor_vertex)) =
+                    storage.get_vertex(&self.space_name, &neighbor_id)
+                {
                     // Using NPath expansion, O(1) operation, sharing prefixes
                     let new_npath = Arc::new(NPath::extend(
                         current_npath.clone(),
@@ -363,7 +365,9 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .as_ref()
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.read();
-                if let Ok(Some(neighbor_vertex)) = storage.get_vertex(&self.space_name, &neighbor_id) {
+                if let Ok(Some(neighbor_vertex)) =
+                    storage.get_vertex(&self.space_name, &neighbor_id)
+                {
                     // Using the NPath extension
                     let new_npath = Arc::new(NPath::extend(
                         current_npath.clone(),

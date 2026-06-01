@@ -1,7 +1,7 @@
+use super::PermissionResult;
 use crate::api::server::permission::{PermissionManager, GOD_SPACE_ID};
 use crate::api::server::session::ClientSession;
 use crate::config::AuthConfig;
-use super::PermissionResult;
 use crate::core::{Permission, RoleType};
 
 /// Operation type – corresponds to different permission checks

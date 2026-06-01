@@ -14,9 +14,7 @@ pub mod server;
 pub mod embedded;
 
 // ── Core re-exports ──────────────────────────────────────────────
-pub use core::{
-    CoreError, CoreResult, QueryApi, SchemaApi, SyncApi,
-};
+pub use core::{CoreError, CoreResult, QueryApi, SchemaApi, SyncApi};
 
 #[cfg(feature = "qdrant")]
 pub use core::{VectorApi, VectorSearchResult};
@@ -39,7 +37,7 @@ mod shutdown;
 
 // ── Public API re-exports ────────────────────────────────────────
 #[cfg(feature = "server")]
-pub use startup::{start_service, start_service_with_config, execute_query};
+pub use startup::{execute_query, start_service, start_service_with_config};
 
 #[cfg(feature = "server")]
 pub use http_server::start_http_server;

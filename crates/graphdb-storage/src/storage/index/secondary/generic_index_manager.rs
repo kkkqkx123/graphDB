@@ -4,9 +4,7 @@
 //! that can be used for both vertex and edge indexes.
 
 use super::index_data_manager::IndexEntry;
-use super::key_codec::{
-    CompressionConfig, IndexCompressor, IndexKeyGenerator, SecondaryIndexKey,
-};
+use super::key_codec::{CompressionConfig, IndexCompressor, IndexKeyGenerator, SecondaryIndexKey};
 use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use parking_lot::RwLock;

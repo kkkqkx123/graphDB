@@ -1,8 +1,8 @@
 //! Implementation of regular expression functions
 
-use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 /// Enumeration of regular expression functions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

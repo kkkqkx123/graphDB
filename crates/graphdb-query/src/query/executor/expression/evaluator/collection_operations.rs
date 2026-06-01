@@ -2,9 +2,9 @@
 //!
 //! Provide functionality for evaluating collection types, including index access, range access, and property access.
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::value::list::List;
 use crate::core::Value;
+use crate::query::executor::expression::ExpressionError;
 
 /// Set operation evaluator
 pub struct CollectionOperationEvaluator;

@@ -14,6 +14,7 @@ pub mod warmup;
 #[cfg(test)]
 mod isolation_test;
 
+pub use crate::config::common::fulltext::TantivyConfig;
 pub use config::{FulltextConfig, SyncConfig, SyncFailurePolicy};
 pub use engine::{EngineType, SearchEngine};
 pub use error::{Result, SearchError};
@@ -26,7 +27,6 @@ pub use result::{
     FulltextSearchEntry, FulltextSearchResult, HighlightResult, IndexStats, SearchResult,
     SearchStats,
 };
-pub use crate::config::common::fulltext::TantivyConfig;
 #[cfg(feature = "fulltext-search")]
 pub use tantivy_index::TantivySearchEngine;
 pub use warmup::IndexWarmer;

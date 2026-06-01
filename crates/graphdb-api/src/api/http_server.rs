@@ -51,9 +51,7 @@ pub async fn start_http_server<S: StorageClient + Clone + Send + Sync + 'static>
 
 /// Start both HTTP and gRPC servers concurrently.
 #[cfg(all(feature = "server", feature = "grpc"))]
-pub async fn start_http_and_grpc_servers<
-    S: StorageClient + Clone + Send + Sync + 'static,
->(
+pub async fn start_http_and_grpc_servers<S: StorageClient + Clone + Send + Sync + 'static>(
     http_server: Arc<HttpServer<S>>,
     config: &Config,
 ) -> DBResult<()> {

@@ -295,8 +295,6 @@ async fn test_deleted_document_persistence() {
     assert_eq!(results_keep.len(), 1, "Non-deleted document should persist");
 }
 
-
-
 /// TC-FT-PERSIST-010: Dropped Index Persistence
 #[tokio::test]
 async fn test_dropped_index_persistence() {

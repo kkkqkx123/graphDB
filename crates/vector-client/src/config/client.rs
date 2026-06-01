@@ -71,7 +71,6 @@ impl VectorClientConfig {
         self.retry = retry;
         self
     }
-
 }
 
 impl Default for VectorClientConfig {

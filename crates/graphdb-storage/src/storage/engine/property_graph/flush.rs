@@ -6,11 +6,11 @@
 use std::path::Path;
 
 use crate::core::types::LabelId;
-use crate::core::{StorageError, StorageResult};
 use crate::core::types::{TableId, TableType};
+use crate::core::{StorageError, StorageResult};
 
-use crate::storage::engine::data_store::EdgeTableKey;
 use super::{PropertyGraph, DATA_FORMAT_VERSION};
+use crate::storage::engine::data_store::EdgeTableKey;
 
 pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
     use std::fs;
@@ -41,7 +41,15 @@ pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
 
     {
         let edge_tables = graph.data_store.edge_tables().read();
-        for (EdgeTableKey { src_label, dst_label, edge_label }, table) in &*edge_tables {
+        for (
+            EdgeTableKey {
+                src_label,
+                dst_label,
+                edge_label,
+            },
+            table,
+        ) in &*edge_tables
+        {
             let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
             table.flush(&table_dir)?;
         }
@@ -85,7 +93,10 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
                     for (key, table) in &*edge_tables {
                         if key.edge_label == table_id.label_id {
                             let edge_dir = data_dir.join("edges");
-                            let table_dir = edge_dir.join(format!("{}_{}_{}", key.src_label, key.dst_label, key.edge_label));
+                            let table_dir = edge_dir.join(format!(
+                                "{}_{}_{}",
+                                key.src_label, key.dst_label, key.edge_label
+                            ));
                             table.flush(&table_dir)?;
                         }
                     }
@@ -120,7 +131,15 @@ pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageRes
 
     {
         let edge_tables = graph.data_store.edge_tables().read();
-        for (EdgeTableKey { src_label, dst_label, edge_label }, table) in &*edge_tables {
+        for (
+            EdgeTableKey {
+                src_label,
+                dst_label,
+                edge_label,
+            },
+            table,
+        ) in &*edge_tables
+        {
             let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
             table.flush(&table_dir)?;
         }

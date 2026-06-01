@@ -48,19 +48,18 @@ pub(crate) fn find_dangling_edges(
 
     let ts = ctx.get_read_timestamp();
     let mut dangling_edges = Vec::new();
+    let edge_type_names: std::collections::HashMap<_, _> = ctx
+        .schema_manager
+        .list_edge_types(space)?
+        .into_iter()
+        .map(|edge_type| (edge_type.edge_type_id, edge_type.edge_type_name))
+        .collect();
 
     let edge_records = ctx.graph.collect_all_edge_records(ts);
     for (src_label_id, dst_label_id, edge_label_id, record) in edge_records {
-        let edge_type_name = ctx
-            .graph
-            .edge_label_names()
-            .into_iter()
-            .find(|_| {
-                ctx.graph
-                    .get_edge_label_id(&edge_label_id.to_string())
-                    .is_some()
-            })
-            .unwrap_or_else(|| edge_label_id.to_string());
+        let Some(edge_type_name) = edge_type_names.get(&edge_label_id) else {
+            continue;
+        };
         let src_exists = ctx
             .graph
             .get_vertex_by_internal_id(
@@ -81,7 +80,7 @@ pub(crate) fn find_dangling_edges(
         if !src_exists || !dst_exists {
             let edge = edge_record_to_edge(
                 &record,
-                &edge_type_name,
+                edge_type_name,
                 &format!("{}", record.src_vid),
                 &format!("{}", record.dst_vid),
             );
@@ -100,8 +99,15 @@ pub(crate) fn repair_dangling_edges(
     let mut repaired_count = 0;
 
     for edge in &dangling_edges {
-        if writer::delete_edge(ctx, space, &edge.src, &edge.dst, &edge.edge_type, edge.ranking)
-            .is_ok()
+        if writer::delete_edge(
+            ctx,
+            space,
+            &edge.src,
+            &edge.dst,
+            &edge.edge_type,
+            edge.ranking,
+        )
+        .is_ok()
         {
             repaired_count += 1;
         }

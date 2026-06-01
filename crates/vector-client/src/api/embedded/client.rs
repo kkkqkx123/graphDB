@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::config::VectorClientConfig;
 #[cfg(any(feature = "qdrant-http", feature = "qdrant-grpc"))]
 use crate::config::EngineType;
+use crate::config::VectorClientConfig;
 use crate::engine::VectorEngine;
 use crate::error::Result;
 use crate::types::HealthStatus;

@@ -45,14 +45,27 @@ fn test_describe_user_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let create_result = pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'");
-    assert!(create_result.is_ok(), "CREATE USER should succeed: {:?}", create_result.err());
+    let create_result =
+        pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'");
+    assert!(
+        create_result.is_ok(),
+        "CREATE USER should succeed: {:?}",
+        create_result.err()
+    );
 
     let describe_result = pipeline_manager.execute_query("DESCRIBE USER alice");
-    assert!(describe_result.is_ok(), "DESCRIBE USER should succeed: {:?}", describe_result.err());
+    assert!(
+        describe_result.is_ok(),
+        "DESCRIBE USER should succeed: {:?}",
+        describe_result.err()
+    );
 
     let drop_result = pipeline_manager.execute_query("DROP USER alice");
-    assert!(drop_result.is_ok(), "DROP USER should succeed: {:?}", drop_result.err());
+    assert!(
+        drop_result.is_ok(),
+        "DROP USER should succeed: {:?}",
+        drop_result.err()
+    );
 }
 
 #[test]
@@ -70,7 +83,10 @@ fn test_describe_user_nonexistent() {
     let query = "DESCRIBE USER nonexistent_user";
     let result = pipeline_manager.execute_query(query);
 
-    assert!(result.is_err(), "DESCRIBE USER on nonexistent user should fail");
+    assert!(
+        result.is_err(),
+        "DESCRIBE USER on nonexistent user should fail"
+    );
 }
 
 // ==================== SHOW USERS Tests ====================
@@ -104,19 +120,35 @@ fn test_show_users_execution() {
     );
 
     let create1 = pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'");
-    assert!(create1.is_ok(), "CREATE USER alice should succeed: {:?}", create1.err());
+    assert!(
+        create1.is_ok(),
+        "CREATE USER alice should succeed: {:?}",
+        create1.err()
+    );
 
     let create2 = pipeline_manager.execute_query("CREATE USER bob WITH PASSWORD 'password456'");
-    assert!(create2.is_ok(), "CREATE USER bob should succeed: {:?}", create2.err());
+    assert!(
+        create2.is_ok(),
+        "CREATE USER bob should succeed: {:?}",
+        create2.err()
+    );
 
     let show = pipeline_manager.execute_query("SHOW USERS");
     assert!(show.is_ok(), "SHOW USERS should succeed: {:?}", show.err());
 
     let drop1 = pipeline_manager.execute_query("DROP USER alice");
-    assert!(drop1.is_ok(), "DROP USER alice should succeed: {:?}", drop1.err());
+    assert!(
+        drop1.is_ok(),
+        "DROP USER alice should succeed: {:?}",
+        drop1.err()
+    );
 
     let drop2 = pipeline_manager.execute_query("DROP USER bob");
-    assert!(drop2.is_ok(), "DROP USER bob should succeed: {:?}", drop2.err());
+    assert!(
+        drop2.is_ok(),
+        "DROP USER bob should succeed: {:?}",
+        drop2.err()
+    );
 }
 
 // ==================== SHOW ROLES Tests ====================
@@ -166,7 +198,11 @@ fn test_show_roles_execution() {
     );
 
     let create = pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'");
-    assert!(create.is_ok(), "CREATE USER should succeed: {:?}", create.err());
+    assert!(
+        create.is_ok(),
+        "CREATE USER should succeed: {:?}",
+        create.err()
+    );
 
     let grant = pipeline_manager.execute_query("GRANT ADMIN ON test_space TO alice");
     assert!(grant.is_ok(), "GRANT should succeed: {:?}", grant.err());
@@ -175,7 +211,11 @@ fn test_show_roles_execution() {
     assert!(show.is_ok(), "SHOW ROLES should succeed: {:?}", show.err());
 
     let show_in = pipeline_manager.execute_query("SHOW ROLES IN test_space");
-    assert!(show_in.is_ok(), "SHOW ROLES IN should succeed: {:?}", show_in.err());
+    assert!(
+        show_in.is_ok(),
+        "SHOW ROLES IN should succeed: {:?}",
+        show_in.err()
+    );
 
     let revoke = pipeline_manager.execute_query("REVOKE ADMIN ON test_space FROM alice");
     assert!(revoke.is_ok(), "REVOKE should succeed: {:?}", revoke.err());
@@ -219,7 +259,12 @@ fn test_new_dcl_statements_lifecycle() {
 
     for query in lifecycle_queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok(), "Lifecycle query '{}' should succeed: {:?}", query, result.err());
+        assert!(
+            result.is_ok(),
+            "Lifecycle query '{}' should succeed: {:?}",
+            query,
+            result.err()
+        );
     }
 }
 
@@ -253,6 +298,11 @@ fn test_role_hierarchy() {
 
     for query in queries.iter() {
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_ok(), "Role hierarchy query '{}' should succeed: {:?}", query, result.err());
+        assert!(
+            result.is_ok(),
+            "Role hierarchy query '{}' should succeed: {:?}",
+            query,
+            result.err()
+        );
     }
 }

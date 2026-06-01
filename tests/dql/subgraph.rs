@@ -82,7 +82,8 @@ fn test_get_subgraph_with_over_parser() {
 
 #[test]
 fn test_get_subgraph_full_syntax_parser() {
-    let query = "GET SUBGRAPH 3 STEPS FROM 1 OVER KNOWS WHERE $$.Person.age > 25 YIELD vertices, edges";
+    let query =
+        "GET SUBGRAPH 3 STEPS FROM 1 OVER KNOWS WHERE $$.Person.age > 25 YIELD vertices, edges";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();

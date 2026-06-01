@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_instrumented_executor_creation() {
-        use crate::storage::test_mock::MockStorage;
+        use crate::storage::MockStorage;
 
         let ctx = Arc::new(ExecutionStatsContext::new());
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());

@@ -139,7 +139,9 @@ fn test_alter_edge_execution_drop_multiple() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name: STRING)")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE, temp1: STRING, temp2: STRING) FROM Person TO Person")
+        .exec_ddl(
+            "CREATE EDGE KNOWS(since: DATE, temp1: STRING, temp2: STRING) FROM Person TO Person",
+        )
         .assert_success()
         .exec_ddl("ALTER EDGE KNOWS DROP (temp1, temp2)")
         .assert_success()

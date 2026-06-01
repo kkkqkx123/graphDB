@@ -52,13 +52,9 @@ pub use search::{
     DropFulltextIndexNode, FulltextLookupNode, FulltextSearchNode, MatchFulltextNode,
     ShowFulltextIndexNode,
 };
-pub use search::{
-    CreateVectorIndexNode, DropVectorIndexNode,
-};
+pub use search::{CreateVectorIndexNode, DropVectorIndexNode};
 #[cfg(feature = "qdrant")]
-pub use search::{
-    VectorLookupNode, VectorMatchNode, VectorSearchNode,
-};
+pub use search::{VectorLookupNode, VectorMatchNode, VectorSearchNode};
 pub use traversal::{
     AllPathsNode, AppendVerticesNode, BFSShortestNode, BiExpandNode, BiTraverseNode, ExpandAllNode,
     ExpandNode, MultiShortestPathNode, ShortestPathNode, TraverseNode,

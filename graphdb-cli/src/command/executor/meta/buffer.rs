@@ -13,12 +13,8 @@ pub fn execute_edit(
         .session()
         .and_then(|s| s.get_variable("EDITOR").cloned());
     let editor_ref = editor.as_deref();
-    let result = buffer::edit_in_external_editor(
-        executor.query_buffer_mut(),
-        file,
-        line,
-        editor_ref,
-    )?;
+    let result =
+        buffer::edit_in_external_editor(executor.query_buffer_mut(), file, line, editor_ref)?;
     if result {
         let content = executor.query_buffer().content();
         if !content.trim().is_empty() {

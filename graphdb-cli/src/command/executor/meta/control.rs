@@ -46,10 +46,7 @@ pub fn execute_format(executor: &mut CommandExecutor, format: OutputFormat) -> R
     Ok(true)
 }
 
-pub fn execute_pager(
-    executor: &mut CommandExecutor,
-    command: Option<String>,
-) -> Result<bool> {
+pub fn execute_pager(executor: &mut CommandExecutor, command: Option<String>) -> Result<bool> {
     // Note: pager field is private, need to add accessor or handle differently
     // For now, just acknowledge the command
     match command {
@@ -73,19 +70,20 @@ pub fn execute_timing(executor: &mut CommandExecutor) -> Result<bool> {
     Ok(true)
 }
 
-pub fn execute_shell_command(
-    executor: &mut CommandExecutor,
-    command: &str,
-) -> Result<bool> {
+pub fn execute_shell_command(executor: &mut CommandExecutor, command: &str) -> Result<bool> {
     if !executor.conditional_stack().is_active() {
         return Ok(true);
     }
 
     #[cfg(target_os = "windows")]
-    let result = std::process::Command::new("cmd").args(["/C", command]).output();
+    let result = std::process::Command::new("cmd")
+        .args(["/C", command])
+        .output();
 
     #[cfg(not(target_os = "windows"))]
-    let result = std::process::Command::new("sh").args(["-c", command]).output();
+    let result = std::process::Command::new("sh")
+        .args(["-c", command])
+        .output();
 
     match result {
         Ok(output) => {

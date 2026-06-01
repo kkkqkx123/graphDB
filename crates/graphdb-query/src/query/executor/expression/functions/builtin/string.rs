@@ -1,8 +1,8 @@
 //! Implementation of string functions
 
-use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 define_function_enum! {
     /// String function enumeration

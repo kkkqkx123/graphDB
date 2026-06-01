@@ -276,7 +276,9 @@ fn show_topic_help(topic: &str) -> String {
             s.push_str("  jsonl  - JSON Lines format\n\n");
             s.push_str("Options:\n");
             s.push_str("  --stream, -s          - Enable streaming export (memory efficient)\n");
-            s.push_str("  --chunk-size <n>, -c  - Set chunk size for streaming (default: 1000)\n\n");
+            s.push_str(
+                "  --chunk-size <n>, -c  - Set chunk size for streaming (default: 1000)\n\n",
+            );
             s.push_str("Examples:\n");
             s.push_str("  \\export csv output.csv 'MATCH (p:person) RETURN p.name, p.age'\n");
             s.push_str("  \\export json output.json 'MATCH (p:person) RETURN p' --stream\n");

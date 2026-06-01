@@ -68,7 +68,10 @@ pub fn parse_export(arg: &str) -> Result<MetaCommand, String> {
     let parts: Vec<&str> = arg.split_whitespace().collect();
 
     if parts.len() < 3 {
-        return Err("Usage: \\export <csv|json|jsonl> <file> <query> [--stream] [--chunk-size <n>]".to_string());
+        return Err(
+            "Usage: \\export <csv|json|jsonl> <file> <query> [--stream] [--chunk-size <n>]"
+                .to_string(),
+        );
     }
 
     let format = match parts[0].to_lowercase().as_str() {
@@ -123,7 +126,9 @@ pub fn parse_copy(arg: &str) -> Result<MetaCommand, String> {
     let parts: Vec<&str> = arg.split_whitespace().collect();
 
     if parts.len() < 4 {
-        return Err("Usage: \\copy <target> from|to '<file>' [--stream] [--chunk-size <n>]".to_string());
+        return Err(
+            "Usage: \\copy <target> from|to '<file>' [--stream] [--chunk-size <n>]".to_string(),
+        );
     }
 
     let target = parts[0].to_string();

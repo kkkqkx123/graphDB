@@ -318,7 +318,8 @@ impl MatchStatementPlanner {
                                     node_plan
                                 };
                                 // Use synthetic name for anonymous nodes
-                                let node_alias = node.variable.clone().unwrap_or_else(|| "n".to_string());
+                                let node_alias =
+                                    node.variable.clone().unwrap_or_else(|| "n".to_string());
                                 prev_node_alias = Some(node_alias);
                                 is_first_node = false;
                             } else {
@@ -326,7 +327,8 @@ impl MatchStatementPlanner {
                                 // No need to scan vertices - just update the variable alias
                                 // The actual node data comes from the edge expansion's dst column
                                 // Use synthetic name for anonymous nodes
-                                let node_alias = node.variable.clone().unwrap_or_else(|| "n".to_string());
+                                let node_alias =
+                                    node.variable.clone().unwrap_or_else(|| "n".to_string());
                                 prev_node_alias = Some(node_alias);
                             }
                             i += 1;

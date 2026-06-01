@@ -3,10 +3,10 @@
 //! Provides utilities for undo-log-based rollback and atomic write operations.
 //! Merged from previous transaction_support.rs and transactional_writer.rs.
 
+use crate::core::metadata::SchemaManager;
 use crate::core::types::{LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::PropertyGraph;
-use crate::core::metadata::SchemaManager;
 use crate::transaction::undo_log::UndoLogManager;
 
 use super::super::graph_storage::type_utils::vertex_id_to_string;
@@ -114,9 +114,7 @@ impl<'a> TransactionWriter<'a> {
                     }
                     Err(e) => {
                         for (rollback_label, rollback_id) in inserted_ids.iter().rev() {
-                            let _ = self
-                                .graph
-                                .delete_vertex(*rollback_label, rollback_id, ts);
+                            let _ = self.graph.delete_vertex(*rollback_label, rollback_id, ts);
                         }
                         return Err(e);
                     }
@@ -161,9 +159,7 @@ impl<'a> TransactionWriter<'a> {
                         }
                         Err(e) => {
                             for (rollback_label, rollback_id) in rollback_info.iter().rev() {
-                                let _ =
-                                    self.graph
-                                        .delete_vertex(*rollback_label, rollback_id, ts);
+                                let _ = self.graph.delete_vertex(*rollback_label, rollback_id, ts);
                             }
                             return Err(e);
                         }
@@ -178,11 +174,7 @@ impl<'a> TransactionWriter<'a> {
         Ok(inserted_ids)
     }
 
-    pub fn execute_transactional<F, T>(
-        &self,
-        ts: Timestamp,
-        operation: F,
-    ) -> StorageResult<T>
+    pub fn execute_transactional<F, T>(&self, ts: Timestamp, operation: F) -> StorageResult<T>
     where
         F: FnOnce(&PropertyGraph, Timestamp) -> StorageResult<T>,
     {

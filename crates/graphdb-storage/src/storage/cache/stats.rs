@@ -88,11 +88,7 @@ impl std::fmt::Display for RecordCacheStats {
                 0.0
             }
         )?;
-        writeln!(
-            f,
-            "  Uptime: {}s",
-            self.uptime_seconds,
-        )?;
+        writeln!(f, "  Uptime: {}s", self.uptime_seconds,)?;
         writeln!(
             f,
             "  Vertices: {} (hits: {}, misses: {}, evictions: {}, hit_rate: {:.1}%, eviction_rate: {:.1}%, memory: {})",

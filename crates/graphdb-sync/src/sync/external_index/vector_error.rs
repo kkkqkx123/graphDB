@@ -177,9 +177,7 @@ impl From<vector_client::VectorClientError> for VectorError {
             vector_client::VectorClientError::QdrantHttpError { status, message } => {
                 VectorError::QdrantError(format!("HTTP {}: {}", status, message))
             }
-            vector_client::VectorClientError::QdrantGrpcError(msg) => {
-                VectorError::QdrantError(msg)
-            }
+            vector_client::VectorClientError::QdrantGrpcError(msg) => VectorError::QdrantError(msg),
             vector_client::VectorClientError::NotSupported(_) => todo!(),
         }
     }

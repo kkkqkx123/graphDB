@@ -1,8 +1,8 @@
 use dashmap::DashMap;
 use std::sync::Arc;
 
-use crate::config::AuthConfig;
 use super::AuthResult;
+use crate::config::AuthConfig;
 
 /// Authentication trait
 pub trait Authenticator: Send + Sync {

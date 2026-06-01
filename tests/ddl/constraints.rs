@@ -318,7 +318,9 @@ fn test_edge_default_value_execution() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_ddl("CREATE TAG Person(name: STRING)")
-        .exec_ddl("CREATE EDGE KNOWS(since: DATE DEFAULT '2024-01-01', strength: DOUBLE DEFAULT 1.0)")
+        .exec_ddl(
+            "CREATE EDGE KNOWS(since: DATE DEFAULT '2024-01-01', strength: DOUBLE DEFAULT 1.0)",
+        )
         .exec_dml("INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob')")
         .exec_dml("INSERT EDGE KNOWS(strength) VALUES 1 -> 2:(0.5)")
         .assert_success()

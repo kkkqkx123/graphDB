@@ -550,7 +550,7 @@ impl<S: StorageClient + 'static> Clone for ThreadSafeExecutorPool<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
 
     #[test]
     fn test_object_pool_config_default() {

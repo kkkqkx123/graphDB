@@ -122,15 +122,11 @@ impl IndexManager {
         self.edge_indexes.write().clear();
 
         for (space_id, name, index) in snapshot.tag_indexes {
-            self.tag_indexes
-                .write()
-                .insert((space_id, name), index);
+            self.tag_indexes.write().insert((space_id, name), index);
         }
 
         for (space_id, name, index) in snapshot.edge_indexes {
-            self.edge_indexes
-                .write()
-                .insert((space_id, name), index);
+            self.edge_indexes.write().insert((space_id, name), index);
         }
 
         Ok(())

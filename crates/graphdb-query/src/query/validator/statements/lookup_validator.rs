@@ -4,10 +4,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 
+use crate::core::metadata::index_manager::IndexMetadataManager;
+use crate::core::metadata::SchemaManager;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::stmt::{Stmt, YieldItem as StmtYieldItem};
 use crate::query::validator::structs::validation_info::{IndexHint, ValidationInfo};
@@ -15,8 +17,6 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::core::metadata::index_manager::IndexMetadataManager;
-use crate::core::metadata::SchemaManager;
 
 /// Verified LOOKUP information
 #[derive(Debug, Clone)]
@@ -93,7 +93,10 @@ impl LookupValidator {
         self.schema_manager = Some(schema_manager);
     }
 
-    pub fn set_index_metadata_manager(&mut self, index_metadata_manager: Arc<dyn IndexMetadataManager>) {
+    pub fn set_index_metadata_manager(
+        &mut self,
+        index_metadata_manager: Arc<dyn IndexMetadataManager>,
+    ) {
         self.index_metadata_manager = Some(index_metadata_manager);
     }
 
@@ -441,40 +444,39 @@ impl StatementValidator for LookupValidator {
         let space_id = ctx.space_id().unwrap_or(0);
 
         // Find index name and columns from index manager
-        let (index_name, index_columns) =
-            if let Some(ref index_mgr) = self.index_metadata_manager {
-                if is_edge {
-                    // Find edge index for this edge type
-                    match index_mgr.list_edge_indexes(space_id) {
-                        Ok(indexes) => indexes
-                            .into_iter()
-                            .find(|idx| idx.schema_name == parsed_info.label)
-                            .map(|idx| {
-                                let cols: Vec<String> =
-                                    idx.fields.iter().map(|f| f.name.clone()).collect();
-                                (idx.name, cols)
-                            })
-                            .unwrap_or_default(),
-                        Err(_) => (String::new(), Vec::new()),
-                    }
-                } else {
-                    // Find tag index for this tag
-                    match index_mgr.list_tag_indexes(space_id) {
-                        Ok(indexes) => indexes
-                            .into_iter()
-                            .find(|idx| idx.schema_name == parsed_info.label)
-                            .map(|idx| {
-                                let cols: Vec<String> =
-                                    idx.fields.iter().map(|f| f.name.clone()).collect();
-                                (idx.name, cols)
-                            })
-                            .unwrap_or_default(),
-                        Err(_) => (String::new(), Vec::new()),
-                    }
+        let (index_name, index_columns) = if let Some(ref index_mgr) = self.index_metadata_manager {
+            if is_edge {
+                // Find edge index for this edge type
+                match index_mgr.list_edge_indexes(space_id) {
+                    Ok(indexes) => indexes
+                        .into_iter()
+                        .find(|idx| idx.schema_name == parsed_info.label)
+                        .map(|idx| {
+                            let cols: Vec<String> =
+                                idx.fields.iter().map(|f| f.name.clone()).collect();
+                            (idx.name, cols)
+                        })
+                        .unwrap_or_default(),
+                    Err(_) => (String::new(), Vec::new()),
                 }
             } else {
-                (String::new(), Vec::new())
-            };
+                // Find tag index for this tag
+                match index_mgr.list_tag_indexes(space_id) {
+                    Ok(indexes) => indexes
+                        .into_iter()
+                        .find(|idx| idx.schema_name == parsed_info.label)
+                        .map(|idx| {
+                            let cols: Vec<String> =
+                                idx.fields.iter().map(|f| f.name.clone()).collect();
+                            (idx.name, cols)
+                        })
+                        .unwrap_or_default(),
+                    Err(_) => (String::new(), Vec::new()),
+                }
+            }
+        } else {
+            (String::new(), Vec::new())
+        };
 
         // Store verification results
         self.validated_result = Some(ValidatedLookup {

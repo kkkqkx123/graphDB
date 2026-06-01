@@ -542,7 +542,7 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for HashInnerJoinExecutor<
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
 
     fn create_test_datasets() -> (DataSet, DataSet) {
         let left_dataset = DataSet {

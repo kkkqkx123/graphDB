@@ -114,11 +114,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
             return Ok(());
         }
 
-        let header = WalHeader::new(
-            super::wal::types::WalOpType::Compact,
-            self.timestamp,
-            0,
-        );
+        let header = WalHeader::new(super::wal::types::WalOpType::Compact, self.timestamp, 0);
         let header_bytes = header.as_bytes();
         self.wal_buffer[..WalHeader::SIZE].copy_from_slice(header_bytes);
 

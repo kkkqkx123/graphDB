@@ -3,7 +3,8 @@ use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Verte
 
 use super::context::GraphStorageContext;
 use super::type_utils::{
-    edge_record_to_edge, serialize_properties, value_to_string, vertex_record_to_vertex,
+    edge_record_to_edge, endpoint_label_id, serialize_properties, value_to_string,
+    vertex_record_to_vertex,
 };
 
 pub(crate) fn get_vertex(
@@ -24,18 +25,17 @@ pub(crate) fn get_vertex(
     let ts = ctx.get_read_timestamp();
 
     for tag in &tags {
-        if let Some(label_id) = ctx.graph.get_vertex_label_id(&tag.tag_name) {
-            let record = if let Some(id_int) = id.as_int64() {
-                ctx.graph.get_vertex_by_i64(label_id, id_int, ts)
-            } else {
-                let id_str = id.to_string();
-                ctx.graph.get_vertex(label_id, &id_str, ts)
-            };
+        let label_id = tag.tag_id;
+        let record = if let Some(id_int) = id.as_int64() {
+            ctx.graph.get_vertex_by_i64(label_id, id_int, ts)
+        } else {
+            let id_str = id.to_string();
+            ctx.graph.get_vertex(label_id, &id_str, ts)
+        };
 
-            if let Some(record) = record {
-                let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
-                return Ok(Some(vertex));
-            }
+        if let Some(record) = record {
+            let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
+            return Ok(Some(vertex));
         }
     }
 
@@ -48,12 +48,10 @@ pub(crate) fn scan_vertices(ctx: &GraphStorageContext, space: &str) -> StorageRe
     let mut vertices = Vec::new();
 
     for tag in &tags {
-        if let Some(label_id) = ctx.graph.get_vertex_label_id(&tag.tag_name) {
-            if let Some(iterator) = ctx.graph.scan_vertices(label_id, ts) {
-                for record in iterator {
-                    let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
-                    vertices.push(vertex);
-                }
+        if let Some(iterator) = ctx.graph.scan_vertices(tag.tag_id, ts) {
+            for record in iterator {
+                let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
+                vertices.push(vertex);
             }
         }
     }
@@ -66,10 +64,9 @@ pub(crate) fn scan_vertices_by_tag(
     space: &str,
     tag: &str,
 ) -> StorageResult<Vec<Vertex>> {
-    let tag_info = ctx
-        .schema_manager
-        .get_tag(space, tag)?
-        .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
+    let tag_info = ctx.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
+        StorageError::not_found(format!("Tag {} not found in space {}", tag, space))
+    })?;
 
     let ts = ctx.get_read_timestamp();
     let mut vertices = Vec::new();
@@ -92,10 +89,9 @@ pub(crate) fn scan_vertices_by_prop(
     prop: &str,
     value: &Value,
 ) -> StorageResult<Vec<Vertex>> {
-    let tag_info = ctx
-        .schema_manager
-        .get_tag(space, tag)?
-        .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
+    let tag_info = ctx.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
+        StorageError::not_found(format!("Tag {} not found in space {}", tag, space))
+    })?;
 
     let ts = ctx.get_read_timestamp();
     let mut vertices = Vec::new();
@@ -138,21 +134,13 @@ pub(crate) fn get_edge(
     let ts = ctx.get_read_timestamp();
 
     let edge_label_id = edge_info.edge_type_id;
-    let src_label_id = if edge_info.src_tag_name.is_empty() {
-        0
-    } else {
-        match ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
-            Some(id) => id,
-            None => return Ok(None),
-        }
+    let src_label_id = match endpoint_label_id(ctx, space, &edge_info.src_tag_name)? {
+        Some(id) => id,
+        None => return Ok(None),
     };
-    let dst_label_id = if edge_info.dst_tag_name.is_empty() {
-        0
-    } else {
-        match ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-            Some(id) => id,
-            None => return Ok(None),
-        }
+    let dst_label_id = match endpoint_label_id(ctx, space, &edge_info.dst_tag_name)? {
+        Some(id) => id,
+        None => return Ok(None),
     };
     let src_str = src.to_string();
     let dst_str = dst.to_string();
@@ -205,129 +193,101 @@ pub(crate) fn get_node_edges(
         let edge_label_id = edge_info.edge_type_id;
         let edge_type_name = &edge_info.edge_type_name;
 
-        let src_label_id = if edge_info.src_tag_name.is_empty() {
-            0
-        } else {
-            match ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
-                Some(id) => id,
-                None => continue,
-            }
+        let src_label_id = match endpoint_label_id(ctx, space, &edge_info.src_tag_name)? {
+            Some(id) => id,
+            None => continue,
         };
-        let dst_label_id = if edge_info.dst_tag_name.is_empty() {
-            0
-        } else {
-            match ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-                Some(id) => id,
-                None => continue,
-            }
+        let dst_label_id = match endpoint_label_id(ctx, space, &edge_info.dst_tag_name)? {
+            Some(id) => id,
+            None => continue,
         };
         match direction {
             EdgeDirection::Out => {
-                if let Some(out_edges) = ctx.graph.out_edges(
-                    edge_label_id,
-                    src_label_id,
-                    dst_label_id,
-                    &node_str,
-                    ts,
-                ) {
+                if let Some(out_edges) =
+                    ctx.graph
+                        .out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                {
                     for record in out_edges {
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
                         let dst_external = if dst_label_id != 0 {
-                            ctx.graph.get_external_id(dst_label_id, dst_internal, ts)
+                            ctx.graph
+                                .get_external_id(dst_label_id, dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         } else {
-                            ctx.graph.get_external_id_any(dst_internal, ts)
+                            ctx.graph
+                                .get_external_id_any(dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         };
 
-                        let edge = edge_record_to_edge(
-                            &record,
-                            edge_type_name,
-                            &node_str,
-                            &dst_external,
-                        );
+                        let edge =
+                            edge_record_to_edge(&record, edge_type_name, &node_str, &dst_external);
                         edges.push(edge);
                     }
                 }
             }
             EdgeDirection::In => {
-                if let Some(in_edges) = ctx.graph.in_edges(
-                    edge_label_id,
-                    src_label_id,
-                    dst_label_id,
-                    &node_str,
-                    ts,
-                ) {
+                if let Some(in_edges) =
+                    ctx.graph
+                        .in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                {
                     for record in in_edges {
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
                         let src_external = if src_label_id != 0 {
-                            ctx.graph.get_external_id(src_label_id, src_internal, ts)
+                            ctx.graph
+                                .get_external_id(src_label_id, src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         } else {
-                            ctx.graph.get_external_id_any(src_internal, ts)
+                            ctx.graph
+                                .get_external_id_any(src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         };
 
-                        let edge = edge_record_to_edge(
-                            &record,
-                            edge_type_name,
-                            &src_external,
-                            &node_str,
-                        );
+                        let edge =
+                            edge_record_to_edge(&record, edge_type_name, &src_external, &node_str);
                         edges.push(edge);
                     }
                 }
             }
             EdgeDirection::Both => {
-                if let Some(out_edges) = ctx.graph.out_edges(
-                    edge_label_id,
-                    src_label_id,
-                    dst_label_id,
-                    &node_str,
-                    ts,
-                ) {
+                if let Some(out_edges) =
+                    ctx.graph
+                        .out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                {
                     for record in out_edges {
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
                         let dst_external = if dst_label_id != 0 {
-                            ctx.graph.get_external_id(dst_label_id, dst_internal, ts)
+                            ctx.graph
+                                .get_external_id(dst_label_id, dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         } else {
-                            ctx.graph.get_external_id_any(dst_internal, ts)
+                            ctx.graph
+                                .get_external_id_any(dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         };
 
-                        let edge = edge_record_to_edge(
-                            &record,
-                            edge_type_name,
-                            &node_str,
-                            &dst_external,
-                        );
+                        let edge =
+                            edge_record_to_edge(&record, edge_type_name, &node_str, &dst_external);
                         edges.push(edge);
                     }
                 }
-                if let Some(in_edges) = ctx.graph.in_edges(
-                    edge_label_id,
-                    src_label_id,
-                    dst_label_id,
-                    &node_str,
-                    ts,
-                ) {
+                if let Some(in_edges) =
+                    ctx.graph
+                        .in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                {
                     for record in in_edges {
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
                         let src_external = if src_label_id != 0 {
-                            ctx.graph.get_external_id(src_label_id, src_internal, ts)
+                            ctx.graph
+                                .get_external_id(src_label_id, src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         } else {
-                            ctx.graph.get_external_id_any(src_internal, ts)
+                            ctx.graph
+                                .get_external_id_any(src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         };
 
-                        let edge = edge_record_to_edge(
-                            &record,
-                            edge_type_name,
-                            &src_external,
-                            &node_str,
-                        );
+                        let edge =
+                            edge_record_to_edge(&record, edge_type_name, &src_external, &node_str);
                         edges.push(edge);
                     }
                 }
@@ -358,27 +318,20 @@ pub(crate) fn scan_edges_by_type(
 
     let edge_label_id = edge_info.edge_type_id;
 
-    let src_label_id: LabelId = if edge_info.src_tag_name.is_empty() {
-        0
-    } else {
-        match ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
-            Some(id) => id,
-            None => return Ok(edges),
-        }
+    let src_label_id: LabelId = match endpoint_label_id(ctx, space, &edge_info.src_tag_name)? {
+        Some(id) => id,
+        None => return Ok(edges),
     };
-    let dst_label_id: LabelId = if edge_info.dst_tag_name.is_empty() {
-        0
-    } else {
-        match ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-            Some(id) => id,
-            None => return Ok(edges),
-        }
+    let dst_label_id: LabelId = match endpoint_label_id(ctx, space, &edge_info.dst_tag_name)? {
+        Some(id) => id,
+        None => return Ok(edges),
     };
 
     let records = if edge_info.src_tag_name.is_empty() || edge_info.dst_tag_name.is_empty() {
         ctx.graph.scan_edges_by_label(edge_label_id, ts)
     } else {
-        ctx.graph.scan_edges(src_label_id, dst_label_id, edge_label_id, ts)
+        ctx.graph
+            .scan_edges(src_label_id, dst_label_id, edge_label_id, ts)
     };
 
     for record in records {
@@ -386,27 +339,26 @@ pub(crate) fn scan_edges_by_type(
         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
 
         let src_external = if src_label_id != 0 {
-            ctx.graph.get_external_id(src_label_id, src_internal, ts)
+            ctx.graph
+                .get_external_id(src_label_id, src_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.src_vid))
         } else {
-            ctx.graph.get_external_id_any(src_internal, ts)
+            ctx.graph
+                .get_external_id_any(src_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.src_vid))
         };
 
         let dst_external = if dst_label_id != 0 {
-            ctx.graph.get_external_id(dst_label_id, dst_internal, ts)
+            ctx.graph
+                .get_external_id(dst_label_id, dst_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.dst_vid))
         } else {
-            ctx.graph.get_external_id_any(dst_internal, ts)
+            ctx.graph
+                .get_external_id_any(dst_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.dst_vid))
         };
 
-        let edge = edge_record_to_edge(
-            &record,
-            edge_type,
-            &src_external,
-            &dst_external,
-        );
+        let edge = edge_record_to_edge(&record, edge_type, &src_external, &dst_external);
         edges.push(edge);
     }
 
@@ -436,10 +388,9 @@ pub(crate) fn get_vertex_with_schema(
     tag: &str,
     id: &Value,
 ) -> StorageResult<Option<(TagInfo, Vec<u8>)>> {
-    let tag_info = ctx
-        .schema_manager
-        .get_tag(space, tag)?
-        .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
+    let tag_info = ctx.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
+        StorageError::not_found(format!("Tag {} not found in space {}", tag, space))
+    })?;
 
     let ts = ctx.get_read_timestamp();
     let id_str = value_to_string(id);
@@ -475,21 +426,13 @@ pub(crate) fn get_edge_with_schema(
     let dst_str = value_to_string(dst);
 
     let edge_label_id = edge_info.edge_type_id;
-    let src_label_id = if edge_info.src_tag_name.is_empty() {
-        0
-    } else {
-        match ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
-            Some(id) => id,
-            None => return Ok(None),
-        }
+    let src_label_id = match endpoint_label_id(ctx, space, &edge_info.src_tag_name)? {
+        Some(id) => id,
+        None => return Ok(None),
     };
-    let dst_label_id = if edge_info.dst_tag_name.is_empty() {
-        0
-    } else {
-        match ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
-            Some(id) => id,
-            None => return Ok(None),
-        }
+    let dst_label_id = match endpoint_label_id(ctx, space, &edge_info.dst_tag_name)? {
+        Some(id) => id,
+        None => return Ok(None),
     };
     if let Some(record) = ctx.graph.get_edge(
         edge_label_id,
@@ -511,10 +454,9 @@ pub(crate) fn scan_vertices_with_schema(
     space: &str,
     tag: &str,
 ) -> StorageResult<Vec<(TagInfo, Vec<u8>)>> {
-    let tag_info = ctx
-        .schema_manager
-        .get_tag(space, tag)?
-        .ok_or_else(|| StorageError::not_found(format!("Tag {} not found in space {}", tag, space)))?;
+    let tag_info = ctx.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
+        StorageError::not_found(format!("Tag {} not found in space {}", tag, space))
+    })?;
 
     let ts = ctx.get_read_timestamp();
     let mut results = Vec::new();
@@ -559,16 +501,17 @@ pub(crate) fn scan_edges_with_schema(
             results.push((edge_info.clone(), data));
         }
     } else {
-        src_label_id = match ctx.graph.get_vertex_label_id(&edge_info.src_tag_name) {
+        src_label_id = match endpoint_label_id(ctx, space, &edge_info.src_tag_name)? {
             Some(id) => id,
             None => return Ok(results),
         };
-        dst_label_id = match ctx.graph.get_vertex_label_id(&edge_info.dst_tag_name) {
+        dst_label_id = match endpoint_label_id(ctx, space, &edge_info.dst_tag_name)? {
             Some(id) => id,
             None => return Ok(results),
         };
-        let records =
-            ctx.graph.scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
+        let records = ctx
+            .graph
+            .scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
         for record in records {
             let data = serialize_properties(&record.properties);
             results.push((edge_info.clone(), data));

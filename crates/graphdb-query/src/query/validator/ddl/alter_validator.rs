@@ -7,9 +7,9 @@
 //! 2. The `ALTER SPACE` statement is a global statement; other `ALTER` statements require you to specify a specific space.
 //! 3. Verify the legitimacy of attribute modifications (adding, deleting, modifying)
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::PropertyDef;
 use crate::query::parser::ast::stmt::{AlterStmt, AlterTarget, Ast, PropertyChange};
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,

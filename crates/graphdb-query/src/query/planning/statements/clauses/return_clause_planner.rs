@@ -153,7 +153,8 @@ impl ClausePlanner for ReturnClausePlanner {
 
             // Also project the argument expressions from aggregate functions
             // so they are available as input columns for the AggregateExecutor
-            let existing_aliases: Vec<String> = project_columns.iter().map(|pc| pc.alias.clone()).collect();
+            let existing_aliases: Vec<String> =
+                project_columns.iter().map(|pc| pc.alias.clone()).collect();
             for col in &yield_columns {
                 if let Some(expr_meta) = col.expression.expression() {
                     let inner = expr_meta.inner();

@@ -69,10 +69,7 @@ pub fn process_filter<H: ConditionHandler>(
     Ok(handler.build_filter(must, must_not, should, min_should))
 }
 
-fn handle_condition<H: ConditionHandler>(
-    c: &FilterCondition,
-    handler: &H,
-) -> Result<H::Condition> {
+fn handle_condition<H: ConditionHandler>(c: &FilterCondition, handler: &H) -> Result<H::Condition> {
     match &c.condition {
         ConditionType::Match { value } => Ok(handler.handle_match(&c.field, value)),
         ConditionType::MatchAny { values } => Ok(handler.handle_match_any(&c.field, values)),
@@ -85,9 +82,7 @@ fn handle_condition<H: ConditionHandler>(
                 .ok_or_else(|| VectorClientError::FilterError("Empty nested filter".to_string()))?;
             Ok(handler.handle_nested(&c.field, nested))
         }
-        ConditionType::Payload { key, value } => {
-            Ok(handler.handle_payload(&c.field, key, value))
-        }
+        ConditionType::Payload { key, value } => Ok(handler.handle_payload(&c.field, key, value)),
         ConditionType::GeoRadius(radius) => Ok(handler.handle_geo_radius(&c.field, radius)),
         ConditionType::GeoBoundingBox(bbox) => Ok(handler.handle_geo_bounding_box(&c.field, bbox)),
         ConditionType::ValuesCount(count) => Ok(handler.handle_values_count(&c.field, count)),

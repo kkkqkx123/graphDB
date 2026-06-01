@@ -2,7 +2,6 @@
 //!
 //! Provide a function for evaluating specific expressions, implemented using direct recursive matching to avoid unnecessary abstract overhead.
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::types::expr::analysis_utils::is_evaluable;
 use crate::core::types::expr::Expression;
 use crate::core::value::list::List;
@@ -15,6 +14,7 @@ use crate::query::executor::expression::evaluator::operations::{
 };
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::functions::global_registry;
+use crate::query::executor::expression::ExpressionError;
 
 /// Implementation of an expression evaluator (unit struct, zero overhead)
 #[derive(Debug)]

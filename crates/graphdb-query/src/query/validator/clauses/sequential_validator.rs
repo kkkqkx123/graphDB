@@ -10,10 +10,10 @@
 //! Limit on the maximum number of sentences
 //! 3. Use QueryContext to manage the context in a unified manner.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::DataType;
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,

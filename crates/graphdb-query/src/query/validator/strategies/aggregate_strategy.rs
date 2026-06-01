@@ -1,9 +1,9 @@
 //! Aggregated validation strategy
 //! Responsible for verifying the use of aggregate functions and checking whether expressions contain any aggregate operations.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::operators::AggregateFunction;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 
 /// Aggregated validation strategy
 pub struct AggregateValidationStrategy;

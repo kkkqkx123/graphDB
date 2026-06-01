@@ -78,13 +78,8 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
             .map(|v| v.to_string())
             .unwrap_or_else(|| format!("right_{}", node.id()));
 
-        let executor = MinusExecutor::with_context(
-            node.id(),
-            storage,
-            left_var,
-            right_var,
-            context.clone(),
-        );
+        let executor =
+            MinusExecutor::with_context(node.id(), storage, left_var, right_var, context.clone());
         Ok(ExecutorEnum::Minus(executor))
     }
 

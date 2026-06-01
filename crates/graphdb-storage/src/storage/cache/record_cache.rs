@@ -191,7 +191,12 @@ impl RecordCache {
 
     // ==================== ID Index Operations ====================
 
-    pub fn get_id_index(&self, label_id: u32, external_id: &str, query_ts: Timestamp) -> Option<u32> {
+    pub fn get_id_index(
+        &self,
+        label_id: u32,
+        external_id: &str,
+        query_ts: Timestamp,
+    ) -> Option<u32> {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
         let result = match self.id_index_cache.get(&key) {
             Some(cached) if cached.cached_at_ts <= query_ts => {
@@ -213,12 +218,21 @@ impl RecordCache {
         result
     }
 
-    pub fn insert_id_index(&self, label_id: u32, external_id: &str, internal_id: u32, ts: Timestamp) {
+    pub fn insert_id_index(
+        &self,
+        label_id: u32,
+        external_id: &str,
+        internal_id: u32,
+        ts: Timestamp,
+    ) {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
-        self.id_index_cache.insert(key, IdIndexCacheValue {
-            internal_id,
-            cached_at_ts: ts,
-        });
+        self.id_index_cache.insert(
+            key,
+            IdIndexCacheValue {
+                internal_id,
+                cached_at_ts: ts,
+            },
+        );
     }
 
     pub fn remove_id_index(&self, label_id: u32, external_id: &str) {
@@ -268,14 +282,16 @@ impl RecordCache {
     /// Note: Moka does not expose which entries were actually removed,
     /// so this cannot be rolled back at the cache level.
     pub fn invalidate_vertices_by_label(&self, label_id: u32) {
-        let _ = self.vertex_cache
+        let _ = self
+            .vertex_cache
             .invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.vertex_cache.run_pending_tasks();
     }
 
     /// Invalidate all ID index entries for a given label.
     pub fn invalidate_id_indexes_by_label(&self, label_id: u32) {
-        let _ = self.id_index_cache
+        let _ = self
+            .id_index_cache
             .invalidate_entries_if(move |k, _| k.label_id == label_id);
         self.id_index_cache.run_pending_tasks();
     }
@@ -384,7 +400,11 @@ impl RecordCache {
 
     // ==================== Batch Operations ====================
 
-    pub fn get_vertices_batch(&self, keys: &[VertexCacheKey], query_ts: Timestamp) -> BatchGetResult<CachedVertex> {
+    pub fn get_vertices_batch(
+        &self,
+        keys: &[VertexCacheKey],
+        query_ts: Timestamp,
+    ) -> BatchGetResult<CachedVertex> {
         let mut results = Vec::with_capacity(keys.len());
         let mut hits = 0usize;
         let mut misses = 0usize;

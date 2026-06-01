@@ -71,8 +71,7 @@ fn test_minus_parser() {
 
 #[test]
 fn test_union_with_match_parser() {
-    let query =
-        "MATCH (a:Person) RETURN a.name UNION MATCH (b:Person) RETURN b.name";
+    let query = "MATCH (a:Person) RETURN a.name UNION MATCH (b:Person) RETURN b.name";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
@@ -98,8 +97,7 @@ fn test_multiple_union_parser() {
 
 #[test]
 fn test_union_with_lookup_parser() {
-    let query =
-        "LOOKUP ON Person YIELD Person.name UNION LOOKUP ON Person YIELD Person.name";
+    let query = "LOOKUP ON Person YIELD Person.name UNION LOOKUP ON Person YIELD Person.name";
     let mut parser = Parser::new(query);
 
     let result = parser.parse();

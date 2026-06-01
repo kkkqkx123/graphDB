@@ -72,9 +72,14 @@ impl RecoveryApplier for PropertyGraph {
         {
             let vertex_tables = self.data_store.vertex_tables().read();
             let mut edge_tables = self.data_store.edge_tables().write();
-            TransactionOps::add_edge(&mut edge_tables, &vertex_tables, params, &redo.properties, ts).map_err(
-                |e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)),
-            )?;
+            TransactionOps::add_edge(
+                &mut edge_tables,
+                &vertex_tables,
+                params,
+                &redo.properties,
+                ts,
+            )
+            .map_err(|e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)))?;
         }
 
         self.mark_edge_modified(redo.edge_label);
@@ -151,12 +156,7 @@ impl RecoveryApplier for PropertyGraph {
         Ok(())
     }
 
-    fn replay_delete_vertex(
-        &self,
-        label: LabelId,
-        oid: &[u8],
-        ts: Timestamp,
-    ) -> StorageResult<()> {
+    fn replay_delete_vertex(&self, label: LabelId, oid: &[u8], ts: Timestamp) -> StorageResult<()> {
         let oid_str = String::from_utf8_lossy(oid).to_string();
 
         if let Some(vertex) = self.get_vertex(label, &oid_str, ts) {

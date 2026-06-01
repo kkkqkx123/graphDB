@@ -389,5 +389,3 @@ async fn test_concurrent_index_creation() {
         );
     }
 }
-
-

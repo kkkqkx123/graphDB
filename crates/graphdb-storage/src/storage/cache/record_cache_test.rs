@@ -301,12 +301,15 @@ fn test_batch_get_vertices_timestamp() {
     let cache = RecordCache::new();
 
     let key = VertexCacheKey::new(1, 1);
-    cache.insert_vertex(key, CachedVertex {
-        internal_id: 1,
-        external_id: "v1".to_string(),
-        properties: vec![],
-        cached_at_ts: 10,
-    });
+    cache.insert_vertex(
+        key,
+        CachedVertex {
+            internal_id: 1,
+            external_id: "v1".to_string(),
+            properties: vec![],
+            cached_at_ts: 10,
+        },
+    );
 
     // query at ts=5 should NOT see entry cached at ts=10
     let result = cache.get_vertices_batch(&[VertexCacheKey::new(1, 1)], 5);
@@ -464,10 +467,7 @@ fn test_memory_overflow_eviction() {
     }
 
     let stats = cache.stats();
-    assert!(
-        stats.vertex.evictions > 0,
-        "Evictions should have occurred"
-    );
+    assert!(stats.vertex.evictions > 0, "Evictions should have occurred");
 }
 
 #[test]

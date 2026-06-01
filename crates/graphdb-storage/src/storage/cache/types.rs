@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use moka::notification::RemovalCause;
 
-use crate::core::Value;
 use crate::core::types::Timestamp;
+use crate::core::Value;
 
 /// Eviction cause for cache entries
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -4,15 +4,15 @@
 
 use std::sync::Arc;
 
-use log::{error, info};
 #[cfg(feature = "qdrant")]
 use log::warn;
+use log::{error, info};
 
 use crate::api::server::{GraphService, HttpServer};
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::storage::engine::sync_wrapper::SyncWrapper;
 use crate::storage::GraphStorage;
+use crate::storage::SyncWrapper;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// Helper: attach vector sync coordinator to an existing SyncManager (if qdrant is enabled)
@@ -26,11 +26,9 @@ async fn setup_vector_sync(
         match VectorManager::new(config.vector_config().clone()).await {
             Ok(vm) => {
                 let vector_manager = Arc::new(vm);
-                let vector_coordinator =
-                    Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
-                        vector_manager,
-                        None,
-                    ));
+                let vector_coordinator = Arc::new(
+                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
+                );
                 info!("Vector index sync enabled");
                 sync_manager.with_vector_coordinator(vector_coordinator)
             }
@@ -102,8 +100,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 batch_config,
             ));
 
-            let sync_manager =
-                SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
+            let sync_manager = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             #[cfg(feature = "qdrant")]
             let sync_manager = setup_vector_sync(sync_manager, &config).await;
@@ -122,8 +119,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 batch_config,
             ));
 
-            let sync_manager =
-                SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
+            let sync_manager = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             #[cfg(feature = "qdrant")]
             let sync_manager = setup_vector_sync(sync_manager, &config).await;

@@ -350,12 +350,9 @@ fn test_optimizer_result_equivalence() {
     {
         let stats_manager = Arc::new(StatsManager::new());
         let opt_enabled = Arc::new(OptimizerEngine::default());
-        let mut pipeline = QueryPipelineManager::with_optimizer(
-            storage.clone(),
-            stats_manager,
-            opt_enabled,
-        )
-        .with_schema_manager(schema_manager.clone());
+        let mut pipeline =
+            QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, opt_enabled)
+                .with_schema_manager(schema_manager.clone());
         pipeline
             .execute_query("CREATE SPACE opt_equiv (vid_type=INT64)")
             .expect("CREATE SPACE");
@@ -377,12 +374,9 @@ fn test_optimizer_result_equivalence() {
     {
         let stats_manager = Arc::new(StatsManager::new());
         let opt_enabled = Arc::new(OptimizerEngine::default());
-        let mut pipeline = QueryPipelineManager::with_optimizer(
-            storage.clone(),
-            stats_manager,
-            opt_enabled,
-        )
-        .with_schema_manager(schema_manager.clone());
+        let mut pipeline =
+            QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, opt_enabled)
+                .with_schema_manager(schema_manager.clone());
         pipeline
             .execute_query_with_space(
                 "CREATE TAG Item(name STRING, price DOUBLE)",
@@ -400,12 +394,8 @@ fn test_optimizer_result_equivalence() {
     // Pipeline with optimization enabled
     let stats1 = Arc::new(StatsManager::new());
     let opt_on = Arc::new(OptimizerEngine::default());
-    let mut pipeline_on = QueryPipelineManager::with_optimizer(
-        storage.clone(),
-        stats1,
-        opt_on,
-    )
-    .with_schema_manager(schema_manager.clone());
+    let mut pipeline_on = QueryPipelineManager::with_optimizer(storage.clone(), stats1, opt_on)
+        .with_schema_manager(schema_manager.clone());
 
     // Pipeline with optimization disabled
     let stats2 = Arc::new(StatsManager::new());
@@ -413,12 +403,8 @@ fn test_optimizer_result_equivalence() {
     opt_off_engine.set_enable_heuristic(false);
     opt_off_engine.set_enable_cost_based(false);
     let opt_off = Arc::new(opt_off_engine);
-    let mut pipeline_off = QueryPipelineManager::with_optimizer(
-        storage.clone(),
-        stats2,
-        opt_off,
-    )
-    .with_schema_manager(schema_manager);
+    let mut pipeline_off = QueryPipelineManager::with_optimizer(storage.clone(), stats2, opt_off)
+        .with_schema_manager(schema_manager);
 
     // Test: MATCH query results should be identical with or without optimization
     let queries = vec![

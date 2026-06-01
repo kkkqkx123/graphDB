@@ -1,5 +1,5 @@
-use crate::command::parser::types::{Command, CopyDirection, HistoryAction, MetaCommand};
 use crate::command::parser::parse_command;
+use crate::command::parser::types::{Command, CopyDirection, HistoryAction, MetaCommand};
 use crate::output::formatter::OutputFormat;
 
 #[test]
@@ -502,7 +502,10 @@ fn test_parse_meta_command_explain() {
         }) => {
             assert_eq!(query, "MATCH (v) RETURN v");
             assert!(!analyze);
-            assert!(matches!(format, crate::analysis::explain::ExplainFormat::Text));
+            assert!(matches!(
+                format,
+                crate::analysis::explain::ExplainFormat::Text
+            ));
         }
         _ => panic!("Expected Explain command"),
     }
@@ -521,7 +524,10 @@ fn test_parse_meta_command_explain() {
 
     match parse_command("\\explain format=json MATCH (v) RETURN v") {
         Command::MetaCommand(MetaCommand::Explain { format, .. }) => {
-            assert!(matches!(format, crate::analysis::explain::ExplainFormat::Json));
+            assert!(matches!(
+                format,
+                crate::analysis::explain::ExplainFormat::Json
+            ));
         }
         _ => panic!("Expected Explain command with json format"),
     }
@@ -555,9 +561,7 @@ fn test_parse_meta_command_import() {
 
     match parse_command("\\import json data.json edge Friend 100") {
         Command::MetaCommand(MetaCommand::Import {
-            batch_size,
-            target,
-            ..
+            batch_size, target, ..
         }) => {
             assert_eq!(batch_size, Some(100));
             assert!(matches!(target, crate::io::ImportTarget::Edge { .. }));

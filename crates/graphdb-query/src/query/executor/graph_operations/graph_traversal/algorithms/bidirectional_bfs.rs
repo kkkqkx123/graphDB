@@ -173,7 +173,11 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                         }
                     }
 
-                    let neighbors = self.get_neighbors_with_edges(&current_id, edge_types, self.edge_direction)?;
+                    let neighbors = self.get_neighbors_with_edges(
+                        &current_id,
+                        edge_types,
+                        self.edge_direction,
+                    )?;
                     self.stats.increment_edges_traversed(neighbors.len());
 
                     for (neighbor_id, edge, _weight) in neighbors {
@@ -220,7 +224,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                             let total_len = left_npath.len() + current_npath.len();
                             let exceeds_depth = max_depth.map_or(false, |max_d| total_len > max_d);
                             if !exceeds_depth {
-                                if let Some(combined_path) = combine_npaths(left_npath, &current_npath) {
+                                if let Some(combined_path) =
+                                    combine_npaths(left_npath, &current_npath)
+                                {
                                     if !has_duplicate_edges(&combined_path) {
                                         result_paths.push(combined_path);
                                         if single_shortest || result_paths.len() >= limit {
@@ -239,7 +245,11 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                         }
                     }
 
-                    let neighbors = self.get_neighbors_with_edges(&current_id, edge_types, self.right_edge_direction)?;
+                    let neighbors = self.get_neighbors_with_edges(
+                        &current_id,
+                        edge_types,
+                        self.right_edge_direction,
+                    )?;
                     self.stats.increment_edges_traversed(neighbors.len());
 
                     for (neighbor_id, edge, _weight) in neighbors {

@@ -1,7 +1,7 @@
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::DataType;
 use crate::core::YieldColumn;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::{
     MatchClauseContext, ReturnClauseContext, UnwindClauseContext, WhereClauseContext,
     WithClauseContext, YieldClauseContext,

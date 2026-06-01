@@ -832,7 +832,9 @@ impl WalStats {
     }
 
     pub fn average_write_latency_us(&self) -> u64 {
-        self.total_write_latency_us.checked_div(self.write_ops).unwrap_or(0)
+        self.total_write_latency_us
+            .checked_div(self.write_ops)
+            .unwrap_or(0)
     }
 
     pub fn compression_ratio(&self) -> f64 {

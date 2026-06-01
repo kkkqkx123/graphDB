@@ -11,7 +11,7 @@
 use super::encoding::{
     ColumnEncoding, ColumnStats, CompressionSelector, EncodingType, FsstColumn, FsstEncoder,
 };
-use crate::core::value::{DateValue, DateTimeValue, TimeValue};
+use crate::core::value::{DateTimeValue, DateValue, TimeValue};
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::utils::NullBitmap;
 use bitvec::prelude::*;
@@ -76,7 +76,23 @@ pub fn element_size(data_type: &DataType) -> usize {
 
 /// Returns true if the data type is variable-length.
 pub fn is_variable_length_type(data_type: &DataType) -> bool {
-    matches!(data_type, DataType::String | DataType::Geography | DataType::List | DataType::Map | DataType::Set | DataType::Vertex | DataType::Edge | DataType::Path | DataType::Vector | DataType::DataSet | DataType::Json | DataType::JsonB | DataType::Interval | DataType::Null)
+    matches!(
+        data_type,
+        DataType::String
+            | DataType::Geography
+            | DataType::List
+            | DataType::Map
+            | DataType::Set
+            | DataType::Vertex
+            | DataType::Edge
+            | DataType::Path
+            | DataType::Vector
+            | DataType::DataSet
+            | DataType::Json
+            | DataType::JsonB
+            | DataType::Interval
+            | DataType::Null
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +259,8 @@ impl ColumnStorage for FixedWidthColumn {
         let elem_size = self.element_size.max(1);
         let remainder = self.data.len() % elem_size;
         if remainder != 0 {
-            self.data.resize(self.data.len() + (elem_size - remainder), 0);
+            self.data
+                .resize(self.data.len() + (elem_size - remainder), 0);
         }
         self.row_count = self.data.len() / elem_size;
         self.null_bitmap = null_bitmap;
@@ -260,7 +277,8 @@ impl ColumnStorage for FixedWidthColumn {
         let elem_size = self.element_size.max(1);
         let remainder = self.data.len() % elem_size;
         if remainder != 0 {
-            self.data.resize(self.data.len() + (elem_size - remainder), 0);
+            self.data
+                .resize(self.data.len() + (elem_size - remainder), 0);
         }
         self.null_bitmap = null_bitmap_raw.map(|raw| {
             let mut bv = BitVec::from_vec(raw);
@@ -368,9 +386,7 @@ impl ColumnStorage for VariableWidthColumn {
         }
 
         let bytes = &self.data[start + 8..start + 8 + len];
-        String::from_utf8(bytes.to_vec())
-            .ok()
-            .map(Value::String)
+        String::from_utf8(bytes.to_vec()).ok().map(Value::String)
     }
 
     fn set(&mut self, row_idx: usize, value: Option<&Value>) -> StorageResult<()> {
@@ -528,7 +544,10 @@ impl ColumnStorage for VariableWidthColumn {
         for row in start_row..end_row {
             if row < self.offsets.len() && !self.is_null(row) {
                 let entry_start = self.offsets[row];
-                let entry_len = if row + 1 < self.offsets.len() && self.offsets[row + 1] != usize::MAX && self.offsets[row + 1] > 0 {
+                let entry_len = if row + 1 < self.offsets.len()
+                    && self.offsets[row + 1] != usize::MAX
+                    && self.offsets[row + 1] > 0
+                {
                     self.offsets[row + 1] - entry_start
                 } else {
                     self.data.len() - entry_start
@@ -587,14 +606,14 @@ fn write_fixed_value(
             ));
         }
     };
-    
+
     if offset + required_size > data.len() {
         return Err(StorageError::invalid_input(format!(
             "Column data buffer too small: offset={}, required_size={}, data_len={}, element_size={}",
             offset, required_size, data.len(), element_size
         )));
     }
-    
+
     match value {
         Value::Bool(b) => {
             data[offset] = if *b { 1 } else { 0 };
@@ -729,7 +748,12 @@ fn convert_to_type(raw: Value, data_type: &DataType) -> Value {
             let rem = rem % 60_000_000;
             let sec = (rem / 1_000_000) as u32;
             let microsec = (rem % 1_000_000) as u32;
-            Value::Time(TimeValue { hour, minute, sec, microsec })
+            Value::Time(TimeValue {
+                hour,
+                minute,
+                sec,
+                microsec,
+            })
         }
         _ => raw,
     }
@@ -793,7 +817,11 @@ impl Column {
         let inner = if is_variable_length_type(&data_type) {
             ColumnInner::Variable(VariableWidthColumn::with_capacity(nullable, capacity))
         } else {
-            ColumnInner::Fixed(FixedWidthColumn::with_capacity(data_type.clone(), nullable, capacity))
+            ColumnInner::Fixed(FixedWidthColumn::with_capacity(
+                data_type.clone(),
+                nullable,
+                capacity,
+            ))
         };
 
         Self {
@@ -984,9 +1012,7 @@ impl Column {
         let row_count = self.len();
         let mut new_data = Vec::new();
         let mut new_offsets = Vec::new();
-        let mut new_bitmap = self
-            .null_bitmap()
-            .map(|_| BitVec::with_capacity(row_count));
+        let mut new_bitmap = self.null_bitmap().map(|_| BitVec::with_capacity(row_count));
 
         let is_var = is_variable_length_type(&self.data_type);
 
@@ -1354,11 +1380,10 @@ impl Column {
         let mut table = super::encoding::FsstSymbolTable::new();
 
         if symbol_table_bytes.len() >= 4 {
-            let symbol_count = u32::from_le_bytes(
-                symbol_table_bytes[0..4]
-                    .try_into()
-                    .map_err(|_| StorageError::deserialize_error("failed to read FSST symbol count"))?
-            ) as usize;
+            let symbol_count =
+                u32::from_le_bytes(symbol_table_bytes[0..4].try_into().map_err(|_| {
+                    StorageError::deserialize_error("failed to read FSST symbol count")
+                })?) as usize;
             let mut offset = 4;
 
             for _ in 0..symbol_count {
@@ -1879,17 +1904,10 @@ mod tests {
 
         col.set(0, Some(&Value::String("Alice".to_string())))
             .unwrap();
-        col.set(1, Some(&Value::String("Bob".to_string())))
-            .unwrap();
+        col.set(1, Some(&Value::String("Bob".to_string()))).unwrap();
 
-        assert_eq!(
-            col.get(0),
-            Some(Value::String("Alice".to_string()))
-        );
-        assert_eq!(
-            col.get(1),
-            Some(Value::String("Bob".to_string()))
-        );
+        assert_eq!(col.get(0), Some(Value::String("Alice".to_string())));
+        assert_eq!(col.get(1), Some(Value::String("Bob".to_string())));
         assert_eq!(col.len(), 2);
     }
 
@@ -1979,14 +1997,8 @@ mod tests {
         let mut restored = Column::new("name".to_string(), 0, DataType::String, true);
         restored.load_data_from_raw(data, offsets, bitmap.map(|b| b.into_vec()), 3);
 
-        assert_eq!(
-            restored.get(0),
-            Some(Value::String("Hello".to_string()))
-        );
-        assert_eq!(
-            restored.get(1),
-            Some(Value::String("World".to_string()))
-        );
+        assert_eq!(restored.get(0), Some(Value::String("Hello".to_string())));
+        assert_eq!(restored.get(1), Some(Value::String("World".to_string())));
         assert!(restored.is_null(2));
         assert_eq!(restored.len(), 3);
     }

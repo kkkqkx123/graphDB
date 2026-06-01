@@ -156,7 +156,8 @@ impl OverflowStore {
         self.data_pool[offset as usize..end].copy_from_slice(&bytes);
 
         self.index.insert(id, (offset, size));
-        self.location_index.insert(OverflowKey { col_idx, row_idx }, id);
+        self.location_index
+            .insert(OverflowKey { col_idx, row_idx }, id);
         self.entry_count += 1;
 
         OverflowPointer {
@@ -181,7 +182,8 @@ impl OverflowStore {
         if let Some(idx) = best_idx {
             let (offset, size) = self.free_list.swap_remove(idx);
             if size > needed_size {
-                self.free_list.push((offset + needed_size as u64, size - needed_size));
+                self.free_list
+                    .push((offset + needed_size as u64, size - needed_size));
             }
             (offset, needed_size)
         } else {
@@ -253,8 +255,10 @@ impl OverflowStore {
     pub fn memory_size(&self) -> usize {
         let mut total = std::mem::size_of::<Self>();
         total += self.data_pool.capacity();
-        total += self.index.capacity() * (std::mem::size_of::<u64>() + std::mem::size_of::<(u64, u32)>());
-        total += self.location_index.capacity() * (std::mem::size_of::<OverflowKey>() + std::mem::size_of::<u64>());
+        total += self.index.capacity()
+            * (std::mem::size_of::<u64>() + std::mem::size_of::<(u64, u32)>());
+        total += self.location_index.capacity()
+            * (std::mem::size_of::<OverflowKey>() + std::mem::size_of::<u64>());
         total += self.free_list.capacity() * std::mem::size_of::<(u64, u32)>();
         total
     }
@@ -326,7 +330,8 @@ impl OverflowStore {
         if section_id != section::OVERFLOW_STORE {
             return Err(StorageError::deserialize_error(format!(
                 "invalid section_id for OverflowStore: expected 0x{:04X}, got 0x{:04X}",
-                section::OVERFLOW_STORE, section_id
+                section::OVERFLOW_STORE,
+                section_id
             )));
         }
 
@@ -375,7 +380,8 @@ impl OverflowStore {
             let col_idx = read_u32_le(data, &mut offset)? as usize;
             let row_idx = read_u32_le(data, &mut offset)? as usize;
             let overflow_id = read_u64_le(data, &mut offset)?;
-            self.location_index.insert(OverflowKey { col_idx, row_idx }, overflow_id);
+            self.location_index
+                .insert(OverflowKey { col_idx, row_idx }, overflow_id);
         }
 
         // free_list
@@ -576,10 +582,7 @@ impl PropertyTable {
         Ok(())
     }
 
-    pub fn auto_apply_encodings(
-        &mut self,
-        config: Option<CompressionConfig>,
-    ) -> StorageResult<()> {
+    pub fn auto_apply_encodings(&mut self, config: Option<CompressionConfig>) -> StorageResult<()> {
         let selector = match config {
             Some(c) => CompressionSelector::with_config(c),
             None => CompressionSelector::new(),
@@ -1051,7 +1054,8 @@ impl PropertyTable {
         if section_id != section::PROPERTY_TABLE {
             return Err(StorageError::deserialize_error(format!(
                 "invalid section_id for PropertyTable: expected 0x{:04X}, got 0x{:04X}",
-                section::PROPERTY_TABLE, section_id
+                section::PROPERTY_TABLE,
+                section_id
             )));
         }
 
@@ -1090,9 +1094,9 @@ impl PropertyTable {
             let name = String::from_utf8_lossy(&data[offset..offset + name_len]).to_string();
             offset += name_len;
 
-            let prop_id_bytes: [u8; 4] = data[offset..offset + 4].try_into().map_err(|_| {
-                StorageError::deserialize_error("failed to read prop_id")
-            })?;
+            let prop_id_bytes: [u8; 4] = data[offset..offset + 4]
+                .try_into()
+                .map_err(|_| StorageError::deserialize_error("failed to read prop_id"))?;
             let prop_id = i32::from_le_bytes(prop_id_bytes);
             offset += 4;
             let data_type = DataType::from_u8(data[offset]);

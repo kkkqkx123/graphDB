@@ -7,11 +7,11 @@
 //! 2. All statements related to permission classes are global in nature; there is no need to pre-select a specific scope (i.e., a specific “space” in the programming context) for them.
 //! 3. Verify the user's existence and the legitimacy of their role.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{
     AlterUserStmt, Ast, ChangePasswordStmt, CreateUserStmt, DescribeUserStmt, DropUserStmt,
     GrantStmt, RevokeStmt, RoleType, ShowRolesStmt, ShowUsersStmt,
 };
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,

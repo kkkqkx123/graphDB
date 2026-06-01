@@ -21,11 +21,7 @@ impl JsonExporter {
         }
     }
 
-    pub async fn export(
-        &self,
-        query: &str,
-        session: &mut SessionManager,
-    ) -> Result<ExportStats> {
+    pub async fn export(&self, query: &str, session: &mut SessionManager) -> Result<ExportStats> {
         if self.config.streaming {
             self.export_streaming(query, session).await
         } else {
@@ -33,11 +29,7 @@ impl JsonExporter {
         }
     }
 
-    async fn export_batch(
-        &self,
-        query: &str,
-        session: &mut SessionManager,
-    ) -> Result<ExportStats> {
+    async fn export_batch(&self, query: &str, session: &mut SessionManager) -> Result<ExportStats> {
         let result = session.execute_query(query).await?;
         let mut stats = ExportStats::new();
 
@@ -154,29 +146,27 @@ impl JsonExporter {
                     writer.write_all(b"\n]")?;
                 }
             }
-            ExportFormat::JsonLines => {
-                loop {
-                    let paginated_query = format!("{} SKIP {} LIMIT {}", query, offset, chunk_size);
-                    let result = session.execute_query(&paginated_query).await?;
+            ExportFormat::JsonLines => loop {
+                let paginated_query = format!("{} SKIP {} LIMIT {}", query, offset, chunk_size);
+                let result = session.execute_query(&paginated_query).await?;
 
-                    if result.rows.is_empty() {
-                        break;
-                    }
-
-                    for row in &result.rows {
-                        let obj = self.row_to_json_object(&result.columns, row);
-                        let json_str = serde_json::to_string(&obj)?;
-                        writeln!(writer, "{}", json_str)?;
-                        stats.total_rows += 1;
-                    }
-
-                    offset += result.rows.len();
-
-                    if result.rows.len() < chunk_size {
-                        break;
-                    }
+                if result.rows.is_empty() {
+                    break;
                 }
-            }
+
+                for row in &result.rows {
+                    let obj = self.row_to_json_object(&result.columns, row);
+                    let json_str = serde_json::to_string(&obj)?;
+                    writeln!(writer, "{}", json_str)?;
+                    stats.total_rows += 1;
+                }
+
+                offset += result.rows.len();
+
+                if result.rows.len() < chunk_size {
+                    break;
+                }
+            },
             _ => return Err(anyhow::anyhow!("Invalid format for JSON exporter")),
         }
 

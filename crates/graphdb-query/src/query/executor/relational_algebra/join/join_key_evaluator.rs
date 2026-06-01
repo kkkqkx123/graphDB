@@ -2,11 +2,11 @@
 //!
 //! Keys specifically designed for use in the Join operation, which support the evaluation of expressions into Value types that can be hashed.
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::types::expr::Expression;
 use crate::core::Value;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::ExpressionError;
 
 /// The Join key evaluator
 ///

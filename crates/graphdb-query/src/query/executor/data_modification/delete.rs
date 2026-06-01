@@ -220,17 +220,17 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
 
         if let Some(edges) = &self.edge_ids {
             let mut storage = self.get_storage().write();
-    for (src, dst, edge_type) in edges {
-        // Handle Value::Edge: extract src/dst from the edge value
-        // This is needed for MATCH ... DELETE EDGE e where e is an edge variable
-        let src_vid = match src {
-            Value::Edge(ref e) => e.src.clone(),
-            other => VertexId::try_from(other).map_err(DBError::from)?,
-        };
-        let dst_vid = match dst {
-            Value::Edge(ref e) => e.dst.clone(),
-            other => VertexId::try_from(other).map_err(DBError::from)?,
-        };
+            for (src, dst, edge_type) in edges {
+                // Handle Value::Edge: extract src/dst from the edge value
+                // This is needed for MATCH ... DELETE EDGE e where e is an edge variable
+                let src_vid = match src {
+                    Value::Edge(ref e) => e.src.clone(),
+                    other => VertexId::try_from(other).map_err(DBError::from)?,
+                };
+                let dst_vid = match dst {
+                    Value::Edge(ref e) => e.dst.clone(),
+                    other => VertexId::try_from(other).map_err(DBError::from)?,
+                };
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(edge)) =
                         storage.get_edge(&self.space_name, &src_vid, &dst_vid, edge_type, 0)

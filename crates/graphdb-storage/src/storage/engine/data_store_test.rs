@@ -24,14 +24,8 @@ mod tests {
             .write()
             .insert("Company".to_string(), 1);
 
-        assert_eq!(
-            ds.vertex_label_names().read().get("Person"),
-            Some(&0)
-        );
-        assert_eq!(
-            ds.vertex_label_names().read().get("Company"),
-            Some(&1)
-        );
+        assert_eq!(ds.vertex_label_names().read().get("Person"), Some(&0));
+        assert_eq!(ds.vertex_label_names().read().get("Company"), Some(&1));
         assert!(ds.vertex_label_names().read().get("Unknown").is_none());
     }
 
@@ -39,21 +33,13 @@ mod tests {
     fn test_edge_label_name_mapping() {
         let ds = GraphDataStore::new();
 
-        ds.edge_label_names()
-            .write()
-            .insert("KNOWS".to_string(), 0);
+        ds.edge_label_names().write().insert("KNOWS".to_string(), 0);
         ds.edge_label_names()
             .write()
             .insert("WORKS_AT".to_string(), 1);
 
-        assert_eq!(
-            ds.edge_label_names().read().get("KNOWS"),
-            Some(&0)
-        );
-        assert_eq!(
-            ds.edge_label_names().read().get("WORKS_AT"),
-            Some(&1)
-        );
+        assert_eq!(ds.edge_label_names().read().get("KNOWS"), Some(&0));
+        assert_eq!(ds.edge_label_names().read().get("WORKS_AT"), Some(&1));
     }
 
     #[test]

@@ -106,8 +106,8 @@ mod traverse;
 mod type_deduce;
 
 // Visitor pattern
-pub mod visitor;
 pub mod expression_context;
+pub mod visitor;
 pub mod visitor_checkers;
 pub mod visitor_collectors;
 

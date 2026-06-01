@@ -300,9 +300,13 @@ impl Config {
     /// Check if vector search is enabled
     pub fn is_vector_enabled(&self) -> bool {
         #[cfg(feature = "qdrant")]
-        { self.vector.enabled }
+        {
+            self.vector.enabled
+        }
         #[cfg(not(feature = "qdrant"))]
-        { false }
+        {
+            false
+        }
     }
 
     /// Get vector client configuration (only available with `qdrant` feature)

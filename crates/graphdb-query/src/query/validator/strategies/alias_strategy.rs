@@ -1,8 +1,8 @@
 //! Alias Verification Policy
 //! Responsible for verifying alias references and their availability in expressions.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 

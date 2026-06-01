@@ -95,8 +95,10 @@ mod tests {
         fn list_indexes(
             &self,
             _space_id: u64,
-        ) -> Result<Vec<IndexMetadata>, graphdb_query::query::metadata::provider::MetadataProviderError>
-        {
+        ) -> Result<
+            Vec<IndexMetadata>,
+            graphdb_query::query::metadata::provider::MetadataProviderError,
+        > {
             Ok(self.indexes.values().cloned().collect())
         }
 
@@ -111,8 +113,10 @@ mod tests {
         fn list_edge_types(
             &self,
             _space_id: u64,
-        ) -> Result<Vec<EdgeTypeMetadata>, graphdb_query::query::metadata::provider::MetadataProviderError>
-        {
+        ) -> Result<
+            Vec<EdgeTypeMetadata>,
+            graphdb_query::query::metadata::provider::MetadataProviderError,
+        > {
             Ok(self.edge_types.values().cloned().collect())
         }
     }

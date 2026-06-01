@@ -809,8 +809,8 @@ mod tests {
                 StartNode::new(),
             );
 
-        let union_node =
-            UnionNode::new(start_node, start_node2, true).expect("Union node should be created successfully");
+        let union_node = UnionNode::new(start_node, start_node2, true)
+            .expect("Union node should be created successfully");
 
         assert_eq!(union_node.type_name(), "UnionNode");
         assert_eq!(union_node.dependencies().len(), 2);

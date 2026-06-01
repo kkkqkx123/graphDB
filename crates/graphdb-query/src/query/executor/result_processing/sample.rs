@@ -274,7 +274,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for SampleExecutor<S> {
 #[cfg(test)]
 use crate::core::Value;
 #[cfg(test)]
-use crate::storage::test_mock::MockStorage;
+use crate::storage::MockStorage;
 #[cfg(test)]
 mod tests {
     use super::*;

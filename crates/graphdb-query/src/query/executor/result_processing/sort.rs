@@ -498,9 +498,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             Expression::TagProperty { tag_name, property } => {
                 Some(format!("{}.{}", tag_name, property))
             }
-            Expression::EdgeProperty { edge_name, property } => {
-                Some(format!("{}.{}", edge_name, property))
-            }
+            Expression::EdgeProperty {
+                edge_name,
+                property,
+            } => Some(format!("{}.{}", edge_name, property)),
             _ => None,
         }
     }
@@ -526,7 +527,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 // First try direct column name lookup
                 let col_lookup = Self::expression_to_col_name(&sort_key.expression)
                     .and_then(|col_name| {
-                        col_names.iter().position(|name| name == &col_name).map(|idx| idx)
+                        col_names
+                            .iter()
+                            .position(|name| name == &col_name)
+                            .map(|idx| idx)
                     })
                     .filter(|&idx| idx < row.len())
                     .map(|idx| row[idx].clone());

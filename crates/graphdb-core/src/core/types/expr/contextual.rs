@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
+use super::ExpressionAnalysisContext;
 use super::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::DataType;
 use crate::core::Value;
-use super::ExpressionAnalysisContext;
 /// Enhanced expression metadata with query context references
 ///
 /// Lightweight expression references, holding ExpressionId and Context references.

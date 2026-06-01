@@ -1,11 +1,11 @@
 //! Expression Operation Validator
 //! Responsible for verifying the operational legality and structural integrity of expressions.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::DataType;
 use crate::core::Expression;
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::strategies::helpers::TypeDeduceValidator;
 use std::collections::HashSet;
 

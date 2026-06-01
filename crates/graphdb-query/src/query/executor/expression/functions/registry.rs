@@ -5,8 +5,8 @@
 
 use super::BuiltinFunction;
 use super::CustomFunction;
-use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::Value;
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use std::collections::HashMap;
 use std::sync::Arc;
 

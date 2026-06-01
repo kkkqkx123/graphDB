@@ -5,19 +5,19 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
+use crate::core::metadata::SchemaManager;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression;
 use crate::core::types::operators::UnaryOperator;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, InsertTarget, TagInsertSpec, VertexRow};
 use crate::query::parser::ast::Stmt;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::core::metadata::SchemaManager;
 
 /// Parameters for vector dimension validation
 struct VectorValidationContext<'a> {
@@ -338,7 +338,10 @@ impl InsertVerticesValidator {
 
     /// Check if a value type is compatible with a schema type for INSERT operations.
     /// Uses strict checking: the value type should match or be implicitly castable.
-    fn is_type_compatible_for_insert(value_type: &crate::core::DataType, schema_type: &crate::core::DataType) -> bool {
+    fn is_type_compatible_for_insert(
+        value_type: &crate::core::DataType,
+        schema_type: &crate::core::DataType,
+    ) -> bool {
         use crate::core::DataType;
 
         // Same type is always compatible
@@ -353,7 +356,15 @@ impl InsertVerticesValidator {
 
         // Numeric types are compatible with each other
         let is_numeric = |dt: &DataType| -> bool {
-            matches!(dt, DataType::SmallInt | DataType::Int | DataType::BigInt | DataType::Float | DataType::Double | DataType::Decimal128)
+            matches!(
+                dt,
+                DataType::SmallInt
+                    | DataType::Int
+                    | DataType::BigInt
+                    | DataType::Float
+                    | DataType::Double
+                    | DataType::Decimal128
+            )
         };
 
         if is_numeric(value_type) && is_numeric(schema_type) {
@@ -361,7 +372,9 @@ impl InsertVerticesValidator {
         }
 
         // String types are compatible
-        if value_type == &DataType::String && matches!(schema_type, DataType::String | DataType::FixedString(_)) {
+        if value_type == &DataType::String
+            && matches!(schema_type, DataType::String | DataType::FixedString(_))
+        {
             return true;
         }
 
@@ -372,7 +385,10 @@ impl InsertVerticesValidator {
         // String values are accepted for Date/DateTime/Time/Timestamp types
         // (conversion happens at runtime)
         if value_type == &DataType::String {
-            if matches!(schema_type, DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp) {
+            if matches!(
+                schema_type,
+                DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp
+            ) {
                 return true;
             }
         }

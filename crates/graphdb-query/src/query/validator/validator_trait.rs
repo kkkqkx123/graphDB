@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::error::ValidationError;
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::validator::error::ValidationError;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::QueryContext;

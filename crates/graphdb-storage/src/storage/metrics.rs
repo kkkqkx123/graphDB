@@ -1,13 +1,13 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::core::metadata::SchemaManager;
 use crate::core::stats::StatsManager;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, TransactionContextInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
-use crate::core::metadata::SchemaManager;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
     StorageWriter,
@@ -54,12 +54,19 @@ pub struct MetricsStorage<S: StorageClient> {
 
 impl<S: StorageClient> MetricsStorage<S> {
     pub fn new(inner: S, stats_manager: Arc<StatsManager>) -> Self {
-        Self { inner, stats_manager }
+        Self {
+            inner,
+            stats_manager,
+        }
     }
 
-    pub fn into_inner(self) -> S { self.inner }
+    pub fn into_inner(self) -> S {
+        self.inner
+    }
 
-    pub fn stats_manager(&self) -> &Arc<StatsManager> { &self.stats_manager }
+    pub fn stats_manager(&self) -> &Arc<StatsManager> {
+        &self.stats_manager
+    }
 
     fn record_read(&self, latency_us: u64, success: bool) {
         self.stats_manager.record_storage_read(latency_us, success);
@@ -90,7 +97,9 @@ impl<S: StorageClient> StorageReader for MetricsStorage<S> {
     wrap_read!(list_spaces(self) -> Result<Vec<SpaceInfo>, StorageError>);
     wrap_read!(get_space_id(self, space: &str) -> Result<u64, StorageError>);
 
-    fn space_exists(&self, space: &str) -> bool { self.inner.space_exists(space) }
+    fn space_exists(&self, space: &str) -> bool {
+        self.inner.space_exists(space)
+    }
 
     wrap_read!(get_tag(self, space: &str, tag: &str) -> Result<Option<TagInfo>, StorageError>);
     wrap_read!(list_tags(self, space: &str) -> Result<Vec<TagInfo>, StorageError>);
@@ -157,24 +166,46 @@ impl<S: StorageClient> StorageAdmin for MetricsStorage<S> {
         result
     }
 
-    fn get_storage_stats(&self) -> StorageStats { self.inner.get_storage_stats() }
+    fn get_storage_stats(&self) -> StorageStats {
+        self.inner.get_storage_stats()
+    }
 
     wrap_read!(find_dangling_edges(self, space: &str) -> Result<Vec<Edge>, StorageError>);
     wrap_write!(repair_dangling_edges(self, space: &str) -> Result<usize, StorageError>);
 
-    fn get_db_path(&self) -> &str { self.inner.get_db_path() }
-    fn get_sync_manager(&self) -> Option<Arc<SyncManager>> { self.inner.get_sync_manager() }
-    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> { self.inner.get_schema_manager() }
-    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> { self.inner.get_transaction_context() }
-    fn set_transaction_context(&self, ctx: Option<Arc<TransactionContextInfo>>) { self.inner.set_transaction_context(ctx); }
+    fn get_db_path(&self) -> &str {
+        self.inner.get_db_path()
+    }
+    fn get_sync_manager(&self) -> Option<Arc<SyncManager>> {
+        self.inner.get_sync_manager()
+    }
+    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
+        self.inner.get_schema_manager()
+    }
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
+        self.inner.get_transaction_context()
+    }
+    fn set_transaction_context(&self, ctx: Option<Arc<TransactionContextInfo>>) {
+        self.inner.set_transaction_context(ctx);
+    }
 }
 
 impl<S: StorageClient> std::fmt::Debug for MetricsStorage<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MetricsStorage").field("inner", &self.inner).finish()
+        f.debug_struct("MetricsStorage")
+            .field("inner", &self.inner)
+            .finish()
     }
 }
 
-impl<S: StorageClient> Clone for MetricsStorage<S> where S: Clone {
-    fn clone(&self) -> Self { Self { inner: self.inner.clone(), stats_manager: self.stats_manager.clone() } }
+impl<S: StorageClient> Clone for MetricsStorage<S>
+where
+    S: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            stats_manager: self.stats_manager.clone(),
+        }
+    }
 }

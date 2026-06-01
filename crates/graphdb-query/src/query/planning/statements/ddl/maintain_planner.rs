@@ -191,7 +191,11 @@ impl MaintainPlanner {
                 Ok(Some(PlanNodeEnum::TagManage(TagManageNode::Create(node))))
             }
             CreateTarget::EdgeType {
-                name, properties, src_tag, dst_tag, ..
+                name,
+                properties,
+                src_tag,
+                dst_tag,
+                ..
             } => {
                 let space_name = self.current_space(validated);
                 let mut edge_info = EdgeManageInfo::new(space_name, name.clone())

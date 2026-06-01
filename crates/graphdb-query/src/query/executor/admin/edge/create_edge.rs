@@ -121,7 +121,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
         let mut storage_guard = storage.write();
 
         if self.if_not_exists {
-            let existing = storage_guard.get_edge_type(&self.edge_info.space_name, &self.edge_info.edge_name);
+            let existing =
+                storage_guard.get_edge_type(&self.edge_info.space_name, &self.edge_info.edge_name);
             if let Ok(Some(_)) = existing {
                 return Ok(ExecutionResult::Success);
             }

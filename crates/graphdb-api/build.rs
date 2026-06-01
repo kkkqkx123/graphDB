@@ -22,7 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build_server(true)
             .build_client(true)
             .out_dir(std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()))
-            .compile_protos(&[proto_path.to_str().unwrap()], &[proto_dir.to_str().unwrap()])?;
+            .compile_protos(
+                &[proto_path.to_str().unwrap()],
+                &[proto_dir.to_str().unwrap()],
+            )?;
     }
 
     Ok(())

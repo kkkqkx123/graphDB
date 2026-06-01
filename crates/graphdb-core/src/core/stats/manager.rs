@@ -296,7 +296,7 @@ impl StatsManager {
         };
 
         log::warn!(
-"Slow query [trace_id={}] [session_id={}] [duration={}ms] [status={}]\n\
+            "Slow query [trace_id={}] [session_id={}] [duration={}ms] [status={}]\n\
 Queries: {}\n\
 Stage statistics: parse={}ms validate={}ms plan={}ms optimize={}ms execute={}ms\n\
 Number of results: {} Number of executors: {} Total executor time: {}ms\n\\\
@@ -945,8 +945,6 @@ impl StatsManager {
     pub fn set_index_memory_usage(&self, bytes: u64) {
         self.set_value(MetricType::IndexMemoryUsage, bytes);
     }
-
-
 }
 
 impl Default for StatsManager {

@@ -43,7 +43,10 @@ fn test_create_edge() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -53,7 +56,10 @@ fn test_create_edge() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -100,7 +106,10 @@ fn test_delete_vertex() {
     let label_id = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -124,7 +133,10 @@ fn test_drop_vertex_type() {
     let _label_id = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -139,7 +151,10 @@ fn test_vertex_count() {
     let label_id = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -164,7 +179,10 @@ fn test_out_edges() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -174,7 +192,10 @@ fn test_out_edges() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -240,7 +261,10 @@ fn test_in_edges() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -250,7 +274,10 @@ fn test_in_edges() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -355,7 +382,10 @@ fn test_update_edge_property() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -365,7 +395,10 @@ fn test_update_edge_property() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -430,7 +463,10 @@ fn test_delete_edge() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -440,7 +476,10 @@ fn test_delete_edge() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -490,7 +529,10 @@ fn test_edge_count() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -500,7 +542,10 @@ fn test_edge_count() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -563,7 +608,10 @@ fn test_drop_edge_type() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -573,7 +621,10 @@ fn test_drop_edge_type() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -589,14 +640,20 @@ fn test_vertex_label_names() {
     graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
     graph
         .create_vertex_type(
             "company",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -613,7 +670,10 @@ fn test_edge_label_names() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -623,7 +683,10 @@ fn test_edge_label_names() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -640,14 +703,20 @@ fn test_duplicate_vertex_type() {
     graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
 
     let result = graph.create_vertex_type(
         "person",
-        vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+        vec![StoragePropertyDef::new(
+            "name".to_string(),
+            DataType::String,
+        )],
         "name",
     );
     assert!(result.is_err());
@@ -659,7 +728,10 @@ fn test_duplicate_edge_type() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -669,7 +741,10 @@ fn test_duplicate_edge_type() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )
@@ -679,7 +754,10 @@ fn test_duplicate_edge_type() {
         "knows",
         person_label,
         person_label,
-        vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+        vec![StoragePropertyDef::new(
+            "weight".to_string(),
+            DataType::Double,
+        )],
         EdgeStrategy::Multiple,
         EdgeStrategy::Multiple,
     );
@@ -692,7 +770,10 @@ fn test_edge_with_missing_vertex_label() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -701,7 +782,10 @@ fn test_edge_with_missing_vertex_label() {
         "knows",
         person_label,
         999,
-        vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+        vec![StoragePropertyDef::new(
+            "weight".to_string(),
+            DataType::Double,
+        )],
         EdgeStrategy::Multiple,
         EdgeStrategy::Multiple,
     );
@@ -726,7 +810,10 @@ fn test_get_nonexistent_vertex() {
     let label_id = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -741,7 +828,10 @@ fn test_get_nonexistent_edge() {
     let person_label = graph
         .create_vertex_type(
             "person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "name",
         )
         .unwrap();
@@ -751,7 +841,10 @@ fn test_get_nonexistent_edge() {
             "knows",
             person_label,
             person_label,
-            vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             EdgeStrategy::Multiple,
             EdgeStrategy::Multiple,
         )

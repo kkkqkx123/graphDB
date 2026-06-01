@@ -122,7 +122,9 @@ impl TantivySearchEngine {
         // indexes whose schema may reference "jieba". Tantivy's default TokenizerManager
         // auto-registers "raw", "default", and "whitespace".
         #[cfg(feature = "jieba")]
-        index.tokenizers().register("jieba", JiebaTokenizer::default());
+        index
+            .tokenizers()
+            .register("jieba", JiebaTokenizer::default());
 
         let writer = index.writer(config.writer_memory_budget)?;
 
@@ -197,17 +199,12 @@ impl SearchEngine for TantivySearchEngine {
             .parse_query(query)
             .map_err(|e| SearchError::QueryParseError(e.to_string()))?;
 
-        let top_docs = searcher.search(
-            &query,
-            &TopDocs::with_limit(limit.max(1)).order_by_score(),
-        )?;
+        let top_docs =
+            searcher.search(&query, &TopDocs::with_limit(limit.max(1)).order_by_score())?;
 
         // Create snippet generator for highlight extraction.
-        let snippet_generator = tantivy::snippet::SnippetGenerator::create(
-            &searcher,
-            &*query,
-            self.text_field,
-        )?;
+        let snippet_generator =
+            tantivy::snippet::SnippetGenerator::create(&searcher, &*query, self.text_field)?;
 
         let mut results = Vec::with_capacity(top_docs.len());
         for (score, doc_address) in top_docs {

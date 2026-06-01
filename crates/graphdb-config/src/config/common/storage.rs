@@ -267,6 +267,4 @@ mod tests {
         assert_eq!(CompressionAlgorithm::None.to_string(), "none");
         assert_eq!(CompressionAlgorithm::Zstd.to_string(), "zstd");
     }
-
-
 }

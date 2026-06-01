@@ -9,8 +9,8 @@ use std::sync::{
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::time;
 
-use crate::api::server::client::{ClientSession, Session};
 use super::{SessionError, SessionResult};
+use crate::api::server::client::{ClientSession, Session};
 
 pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 100; // Default maximum number of connections (in a single-node scenario)
 pub const DEFAULT_SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(600); // 10 minutes

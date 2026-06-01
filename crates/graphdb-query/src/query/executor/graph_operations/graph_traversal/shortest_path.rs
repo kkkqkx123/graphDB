@@ -148,8 +148,8 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         match self.algorithm_type {
             ShortestPathAlgorithmType::BFS => {
-                let mut algorithm =
-                    BidirectionalBFS::new(storage.clone(), space_name.clone()).with_edge_direction(self.edge_direction);
+                let mut algorithm = BidirectionalBFS::new(storage.clone(), space_name.clone())
+                    .with_edge_direction(self.edge_direction);
                 let paths = algorithm.find_paths(
                     &self.start_vertex_ids,
                     &self.end_vertex_ids,

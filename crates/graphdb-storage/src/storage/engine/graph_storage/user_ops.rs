@@ -15,14 +15,26 @@ pub(crate) fn alter_user(ctx: &GraphStorageContext, info: &UserAlterInfo) -> Sto
     ctx.user_storage.alter_user(info)
 }
 
-pub(crate) fn grant_role(ctx: &GraphStorageContext, username: &str, space_id: u64, role: RoleType) -> StorageResult<bool> {
+pub(crate) fn grant_role(
+    ctx: &GraphStorageContext,
+    username: &str,
+    space_id: u64,
+    role: RoleType,
+) -> StorageResult<bool> {
     ctx.user_storage.grant_role(username, space_id, role)
 }
 
-pub(crate) fn revoke_role(ctx: &GraphStorageContext, username: &str, space_id: u64) -> StorageResult<bool> {
+pub(crate) fn revoke_role(
+    ctx: &GraphStorageContext,
+    username: &str,
+    space_id: u64,
+) -> StorageResult<bool> {
     ctx.user_storage.revoke_role(username, space_id)
 }
 
-pub(crate) fn change_password(ctx: &GraphStorageContext, info: &PasswordInfo) -> StorageResult<bool> {
+pub(crate) fn change_password(
+    ctx: &GraphStorageContext,
+    info: &PasswordInfo,
+) -> StorageResult<bool> {
     ctx.user_storage.change_password(info)
 }

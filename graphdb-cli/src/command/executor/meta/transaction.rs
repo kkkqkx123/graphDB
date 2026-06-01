@@ -10,10 +10,7 @@ pub async fn execute_begin(
     if !executor.conditional_stack().is_active() {
         return Ok(true);
     }
-    executor
-        .tx_manager_mut()
-        .begin(session_mgr)
-        .await?;
+    executor.tx_manager_mut().begin(session_mgr).await?;
     executor.write_output("Transaction started.")?;
     Ok(true)
 }
@@ -85,9 +82,8 @@ pub async fn execute_isolation(
     level: Option<String>,
 ) -> Result<bool> {
     if let Some(l) = level {
-        let isolation = IsolationLevel::from_str(&l).ok_or_else(|| {
-            CliError::InvalidValue(format!("Invalid isolation level: {}", l))
-        })?;
+        let isolation = IsolationLevel::from_str(&l)
+            .ok_or_else(|| CliError::InvalidValue(format!("Invalid isolation level: {}", l)))?;
 
         if executor.tx_manager().is_active() {
             return Err(CliError::TransactionAlreadyActive);

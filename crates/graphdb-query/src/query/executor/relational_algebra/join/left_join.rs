@@ -370,7 +370,7 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for HashLeftJoinExecutor<S
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
 
     #[test]
     fn test_left_join_single_key() {

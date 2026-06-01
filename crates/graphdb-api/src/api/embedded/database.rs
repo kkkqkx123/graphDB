@@ -19,7 +19,7 @@ use std::sync::Arc;
 use vector_client::{VectorClientConfig, VectorManager};
 
 #[cfg(test)]
-use crate::storage::test_mock::MockStorage;
+use crate::storage::MockStorage;
 
 /// Create a VectorManager from the default configuration (requires a running tokio runtime)
 #[cfg(feature = "qdrant")]
@@ -44,9 +44,10 @@ fn attach_vector_coordinator(mut sync: SyncManager) -> CoreResult<SyncManager> {
         return Ok(sync);
     }
     let vector_manager = create_vector_manager(&vector_config)?;
-    let vector_coordinator = Arc::new(
-        crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
-    );
+    let vector_coordinator = Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
+        vector_manager,
+        None,
+    ));
     sync = sync.with_vector_coordinator(vector_coordinator);
     Ok(sync)
 }
@@ -61,18 +62,22 @@ fn setup_sync_with_vector_only(
         return Ok((None, None));
     }
     let vector_manager = create_vector_manager(&vector_config)?;
-    let vector_coordinator = Arc::new(
-        crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
-    );
+    let vector_coordinator = Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
+        vector_manager,
+        None,
+    ));
 
     let sync_config = SyncConfig::default();
     let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
     let manager = Arc::new(
-        FulltextIndexManager::new(FulltextConfig::default())
-            .map_err(|e| CoreError::Internal(format!("Failed to initialize fulltext manager: {}", e)))?,
+        FulltextIndexManager::new(FulltextConfig::default()).map_err(|e| {
+            CoreError::Internal(format!("Failed to initialize fulltext manager: {}", e))
+        })?,
     );
-    let sync_coordinator =
-        Arc::new(crate::sync::coordinator::SyncCoordinator::new(manager.clone(), batch_config));
+    let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
+        manager.clone(),
+        batch_config,
+    ));
     let mut sync = SyncManager::with_sync_config(sync_coordinator, sync_config);
     sync = sync.with_vector_coordinator(vector_coordinator);
     Ok((None, Some(Arc::new(sync))))

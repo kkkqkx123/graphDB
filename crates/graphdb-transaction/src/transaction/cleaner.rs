@@ -20,10 +20,7 @@ pub struct TransactionCleaner {
 }
 
 impl TransactionCleaner {
-    pub fn new(
-        sync_manager: Option<Arc<SyncManager>>,
-        stats: Arc<TransactionStats>,
-    ) -> Self {
+    pub fn new(sync_manager: Option<Arc<SyncManager>>, stats: Arc<TransactionStats>) -> Self {
         Self {
             sync_manager,
             stats,

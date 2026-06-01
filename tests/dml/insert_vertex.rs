@@ -10,7 +10,7 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::core::value::date_time::{DateValue, DateTimeValue};
+use graphdb::core::value::date_time::{DateTimeValue, DateValue};
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use std::collections::HashMap;
@@ -229,7 +229,14 @@ fn test_insert_vertex_with_date_type() {
         .assert_success()
         .assert_vertex_props(1, "DateTypes", {
             let mut map = HashMap::new();
-            map.insert("date_field", Value::Date(DateValue { year: 2024, month: 6, day: 15 }));
+            map.insert(
+                "date_field",
+                Value::Date(DateValue {
+                    year: 2024,
+                    month: 6,
+                    day: 15,
+                }),
+            );
             map
         });
 }
@@ -246,7 +253,14 @@ fn test_insert_vertex_with_date_alternative_formats() {
         .assert_vertex_props(
             1,
             "AltDate",
-            HashMap::from([("d", Value::Date(DateValue { year: 2024, month: 6, day: 15 }))]),
+            HashMap::from([(
+                "d",
+                Value::Date(DateValue {
+                    year: 2024,
+                    month: 6,
+                    day: 15,
+                }),
+            )]),
         );
 }
 
@@ -272,15 +286,18 @@ fn test_insert_vertex_with_datetime_type() {
         .assert_success()
         .assert_vertex_props(1, "DTTest", {
             let mut map = HashMap::new();
-            map.insert("dt_field", Value::DateTime(DateTimeValue {
-                year: 2024,
-                month: 6,
-                day: 15,
-                hour: 10,
-                minute: 30,
-                sec: 45,
-                microsec: 0,
-            }));
+            map.insert(
+                "dt_field",
+                Value::DateTime(DateTimeValue {
+                    year: 2024,
+                    month: 6,
+                    day: 15,
+                    hour: 10,
+                    minute: 30,
+                    sec: 45,
+                    microsec: 0,
+                }),
+            );
             map
         });
 }

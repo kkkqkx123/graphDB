@@ -4,23 +4,21 @@
 
 use std::sync::Arc;
 
-use crate::core::error::{
-    DBResult,
-};
-use crate::query::validator::error::{
-    ValidationError, ValidationError as CoreValidationError, ValidationErrorType,
-};
+use crate::core::error::DBResult;
+use crate::core::metadata::SchemaManager;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, SetClause, UpdateStmt, UpdateTarget};
+use crate::query::validator::error::{
+    ValidationError, ValidationError as CoreValidationError, ValidationErrorType,
+};
 use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::core::metadata::SchemaManager;
 
 /// Verified update information
 #[derive(Debug, Clone)]

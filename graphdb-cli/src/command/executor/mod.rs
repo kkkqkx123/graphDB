@@ -202,16 +202,18 @@ impl CommandExecutor {
         match meta {
             MetaCommand::Quit => meta::control::execute_quit(self, session_mgr).await,
             MetaCommand::ForceQuit => meta::control::execute_force_quit(self, session_mgr).await,
-            MetaCommand::Help { topic } => {
-                meta::control::execute_help(self, topic.as_deref())
-            }
+            MetaCommand::Help { topic } => meta::control::execute_help(self, topic.as_deref()),
             MetaCommand::Connect { space } => {
                 meta::connection::execute_connect(self, &space, session_mgr).await
             }
-            MetaCommand::Disconnect => meta::connection::execute_disconnect(self, session_mgr).await,
+            MetaCommand::Disconnect => {
+                meta::connection::execute_disconnect(self, session_mgr).await
+            }
             MetaCommand::ConnInfo => meta::connection::execute_conninfo(self, session_mgr),
             MetaCommand::ShowSpaces => meta::schema::execute_show_spaces(self, session_mgr).await,
-            MetaCommand::ShowTags { .. } => meta::schema::execute_show_tags(self, session_mgr).await,
+            MetaCommand::ShowTags { .. } => {
+                meta::schema::execute_show_tags(self, session_mgr).await
+            }
             MetaCommand::ShowEdges { .. } => {
                 meta::schema::execute_show_edges(self, session_mgr).await
             }
@@ -274,9 +276,7 @@ impl CommandExecutor {
             }
             MetaCommand::PrintBuffer => meta::buffer::execute_print_buffer(self),
             MetaCommand::ResetBuffer => meta::buffer::execute_reset_buffer(self),
-            MetaCommand::WriteBuffer { file } => {
-                meta::buffer::execute_write_buffer(self, &file)
-            }
+            MetaCommand::WriteBuffer { file } => meta::buffer::execute_write_buffer(self, &file),
             MetaCommand::History { action } => {
                 self.handle_history_action(action, session_mgr)?;
                 Ok(true)
@@ -321,7 +321,16 @@ impl CommandExecutor {
                 streaming,
                 chunk_size,
             } => {
-                meta::io::execute_export(self, format, file_path, &query, streaming, chunk_size, session_mgr).await
+                meta::io::execute_export(
+                    self,
+                    format,
+                    file_path,
+                    &query,
+                    streaming,
+                    chunk_size,
+                    session_mgr,
+                )
+                .await
             }
             MetaCommand::Copy {
                 direction,
@@ -330,7 +339,16 @@ impl CommandExecutor {
                 streaming,
                 chunk_size,
             } => {
-                meta::io::execute_copy(self, direction, target, file_path, streaming, chunk_size, session_mgr).await
+                meta::io::execute_copy(
+                    self,
+                    direction,
+                    target,
+                    file_path,
+                    streaming,
+                    chunk_size,
+                    session_mgr,
+                )
+                .await
             }
         }
     }

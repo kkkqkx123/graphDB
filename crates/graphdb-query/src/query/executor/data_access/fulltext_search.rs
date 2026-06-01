@@ -751,8 +751,8 @@ impl<S: StorageClient> HasStorage<S> for FulltextScanExecutor<S> {
 #[cfg(all(test, feature = "fulltext-search"))]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::search::tantivy_index::TantivyConfig;
+    use crate::storage::MockStorage;
     use tempfile::TempDir;
 
     fn create_test_executor() -> FulltextSearchExecutor<MockStorage> {

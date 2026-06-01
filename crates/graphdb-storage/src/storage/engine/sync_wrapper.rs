@@ -3,9 +3,9 @@
 //! Decorator pattern implementation that wraps any StorageClient to automatically
 //! synchronize storage operations with external index systems (fulltext, vector).
 
+use crate::core::metadata::SchemaManager;
 use crate::core::types::{EdgeTypeInfo, TagInfo, VertexId};
 use crate::core::{Edge, StorageError, Value, Vertex};
-use crate::core::metadata::SchemaManager;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageWriter,
 };

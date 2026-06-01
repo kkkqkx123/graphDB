@@ -28,14 +28,20 @@ pub struct MockStorage {
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
         let graph = PropertyGraph::new();
-        Ok(Self { graph: Arc::new(RwLock::new(graph)) })
+        Ok(Self {
+            graph: Arc::new(RwLock::new(graph)),
+        })
     }
 
-    pub fn get_graph(&self) -> &Arc<RwLock<PropertyGraph>> { &self.graph }
+    pub fn get_graph(&self) -> &Arc<RwLock<PropertyGraph>> {
+        &self.graph
+    }
 }
 
 impl Default for MockStorage {
-    fn default() -> Self { Self::new().expect("Failed to create MockStorage") }
+    fn default() -> Self {
+        Self::new().expect("Failed to create MockStorage")
+    }
 }
 
 impl StorageReader for MockStorage {
@@ -118,7 +124,16 @@ impl StorageAdmin for MockStorage {
     mock_stub!(&self, save_to_disk() -> Result<(), StorageError>, Ok(()));
 
     fn get_storage_stats(&self) -> StorageStats {
-        StorageStats { total_vertices: 0, total_edges: 0, total_spaces: 0, total_tags: 0, total_edge_types: 0, total_size_bytes: 0, data_size_bytes: 0, index_size_bytes: 0 }
+        StorageStats {
+            total_vertices: 0,
+            total_edges: 0,
+            total_spaces: 0,
+            total_tags: 0,
+            total_edge_types: 0,
+            total_size_bytes: 0,
+            data_size_bytes: 0,
+            index_size_bytes: 0,
+        }
     }
 
     mock_stub!(&self, find_dangling_edges(_space: &str) -> Result<Vec<Edge>, StorageError>, Ok(Vec::new()));

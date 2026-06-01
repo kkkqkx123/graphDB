@@ -3,13 +3,13 @@
 
 use std::sync::Arc;
 
+use crate::core::metadata::SchemaManager;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::{CreateTarget, FetchTarget, Stmt};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
 use crate::query::QueryContext;
-use crate::core::metadata::SchemaManager;
 
 // Import the specific validator.
 use crate::query::validator::assignment_validator::AssignmentValidator;

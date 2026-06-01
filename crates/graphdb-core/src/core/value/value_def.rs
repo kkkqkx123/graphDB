@@ -1,5 +1,6 @@
 //! Value Type Definition - Core Enum and Basic Methods
 
+use crate::core::DataSet;
 use crate::core::{
     types::DataType,
     value::{
@@ -15,7 +16,6 @@ use crate::core::{
     },
     vertex_edge_path::{Edge, Path, Vertex},
 };
-use crate::core::DataSet;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},

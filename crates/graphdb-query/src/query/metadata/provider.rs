@@ -113,7 +113,10 @@ impl MetadataProvider for CompositeMetadataProvider {
             }
         }
         Err(last_error.unwrap_or_else(|| {
-            MetadataProviderError::NotFound(format!("Tag '{}' not found in space {}", tag_name, space_id))
+            MetadataProviderError::NotFound(format!(
+                "Tag '{}' not found in space {}",
+                tag_name, space_id
+            ))
         }))
     }
 

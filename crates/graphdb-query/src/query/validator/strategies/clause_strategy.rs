@@ -2,11 +2,11 @@
 //! Responsible for verifying different query clauses (MATCH, RETURN, WITH, UNWIND, etc.)
 //! Merge the functions of the original expression_validator and clause_validator.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::{ContextualExpression, ExpressionMeta};
 use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::alias_structs::{AliasType, BoundaryClauseContext};
 use crate::query::validator::structs::{
     MatchClauseContext, ReturnClauseContext, YieldClauseContext,

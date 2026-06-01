@@ -474,7 +474,7 @@ mod tests {
     use super::*;
     use crate::core::value::Value;
     use crate::core::BinaryOperator;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
 
     #[test]
     fn test_simple_projection() {

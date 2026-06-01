@@ -23,9 +23,7 @@ impl CompactTarget for PropertyGraph {
             vertex_labels = vertex_tables.keys().copied().collect();
 
             for &label_id in &vertex_labels {
-                let table = vertex_tables
-                    .get_mut(&label_id)
-                    .expect("label must exist");
+                let table = vertex_tables.get_mut(&label_id).expect("label must exist");
                 let removed = table.compact_with_ts_collect(ts);
                 total_vertices_removed += removed.len();
                 if !removed.is_empty() {

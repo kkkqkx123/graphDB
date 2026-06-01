@@ -32,12 +32,12 @@ pub use executor_base::{
 };
 pub use executor_enum::ExecutorEnum;
 pub use executor_stats::ExecutorStats;
+#[cfg(feature = "qdrant")]
+pub use manage_executor_enums::VectorManageExecutor;
 pub use manage_executor_enums::{
     EdgeManageExecutor, FulltextManageExecutor, IndexManageExecutor, SpaceManageExecutor,
     TagManageExecutor, UserManageExecutor,
 };
-#[cfg(feature = "qdrant")]
-pub use manage_executor_enums::VectorManageExecutor;
 pub use result_processor::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 
 pub use crate::core::types::EdgeDirection;

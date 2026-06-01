@@ -1,11 +1,12 @@
-use crate::core::types::{ColumnId, LabelId, Timestamp};
-use crate::core::types::{PropertyValue, UndoLogError, UndoLogResult, UndoTarget};
+use crate::core::types::{
+    ColumnId, EdgeDeletionContext, EdgeIdentifier, EdgeKey, LabelId, PropertyValue, Timestamp,
+    UndoLogError, UndoLogResult, UndoTarget, VertexIdentifier,
+};
 use crate::storage::engine::property_graph::PropertyGraph;
 use crate::storage::engine::transaction::{
     DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams, RevertDeleteEdgeParams,
     TransactionOps, UpdateEdgePropertyUndoParams,
 };
-use crate::storage::{EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 
 impl UndoTarget for PropertyGraph {
     fn delete_vertex_type(&self, label: LabelId) -> UndoLogResult<()> {
@@ -190,7 +191,11 @@ impl UndoTarget for PropertyGraph {
             let vertex_tables = self.data_store.vertex_tables().read();
             let mut edge_tables = self.data_store.edge_tables().write();
             let mut edge_label_names = self.data_store.edge_label_names().write();
-            let edge_params = EdgeLabelParams { src_label, dst_label, edge_label };
+            let edge_params = EdgeLabelParams {
+                src_label,
+                dst_label,
+                edge_label,
+            };
             TransactionOps::revert_delete_edge_properties(
                 &mut edge_tables,
                 &mut edge_label_names,
@@ -291,7 +296,11 @@ impl UndoTarget for PropertyGraph {
             let vertex_tables = self.data_store.vertex_tables().read();
             let mut edge_tables = self.data_store.edge_tables().write();
             let mut edge_label_names = self.data_store.edge_label_names().write();
-            let edge_params = EdgeLabelParams { src_label, dst_label, edge_label };
+            let edge_params = EdgeLabelParams {
+                src_label,
+                dst_label,
+                edge_label,
+            };
             TransactionOps::revert_rename_edge_properties(
                 &mut edge_tables,
                 &mut edge_label_names,

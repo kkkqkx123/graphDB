@@ -1,8 +1,8 @@
 use crate::command::executor::CommandExecutor;
 use crate::command::parser::CopyDirection;
 use crate::io::{
-    CsvExporter, CsvImporter, ExportConfig, ExportFormat, ImportConfig, ImportFormat,
-    ImportTarget, JsonExporter, JsonImporter,
+    CsvExporter, CsvImporter, ExportConfig, ExportFormat, ImportConfig, ImportFormat, ImportTarget,
+    JsonExporter, JsonImporter,
 };
 use crate::session::manager::SessionManager;
 use crate::utils::error::Result;
@@ -13,7 +13,8 @@ pub fn execute_output_redirect(
 ) -> Result<bool> {
     match path {
         Some(p) => {
-            let _file = std::fs::File::create(&p).map_err(crate::utils::error::CliError::IoError)?;
+            let _file =
+                std::fs::File::create(&p).map_err(crate::utils::error::CliError::IoError)?;
             // Note: output_file is private, need to handle differently
             // For now, just acknowledge
             executor.write_output(&format!("Output redirected to: {}", p))?;
@@ -73,8 +74,7 @@ pub async fn execute_export(
         return Ok(true);
     }
 
-    let mut config = ExportConfig::new(file_path.into(), format)
-        .with_streaming(streaming);
+    let mut config = ExportConfig::new(file_path.into(), format).with_streaming(streaming);
 
     if let Some(size) = chunk_size {
         config = config.with_chunk_size(size);
@@ -110,18 +110,14 @@ pub async fn execute_copy(
 
     match direction {
         CopyDirection::From => {
-            let import_format =
-                if file_path.ends_with(".json") || file_path.ends_with(".jsonl") {
-                    ImportFormat::json_array()
-                } else {
-                    ImportFormat::csv()
-                };
+            let import_format = if file_path.ends_with(".json") || file_path.ends_with(".jsonl") {
+                ImportFormat::json_array()
+            } else {
+                ImportFormat::csv()
+            };
 
-            let config = ImportConfig::new(
-                file_path.into(),
-                ImportTarget::vertex(&target),
-            )
-            .with_format(import_format.clone());
+            let config = ImportConfig::new(file_path.into(), ImportTarget::vertex(&target))
+                .with_format(import_format.clone());
 
             let stats = match import_format {
                 ImportFormat::Csv { .. } => {
@@ -144,8 +140,8 @@ pub async fn execute_copy(
                 ExportFormat::csv()
             };
 
-            let mut config = ExportConfig::new(file_path.into(), export_format)
-                .with_streaming(streaming);
+            let mut config =
+                ExportConfig::new(file_path.into(), export_format).with_streaming(streaming);
 
             if let Some(size) = chunk_size {
                 config = config.with_chunk_size(size);

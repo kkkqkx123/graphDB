@@ -13,9 +13,7 @@ pub async fn execute_explain(
         return Ok(true);
     }
     if analyze {
-        executor.write_output(
-            "EXPLAIN ANALYZE is not yet implemented. Showing plan only.",
-        )?;
+        executor.write_output("EXPLAIN ANALYZE is not yet implemented. Showing plan only.")?;
     }
     let result = session_mgr
         .execute_query(&format!("EXPLAIN {}", query))

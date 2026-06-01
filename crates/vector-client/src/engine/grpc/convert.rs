@@ -68,9 +68,7 @@ pub fn point_struct_to_proto(point: &VectorPoint) -> proto::PointStruct {
     }
 }
 
-pub fn payload_to_proto_map(
-    payload: &Payload,
-) -> std::collections::HashMap<String, proto::Value> {
+pub fn payload_to_proto_map(payload: &Payload) -> std::collections::HashMap<String, proto::Value> {
     payload
         .iter()
         .map(|(k, v)| (k.clone(), json_value_to_proto_value(v)))
@@ -127,8 +125,7 @@ fn proto_value_to_json_value(v: &proto::Value) -> serde_json::Value {
         Some(proto::value::Kind::DoubleValue(f)) => {
             if f.is_finite() {
                 serde_json::Value::Number(
-                    serde_json::Number::from_f64(*f)
-                        .expect("finite f64 should convert"),
+                    serde_json::Number::from_f64(*f).expect("finite f64 should convert"),
                 )
             } else {
                 serde_json::Value::Null
@@ -164,10 +161,7 @@ pub fn distance_to_proto(distance: DistanceMetric) -> proto::Distance {
     }
 }
 
-pub fn collection_config_to_create(
-    name: &str,
-    cfg: &CollectionConfig,
-) -> proto::CreateCollection {
+pub fn collection_config_to_create(name: &str, cfg: &CollectionConfig) -> proto::CreateCollection {
     let distance = distance_to_proto(cfg.distance);
 
     let hnsw_config: Option<proto::HnswConfigDiff> =
@@ -180,27 +174,24 @@ pub fn collection_config_to_create(
             payload_m: hnsw.payload_m.map(|v| v as u64),
         });
 
-    let quantization_config: Option<proto::QuantizationConfig> = cfg
-        .quantization_config
-        .as_ref()
-        .and_then(|qc| {
+    let quantization_config: Option<proto::QuantizationConfig> =
+        cfg.quantization_config.as_ref().and_then(|qc| {
             if !qc.enabled {
                 return None;
             }
             qc.quant_type.as_ref().map(|qt| match qt {
-                QuantizationType::Scalar { quantile, always_ram } => {
-                    proto::QuantizationConfig {
-                        quantization: Some(
-                            proto::quantization_config::Quantization::Scalar(
-                                proto::ScalarQuantization {
-                                    r#type: proto::QuantizationType::Int8 as i32,
-                                    quantile: *quantile,
-                                    always_ram: *always_ram,
-                                },
-                            ),
-                        ),
-                    }
-                }
+                QuantizationType::Scalar {
+                    quantile,
+                    always_ram,
+                } => proto::QuantizationConfig {
+                    quantization: Some(proto::quantization_config::Quantization::Scalar(
+                        proto::ScalarQuantization {
+                            r#type: proto::QuantizationType::Int8 as i32,
+                            quantile: *quantile,
+                            always_ram: *always_ram,
+                        },
+                    )),
+                },
                 QuantizationType::Product {
                     compression,
                     always_ram,
@@ -213,14 +204,12 @@ pub fn collection_config_to_create(
                         CompressionRatio::X64 => proto::CompressionRatio::X64,
                     };
                     proto::QuantizationConfig {
-                        quantization: Some(
-                            proto::quantization_config::Quantization::Product(
-                                proto::ProductQuantization {
-                                    compression: ratio as i32,
-                                    always_ram: *always_ram,
-                                },
-                            ),
-                        ),
+                        quantization: Some(proto::quantization_config::Quantization::Product(
+                            proto::ProductQuantization {
+                                compression: ratio as i32,
+                                always_ram: *always_ram,
+                            },
+                        )),
                     }
                 }
                 QuantizationType::Binary { always_ram } => proto::QuantizationConfig {
@@ -329,10 +318,7 @@ fn point_id_to_string(id: &proto::PointId) -> String {
     }
 }
 
-pub fn search_query_to_proto(
-    collection: &str,
-    query: &SearchQuery,
-) -> proto::SearchPoints {
+pub fn search_query_to_proto(collection: &str, query: &SearchQuery) -> proto::SearchPoints {
     let filter = query
         .filter
         .as_ref()
@@ -409,7 +395,8 @@ pub fn payload_schema_type_to_field_type(schema: PayloadSchemaType) -> proto::Fi
 }
 
 pub fn payload_schema_type_from_proto(data_type: i32) -> PayloadSchemaType {
-    let dt = proto::PayloadSchemaType::try_from(data_type).unwrap_or(proto::PayloadSchemaType::UnknownType);
+    let dt = proto::PayloadSchemaType::try_from(data_type)
+        .unwrap_or(proto::PayloadSchemaType::UnknownType);
     match dt {
         proto::PayloadSchemaType::Keyword => PayloadSchemaType::Keyword,
         proto::PayloadSchemaType::Integer => PayloadSchemaType::Integer,

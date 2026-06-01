@@ -2,19 +2,19 @@
 //! Corresponding to the functionality of NebulaGraph InsertEdgesValidator
 //! Verify the semantic correctness of the INSERT EDGES statement.
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
+use crate::core::metadata::SchemaManager;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression;
 use crate::core::types::operators::UnaryOperator;
 use crate::core::{DataType, NullType, Value};
 use crate::query::parser::ast::stmt::{Ast, InsertTarget};
 use crate::query::parser::ast::Stmt;
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;
-use crate::core::metadata::SchemaManager;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -236,13 +236,11 @@ impl InsertEdgesValidator {
             Expression::Unary {
                 op: UnaryOperator::Minus,
                 operand,
-            } => {
-                match operand.as_ref() {
-                    Expression::Literal(Value::Int(n)) => Some(-(*n as i64)),
-                    Expression::Literal(Value::BigInt(n)) => Some(-n),
-                    _ => None,
-                }
-            }
+            } => match operand.as_ref() {
+                Expression::Literal(Value::Int(n)) => Some(-(*n as i64)),
+                Expression::Literal(Value::BigInt(n)) => Some(-n),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -291,7 +289,11 @@ impl InsertEdgesValidator {
             match schema_manager.get_edge_type(space_name, edge_name) {
                 Ok(Some(edge_type_info)) => {
                     for (prop_name, value_expr) in prop_names.iter().zip(values.iter()) {
-                        if let Some(prop_def) = edge_type_info.properties.iter().find(|p| &p.name == prop_name) {
+                        if let Some(prop_def) = edge_type_info
+                            .properties
+                            .iter()
+                            .find(|p| &p.name == prop_name)
+                        {
                             let value = self.evaluate_expression(value_expr)?;
 
                             // Check NOT NULL constraint
@@ -370,7 +372,15 @@ impl InsertEdgesValidator {
 
         // Numeric types are compatible with each other
         let is_numeric = |dt: &DataType| -> bool {
-            matches!(dt, DataType::SmallInt | DataType::Int | DataType::BigInt | DataType::Float | DataType::Double | DataType::Decimal128)
+            matches!(
+                dt,
+                DataType::SmallInt
+                    | DataType::Int
+                    | DataType::BigInt
+                    | DataType::Float
+                    | DataType::Double
+                    | DataType::Decimal128
+            )
         };
 
         if is_numeric(value_type) && is_numeric(schema_type) {
@@ -378,7 +388,9 @@ impl InsertEdgesValidator {
         }
 
         // String types are compatible
-        if value_type == &DataType::String && matches!(schema_type, DataType::String | DataType::FixedString(_)) {
+        if value_type == &DataType::String
+            && matches!(schema_type, DataType::String | DataType::FixedString(_))
+        {
             return true;
         }
 
@@ -389,7 +401,10 @@ impl InsertEdgesValidator {
         // String values are accepted for Date/DateTime/Time/Timestamp types
         // (conversion happens at runtime)
         if value_type == &DataType::String {
-            if matches!(schema_type, DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp) {
+            if matches!(
+                schema_type,
+                DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp
+            ) {
                 return true;
             }
         }

@@ -357,11 +357,7 @@ impl TransactionBatchBuffer {
     }
 
     /// Buffer an operation for the given transaction
-    pub fn prepare(
-        &self,
-        txn_id: TransactionId,
-        operation: IndexOperation,
-    ) -> BatchResult<()> {
+    pub fn prepare(&self, txn_id: TransactionId, operation: IndexOperation) -> BatchResult<()> {
         let txn_buffer = self.pending.entry(txn_id).or_default();
 
         let key = match &operation {

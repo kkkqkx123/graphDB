@@ -9,13 +9,13 @@ use std::fmt::{Debug, Formatter};
 use crate::storage::StorageClient;
 
 use crate::query::executor::admin::AnalyzeExecutor;
+#[cfg(feature = "qdrant")]
+use crate::query::executor::base::VectorManageExecutor;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, EdgeManageExecutor, ExecutionResult, Executor, ExecutorStats,
     FulltextManageExecutor, IndexManageExecutor, InputExecutor, SpaceManageExecutor, StartExecutor,
     TagManageExecutor, UserManageExecutor,
 };
-#[cfg(feature = "qdrant")]
-use crate::query::executor::base::VectorManageExecutor;
 use crate::query::executor::control_flow::{
     ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor,
 };

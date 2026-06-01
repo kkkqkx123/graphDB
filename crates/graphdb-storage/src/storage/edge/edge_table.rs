@@ -11,7 +11,9 @@ use super::{
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::storage_types::{EdgeOffset, PropertyId, StoragePropertyDef};
-use crate::storage::utils::persistence_format::{read_header, section, write_header_to, HEADER_SIZE};
+use crate::storage::utils::persistence_format::{
+    read_header, section, write_header_to, HEADER_SIZE,
+};
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -489,8 +491,11 @@ impl EdgeTable {
             return Err(StorageError::column_already_exists(name));
         }
 
-        self.properties.add_property(name.clone(), data_type.clone(), nullable);
-        self.schema.properties.push(StoragePropertyDef::new(name, data_type));
+        self.properties
+            .add_property(name.clone(), data_type.clone(), nullable);
+        self.schema
+            .properties
+            .push(StoragePropertyDef::new(name, data_type));
         Ok(())
     }
 
@@ -645,8 +650,9 @@ impl EdgeTable {
 
         let meta_path = path.join("meta.bin");
         let mut meta_file = File::create(&meta_path)?;
-        write_header_to(&mut meta_file, section::EDGE_META)
-            .map_err(|e| StorageError::io_error(format!("Failed to write edge meta header: {}", e)))?;
+        write_header_to(&mut meta_file, section::EDGE_META).map_err(|e| {
+            StorageError::io_error(format!("Failed to write edge meta header: {}", e))
+        })?;
 
         meta_file.write_all(&self.label.to_le_bytes())?;
         meta_file.write_all(&self.src_label.to_le_bytes())?;
@@ -679,7 +685,12 @@ impl EdgeTable {
         Ok(())
     }
 
-    fn flush_csr(&self, csr: &MutableCsrVariant, path: &Path, section_id: u32) -> StorageResult<()> {
+    fn flush_csr(
+        &self,
+        csr: &MutableCsrVariant,
+        path: &Path,
+        section_id: u32,
+    ) -> StorageResult<()> {
         use std::fs::File;
         use std::io::Write;
 
@@ -699,8 +710,9 @@ impl EdgeTable {
         use std::io::Write;
 
         let mut file = File::create(path)?;
-        write_header_to(&mut file, section::EDGE_PROPERTIES)
-            .map_err(|e| StorageError::io_error(format!("Failed to write properties header: {}", e)))?;
+        write_header_to(&mut file, section::EDGE_PROPERTIES).map_err(|e| {
+            StorageError::io_error(format!("Failed to write properties header: {}", e))
+        })?;
 
         let data = self.properties.dump();
         file.write_all(&(data.len() as u64).to_le_bytes())?;
@@ -787,7 +799,12 @@ impl EdgeTable {
 
         if self.next_edge_id == 0 {
             let ts = u32::MAX;
-            self.next_edge_id = self.out_csr.iter(ts).map(|(_, nbr)| nbr.edge_id + 1).max().unwrap_or(0);
+            self.next_edge_id = self
+                .out_csr
+                .iter(ts)
+                .map(|(_, nbr)| nbr.edge_id + 1)
+                .max()
+                .unwrap_or(0);
         }
         self.is_open = true;
         Ok(())

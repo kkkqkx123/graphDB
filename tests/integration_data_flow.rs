@@ -253,9 +253,7 @@ fn test_social_network_complete_flow() {
         "#,
         )
         .assert_success()
-        .exec_ddl(
-            "CREATE EDGE KNOWS(since DATE, strength DOUBLE) FROM Person TO Person"
-        )
+        .exec_ddl("CREATE EDGE KNOWS(since DATE, strength DOUBLE) FROM Person TO Person")
         .assert_success()
         // Create users
         .exec_dml(

@@ -22,9 +22,7 @@ use config::{
     build_search_batch_body, build_search_body, build_set_payload_body, build_upsert_body,
 };
 use filter::convert_filter;
-use utils::{
-    parse_payload, PointIdValue, QdrantSearchResult, QdrantUpsertResult, VectorValue,
-};
+use utils::{parse_payload, PointIdValue, QdrantSearchResult, QdrantUpsertResult, VectorValue};
 
 const QDRANT_VERSION: &str = "1.12.x (HTTP REST)";
 
@@ -53,10 +51,7 @@ impl QdrantEngine {
         } else {
             "http"
         };
-        let base_url = format!(
-            "{}://{}:{}",
-            scheme, config.connection.host, http_port
-        );
+        let base_url = format!("{}://{}:{}", scheme, config.connection.host, http_port);
 
         info!("Connecting to Qdrant HTTP API at {}", base_url);
 
@@ -127,10 +122,7 @@ impl QdrantEngine {
         if status.is_success() {
             return Ok(());
         }
-        let body: Value = response
-            .json()
-            .await
-            .unwrap_or(Value::Null);
+        let body: Value = response.json().await.unwrap_or(Value::Null);
         let msg = body
             .get("status")
             .and_then(|s| s.get("error"))
@@ -159,12 +151,9 @@ impl QdrantEngine {
         response: reqwest::Response,
     ) -> Result<T> {
         let status = response.status();
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|e| {
-                VectorClientError::InternalError(format!("Failed to parse response: {}", e))
-            })?;
+        let body: Value = response.json().await.map_err(|e| {
+            VectorClientError::InternalError(format!("Failed to parse response: {}", e))
+        })?;
 
         if !status.is_success() {
             let msg = body
@@ -190,11 +179,9 @@ impl QdrantEngine {
             });
         }
 
-        let result = body
-            .get("result")
-            .ok_or_else(|| {
-                VectorClientError::InternalError("Response missing 'result' field".to_string())
-            })?;
+        let result = body.get("result").ok_or_else(|| {
+            VectorClientError::InternalError("Response missing 'result' field".to_string())
+        })?;
         serde_json::from_value(result.clone()).map_err(|e| {
             VectorClientError::InternalError(format!(
                 "Failed to deserialize response result: {}",
@@ -215,10 +202,7 @@ impl VectorEngine for QdrantEngine {
     }
 
     async fn health_check(&self) -> Result<HealthStatus> {
-        match self
-            .request(reqwest::Method::GET, "/readyz")
-            .await
-        {
+        match self.request(reqwest::Method::GET, "/readyz").await {
             Ok(response) => {
                 if response.status().is_success() {
                     Ok(HealthStatus::healthy(self.name(), self.version()))
@@ -253,14 +237,15 @@ impl VectorEngine for QdrantEngine {
         );
 
         let response = self
-            .request_json(reqwest::Method::PUT, &format!("/collections/{}", name), body)
+            .request_json(
+                reqwest::Method::PUT,
+                &format!("/collections/{}", name),
+                body,
+            )
             .await?;
         self.check_response(response).await?;
 
-        self.collections
-            .write()
-            .await
-            .insert(name.to_string(), cfg);
+        self.collections.write().await.insert(name.to_string(), cfg);
 
         info!("Collection '{}' created successfully", name);
         Ok(())
@@ -269,10 +254,7 @@ impl VectorEngine for QdrantEngine {
     async fn delete_collection(&self, name: &str) -> Result<()> {
         debug!("Deleting collection '{}'", name);
         let response = self
-            .request(
-                reqwest::Method::DELETE,
-                &format!("/collections/{}", name),
-            )
+            .request(reqwest::Method::DELETE, &format!("/collections/{}", name))
             .await?;
         self.check_response(response).await?;
         self.collections.write().await.remove(name);
@@ -324,7 +306,10 @@ impl VectorEngine for QdrantEngine {
     }
 
     async fn upsert(&self, collection: &str, point: VectorPoint) -> Result<UpsertResult> {
-        debug!("Upserting point '{}' to collection '{}'", point.id, collection);
+        debug!(
+            "Upserting point '{}' to collection '{}'",
+            point.id, collection
+        );
 
         let id = point_id_to_json(&point.id);
         let point_json = if let Some(ref payload) = point.payload {
@@ -403,7 +388,10 @@ impl VectorEngine for QdrantEngine {
     }
 
     async fn delete(&self, collection: &str, point_id: &str) -> Result<DeleteResult> {
-        debug!("Deleting point '{}' from collection '{}'", point_id, collection);
+        debug!(
+            "Deleting point '{}' from collection '{}'",
+            point_id, collection
+        );
 
         let id = point_id_to_json(point_id);
         let body = build_delete_by_ids_body(vec![id]);
@@ -422,11 +410,7 @@ impl VectorEngine for QdrantEngine {
         })
     }
 
-    async fn delete_batch(
-        &self,
-        collection: &str,
-        point_ids: Vec<&str>,
-    ) -> Result<DeleteResult> {
+    async fn delete_batch(&self, collection: &str, point_ids: Vec<&str>) -> Result<DeleteResult> {
         debug!(
             "Deleting {} points from collection '{}'",
             point_ids.len(),
@@ -455,14 +439,10 @@ impl VectorEngine for QdrantEngine {
         collection: &str,
         filter: VectorFilter,
     ) -> Result<DeleteResult> {
-        debug!(
-            "Deleting points by filter from collection '{}'",
-            collection
-        );
+        debug!("Deleting points by filter from collection '{}'", collection);
 
-        let filter_value =
-            convert_filter(&filter)?
-                .ok_or_else(|| VectorClientError::FilterError("Empty filter".to_string()))?;
+        let filter_value = convert_filter(&filter)?
+            .ok_or_else(|| VectorClientError::FilterError("Empty filter".to_string()))?;
         let body = build_delete_by_filter_body(filter_value);
         let response = self
             .request_json(
@@ -479,11 +459,7 @@ impl VectorEngine for QdrantEngine {
         })
     }
 
-    async fn search(
-        &self,
-        collection: &str,
-        query: SearchQuery,
-    ) -> Result<Vec<SearchResult>> {
+    async fn search(&self, collection: &str, query: SearchQuery) -> Result<Vec<SearchResult>> {
         debug!(
             "Searching in collection '{}' with limit {}",
             collection, query.limit
@@ -520,13 +496,11 @@ impl VectorEngine for QdrantEngine {
 
         let search_results = results
             .into_iter()
-            .map(|r| {
-                SearchResult {
-                    id: r.id.to_string(),
-                    score: r.score,
-                    payload: parse_payload(r.payload),
-                    vector: r.vector.and_then(|v| v.into_vec()),
-                }
+            .map(|r| SearchResult {
+                id: r.id.to_string(),
+                score: r.score,
+                payload: parse_payload(r.payload),
+                vector: r.vector.and_then(|v| v.into_vec()),
             })
             .collect();
 
@@ -598,12 +572,11 @@ impl VectorEngine for QdrantEngine {
         Ok(results)
     }
 
-    async fn get(
-        &self,
-        collection: &str,
-        point_id: &str,
-    ) -> Result<Option<VectorPoint>> {
-        debug!("Getting point '{}' from collection '{}'", point_id, collection);
+    async fn get(&self, collection: &str, point_id: &str) -> Result<Option<VectorPoint>> {
+        debug!(
+            "Getting point '{}' from collection '{}'",
+            point_id, collection
+        );
 
         let id = point_id_to_json(point_id);
         let body = build_get_body(vec![id], Some(true), Some(true));
@@ -639,10 +612,7 @@ impl VectorEngine for QdrantEngine {
                 let p = points.remove(0);
                 Ok(Some(VectorPoint {
                     id: p.id.to_string(),
-                    vector: p
-                        .vector
-                        .and_then(|v| v.into_vec())
-                        .unwrap_or_default(),
+                    vector: p.vector.and_then(|v| v.into_vec()).unwrap_or_default(),
                     payload: parse_payload(p.payload),
                 }))
             }
@@ -708,7 +678,10 @@ impl VectorEngine for QdrantEngine {
         }
 
         let response = self
-            .request(reqwest::Method::GET, &format!("/collections/{}", collection))
+            .request(
+                reqwest::Method::GET,
+                &format!("/collections/{}", collection),
+            )
             .await?;
         let info: RawInfo = self.parse_result(response).await?;
         Ok(info.points_count.unwrap_or(0))
@@ -883,7 +856,10 @@ impl VectorEngine for QdrantEngine {
         }
 
         let response = self
-            .request(reqwest::Method::GET, &format!("/collections/{}", collection))
+            .request(
+                reqwest::Method::GET,
+                &format!("/collections/{}", collection),
+            )
             .await?;
 
         #[derive(serde::Deserialize)]

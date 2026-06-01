@@ -6,11 +6,11 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::{
     AlterFulltextIndex, CreateFulltextIndex, DescribeFulltextIndex, DropFulltextIndex,
     FulltextQueryExpr, LookupFulltext, MatchFulltext, SearchStatement,
 };
+use crate::query::validator::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::validator_trait::{
     ExpressionProps, StatementValidator, ValidationResult,
 };

@@ -125,10 +125,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor
             .collect();
 
         if !deletions.is_empty() {
-            let edge_info = storage_guard.get_edge_type(
-                &self.alter_info.space_name,
-                &self.alter_info.edge_name,
-            );
+            let edge_info = storage_guard
+                .get_edge_type(&self.alter_info.space_name, &self.alter_info.edge_name);
             if let Ok(Some(edge)) = edge_info {
                 for del_name in &deletions {
                     if !edge.properties.iter().any(|p| &p.name == del_name) {

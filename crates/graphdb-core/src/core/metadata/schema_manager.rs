@@ -84,18 +84,18 @@ impl SchemaManager {
         self.space_id_counter.fetch_add(1, Ordering::SeqCst) + 1
     }
 
-    fn get_next_tag_id(&self, space_id: u64) -> u32 {
+    fn get_next_tag_id(&self, _space_id: u64) -> u32 {
         let entry = self
             .tag_id_counter
-            .entry(space_id)
+            .entry(0)
             .or_insert_with(|| AtomicU32::new(0));
         entry.fetch_add(1, Ordering::SeqCst) + 1
     }
 
-    fn get_next_edge_type_id(&self, space_id: u64) -> u32 {
+    fn get_next_edge_type_id(&self, _space_id: u64) -> u32 {
         let entry = self
             .edge_type_id_counter
-            .entry(space_id)
+            .entry(0)
             .or_insert_with(|| AtomicU32::new(0));
         entry.fetch_add(1, Ordering::SeqCst) + 1
     }
@@ -239,14 +239,14 @@ impl SchemaManager {
     }
 
     pub fn drop_tag(&self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
-        self.get_space(space_name)?.ok_or_else(|| {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut tags = self.tags.write();
         let tag_key = tags
             .iter()
-            .find(|(_, data)| data.info.tag_name == tag_name)
+            .find(|((sid, _), data)| *sid == space_info.space_id && data.info.tag_name == tag_name)
             .map(|(k, _)| *k);
 
         if let Some(key) = tag_key {
@@ -262,14 +262,15 @@ impl SchemaManager {
         space_name: &str,
         tag_name: &str,
     ) -> Result<Option<TagInfo>, StorageError> {
-        self.get_space(space_name)?.ok_or_else(|| {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let tags = self.tags.read();
         Ok(tags
-            .values()
-            .find(|data| data.info.tag_name == tag_name)
+            .iter()
+            .find(|((sid, _), data)| *sid == space_info.space_id && data.info.tag_name == tag_name)
+            .map(|(_, data)| data)
             .map(|d| d.info.clone()))
     }
 
@@ -287,14 +288,16 @@ impl SchemaManager {
     }
 
     pub fn update_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
-        self.get_space(space_name)?.ok_or_else(|| {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut tags = self.tags.write();
         let tag_key = tags
             .iter()
-            .find(|(_, data)| data.info.tag_name == tag.tag_name)
+            .find(|((sid, _), data)| {
+                *sid == space_info.space_id && data.info.tag_name == tag.tag_name
+            })
             .map(|(k, _)| *k);
 
         if let Some(key) = tag_key {
@@ -343,14 +346,16 @@ impl SchemaManager {
         space_name: &str,
         edge_type_name: &str,
     ) -> Result<bool, StorageError> {
-        self.get_space(space_name)?.ok_or_else(|| {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut edge_types = self.edge_types.write();
         let key = edge_types
             .iter()
-            .find(|(_, data)| data.info.edge_type_name == edge_type_name)
+            .find(|((sid, _), data)| {
+                *sid == space_info.space_id && data.info.edge_type_name == edge_type_name
+            })
             .map(|(k, _)| *k);
 
         if let Some(k) = key {
@@ -366,14 +371,17 @@ impl SchemaManager {
         space_name: &str,
         edge_type_name: &str,
     ) -> Result<Option<EdgeTypeInfo>, StorageError> {
-        self.get_space(space_name)?.ok_or_else(|| {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let edge_types = self.edge_types.read();
         Ok(edge_types
-            .values()
-            .find(|data| data.info.edge_type_name == edge_type_name)
+            .iter()
+            .find(|((sid, _), data)| {
+                *sid == space_info.space_id && data.info.edge_type_name == edge_type_name
+            })
+            .map(|(_, data)| data)
             .map(|d| d.info.clone()))
     }
 
@@ -395,14 +403,16 @@ impl SchemaManager {
         space_name: &str,
         edge_type: &EdgeTypeInfo,
     ) -> Result<bool, StorageError> {
-        self.get_space(space_name)?.ok_or_else(|| {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
         })?;
 
         let mut edge_types = self.edge_types.write();
         let key = edge_types
             .iter()
-            .find(|(_, data)| data.info.edge_type_name == edge_type.edge_type_name)
+            .find(|((sid, _), data)| {
+                *sid == space_info.space_id && data.info.edge_type_name == edge_type.edge_type_name
+            })
             .map(|(k, _)| *k);
 
         if let Some(k) = key {
@@ -576,6 +586,37 @@ impl SchemaManager {
         self.space_name_index.write().clear();
         self.tags.write().clear();
         self.edge_types.write().clear();
+        self.tag_id_counter.clear();
+        self.edge_type_id_counter.clear();
+
+        let max_tag_counter = snapshot
+            .tag_id_counters
+            .iter()
+            .map(|(_, counter)| *counter)
+            .max()
+            .unwrap_or(0)
+            .max(
+                snapshot
+                    .tags
+                    .iter()
+                    .map(|(_, tag)| tag.tag_id)
+                    .max()
+                    .unwrap_or(0),
+            );
+        let max_edge_type_counter = snapshot
+            .edge_type_id_counters
+            .iter()
+            .map(|(_, counter)| *counter)
+            .max()
+            .unwrap_or(0)
+            .max(
+                snapshot
+                    .edge_types
+                    .iter()
+                    .map(|(_, edge_type)| edge_type.edge_type_id)
+                    .max()
+                    .unwrap_or(0),
+            );
 
         for space in snapshot.spaces {
             self.space_name_index
@@ -603,15 +644,89 @@ impl SchemaManager {
             .store(snapshot.space_id_counter, Ordering::SeqCst);
 
         for (space_id, counter) in snapshot.tag_id_counters {
-            self.tag_id_counter.insert(space_id, AtomicU32::new(counter));
+            self.tag_id_counter
+                .insert(space_id, AtomicU32::new(counter));
         }
+        self.tag_id_counter
+            .insert(0, AtomicU32::new(max_tag_counter));
 
         for (space_id, counter) in snapshot.edge_type_id_counters {
             self.edge_type_id_counter
                 .insert(space_id, AtomicU32::new(counter));
         }
+        self.edge_type_id_counter
+            .insert(0, AtomicU32::new(max_edge_type_counter));
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
+
+    #[test]
+    fn schema_names_are_scoped_by_space() {
+        let manager = SchemaManager::new();
+        let mut first = SpaceInfo::new("first".to_string());
+        let mut second = SpaceInfo::new("second".to_string());
+        manager
+            .create_space(&mut first)
+            .expect("create first space");
+        manager
+            .create_space(&mut second)
+            .expect("create second space");
+
+        let first_tag_id = manager
+            .create_tag("first", &TagInfo::new("person".to_string()))
+            .expect("create first tag");
+        let second_tag_id = manager
+            .create_tag("second", &TagInfo::new("person".to_string()))
+            .expect("create second tag");
+
+        assert_ne!(first_tag_id, second_tag_id);
+        assert_eq!(
+            manager
+                .get_tag("first", "person")
+                .expect("get first tag")
+                .expect("first tag exists")
+                .tag_id,
+            first_tag_id
+        );
+        assert_eq!(
+            manager
+                .get_tag("second", "person")
+                .expect("get second tag")
+                .expect("second tag exists")
+                .tag_id,
+            second_tag_id
+        );
+
+        let first_edge_id = manager
+            .create_edge_type("first", &EdgeTypeInfo::new("knows".to_string()))
+            .expect("create first edge");
+        let second_edge_id = manager
+            .create_edge_type("second", &EdgeTypeInfo::new("knows".to_string()))
+            .expect("create second edge");
+
+        assert_ne!(first_edge_id, second_edge_id);
+        assert_eq!(
+            manager
+                .get_edge_type("first", "knows")
+                .expect("get first edge")
+                .expect("first edge exists")
+                .edge_type_id,
+            first_edge_id
+        );
+        assert_eq!(
+            manager
+                .get_edge_type("second", "knows")
+                .expect("get second edge")
+                .expect("second edge exists")
+                .edge_type_id,
+            second_edge_id
+        );
     }
 }
 

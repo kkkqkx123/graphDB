@@ -13,7 +13,7 @@ mod tests {
     };
     use crate::query::executor::Executor;
     use crate::query::validator::context::ExpressionAnalysisContext;
-    use crate::storage::test_mock::MockStorage;
+    use crate::storage::MockStorage;
     use parking_lot::RwLock;
     use std::sync::Arc;
 

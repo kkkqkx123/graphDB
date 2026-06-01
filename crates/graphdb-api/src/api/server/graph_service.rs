@@ -5,15 +5,15 @@ use crate::api::core::VectorApi;
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
 use crate::api::server::session::{ClientSession, GraphSessionManager};
-use crate::config::Config;
 use crate::api::server::session::{SessionError, SessionResult};
+use crate::config::Config;
+use crate::core::metadata::SchemaManager;
 use crate::core::stats::StatsManager;
-use crate::core::types::TransactionContextInfo;
 use crate::core::types::SpaceSummary;
+use crate::core::types::TransactionContextInfo;
 use crate::core::{DataType, MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::core::metadata::SchemaManager;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use log::{info, warn};
@@ -158,7 +158,8 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                         "Failed to initialize vector search, falling back to basic QueryApi: {}",
                         e
                     );
-                    let api = Self::build_query_api(&storage, &stats_manager, schema_manager.as_ref());
+                    let api =
+                        Self::build_query_api(&storage, &stats_manager, schema_manager.as_ref());
                     (Arc::new(RwLock::new(api)), None)
                 }
             }
@@ -500,21 +501,24 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             "UUID" => DataType::Uuid,
             "INTERVAL" => DataType::Interval,
             _ if s.starts_with("FIXEDSTRING(") => {
-                let n = s.trim_start_matches("FIXEDSTRING(")
+                let n = s
+                    .trim_start_matches("FIXEDSTRING(")
                     .trim_end_matches(')')
                     .parse::<usize>()
                     .unwrap_or(0);
                 DataType::FixedString(n)
             }
             _ if s.starts_with("VECTOR_DENSE(") => {
-                let n = s.trim_start_matches("VECTOR_DENSE(")
+                let n = s
+                    .trim_start_matches("VECTOR_DENSE(")
                     .trim_end_matches(')')
                     .parse::<usize>()
                     .unwrap_or(0);
                 DataType::VectorDense(n)
             }
             _ if s.starts_with("VECTOR_SPARSE(") => {
-                let n = s.trim_start_matches("VECTOR_SPARSE(")
+                let n = s
+                    .trim_start_matches("VECTOR_SPARSE(")
                     .trim_end_matches(')')
                     .parse::<usize>()
                     .unwrap_or(0);

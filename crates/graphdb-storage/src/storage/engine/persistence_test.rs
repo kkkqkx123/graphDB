@@ -10,7 +10,9 @@ mod tests {
     use crate::storage::storage_types::StoragePropertyDef;
 
     fn temp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join("graphdb_persistence_test").join(name);
+        let dir = std::env::temp_dir()
+            .join("graphdb_persistence_test")
+            .join(name);
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -220,7 +222,10 @@ mod tests {
         graph2.load_data().unwrap();
 
         let bob = graph2.get_vertex(person_label, "bob", 101);
-        assert!(bob.is_some(), "Bob should exist after incremental flush reload");
+        assert!(
+            bob.is_some(),
+            "Bob should exist after incremental flush reload"
+        );
 
         // Cleanup
         let _ = std::fs::remove_dir_all(&dir);
@@ -389,10 +394,7 @@ mod tests {
                 .insert_vertex(
                     person_label,
                     &format!("user_{}", i),
-                    &[(
-                        "name".to_string(),
-                        Value::String(format!("User_{}", i)),
-                    )],
+                    &[("name".to_string(), Value::String(format!("User_{}", i)))],
                     (100 + i) as u32,
                 )
                 .unwrap();

@@ -11,10 +11,10 @@ use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryManager, Recover
 use super::context::GraphStorageContext;
 
 pub(crate) fn save_data(ctx: &GraphStorageContext) -> StorageResult<()> {
-    let work_dir =
-        ctx.work_dir.as_ref().ok_or_else(|| {
-            StorageError::db_error("No work directory configured".to_string())
-        })?;
+    let work_dir = ctx
+        .work_dir
+        .as_ref()
+        .ok_or_else(|| StorageError::db_error("No work directory configured".to_string()))?;
 
     save_data_to_dir(ctx, work_dir)
 }
@@ -143,9 +143,9 @@ pub(crate) fn compact_transactional(
         let coordinator = persistence.read();
         let wal_mgr = coordinator.wal_manager();
         let wal_reader = wal_mgr.read();
-        wal_reader.writer().ok_or_else(|| {
-            StorageError::db_error("WAL writer not initialized".to_string())
-        })?
+        wal_reader
+            .writer()
+            .ok_or_else(|| StorageError::db_error("WAL writer not initialized".to_string()))?
     };
 
     let mut wal_writer_guard = wal_writer.write();
@@ -158,9 +158,7 @@ pub(crate) fn compact_transactional(
         compact_csr,
         reserve_ratio,
     )
-    .map_err(|e| {
-        StorageError::db_error(format!("Failed to create compact transaction: {}", e))
-    })?;
+    .map_err(|e| StorageError::db_error(format!("Failed to create compact transaction: {}", e)))?;
 
     let before_stats = txn.storage_stats();
     log::info!(
@@ -194,20 +192,15 @@ pub(crate) fn load_from_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
 
         let index_meta_path = path.join("index_meta");
         if index_meta_path.exists() {
-            ctx
-                .index_metadata_manager
-                .load_indexes(&index_meta_path)?;
+            ctx.index_metadata_manager.load_indexes(&index_meta_path)?;
         }
 
-        ctx.graph.load()?;
+        super::schema_adapter::ensure_graph_types_from_schema(ctx)?;
+        ctx.graph.restore_from_checkpoint(path)?;
 
         let index_path = path.join("indexes");
         if index_path.exists() {
-            ctx
-                .graph
-                .index_data_manager()
-                .write()
-                .load(&index_path)?;
+            ctx.graph.index_data_manager().write().load(&index_path)?;
         }
     }
     Ok(())
@@ -218,36 +211,28 @@ pub(crate) fn save_to_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
         std::fs::create_dir_all(path).map_err(|e| StorageError::io_error(e.to_string()))?;
 
         let schema_path = path.join("schema");
-        std::fs::create_dir_all(&schema_path)
-            .map_err(|e| StorageError::io_error(e.to_string()))?;
+        std::fs::create_dir_all(&schema_path).map_err(|e| StorageError::io_error(e.to_string()))?;
         ctx.schema_manager.save_schema(&schema_path)?;
 
         let index_meta_path = path.join("index_meta");
         std::fs::create_dir_all(&index_meta_path)
             .map_err(|e| StorageError::io_error(e.to_string()))?;
-        ctx
-            .index_metadata_manager
-            .save_indexes(&index_meta_path)?;
+        ctx.index_metadata_manager.save_indexes(&index_meta_path)?;
 
-        ctx.graph.flush_to_disk()?;
+        save_data_to_dir(ctx, path)?;
 
         let index_path = path.join("indexes");
-        std::fs::create_dir_all(&index_path)
-            .map_err(|e| StorageError::io_error(e.to_string()))?;
-        ctx
-            .graph
-            .index_data_manager()
-            .read()
-            .flush(&index_path)?;
+        std::fs::create_dir_all(&index_path).map_err(|e| StorageError::io_error(e.to_string()))?;
+        ctx.graph.index_data_manager().read().flush(&index_path)?;
     }
     Ok(())
 }
 
 pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<RecoveryStats> {
-    let work_dir =
-        ctx.work_dir.as_ref().ok_or_else(|| {
-            StorageError::db_error("No work directory configured".to_string())
-        })?;
+    let work_dir = ctx
+        .work_dir
+        .as_ref()
+        .ok_or_else(|| StorageError::db_error("No work directory configured".to_string()))?;
 
     let config = RecoveryConfig {
         wal_dir: work_dir.join("wal"),

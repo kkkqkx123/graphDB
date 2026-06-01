@@ -1,56 +1,92 @@
+use crate::core::metadata::index_manager::IndexMetadataManager;
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::secondary::VertexIndexOps;
-use crate::core::metadata::index_manager::IndexMetadataManager;
 
 use super::context::GraphStorageContext;
 
-pub(crate) fn create_tag_index(ctx: &GraphStorageContext, space: &str, index: &Index) -> StorageResult<bool> {
+pub(crate) fn create_tag_index(
+    ctx: &GraphStorageContext,
+    space: &str,
+    index: &Index,
+) -> StorageResult<bool> {
     let space_id = ctx
         .schema_manager
         .get_space(space)?
         .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?
         .space_id;
-    ctx.index_metadata_manager.create_tag_index(space_id, index)?;
+    ctx.index_metadata_manager
+        .create_tag_index(space_id, index)?;
     Ok(true)
 }
 
-pub(crate) fn drop_tag_index(ctx: &GraphStorageContext, space: &str, index_name: &str) -> StorageResult<bool> {
+pub(crate) fn drop_tag_index(
+    ctx: &GraphStorageContext,
+    space: &str,
+    index_name: &str,
+) -> StorageResult<bool> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
-    ctx.index_metadata_manager.drop_tag_index(space_id, index_name)
+    ctx.index_metadata_manager
+        .drop_tag_index(space_id, index_name)
 }
 
-pub(crate) fn get_tag_index(ctx: &GraphStorageContext, space: &str, index_name: &str) -> StorageResult<Option<Index>> {
+pub(crate) fn get_tag_index(
+    ctx: &GraphStorageContext,
+    space: &str,
+    index_name: &str,
+) -> StorageResult<Option<Index>> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
-    ctx.index_metadata_manager.get_tag_index(space_id, index_name)
+    ctx.index_metadata_manager
+        .get_tag_index(space_id, index_name)
 }
 
-pub(crate) fn list_tag_indexes(ctx: &GraphStorageContext, space: &str) -> StorageResult<Vec<Index>> {
+pub(crate) fn list_tag_indexes(
+    ctx: &GraphStorageContext,
+    space: &str,
+) -> StorageResult<Vec<Index>> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
     ctx.index_metadata_manager.list_tag_indexes(space_id)
 }
 
-pub(crate) fn create_edge_index(ctx: &GraphStorageContext, space: &str, index: &Index) -> StorageResult<bool> {
+pub(crate) fn create_edge_index(
+    ctx: &GraphStorageContext,
+    space: &str,
+    index: &Index,
+) -> StorageResult<bool> {
     let space_id = ctx
         .schema_manager
         .get_space(space)?
         .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?
         .space_id;
-    ctx.index_metadata_manager.create_edge_index(space_id, index)?;
+    ctx.index_metadata_manager
+        .create_edge_index(space_id, index)?;
     Ok(true)
 }
 
-pub(crate) fn drop_edge_index(ctx: &GraphStorageContext, space: &str, index_name: &str) -> StorageResult<bool> {
+pub(crate) fn drop_edge_index(
+    ctx: &GraphStorageContext,
+    space: &str,
+    index_name: &str,
+) -> StorageResult<bool> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
-    ctx.index_metadata_manager.drop_edge_index(space_id, index_name)
+    ctx.index_metadata_manager
+        .drop_edge_index(space_id, index_name)
 }
 
-pub(crate) fn get_edge_index(ctx: &GraphStorageContext, space: &str, index_name: &str) -> StorageResult<Option<Index>> {
+pub(crate) fn get_edge_index(
+    ctx: &GraphStorageContext,
+    space: &str,
+    index_name: &str,
+) -> StorageResult<Option<Index>> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
-    ctx.index_metadata_manager.get_edge_index(space_id, index_name)
+    ctx.index_metadata_manager
+        .get_edge_index(space_id, index_name)
 }
 
-pub(crate) fn list_edge_indexes(ctx: &GraphStorageContext, space: &str) -> StorageResult<Vec<Index>> {
+pub(crate) fn list_edge_indexes(
+    ctx: &GraphStorageContext,
+    space: &str,
+) -> StorageResult<Vec<Index>> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
     ctx.index_metadata_manager.list_edge_indexes(space_id)
 }
@@ -75,13 +111,8 @@ pub(crate) fn rebuild_tag_index(
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
         let vid_value = Value::from(vertex.vid);
-        ctx.graph.update_vertex_indexes_mvcc(
-            space_id,
-            &vid_value,
-            &index.name,
-            &props,
-            ts,
-        )?;
+        ctx.graph
+            .update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
     }
 
     Ok(true)

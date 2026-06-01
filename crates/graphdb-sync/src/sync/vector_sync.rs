@@ -9,9 +9,9 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::sync::external_index::{VectorCoordinatorError, VectorCoordinatorResult};
 use crate::core::types::TransactionId;
 use crate::core::{Value, Vertex};
+use crate::sync::external_index::{VectorCoordinatorError, VectorCoordinatorResult};
 
 use vector_client::{
     EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorManager, VectorPoint,
@@ -854,17 +854,15 @@ impl From<vector_client::manager::IndexMetadata> for IndexMetadataWrapper {
         // Parse collection name to extract space_id, tag_name, field_name
         // Format: "space_vec_{space_id}_{tag}_{field}"
         let parts: Vec<&str> = metadata.name.split('_').collect();
-        let (space_id, tag_name, field_name) = if parts.len() >= 4
-            && parts[0] == "space"
-            && parts[1] == "vec"
-        {
-            let sid: u64 = parts[2].parse().unwrap_or(0);
-            let tag = parts[3..parts.len() - 1].join("_");
-            let field = parts[parts.len() - 1].to_string();
-            (sid, tag, field)
-        } else {
-            (0, String::new(), String::new())
-        };
+        let (space_id, tag_name, field_name) =
+            if parts.len() >= 4 && parts[0] == "space" && parts[1] == "vec" {
+                let sid: u64 = parts[2].parse().unwrap_or(0);
+                let tag = parts[3..parts.len() - 1].join("_");
+                let field = parts[parts.len() - 1].to_string();
+                (sid, tag, field)
+            } else {
+                (0, String::new(), String::new())
+            };
 
         Self {
             collection_name: metadata.name,

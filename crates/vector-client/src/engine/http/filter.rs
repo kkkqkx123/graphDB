@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use crate::error::Result;
 use crate::types::*;
 
-use super::super::common::filter::{ConditionHandler, process_filter};
+use super::super::common::filter::{process_filter, ConditionHandler};
 
 pub fn convert_filter(filter: &VectorFilter) -> Result<Option<Value>> {
     let handler = JsonConditionHandler;
@@ -148,10 +148,7 @@ impl ConditionHandler for JsonConditionHandler {
 
         if let Some((conditions, min_count)) = min_should {
             filter_obj.insert("should".to_string(), Value::Array(conditions));
-            filter_obj.insert(
-                "min_should".to_string(),
-                json!({ "conditions": min_count }),
-            );
+            filter_obj.insert("min_should".to_string(), json!({ "conditions": min_count }));
         } else if !should.is_empty() {
             filter_obj.insert("should".to_string(), Value::Array(should));
         }

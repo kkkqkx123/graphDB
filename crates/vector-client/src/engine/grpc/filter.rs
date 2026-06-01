@@ -1,12 +1,10 @@
 use crate::error::VectorClientError;
 use crate::types::*;
 
+use super::super::common::filter::{process_filter, ConditionHandler};
 use super::proto;
-use super::super::common::filter::{ConditionHandler, process_filter};
 
-pub fn filter_to_proto(
-    filter: &VectorFilter,
-) -> Result<Option<proto::Filter>, VectorClientError> {
+pub fn filter_to_proto(filter: &VectorFilter) -> Result<Option<proto::Filter>, VectorClientError> {
     let handler = ProtoConditionHandler;
     process_filter(filter, &handler)
 }
@@ -25,18 +23,27 @@ fn point_id_to_proto(id: &str) -> proto::PointId {
     }
 }
 
-fn field_condition(key: String, r#match: Option<proto::Match>, range: Option<proto::Range>, geo_bounding_box: Option<proto::GeoBoundingBox>, geo_radius: Option<proto::GeoRadius>, values_count: Option<proto::ValuesCount>) -> proto::Condition {
+fn field_condition(
+    key: String,
+    r#match: Option<proto::Match>,
+    range: Option<proto::Range>,
+    geo_bounding_box: Option<proto::GeoBoundingBox>,
+    geo_radius: Option<proto::GeoRadius>,
+    values_count: Option<proto::ValuesCount>,
+) -> proto::Condition {
     proto::Condition {
-        condition_one_of: Some(proto::condition::ConditionOneOf::Field(proto::FieldCondition {
-            key,
-            r#match,
-            range,
-            geo_bounding_box,
-            geo_radius,
-            values_count,
-            geo_polygon: None,
-            datetime_range: None,
-        })),
+        condition_one_of: Some(proto::condition::ConditionOneOf::Field(
+            proto::FieldCondition {
+                key,
+                r#match,
+                range,
+                geo_bounding_box,
+                geo_radius,
+                values_count,
+                geo_polygon: None,
+                datetime_range: None,
+            },
+        )),
     }
 }
 
@@ -50,7 +57,10 @@ impl ConditionHandler for ProtoConditionHandler {
             Some(proto::Match {
                 match_value: Some(proto::r#match::MatchValue::Keyword(value.to_string())),
             }),
-            None, None, None, None,
+            None,
+            None,
+            None,
+            None,
         )
     }
 
@@ -64,7 +74,10 @@ impl ConditionHandler for ProtoConditionHandler {
                     },
                 )),
             }),
-            None, None, None, None,
+            None,
+            None,
+            None,
+            None,
         )
     }
 
@@ -78,7 +91,9 @@ impl ConditionHandler for ProtoConditionHandler {
                 gte: range.gte,
                 lte: range.lte,
             }),
-            None, None, None,
+            None,
+            None,
+            None,
         )
     }
 
@@ -114,7 +129,9 @@ impl ConditionHandler for ProtoConditionHandler {
     fn handle_geo_radius(&self, field: &str, radius: &GeoRadius) -> proto::Condition {
         field_condition(
             field.to_string(),
-            None, None, None,
+            None,
+            None,
+            None,
             Some(proto::GeoRadius {
                 center: Some(proto::GeoPoint {
                     lon: radius.center.lon,
@@ -129,7 +146,8 @@ impl ConditionHandler for ProtoConditionHandler {
     fn handle_geo_bounding_box(&self, field: &str, bbox: &GeoBoundingBox) -> proto::Condition {
         field_condition(
             field.to_string(),
-            None, None,
+            None,
+            None,
             Some(proto::GeoBoundingBox {
                 top_left: Some(proto::GeoPoint {
                     lon: bbox.top_left.lon,
@@ -140,14 +158,18 @@ impl ConditionHandler for ProtoConditionHandler {
                     lat: bbox.bottom_right.lat,
                 }),
             }),
-            None, None,
+            None,
+            None,
         )
     }
 
     fn handle_values_count(&self, field: &str, count: &ValuesCountCondition) -> proto::Condition {
         field_condition(
             field.to_string(),
-            None, None, None, None,
+            None,
+            None,
+            None,
+            None,
             Some(proto::ValuesCount {
                 lt: count.lt,
                 gt: count.gt,
@@ -163,7 +185,10 @@ impl ConditionHandler for ProtoConditionHandler {
             Some(proto::Match {
                 match_value: Some(proto::r#match::MatchValue::Text(value.to_string())),
             }),
-            None, None, None, None,
+            None,
+            None,
+            None,
+            None,
         )
     }
 
@@ -178,7 +203,12 @@ impl ConditionHandler for ProtoConditionHandler {
         }
     }
 
-    fn handle_payload(&self, _field: &str, _key: &str, value: &serde_json::Value) -> proto::Condition {
+    fn handle_payload(
+        &self,
+        _field: &str,
+        _key: &str,
+        value: &serde_json::Value,
+    ) -> proto::Condition {
         let match_value = match value {
             serde_json::Value::String(s) => proto::r#match::MatchValue::Keyword(s.clone()),
             serde_json::Value::Number(n) => {
@@ -197,7 +227,10 @@ impl ConditionHandler for ProtoConditionHandler {
             Some(proto::Match {
                 match_value: Some(match_value),
             }),
-            None, None, None, None,
+            None,
+            None,
+            None,
+            None,
         )
     }
 

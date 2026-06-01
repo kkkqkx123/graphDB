@@ -19,8 +19,8 @@
 //!     
 //!     // Perform recovery
 //!     let stats = manager.recover_with_applier(&*applier)?;
-//!     println!("Recovered {} entries in {}ms", 
-//!              stats.wal_entries_replayed, 
+//!     println!("Recovered {} entries in {}ms",
+//!              stats.wal_entries_replayed,
 //!              stats.recovery_time_ms);
 //! }
 //! ```
@@ -105,8 +105,6 @@ impl RecoveryManager {
 
         Ok(self.stats.clone())
     }
-
-
 
     /// Parse WAL files
     fn parse_wal_files(&self) -> StorageResult<RecoveryResult> {

@@ -2,11 +2,11 @@
 //!
 //! Provide the functionality to evaluate aggregate functions.
 
-use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::list::List;
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::query::executor::expression::{ExpressionError, ExpressionErrorType};
 
 /// Function evaluator
 pub struct FunctionEvaluator;

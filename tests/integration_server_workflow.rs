@@ -15,9 +15,9 @@ use graphdb::config::Config;
 use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::engine::sync_wrapper::SyncWrapper;
 use graphdb::storage::GraphStorage;
 use graphdb::storage::StorageAdmin;
+use graphdb::storage::SyncWrapper;
 use std::sync::Arc;
 use vector_client::VectorClientConfig;
 
@@ -202,10 +202,7 @@ async fn test_graph_service_permission_enforcement() {
     let space_id = 1;
 
     graph_service
-        .execute(
-            root_sid,
-            "CREATE TAG Person(name STRING, age INT)",
-        )
+        .execute(root_sid, "CREATE TAG Person(name STRING, age INT)")
         .await
         .expect("Root: CREATE TAG should succeed");
     graph_service
@@ -253,7 +250,10 @@ async fn test_graph_service_permission_enforcement() {
     );
 
     let result = graph_service
-        .execute(user_sid, "INSERT VERTEX Person(name, age) VALUES 3:('Charlie', 35)")
+        .execute(
+            user_sid,
+            "INSERT VERTEX Person(name, age) VALUES 3:('Charlie', 35)",
+        )
         .await;
     assert!(
         result.is_ok(),

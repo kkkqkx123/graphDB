@@ -515,11 +515,13 @@ impl HttpClient {
         let batch_items: Vec<crate::client::request_types::BatchItem> = items
             .into_iter()
             .map(|item| match item {
-                BatchItem::Vertex(v) => crate::client::request_types::BatchItem::Vertex(VertexData {
-                    vid: v.vid,
-                    tags: v.tags,
-                    properties: v.properties,
-                }),
+                BatchItem::Vertex(v) => {
+                    crate::client::request_types::BatchItem::Vertex(VertexData {
+                        vid: v.vid,
+                        tags: v.tags,
+                        properties: v.properties,
+                    })
+                }
                 BatchItem::Edge(e) => crate::client::request_types::BatchItem::Edge(EdgeData {
                     edge_type: e.edge_type,
                     src_vid: e.src_vid,
@@ -835,7 +837,10 @@ impl HttpClient {
 
     /// Drop a vector index
     pub async fn drop_vector_index(&self, space: &str, name: &str) -> Result<()> {
-        let url = format!("{}/schema/spaces/{}/vector-indexes/{}", self.base_url, space, name);
+        let url = format!(
+            "{}/schema/spaces/{}/vector-indexes/{}",
+            self.base_url, space, name
+        );
 
         let response = self.inner.delete(&url).send().await?;
 

@@ -14,14 +14,12 @@ use crate::sync::batch::{
 };
 
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
-use crate::sync::external_index::{
-    FulltextClient, IndexData, IndexKey, IndexOperation,
-};
+use crate::sync::external_index::{FulltextClient, IndexData, IndexKey, IndexOperation};
 #[cfg(feature = "qdrant")]
 use crate::sync::external_index::{VectorClient, VectorClientConfig};
-use crate::sync::retry::{default_local_retry_config, with_retry};
 #[cfg(feature = "qdrant")]
 use crate::sync::retry::default_remote_retry_config;
+use crate::sync::retry::{default_local_retry_config, with_retry};
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
 #[cfg(feature = "qdrant")]
@@ -407,7 +405,10 @@ impl SyncCoordinator {
 
             // Pre-commit validation: check consistency of all involved engines
             for key in fulltext_batches.keys() {
-                if let Some(engine) = self.fulltext_manager.get_engine(key.space_id, &key.tag_name, &key.field_name) {
+                if let Some(engine) =
+                    self.fulltext_manager
+                        .get_engine(key.space_id, &key.tag_name, &key.field_name)
+                {
                     if engine.consistency_state() == ConsistencyState::Inconsistent {
                         return Err(SyncCoordinatorError::InvalidOperation(format!(
                             "Engine for {}.{}.{} is marked Inconsistent. Repair required before committing.",
@@ -490,7 +491,11 @@ impl SyncCoordinator {
                     let dlq_clone = self.dead_letter_queue.clone();
 
                     match with_retry(
-                        || async { processor.execute_now_without_commit(ops_clone.clone()).await },
+                        || async {
+                            processor
+                                .execute_now_without_commit(ops_clone.clone())
+                                .await
+                        },
                         &retry_config_clone,
                     )
                     .await
@@ -518,7 +523,11 @@ impl SyncCoordinator {
             if fulltext_failed {
                 // Mark failed engines as inconsistent so they can be rebuilt
                 for key in &failed_keys {
-                    if let Some(engine) = self.fulltext_manager.get_engine(key.space_id, &key.tag_name, &key.field_name) {
+                    if let Some(engine) = self.fulltext_manager.get_engine(
+                        key.space_id,
+                        &key.tag_name,
+                        &key.field_name,
+                    ) {
                         engine.mark_inconsistent();
                         warn!(
                             "Marked engine {}.{}.{} as Inconsistent due to commit failure",
@@ -673,14 +682,17 @@ impl SyncCoordinator {
                             &key.tag_name,
                             &key.field_name,
                         ) {
-                            processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
-                                SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                                        "Recovery failed: {:?}",
-                                        e
-                                    )),
-                                )
-                            })?;
+                            processor
+                                .execute_now(vec![operation.clone()])
+                                .await
+                                .map_err(|e| {
+                                    SyncCoordinatorError::BatchError(
+                                        crate::sync::batch::BatchError::InvalidOperation(format!(
+                                            "Recovery failed: {:?}",
+                                            e
+                                        )),
+                                    )
+                                })?;
                         }
                     }
                     #[cfg(not(feature = "qdrant"))]
@@ -703,14 +715,17 @@ impl SyncCoordinator {
                             &key.tag_name,
                             &key.field_name,
                         ) {
-                            processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
-                                SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                                        "Recovery failed: {:?}",
-                                        e
-                                    )),
-                                )
-                            })?;
+                            processor
+                                .execute_now(vec![operation.clone()])
+                                .await
+                                .map_err(|e| {
+                                    SyncCoordinatorError::BatchError(
+                                        crate::sync::batch::BatchError::InvalidOperation(format!(
+                                            "Recovery failed: {:?}",
+                                            e
+                                        )),
+                                    )
+                                })?;
                         }
                     }
                     #[cfg(feature = "qdrant")]
@@ -720,14 +735,17 @@ impl SyncCoordinator {
                             &key.tag_name,
                             &key.field_name,
                         ) {
-                            processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
-                                SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                                        "Recovery failed: {:?}",
-                                        e
-                                    )),
-                                )
-                            })?;
+                            processor
+                                .execute_now(vec![operation.clone()])
+                                .await
+                                .map_err(|e| {
+                                    SyncCoordinatorError::BatchError(
+                                        crate::sync::batch::BatchError::InvalidOperation(format!(
+                                            "Recovery failed: {:?}",
+                                            e
+                                        )),
+                                    )
+                                })?;
                         }
                     }
                     #[cfg(not(feature = "qdrant"))]
@@ -743,14 +761,17 @@ impl SyncCoordinator {
                     &key.tag_name,
                     &key.field_name,
                 ) {
-                    processor.execute_now(vec![operation.clone()]).await.map_err(|e| {
-                        SyncCoordinatorError::BatchError(
-                            crate::sync::batch::BatchError::InvalidOperation(format!(
-                                "Recovery failed: {:?}",
-                                e
-                            )),
-                        )
-                    })?;
+                    processor
+                        .execute_now(vec![operation.clone()])
+                        .await
+                        .map_err(|e| {
+                            SyncCoordinatorError::BatchError(
+                                crate::sync::batch::BatchError::InvalidOperation(format!(
+                                    "Recovery failed: {:?}",
+                                    e
+                                )),
+                            )
+                        })?;
                 }
             }
         }

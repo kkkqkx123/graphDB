@@ -20,11 +20,7 @@ impl CsvExporter {
         }
     }
 
-    pub async fn export(
-        &self,
-        query: &str,
-        session: &mut SessionManager,
-    ) -> Result<ExportStats> {
+    pub async fn export(&self, query: &str, session: &mut SessionManager) -> Result<ExportStats> {
         if self.config.streaming {
             self.export_streaming(query, session).await
         } else {
@@ -32,11 +28,7 @@ impl CsvExporter {
         }
     }
 
-    async fn export_batch(
-        &self,
-        query: &str,
-        session: &mut SessionManager,
-    ) -> Result<ExportStats> {
+    async fn export_batch(&self, query: &str, session: &mut SessionManager) -> Result<ExportStats> {
         let result = session.execute_query(query).await?;
         let mut stats = ExportStats::new();
 

@@ -1,8 +1,8 @@
 //! Implementation of date and time functions
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::value::{DateTimeValue, DateValue, NullType, TimeValue};
 use crate::core::Value;
+use crate::query::executor::expression::ExpressionError;
 use chrono::{Datelike, Timelike};
 
 define_function_enum! {

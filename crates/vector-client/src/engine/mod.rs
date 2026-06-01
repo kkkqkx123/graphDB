@@ -79,9 +79,7 @@ pub trait VectorEngine: Send + Sync + std::fmt::Debug {
         payload: Payload,
     ) -> Result<()> {
         let _ = (collection, point_ids, payload);
-        Err(VectorClientError::NotSupported(
-            "set_payload".to_string(),
-        ))
+        Err(VectorClientError::NotSupported("set_payload".to_string()))
     }
 
     async fn delete_payload(

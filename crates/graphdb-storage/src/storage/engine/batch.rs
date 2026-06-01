@@ -377,7 +377,10 @@ mod tests {
             label_name: "knows".to_string(),
             src_label: 0,
             dst_label: 0,
-            properties: vec![StoragePropertyDef::new("weight".to_string(), DataType::Double)],
+            properties: vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
         }

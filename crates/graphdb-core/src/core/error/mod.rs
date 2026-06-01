@@ -26,11 +26,11 @@ pub use codes::{ErrorCategory as CodeErrorCategory, ErrorCode, PublicError, ToPu
 
 // Re-export all error types
 pub use manager::{ErrorCategory, ManagerError, ManagerResult};
-pub use storage::StorageError;
-pub use storage::StorageResult;
+pub use query::PlanNodeVisitError;
 pub use query::QueryError;
 pub use query::QueryResult;
-pub use query::PlanNodeVisitError;
+pub use storage::StorageError;
+pub use storage::StorageResult;
 
 pub use crate::core::types::DataType;
 
@@ -336,8 +336,14 @@ impl From<query::QueryError> for DBError {
 
 impl From<storage::StorageError> for DBError {
     fn from(err: storage::StorageError) -> Self {
-        let class = if err.is_retryable() { ErrorClass::Retryable } else { ErrorClass::SystemError };
-        DBError::storage(err.to_string()).with_source(Box::new(err)).with_class(class)
+        let class = if err.is_retryable() {
+            ErrorClass::Retryable
+        } else {
+            ErrorClass::SystemError
+        };
+        DBError::storage(err.to_string())
+            .with_source(Box::new(err))
+            .with_class(class)
     }
 }
 

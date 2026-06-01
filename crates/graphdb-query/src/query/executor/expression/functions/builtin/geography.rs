@@ -1,9 +1,9 @@
 //! Implementation of geospatial functions
 
-use crate::query::executor::expression::ExpressionError;
 use crate::core::value::geography::{Geography, GeographyValue, LineStringValue, PolygonValue};
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::query::executor::expression::ExpressionError;
 
 define_function_enum! {
     /// Enumeration of geospatial functions

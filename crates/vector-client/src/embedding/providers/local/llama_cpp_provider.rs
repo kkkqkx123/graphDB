@@ -208,12 +208,11 @@ impl LlamaCppProvider {
         })?;
 
         // Configure model parameters with GPU offloading
-        let model_params =
-            LlamaModelParams::default().with_n_gpu_layers(config.n_gpu_layers);
+        let model_params = LlamaModelParams::default().with_n_gpu_layers(config.n_gpu_layers);
 
         // Load model
-        let model =
-            LlamaModel::load_from_file(&backend, &config.model_path, &model_params).map_err(|e| {
+        let model = LlamaModel::load_from_file(&backend, &config.model_path, &model_params)
+            .map_err(|e| {
                 EmbeddingError::Internal(format!(
                     "Failed to load model from {}: {}",
                     config.model_path.display(),
@@ -316,12 +315,14 @@ impl LlamaCppProvider {
         let mut batch = LlamaBatch::new(n_batch, texts.len() as i32);
 
         for (seq_id, tokens) in tokenized_texts.iter().enumerate() {
-            batch.add_sequence(tokens, seq_id as i32, false).map_err(|e| {
-                EmbeddingError::Internal(format!(
-                    "Failed to add sequence {} to batch: {}",
-                    seq_id, e
-                ))
-            })?;
+            batch
+                .add_sequence(tokens, seq_id as i32, false)
+                .map_err(|e| {
+                    EmbeddingError::Internal(format!(
+                        "Failed to add sequence {} to batch: {}",
+                        seq_id, e
+                    ))
+                })?;
         }
 
         // Single decode for all sequences

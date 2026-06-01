@@ -4,19 +4,21 @@
 
 use crate::api::core::error::{CoreError, CoreResult};
 use crate::api::core::types::{ExecutionMetadata, QueryRequest, QueryResult, Row};
+use crate::core::metadata::SchemaManager;
 use crate::core::StatsManager;
 use crate::query::metadata::{CachedMetadataProvider, SchemaMetadataProvider};
+#[cfg(feature = "qdrant")]
+use crate::query::metadata::{
+    CompositeMetadataProvider, MetadataProvider, VectorIndexMetadataProvider,
+};
 use crate::query::{OptimizerEngine, QueryPipelineManager};
-use crate::core::metadata::SchemaManager;
 use crate::storage::StorageClient;
+#[cfg(feature = "qdrant")]
+use crate::sync::vector_sync::VectorSyncCoordinator;
 use crate::sync::SyncManager;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Instant;
-#[cfg(feature = "qdrant")]
-use crate::query::metadata::{CompositeMetadataProvider, MetadataProvider, VectorIndexMetadataProvider};
-#[cfg(feature = "qdrant")]
-use crate::sync::vector_sync::VectorSyncCoordinator;
 #[cfg(feature = "qdrant")]
 use vector_client::{VectorClientConfig, VectorManager};
 
@@ -63,8 +65,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ) -> Self {
         let optimizer_engine = Arc::new(OptimizerEngine::default());
 
-        let schema_provider =
-            Arc::new(SchemaMetadataProvider::new(schema_manager.clone(), None));
+        let schema_provider = Arc::new(SchemaMetadataProvider::new(schema_manager.clone(), None));
         let cached_provider = Arc::new(CachedMetadataProvider::new(schema_provider));
 
         Self {
