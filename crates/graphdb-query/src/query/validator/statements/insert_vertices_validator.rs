@@ -297,18 +297,16 @@ impl InsertVerticesValidator {
                 let value = self.evaluate_expression(value_expr)?;
 
                 // Check NOT NULL constraint
-                if !prop_def.nullable {
-                    if value.is_null() {
-                        return Err(ValidationError::new(
-                            format!(
-                                "NOT NULL constraint violation for property '{}' in vertex {}, tag {}: NULL value is not allowed",
-                                prop_name,
-                                ctx.row_idx + 1,
-                                ctx.tag_idx + 1,
-                            ),
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
+                if !prop_def.nullable && value.is_null() {
+                    return Err(ValidationError::new(
+                        format!(
+                            "NOT NULL constraint violation for property '{}' in vertex {}, tag {}: NULL value is not allowed",
+                            prop_name,
+                            ctx.row_idx + 1,
+                            ctx.tag_idx + 1,
+                        ),
+                        ValidationErrorType::SemanticError,
+                    ));
                 }
 
                 // Check type compatibility for literal values
@@ -384,13 +382,13 @@ impl InsertVerticesValidator {
 
         // String values are accepted for Date/DateTime/Time/Timestamp types
         // (conversion happens at runtime)
-        if value_type == &DataType::String {
-            if matches!(
+        if value_type == &DataType::String
+            && matches!(
                 schema_type,
                 DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp
-            ) {
-                return true;
-            }
+            )
+        {
+            return true;
         }
 
         // Bool is compatible with Bool

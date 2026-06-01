@@ -552,8 +552,8 @@ pub fn get_edge_by_i64(
     )
 }
 
-fn resolve_internal_id_from_vertex_tables<'a>(
-    vertex_tables: &'a HashMap<LabelId, VertexTable>,
+fn resolve_internal_id_from_vertex_tables(
+    vertex_tables: &HashMap<LabelId, VertexTable>,
     label: LabelId,
     id: i64,
     ts: Timestamp,
@@ -567,8 +567,8 @@ fn resolve_internal_id_from_vertex_tables<'a>(
     }
 }
 
-fn resolve_internal_id_from_vertex_tables_str<'a>(
-    vertex_tables: &'a HashMap<LabelId, VertexTable>,
+fn resolve_internal_id_from_vertex_tables_str(
+    vertex_tables: &HashMap<LabelId, VertexTable>,
     label: LabelId,
     id: &str,
     ts: Timestamp,

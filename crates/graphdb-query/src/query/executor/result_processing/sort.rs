@@ -530,7 +530,6 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                         col_names
                             .iter()
                             .position(|name| name == &col_name)
-                            .map(|idx| idx)
                     })
                     .filter(|&idx| idx < row.len())
                     .map(|idx| row[idx].clone());

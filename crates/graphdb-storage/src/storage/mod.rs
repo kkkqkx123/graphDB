@@ -21,16 +21,12 @@ pub(crate) mod vertex;
 mod test_mock;
 
 pub use engine::graph_storage::GraphStorage;
-pub use engine::persistence_coordinator::{CheckpointStats, PersistenceConfig};
 pub use engine::sync_wrapper::SyncWrapper;
-pub use index::secondary::IndexGcConfig;
 pub use storage_client::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
     StorageWriter,
 };
 
-pub use crate::core::metadata::SchemaManager;
 pub use crate::core::StorageError;
-pub use crate::core::StorageResult;
 
 pub use test_mock::MockStorage;

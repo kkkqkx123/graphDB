@@ -182,6 +182,7 @@ define_binary_input_node! {
 }
 
 impl AllPathsNode {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         left: PlanNodeEnum,
         right: PlanNodeEnum,

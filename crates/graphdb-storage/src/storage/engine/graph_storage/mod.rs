@@ -20,9 +20,6 @@ mod test;
 
 pub use context::GraphStorageContext;
 
-pub use crate::storage::engine::transaction::{
-    execute_in_transaction, with_rollback, TransactionWriter,
-};
 pub use transaction_config::{DurabilityLevel, IsolationLevel, TransactionConfig, WalSyncMode};
 
 use std::path::PathBuf;

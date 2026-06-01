@@ -201,9 +201,8 @@ impl ClausePlanner for ReturnClausePlanner {
             }
 
             if self.distinct {
-                match DedupNode::new(final_node.clone()) {
-                    Ok(dedup) => final_node = dedup.into_enum(),
-                    Err(_) => {}
+                if let Ok(dedup) = DedupNode::new(final_node.clone()) {
+                    final_node = dedup.into_enum();
                 }
             }
 

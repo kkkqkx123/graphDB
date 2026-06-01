@@ -14,24 +14,17 @@ pub mod alp;
 pub mod bitpacking;
 pub mod dictionary;
 pub mod fsst;
-pub mod lazy;
 pub mod rle;
 pub mod selector;
-pub mod varint;
 
 use crate::core::{DataType, Value};
 
-pub use alp::{select_alp, select_alp_f32, AlpColumn, AlpEncoder, AlpFloatType};
-pub use bitpacking::{select_bitpacking, BitPackedColumn, BitPackedIntColumn, BitPackedIterator};
-pub use dictionary::{DictionaryColumn, DictionaryEncoder, StringDictionary};
-pub use fsst::{select_fsst, FsstColumn, FsstEncoder, FsstSymbolTable};
-pub use lazy::{LazyCompare, LazyDecompress, LazyFilter, LazyFind, LazyStats};
-pub use rle::{RleBoolColumn, RleEncoder, RleIntColumn, RleRun};
-pub use selector::{
-    ColumnStats, CompressionConfig, CompressionSelector, DataTemperature, TierConfig,
-    TieredCompressionStrategy,
-};
-pub use varint::{SignedVarint, Varint, VarintReader, VarintWriter};
+pub use alp::AlpColumn;
+pub use bitpacking::BitPackedIntColumn;
+pub use dictionary::DictionaryColumn;
+pub use fsst::{FsstColumn, FsstEncoder};
+pub use rle::{RleBoolColumn, RleIntColumn};
+pub use selector::{ColumnStats, CompressionSelector};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EncodingType {

@@ -224,11 +224,11 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                 // Handle Value::Edge: extract src/dst from the edge value
                 // This is needed for MATCH ... DELETE EDGE e where e is an edge variable
                 let src_vid = match src {
-                    Value::Edge(ref e) => e.src.clone(),
+                    Value::Edge(ref e) => e.src,
                     other => VertexId::try_from(other).map_err(DBError::from)?,
                 };
                 let dst_vid = match dst {
-                    Value::Edge(ref e) => e.dst.clone(),
+                    Value::Edge(ref e) => e.dst,
                     other => VertexId::try_from(other).map_err(DBError::from)?,
                 };
                 let should_delete = if let Some(ref expression) = condition_expression {
@@ -574,11 +574,11 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                     // Handle Value::Edge: extract src/dst from the edge value
                     // This is needed for MATCH ... DELETE EDGE e where e is an edge variable
                     let src_vid = match &src {
-                        Value::Edge(e) => e.src.clone(),
+                        Value::Edge(e) => e.src,
                         other => VertexId::try_from(other).map_err(DBError::from)?,
                     };
                     let dst_vid = match &dst {
-                        Value::Edge(e) => e.dst.clone(),
+                        Value::Edge(e) => e.dst,
                         other => VertexId::try_from(other).map_err(DBError::from)?,
                     };
 

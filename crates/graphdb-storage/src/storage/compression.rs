@@ -34,11 +34,11 @@ impl CompressionType {
         }
     }
 
-    pub fn to_u8(&self) -> u8 {
+    pub fn to_u8(self) -> u8 {
         match self {
             CompressionType::None => Self::NONE_TAG,
             CompressionType::Zstd { level } => {
-                let clamped_level = (*level).clamp(1, 15) as u8;
+                let clamped_level = level.clamp(1, 15) as u8;
                 Self::ZSTD_TAG | (clamped_level << 4)
             }
         }

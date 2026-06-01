@@ -222,7 +222,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                         // Combine the left path (start -> meeting) and right path (end -> meeting).
                         if let Some(left_npath) = visited_left.get(&current_id) {
                             let total_len = left_npath.len() + current_npath.len();
-                            let exceeds_depth = max_depth.map_or(false, |max_d| total_len > max_d);
+                            let exceeds_depth = max_depth.is_some_and(|max_d| total_len > max_d);
                             if !exceeds_depth {
                                 if let Some(combined_path) =
                                     combine_npaths(left_npath, &current_npath)
@@ -275,7 +275,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             for (ref next_id, ref next_npath) in &right_next {
                 if let Some(left_npath) = visited_left.get(next_id) {
                     let total_len = left_npath.len() + next_npath.len();
-                    let exceeds_depth = max_depth.map_or(false, |max_d| total_len > max_d);
+                    let exceeds_depth = max_depth.is_some_and(|max_d| total_len > max_d);
                     if !exceeds_depth {
                         if let Some(combined_path) = combine_npaths(left_npath, next_npath) {
                             if !has_duplicate_edges(&combined_path) {

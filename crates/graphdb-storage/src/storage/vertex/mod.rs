@@ -18,11 +18,6 @@ pub mod vertex_timestamp;
 
 use crate::storage::storage_types::StoragePropertyDef;
 
-pub use column_store::{
-    element_size, is_variable_length_type, Column, ColumnStorage, ColumnStore, FixedWidthColumn,
-    VariableWidthColumn,
-};
-pub use encoding::{select_encoding, EncodingStats, EncodingType};
 pub use id_indexer::{IdIndexer, IdKey};
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;

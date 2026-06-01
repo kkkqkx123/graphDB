@@ -341,33 +341,6 @@ impl Default for AlpColumn {
     }
 }
 
-pub fn select_alp(values: &[f64]) -> bool {
-    if values.len() < 100 {
-        return false;
-    }
-
-    let has_decimal = values.iter().any(|&v| {
-        if v.is_finite() {
-            let int_part = v.trunc();
-            (v - int_part).abs() > 1e-9
-        } else {
-            false
-        }
-    });
-
-    if !has_decimal {
-        return false;
-    }
-
-    let encoder = AlpEncoder::analyze(values, AlpFloatType::Float64);
-    encoder.bit_width() < 48
-}
-
-pub fn select_alp_f32(values: &[f32]) -> bool {
-    let f64_values: Vec<f64> = values.iter().map(|&v| v as f64).collect();
-    select_alp(&f64_values)
-}
-
 impl super::EncodedColumn for AlpColumn {
     fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
         self.get_value(row_idx)

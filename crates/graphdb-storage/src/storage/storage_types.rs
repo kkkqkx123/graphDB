@@ -268,6 +268,7 @@ impl From<CorePropertyDef> for FieldDef {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum GeoShape {
     Point,
@@ -308,8 +309,3 @@ impl From<FieldDef> for ColumnDef {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum EncodingFormat {
-    Nebula,
-    Simple,
-}

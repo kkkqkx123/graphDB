@@ -635,7 +635,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                     if index.schema_name == tag.name {
                         for field in &index.fields {
                             if let Some(prop_value) = tag.properties.get(&field.name) {
-                                self.undo_log.add(IndexUndoEntry::DeleteVertexIndex {
+                                self.undo_log.add(IndexUndoEntry::DeleteVertex {
                                     space_id,
                                     index_name: index.name.clone(),
                                     vertex_id: vertex_id.clone(),
@@ -660,7 +660,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                 if index.schema_name == edge.edge_type {
                     for field in &index.fields {
                         if let Some(prop_value) = edge.props.get(&field.name) {
-                            self.undo_log.add(IndexUndoEntry::DeleteEdgeIndex {
+                            self.undo_log.add(IndexUndoEntry::DeleteEdge {
                                 space_id,
                                 index_name: index.name.clone(),
                                 src: Value::from(edge.src),
@@ -686,7 +686,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                     if index.schema_name == tag.name {
                         for field in &index.fields {
                             if let Some(prop_value) = tag.properties.get(&field.name) {
-                                self.undo_log.add(IndexUndoEntry::InsertVertexIndex {
+                                self.undo_log.add(IndexUndoEntry::InsertVertex {
                                     space_id,
                                     index_name: index.name.clone(),
                                     vertex_id: vertex_id.clone(),
@@ -711,7 +711,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
                 if index.schema_name == edge.edge_type {
                     for field in &index.fields {
                         if let Some(prop_value) = edge.props.get(&field.name) {
-                            self.undo_log.add(IndexUndoEntry::InsertEdgeIndex {
+                            self.undo_log.add(IndexUndoEntry::InsertEdge {
                                 space_id,
                                 index_name: index.name.clone(),
                                 src: Value::from(edge.src),
@@ -765,7 +765,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
 #[derive(Debug, Clone)]
 pub enum IndexUndoEntry {
     /// Undo vertex index insertion (delete the index entry)
-    InsertVertexIndex {
+    InsertVertex {
         space_id: u64,
         index_name: String,
         vertex_id: Value,
@@ -773,7 +773,7 @@ pub enum IndexUndoEntry {
         prop_value: Value,
     },
     /// Undo vertex index deletion (re-insert the index entry)
-    DeleteVertexIndex {
+    DeleteVertex {
         space_id: u64,
         index_name: String,
         vertex_id: Value,
@@ -781,7 +781,7 @@ pub enum IndexUndoEntry {
         prop_value: Value,
     },
     /// Undo edge index insertion (delete the index entry)
-    InsertEdgeIndex {
+    InsertEdge {
         space_id: u64,
         index_name: String,
         src: Value,
@@ -790,7 +790,7 @@ pub enum IndexUndoEntry {
         prop_value: Value,
     },
     /// Undo edge index deletion (re-insert the index entry)
-    DeleteEdgeIndex {
+    DeleteEdge {
         space_id: u64,
         index_name: String,
         src: Value,
@@ -798,76 +798,6 @@ pub enum IndexUndoEntry {
         prop_name: String,
         prop_value: Value,
     },
-}
-
-impl IndexUndoEntry {
-    pub fn insert_vertex_index(
-        space_id: u64,
-        index_name: String,
-        vertex_id: Value,
-        prop_name: String,
-        prop_value: Value,
-    ) -> Self {
-        Self::InsertVertexIndex {
-            space_id,
-            index_name,
-            vertex_id,
-            prop_name,
-            prop_value,
-        }
-    }
-
-    pub fn delete_vertex_index(
-        space_id: u64,
-        index_name: String,
-        vertex_id: Value,
-        prop_name: String,
-        prop_value: Value,
-    ) -> Self {
-        Self::DeleteVertexIndex {
-            space_id,
-            index_name,
-            vertex_id,
-            prop_name,
-            prop_value,
-        }
-    }
-
-    pub fn insert_edge_index(
-        space_id: u64,
-        index_name: String,
-        src: Value,
-        dst: Value,
-        prop_name: String,
-        prop_value: Value,
-    ) -> Self {
-        Self::InsertEdgeIndex {
-            space_id,
-            index_name,
-            src,
-            dst,
-            prop_name,
-            prop_value,
-        }
-    }
-
-    pub fn delete_edge_index(
-        space_id: u64,
-        index_name: String,
-        src: Value,
-        dst: Value,
-        prop_name: String,
-        prop_value: Value,
-    ) -> Self {
-        Self::DeleteEdgeIndex {
-            space_id,
-            index_name,
-            src,
-            dst,
-            prop_name,
-            prop_value,
-        }
-    }
 }
 
 /// Index undo log manager
@@ -911,7 +841,7 @@ impl IndexUndoLog {
     pub fn execute_undo<I: IndexDataManager>(&mut self, manager: &I) -> Result<(), StorageError> {
         while let Some(entry) = self.entries.pop() {
             match entry {
-                IndexUndoEntry::InsertVertexIndex {
+                IndexUndoEntry::InsertVertex {
                     space_id,
                     index_name,
                     vertex_id,
@@ -926,7 +856,7 @@ impl IndexUndoLog {
                         MAX_TIMESTAMP,
                     )?;
                 }
-                IndexUndoEntry::DeleteVertexIndex {
+                IndexUndoEntry::DeleteVertex {
                     space_id,
                     index_name,
                     vertex_id,
@@ -940,7 +870,7 @@ impl IndexUndoLog {
                         &[(prop_name, prop_value)],
                     )?;
                 }
-                IndexUndoEntry::InsertEdgeIndex {
+                IndexUndoEntry::InsertEdge {
                     space_id,
                     index_name,
                     src,
@@ -957,7 +887,7 @@ impl IndexUndoLog {
                         MAX_TIMESTAMP,
                     )?;
                 }
-                IndexUndoEntry::DeleteEdgeIndex {
+                IndexUndoEntry::DeleteEdge {
                     space_id,
                     index_name,
                     src,

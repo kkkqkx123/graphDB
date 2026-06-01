@@ -390,24 +390,6 @@ impl BitPackedIntColumn {
     }
 }
 
-pub fn select_bitpacking(values: &[i64]) -> bool {
-    if values.len() < 100 {
-        return false;
-    }
-
-    let min_val = *values.iter().min().unwrap_or(&0);
-    let max_val = *values.iter().max().unwrap_or(&0);
-    let range = (max_val - min_val) as u64;
-
-    let bit_width = if range == 0 {
-        1
-    } else {
-        (64 - range.leading_zeros()) as u8
-    };
-
-    bit_width < 32
-}
-
 impl super::EncodedColumn for BitPackedIntColumn {
     fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
         BitPackedIntColumn::get(self, row_idx)

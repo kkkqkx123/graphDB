@@ -286,48 +286,45 @@ impl InsertEdgesValidator {
 
         // Validate property constraints (NOT NULL, type compatibility) if schema manager is available
         if let (Some(ref schema_manager), Some(space_name)) = (&self.schema_manager, space_name) {
-            match schema_manager.get_edge_type(space_name, edge_name) {
-                Ok(Some(edge_type_info)) => {
-                    for (prop_name, value_expr) in prop_names.iter().zip(values.iter()) {
-                        if let Some(prop_def) = edge_type_info
-                            .properties
-                            .iter()
-                            .find(|p| &p.name == prop_name)
-                        {
-                            let value = self.evaluate_expression(value_expr)?;
+            if let Ok(Some(edge_type_info)) = schema_manager.get_edge_type(space_name, edge_name) {
+                for (prop_name, value_expr) in prop_names.iter().zip(values.iter()) {
+                    if let Some(prop_def) = edge_type_info
+                        .properties
+                        .iter()
+                        .find(|p| &p.name == prop_name)
+                    {
+                        let value = self.evaluate_expression(value_expr)?;
 
-                            // Check NOT NULL constraint
-                            if !prop_def.nullable && value.is_null() {
+                        // Check NOT NULL constraint
+                        if !prop_def.nullable && value.is_null() {
+                            return Err(ValidationError::new(
+                                format!(
+                                    "NOT NULL constraint violation for edge property '{}': NULL value is not allowed",
+                                    prop_name,
+                                ),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+
+                        // Check type compatibility for literal values
+                        if !value.is_null() && !value.is_empty() {
+                            let value_type = value.get_type();
+                            let schema_type = &prop_def.data_type;
+
+                            if !Self::is_type_compatible_for_insert(&value_type, schema_type) {
                                 return Err(ValidationError::new(
                                     format!(
-                                        "NOT NULL constraint violation for edge property '{}': NULL value is not allowed",
+                                        "Type mismatch for edge property '{}': expected type {}, got value type {}",
                                         prop_name,
+                                        schema_type,
+                                        value_type,
                                     ),
                                     ValidationErrorType::SemanticError,
                                 ));
                             }
-
-                            // Check type compatibility for literal values
-                            if !value.is_null() && !value.is_empty() {
-                                let value_type = value.get_type();
-                                let schema_type = &prop_def.data_type;
-
-                                if !Self::is_type_compatible_for_insert(&value_type, schema_type) {
-                                    return Err(ValidationError::new(
-                                        format!(
-                                            "Type mismatch for edge property '{}': expected type {}, got value type {}",
-                                            prop_name,
-                                            schema_type,
-                                            value_type,
-                                        ),
-                                        ValidationErrorType::SemanticError,
-                                    ));
-                                }
-                            }
                         }
                     }
                 }
-                _ => {}
             }
         }
 
@@ -400,13 +397,13 @@ impl InsertEdgesValidator {
 
         // String values are accepted for Date/DateTime/Time/Timestamp types
         // (conversion happens at runtime)
-        if value_type == &DataType::String {
-            if matches!(
+        if value_type == &DataType::String
+            && matches!(
                 schema_type,
                 DataType::Date | DataType::DateTime | DataType::Time | DataType::Timestamp
-            ) {
-                return true;
-            }
+            )
+        {
+            return true;
         }
 
         false

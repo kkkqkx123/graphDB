@@ -407,27 +407,6 @@ impl Default for FsstColumn {
     }
 }
 
-pub fn select_fsst(strings: &[&str]) -> bool {
-    if strings.is_empty() {
-        return false;
-    }
-
-    if strings.len() < 100 {
-        return false;
-    }
-
-    let total_len: usize = strings.iter().map(|s| s.len()).sum();
-    let avg_len = total_len / strings.len();
-
-    let unique_count = strings
-        .iter()
-        .collect::<std::collections::HashSet<_>>()
-        .len();
-    let cardinality_ratio = unique_count as f64 / strings.len() as f64;
-
-    avg_len >= 20 && cardinality_ratio > 0.5
-}
-
 impl super::EncodedColumn for FsstColumn {
     fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
         self.get(row_idx).map(crate::core::Value::String)

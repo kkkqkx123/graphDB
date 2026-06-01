@@ -38,23 +38,7 @@ use crate::core::{Edge, Value};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::utils::props_to_map;
 
-pub use csr::Csr;
-pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
-pub use edge_table::{
-    EdgeTable, EdgeTableScanIterator, EdgeVertexIterator, UpdateEdgePropertyByOffsetParams,
-};
-
-pub use mutable_csr::{
-    LoadFromPartsParams, MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator,
-};
-pub use mutable_csr_variant::{CsrEdgeIterator, CsrIterator, MutableCsrVariant};
-pub use property_table::PropertyTable;
-pub use property_table::{prop_index_to_offset, prop_offset_to_index, PROP_OFFSET_NONE};
-pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
-
-pub use crate::core::types::{
-    EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP, MAX_TIMESTAMP,
-};
+pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
 
 pub const INVALID_EDGE_ID: u64 = u64::MAX;
 

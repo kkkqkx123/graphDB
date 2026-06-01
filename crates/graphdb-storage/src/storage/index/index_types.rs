@@ -22,9 +22,6 @@
 use crate::core::types::Timestamp;
 use crate::core::StorageResult;
 
-// Re-export fundamental types from core for backward compatibility
-pub use crate::core::types::{EdgeId, VertexId};
-
 pub type PropOffset = u32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -54,18 +51,6 @@ impl IndexEstimate {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PrimaryIndexType {
-    EdgeId,
-    Degree,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SecondaryIndexType {
-    VertexProperty,
-    EdgeProperty,
-}
-
 pub trait SecondaryIndex: Send + Sync {
     fn category(&self) -> IndexCategory {
         IndexCategory::Secondary
@@ -82,20 +67,6 @@ pub trait SecondaryIndex: Send + Sync {
     fn memory_usage(&self) -> usize;
 
     fn gc_tombstones(&self, safe_ts: Timestamp) -> StorageResult<usize>;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IndexKey {
-    pub space_id: u64,
-    pub index_type: IndexKeyType,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IndexKeyType {
-    VertexForward,
-    VertexReverse,
-    EdgeForward,
-    EdgeReverse,
 }
 
 #[derive(Debug, Clone)]
