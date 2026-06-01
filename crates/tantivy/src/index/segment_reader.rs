@@ -154,8 +154,6 @@ impl SegmentReader {
 
         let store_file = segment.open_read(SegmentComponent::Store)?;
 
-        crate::fail_point!("SegmentReader::open#middle");
-
         let postings_file = segment.open_read(SegmentComponent::Postings)?;
         let postings_composite = CompositeFile::open(&postings_file)?;
 

@@ -14,6 +14,17 @@ use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use std::sync::Arc;
 
+use common::TestScenario;
+
+fn new_scenario() -> TestScenario {
+    TestScenario::new().expect("Failed to create test scenario")
+}
+
+fn with_space(scenario: TestScenario, space: &str) -> TestScenario {
+    scenario.exec_dcl(&format!("CREATE SPACE {} WITH DIMENSION=128", space))
+        .assert_success()
+}
+
 // ==================== GRANT Parser Tests ====================
 
 #[test]
@@ -22,11 +33,7 @@ fn test_grant_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(
-        result.is_ok(),
-        "GRANT basic parsing should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "GRANT basic parsing should succeed: {:?}", result.err());
 
     let stmt = result.expect("GRANT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GRANT");
@@ -38,11 +45,7 @@ fn test_grant_parser_without_role_keyword() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(
-        result.is_ok(),
-        "GRANT without ROLE keyword parsing should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "GRANT without ROLE keyword parsing should succeed: {:?}", result.err());
 
     let stmt = result.expect("GRANT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GRANT");
@@ -61,12 +64,7 @@ fn test_grant_parser_all_roles() {
     for query in queries {
         let mut parser = Parser::new(query);
         let result = parser.parse();
-        assert!(
-            result.is_ok(),
-            "GRANT role {} parsing should succeed: {:?}",
-            query,
-            result.err()
-        );
+        assert!(result.is_ok(), "GRANT role {} parsing should succeed: {:?}", query, result.err());
     }
 }
 
@@ -78,11 +76,7 @@ fn test_revoke_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(
-        result.is_ok(),
-        "REVOKE basic parsing should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "REVOKE basic parsing should succeed: {:?}", result.err());
 
     let stmt = result.expect("REVOKE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REVOKE");
@@ -94,11 +88,7 @@ fn test_revoke_parser_without_role_keyword() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(
-        result.is_ok(),
-        "REVOKE without ROLE keyword parsing should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "REVOKE without ROLE keyword parsing should succeed: {:?}", result.err());
 
     let stmt = result.expect("REVOKE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REVOKE");
@@ -108,88 +98,32 @@ fn test_revoke_parser_without_role_keyword() {
 
 #[test]
 fn test_grant_revoke_execution() {
-    let test_storage = TestStorage::new().expect("Failed to create test storage");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    // Create user first
-    let create_result =
-        pipeline_manager.execute_query("CREATE USER alice WITH PASSWORD 'password123'");
-    assert!(
-        create_result.is_ok(),
-        "CREATE USER should succeed: {:?}",
-        create_result.err()
-    );
-
-    let create_space =
-        pipeline_manager.execute_query("CREATE SPACE test_space WITH DIMENSION=128");
-    assert!(
-        create_space.is_ok(),
-        "CREATE SPACE should succeed: {:?}",
-        create_space.err()
-    );
-
-    // Grant role
-    let grant_result = pipeline_manager.execute_query("GRANT ADMIN ON test_space TO alice");
-    assert!(
-        grant_result.is_ok(),
-        "GRANT should succeed: {:?}",
-        grant_result.err()
-    );
-
-    // Revoke role
-    let revoke_result = pipeline_manager.execute_query("REVOKE ADMIN ON test_space FROM alice");
-    assert!(
-        revoke_result.is_ok(),
-        "REVOKE should succeed: {:?}",
-        revoke_result.err()
-    );
-
-    // Drop user
-    let drop_result = pipeline_manager.execute_query("DROP USER alice");
-    assert!(
-        drop_result.is_ok(),
-        "DROP USER should succeed: {:?}",
-        drop_result.err()
-    );
+    new_scenario()
+        .exec_dcl("CREATE USER alice WITH PASSWORD 'password123'")
+        .assert_success()
+        .exec_dcl("CREATE SPACE test_space WITH DIMENSION=128")
+        .assert_success()
+        .exec_dcl("GRANT ADMIN ON test_space TO alice")
+        .assert_success()
+        // Verify role was granted via SHOW ROLES
+        .exec_dcl("SHOW ROLES IN test_space")
+        .assert_success()
+        .exec_dcl("REVOKE ADMIN ON test_space FROM alice")
+        .assert_success()
+        .exec_dcl("DROP USER alice")
+        .assert_success();
 }
 
 #[test]
 fn test_grant_multiple_roles() {
-    let test_storage = TestStorage::new().expect("Failed to create test storage");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let create_result =
-        pipeline_manager.execute_query("CREATE USER multi_role_user WITH PASSWORD 'password'");
-    assert!(
-        create_result.is_ok(),
-        "CREATE USER should succeed: {:?}",
-        create_result.err()
-    );
+    let mut scenario = new_scenario()
+        .exec_dcl("CREATE USER multi_role_user WITH PASSWORD 'password'")
+        .assert_success();
 
     for space_name in ["space1", "space2", "space3"] {
-        let create_space = pipeline_manager.execute_query(&format!(
-            "CREATE SPACE {} WITH DIMENSION=128",
-            space_name
-        ));
-        assert!(
-            create_space.is_ok(),
-            "CREATE SPACE should succeed: {:?}",
-            create_space.err()
-        );
+        scenario = scenario
+            .exec_dcl(&format!("CREATE SPACE {} WITH DIMENSION=128", space_name))
+            .assert_success();
     }
 
     let grant_queries = [
@@ -197,97 +131,154 @@ fn test_grant_multiple_roles() {
         "GRANT DBA ON space2 TO multi_role_user",
         "GRANT USER ON space3 TO multi_role_user",
     ];
-    for (i, q) in grant_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(q);
-        assert!(
-            result.is_ok(),
-            "GRANT {} should succeed: {:?}",
-            i,
-            result.err()
-        );
+    for q in &grant_queries {
+        scenario = scenario.exec_dcl(q).assert_success();
     }
+
+    // Verify roles via SHOW ROLES
+    scenario = scenario
+        .exec_dcl("SHOW ROLES")
+        .assert_success()
+        .exec_dcl("SHOW ROLES IN space1")
+        .assert_success();
 
     let revoke_queries = [
         "REVOKE ADMIN ON space1 FROM multi_role_user",
         "REVOKE DBA ON space2 FROM multi_role_user",
         "REVOKE USER ON space3 FROM multi_role_user",
     ];
-    for (i, q) in revoke_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(q);
-        assert!(
-            result.is_ok(),
-            "REVOKE {} should succeed: {:?}",
-            i,
-            result.err()
-        );
+    for q in &revoke_queries {
+        scenario = scenario.exec_dcl(q).assert_success();
     }
 
-    let drop_result = pipeline_manager.execute_query("DROP USER multi_role_user");
-    assert!(
-        drop_result.is_ok(),
-        "DROP USER should succeed: {:?}",
-        drop_result.err()
-    );
+    scenario
+        .exec_dcl("DROP USER multi_role_user")
+        .assert_success();
 }
 
 #[test]
 fn test_grant_nonexistent_user() {
-    let test_storage = TestStorage::new().expect("Failed to create test storage");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
-
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
-
-    let query = "GRANT ADMIN ON test_space TO nonexistent_user";
-    let result = pipeline_manager.execute_query(query);
-
-    assert!(result.is_err(), "GRANT to nonexistent user should fail");
+    new_scenario()
+        .exec_dcl("GRANT ADMIN ON test_space TO nonexistent_user")
+        .assert_error();
 }
 
 #[test]
 fn test_revoke_nonexistent_permission() {
-    let test_storage = TestStorage::new().expect("Failed to create test storage");
-    let storage = test_storage.storage();
-    let stats_manager = Arc::new(StatsManager::new());
+    new_scenario()
+        .exec_dcl("CREATE USER testuser WITH PASSWORD 'password'")
+        .assert_success()
+        .exec_dcl("CREATE SPACE test_space WITH DIMENSION=128")
+        .assert_success()
+        // Revoking a permission that was never granted
+        .exec_dcl("REVOKE ADMIN ON test_space FROM testuser")
+        .assert_success()
+        .exec_dcl("DROP USER testuser")
+        .assert_success();
+}
 
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
-        storage,
-        stats_manager,
-        Arc::new(OptimizerEngine::default()),
-    );
+#[test]
+fn test_revoke_nonexistent_user() {
+    new_scenario()
+        .exec_dcl("CREATE SPACE test_space WITH DIMENSION=128")
+        .assert_success()
+        // REVOKE from a user that was never created
+        .exec_dcl("REVOKE ADMIN ON test_space FROM nonexistent_user")
+        .assert_error();
+}
 
-    let create_result =
-        pipeline_manager.execute_query("CREATE USER testuser WITH PASSWORD 'password'");
-    assert!(
-        create_result.is_ok(),
-        "CREATE USER should succeed: {:?}",
-        create_result.err()
-    );
+#[test]
+fn test_grant_nonexistent_space() {
+    new_scenario()
+        .exec_dcl("CREATE USER alice WITH PASSWORD 'pass'")
+        .assert_success()
+        // GRANT on a space that was never created
+        .exec_dcl("GRANT ADMIN ON nonexistent_space TO alice")
+        .assert_error();
+}
 
-    let create_space =
-        pipeline_manager.execute_query("CREATE SPACE test_space WITH DIMENSION=128");
-    assert!(
-        create_space.is_ok(),
-        "CREATE SPACE should succeed: {:?}",
-        create_space.err()
-    );
+#[test]
+fn test_grant_duplicate_role() {
+    // Grant the same role twice — should be idempotent
+    new_scenario()
+        .exec_dcl("CREATE USER alice WITH PASSWORD 'pass'")
+        .assert_success()
+        .exec_dcl("CREATE SPACE test_space WITH DIMENSION=128")
+        .assert_success()
+        .exec_dcl("GRANT ADMIN ON test_space TO alice")
+        .assert_success()
+        // Duplicate grant should succeed (idempotent)
+        .exec_dcl("GRANT ADMIN ON test_space TO alice")
+        .assert_success()
+        .exec_dcl("DROP USER alice")
+        .assert_success();
+}
 
-    // Revoking a permission that doesn't exist may succeed (no-op) or fail depending on implementation
-    let revoke_result = pipeline_manager.execute_query("REVOKE ADMIN ON test_space FROM testuser");
-    assert!(
-        revoke_result.is_ok(),
-        "REVOKE should handle nonexistent permission gracefully: {:?}",
-        revoke_result.err()
-    );
+#[test]
+fn test_revoke_twice() {
+    // Revoke the same permission twice
+    new_scenario()
+        .exec_dcl("CREATE USER alice WITH PASSWORD 'pass'")
+        .assert_success()
+        .exec_dcl("CREATE SPACE test_space WITH DIMENSION=128")
+        .assert_success()
+        .exec_dcl("GRANT ADMIN ON test_space TO alice")
+        .assert_success()
+        .exec_dcl("REVOKE ADMIN ON test_space FROM alice")
+        .assert_success()
+        // Second revoke should succeed (no-op since already revoked)
+        .exec_dcl("REVOKE ADMIN ON test_space FROM alice")
+        .assert_success()
+        .exec_dcl("DROP USER alice")
+        .assert_success();
+}
 
-    let drop_result = pipeline_manager.execute_query("DROP USER testuser");
-    assert!(
-        drop_result.is_ok(),
-        "DROP USER should succeed: {:?}",
-        drop_result.err()
-    );
+#[test]
+fn test_grant_revoke_all_role_types() {
+    // Test GRANT/REVOKE cycle for all 5 role types
+    let mut scenario = new_scenario()
+        .exec_dcl("CREATE USER role_test WITH PASSWORD 'pass'")
+        .assert_success()
+        .exec_dcl("CREATE SPACE test_space WITH DIMENSION=128")
+        .assert_success();
+
+    for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
+        scenario = scenario
+            .exec_dcl(&format!("GRANT {} ON test_space TO role_test", role))
+            .assert_success();
+    }
+
+    for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
+        scenario = scenario
+            .exec_dcl(&format!("REVOKE {} ON test_space FROM role_test", role))
+            .assert_success();
+    }
+
+    scenario
+        .exec_dcl("DROP USER role_test")
+        .assert_success();
+}
+
+#[test]
+fn test_grant_multiple_users_same_space() {
+    // Grant multiple users roles on the same space
+    let mut scenario = new_scenario()
+        .exec_dcl("CREATE SPACE shared_space WITH DIMENSION=128")
+        .assert_success();
+
+    for user in ["alice", "bob", "charlie"] {
+        scenario = scenario
+            .exec_dcl(&format!("CREATE USER {} WITH PASSWORD 'pass'", user))
+            .assert_success()
+            .exec_dcl(&format!("GRANT DBA ON shared_space TO {}", user))
+            .assert_success();
+    }
+
+    for user in ["alice", "bob", "charlie"] {
+        scenario = scenario
+            .exec_dcl(&format!("REVOKE DBA ON shared_space FROM {}", user))
+            .assert_success()
+            .exec_dcl(&format!("DROP USER {}", user))
+            .assert_success();
+    }
 }

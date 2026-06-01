@@ -228,9 +228,6 @@ impl<'a, W: Write> FieldSerializer<'a, W> {
     /// If the current block is incomplete, it needs to be encoded
     /// using `VInt` encoding.
     pub fn close_term(&mut self) -> io::Result<()> {
-        crate::fail_point!("FieldSerializer::close_term", |msg: Option<String>| {
-            Err(io::Error::other(format!("{msg:?}")))
-        });
 
         if !self.term_open {
             return Ok(());

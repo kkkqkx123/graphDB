@@ -177,12 +177,6 @@ impl Directory for RamDirectory {
     }
 
     fn delete(&self, path: &Path) -> result::Result<(), DeleteError> {
-        crate::fail_point!("RamDirectory::delete", |_| {
-            Err(DeleteError::IoError {
-                io_error: Arc::new(io::Error::from(io::ErrorKind::Other)),
-                filepath: path.to_path_buf(),
-            })
-        });
         self.fs.write().unwrap().delete(path)
     }
 

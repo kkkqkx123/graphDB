@@ -55,12 +55,9 @@ impl TestScenario {
 
     // ==================== Execution Methods ====================
 
-    /// Execute a DDL statement
-    pub fn exec_ddl(mut self, query: &str) -> Self {
-        match self
-            .pipeline
-            .execute_query_with_space(query, self.current_space.clone())
-        {
+    /// Execute a DCL statement
+    pub fn exec_dcl(mut self, query: &str) -> Self {
+        match self.pipeline.execute_query_with_space(query, self.current_space.clone()) {
             Ok(result) => match &result {
                 ExecutionResult::Error(e) => {
                     self.last_error = Some(e.clone());
@@ -79,29 +76,24 @@ impl TestScenario {
         self
     }
 
+    /// Execute a DDL statement
+    pub fn exec_ddl(mut self, query: &str) -> Self {
+        self.exec_dcl(query)
+    }
+
     /// Execute a DML statement
     pub fn exec_dml(mut self, query: &str) -> Self {
-        match self
-            .pipeline
-            .execute_query_with_space(query, self.current_space.clone())
-        {
-            Ok(result) => match &result {
-                ExecutionResult::Error(e) => {
-                    self.last_error = Some(e.clone());
-                    self.last_result = Some(result);
-                }
-                _ => {
-                    self.last_result = Some(result);
-                    self.last_error = None;
-                }
-            },
-            Err(e) => {
-                self.last_error = Some(format!("{:?}", e));
-                self.last_result = None;
-            }
-        }
-        self
+        self.exec_dcl(query)
     }
+
+    /// Execute a DCL statement and return just the result for non-fluent use
+    pub fn exec_dcl_raw(&self, query: &str) -> graphdb::query::query_pipeline_manager::QueryResult {
+        self.pipeline
+            .execute_query_with_space(query, self.current_space.clone())
+            .expect(&format!("DCL query '{}' should not panic", query))
+    }
+
+    // ==================== Query Execution (generic) ====================
 
     /// Execute a query
     pub fn query(mut self, query: &str) -> Self {
