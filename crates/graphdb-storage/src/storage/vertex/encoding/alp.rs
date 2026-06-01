@@ -371,6 +371,13 @@ impl super::EncodedColumn for AlpColumn {
 mod tests {
     use super::*;
 
+    fn select_alp(values: &[f64]) -> bool {
+        if values.len() < 64 {
+            return false;
+        }
+        values.iter().any(|value| value.fract() != 0.0)
+    }
+
     #[test]
     fn test_alp_encoder_basic() {
         let values = vec![1.5, 2.5, 3.5, 4.5, 5.5];

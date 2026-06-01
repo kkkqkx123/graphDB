@@ -355,6 +355,6 @@ pub struct StorageStats {
     pub total_size_bytes: u64,
     /// Data size in bytes (vertex + edge data, excluding index structures)
     pub data_size_bytes: u64,
-    /// Index structure size in bytes (primary + secondary indexes)
+    /// Property index structure size in bytes
     pub index_size_bytes: u64,
 }

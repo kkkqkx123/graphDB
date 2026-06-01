@@ -116,7 +116,7 @@ pub fn edge_record_to_edge(
         src: src_vid,
         dst: dst_vid,
         edge_type: edge_type.to_string(),
-        ranking: 0,
+        ranking: record.rank,
         id: record.edge_id as i64,
         props,
     }

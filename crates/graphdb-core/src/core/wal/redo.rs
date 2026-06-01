@@ -20,6 +20,7 @@ pub struct InsertEdgeRedo {
     pub dst_label: LabelId,
     pub dst_oid: Vec<u8>,
     pub edge_label: LabelId,
+    pub rank: i64,
     pub properties: Vec<(String, Vec<u8>)>,
 }
 
@@ -38,6 +39,7 @@ pub struct UpdateEdgePropRedo {
     pub dst_label: LabelId,
     pub dst_oid: Vec<u8>,
     pub edge_label: LabelId,
+    pub rank: i64,
     pub prop_name: String,
     pub value: Vec<u8>,
 }
@@ -69,4 +71,5 @@ pub struct DeleteEdgeRedo {
     pub dst_label: LabelId,
     pub dst_oid: Vec<u8>,
     pub edge_label: LabelId,
+    pub rank: i64,
 }

@@ -82,6 +82,7 @@ pub struct InsertEdgeParams<'a> {
     pub src_id: &'a str,
     pub dst_label: LabelId,
     pub dst_id: &'a str,
+    pub rank: i64,
     pub properties: &'a [(String, Value)],
     pub ts: Timestamp,
 }
@@ -93,6 +94,7 @@ pub struct InsertEdgeParamsByI64<'a> {
     pub src_id: i64,
     pub dst_label: LabelId,
     pub dst_id: i64,
+    pub rank: i64,
     pub properties: &'a [(String, Value)],
     pub ts: Timestamp,
 }
@@ -104,6 +106,7 @@ pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
     pub src_id: &'a str,
     pub dst_label: LabelId,
     pub dst_id: &'a str,
+    pub rank: i64,
     pub prop_name: &'a str,
     pub value: &'a Value,
     pub ts: Timestamp,
@@ -477,9 +480,12 @@ impl PropertyGraph {
         src_id: &str,
         dst_label: LabelId,
         dst_id: &str,
+        rank: i64,
         ts: Timestamp,
     ) -> Option<EdgeRecord> {
-        core_ops::get_edge(self, edge_label, src_label, src_id, dst_label, dst_id, ts)
+        core_ops::get_edge(
+            self, edge_label, src_label, src_id, dst_label, dst_id, rank, ts,
+        )
     }
 
     pub fn get_edge_by_i64(
@@ -489,9 +495,12 @@ impl PropertyGraph {
         src_id: i64,
         dst_label: LabelId,
         dst_id: i64,
+        rank: i64,
         ts: Timestamp,
     ) -> Option<EdgeRecord> {
-        core_ops::get_edge_by_i64(self, edge_label, src_label, src_id, dst_label, dst_id, ts)
+        core_ops::get_edge_by_i64(
+            self, edge_label, src_label, src_id, dst_label, dst_id, rank, ts,
+        )
     }
 
     pub fn delete_edge(
@@ -501,9 +510,12 @@ impl PropertyGraph {
         src_id: &str,
         dst_label: LabelId,
         dst_id: &str,
+        rank: i64,
         ts: Timestamp,
     ) -> StorageResult<bool> {
-        core_ops::delete_edge(self, edge_label, src_label, src_id, dst_label, dst_id, ts)
+        core_ops::delete_edge(
+            self, edge_label, src_label, src_id, dst_label, dst_id, rank, ts,
+        )
     }
 
     pub fn update_edge_property(

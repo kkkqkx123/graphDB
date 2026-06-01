@@ -437,6 +437,11 @@ impl super::EncodedColumn for FsstColumn {
 mod tests {
     use super::*;
 
+    fn select_fsst(values: &[&str]) -> bool {
+        values.len() >= 64
+            && values.iter().map(|value| value.len()).sum::<usize>() / values.len() >= 16
+    }
+
     #[test]
     fn test_fsst_symbol_table() {
         let mut table = FsstSymbolTable::new();

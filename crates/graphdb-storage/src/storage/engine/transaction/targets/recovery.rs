@@ -67,6 +67,7 @@ impl RecoveryApplier for PropertyGraph {
             dst_label: redo.dst_label,
             dst_vid: VertexId::from_u64(dst_vid),
             edge_label: redo.edge_label,
+            rank: redo.rank,
         };
 
         {
@@ -137,6 +138,7 @@ impl RecoveryApplier for PropertyGraph {
             dst_label: redo.dst_label,
             dst_id: &dst_oid_str,
             edge_label: redo.edge_label,
+            rank: redo.rank,
         };
 
         {
@@ -190,6 +192,7 @@ impl RecoveryApplier for PropertyGraph {
         dst_label: LabelId,
         dst_oid: &[u8],
         edge_label: LabelId,
+        rank: i64,
         ts: Timestamp,
     ) -> StorageResult<()> {
         let src_oid_str = String::from_utf8_lossy(src_oid).to_string();
@@ -205,6 +208,7 @@ impl RecoveryApplier for PropertyGraph {
                 dst_label,
                 dst_vid: VertexId::from_u64(dst.internal_id as u64),
                 edge_label,
+                rank,
             };
 
             {

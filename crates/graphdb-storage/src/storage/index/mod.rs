@@ -5,19 +5,7 @@
 //!
 //! ## Index Classification
 //!
-//! ### Primary Indexes (CSR-Aware)
-//!
-//! Primary indexes are tightly coupled with CSR storage structure:
-//! - `edge_id_index`: Maps edge_id -> (src, dst, prop_offset)
-//! - `degree_index`: Maps vertex_id -> (out_degree, in_degree)
-//!
-//! Characteristics:
-//! - Native ID types (u64) for maximum performance
-//! - No MVCC overhead (always consistent with CSR)
-//! - Automatically maintained during DML operations
-//! - Unified management via `PrimaryIndexManager`
-//!
-//! ### Secondary Indexes (Property Indexes)
+//! ### Property Indexes
 //!
 //! Secondary indexes support complex property-based queries:
 //! - `vertex_index_manager`: Index on vertex properties
@@ -32,10 +20,6 @@
 //! ## Module Structure
 //!
 //! - `index_types`: Index classification traits and types
-//! - `primary`: Primary indexes (CSR-aware)
-//!   - `primary_index_manager`: Unified management for primary indexes
-//!   - `edge_id_index`: CSR-aware edge ID index for fast edge lookup
-//!   - `degree_index`: CSR-aware degree index for fast degree queries
 //! - `secondary`: Secondary indexes (Property-based)
 //!   - `vertex_index_manager`: BTreeMap-based vertex index management
 //!   - `edge_index_manager`: BTreeMap-based edge index management
@@ -45,7 +29,4 @@
 //!   - `index_gc_manager`: Background GC for tombstone cleanup
 
 pub mod index_types;
-pub mod primary;
 pub mod secondary;
-
-

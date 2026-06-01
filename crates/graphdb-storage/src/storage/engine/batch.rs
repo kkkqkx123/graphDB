@@ -260,7 +260,7 @@ impl<'a> EdgeBatchWriter<'a> {
         }
 
         for (src, dst, props) in self.buffer.drain(..) {
-            let _ = self.table.insert_edge(src, dst, &props, self.ts);
+            let _ = self.table.insert_edge(src, dst, 0, &props, self.ts);
         }
     }
 
@@ -448,6 +448,7 @@ mod tests {
             let result = table.insert_edge(
                 VertexId::from_u64(src),
                 VertexId::from_u64(dst),
+                0,
                 &[("weight".to_string(), Value::Double(i as f64 * 0.1))],
                 100,
             );

@@ -119,7 +119,7 @@ pub(crate) fn get_edge(
     src: &VertexId,
     dst: &VertexId,
     edge_type: &str,
-    _rank: i64,
+    rank: i64,
 ) -> StorageResult<Option<Edge>> {
     let edge_info = ctx
         .schema_manager
@@ -151,6 +151,7 @@ pub(crate) fn get_edge(
         &src_str,
         dst_label_id,
         &dst_str,
+        rank,
         ts,
     ) {
         let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
@@ -164,6 +165,7 @@ pub(crate) fn get_edge(
             src_int,
             dst_label_id,
             dst_int,
+            rank,
             ts,
         ) {
             let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
@@ -440,6 +442,7 @@ pub(crate) fn get_edge_with_schema(
         &src_str,
         dst_label_id,
         &dst_str,
+        0,
         ts,
     ) {
         let data = serialize_properties(&record.properties);

@@ -241,6 +241,7 @@ impl RecoveryManager {
                             redo.dst_label,
                             &redo.dst_oid,
                             redo.edge_label,
+                            redo.rank,
                             ts,
                         )?;
                         self.stats.wal_entries_replayed += 1;

@@ -173,6 +173,7 @@ pub struct UpdateEdgePropertyParams {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 /// Parameters for deleting edge
@@ -182,6 +183,7 @@ pub struct DeleteEdgeParam {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 /// Parameters for updating edge property with old value for undo
@@ -191,6 +193,7 @@ pub struct UpdateEdgePropertyWithUndoParam<'a> {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
     pub prop_name: &'a str,
     pub value: &'a [u8],
     pub old_value: PropertyValue,
@@ -557,6 +560,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             dst_label: param.dst_label,
             dst_vid: param.dst_vid,
             edge_label: param.edge_label,
+            rank: param.rank,
         };
         self.graph.update_edge_property(
             edge_param,
@@ -573,6 +577,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
                     dst_label: param.dst_label,
                     dst_vid: param.dst_vid.as_u64().unwrap_or(0),
                     edge_label: param.edge_label,
+                    rank: param.rank,
                     oe_offset: 0,
                     ie_offset: 0,
                     col_id: 0,
@@ -617,6 +622,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         dst_label: LabelId,
         dst_vid: VertexId,
         edge_label: LabelId,
+        rank: i64,
     ) -> UpdateTransactionResult<()> {
         let param = DeleteEdgeParam {
             src_label,
@@ -624,6 +630,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             dst_label,
             dst_vid,
             edge_label,
+            rank,
         };
         UpdateTarget::delete_edge(self.graph, param, self.timestamp)?;
 
@@ -634,6 +641,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
                 dst_label,
                 dst_vid: dst_vid.as_u64().unwrap_or(0),
                 edge_label,
+                rank,
                 oe_offset: 0,
                 ie_offset: 0,
             },

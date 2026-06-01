@@ -318,6 +318,7 @@ pub struct EdgeIdentifier {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 impl EdgeIdentifier {
@@ -327,6 +328,7 @@ impl EdgeIdentifier {
         dst_label: LabelId,
         dst_vid: VertexId,
         edge_label: LabelId,
+        rank: i64,
     ) -> Self {
         Self {
             src_label,
@@ -334,6 +336,7 @@ impl EdgeIdentifier {
             dst_label,
             dst_vid,
             edge_label,
+            rank,
         }
     }
 }
@@ -344,6 +347,7 @@ pub struct EdgeOperationContext {
     pub edge_key: EdgeKey,
     pub src_vid: VertexId,
     pub dst_vid: VertexId,
+    pub rank: i64,
     pub timestamp: Timestamp,
 }
 
@@ -354,12 +358,14 @@ impl EdgeOperationContext {
         edge_label: LabelId,
         src_vid: VertexId,
         dst_vid: VertexId,
+        rank: i64,
         timestamp: Timestamp,
     ) -> Self {
         Self {
             edge_key: EdgeKey::new(src_label, dst_label, edge_label),
             src_vid,
             dst_vid,
+            rank,
             timestamp,
         }
     }
@@ -393,11 +399,12 @@ impl EdgePropertyUpdateContext {
         dst_label: LabelId,
         dst_vid: VertexId,
         edge_label: LabelId,
+        rank: i64,
         property_name: String,
         timestamp: Timestamp,
     ) -> Self {
         Self {
-            edge_id: EdgeIdentifier::new(src_label, src_vid, dst_label, dst_vid, edge_label),
+            edge_id: EdgeIdentifier::new(src_label, src_vid, dst_label, dst_vid, edge_label, rank),
             property_name,
             timestamp,
         }
@@ -420,6 +427,7 @@ pub struct EdgeDeletionContextParams {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
     pub oe_offset: i32,
     pub ie_offset: i32,
     pub timestamp: Timestamp,
@@ -434,6 +442,7 @@ impl EdgeDeletionContext {
                 params.dst_label,
                 params.dst_vid,
                 params.edge_label,
+                params.rank,
             ),
             oe_offset: params.oe_offset,
             ie_offset: params.ie_offset,

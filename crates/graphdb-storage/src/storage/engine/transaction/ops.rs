@@ -24,6 +24,7 @@ pub struct AddEdgeParams {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 /// Parameters for delete_edge operation
@@ -33,6 +34,7 @@ pub struct DeleteEdgeParams {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 /// Parameters for update_edge_property_undo operation
@@ -42,6 +44,7 @@ pub struct UpdateEdgePropertyUndoParams {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 /// Parameters for insert_edge_undo operation
@@ -51,6 +54,7 @@ pub struct InsertEdgeUndoParams {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 /// Parameters for revert_delete_edge operation
@@ -60,6 +64,7 @@ pub struct RevertDeleteEdgeParams {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
 }
 
 /// Parameters for delete_edge_type operation
@@ -146,7 +151,7 @@ impl TransactionOps {
             .ok_or(InsertTransactionError::LabelNotFound(params.edge_label))?;
 
         let edge_id = edge_table
-            .insert_edge(params.src_vid, params.dst_vid, &props, ts)
+            .insert_edge(params.src_vid, params.dst_vid, params.rank, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
         Ok(edge_id)
@@ -308,7 +313,14 @@ impl TransactionOps {
         let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
         if let Some(table) = edge_tables.get_mut(&key) {
             table
-                .delete_edge_by_offset(params.src_vid, params.dst_vid, oe_offset, ie_offset, ts)
+                .delete_edge_by_offset(
+                    params.src_vid,
+                    params.dst_vid,
+                    params.rank,
+                    oe_offset,
+                    ie_offset,
+                    ts,
+                )
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         }
         Ok(())
@@ -327,6 +339,7 @@ impl TransactionOps {
                 .revert_delete_edge_by_offset(
                     params.src_vid,
                     params.dst_vid,
+                    params.rank,
                     crate::storage::storage_types::EdgeOffset(oe_offset),
                     crate::storage::storage_types::EdgeOffset(ie_offset),
                     ts,
@@ -375,7 +388,7 @@ impl TransactionOps {
             .ok_or(UndoLogError::LabelNotFound(params.edge_label))?;
 
         table
-            .insert_edge(params.src_vid, params.dst_vid, &props, ts)
+            .insert_edge(params.src_vid, params.dst_vid, params.rank, &props, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }
@@ -452,6 +465,7 @@ impl TransactionOps {
             .update_edge_property(
                 VertexId::from_int64(src_internal as i64),
                 VertexId::from_int64(dst_internal as i64),
+                params.rank,
                 prop_name,
                 value,
                 ts,
@@ -479,6 +493,7 @@ impl TransactionOps {
             .update_edge_property_by_offset(UpdateEdgePropertyByOffsetParams {
                 src: params.src_vid,
                 dst: params.dst_vid,
+                rank: params.rank,
                 oe_offset: crate::storage::storage_types::EdgeOffset(oe_offset),
                 ie_offset: crate::storage::storage_types::EdgeOffset(ie_offset),
                 prop_id,

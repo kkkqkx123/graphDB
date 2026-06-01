@@ -201,6 +201,7 @@ pub struct CreateUpdateEdgePropUndoParams {
     pub dst_label: LabelId,
     pub dst_vid: u64,
     pub edge_label: LabelId,
+    pub rank: i64,
     pub oe_offset: i32,
     pub ie_offset: i32,
     pub col_id: i32,
@@ -221,6 +222,7 @@ pub struct CreateRemoveEdgeUndoParams {
     pub dst_label: LabelId,
     pub dst_vid: u64,
     pub edge_label: LabelId,
+    pub rank: i64,
     pub oe_offset: i32,
     pub ie_offset: i32,
 }
@@ -241,6 +243,7 @@ impl RollbackHelper {
         src_label: LabelId,
         dst_label: LabelId,
         edge_label: LabelId,
+        rank: i64,
         src_vid: u64,
         dst_vid: u64,
         oe_offset: i32,
@@ -250,6 +253,7 @@ impl RollbackHelper {
             src_label,
             dst_label,
             edge_label,
+            rank,
             src_vid: VertexId::from_u64(src_vid),
             dst_vid: VertexId::from_u64(dst_vid),
             oe_offset,
@@ -278,6 +282,7 @@ impl RollbackHelper {
             dst_label: params.dst_label,
             dst_vid: VertexId::from_u64(params.dst_vid),
             edge_label: params.edge_label,
+            rank: params.rank,
             oe_offset: params.oe_offset,
             ie_offset: params.ie_offset,
             col_id: params.col_id,
@@ -300,6 +305,7 @@ impl RollbackHelper {
             dst_label: params.dst_label,
             dst_vid: VertexId::from_u64(params.dst_vid),
             edge_label: params.edge_label,
+            rank: params.rank,
             oe_offset: params.oe_offset,
             ie_offset: params.ie_offset,
         })
@@ -384,7 +390,7 @@ mod tests {
         let undo = RollbackHelper::create_insert_vertex_undo(1, 100);
         assert!(undo.description().contains("InsertVertexUndo"));
 
-        let undo = RollbackHelper::create_insert_edge_undo(1, 2, 3, 100, 200, 0, 0);
+        let undo = RollbackHelper::create_insert_edge_undo(1, 2, 3, 0, 100, 200, 0, 0);
         assert!(undo.description().contains("InsertEdgeUndo"));
 
         let undo =

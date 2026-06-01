@@ -82,6 +82,7 @@ pub struct AddEdgeInsertParam<'a> {
     pub dst_label: LabelId,
     pub dst_vid: VertexId,
     pub edge_label: LabelId,
+    pub rank: i64,
     pub properties: &'a [(String, Vec<u8>)],
     pub ts: Timestamp,
 }
@@ -242,6 +243,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
             dst_label: param.dst_label,
             dst_oid,
             edge_label: param.edge_label,
+            rank: param.rank,
             properties: param.properties.to_vec(),
         };
         self.serialize_redo(WalOpType::InsertEdge, &redo)?;
@@ -366,6 +368,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
                         dst_label: redo.dst_label,
                         dst_vid,
                         edge_label: redo.edge_label,
+                        rank: redo.rank,
                         properties: &redo.properties,
                         ts: self.timestamp,
                     };

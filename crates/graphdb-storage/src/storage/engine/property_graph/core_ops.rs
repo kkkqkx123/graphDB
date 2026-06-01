@@ -17,6 +17,13 @@ use super::{
 
 use std::sync::atomic::Ordering;
 
+fn external_id_to_vertex_id(external_id: &str) -> VertexId {
+    external_id
+        .parse::<i64>()
+        .map(VertexId::from_int64)
+        .unwrap_or_else(|_| VertexId::from_string(external_id))
+}
+
 pub fn insert_vertex(
     graph: &PropertyGraph,
     label: LabelId,
@@ -99,7 +106,7 @@ pub fn get_vertex(
     {
         return Some(VertexRecord {
             internal_id: cached.internal_id,
-            vid: VertexId::from_u64(cached.internal_id as u64),
+            vid: external_id_to_vertex_id(&cached.external_id),
             properties: cached.properties,
         });
     }
@@ -196,7 +203,7 @@ pub fn get_vertex_by_internal_id(
     {
         return Some(VertexRecord {
             internal_id: cached.internal_id,
-            vid: VertexId::from_u64(cached.internal_id as u64),
+            vid: external_id_to_vertex_id(&cached.external_id),
             properties: cached.properties,
         });
     }
@@ -398,6 +405,7 @@ pub fn insert_edge(graph: &PropertyGraph, params: InsertEdgeParams) -> StorageRe
     let offset = edge_table.insert_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
+        params.rank,
         params.properties,
         params.ts,
     )?;
@@ -454,6 +462,7 @@ pub fn insert_edge_by_i64(
     let offset = edge_table.insert_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
+        params.rank,
         params.properties,
         params.ts,
     )?;
@@ -469,6 +478,7 @@ pub fn get_edge(
     src_id: &str,
     dst_label: LabelId,
     dst_id: &str,
+    rank: i64,
     ts: Timestamp,
 ) -> Option<EdgeRecord> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -503,6 +513,7 @@ pub fn get_edge(
     edge_table.get_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
+        rank,
         ts,
     )
 }
@@ -514,6 +525,7 @@ pub fn get_edge_by_i64(
     src_id: i64,
     dst_label: LabelId,
     dst_id: i64,
+    rank: i64,
     ts: Timestamp,
 ) -> Option<EdgeRecord> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -548,6 +560,7 @@ pub fn get_edge_by_i64(
     edge_table.get_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
+        rank,
         ts,
     )
 }
@@ -589,6 +602,7 @@ pub fn delete_edge(
     src_id: &str,
     dst_label: LabelId,
     dst_id: &str,
+    rank: i64,
     ts: Timestamp,
 ) -> StorageResult<bool> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -630,6 +644,7 @@ pub fn delete_edge(
     let deleted = edge_table.delete_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
+        rank,
         ts,
     )?;
     if deleted {
@@ -690,6 +705,7 @@ pub fn update_edge_property(
     let updated = edge_table.update_edge_property(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
+        params.rank,
         params.prop_name,
         params.value,
         params.ts,

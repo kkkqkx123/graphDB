@@ -261,6 +261,7 @@ pub(crate) fn insert_edge(ctx: &GraphStorageContext, space: &str, edge: Edge) ->
                         src_id,
                         dst_label: dst_label_id,
                         dst_id,
+                        rank: edge.ranking,
                         properties: &props,
                         ts,
                     })?;
@@ -273,6 +274,7 @@ pub(crate) fn insert_edge(ctx: &GraphStorageContext, space: &str, edge: Edge) ->
                         src_id: &src_str,
                         dst_label: dst_label_id,
                         dst_id: &dst_str,
+                        rank: edge.ranking,
                         properties: &props,
                         ts,
                     })?;
@@ -304,7 +306,7 @@ pub(crate) fn delete_edge(
     src: &VertexId,
     dst: &VertexId,
     edge_type: &str,
-    _rank: i64,
+    rank: i64,
 ) -> StorageResult<()> {
     let space_info = ctx
         .schema_manager
@@ -334,6 +336,7 @@ pub(crate) fn delete_edge(
                     &src_str,
                     dst_label_id,
                     &dst_str,
+                    rank,
                     ts,
                 )?;
 
@@ -465,6 +468,7 @@ pub(crate) fn insert_edge_data(
             src_id,
             dst_label: dst_label_id,
             dst_id,
+            rank: info.rank,
             properties: &info.props,
             ts,
         })
@@ -477,6 +481,7 @@ pub(crate) fn insert_edge_data(
             src_id: &src_id,
             dst_label: dst_label_id,
             dst_id: &dst_id,
+            rank: info.rank,
             properties: &info.props,
             ts,
         })
@@ -542,7 +547,7 @@ pub(crate) fn delete_edge_data(
     space: &str,
     src: &str,
     dst: &str,
-    _rank: i64,
+    rank: i64,
 ) -> StorageResult<bool> {
     let space_info = ctx
         .schema_manager
@@ -565,7 +570,15 @@ pub(crate) fn delete_edge_data(
         };
         if ctx
             .graph
-            .delete_edge(edge_label_id, src_label_id, src, dst_label_id, dst, ts)
+            .delete_edge(
+                edge_label_id,
+                src_label_id,
+                src,
+                dst_label_id,
+                dst,
+                rank,
+                ts,
+            )
             .is_ok()
         {
             delete_edge_indexes(

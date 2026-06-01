@@ -3,21 +3,13 @@
 //! Provides background GC scheduling for **Secondary Index** tombstone cleanup.
 //! Integrates with VersionManager to determine safe GC timestamps.
 //!
-//! ## Index Classification and GC
-//!
-//! ### Primary Indexes (No GC Required)
-//!
-//! Primary indexes are CSR-aware and do not use MVCC:
-//! - `EdgeIdIndex`: No tombstones, always consistent with CSR
-//! - `DegreeIndex`: No tombstones, always consistent with CSR
-//!
-//! ### Secondary Indexes (GC Required)
+//! ## Property Index GC
 //!
 //! Secondary indexes use MVCC and require tombstone GC:
 //! - `VertexIndexManager`: Supports MVCC, requires GC
 //! - `EdgeIndexManager`: Supports MVCC, requires GC
 //!
-//! This manager handles GC for Secondary Indexes only.
+//! This manager handles tombstone cleanup for property indexes only.
 //!
 //! ## Features
 //!

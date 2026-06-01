@@ -1,17 +1,7 @@
 //! Index Type Classification
 //!
 //! This module defines the classification of index types in the graph database.
-//! Indexes are categorized into two main types:
-//!
-//! ## Primary Indexes (CSR-Aware)
-//!
-//! Primary indexes are tightly coupled with the CSR (Compressed Sparse Row) storage structure.
-//! They provide fast access to data by internal IDs and are automatically maintained.
-//!
-//! - `EdgeIdIndex`: Maps edge_id -> (src, dst, prop_offset)
-//! - `DegreeIndex`: Maps vertex_id -> (out_degree, in_degree)
-//!
-//! ## Secondary Indexes (Property Indexes)
+//! This module defines the common types for property indexes in the graph database.
 //!
 //! Secondary indexes are built on property values and support complex queries.
 //! They are decoupled from the CSR structure and use BTreeMap for storage.
@@ -22,11 +12,8 @@
 use crate::core::types::Timestamp;
 use crate::core::StorageResult;
 
-pub type PropOffset = u32;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IndexCategory {
-    Primary,
     Secondary,
 }
 
@@ -98,7 +85,6 @@ impl IndexStats {
 
 #[derive(Debug, Clone, Default)]
 pub struct CompositeIndexStats {
-    pub primary_indexes: Vec<IndexStats>,
     pub secondary_indexes: Vec<IndexStats>,
 }
 
@@ -108,25 +94,18 @@ impl CompositeIndexStats {
     }
 
     pub fn total_entries(&self) -> usize {
-        let primary: usize = self.primary_indexes.iter().map(|s| s.entry_count).sum();
-        let secondary: usize = self.secondary_indexes.iter().map(|s| s.entry_count).sum();
-        primary + secondary
+        self.secondary_indexes.iter().map(|s| s.entry_count).sum()
     }
 
     pub fn total_memory(&self) -> usize {
-        let primary: usize = self.primary_indexes.iter().map(|s| s.memory_usage).sum();
-        let secondary: usize = self.secondary_indexes.iter().map(|s| s.memory_usage).sum();
-        primary + secondary
+        self.secondary_indexes.iter().map(|s| s.memory_usage).sum()
     }
 
     pub fn total_tombstones(&self) -> usize {
-        let primary: usize = self.primary_indexes.iter().map(|s| s.tombstone_count).sum();
-        let secondary: usize = self
-            .secondary_indexes
+        self.secondary_indexes
             .iter()
             .map(|s| s.tombstone_count)
-            .sum();
-        primary + secondary
+            .sum()
     }
 }
 
@@ -136,20 +115,12 @@ mod tests {
 
     #[test]
     fn test_index_category() {
-        assert_eq!(IndexCategory::Primary, IndexCategory::Primary);
-        assert_ne!(IndexCategory::Primary, IndexCategory::Secondary);
+        assert_eq!(IndexCategory::Secondary, IndexCategory::Secondary);
     }
 
     #[test]
     fn test_composite_stats() {
         let mut stats = CompositeIndexStats::new();
-        stats.primary_indexes.push(IndexStats::new(
-            IndexCategory::Primary,
-            "edge_id".to_string(),
-            100,
-            1024,
-            0,
-        ));
         stats.secondary_indexes.push(IndexStats::new(
             IndexCategory::Secondary,
             "vertex_name".to_string(),
@@ -158,8 +129,8 @@ mod tests {
             5,
         ));
 
-        assert_eq!(stats.total_entries(), 150);
-        assert_eq!(stats.total_memory(), 1536);
+        assert_eq!(stats.total_entries(), 50);
+        assert_eq!(stats.total_memory(), 512);
         assert_eq!(stats.total_tombstones(), 5);
     }
 }

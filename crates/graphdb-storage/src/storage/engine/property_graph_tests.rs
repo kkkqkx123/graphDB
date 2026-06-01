@@ -89,13 +89,22 @@ fn test_create_edge() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(1.0))],
             ts: 100,
         })
         .unwrap();
 
     let edge = graph
-        .get_edge(knows_label, person_label, "alice", person_label, "bob", 100)
+        .get_edge(
+            knows_label,
+            person_label,
+            "alice",
+            person_label,
+            "bob",
+            0,
+            100,
+        )
         .unwrap();
     assert_eq!(edge.properties.len(), 1);
 }
@@ -233,6 +242,7 @@ fn test_out_edges() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(1.0))],
             ts: 100,
         })
@@ -244,6 +254,7 @@ fn test_out_edges() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "charlie",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(2.0))],
             ts: 100,
         })
@@ -315,6 +326,7 @@ fn test_in_edges() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(1.0))],
             ts: 100,
         })
@@ -326,6 +338,7 @@ fn test_in_edges() {
             src_id: "charlie",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(2.0))],
             ts: 100,
         })
@@ -428,6 +441,7 @@ fn test_update_edge_property() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(1.0))],
             ts: 100,
         })
@@ -440,6 +454,7 @@ fn test_update_edge_property() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             prop_name: "weight",
             value: &Value::Double(2.0),
             ts: 100,
@@ -447,7 +462,15 @@ fn test_update_edge_property() {
         .unwrap();
 
     let edge = graph
-        .get_edge(knows_label, person_label, "alice", person_label, "bob", 100)
+        .get_edge(
+            knows_label,
+            person_label,
+            "alice",
+            person_label,
+            "bob",
+            0,
+            100,
+        )
         .unwrap();
     let weight_prop = edge
         .properties
@@ -509,17 +532,34 @@ fn test_delete_edge() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(1.0))],
             ts: 100,
         })
         .unwrap();
 
     let deleted = graph
-        .delete_edge(knows_label, person_label, "alice", person_label, "bob", 100)
+        .delete_edge(
+            knows_label,
+            person_label,
+            "alice",
+            person_label,
+            "bob",
+            0,
+            100,
+        )
         .unwrap();
     assert!(deleted);
 
-    let edge = graph.get_edge(knows_label, person_label, "alice", person_label, "bob", 100);
+    let edge = graph.get_edge(
+        knows_label,
+        person_label,
+        "alice",
+        person_label,
+        "bob",
+        0,
+        100,
+    );
     assert!(edge.is_none());
 }
 
@@ -583,6 +623,7 @@ fn test_edge_count() {
             src_id: "alice",
             dst_label: person_label,
             dst_id: "bob",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(1.0))],
             ts: 100,
         })
@@ -594,6 +635,7 @@ fn test_edge_count() {
             src_id: "bob",
             dst_label: person_label,
             dst_id: "charlie",
+            rank: 0,
             properties: &[("weight".to_string(), Value::Double(2.0))],
             ts: 100,
         })
@@ -867,6 +909,14 @@ fn test_get_nonexistent_edge() {
         )
         .unwrap();
 
-    let result = graph.get_edge(knows_label, person_label, "alice", person_label, "bob", 100);
+    let result = graph.get_edge(
+        knows_label,
+        person_label,
+        "alice",
+        person_label,
+        "bob",
+        0,
+        100,
+    );
     assert!(result.is_none());
 }

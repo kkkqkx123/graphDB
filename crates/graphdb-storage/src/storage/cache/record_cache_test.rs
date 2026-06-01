@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use crate::core::Value;
+use crate::storage::cache::types::EvictionCause;
 
 use super::*;
 

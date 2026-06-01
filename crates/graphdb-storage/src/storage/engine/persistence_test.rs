@@ -83,6 +83,7 @@ mod tests {
                 src_id: "alice",
                 dst_label: person_label,
                 dst_id: "bob",
+                rank: 0,
                 properties: &[("weight".to_string(), Value::Double(0.95))],
                 ts: 100,
             })
@@ -144,7 +145,15 @@ mod tests {
         );
 
         let edge = graph2
-            .get_edge(knows_label, person_label, "alice", person_label, "bob", 100)
+            .get_edge(
+                knows_label,
+                person_label,
+                "alice",
+                person_label,
+                "bob",
+                0,
+                100,
+            )
             .expect("Edge should exist after reload");
         assert_eq!(
             edge.properties

@@ -53,6 +53,7 @@ pub trait RecoveryApplier {
         dst_label: LabelId,
         dst_oid: &[u8],
         edge_label: LabelId,
+        rank: i64,
         ts: Timestamp,
     ) -> StorageResult<()>;
 

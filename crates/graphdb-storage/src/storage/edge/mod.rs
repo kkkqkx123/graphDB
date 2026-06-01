@@ -34,10 +34,8 @@ pub mod property_table;
 pub mod single_mutable_csr;
 
 use crate::core::types::EdgeTypeInfo;
+use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP};
 use crate::core::{Edge, Value};
-use crate::core::types::{
-    EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP,
-};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::utils::props_to_map;
 
@@ -46,9 +44,7 @@ pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
 pub use mutable_csr::{MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator};
 pub use mutable_csr_variant::{CsrEdgeIterator, CsrIterator, MutableCsrVariant};
 pub use property_table::PropertyTable;
-pub use single_mutable_csr::{
-    SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator,
-};
+pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
 
 pub const INVALID_EDGE_ID: u64 = u64::MAX;
 
@@ -70,6 +66,7 @@ pub struct EdgeRecord {
     pub edge_id: EdgeId,
     pub src_vid: VertexId,
     pub dst_vid: VertexId,
+    pub rank: i64,
     pub properties: Vec<(String, Value)>,
 }
 
@@ -81,7 +78,7 @@ impl From<&EdgeRecord> for Edge {
             src: record.src_vid,
             dst: record.dst_vid,
             edge_type: String::new(),
-            ranking: 0,
+            ranking: record.rank,
             id: record.edge_id as i64,
             props,
         }
@@ -96,7 +93,7 @@ impl EdgeRecord {
             src: self.src_vid,
             dst: self.dst_vid,
             edge_type: edge_type.to_string(),
-            ranking: 0,
+            ranking: self.rank,
             id: self.edge_id as i64,
             props,
         }

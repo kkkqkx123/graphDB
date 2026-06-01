@@ -58,6 +58,7 @@ impl UndoTarget for PropertyGraph {
             dst_label: edge_ctx.edge_id.dst_label,
             dst_vid: edge_ctx.edge_id.dst_vid,
             edge_label: edge_ctx.edge_id.edge_label,
+            rank: edge_ctx.edge_id.rank,
         };
         {
             let mut edge_tables = self.data_store.edge_tables().write();
@@ -110,6 +111,7 @@ impl UndoTarget for PropertyGraph {
             dst_label: edge_id.dst_label,
             dst_vid: edge_id.dst_vid,
             edge_label: edge_id.edge_label,
+            rank: edge_id.rank,
         };
         {
             let mut edge_tables = self.data_store.edge_tables().write();
@@ -143,6 +145,7 @@ impl UndoTarget for PropertyGraph {
             edge_label: edge_ctx.edge_id.edge_label,
             src_vid: edge_ctx.edge_id.src_vid,
             dst_vid: edge_ctx.edge_id.dst_vid,
+            rank: edge_ctx.edge_id.rank,
         };
         {
             let mut edge_tables = self.data_store.edge_tables().write();

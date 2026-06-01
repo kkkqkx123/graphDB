@@ -420,6 +420,15 @@ impl super::EncodedColumn for BitPackedIntColumn {
 mod tests {
     use super::*;
 
+    fn select_bitpacking(values: &[i64]) -> bool {
+        if values.is_empty() {
+            return false;
+        }
+        let min = values.iter().min().copied().unwrap_or_default();
+        let max = values.iter().max().copied().unwrap_or_default();
+        (max - min) < (1 << 20)
+    }
+
     #[test]
     fn test_bitpacking_basic() {
         let values = vec![10, 20, 30, 40, 50];
