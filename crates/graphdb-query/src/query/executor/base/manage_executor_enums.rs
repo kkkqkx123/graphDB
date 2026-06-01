@@ -33,8 +33,8 @@ use crate::query::executor::admin::tag::{
     ShowTagsExecutor,
 };
 use crate::query::executor::admin::user::{
-    AlterUserExecutor, ChangePasswordExecutor, CreateUserExecutor, DropUserExecutor,
-    GrantRoleExecutor, RevokeRoleExecutor,
+    AlterUserExecutor, ChangePasswordExecutor, CreateUserExecutor, DescribeUserExecutor,
+    DropUserExecutor, GrantRoleExecutor, RevokeRoleExecutor,
 };
 #[cfg(feature = "qdrant")]
 use crate::query::executor::data_access::{CreateVectorIndexExecutor, DropVectorIndexExecutor};
@@ -190,6 +190,7 @@ define_manage_executor_enum! {
         ChangePassword(ChangePasswordExecutor<S>, "change_password", "Change Password"),
         GrantRole(GrantRoleExecutor<S>, "grant_role", "Grant Role"),
         RevokeRole(RevokeRoleExecutor<S>, "revoke_role", "Revoke Role"),
+        Describe(DescribeUserExecutor<S>, "describe_user", "Describe User"),
     }
 }
 

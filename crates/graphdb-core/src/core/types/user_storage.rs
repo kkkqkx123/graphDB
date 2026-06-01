@@ -99,8 +99,8 @@ impl UserStorage {
     /// Delete the user.
     pub fn drop_user(&self, username: &str) -> Result<bool, StorageError> {
         let mut users = self.users.write();
-        users.remove(username);
-        Ok(true)
+        let existed = users.remove(username).is_some();
+        Ok(existed)
     }
 
     /// Get user information.

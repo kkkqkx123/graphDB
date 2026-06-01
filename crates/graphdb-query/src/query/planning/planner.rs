@@ -220,11 +220,7 @@ impl PlannerEnum {
                 }
                 _ => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
             },
-            Stmt::Drop(_)
-            | Stmt::Show(_)
-            | Stmt::Desc(_)
-            | Stmt::Alter(_)
-            | Stmt::CreateUser(_)
+            Stmt::CreateUser(_)
             | Stmt::DropUser(_)
             | Stmt::AlterUser(_)
             | Stmt::ChangePassword(_)
@@ -232,7 +228,13 @@ impl PlannerEnum {
             | Stmt::Revoke(_)
             | Stmt::DescribeUser(_)
             | Stmt::ShowUsers(_)
-            | Stmt::ShowRoles(_)
+            | Stmt::ShowRoles(_) => {
+                Some(PlannerEnum::UserManagement(UserManagementPlanner::new()))
+            }
+            Stmt::Drop(_)
+            | Stmt::Show(_)
+            | Stmt::Desc(_)
+            | Stmt::Alter(_)
             | Stmt::ShowCreate(_)
             | Stmt::ShowSessions(_)
             | Stmt::ShowQueries(_)

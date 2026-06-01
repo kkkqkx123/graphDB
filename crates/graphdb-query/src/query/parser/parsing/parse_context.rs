@@ -257,6 +257,12 @@ impl<'a> ParseContext<'a> {
                 self.next_token();
                 Ok("edges".to_string())
             }
+            TokenKind::Admin | TokenKind::AdminRole | TokenKind::God | TokenKind::Dba
+            | TokenKind::Guest => {
+                let s = self.current_token.lexeme.clone();
+                self.next_token();
+                Ok(s)
+            }
             _ => {
                 let pos = self.current_position();
                 Err(ParseError::new(

@@ -152,6 +152,12 @@ impl<S: StorageClient> StorageAuthOps for MetricsStorage<S> {
     wrap_write!(create_user(self, info: &UserInfo) -> Result<bool, StorageError>);
     wrap_write!(alter_user(self, info: &UserAlterInfo) -> Result<bool, StorageError>);
     wrap_write!(drop_user(self, username: &str) -> Result<bool, StorageError>);
+    fn user_exists(&self, username: &str) -> bool {
+        let start = Instant::now();
+        let result = self.inner.user_exists(username);
+        self.record_read(start.elapsed().as_micros() as u64, true);
+        result
+    }
     wrap_write!(grant_role(self, username: &str, space_id: u64, role: RoleType) -> Result<bool, StorageError>);
     wrap_write!(revoke_role(self, username: &str, space_id: u64) -> Result<bool, StorageError>);
 }

@@ -30,6 +30,6 @@ pub use tag_nodes::{
     TagAlterInfo, TagManageInfo,
 };
 pub use user_nodes::{
-    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
-    ShowRolesNode, ShowUsersNode,
+    AlterUserNode, ChangePasswordNode, CreateUserNode, DescribeUserNode, DropUserNode,
+    GrantRoleNode, RevokeRoleNode, ShowRolesNode, ShowUsersNode,
 };

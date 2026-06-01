@@ -482,6 +482,10 @@ impl StorageAuthOps for GraphStorage {
         user_ops::drop_user(&self.ctx, username)
     }
 
+    fn user_exists(&self, username: &str) -> bool {
+        self.ctx.user_storage.user_exists(username)
+    }
+
     fn grant_role(
         &mut self,
         username: &str,

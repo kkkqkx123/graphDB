@@ -64,6 +64,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateUserExecuto
                     Err(DBError::storage("User already exists"))
                 }
             }
+            Err(ref e) if e.to_string().contains("already exists") && self.if_not_exists => {
+                Ok(ExecutionResult::Success)
+            }
             Err(e) => Err(DBError::from(e)),
         }
     }

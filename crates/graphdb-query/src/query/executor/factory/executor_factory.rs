@@ -463,6 +463,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::ShowRoles(node) => {
                     AdminBuilder::build_show_roles(node, storage, context)
                 }
+                crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode::DescribeUser(node) => {
+                    AdminBuilder::build_describe_user(node, storage, context)
+                }
             },
 
             // Manage Executor – Fulltext Index Management (parameterized)

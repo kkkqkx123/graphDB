@@ -3,14 +3,12 @@
 
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::management::manage_node_enums::UserManageNode;
+use crate::query::planning::plan::core::nodes::management::DescribeUserNode;
 use crate::query::planning::plan::core::{ArgumentNode, PlanNodeEnum};
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
-
-/// User Management Planner
-/// Responsible for converting user management operations into execution plans
 #[derive(Debug, Clone)]
 pub struct UserManagementPlanner;
 
@@ -38,6 +36,7 @@ impl Planner for UserManagementPlanner {
                 if let Some(ref role) = create_stmt.role {
                     node = node.with_role(role.clone());
                 }
+                node = node.with_if_not_exists(create_stmt.if_not_exists);
                 PlanNodeEnum::UserManage(UserManageNode::Create(node))
             }
             Stmt::AlterUser(alter_stmt) => {
@@ -57,7 +56,8 @@ impl Planner for UserManagementPlanner {
                 let node = crate::query::planning::plan::core::nodes::DropUserNode::new(
                     3,
                     drop_stmt.username.clone(),
-                );
+                )
+                .with_if_exists(drop_stmt.if_exists);
                 PlanNodeEnum::UserManage(UserManageNode::Drop(node))
             }
             Stmt::ChangePassword(change_stmt) => {
@@ -90,11 +90,30 @@ impl Planner for UserManagementPlanner {
                 );
                 PlanNodeEnum::UserManage(UserManageNode::RevokeRole(node))
             }
+            Stmt::ShowUsers(_) => {
+                let node = crate::query::planning::plan::core::nodes::ShowUsersNode::new(7);
+                PlanNodeEnum::UserManage(UserManageNode::ShowUsers(node))
+            }
+            Stmt::ShowRoles(show_roles_stmt) => {
+                let space_name = show_roles_stmt.space_name.clone().unwrap_or_default();
+                let node = crate::query::planning::plan::core::nodes::ShowRolesNode::new(
+                    8,
+                    space_name,
+                );
+                PlanNodeEnum::UserManage(UserManageNode::ShowRoles(node))
+            }
+            Stmt::DescribeUser(desc_user_stmt) => {
+                let node = crate::query::planning::plan::core::nodes::DescribeUserNode::new(
+                    9,
+                    desc_user_stmt.username.clone(),
+                );
+                PlanNodeEnum::UserManage(UserManageNode::DescribeUser(node))
+            }
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(format!(
                     "Unsupported user management operation: {:?}",
                     validated.stmt()
-                )))
+                )));
             }
         };
 
@@ -112,6 +131,9 @@ impl Planner for UserManagementPlanner {
                 | Stmt::ChangePassword(_)
                 | Stmt::Grant(_)
                 | Stmt::Revoke(_)
+                | Stmt::ShowUsers(_)
+                | Stmt::ShowRoles(_)
+                | Stmt::DescribeUser(_)
         )
     }
 }

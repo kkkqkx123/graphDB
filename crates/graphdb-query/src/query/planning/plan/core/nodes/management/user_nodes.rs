@@ -10,6 +10,7 @@ define_plan_node! {
         username: String,
         password: String,
         role: String,
+        if_not_exists: bool,
     }
     manage_enum: UserManageNode::Create as UserManage
     input: ZeroInputNode
@@ -22,6 +23,7 @@ impl CreateUserNode {
             username,
             password,
             role: "user".to_string(),
+            if_not_exists: false,
             output_var: None,
             col_names: Vec::new(),
         }
@@ -29,6 +31,11 @@ impl CreateUserNode {
 
     pub fn with_role(mut self, role: String) -> Self {
         self.role = role;
+        self
+    }
+
+    pub fn with_if_not_exists(mut self, if_not_exists: bool) -> Self {
+        self.if_not_exists = if_not_exists;
         self
     }
 
@@ -42,6 +49,10 @@ impl CreateUserNode {
 
     pub fn role(&self) -> &str {
         &self.role
+    }
+
+    pub fn if_not_exists(&self) -> bool {
+        self.if_not_exists
     }
 }
 
@@ -93,6 +104,7 @@ impl AlterUserNode {
 define_plan_node! {
     pub struct DropUserNode {
         username: String,
+        if_exists: bool,
     }
     manage_enum: UserManageNode::Drop as UserManage
     input: ZeroInputNode
@@ -105,11 +117,21 @@ impl DropUserNode {
             username,
             output_var: None,
             col_names: Vec::new(),
+            if_exists: false,
         }
+    }
+
+    pub fn with_if_exists(mut self, if_exists: bool) -> Self {
+        self.if_exists = if_exists;
+        self
     }
 
     pub fn username(&self) -> &str {
         &self.username
+    }
+
+    pub fn if_exists(&self) -> bool {
+        self.if_exists
     }
 }
 
@@ -236,5 +258,28 @@ impl ShowRolesNode {
 
     pub fn space_name(&self) -> &str {
         &self.space_name
+    }
+}
+
+define_plan_node! {
+    pub struct DescribeUserNode {
+        username: String,
+    }
+    manage_enum: UserManageNode::DescribeUser as UserManage
+    input: ZeroInputNode
+}
+
+impl DescribeUserNode {
+    pub fn new(id: i64, username: String) -> Self {
+        Self {
+            id,
+            username,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
     }
 }

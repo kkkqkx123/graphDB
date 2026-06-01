@@ -32,8 +32,8 @@ use crate::query::planning::plan::core::nodes::management::tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowCreateTagNode, ShowTagsNode,
 };
 use crate::query::planning::plan::core::nodes::management::user_nodes::{
-    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
-    ShowRolesNode, ShowUsersNode,
+    AlterUserNode, ChangePasswordNode, CreateUserNode, DescribeUserNode, DropUserNode,
+    GrantRoleNode, RevokeRoleNode, ShowRolesNode, ShowUsersNode,
 };
 use crate::query::planning::plan::core::nodes::search::fulltext::management::{
     AlterFulltextIndexNode, CreateFulltextIndexNode, DescribeFulltextIndexNode,
@@ -235,8 +235,9 @@ define_manage_node_enum! {
         ChangePassword(ChangePasswordNode, "ChangePassword", "change_password", "Change Password", "change_password"),
         GrantRole(GrantRoleNode, "GrantRole", "grant_role", "Grant Role", "grant_role"),
         RevokeRole(RevokeRoleNode, "RevokeRole", "revoke_role", "Revoke Role", "revoke_role"),
-        ShowUsers(ShowUsersNode, "ShowUsers", "show_users", "Show Users", "show_users"),
+        DescribeUser(DescribeUserNode, "DescribeUser", "describe_user", "Describe User", "describe_user"),
         ShowRoles(ShowRolesNode, "ShowRoles", "show_roles", "Show Roles", "show_roles"),
+        ShowUsers(ShowUsersNode, "ShowUsers", "show_users", "Show Users", "show_users"),
     }
 }
 

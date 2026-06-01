@@ -204,6 +204,14 @@ fn test_show_roles_execution() {
         create.err()
     );
 
+    let create_space =
+        pipeline_manager.execute_query("CREATE SPACE test_space WITH DIMENSION=128");
+    assert!(
+        create_space.is_ok(),
+        "CREATE SPACE should succeed: {:?}",
+        create_space.err()
+    );
+
     let grant = pipeline_manager.execute_query("GRANT ADMIN ON test_space TO alice");
     assert!(grant.is_ok(), "GRANT should succeed: {:?}", grant.err());
 
@@ -236,6 +244,14 @@ fn test_new_dcl_statements_lifecycle() {
         storage,
         stats_manager,
         Arc::new(OptimizerEngine::default()),
+    );
+
+    let create_space =
+        pipeline_manager.execute_query("CREATE SPACE test_space WITH DIMENSION=128");
+    assert!(
+        create_space.is_ok(),
+        "CREATE SPACE should succeed: {:?}",
+        create_space.err()
     );
 
     let lifecycle_queries = vec![
@@ -278,6 +294,14 @@ fn test_role_hierarchy() {
         storage,
         stats_manager,
         Arc::new(OptimizerEngine::default()),
+    );
+
+    let create_system_space =
+        pipeline_manager.execute_query("CREATE SPACE system WITH DIMENSION=128");
+    assert!(
+        create_system_space.is_ok(),
+        "CREATE SPACE should succeed: {:?}",
+        create_system_space.err()
     );
 
     let queries = [

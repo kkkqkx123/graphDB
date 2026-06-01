@@ -14,8 +14,8 @@ use crate::query::executor::admin::{
     ChangePasswordExecutor, ClearSpaceExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor,
     CreateSpaceExecutor, CreateTagExecutor, CreateTagIndexExecutor, CreateUserExecutor,
     DescEdgeExecutor, DescEdgeIndexExecutor, DescSpaceExecutor, DescTagExecutor,
-    DescTagIndexExecutor, DropEdgeExecutor, DropEdgeIndexExecutor, DropSpaceExecutor,
-    DropTagExecutor, DropTagIndexExecutor, DropUserExecutor, GrantRoleExecutor,
+    DescTagIndexExecutor, DescribeUserExecutor, DropEdgeExecutor, DropEdgeIndexExecutor,
+    DropSpaceExecutor, DropTagExecutor, DropTagIndexExecutor, DropUserExecutor, GrantRoleExecutor,
     RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor, ShowCreateTagExecutor,
     ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor,
     ShowTagIndexesExecutor, ShowTagsExecutor, SwitchSpaceExecutor,
@@ -25,16 +25,19 @@ use crate::query::executor::base::{
     TagManageExecutor, UserManageExecutor,
 };
 use crate::query::executor::utils::PassThroughExecutor;
-use crate::query::planning::plan::core::nodes::{
+
+use crate::query::planning::plan::core::nodes::management::{
     AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode,
     CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
-    DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
-    GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowCreateEdgeNode,
-    ShowCreateIndexNode, ShowCreateSpaceNode, ShowCreateTagNode, ShowEdgeIndexesNode,
-    ShowEdgesNode, ShowIndexesNode, ShowRolesNode, ShowSpacesNode, ShowStatsNode,
-    ShowTagIndexesNode, ShowTagsNode, ShowUsersNode, SwitchSpaceNode,
+    DescribeUserNode, DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode,
+    DropUserNode, EdgeAlterInfo, GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
+    RevokeRoleNode, ShowCreateEdgeNode, ShowCreateIndexNode, ShowCreateSpaceNode,
+    ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode, ShowIndexesNode, ShowRolesNode,
+    ShowSpacesNode, ShowStatsNode, ShowStatsType, ShowTagIndexesNode, ShowTagsNode, ShowUsersNode,
+    SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
 };
+use crate::query::planning::plan::core::nodes::{AlterUserNode as PlannerAlterUserNode, GrantRoleNode as PlannerGrantRoleNode, RevokeRoleNode as PlannerRevokeRoleNode};
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -607,18 +610,25 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::UserInfo;
-        // CreateUserNode 使用 username() 和 password() 方法
-        // The `UserInfo::new` method requires two parameters: `username` and `password`.
         let user_info = UserInfo::new(node.username().to_string(), node.password().to_string())
             .map_err(|e| {
                 QueryError::execution(format!("Failed to create user information: {}", e))
             })?;
-        let executor = CreateUserExecutor::new(
-            node.id(),
-            storage,
-            user_info,
-            context.expression_context().clone(),
-        );
+        let executor = if node.if_not_exists() {
+            CreateUserExecutor::with_if_not_exists(
+                node.id(),
+                storage,
+                user_info,
+                context.expression_context().clone(),
+            )
+        } else {
+            CreateUserExecutor::new(
+                node.id(),
+                storage,
+                user_info,
+                context.expression_context().clone(),
+            )
+        };
         Ok(ExecutorEnum::UserManage(UserManageExecutor::Create(
             executor,
         )))
@@ -651,13 +661,21 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // DropUserNode 使用 username() 方法
-        let executor = DropUserExecutor::new(
-            node.id(),
-            storage,
-            node.username().to_string(),
-            context.expression_context().clone(),
-        );
+        let executor = if node.if_exists() {
+            DropUserExecutor::with_if_exists(
+                node.id(),
+                storage,
+                node.username().to_string(),
+                context.expression_context().clone(),
+            )
+        } else {
+            DropUserExecutor::new(
+                node.id(),
+                storage,
+                node.username().to_string(),
+                context.expression_context().clone(),
+            )
+        };
         Ok(ExecutorEnum::UserManage(UserManageExecutor::Drop(executor)))
     }
 
@@ -849,6 +867,22 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let executor =
             PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
+    }
+
+    pub fn build_describe_user(
+        node: &DescribeUserNode,
+        storage: Arc<RwLock<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = DescribeUserExecutor::new(
+            node.id(),
+            storage,
+            node.username().to_string(),
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::UserManage(UserManageExecutor::Describe(
+            executor,
+        )))
     }
 
     pub fn build_show_users(

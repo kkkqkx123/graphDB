@@ -127,6 +127,14 @@ fn test_grant_revoke_execution() {
         create_result.err()
     );
 
+    let create_space =
+        pipeline_manager.execute_query("CREATE SPACE test_space WITH DIMENSION=128");
+    assert!(
+        create_space.is_ok(),
+        "CREATE SPACE should succeed: {:?}",
+        create_space.err()
+    );
+
     // Grant role
     let grant_result = pipeline_manager.execute_query("GRANT ADMIN ON test_space TO alice");
     assert!(
@@ -171,6 +179,18 @@ fn test_grant_multiple_roles() {
         "CREATE USER should succeed: {:?}",
         create_result.err()
     );
+
+    for space_name in ["space1", "space2", "space3"] {
+        let create_space = pipeline_manager.execute_query(&format!(
+            "CREATE SPACE {} WITH DIMENSION=128",
+            space_name
+        ));
+        assert!(
+            create_space.is_ok(),
+            "CREATE SPACE should succeed: {:?}",
+            create_space.err()
+        );
+    }
 
     let grant_queries = [
         "GRANT ADMIN ON space1 TO multi_role_user",
@@ -246,6 +266,14 @@ fn test_revoke_nonexistent_permission() {
         create_result.is_ok(),
         "CREATE USER should succeed: {:?}",
         create_result.err()
+    );
+
+    let create_space =
+        pipeline_manager.execute_query("CREATE SPACE test_space WITH DIMENSION=128");
+    assert!(
+        create_space.is_ok(),
+        "CREATE SPACE should succeed: {:?}",
+        create_space.err()
     );
 
     // Revoking a permission that doesn't exist may succeed (no-op) or fail depending on implementation

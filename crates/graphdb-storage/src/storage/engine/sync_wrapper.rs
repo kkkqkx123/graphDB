@@ -767,6 +767,10 @@ impl<S: StorageClient + 'static> StorageAuthOps for SyncWrapper<S> {
         self.inner.drop_user(username)
     }
 
+    fn user_exists(&self, username: &str) -> bool {
+        self.inner.user_exists(username)
+    }
+
     fn grant_role(
         &mut self,
         username: &str,

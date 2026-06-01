@@ -461,7 +461,7 @@ fn test_change_password_execution_basic() {
         .execute_query("CREATE USER alice WITH PASSWORD 'oldpassword'")
         .expect("CREATE USER should succeed before CHANGE PASSWORD");
 
-    let query = "CHANGE PASSWORD 'oldpassword' TO 'newpassword'";
+    let query = "CHANGE PASSWORD alice 'oldpassword' TO 'newpassword'";
     let result = pipeline_manager.execute_query(query);
 
     assert!(
@@ -512,8 +512,8 @@ fn test_dcl_user_lifecycle() {
 
     let lifecycle_queries = [
         "CREATE USER testuser WITH PASSWORD 'password123'",
-        "ALTER USER testuser WITH PASSWORD 'newpassword123'",
-        "CHANGE PASSWORD 'newpassword123' TO 'anotherpassword123'",
+        "CHANGE PASSWORD testuser 'password123' TO 'newpassword123'",
+        "CHANGE PASSWORD testuser 'newpassword123' TO 'anotherpassword123'",
         "DROP USER testuser",
     ];
 
@@ -646,8 +646,8 @@ fn test_dcl_password_security() {
 
     let password_queries = [
         "CREATE USER secureuser WITH PASSWORD 'SecureP@ssw0rd!2024'",
-        "ALTER USER secureuser WITH PASSWORD 'N3wS3cur3P@ssw0rd!2024'",
-        "CHANGE PASSWORD 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'",
+        "CHANGE PASSWORD secureuser 'SecureP@ssw0rd!2024' TO 'N3wS3cur3P@ssw0rd!2024'",
+        "CHANGE PASSWORD secureuser 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'",
     ];
 
     // First create the user
@@ -658,15 +658,15 @@ fn test_dcl_password_security() {
         create_result.err()
     );
 
-    // Then alter
-    let alter_result = pipeline_manager.execute_query(password_queries[1]);
+    // Then change password (first time)
+    let change_result = pipeline_manager.execute_query(password_queries[1]);
     assert!(
-        alter_result.is_ok(),
-        "ALTER USER should succeed: {:?}",
-        alter_result.err()
+        change_result.is_ok(),
+        "CHANGE PASSWORD should succeed: {:?}",
+        change_result.err()
     );
 
-    // Then change password
+    // Then change password again
     let change_result = pipeline_manager.execute_query(password_queries[2]);
     assert!(
         change_result.is_ok(),
@@ -688,12 +688,12 @@ fn test_dcl_user_management_workflow() {
     );
 
     let workflow_queries = [
-        "CREATE USER admin WITH PASSWORD 'Admin@2024'",
-        "CREATE USER readonly WITH PASSWORD 'Read@2024'",
-        "ALTER USER readonly WITH PASSWORD 'NewRead@2024'",
-        "DROP USER readonly",
-        "CHANGE PASSWORD 'Admin@2024' TO 'NewAdmin@2024'",
-        "DROP USER admin",
+        "CREATE USER admin_user WITH PASSWORD 'Admin@2024'",
+        "CREATE USER readonly_user WITH PASSWORD 'Read@2024'",
+        "CHANGE PASSWORD readonly_user 'Read@2024' TO 'NewRead@2024'",
+        "DROP USER readonly_user",
+        "CHANGE PASSWORD admin_user 'Admin@2024' TO 'NewAdmin@2024'",
+        "DROP USER admin_user",
     ];
 
     for query in workflow_queries.iter() {
@@ -719,14 +719,14 @@ fn test_dcl_special_usernames() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let special_username_queries = [
-        "CREATE USER user_123 WITH PASSWORD 'password'",
-        "CREATE USER user-456 WITH PASSWORD 'password'",
-        "CREATE USER user.789 WITH PASSWORD 'password'",
-        "DROP USER user_123",
-        "DROP USER user-456",
-        "DROP USER user.789",
-    ];
+let special_username_queries = [
+            "CREATE USER user_123 WITH PASSWORD 'password'",
+            "CREATE USER user_456 WITH PASSWORD 'password'",
+            "CREATE USER user_789 WITH PASSWORD 'password'",
+            "DROP USER user_123",
+            "DROP USER user_456",
+            "DROP USER user_789",
+        ];
 
     for query in special_username_queries.iter() {
         let result = pipeline_manager.execute_query(query);

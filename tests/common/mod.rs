@@ -21,7 +21,7 @@ pub mod c_api_helpers;
 
 use graphdb::core::error::DBError;
 use graphdb::storage::GraphStorage;
-use graphdb::storage::SchemaManager;
+use graphdb::core::metadata::SchemaManager;
 use parking_lot::RwLock;
 use std::path::PathBuf;
 use std::sync::Arc;
