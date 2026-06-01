@@ -34,9 +34,12 @@ impl PlanType {
             PlanType::Unknown(s) => s.as_str(),
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Self {
-        match s {
+impl std::str::FromStr for PlanType {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
             "IndexScan" => PlanType::IndexScan,
             "SeqScan" => PlanType::SeqScan,
             "Filter" => PlanType::Filter,
@@ -49,7 +52,7 @@ impl PlanType {
             "MergeJoin" => PlanType::MergeJoin,
             "NestedLoop" => PlanType::NestedLoop,
             other => PlanType::Unknown(other.to_string()),
-        }
+        })
     }
 }
 
@@ -187,12 +190,13 @@ pub enum ExplainFormat {
     Dot,
 }
 
-impl ExplainFormat {
-    pub fn from_str(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
+impl std::str::FromStr for ExplainFormat {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.to_lowercase().as_str() {
             "json" => ExplainFormat::Json,
             "dot" => ExplainFormat::Dot,
             _ => ExplainFormat::Text,
-        }
+        })
     }
 }

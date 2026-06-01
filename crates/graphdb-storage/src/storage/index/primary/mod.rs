@@ -7,5 +7,4 @@ mod degree_index;
 mod edge_id_index;
 mod primary_index_manager;
 
-pub use degree_index::DegreeIndex;
-pub use edge_id_index::EdgeIdIndex;
+// Re-exports for primary index types

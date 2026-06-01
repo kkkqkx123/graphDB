@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub enum IsolationLevel {
     ReadUncommitted,
+    #[default]
     ReadCommitted,
     RepeatableRead,
     Serializable,
@@ -18,16 +19,6 @@ impl IsolationLevel {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_uppercase().replace('_', " ").as_str() {
-            "READ UNCOMMITTED" => Some(IsolationLevel::ReadUncommitted),
-            "READ COMMITTED" => Some(IsolationLevel::ReadCommitted),
-            "REPEATABLE READ" => Some(IsolationLevel::RepeatableRead),
-            "SERIALIZABLE" => Some(IsolationLevel::Serializable),
-            _ => None,
-        }
-    }
-
     pub fn description(&self) -> &'static str {
         match self {
             IsolationLevel::ReadUncommitted => "May read uncommitted data (dirty reads)",
@@ -38,9 +29,16 @@ impl IsolationLevel {
     }
 }
 
-impl Default for IsolationLevel {
-    fn default() -> Self {
-        IsolationLevel::ReadCommitted
+impl std::str::FromStr for IsolationLevel {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().replace('_', " ").as_str() {
+            "READ UNCOMMITTED" => Ok(IsolationLevel::ReadUncommitted),
+            "READ COMMITTED" => Ok(IsolationLevel::ReadCommitted),
+            "REPEATABLE READ" => Ok(IsolationLevel::RepeatableRead),
+            "SERIALIZABLE" => Ok(IsolationLevel::Serializable),
+            _ => Err(()),
+        }
     }
 }
 

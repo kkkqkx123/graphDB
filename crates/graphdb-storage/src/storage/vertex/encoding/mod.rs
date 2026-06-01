@@ -22,9 +22,9 @@ use crate::core::{DataType, Value};
 pub use alp::AlpColumn;
 pub use bitpacking::BitPackedIntColumn;
 pub use dictionary::DictionaryColumn;
-pub use fsst::{FsstColumn, FsstEncoder};
+pub use fsst::{FsstColumn, FsstEncoder, FsstSymbolTable};
 pub use rle::{RleBoolColumn, RleIntColumn};
-pub use selector::{ColumnStats, CompressionSelector};
+pub use selector::{ColumnStats, CompressionConfig, CompressionSelector};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EncodingType {

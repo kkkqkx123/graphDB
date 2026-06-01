@@ -196,7 +196,7 @@ impl ImportStats {
         }
 
         if !self.errors.is_empty() {
-            output.push_str(&format!("\nErrors (showing first 5):\n"));
+            output.push_str("\nErrors (showing first 5):\n");
             for err in self.errors.iter().take(5) {
                 output.push_str(&format!("  Row {}: {}\n", err.row_number, err.error));
             }

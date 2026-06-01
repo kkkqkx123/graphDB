@@ -15,7 +15,7 @@ pub fn parse_explain(arg: &str) -> Result<MetaCommand, String> {
             analyze = true;
         } else if part.to_lowercase().starts_with("format=") {
             let fmt = part.split('=').nth(1).unwrap_or("text");
-            format = ExplainFormat::from_str(fmt);
+            format = fmt.parse().unwrap();
         } else {
             query_parts.push(part);
         }

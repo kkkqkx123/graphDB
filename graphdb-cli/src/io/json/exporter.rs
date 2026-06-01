@@ -124,10 +124,8 @@ impl JsonExporter {
                             serde_json::to_string(&obj)?
                         };
 
-                        if *array_wrapper {
-                            if !first_chunk || idx > 0 {
-                                writer.write_all(b",\n")?;
-                            }
+                        if *array_wrapper && (!first_chunk || idx > 0) {
+                            writer.write_all(b",\n")?;
                         }
                         writer.write_all(json_str.as_bytes())?;
 

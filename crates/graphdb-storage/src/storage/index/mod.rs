@@ -48,11 +48,4 @@ pub mod index_types;
 pub mod primary;
 pub mod secondary;
 
-pub use crate::core::types::{Index, IndexStatus};
-pub use index_types::{CompositeIndexStats, IndexCategory, IndexEstimate, IndexStats, SecondaryIndex};
-pub use primary::primary_index_manager::PrimaryIndexManager;
-pub use secondary::{
-    EdgeIndexManager, IndexDataManager, IndexDataManagerImpl, IndexEntry, IndexGcConfig,
-    IndexGcManager, IndexUndoEntry, IndexUndoLog, IndexUpdateContext, IndexUpdater,
-    SecondaryIndexKey, VertexIndexManager,
-};
+

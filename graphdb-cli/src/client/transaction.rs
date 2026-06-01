@@ -1,19 +1,10 @@
 //! Transaction management types
 
 /// Transaction options for beginning a transaction
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TransactionOptions {
     pub read_only: bool,
     pub timeout_seconds: Option<u64>,
-}
-
-impl Default for TransactionOptions {
-    fn default() -> Self {
-        Self {
-            read_only: false,
-            timeout_seconds: None,
-        }
-    }
 }
 
 impl TransactionOptions {

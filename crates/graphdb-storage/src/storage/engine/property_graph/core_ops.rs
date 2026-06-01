@@ -652,7 +652,7 @@ pub fn update_edge_property(
     let src_internal = resolve_internal_id_from_vertex_tables_str(
         &vertex_tables,
         params.src_label,
-        &params.src_id,
+        params.src_id,
         params.ts,
     )
     .or_else(|| {
@@ -667,7 +667,7 @@ pub fn update_edge_property(
     let dst_internal = resolve_internal_id_from_vertex_tables_str(
         &vertex_tables,
         params.dst_label,
-        &params.dst_id,
+        params.dst_id,
         params.ts,
     )
     .or_else(|| {

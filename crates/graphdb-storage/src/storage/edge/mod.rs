@@ -35,10 +35,20 @@ pub mod single_mutable_csr;
 
 use crate::core::types::EdgeTypeInfo;
 use crate::core::{Edge, Value};
+use crate::core::types::{
+    EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP,
+};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::utils::props_to_map;
 
+pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
 pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
+pub use mutable_csr::{MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator};
+pub use mutable_csr_variant::{CsrEdgeIterator, CsrIterator, MutableCsrVariant};
+pub use property_table::PropertyTable;
+pub use single_mutable_csr::{
+    SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator,
+};
 
 pub const INVALID_EDGE_ID: u64 = u64::MAX;
 

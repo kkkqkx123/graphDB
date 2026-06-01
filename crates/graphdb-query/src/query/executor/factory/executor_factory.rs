@@ -509,11 +509,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 }
             },
             #[cfg(not(feature = "qdrant"))]
-            PlanNodeEnum::VectorManage(_) => {
-                return Err(QueryError::execution(
-                    "Vector index operations require the qdrant feature",
-                ));
-            }
+            PlanNodeEnum::VectorManage(_) => Err(QueryError::execution(
+                "Vector index operations require the qdrant feature",
+            )),
 
             // Management Executor – Query Management
             PlanNodeEnum::ShowStats(node) => AdminBuilder::build_show_stats(node, storage, context),

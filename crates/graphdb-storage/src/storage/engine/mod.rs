@@ -6,7 +6,6 @@ pub mod config;
 pub mod data_store;
 pub mod edge_params;
 pub mod graph_storage;
-pub use graph_storage::{GraphStorage, GraphStorageContext};
 pub mod persistence_coordinator;
 pub mod property_graph;
 #[cfg(test)]
@@ -24,5 +23,4 @@ mod persistence_test;
 
 pub use persistence_coordinator::{PersistenceConfig, PersistenceCoordinator};
 pub use property_graph::PropertyGraph;
-pub use sync_wrapper::SyncWrapper;
 pub use wal_manager::WalManager;

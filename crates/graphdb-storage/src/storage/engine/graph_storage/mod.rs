@@ -20,8 +20,6 @@ mod test;
 
 pub use context::GraphStorageContext;
 
-pub use transaction_config::{DurabilityLevel, IsolationLevel, TransactionConfig, WalSyncMode};
-
 use std::path::PathBuf;
 use std::sync::Arc;
 

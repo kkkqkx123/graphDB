@@ -2,8 +2,9 @@ use std::time::Instant;
 
 use super::IsolationLevel;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum TransactionState {
+    #[default]
     Idle,
     Active { id: String, space: String },
     Failed { id: String, error: String },
@@ -34,12 +35,6 @@ impl TransactionState {
             TransactionState::Failed { error, .. } => Some(error),
             _ => None,
         }
-    }
-}
-
-impl Default for TransactionState {
-    fn default() -> Self {
-        TransactionState::Idle
     }
 }
 

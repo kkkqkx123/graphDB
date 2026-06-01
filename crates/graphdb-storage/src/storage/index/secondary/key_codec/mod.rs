@@ -33,16 +33,11 @@ pub mod key_generator;
 pub mod key_parser;
 pub mod key_types;
 
-pub use compression::{
-    CompressionConfig, DeltaCompressor, DictionaryCompressor, IndexCompressor, PrefixCompressor,
-};
+pub use compression::{CompressionConfig, IndexCompressor};
 pub use key_builder::KeyBuilder;
 pub use key_generator::{EdgeIndexKeyGen, IndexKeyGenerator, VertexIndexKeyGen};
 pub use key_parser::KeyParser;
-pub use key_types::{
-    deserialize_value, serialize_value, ByteKey, SecondaryIndexKey, KEY_TYPE_EDGE_FORWARD,
-    KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
-};
+pub use key_types::{deserialize_value, serialize_value, SecondaryIndexKey};
 
 #[cfg(test)]
 mod tests {
