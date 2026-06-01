@@ -82,7 +82,8 @@ pub async fn execute_isolation(
     level: Option<String>,
 ) -> Result<bool> {
     if let Some(l) = level {
-        let isolation = l.parse::<IsolationLevel>()
+        let isolation = l
+            .parse::<IsolationLevel>()
             .map_err(|_| CliError::InvalidValue(format!("Invalid isolation level: {}", l)))?;
 
         if executor.tx_manager().is_active() {

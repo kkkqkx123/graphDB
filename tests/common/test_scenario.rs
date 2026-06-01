@@ -57,7 +57,10 @@ impl TestScenario {
 
     /// Execute a DCL statement
     pub fn exec_dcl(mut self, query: &str) -> Self {
-        match self.pipeline.execute_query_with_space(query, self.current_space.clone()) {
+        match self
+            .pipeline
+            .execute_query_with_space(query, self.current_space.clone())
+        {
             Ok(result) => match &result {
                 ExecutionResult::Error(e) => {
                     self.last_error = Some(e.clone());

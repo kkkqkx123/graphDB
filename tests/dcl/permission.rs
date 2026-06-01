@@ -21,7 +21,8 @@ fn new_scenario() -> TestScenario {
 }
 
 fn with_space(scenario: TestScenario, space: &str) -> TestScenario {
-    scenario.exec_dcl(&format!("CREATE SPACE {} WITH DIMENSION=128", space))
+    scenario
+        .exec_dcl(&format!("CREATE SPACE {} WITH DIMENSION=128", space))
         .assert_success()
 }
 
@@ -33,7 +34,11 @@ fn test_grant_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GRANT basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GRANT basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GRANT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GRANT");
@@ -45,7 +50,11 @@ fn test_grant_parser_without_role_keyword() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "GRANT without ROLE keyword parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "GRANT without ROLE keyword parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("GRANT statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GRANT");
@@ -64,7 +73,12 @@ fn test_grant_parser_all_roles() {
     for query in queries {
         let mut parser = Parser::new(query);
         let result = parser.parse();
-        assert!(result.is_ok(), "GRANT role {} parsing should succeed: {:?}", query, result.err());
+        assert!(
+            result.is_ok(),
+            "GRANT role {} parsing should succeed: {:?}",
+            query,
+            result.err()
+        );
     }
 }
 
@@ -76,7 +90,11 @@ fn test_revoke_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "REVOKE basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "REVOKE basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("REVOKE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REVOKE");
@@ -88,7 +106,11 @@ fn test_revoke_parser_without_role_keyword() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "REVOKE without ROLE keyword parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "REVOKE without ROLE keyword parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("REVOKE statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "REVOKE");
@@ -254,9 +276,7 @@ fn test_grant_revoke_all_role_types() {
             .assert_success();
     }
 
-    scenario
-        .exec_dcl("DROP USER role_test")
-        .assert_success();
+    scenario.exec_dcl("DROP USER role_test").assert_success();
 }
 
 #[test]

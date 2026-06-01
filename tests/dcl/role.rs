@@ -29,7 +29,11 @@ fn test_describe_user_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "DESCRIBE USER basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "DESCRIBE USER basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("DESCRIBE USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DESCRIBE USER");
@@ -89,7 +93,11 @@ fn test_show_users_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW USERS basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW USERS basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("SHOW USERS statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW USERS");
@@ -131,7 +139,11 @@ fn test_show_roles_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW ROLES basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW ROLES basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("SHOW ROLES statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW ROLES");
@@ -143,7 +155,11 @@ fn test_show_roles_parser_with_space() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW ROLES with Space parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW ROLES with Space parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("SHOW ROLES statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW ROLES");
@@ -198,14 +214,21 @@ fn test_role_hierarchy_all_types() {
 
     for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
         scenario = scenario
-            .exec_dcl(&format!("CREATE USER {}_user WITH PASSWORD 'pass'", role.to_lowercase()))
+            .exec_dcl(&format!(
+                "CREATE USER {}_user WITH PASSWORD 'pass'",
+                role.to_lowercase()
+            ))
             .assert_success();
     }
 
     // Grant each role
     for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
         scenario = scenario
-            .exec_dcl(&format!("GRANT {} ON test_space TO {}_user", role, role.to_lowercase()))
+            .exec_dcl(&format!(
+                "GRANT {} ON test_space TO {}_user",
+                role,
+                role.to_lowercase()
+            ))
             .assert_success();
     }
 
@@ -219,7 +242,11 @@ fn test_role_hierarchy_all_types() {
     // Revoke all
     for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
         scenario = scenario
-            .exec_dcl(&format!("REVOKE {} ON test_space FROM {}_user", role, role.to_lowercase()))
+            .exec_dcl(&format!(
+                "REVOKE {} ON test_space FROM {}_user",
+                role,
+                role.to_lowercase()
+            ))
             .assert_success();
     }
 
@@ -311,9 +338,20 @@ fn test_dcl_parser_kind_coverage() {
     for (query, expected_kind) in kind_queries {
         let mut parser = Parser::new(query);
         let result = parser.parse();
-        assert!(result.is_ok(), "Parsing '{}' should succeed: {:?}", query, result.err());
+        assert!(
+            result.is_ok(),
+            "Parsing '{}' should succeed: {:?}",
+            query,
+            result.err()
+        );
         let stmt = result.expect(&format!("Parsing '{}' should succeed", query));
-        assert_eq!(stmt.ast.stmt.kind(), expected_kind, "Query '{}' should have kind '{}'", query, expected_kind);
+        assert_eq!(
+            stmt.ast.stmt.kind(),
+            expected_kind,
+            "Query '{}' should have kind '{}'",
+            query,
+            expected_kind
+        );
     }
 }
 
@@ -379,9 +417,7 @@ fn test_describe_user_multiple_spaces() {
 #[test]
 fn test_show_users_empty() {
     // SHOW USERS with no users created
-    new_scenario()
-        .exec_dcl("SHOW USERS")
-        .assert_success();
+    new_scenario().exec_dcl("SHOW USERS").assert_success();
 }
 
 #[test]
@@ -405,7 +441,11 @@ fn test_parser_kind_show_roles_with_space() {
     // Verify SHOW ROLES IN parses correctly and returns the right kind
     let mut parser = Parser::new("SHOW ROLES IN my_space");
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW ROLES IN parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW ROLES IN parsing should succeed: {:?}",
+        result.err()
+    );
     let stmt = result.expect("SHOW ROLES IN parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW ROLES");
 }

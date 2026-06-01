@@ -20,7 +20,12 @@ impl<S: StorageClient> DescribeUserExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DescribeUserExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "DescribeUserExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             username,
         }
     }

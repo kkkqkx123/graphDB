@@ -20,8 +20,8 @@ pub mod validation_helpers;
 pub mod c_api_helpers;
 
 use graphdb::core::error::DBError;
-use graphdb::storage::GraphStorage;
 use graphdb::core::metadata::SchemaManager;
+use graphdb::storage::GraphStorage;
 use parking_lot::RwLock;
 use std::path::PathBuf;
 use std::sync::Arc;

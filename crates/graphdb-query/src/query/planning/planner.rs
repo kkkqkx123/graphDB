@@ -228,9 +228,7 @@ impl PlannerEnum {
             | Stmt::Revoke(_)
             | Stmt::DescribeUser(_)
             | Stmt::ShowUsers(_)
-            | Stmt::ShowRoles(_) => {
-                Some(PlannerEnum::UserManagement(UserManagementPlanner::new()))
-            }
+            | Stmt::ShowRoles(_) => Some(PlannerEnum::UserManagement(UserManagementPlanner::new())),
             Stmt::Drop(_)
             | Stmt::Show(_)
             | Stmt::Desc(_)

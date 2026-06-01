@@ -3,9 +3,9 @@
 //! Provides HTTP client for connecting to GraphDB server.
 
 mod batch;
-mod http_client;
 mod config;
 mod config_types;
+mod http_client;
 mod request_types;
 mod response_types;
 mod schema;
@@ -16,9 +16,9 @@ mod validation;
 mod vector;
 
 pub use batch::{BatchError, BatchItem, BatchResult, BatchStatus, BatchType, EdgeData, VertexData};
-pub use http_client::HttpClient;
 pub use config::{ClientConfig, SessionInfo};
 pub use config_types::{ConfigItem, ConfigSection, ServerConfig};
+pub use http_client::HttpClient;
 pub use schema::{DataType, PropertyDef};
 pub use stats::{
     DatabaseStatistics, QueryStatistics, QueryTypeStatistics, SessionStatistics, SlowQueryInfo,

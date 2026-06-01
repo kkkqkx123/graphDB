@@ -6,8 +6,14 @@ use super::IsolationLevel;
 pub enum TransactionState {
     #[default]
     Idle,
-    Active { id: String, space: String },
-    Failed { id: String, error: String },
+    Active {
+        id: String,
+        space: String,
+    },
+    Failed {
+        id: String,
+        error: String,
+    },
 }
 
 impl TransactionState {

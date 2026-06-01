@@ -10,6 +10,6 @@ mod targets;
 mod transactional;
 
 pub use ops::{
-    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams,
-    RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
+    AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams, RevertDeleteEdgeParams,
+    TransactionOps, UpdateEdgePropertyUndoParams,
 };

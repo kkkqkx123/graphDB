@@ -30,7 +30,11 @@ fn test_create_user_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "CREATE USER basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "CREATE USER basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("CREATE USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "CREATE USER");
@@ -42,7 +46,11 @@ fn test_create_user_parser_with_if_not_exists() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "CREATE USER with IF NOT EXISTS parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "CREATE USER with IF NOT EXISTS parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("CREATE USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "CREATE USER");
@@ -54,7 +62,11 @@ fn test_create_user_parser_complex_password() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "CREATE USER complex password parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "CREATE USER complex password parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("CREATE USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "CREATE USER");
@@ -66,7 +78,11 @@ fn test_create_user_parser_special_username() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "CREATE USER special username parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "CREATE USER special username parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("CREATE USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "CREATE USER");
@@ -121,7 +137,11 @@ fn test_alter_user_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "ALTER USER basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "ALTER USER basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("ALTER USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "ALTER USER");
@@ -133,7 +153,11 @@ fn test_alter_user_parser_complex_password() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "ALTER USER complex password parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "ALTER USER complex password parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("ALTER USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "ALTER USER");
@@ -145,7 +169,11 @@ fn test_alter_user_parser_special_username() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "ALTER USER special username parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "ALTER USER special username parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("ALTER USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "ALTER USER");
@@ -180,7 +208,11 @@ fn test_drop_user_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "DROP USER basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "DROP USER basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("DROP USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DROP USER");
@@ -192,7 +224,11 @@ fn test_drop_user_parser_with_if_exists() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "DROP USER with IF EXISTS parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "DROP USER with IF EXISTS parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("DROP USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DROP USER");
@@ -204,7 +240,11 @@ fn test_drop_user_parser_special_username() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "DROP USER special username parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "DROP USER special username parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("DROP USER statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "DROP USER");
@@ -257,7 +297,11 @@ fn test_change_password_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "CHANGE PASSWORD basic parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "CHANGE PASSWORD basic parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("CHANGE PASSWORD statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "CHANGE PASSWORD");
@@ -269,7 +313,11 @@ fn test_change_password_parser_complex_passwords() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "CHANGE PASSWORD complex password parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "CHANGE PASSWORD complex password parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("CHANGE PASSWORD statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "CHANGE PASSWORD");
@@ -281,7 +329,11 @@ fn test_change_password_parser_special_chars() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "CHANGE PASSWORD special char password parsing should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "CHANGE PASSWORD special char password parsing should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("CHANGE PASSWORD statement parsing should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "CHANGE PASSWORD");
@@ -408,7 +460,11 @@ fn test_dcl_error_handling() {
             Arc::new(OptimizerEngine::default()),
         );
         let result = pipeline_manager.execute_query(query);
-        assert!(result.is_err(), "Invalid query should return error: {}", query);
+        assert!(
+            result.is_err(),
+            "Invalid query should return error: {}",
+            query
+        );
     }
 }
 
@@ -419,7 +475,9 @@ fn test_dcl_password_security() {
         .assert_success()
         .exec_dcl("CHANGE PASSWORD secureuser 'SecureP@ssw0rd!2024' TO 'N3wS3cur3P@ssw0rd!2024'")
         .assert_success()
-        .exec_dcl("CHANGE PASSWORD secureuser 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'")
+        .exec_dcl(
+            "CHANGE PASSWORD secureuser 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'",
+        )
         .assert_success()
         // Old password no longer works after change
         .exec_dcl("CHANGE PASSWORD secureuser 'SecureP@ssw0rd!2024' TO 'shouldnotwork'")

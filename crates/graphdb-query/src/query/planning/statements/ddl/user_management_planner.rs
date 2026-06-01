@@ -96,10 +96,8 @@ impl Planner for UserManagementPlanner {
             }
             Stmt::ShowRoles(show_roles_stmt) => {
                 let space_name = show_roles_stmt.space_name.clone().unwrap_or_default();
-                let node = crate::query::planning::plan::core::nodes::ShowRolesNode::new(
-                    8,
-                    space_name,
-                );
+                let node =
+                    crate::query::planning::plan::core::nodes::ShowRolesNode::new(8, space_name);
                 PlanNodeEnum::UserManage(UserManageNode::ShowRoles(node))
             }
             Stmt::DescribeUser(desc_user_stmt) => {

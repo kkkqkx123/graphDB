@@ -308,4 +308,3 @@ impl From<FieldDef> for ColumnDef {
         }
     }
 }
-
