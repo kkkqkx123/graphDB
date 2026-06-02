@@ -28,11 +28,13 @@ pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
     let vertex_dir = data_dir.join("vertices");
     fs::create_dir_all(&vertex_dir)?;
 
+    let compression = graph.config.flush_config.compression;
+
     {
         let vertex_tables = graph.data_store.vertex_tables().read();
         for (label_id, table) in &*vertex_tables {
             let table_dir = vertex_dir.join(format!("label_{}", label_id));
-            table.flush(&table_dir)?;
+            table.flush(&table_dir, compression)?;
         }
     }
 
@@ -51,7 +53,7 @@ pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
         ) in &*edge_tables
         {
             let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
-            table.flush(&table_dir)?;
+            table.flush(&table_dir, compression)?;
         }
     }
 
@@ -76,6 +78,7 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
     let mut flushed_labels = std::collections::HashSet::new();
     let vertex_tables = graph.data_store.vertex_tables().read();
     let edge_tables = graph.data_store.edge_tables().read();
+    let compression = graph.config.flush_config.compression;
 
     for table_id in &modified_tables {
         match table_id.table_type {
@@ -84,7 +87,7 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
                     if let Some(table) = vertex_tables.get(&table_id.label_id) {
                         let vertex_dir = data_dir.join("vertices");
                         let table_dir = vertex_dir.join(format!("label_{}", table_id.label_id));
-                        table.flush(&table_dir)?;
+                        table.flush(&table_dir, compression)?;
                     }
                 }
             }
@@ -97,7 +100,7 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
                                 "{}_{}_{}",
                                 key.src_label, key.dst_label, key.edge_label
                             ));
-                            table.flush(&table_dir)?;
+                            table.flush(&table_dir, compression)?;
                         }
                     }
                 }
@@ -115,6 +118,7 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
 pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageResult<()> {
     use std::fs;
 
+    let compression = graph.config.flush_config.compression;
     let vertex_dir = data_dir.join("vertices");
     fs::create_dir_all(&vertex_dir)?;
 
@@ -122,7 +126,7 @@ pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageRes
         let vertex_tables = graph.data_store.vertex_tables().read();
         for (label_id, table) in &*vertex_tables {
             let table_dir = vertex_dir.join(format!("label_{}", label_id));
-            table.flush(&table_dir)?;
+            table.flush(&table_dir, compression)?;
         }
     }
 
@@ -141,7 +145,7 @@ pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageRes
         ) in &*edge_tables
         {
             let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
-            table.flush(&table_dir)?;
+            table.flush(&table_dir, compression)?;
         }
     }
 
@@ -170,10 +174,10 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
         let version: u32 = content.trim().parse().map_err(|e| {
             StorageError::deserialize_error(format!("Invalid version format: {}", e))
         })?;
-        if version > DATA_FORMAT_VERSION {
+        if version != DATA_FORMAT_VERSION {
             return Err(StorageError::deserialize_error(format!(
-                "Data format version {} is newer than supported version {}",
-                version, DATA_FORMAT_VERSION
+                "Data format version mismatch: expected {}, got {}",
+                DATA_FORMAT_VERSION, version
             )));
         }
     }

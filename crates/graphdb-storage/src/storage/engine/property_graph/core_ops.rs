@@ -12,7 +12,8 @@ use crate::storage::storage_types::EdgeOffset;
 use crate::storage::vertex::{VertexRecord, VertexTable};
 
 use super::{
-    InsertEdgeParams, InsertEdgeParamsByI64, PropertyGraph, PropertyGraphUpdateEdgePropertyParams,
+    EdgeOperationParams, EdgeOperationParamsByI64, InsertEdgeParams, InsertEdgeParamsByI64,
+    PropertyGraph, PropertyGraphUpdateEdgePropertyParams,
 };
 
 use std::sync::atomic::Ordering;
@@ -473,12 +474,7 @@ pub fn insert_edge_by_i64(
 
 pub fn get_edge(
     graph: &PropertyGraph,
-    edge_label: LabelId,
-    src_label: LabelId,
-    src_id: &str,
-    dst_label: LabelId,
-    dst_id: &str,
-    rank: i64,
+    params: &EdgeOperationParams,
     ts: Timestamp,
 ) -> Option<EdgeRecord> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -487,45 +483,40 @@ pub fn get_edge(
 
     let vertex_tables = graph.data_store.vertex_tables().read();
 
-    let src_internal = if src_label == 0 {
+    let src_internal = if params.src_label == 0 {
         vertex_tables
             .values()
-            .find_map(|t| t.get_internal_id(src_id, ts))?
+            .find_map(|t| t.get_internal_id(params.src_id, ts))?
     } else {
-        let src_table = vertex_tables.get(&src_label)?;
-        src_table.get_internal_id(src_id, ts)?
+        let src_table = vertex_tables.get(&params.src_label)?;
+        src_table.get_internal_id(params.src_id, ts)?
     };
 
-    let dst_internal = if dst_label == 0 {
+    let dst_internal = if params.dst_label == 0 {
         vertex_tables
             .values()
-            .find_map(|t| t.get_internal_id(dst_id, ts))?
+            .find_map(|t| t.get_internal_id(params.dst_id, ts))?
     } else {
-        let dst_table = vertex_tables.get(&dst_label)?;
-        dst_table.get_internal_id(dst_id, ts)?
+        let dst_table = vertex_tables.get(&params.dst_label)?;
+        dst_table.get_internal_id(params.dst_id, ts)?
     };
     drop(vertex_tables);
 
-    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
     let edge_tables = graph.data_store.edge_tables().read();
     let edge_table = edge_tables.get(&key)?;
 
     edge_table.get_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
-        rank,
+        params.rank,
         ts,
     )
 }
 
 pub fn get_edge_by_i64(
     graph: &PropertyGraph,
-    edge_label: LabelId,
-    src_label: LabelId,
-    src_id: i64,
-    dst_label: LabelId,
-    dst_id: i64,
-    rank: i64,
+    params: &EdgeOperationParamsByI64,
     ts: Timestamp,
 ) -> Option<EdgeRecord> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -534,33 +525,33 @@ pub fn get_edge_by_i64(
 
     let vertex_tables = graph.data_store.vertex_tables().read();
 
-    let src_internal = if src_label == 0 {
+    let src_internal = if params.src_label == 0 {
         vertex_tables
             .values()
-            .find_map(|t| t.get_internal_id_by_i64(src_id, ts))?
+            .find_map(|t| t.get_internal_id_by_i64(params.src_id, ts))?
     } else {
-        let src_table = vertex_tables.get(&src_label)?;
-        src_table.get_internal_id_by_i64(src_id, ts)?
+        let src_table = vertex_tables.get(&params.src_label)?;
+        src_table.get_internal_id_by_i64(params.src_id, ts)?
     };
 
-    let dst_internal = if dst_label == 0 {
+    let dst_internal = if params.dst_label == 0 {
         vertex_tables
             .values()
-            .find_map(|t| t.get_internal_id_by_i64(dst_id, ts))?
+            .find_map(|t| t.get_internal_id_by_i64(params.dst_id, ts))?
     } else {
-        let dst_table = vertex_tables.get(&dst_label)?;
-        dst_table.get_internal_id_by_i64(dst_id, ts)?
+        let dst_table = vertex_tables.get(&params.dst_label)?;
+        dst_table.get_internal_id_by_i64(params.dst_id, ts)?
     };
     drop(vertex_tables);
 
-    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
     let edge_tables = graph.data_store.edge_tables().read();
     let edge_table = edge_tables.get(&key)?;
 
     edge_table.get_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
-        rank,
+        params.rank,
         ts,
     )
 }
@@ -597,12 +588,7 @@ fn resolve_internal_id_from_vertex_tables_str(
 
 pub fn delete_edge(
     graph: &PropertyGraph,
-    edge_label: LabelId,
-    src_label: LabelId,
-    src_id: &str,
-    dst_label: LabelId,
-    dst_id: &str,
-    rank: i64,
+    params: &EdgeOperationParams,
     ts: Timestamp,
 ) -> StorageResult<bool> {
     if !graph.is_open.load(Ordering::Acquire) {
@@ -612,10 +598,10 @@ pub fn delete_edge(
     let vertex_tables = graph.data_store.vertex_tables().read();
 
     let src_internal =
-        resolve_internal_id_from_vertex_tables_str(&vertex_tables, src_label, src_id, ts)
+        resolve_internal_id_from_vertex_tables_str(&vertex_tables, params.src_label, params.src_id, ts)
             .or_else(|| {
-                if let Ok(id) = src_id.parse::<i64>() {
-                    resolve_internal_id_from_vertex_tables(&vertex_tables, src_label, id, ts)
+                if let Ok(id) = params.src_id.parse::<i64>() {
+                    resolve_internal_id_from_vertex_tables(&vertex_tables, params.src_label, id, ts)
                 } else {
                     None
                 }
@@ -623,10 +609,10 @@ pub fn delete_edge(
             .ok_or(StorageError::vertex_not_found())?;
 
     let dst_internal =
-        resolve_internal_id_from_vertex_tables_str(&vertex_tables, dst_label, dst_id, ts)
+        resolve_internal_id_from_vertex_tables_str(&vertex_tables, params.dst_label, params.dst_id, ts)
             .or_else(|| {
-                if let Ok(id) = dst_id.parse::<i64>() {
-                    resolve_internal_id_from_vertex_tables(&vertex_tables, dst_label, id, ts)
+                if let Ok(id) = params.dst_id.parse::<i64>() {
+                    resolve_internal_id_from_vertex_tables(&vertex_tables, params.dst_label, id, ts)
                 } else {
                     None
                 }
@@ -635,20 +621,20 @@ pub fn delete_edge(
 
     drop(vertex_tables);
 
-    let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+    let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
     let mut edge_tables = graph.data_store.edge_tables().write();
     let edge_table = edge_tables
         .get_mut(&key)
-        .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", edge_label)))?;
+        .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
 
     let deleted = edge_table.delete_edge(
         VertexId::from_int64(src_internal as i64),
         VertexId::from_int64(dst_internal as i64),
-        rank,
+        params.rank,
         ts,
     )?;
     if deleted {
-        graph.mark_edge_modified(edge_label);
+        graph.mark_edge_modified(params.edge_label);
     }
 
     Ok(deleted)

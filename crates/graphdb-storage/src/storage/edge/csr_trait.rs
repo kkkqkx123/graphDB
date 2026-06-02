@@ -5,7 +5,7 @@
 
 use crate::core::StorageResult;
 
-use super::{EdgeId, EdgeStrategy, ImmutableNbr, Nbr, Timestamp, VertexId};
+use super::{EdgeId, EdgeStrategy, Nbr, Timestamp, VertexId};
 
 pub trait CsrBase: std::fmt::Debug + Send + Sync {
     fn vertex_capacity(&self) -> usize;
@@ -17,10 +17,6 @@ pub trait CsrBase: std::fmt::Debug + Send + Sync {
     }
 
     fn csr_type(&self) -> CsrType;
-
-    fn resize(&mut self, new_vertex_capacity: usize);
-
-    fn clear(&mut self);
 
     fn dump(&self) -> Vec<u8>;
 
@@ -60,13 +56,6 @@ pub trait MutableCsrTrait: CsrBase {
     /// - `SingleMutableCsr`: only offset == 0 is valid; returns false otherwise.
     fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool;
 
-    /// Revert a previously deleted edge.
-    ///
-    /// - `MutableCsr`: locates the edge by `edge_id` and restores its timestamp.
-    /// - `SingleMutableCsr`: verifies `edge_id` matches, then restores timestamp
-    ///   (neighbor field is preserved from the delete operation).
-    fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool;
-
     /// Revert a deleted edge by its offset position.
     ///
     /// - `MutableCsr`: offset indexes into the primary block.
@@ -101,42 +90,11 @@ pub trait MutableCsrTrait: CsrBase {
         0
     }
 
-    /// Batch insert edges.
-    ///
-    /// - `MutableCsr`: calls `insert_edge` per edge (full duplicate check + overflow logic).
-    /// - `SingleMutableCsr`: direct array writes, no duplicate checking (overwrite semantics).
-    fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-        ts: Timestamp,
-    );
-
     /// Find a deleted edge by destination vertex.
     fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId>;
 
     /// Return the approximate memory usage in bytes.
     fn used_memory_size(&self) -> usize;
-}
-
-pub trait ImmutableCsrTrait: CsrBase {
-    fn get_edge(&self, src: VertexId, dst: VertexId) -> Option<&ImmutableNbr>;
-
-    fn edges_of(&self, src: VertexId) -> &[ImmutableNbr];
-
-    fn degree(&self, src: VertexId) -> usize;
-
-    fn has_edge(&self, src: VertexId, dst: VertexId) -> bool;
-
-    fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-    );
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

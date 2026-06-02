@@ -37,6 +37,30 @@ pub enum EncodingType {
     Alp,
 }
 
+impl EncodingType {
+    pub fn to_u8(self) -> u8 {
+        match self {
+            EncodingType::None => 0,
+            EncodingType::Dictionary => 1,
+            EncodingType::Rle => 2,
+            EncodingType::BitPacking => 3,
+            EncodingType::Fsst => 4,
+            EncodingType::Alp => 5,
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            1 => EncodingType::Dictionary,
+            2 => EncodingType::Rle,
+            3 => EncodingType::BitPacking,
+            4 => EncodingType::Fsst,
+            5 => EncodingType::Alp,
+            _ => EncodingType::None,
+        }
+    }
+}
+
 pub trait EncodedColumn: Send + Sync {
     fn get(&self, row_idx: usize) -> Option<Value>;
 
@@ -254,144 +278,9 @@ impl EncodingStats {
     }
 }
 
-pub fn select_encoding(values: &[Option<Value>], data_type: &DataType) -> EncodingType {
-    if values.is_empty() {
-        return EncodingType::None;
-    }
-
-    match data_type {
-        DataType::String => select_string_encoding(values),
-        DataType::Int | DataType::SmallInt | DataType::BigInt => select_int_encoding(values),
-        _ => EncodingType::None,
-    }
-}
-
-fn select_string_encoding(values: &[Option<Value>]) -> EncodingType {
-    let non_null_count = values.iter().filter(|v| v.is_some()).count();
-    if non_null_count == 0 {
-        return EncodingType::None;
-    }
-
-    let mut unique_values: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
-    let mut total_length = 0;
-
-    for value in values.iter().flatten() {
-        if let Value::String(s) = value {
-            *unique_values.entry(s.clone()).or_insert(0) += 1;
-            total_length += s.len();
-        }
-    }
-
-    let cardinality = unique_values.len();
-    let cardinality_ratio = cardinality as f64 / non_null_count as f64;
-
-    if cardinality_ratio < 0.5 && cardinality < 10000 {
-        let dict_size = cardinality * 20 + non_null_count * 4;
-        if dict_size < total_length {
-            return EncodingType::Dictionary;
-        }
-    }
-
-    EncodingType::None
-}
-
-fn select_int_encoding(values: &[Option<Value>]) -> EncodingType {
-    let non_null_values: Vec<i64> = values
-        .iter()
-        .filter_map(|v| {
-            v.as_ref().and_then(|val| match val {
-                Value::SmallInt(i) => Some(*i as i64),
-                Value::Int(i) => Some(*i as i64),
-                Value::BigInt(i) => Some(*i),
-                _ => None,
-            })
-        })
-        .collect();
-
-    if non_null_values.is_empty() {
-        return EncodingType::None;
-    }
-
-    let mut runs = 1;
-    for i in 1..non_null_values.len() {
-        if non_null_values[i] != non_null_values[i - 1] {
-            runs += 1;
-        }
-    }
-
-    let run_ratio = runs as f64 / non_null_values.len() as f64;
-    if run_ratio < 0.3 {
-        return EncodingType::Rle;
-    }
-
-    let min_val = *non_null_values.iter().min().unwrap_or(&0);
-    let max_val = *non_null_values.iter().max().unwrap_or(&0);
-    let range = (max_val - min_val) as u64;
-
-    if range > 0 {
-        let bit_width = (64 - range.leading_zeros()) as u8;
-        if bit_width < 32 && non_null_values.len() >= 100 {
-            return EncodingType::BitPacking;
-        }
-    }
-
-    EncodingType::None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_select_string_encoding_dictionary() {
-        let values: Vec<Option<Value>> = vec![
-            Some(Value::String("very_long_string_apple".to_string())),
-            Some(Value::String("very_long_string_banana".to_string())),
-            Some(Value::String("very_long_string_apple".to_string())),
-            Some(Value::String("very_long_string_apple".to_string())),
-            Some(Value::String("very_long_string_banana".to_string())),
-        ];
-
-        let encoding = select_encoding(&values, &DataType::String);
-        assert_eq!(encoding, EncodingType::Dictionary);
-    }
-
-    #[test]
-    fn test_select_string_encoding_none() {
-        let values: Vec<Option<Value>> = vec![
-            Some(Value::String("unique1".to_string())),
-            Some(Value::String("unique2".to_string())),
-            Some(Value::String("unique3".to_string())),
-        ];
-
-        let encoding = select_encoding(&values, &DataType::String);
-        assert_eq!(encoding, EncodingType::None);
-    }
-
-    #[test]
-    fn test_select_int_encoding_rle() {
-        let values: Vec<Option<Value>> = vec![
-            Some(Value::Int(1)),
-            Some(Value::Int(1)),
-            Some(Value::Int(1)),
-            Some(Value::Int(2)),
-            Some(Value::Int(2)),
-            Some(Value::Int(2)),
-            Some(Value::Int(2)),
-        ];
-
-        let encoding = select_encoding(&values, &DataType::Int);
-        assert_eq!(encoding, EncodingType::Rle);
-    }
-
-    #[test]
-    fn test_select_int_encoding_bitpacking() {
-        let values: Vec<Option<Value>> = (0..200).map(|i| Some(Value::Int(i % 100))).collect();
-
-        let encoding = select_encoding(&values, &DataType::Int);
-        assert_eq!(encoding, EncodingType::BitPacking);
-    }
 
     #[test]
     fn test_column_encoding_none() {

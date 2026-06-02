@@ -3,10 +3,12 @@
 //! This module provides a generic implementation of index management
 //! that can be used for both vertex and edge indexes.
 
-use crate::storage::index::index_data_manager::IndexEntry;
-use crate::storage::index::key_codec::{CompressionConfig, IndexCompressor, IndexKeyGenerator, SecondaryIndexKey};
 use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
+use crate::storage::index::index_data_manager::IndexEntry;
+use crate::storage::index::key_codec::{
+    CompressionConfig, IndexCompressor, IndexKeyGenerator, SecondaryIndexKey,
+};
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;

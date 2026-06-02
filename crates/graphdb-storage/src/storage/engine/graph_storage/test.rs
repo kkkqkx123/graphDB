@@ -15,6 +15,13 @@ mod tests {
         GraphStorage::new().expect("Failed to create GraphStorage")
     }
 
+    fn create_persistent_storage() -> (tempfile::TempDir, GraphStorage) {
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+        let storage = GraphStorage::new_with_path(temp_dir.path().to_path_buf())
+            .expect("Failed to create persistent GraphStorage");
+        (temp_dir, storage)
+    }
+
     fn setup_space(storage: &mut GraphStorage) -> u64 {
         let mut space = SpaceInfo::new("test_space".to_string())
             .with_vid_type(DataType::BigInt)
@@ -39,6 +46,35 @@ mod tests {
         storage
             .create_edge_type("test_space", &edge)
             .expect("Failed to create edge type")
+    }
+
+    #[test]
+    fn test_snapshot_admin_methods() {
+        let (_temp_dir, storage) = create_persistent_storage();
+
+        let initial_stats = storage.snapshot_stats();
+        assert_eq!(initial_stats.snapshot_count, 0);
+        assert_eq!(initial_stats.total_size_bytes, 0);
+        assert_eq!(initial_stats.latest_snapshot_id, None);
+
+        let checkpoint = storage
+            .create_checkpoint()
+            .expect("checkpoint should succeed")
+            .expect("persistence should be enabled");
+
+        assert!(checkpoint.snapshot_created);
+        assert!(storage
+            .verify_snapshot(checkpoint.checkpoint_id)
+            .expect("snapshot verification should succeed"));
+
+        let stats = storage.snapshot_stats();
+        assert_eq!(stats.snapshot_count, 1);
+        assert_eq!(stats.latest_snapshot_id, Some(checkpoint.checkpoint_id));
+
+        let deleted = storage
+            .cleanup_snapshots()
+            .expect("snapshot cleanup should succeed");
+        assert_eq!(deleted, 0);
     }
 
     // ==================== Schema Operations ====================

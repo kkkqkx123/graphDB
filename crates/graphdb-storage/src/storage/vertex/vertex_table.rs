@@ -529,6 +529,7 @@ impl VertexTable {
         }
         self.remap_columns(&id_mapping);
         self.remap_timestamps(&id_mapping);
+        let _ = self.columns.auto_apply_encodings(None);
     }
 
     fn remap_columns(&mut self, id_mapping: &std::collections::HashMap<u32, u32>) {
@@ -601,7 +602,11 @@ impl VertexTable {
         self.timestamps.size() - self.timestamps.valid_count(super::MAX_TIMESTAMP - 1)
     }
 
-    pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+    pub fn flush<P: AsRef<Path>>(
+        &self,
+        path: P,
+        compression: super::super::compression::CompressionType,
+    ) -> StorageResult<()> {
         use std::fs::{self, File};
         use std::io::Write;
 
@@ -627,14 +632,20 @@ impl VertexTable {
         meta_file.write_all(&(schema_bytes.len() as u32).to_le_bytes())?;
         meta_file.write_all(schema_bytes)?;
 
+        drop(meta_file);
+        super::super::compression::compress_file_inplace(&meta_path, compression)?;
+
         let id_indexer_path = path.join("id_indexer.bin");
         self.flush_id_indexer(&id_indexer_path)?;
+        super::super::compression::compress_file_inplace(&id_indexer_path, compression)?;
 
         let columns_path = path.join("columns.bin");
         self.flush_columns(&columns_path)?;
+        super::super::compression::compress_file_inplace(&columns_path, compression)?;
 
         let timestamps_path = path.join("timestamps.bin");
         self.flush_timestamps(&timestamps_path)?;
+        super::super::compression::compress_file_inplace(&timestamps_path, compression)?;
 
         Ok(())
     }
@@ -705,6 +716,9 @@ impl VertexTable {
             } else {
                 file.write_all(&[0u8])?;
             }
+
+            let encoding_type = col.encoding_type().to_u8();
+            file.write_all(&[encoding_type])?;
         }
 
         Ok(())
@@ -731,15 +745,15 @@ impl VertexTable {
     }
 
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
-        use std::fs::File;
         use std::io::Read;
 
         let path = path.as_ref();
-        let mut header_buf = [0u8; HEADER_SIZE];
 
         let meta_path = path.join("meta.bin");
-        let mut meta_file = File::open(&meta_path)?;
-        meta_file.read_exact(&mut header_buf)?;
+        let meta_data = super::super::compression::read_decompressed(&meta_path)?;
+        let mut meta_cursor = &meta_data[..];
+        let mut header_buf = [0u8; HEADER_SIZE];
+        meta_cursor.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
             let (_version, sid) = read_header(&mut slice)?;
@@ -753,24 +767,24 @@ impl VertexTable {
         }
 
         let mut label_bytes = [0u8; 4];
-        meta_file.read_exact(&mut label_bytes)?;
+        meta_cursor.read_exact(&mut label_bytes)?;
         self.label = u32::from_le_bytes(label_bytes);
 
         let mut label_name_len_bytes = [0u8; 4];
-        meta_file.read_exact(&mut label_name_len_bytes)?;
+        meta_cursor.read_exact(&mut label_name_len_bytes)?;
         let label_name_len = u32::from_le_bytes(label_name_len_bytes) as usize;
 
         let mut label_name_bytes = vec![0u8; label_name_len];
-        meta_file.read_exact(&mut label_name_bytes)?;
+        meta_cursor.read_exact(&mut label_name_bytes)?;
         self.label_name = String::from_utf8(label_name_bytes)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
         let mut schema_len_bytes = [0u8; 4];
-        meta_file.read_exact(&mut schema_len_bytes)?;
+        meta_cursor.read_exact(&mut schema_len_bytes)?;
         let schema_len = u32::from_le_bytes(schema_len_bytes) as usize;
 
         let mut schema_bytes = vec![0u8; schema_len];
-        meta_file.read_exact(&mut schema_bytes)?;
+        meta_cursor.read_exact(&mut schema_bytes)?;
         let schema_json = String::from_utf8(schema_bytes)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
         self.schema = serde_json::from_str(&schema_json)
@@ -790,12 +804,12 @@ impl VertexTable {
     }
 
     fn load_id_indexer(&mut self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
         use std::io::Read;
 
-        let mut file = File::open(path)?;
+        let data = super::super::compression::read_decompressed(path)?;
+        let mut cursor = &data[..];
         let mut header_buf = [0u8; HEADER_SIZE];
-        file.read_exact(&mut header_buf)?;
+        cursor.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
             let (_version, sid) = read_header(&mut slice)?;
@@ -809,22 +823,22 @@ impl VertexTable {
         }
 
         let mut count_bytes = [0u8; 4];
-        file.read_exact(&mut count_bytes)?;
+        cursor.read_exact(&mut count_bytes)?;
         let count = u32::from_le_bytes(count_bytes) as usize;
 
         self.id_indexer.clear();
 
         for _ in 0..count {
             let mut id_bytes = [0u8; 4];
-            file.read_exact(&mut id_bytes)?;
+            cursor.read_exact(&mut id_bytes)?;
             let internal_id = u32::from_le_bytes(id_bytes);
 
             let mut key_len_bytes = [0u8; 4];
-            file.read_exact(&mut key_len_bytes)?;
+            cursor.read_exact(&mut key_len_bytes)?;
             let key_len = u32::from_le_bytes(key_len_bytes) as usize;
 
             let mut key_bytes = vec![0u8; key_len];
-            file.read_exact(&mut key_bytes)?;
+            cursor.read_exact(&mut key_bytes)?;
             let key = IdKey::from_bytes(&key_bytes)?;
 
             self.id_indexer.set_at(internal_id, key);
@@ -834,12 +848,12 @@ impl VertexTable {
     }
 
     fn load_columns(&mut self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
         use std::io::Read;
 
-        let mut file = File::open(path)?;
+        let data = super::super::compression::read_decompressed(path)?;
+        let mut cursor = &data[..];
         let mut header_buf = [0u8; HEADER_SIZE];
-        file.read_exact(&mut header_buf)?;
+        cursor.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
             let (_version, sid) = read_header(&mut slice)?;
@@ -853,58 +867,58 @@ impl VertexTable {
         }
 
         let mut column_count_bytes = [0u8; 4];
-        file.read_exact(&mut column_count_bytes)?;
+        cursor.read_exact(&mut column_count_bytes)?;
         let column_count = u32::from_le_bytes(column_count_bytes) as usize;
 
         self.columns.clear();
 
         for _ in 0..column_count {
             let mut name_len_bytes = [0u8; 4];
-            file.read_exact(&mut name_len_bytes)?;
+            cursor.read_exact(&mut name_len_bytes)?;
             let name_len = u32::from_le_bytes(name_len_bytes) as usize;
 
             let mut name_bytes = vec![0u8; name_len];
-            file.read_exact(&mut name_bytes)?;
+            cursor.read_exact(&mut name_bytes)?;
             let name = String::from_utf8(name_bytes)
                 .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
             let mut row_count_bytes = [0u8; 4];
-            file.read_exact(&mut row_count_bytes)?;
+            cursor.read_exact(&mut row_count_bytes)?;
             let _row_count = u32::from_le_bytes(row_count_bytes) as usize;
 
             let mut data_len_bytes = [0u8; 4];
-            file.read_exact(&mut data_len_bytes)?;
+            cursor.read_exact(&mut data_len_bytes)?;
             let data_len = u32::from_le_bytes(data_len_bytes) as usize;
 
             let mut data = vec![0u8; data_len];
-            file.read_exact(&mut data)?;
+            cursor.read_exact(&mut data)?;
 
             let mut offsets_count_bytes = [0u8; 4];
-            file.read_exact(&mut offsets_count_bytes)?;
+            cursor.read_exact(&mut offsets_count_bytes)?;
             let offsets_count = u32::from_le_bytes(offsets_count_bytes) as usize;
 
             let mut offsets = Vec::with_capacity(offsets_count);
             for _ in 0..offsets_count {
                 let mut off_bytes = [0u8; 8];
-                file.read_exact(&mut off_bytes)?;
+                cursor.read_exact(&mut off_bytes)?;
                 offsets.push(u64::from_le_bytes(off_bytes));
             }
 
             let mut has_bitmap_bytes = [0u8; 1];
-            file.read_exact(&mut has_bitmap_bytes)?;
+            cursor.read_exact(&mut has_bitmap_bytes)?;
             let has_bitmap = has_bitmap_bytes[0] == 1;
 
             let (null_bitmap_raw, bitmap_bit_len) = if has_bitmap {
                 let mut bitmap_bit_len_bytes = [0u8; 4];
-                file.read_exact(&mut bitmap_bit_len_bytes)?;
+                cursor.read_exact(&mut bitmap_bit_len_bytes)?;
                 let bitmap_bit_len = u32::from_le_bytes(bitmap_bit_len_bytes) as usize;
 
                 let mut bitmap_bytes_len_bytes = [0u8; 4];
-                file.read_exact(&mut bitmap_bytes_len_bytes)?;
+                cursor.read_exact(&mut bitmap_bytes_len_bytes)?;
                 let bitmap_bytes_len = u32::from_le_bytes(bitmap_bytes_len_bytes) as usize;
 
                 let mut bitmap_bytes = vec![0u8; bitmap_bytes_len];
-                file.read_exact(&mut bitmap_bytes)?;
+                cursor.read_exact(&mut bitmap_bytes)?;
 
                 (Some(bitmap_bytes), bitmap_bit_len)
             } else {
@@ -918,18 +932,27 @@ impl VertexTable {
                 null_bitmap_raw,
                 bitmap_bit_len,
             )?;
+
+            let mut encoding_byte_bytes = [0u8; 1];
+            cursor.read_exact(&mut encoding_byte_bytes)?;
+            let encoding_type =
+                crate::storage::vertex::encoding::EncodingType::from_u8(encoding_byte_bytes[0]);
+            if encoding_type != crate::storage::vertex::encoding::EncodingType::None {
+                self.columns
+                    .apply_encoding_to_column(&name, encoding_type)?;
+            }
         }
 
         Ok(())
     }
 
     fn load_timestamps(&mut self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
         use std::io::Read;
 
-        let mut file = File::open(path)?;
+        let data = super::super::compression::read_decompressed(path)?;
+        let mut cursor = &data[..];
         let mut header_buf = [0u8; HEADER_SIZE];
-        file.read_exact(&mut header_buf)?;
+        cursor.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
             let (_version, sid) = read_header(&mut slice)?;
@@ -943,13 +966,13 @@ impl VertexTable {
         }
 
         let mut count_bytes = [0u8; 4];
-        file.read_exact(&mut count_bytes)?;
+        cursor.read_exact(&mut count_bytes)?;
         let count = u32::from_le_bytes(count_bytes) as usize;
 
         let mut timestamps = Vec::with_capacity(count);
         for _ in 0..count {
             let mut ts_bytes = [0u8; 4];
-            file.read_exact(&mut ts_bytes)?;
+            cursor.read_exact(&mut ts_bytes)?;
             timestamps.push(u32::from_le_bytes(ts_bytes));
         }
 

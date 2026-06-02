@@ -5,7 +5,7 @@
 use crate::core::error::StorageResult;
 use crate::core::types::{LabelId, Timestamp};
 
-use super::redo::{InsertEdgeRedo, UpdateEdgePropRedo};
+use super::redo::{DeleteEdgeRedo, InsertEdgeRedo, UpdateEdgePropRedo};
 use super::types::WalResult;
 
 /// WAL writer trait
@@ -46,16 +46,7 @@ pub trait RecoveryApplier {
 
     fn replay_delete_vertex(&self, label: LabelId, oid: &[u8], ts: Timestamp) -> StorageResult<()>;
 
-    fn replay_delete_edge(
-        &self,
-        src_label: LabelId,
-        src_oid: &[u8],
-        dst_label: LabelId,
-        dst_oid: &[u8],
-        edge_label: LabelId,
-        rank: i64,
-        ts: Timestamp,
-    ) -> StorageResult<()>;
+    fn replay_delete_edge(&self, redo: &DeleteEdgeRedo, ts: Timestamp) -> StorageResult<()>;
 
     fn replay_compact(&self, ts: Timestamp) -> StorageResult<()> {
         let _ = ts;

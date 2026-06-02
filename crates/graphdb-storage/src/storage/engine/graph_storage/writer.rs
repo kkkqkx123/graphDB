@@ -4,6 +4,7 @@ use crate::core::types::{
     UpdateTarget, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
+use crate::storage::engine::edge_params::EdgeOperationParams;
 use crate::storage::engine::property_graph::{InsertEdgeParams, InsertEdgeParamsByI64};
 
 use super::context::GraphStorageContext;
@@ -448,12 +449,14 @@ fn rollback_edges(
         let src = item.src.to_string();
         let dst = item.dst.to_string();
         let _ = ctx.graph.delete_edge(
-            item.edge_label_id,
-            item.src_label_id,
-            &src,
-            item.dst_label_id,
-            &dst,
-            item.rank,
+            &EdgeOperationParams {
+                edge_label: item.edge_label_id,
+                src_label: item.src_label_id,
+                src_id: &src,
+                dst_label: item.dst_label_id,
+                dst_id: &dst,
+                rank: item.rank,
+            },
             ts,
         );
     }
@@ -490,12 +493,14 @@ pub(crate) fn delete_edge(
                 let dst_str = dst.to_string();
 
                 ctx.graph.delete_edge(
-                    edge_label_id,
-                    src_label_id,
-                    &src_str,
-                    dst_label_id,
-                    &dst_str,
-                    rank,
+                    &EdgeOperationParams {
+                        edge_label: edge_label_id,
+                        src_label: src_label_id,
+                        src_id: &src_str,
+                        dst_label: dst_label_id,
+                        dst_id: &dst_str,
+                        rank,
+                    },
                     ts,
                 )?;
 
@@ -768,12 +773,14 @@ pub(crate) fn delete_edge_data(
         if ctx
             .graph
             .delete_edge(
-                edge_label_id,
-                src_label_id,
-                src,
-                dst_label_id,
-                dst,
-                rank,
+                &EdgeOperationParams {
+                    edge_label: edge_label_id,
+                    src_label: src_label_id,
+                    src_id: src,
+                    dst_label: dst_label_id,
+                    dst_id: dst,
+                    rank,
+                },
                 ts,
             )
             .is_ok()

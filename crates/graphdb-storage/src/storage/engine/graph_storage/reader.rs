@@ -1,5 +1,6 @@
 use crate::core::types::{EdgeTypeInfo, LabelId, TagInfo, VertexId};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
+use crate::storage::engine::edge_params::{EdgeOperationParams, EdgeOperationParamsByI64};
 
 use super::context::GraphStorageContext;
 use super::type_utils::{
@@ -146,12 +147,14 @@ pub(crate) fn get_edge(
     let dst_str = dst.to_string();
 
     if let Some(record) = ctx.graph.get_edge(
-        edge_label_id,
-        src_label_id,
-        &src_str,
-        dst_label_id,
-        &dst_str,
-        rank,
+        &EdgeOperationParams {
+            edge_label: edge_label_id,
+            src_label: src_label_id,
+            src_id: &src_str,
+            dst_label: dst_label_id,
+            dst_id: &dst_str,
+            rank,
+        },
         ts,
     ) {
         let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
@@ -160,12 +163,14 @@ pub(crate) fn get_edge(
 
     if let (Some(src_int), Some(dst_int)) = (src.as_int64(), dst.as_int64()) {
         if let Some(record) = ctx.graph.get_edge_by_i64(
-            edge_label_id,
-            src_label_id,
-            src_int,
-            dst_label_id,
-            dst_int,
-            rank,
+            &EdgeOperationParamsByI64 {
+                edge_label: edge_label_id,
+                src_label: src_label_id,
+                src_id: src_int,
+                dst_label: dst_label_id,
+                dst_id: dst_int,
+                rank,
+            },
             ts,
         ) {
             let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
@@ -437,12 +442,14 @@ pub(crate) fn get_edge_with_schema(
         None => return Ok(None),
     };
     if let Some(record) = ctx.graph.get_edge(
-        edge_label_id,
-        src_label_id,
-        &src_str,
-        dst_label_id,
-        &dst_str,
-        0,
+        &EdgeOperationParams {
+            edge_label: edge_label_id,
+            src_label: src_label_id,
+            src_id: &src_str,
+            dst_label: dst_label_id,
+            dst_id: &dst_str,
+            rank: 0,
+        },
         ts,
     ) {
         let data = serialize_properties(&record.properties);

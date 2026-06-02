@@ -39,10 +39,11 @@ use crate::core::{Edge, Value};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::utils::props_to_map;
 
-pub use csr_trait::{CsrBase, CsrType, ImmutableCsrTrait, MutableCsrTrait};
+pub use csr::Csr;
+pub use csr_trait::{CsrBase, CsrType, MutableCsrTrait};
 pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
 pub use mutable_csr::{MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator};
-pub use mutable_csr_variant::{CsrEdgeIterator, CsrIterator, MutableCsrVariant};
+pub use mutable_csr_variant::MutableCsrVariant;
 pub use property_table::PropertyTable;
 pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
 
@@ -53,12 +54,6 @@ pub enum EdgeStrategy {
     None,
     Single,
     Multiple,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EdgeDirection {
-    Out,
-    In,
 }
 
 #[derive(Debug, Clone)]
@@ -168,14 +163,25 @@ pub struct ImmutableNbr {
     pub neighbor: VertexId,
     pub edge_id: EdgeId,
     pub prop_offset: u32,
+    pub timestamp: Timestamp,
 }
 
 impl ImmutableNbr {
     pub fn new(neighbor: VertexId, edge_id: EdgeId, prop_offset: u32) -> Self {
+        Self::with_timestamp(neighbor, edge_id, prop_offset, 0)
+    }
+
+    pub fn with_timestamp(
+        neighbor: VertexId,
+        edge_id: EdgeId,
+        prop_offset: u32,
+        timestamp: Timestamp,
+    ) -> Self {
         Self {
             neighbor,
             edge_id,
             prop_offset,
+            timestamp,
         }
     }
 }

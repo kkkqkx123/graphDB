@@ -6,14 +6,14 @@
 //! Supports persistence through flush/load operations.
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 
-use crate::storage::index::edge_index_manager::EdgeIndexManager;
-use crate::storage::index::key_codec::{deserialize_value, serialize_value};
-use crate::storage::index::vertex_index_manager::VertexIndexManager;
 use crate::core::stats::StatsManager;
 use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
 use crate::core::{StorageError, StorageResult, Value};
+use crate::storage::index::edge_index_manager::EdgeIndexManager;
+use crate::storage::index::key_codec::{deserialize_value, serialize_value};
+use crate::storage::index::vertex_index_manager::VertexIndexManager;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
@@ -32,20 +32,11 @@ impl IndexEntry {
         }
     }
 
-    pub fn with_deleted(mut self, deleted_ts: Timestamp) -> Self {
-        self.deleted_ts = Some(deleted_ts);
-        self
-    }
-
     pub fn is_visible_at(&self, read_ts: Timestamp) -> bool {
         self.created_ts <= read_ts
             && self
                 .deleted_ts
                 .is_none_or(|deleted_ts| deleted_ts > read_ts)
-    }
-
-    pub fn is_deleted(&self) -> bool {
-        self.deleted_ts.is_some()
     }
 
     pub fn mark_deleted(&mut self, deleted_ts: Timestamp) {
@@ -363,10 +354,6 @@ pub trait IndexGcOps: Send + Sync {
     ) -> Result<GcStats, StorageError>;
     fn tombstone_count(&self) -> usize;
 }
-
-/// Composite trait for backward compatibility.
-/// Combines all index operation traits.
-pub trait IndexDataManager: VertexIndexOps + EdgeIndexOps + IndexGcOps {}
 
 #[derive(Clone)]
 pub struct IndexDataManagerImpl {
@@ -819,13 +806,11 @@ impl IndexGcOps for IndexDataManagerImpl {
     }
 }
 
-impl IndexDataManager for IndexDataManagerImpl {}
-
 #[cfg(test)]
 mod tests {
-    use crate::storage::index::*;
     use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
     use crate::core::Value;
+    use crate::storage::index::*;
 
     fn create_test_index(name: &str, schema_name: &str) -> Index {
         Index::new(IndexConfig {

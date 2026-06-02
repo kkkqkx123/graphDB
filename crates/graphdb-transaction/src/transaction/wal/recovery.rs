@@ -235,15 +235,7 @@ impl RecoveryManager {
                 },
                 WalOpType::DeleteEdge => match self.deserialize_delete_edge(payload) {
                     Ok(redo) => {
-                        applier.replay_delete_edge(
-                            redo.src_label,
-                            &redo.src_oid,
-                            redo.dst_label,
-                            &redo.dst_oid,
-                            redo.edge_label,
-                            redo.rank,
-                            ts,
-                        )?;
+                        applier.replay_delete_edge(&redo, ts)?;
                         self.stats.wal_entries_replayed += 1;
                     }
                     Err(e) => {

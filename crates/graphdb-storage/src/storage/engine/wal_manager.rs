@@ -29,14 +29,6 @@ impl WalManager {
         }
     }
 
-    pub fn with_config(config: WalConfig) -> Self {
-        Self {
-            local_writer: None,
-            dyn_writer: None,
-            config,
-        }
-    }
-
     pub fn open(&mut self, wal_dir: &Path, thread_id: u32) -> StorageResult<()> {
         let wal_uri = wal_dir.to_string_lossy().to_string();
         let mut writer = LocalWalWriter::with_config(&wal_uri, thread_id, self.config.clone());
@@ -45,10 +37,6 @@ impl WalManager {
             .map_err(|e| StorageError::wal_error(format!("Failed to open WAL: {:?}", e)))?;
         self.local_writer = Some(Arc::new(RwLock::new(writer)));
         Ok(())
-    }
-
-    pub fn set_writer(&mut self, writer: Arc<RwLock<LocalWalWriter>>) {
-        self.local_writer = Some(writer);
     }
 
     pub fn set_wal_writer(&mut self, writer: Arc<RwLock<Box<dyn WalWriter>>>) {
@@ -66,14 +54,6 @@ impl WalManager {
     pub fn current_lsn(&self) -> Lsn {
         if let Some(ref writer) = self.local_writer {
             writer.read().current_lsn()
-        } else {
-            Lsn::ZERO
-        }
-    }
-
-    pub fn last_synced_lsn(&self) -> Lsn {
-        if let Some(ref writer) = self.local_writer {
-            writer.read().last_synced_lsn()
         } else {
             Lsn::ZERO
         }
@@ -124,10 +104,6 @@ impl WalManager {
         Ok(())
     }
 
-    pub fn replay_from_lsn(&self, lsn: Lsn) -> StorageResult<()> {
-        self.truncate(lsn)
-    }
-
     pub fn close(&mut self) -> StorageResult<()> {
         if let Some(ref writer) = self.local_writer {
             writer.write().close();
@@ -135,26 +111,6 @@ impl WalManager {
         self.local_writer = None;
         self.dyn_writer = None;
         Ok(())
-    }
-
-    pub fn get_stats(&self) -> Option<crate::transaction::wal::WalStats> {
-        self.local_writer
-            .as_ref()
-            .map(|w| w.read().get_stats().clone())
-    }
-
-    pub fn checkpoint_seq(&self) -> u64 {
-        if let Some(ref writer) = self.local_writer {
-            writer.read().checkpoint_seq()
-        } else {
-            0
-        }
-    }
-
-    pub fn set_checkpoint_seq(&self, seq: u64) {
-        if let Some(ref writer) = self.local_writer {
-            writer.write().set_checkpoint_seq(seq);
-        }
     }
 }
 

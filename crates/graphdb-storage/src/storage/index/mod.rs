@@ -17,19 +17,18 @@
 //!
 //! ## Module Structure
 //!
-//! - `index_types`: Index classification traits and types
+//! - `index_types`: Index estimate type
 //! - `vertex_index_manager`: BTreeMap-based vertex index management
 //! - `edge_index_manager`: BTreeMap-based edge index management
-//! - `index_data_manager`: `IndexDataManager` trait and `IndexDataManagerImpl` implementation
-//! - `index_updater`: Automatic index maintenance during DML operations
+//! - `index_data_manager`: `IndexDataManagerImpl` with `VertexIndexOps`, `EdgeIndexOps`, `IndexGcOps`
 //! - `key_codec`: Index key encoding/decoding and compression utilities
 //! - `index_gc_manager`: Background GC for tombstone cleanup
 
-pub mod index_types;
 pub(crate) mod edge_index_manager;
 pub(crate) mod generic_index_manager;
 pub(crate) mod index_data_manager;
 pub(crate) mod index_gc_manager;
+pub mod index_types;
 pub(crate) mod key_codec;
 pub(crate) mod vertex_index_manager;
 

@@ -75,6 +75,31 @@ pub(crate) fn create_checkpoint(
     Ok(Some(stats))
 }
 
+pub(crate) fn verify_snapshot(ctx: &GraphStorageContext, snapshot_id: u64) -> StorageResult<bool> {
+    let persistence = ctx
+        .persistence
+        .as_ref()
+        .ok_or_else(|| StorageError::not_supported("Snapshots are not available"))?;
+
+    persistence.read().verify_snapshot(snapshot_id)
+}
+
+pub(crate) fn cleanup_snapshots(ctx: &GraphStorageContext) -> StorageResult<usize> {
+    let persistence = ctx
+        .persistence
+        .as_ref()
+        .ok_or_else(|| StorageError::not_supported("Snapshots are not available"))?;
+
+    persistence.read().cleanup_old_snapshots()
+}
+
+pub(crate) fn snapshot_stats(ctx: &GraphStorageContext) -> crate::storage::SnapshotStats {
+    ctx.persistence
+        .as_ref()
+        .map(|persistence| persistence.read().snapshot_stats())
+        .unwrap_or_default()
+}
+
 pub(crate) fn load_latest_checkpoint(
     ctx: &GraphStorageContext,
 ) -> StorageResult<Option<CheckpointInfo>> {

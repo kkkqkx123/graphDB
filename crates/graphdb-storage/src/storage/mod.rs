@@ -21,7 +21,7 @@ pub(crate) mod vertex;
 mod test_mock;
 
 pub use engine::graph_storage::GraphStorage;
-pub use engine::persistence_coordinator::CheckpointStats;
+pub use engine::persistence_coordinator::{CheckpointStats, SnapshotStats};
 pub use engine::sync_wrapper::SyncWrapper;
 pub use metrics::MetricsStorage;
 pub use storage_client::{

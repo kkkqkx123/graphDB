@@ -99,6 +99,10 @@ pub struct InsertEdgeParamsByI64<'a> {
     pub ts: Timestamp,
 }
 
+/// Parameters for edge operations with i64 vertex IDs
+pub use crate::storage::engine::edge_params::EdgeOperationParamsByI64;
+pub use crate::storage::engine::edge_params::EdgeOperationParams;
+
 /// Parameters for update_edge_property operation in PropertyGraph
 pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
     pub edge_label: LabelId,
@@ -475,47 +479,26 @@ impl PropertyGraph {
 
     pub fn get_edge(
         &self,
-        edge_label: LabelId,
-        src_label: LabelId,
-        src_id: &str,
-        dst_label: LabelId,
-        dst_id: &str,
-        rank: i64,
+        params: &EdgeOperationParams,
         ts: Timestamp,
     ) -> Option<EdgeRecord> {
-        core_ops::get_edge(
-            self, edge_label, src_label, src_id, dst_label, dst_id, rank, ts,
-        )
+        core_ops::get_edge(self, params, ts)
     }
 
     pub fn get_edge_by_i64(
         &self,
-        edge_label: LabelId,
-        src_label: LabelId,
-        src_id: i64,
-        dst_label: LabelId,
-        dst_id: i64,
-        rank: i64,
+        params: &EdgeOperationParamsByI64,
         ts: Timestamp,
     ) -> Option<EdgeRecord> {
-        core_ops::get_edge_by_i64(
-            self, edge_label, src_label, src_id, dst_label, dst_id, rank, ts,
-        )
+        core_ops::get_edge_by_i64(self, params, ts)
     }
 
     pub fn delete_edge(
         &self,
-        edge_label: LabelId,
-        src_label: LabelId,
-        src_id: &str,
-        dst_label: LabelId,
-        dst_id: &str,
-        rank: i64,
+        params: &EdgeOperationParams,
         ts: Timestamp,
     ) -> StorageResult<bool> {
-        core_ops::delete_edge(
-            self, edge_label, src_label, src_id, dst_label, dst_id, rank, ts,
-        )
+        core_ops::delete_edge(self, params, ts)
     }
 
     pub fn update_edge_property(

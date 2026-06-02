@@ -63,6 +63,32 @@ impl MutableCsrVariant {
     pub fn is_multiple(&self) -> bool {
         matches!(self, MutableCsrVariant::Multiple(_))
     }
+
+    pub fn resize(&mut self, new_vertex_capacity: usize) {
+        delegate!(self.resize(new_vertex_capacity))
+    }
+
+    pub fn clear(&mut self) {
+        delegate!(self.clear())
+    }
+
+    pub fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
+        match self {
+            MutableCsrVariant::Multiple(csr) => csr.revert_delete(src, edge_id, ts),
+            MutableCsrVariant::Single(csr) => csr.revert_delete_by_id(src, edge_id, ts),
+        }
+    }
+
+    pub fn batch_put_edges(
+        &mut self,
+        src_list: &[VertexId],
+        dst_list: &[VertexId],
+        edge_ids: &[EdgeId],
+        prop_offsets: &[u32],
+        ts: Timestamp,
+    ) {
+        delegate!(self.batch_put_edges(src_list, dst_list, edge_ids, prop_offsets, ts))
+    }
 }
 
 impl CsrBase for MutableCsrVariant {
@@ -79,14 +105,6 @@ impl CsrBase for MutableCsrVariant {
             MutableCsrVariant::Multiple(_) => CsrType::Mutable,
             MutableCsrVariant::Single(_) => CsrType::SingleMutable,
         }
-    }
-
-    fn resize(&mut self, new_vertex_capacity: usize) {
-        delegate!(self.resize(new_vertex_capacity))
-    }
-
-    fn clear(&mut self) {
-        delegate!(self.clear())
     }
 
     fn dump(&self) -> Vec<u8> {
@@ -125,13 +143,6 @@ impl MutableCsrTrait for MutableCsrVariant {
         delegate!(self.delete_edge_by_offset(src, offset, ts))
     }
 
-    fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        match self {
-            MutableCsrVariant::Multiple(csr) => csr.revert_delete(src, edge_id, ts),
-            MutableCsrVariant::Single(csr) => MutableCsrTrait::revert_delete(csr, src, edge_id, ts),
-        }
-    }
-
     fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
         delegate!(self.revert_delete_by_offset(src, offset, ts))
     }
@@ -161,17 +172,6 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         delegate!(self.compact_with_ts(ts, reserve_ratio))
-    }
-
-    fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-        ts: Timestamp,
-    ) {
-        delegate!(self.batch_put_edges(src_list, dst_list, edge_ids, prop_offsets, ts))
     }
 
     fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {

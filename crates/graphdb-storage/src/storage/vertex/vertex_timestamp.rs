@@ -3,7 +3,7 @@
 //! MVCC timestamp tracking for vertices.
 //! Tracks creation and deletion timestamps for each vertex.
 
-use super::{Timestamp, VertexStatus, INVALID_TIMESTAMP, MAX_TIMESTAMP};
+use super::{Timestamp, INVALID_TIMESTAMP, MAX_TIMESTAMP};
 
 #[derive(Debug, Clone)]
 pub struct VertexTimestamp {
@@ -72,14 +72,6 @@ impl VertexTimestamp {
         idx < self.start_ts.len()
             && self.start_ts[idx] != INVALID_TIMESTAMP
             && self.end_ts[idx] != MAX_TIMESTAMP
-    }
-
-    pub fn get_status(&self, index: u32) -> VertexStatus {
-        if self.is_deleted(index) {
-            VertexStatus::Deleted
-        } else {
-            VertexStatus::Active
-        }
     }
 
     pub fn get_start_ts(&self, index: u32) -> Option<Timestamp> {

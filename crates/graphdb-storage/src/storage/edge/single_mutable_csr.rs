@@ -18,6 +18,32 @@ use super::{
     INVALID_TIMESTAMP,
 };
 
+fn write_vertex_id(out: &mut Vec<u8>, id: VertexId) {
+    let bytes = id.as_bytes();
+    out.push(bytes.len() as u8);
+    out.extend_from_slice(bytes);
+}
+
+fn read_vertex_id(data: &[u8], offset: &mut usize) -> StorageResult<VertexId> {
+    if *offset >= data.len() {
+        return Err(StorageError::deserialize_error(
+            "Single CSR data too short for vertex id length",
+        ));
+    }
+
+    let len = data[*offset] as usize;
+    *offset += 1;
+    if data.len().saturating_sub(*offset) < len {
+        return Err(StorageError::deserialize_error(
+            "Single CSR data too short for vertex id bytes",
+        ));
+    }
+
+    let id = VertexId::from_bytes(data[*offset..*offset + len].to_vec());
+    *offset += len;
+    Ok(id)
+}
+
 const DEFAULT_VERTEX_CAPACITY: usize = 1024;
 
 pub struct SingleMutableCsr {
@@ -262,6 +288,22 @@ impl SingleMutableCsr {
         true
     }
 
+    pub fn revert_delete_by_id(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
+        let src_idx = src.as_int64().unwrap_or(0) as usize;
+        if src_idx >= self.vertex_capacity {
+            return false;
+        }
+
+        let nbr = &mut self.nbr_list[src_idx];
+        if nbr.timestamp != INVALID_TIMESTAMP || nbr.edge_id != edge_id {
+            return false;
+        }
+
+        nbr.timestamp = ts;
+        self.edge_count.fetch_add(1, Ordering::Relaxed);
+        true
+    }
+
     pub fn get_edge(&self, src: VertexId, ts: Timestamp) -> Option<Nbr> {
         let src_idx = src.as_int64().unwrap_or(0) as usize;
 
@@ -381,7 +423,7 @@ impl SingleMutableCsr {
         result.extend_from_slice(&self.edge_count.load(Ordering::Relaxed).to_le_bytes());
 
         for nbr in &self.nbr_list {
-            result.extend_from_slice(&nbr.neighbor.as_int64().unwrap_or(0).to_le_bytes());
+            write_vertex_id(&mut result, nbr.neighbor);
             result.extend_from_slice(&nbr.edge_id.to_le_bytes());
             result.extend_from_slice(&nbr.prop_offset.to_le_bytes());
             result.extend_from_slice(&nbr.timestamp.to_le_bytes());
@@ -406,28 +448,14 @@ impl SingleMutableCsr {
         let vertex_capacity = read_u64_le(data, &mut offset)? as usize;
         let edge_count = read_u64_le(data, &mut offset)?;
 
-        let expected_len = 16 + vertex_capacity * 24;
-        if data.len() < expected_len {
-            return Err(StorageError::deserialize_error(format!(
-                "Single CSR data too short: expected at least {} bytes, got {}",
-                expected_len,
-                data.len()
-            )));
-        }
-
         let mut nbr_list = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
-            let neighbor = read_u64_le(data, &mut offset)?;
+            let neighbor = read_vertex_id(data, &mut offset)?;
             let edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
             let timestamp = read_u32_le(data, &mut offset)?;
 
-            nbr_list.push(Nbr::new(
-                VertexId::from_u64(neighbor),
-                edge_id,
-                prop_offset,
-                timestamp,
-            ));
+            nbr_list.push(Nbr::new(neighbor, edge_id, prop_offset, timestamp));
         }
 
         self.vertex_capacity = vertex_capacity;
@@ -528,14 +556,6 @@ impl CsrBase for SingleMutableCsr {
         CsrType::SingleMutable
     }
 
-    fn resize(&mut self, new_vertex_capacity: usize) {
-        SingleMutableCsr::resize(self, new_vertex_capacity);
-    }
-
-    fn clear(&mut self) {
-        SingleMutableCsr::clear(self);
-    }
-
     fn dump(&self) -> Vec<u8> {
         SingleMutableCsr::dump(self)
     }
@@ -569,22 +589,6 @@ impl MutableCsrTrait for SingleMutableCsr {
         SingleMutableCsr::delete_edge_by_offset(self, src, offset, ts)
     }
 
-    fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            return false;
-        }
-
-        let nbr = &mut self.nbr_list[src_idx];
-        if nbr.timestamp != INVALID_TIMESTAMP || nbr.edge_id != edge_id {
-            return false;
-        }
-
-        nbr.timestamp = ts;
-        self.edge_count.fetch_add(1, Ordering::Relaxed);
-        true
-    }
-
     fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
         SingleMutableCsr::revert_delete_by_offset(self, src, offset, ts)
     }
@@ -611,17 +615,6 @@ impl MutableCsrTrait for SingleMutableCsr {
 
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         SingleMutableCsr::compact_with_ts(self, ts, reserve_ratio)
-    }
-
-    fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-        ts: Timestamp,
-    ) {
-        SingleMutableCsr::batch_put_edges(self, src_list, dst_list, edge_ids, prop_offsets, ts);
     }
 
     fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {

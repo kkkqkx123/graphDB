@@ -103,19 +103,6 @@ impl IndexGcConfig {
     }
 }
 
-/// GC statistics for monitoring
-#[derive(Debug, Clone, Copy, Default)]
-pub struct IndexGcStats {
-    /// Total entries removed
-    pub total_removed: u64,
-    /// Number of GC passes executed
-    pub gc_passes: u64,
-    /// Last GC timestamp used
-    pub last_gc_ts: Timestamp,
-    /// Current tombstone count
-    pub current_tombstones: usize,
-}
-
 /// Index GC Manager
 ///
 /// Manages background garbage collection for index tombstones.
@@ -230,16 +217,6 @@ impl IndexGcManager {
     pub fn needs_aggressive_gc(&self) -> bool {
         self.config.aggressive_gc_enabled
             && self.tombstone_count() > self.config.tombstone_threshold
-    }
-
-    /// Get GC statistics
-    pub fn get_stats(&self) -> IndexGcStats {
-        IndexGcStats {
-            total_removed: self.total_removed.load(Ordering::Acquire),
-            gc_passes: self.stats.load(Ordering::Acquire),
-            last_gc_ts: self.last_gc_ts.load(Ordering::Acquire),
-            current_tombstones: self.tombstone_count(),
-        }
     }
 
     /// Start background GC thread
@@ -358,16 +335,5 @@ mod tests {
 
         let stats = gc_manager.run_gc_pass();
         assert!(stats.is_empty());
-    }
-
-    #[test]
-    fn test_gc_stats() {
-        let version_manager = Arc::new(VersionManager::new());
-        let index_manager = IndexDataManagerImpl::new();
-        let gc_manager = IndexGcManager::with_defaults(index_manager, version_manager);
-
-        let stats = gc_manager.get_stats();
-        assert_eq!(stats.total_removed, 0);
-        assert_eq!(stats.gc_passes, 0);
     }
 }

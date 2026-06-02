@@ -12,7 +12,7 @@ pub struct CreateEdgeTypeParams<'a> {
     pub ie_strategy: EdgeStrategy,
 }
 
-/// Parameters for edge operations that need vertex/edge labels and IDs
+/// Parameters for edge operations that need vertex/edge labels and IDs (string-based)
 pub struct EdgeOperationParams<'a> {
     pub edge_label: LabelId,
     pub src_label: LabelId,
@@ -22,4 +22,12 @@ pub struct EdgeOperationParams<'a> {
     pub rank: i64,
 }
 
-
+/// Parameters for edge operations with i64 vertex IDs
+pub struct EdgeOperationParamsByI64 {
+    pub edge_label: LabelId,
+    pub src_label: LabelId,
+    pub src_id: i64,
+    pub dst_label: LabelId,
+    pub dst_id: i64,
+    pub rank: i64,
+}

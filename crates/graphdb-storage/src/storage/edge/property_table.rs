@@ -1245,6 +1245,25 @@ impl PropertyTable {
             self.row_groups.push(RowGroup::new(*start_row, *end_row));
         }
 
+        // Re-apply column encodings from persisted schema metadata
+        let encoding_restore: Vec<(PropertyId, EncodingType)> = self
+            .schema
+            .iter()
+            .enumerate()
+            .filter_map(|(col_idx, schema)| {
+                schema.encoding.and_then(|enc| {
+                    if enc != EncodingType::None && col_idx < self.columns.len() {
+                        Some((PropertyId::new(schema.prop_id as u16), enc))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+        for (prop_id, enc) in encoding_restore {
+            self.apply_encoding(prop_id, enc)?;
+        }
+
         Ok(())
     }
 
@@ -1287,6 +1306,8 @@ impl PropertyTable {
             self.row_groups.push(RowGroup::new(group_start, group_end));
             group_start = group_end;
         }
+
+        let _ = self.auto_apply_encodings(None);
     }
 
     pub fn compact_row_group(&mut self, group_idx: usize) -> StorageResult<()> {

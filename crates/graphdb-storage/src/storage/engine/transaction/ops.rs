@@ -47,16 +47,6 @@ pub struct UpdateEdgePropertyUndoParams {
     pub rank: i64,
 }
 
-/// Parameters for insert_edge_undo operation
-pub struct InsertEdgeUndoParams {
-    pub src_label: LabelId,
-    pub src_vid: VertexId,
-    pub dst_label: LabelId,
-    pub dst_vid: VertexId,
-    pub edge_label: LabelId,
-    pub rank: i64,
-}
-
 /// Parameters for revert_delete_edge operation
 pub struct RevertDeleteEdgeParams {
     pub src_label: LabelId,
@@ -367,28 +357,6 @@ impl TransactionOps {
 
         table
             .insert(external_id, &props, ts)
-            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
-        Ok(())
-    }
-
-    pub fn insert_edge_undo(
-        edge_tables: &mut HashMap<EdgeTableKey, EdgeTable>,
-        params: InsertEdgeUndoParams,
-        properties: &[(String, PropertyValue)],
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
-        let props: Vec<(String, Value)> = properties
-            .iter()
-            .map(|(k, v)| (k.clone(), property_value_to_value(v.clone())))
-            .collect();
-
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
-        let table = edge_tables
-            .get_mut(&key)
-            .ok_or(UndoLogError::LabelNotFound(params.edge_label))?;
-
-        table
-            .insert_edge(params.src_vid, params.dst_vid, params.rank, &props, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }

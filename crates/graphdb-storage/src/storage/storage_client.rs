@@ -227,6 +227,20 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
         Ok(None)
     }
 
+    fn verify_snapshot(&self, _snapshot_id: u64) -> StorageResult<bool> {
+        let _ = self;
+        Err(StorageError::not_supported("Snapshots are not supported"))
+    }
+
+    fn cleanup_snapshots(&self) -> StorageResult<usize> {
+        let _ = self;
+        Err(StorageError::not_supported("Snapshots are not supported"))
+    }
+
+    fn snapshot_stats(&self) -> crate::storage::SnapshotStats {
+        crate::storage::SnapshotStats::default()
+    }
+
     fn compact(&self, _compact_csr: bool, _reserve_ratio: f32) -> StorageResult<()> {
         let _ = self;
         Ok(())

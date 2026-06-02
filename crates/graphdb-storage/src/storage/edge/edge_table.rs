@@ -3,11 +3,12 @@
 //! Combines out/in CSRs and property storage for edge management.
 //! Uses EdgeOffset (CSR-native offset) instead of global EdgeId for edge identification.
 
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use super::{
-    CsrBase, CsrEdgeIterator, CsrIterator, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId,
-    MutableCsrTrait, MutableCsrVariant, PropertyTable, Timestamp, VertexId,
+    Csr, CsrBase, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsrTrait,
+    MutableCsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::storage_types::{EdgeOffset, PropertyId, StoragePropertyDef};
@@ -43,6 +44,23 @@ pub struct UpdateEdgePropertyByOffsetParams {
 }
 
 #[derive(Debug)]
+struct CsrSegment {
+    csr: Csr,
+    min_ts: Timestamp,
+    max_ts: Timestamp,
+}
+
+impl CsrSegment {
+    fn new(csr: Csr, min_ts: Timestamp, max_ts: Timestamp) -> Self {
+        Self {
+            csr,
+            min_ts,
+            max_ts,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct EdgeTable {
     label: LabelId,
     label_name: String,
@@ -51,6 +69,9 @@ pub struct EdgeTable {
     schema: EdgeSchema,
     out_csr: MutableCsrVariant,
     in_csr: MutableCsrVariant,
+    out_segments: Vec<CsrSegment>,
+    in_segments: Vec<CsrSegment>,
+    tombstones: HashMap<u64, Timestamp>,
     properties: PropertyTable,
     is_open: bool,
     next_edge_id: u64,
@@ -86,6 +107,9 @@ impl EdgeTable {
             schema,
             out_csr,
             in_csr,
+            out_segments: Vec::new(),
+            in_segments: Vec::new(),
+            tombstones: HashMap::new(),
             properties,
             is_open: true,
             next_edge_id: 0,
@@ -118,6 +142,132 @@ impl EdgeTable {
             VertexId::from_int64(i64::from_be_bytes(endpoint_bytes)),
             i64::from_be_bytes(rank_bytes),
         )
+    }
+
+    fn is_tombstoned(&self, edge_id: u64, ts: Timestamp) -> bool {
+        self.tombstones
+            .get(&edge_id)
+            .is_some_and(|delete_ts| *delete_ts <= ts)
+    }
+
+    fn base_get_edge(
+        &self,
+        segments: &[CsrSegment],
+        src: VertexId,
+        dst: VertexId,
+        ts: Timestamp,
+    ) -> Option<Nbr> {
+        for segment in segments.iter().rev() {
+            if segment.min_ts > ts {
+                continue;
+            }
+
+            let Some(edge) = segment.csr.get_edge(src, dst) else {
+                continue;
+            };
+
+            if edge.timestamp <= ts && !self.is_tombstoned(edge.edge_id, ts) {
+                return Some(Nbr::new(
+                    edge.neighbor,
+                    edge.edge_id,
+                    edge.prop_offset,
+                    edge.timestamp,
+                ));
+            }
+        }
+
+        None
+    }
+
+    fn base_edges_of(&self, segments: &[CsrSegment], src: VertexId, ts: Timestamp) -> Vec<Nbr> {
+        let mut edges = Vec::new();
+        for segment in segments.iter().rev() {
+            if segment.min_ts > ts {
+                continue;
+            }
+
+            for edge in segment.csr.edges_of(src) {
+                if edge.timestamp <= ts && !self.is_tombstoned(edge.edge_id, ts) {
+                    edges.push(Nbr::new(
+                        edge.neighbor,
+                        edge.edge_id,
+                        edge.prop_offset,
+                        edge.timestamp,
+                    ));
+                }
+            }
+        }
+
+        edges
+    }
+
+    fn merged_edges_of(
+        &self,
+        delta: &MutableCsrVariant,
+        segments: &[CsrSegment],
+        src: VertexId,
+        ts: Timestamp,
+    ) -> Vec<Nbr> {
+        let mut seen = HashSet::new();
+        let mut result = Vec::new();
+
+        for nbr in delta.edges_of(src, ts) {
+            if !self.is_tombstoned(nbr.edge_id, ts) && seen.insert(nbr.edge_id) {
+                result.push(nbr);
+            }
+        }
+
+        for nbr in self.base_edges_of(segments, src, ts) {
+            if seen.insert(nbr.edge_id) {
+                result.push(nbr);
+            }
+        }
+
+        result
+    }
+
+    fn merged_get_edge(
+        &self,
+        delta: &MutableCsrVariant,
+        segments: &[CsrSegment],
+        src: VertexId,
+        dst: VertexId,
+        ts: Timestamp,
+    ) -> Option<Nbr> {
+        if let Some(nbr) = delta.get_edge(src, dst, ts) {
+            if !self.is_tombstoned(nbr.edge_id, ts) {
+                return Some(nbr);
+            }
+        }
+
+        self.base_get_edge(segments, src, dst, ts)
+    }
+
+    fn edge_record_from_nbr(&self, src: VertexId, nbr: Nbr) -> EdgeRecord {
+        let (dst_vid, rank) = Self::decode_edge_endpoint(nbr.neighbor);
+        EdgeRecord {
+            edge_id: nbr.edge_id,
+            src_vid: src,
+            dst_vid,
+            rank,
+            properties: self.properties_for_offset(nbr.prop_offset),
+        }
+    }
+
+    fn properties_for_offset(&self, prop_offset: u32) -> Vec<(String, Value)> {
+        if prop_offset == 0 {
+            return Vec::new();
+        }
+
+        self.properties
+            .get(prop_offset)
+            .map(|props| {
+                props
+                    .into_iter()
+                    .filter_map(|(k, v)| v.map(|v| (k, v)))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -180,7 +330,7 @@ impl EdgeTable {
         let dst_key = Self::edge_endpoint_key(dst, rank);
         let src_key = Self::edge_endpoint_key(src, rank);
 
-        if self.out_csr.has_edge(src, dst_key, ts) {
+        if self.has_edge(src, dst, rank, ts) {
             self.properties.delete(prop_offset);
             return Err(StorageError::edge_already_exists(format!(
                 "{} -> {}@{}",
@@ -240,6 +390,11 @@ impl EdgeTable {
                 self.in_csr.delete_edge_by_dst(dst, src_key, ts);
             }
 
+            return Ok(true);
+        }
+
+        if let Some(nbr) = self.base_get_edge(&self.out_segments, src, dst_key, ts) {
+            self.tombstones.insert(nbr.edge_id, ts);
             return Ok(true);
         }
 
@@ -319,21 +474,8 @@ impl EdgeTable {
         }
 
         let dst_key = Self::edge_endpoint_key(dst, rank);
-        let nbr = self.out_csr.get_edge(src, dst_key, ts)?;
-
-        let properties = if nbr.prop_offset > 0 {
-            self.properties
-                .get(nbr.prop_offset)
-                .map(|props| {
-                    props
-                        .into_iter()
-                        .filter_map(|(k, v)| v.map(|v| (k, v)))
-                        .collect()
-                })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
+        let nbr = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)?;
+        let properties = self.properties_for_offset(nbr.prop_offset);
 
         Some(EdgeRecord {
             edge_id: nbr.edge_id,
@@ -355,7 +497,7 @@ impl EdgeTable {
             return None;
         }
         let dst_key = Self::edge_endpoint_key(dst, rank);
-        self.out_csr.get_edge(src, dst_key, ts)
+        self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
     }
 
     pub fn get_edge_by_offset(
@@ -370,21 +512,8 @@ impl EdgeTable {
         }
 
         let dst_key = Self::edge_endpoint_key(dst, rank);
-        let nbr = self.out_csr.get_edge(src, dst_key, ts)?;
-
-        let properties = if nbr.prop_offset > 0 {
-            self.properties
-                .get(nbr.prop_offset)
-                .map(|props| {
-                    props
-                        .into_iter()
-                        .filter_map(|(k, v)| v.map(|v| (k, v)))
-                        .collect()
-                })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
+        let nbr = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)?;
+        let properties = self.properties_for_offset(nbr.prop_offset);
 
         Some(EdgeRecord {
             edge_id: nbr.edge_id,
@@ -408,7 +537,8 @@ impl EdgeTable {
         }
 
         let dst_key = Self::edge_endpoint_key(dst, rank);
-        if let Some(nbr) = self.out_csr.get_edge(src, dst_key, ts) {
+        if let Some(nbr) = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
+        {
             self.properties.update(nbr.prop_offset, values)?;
 
             return Ok(true);
@@ -430,7 +560,8 @@ impl EdgeTable {
         }
 
         let dst_key = Self::edge_endpoint_key(dst, rank);
-        if let Some(nbr) = self.out_csr.get_edge(src, dst_key, ts) {
+        if let Some(nbr) = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
+        {
             for (prop_id, value) in values {
                 let prop_id = PropertyId::new(*prop_id);
                 self.properties.set_property_by_id(
@@ -451,24 +582,11 @@ impl EdgeTable {
             return Vec::new();
         }
 
-        self.out_csr
-            .edges_of(src, ts)
+        self.merged_edges_of(&self.out_csr, &self.out_segments, src, ts)
             .into_iter()
             .map(|nbr| {
                 let (dst_vid, rank) = Self::decode_edge_endpoint(nbr.neighbor);
-                let properties = if nbr.prop_offset > 0 {
-                    self.properties
-                        .get(nbr.prop_offset)
-                        .map(|props| {
-                            props
-                                .into_iter()
-                                .filter_map(|(k, v)| v.map(|v| (k, v)))
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
+                let properties = self.properties_for_offset(nbr.prop_offset);
 
                 EdgeRecord {
                     edge_id: nbr.edge_id,
@@ -486,24 +604,11 @@ impl EdgeTable {
             return Vec::new();
         }
 
-        self.in_csr
-            .edges_of(dst, ts)
+        self.merged_edges_of(&self.in_csr, &self.in_segments, dst, ts)
             .into_iter()
             .map(|nbr| {
                 let (src_vid, rank) = Self::decode_edge_endpoint(nbr.neighbor);
-                let properties = if nbr.prop_offset > 0 {
-                    self.properties
-                        .get(nbr.prop_offset)
-                        .map(|props| {
-                            props
-                                .into_iter()
-                                .filter_map(|(k, v)| v.map(|v| (k, v)))
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
+                let properties = self.properties_for_offset(nbr.prop_offset);
 
                 EdgeRecord {
                     edge_id: nbr.edge_id,
@@ -520,14 +625,16 @@ impl EdgeTable {
         if !self.is_open {
             return 0;
         }
-        self.out_csr.degree(src, ts)
+        self.merged_edges_of(&self.out_csr, &self.out_segments, src, ts)
+            .len()
     }
 
     pub fn in_degree(&self, dst: VertexId, ts: Timestamp) -> usize {
         if !self.is_open {
             return 0;
         }
-        self.in_csr.degree(dst, ts)
+        self.merged_edges_of(&self.in_csr, &self.in_segments, dst, ts)
+            .len()
     }
 
     pub fn has_edge(&self, src: VertexId, dst: VertexId, rank: i64, ts: Timestamp) -> bool {
@@ -535,11 +642,23 @@ impl EdgeTable {
             return false;
         }
         let dst_key = Self::edge_endpoint_key(dst, rank);
-        self.out_csr.has_edge(src, dst_key, ts)
+        self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
+            .is_some()
     }
 
     pub fn edge_count(&self) -> u64 {
         self.out_csr.edge_count()
+            + self
+                .out_segments
+                .iter()
+                .map(|segment| {
+                    segment
+                        .csr
+                        .iter()
+                        .filter(|(_, edge)| !self.is_tombstoned(edge.edge_id, u32::MAX))
+                        .count() as u64
+                })
+                .sum::<u64>()
     }
 
     pub fn scan(&self, ts: Timestamp) -> Vec<EdgeRecord> {
@@ -586,7 +705,8 @@ impl EdgeTable {
         }
 
         let dst_key = Self::edge_endpoint_key(dst, rank);
-        if let Some(nbr) = self.out_csr.get_edge(src, dst_key, ts) {
+        if let Some(nbr) = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
+        {
             self.properties
                 .set_property(nbr.prop_offset, prop_name, Some(value.clone()))?;
             return Ok(true);
@@ -604,7 +724,13 @@ impl EdgeTable {
         }
 
         let dst_key = Self::edge_endpoint_key(params.dst, params.rank);
-        if let Some(nbr) = self.out_csr.get_edge(params.src, dst_key, params.ts) {
+        if let Some(nbr) = self.merged_get_edge(
+            &self.out_csr,
+            &self.out_segments,
+            params.src,
+            dst_key,
+            params.ts,
+        ) {
             self.properties.set_property_by_id(
                 nbr.prop_offset,
                 PropertyId(params.prop_id),
@@ -613,7 +739,13 @@ impl EdgeTable {
 
             if self.schema.ie_strategy != EdgeStrategy::None {
                 let src_key = Self::edge_endpoint_key(params.src, params.rank);
-                if let Some(ie_nbr) = self.in_csr.get_edge(params.dst, src_key, params.ts) {
+                if let Some(ie_nbr) = self.merged_get_edge(
+                    &self.in_csr,
+                    &self.in_segments,
+                    params.dst,
+                    src_key,
+                    params.ts,
+                ) {
                     assert_eq!(
                         nbr.prop_offset, ie_nbr.prop_offset,
                         "out_csr and in_csr should share the same prop_offset"
@@ -682,14 +814,17 @@ impl EdgeTable {
     }
 
     pub fn vertex_capacity(&self) -> usize {
-        self.out_csr.vertex_capacity()
+        self.out_segments
+            .iter()
+            .map(|segment| segment.csr.vertex_capacity())
+            .fold(self.out_csr.vertex_capacity(), usize::max)
     }
 
     pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<super::Nbr> {
         if !self.is_open {
             return Vec::new();
         }
-        self.out_csr.edges_of(src, ts)
+        self.merged_edges_of(&self.out_csr, &self.out_segments, src, ts)
     }
 
     pub fn iter(&self, ts: Timestamp) -> EdgeTableScanIterator<'_> {
@@ -717,10 +852,17 @@ impl EdgeTable {
     pub fn clear(&mut self) {
         self.out_csr.clear();
         self.in_csr.clear();
+        self.out_segments.clear();
+        self.in_segments.clear();
+        self.tombstones.clear();
         self.properties.clear();
     }
 
-    pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+    pub fn flush<P: AsRef<Path>>(
+        &self,
+        path: P,
+        compression: crate::storage::compression::CompressionType,
+    ) -> StorageResult<()> {
         use std::fs::{self, File};
         use std::io::Write;
 
@@ -751,15 +893,36 @@ impl EdgeTable {
         meta_file.write_all(schema_bytes)?;
 
         meta_file.write_all(&self.next_edge_id.to_le_bytes())?;
+        meta_file.write_all(&(self.tombstones.len() as u64).to_le_bytes())?;
+        for (edge_id, delete_ts) in &self.tombstones {
+            meta_file.write_all(&edge_id.to_le_bytes())?;
+            meta_file.write_all(&delete_ts.to_le_bytes())?;
+        }
+
+        drop(meta_file);
+        crate::storage::compression::compress_file_inplace(&meta_path, compression)?;
 
         let out_csr_path = path.join("out_csr.bin");
-        self.flush_csr(&self.out_csr, &out_csr_path, section::EDGE_OUT_CSR)?;
+        self.flush_csr(
+            &self.out_csr,
+            &self.out_segments,
+            &out_csr_path,
+            section::EDGE_OUT_CSR,
+        )?;
+        crate::storage::compression::compress_file_inplace(&out_csr_path, compression)?;
 
         let in_csr_path = path.join("in_csr.bin");
-        self.flush_csr(&self.in_csr, &in_csr_path, section::EDGE_IN_CSR)?;
+        self.flush_csr(
+            &self.in_csr,
+            &self.in_segments,
+            &in_csr_path,
+            section::EDGE_IN_CSR,
+        )?;
+        crate::storage::compression::compress_file_inplace(&in_csr_path, compression)?;
 
         let props_path = path.join("properties.bin");
         self.flush_properties(&props_path)?;
+        crate::storage::compression::compress_file_inplace(&props_path, compression)?;
 
         Ok(())
     }
@@ -767,6 +930,7 @@ impl EdgeTable {
     fn flush_csr(
         &self,
         csr: &MutableCsrVariant,
+        segments: &[CsrSegment],
         path: &Path,
         section_id: u32,
     ) -> StorageResult<()> {
@@ -780,6 +944,14 @@ impl EdgeTable {
         let data = csr.dump();
         file.write_all(&(data.len() as u64).to_le_bytes())?;
         file.write_all(&data)?;
+        file.write_all(&(segments.len() as u64).to_le_bytes())?;
+        for segment in segments {
+            file.write_all(&segment.min_ts.to_le_bytes())?;
+            file.write_all(&segment.max_ts.to_le_bytes())?;
+            let data = segment.csr.dump();
+            file.write_all(&(data.len() as u64).to_le_bytes())?;
+            file.write_all(&data)?;
+        }
 
         Ok(())
     }
@@ -801,15 +973,15 @@ impl EdgeTable {
     }
 
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
-        use std::fs::File;
         use std::io::Read;
 
         let path = path.as_ref();
-        let mut header_buf = [0u8; HEADER_SIZE];
 
         let meta_path = path.join("meta.bin");
-        let mut meta_file = File::open(&meta_path)?;
-        meta_file.read_exact(&mut header_buf)?;
+        let meta_data = crate::storage::compression::read_decompressed(&meta_path)?;
+        let mut meta_cursor = &meta_data[..];
+        let mut header_buf = [0u8; HEADER_SIZE];
+        meta_cursor.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
             let (_version, sid) = read_header(&mut slice)?;
@@ -823,55 +995,64 @@ impl EdgeTable {
         }
 
         let mut label_bytes = [0u8; 4];
-        meta_file.read_exact(&mut label_bytes)?;
+        meta_cursor.read_exact(&mut label_bytes)?;
         self.label = u32::from_le_bytes(label_bytes);
 
         let mut src_label_bytes = [0u8; 4];
-        meta_file.read_exact(&mut src_label_bytes)?;
+        meta_cursor.read_exact(&mut src_label_bytes)?;
         self.src_label = u32::from_le_bytes(src_label_bytes);
 
         let mut dst_label_bytes = [0u8; 4];
-        meta_file.read_exact(&mut dst_label_bytes)?;
+        meta_cursor.read_exact(&mut dst_label_bytes)?;
         self.dst_label = u32::from_le_bytes(dst_label_bytes);
 
         let mut label_name_len_bytes = [0u8; 4];
-        meta_file.read_exact(&mut label_name_len_bytes)?;
+        meta_cursor.read_exact(&mut label_name_len_bytes)?;
         let label_name_len = u32::from_le_bytes(label_name_len_bytes) as usize;
 
         let mut label_name_bytes = vec![0u8; label_name_len];
-        meta_file.read_exact(&mut label_name_bytes)?;
+        meta_cursor.read_exact(&mut label_name_bytes)?;
         self.label_name = String::from_utf8(label_name_bytes)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
         let mut is_open_bytes = [0u8; 1];
-        if meta_file.read_exact(&mut is_open_bytes).is_ok() {
-            self.is_open = is_open_bytes[0] != 0;
-        }
+        meta_cursor.read_exact(&mut is_open_bytes)?;
+        self.is_open = is_open_bytes[0] != 0;
 
-        // Read schema JSON (backward compatible: schema may not be present in older files)
         let mut schema_len_bytes = [0u8; 4];
-        if meta_file.read_exact(&mut schema_len_bytes).is_ok() {
-            let schema_len = u32::from_le_bytes(schema_len_bytes) as usize;
-            let mut schema_bytes = vec![0u8; schema_len];
-            if meta_file.read_exact(&mut schema_bytes).is_ok() {
-                let schema_json = String::from_utf8(schema_bytes)
-                    .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
-                self.schema = serde_json::from_str(&schema_json)
-                    .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
-            }
-        }
+        meta_cursor.read_exact(&mut schema_len_bytes)?;
+        let schema_len = u32::from_le_bytes(schema_len_bytes) as usize;
+        let mut schema_bytes = vec![0u8; schema_len];
+        meta_cursor.read_exact(&mut schema_bytes)?;
+        let schema_json = String::from_utf8(schema_bytes)
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
+        self.schema = serde_json::from_str(&schema_json)
+            .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
-        // Read next_edge_id (backward compatible: may not be present in older files)
         let mut next_edge_id_bytes = [0u8; 8];
-        if meta_file.read_exact(&mut next_edge_id_bytes).is_ok() {
-            self.next_edge_id = u64::from_le_bytes(next_edge_id_bytes);
+        meta_cursor.read_exact(&mut next_edge_id_bytes)?;
+        self.next_edge_id = u64::from_le_bytes(next_edge_id_bytes);
+
+        let mut tombstone_count_bytes = [0u8; 8];
+        meta_cursor.read_exact(&mut tombstone_count_bytes)?;
+        let tombstone_count = u64::from_le_bytes(tombstone_count_bytes) as usize;
+        self.tombstones.clear();
+        for _ in 0..tombstone_count {
+            let mut edge_id_bytes = [0u8; 8];
+            meta_cursor.read_exact(&mut edge_id_bytes)?;
+            let mut delete_ts_bytes = [0u8; 4];
+            meta_cursor.read_exact(&mut delete_ts_bytes)?;
+            self.tombstones.insert(
+                u64::from_le_bytes(edge_id_bytes),
+                u32::from_le_bytes(delete_ts_bytes),
+            );
         }
 
         let out_csr_path = path.join("out_csr.bin");
-        Self::load_csr_static(&mut self.out_csr, &out_csr_path)?;
+        Self::load_csr_static(&mut self.out_csr, &mut self.out_segments, &out_csr_path)?;
 
         let in_csr_path = path.join("in_csr.bin");
-        Self::load_csr_static(&mut self.in_csr, &in_csr_path)?;
+        Self::load_csr_static(&mut self.in_csr, &mut self.in_segments, &in_csr_path)?;
 
         let props_path = path.join("properties.bin");
         self.load_properties(&props_path)?;
@@ -882,6 +1063,11 @@ impl EdgeTable {
                 .out_csr
                 .iter(ts)
                 .map(|(_, nbr)| nbr.edge_id + 1)
+                .chain(
+                    self.out_segments
+                        .iter()
+                        .flat_map(|segment| segment.csr.iter().map(|(_, nbr)| nbr.edge_id + 1)),
+                )
                 .max()
                 .unwrap_or(0);
         }
@@ -889,48 +1075,92 @@ impl EdgeTable {
         Ok(())
     }
 
-    fn load_csr_static(csr: &mut MutableCsrVariant, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
+    fn load_csr_static(
+        csr: &mut MutableCsrVariant,
+        segments: &mut Vec<CsrSegment>,
+        path: &Path,
+    ) -> StorageResult<()> {
         use std::io::Read;
 
-        let mut file = File::open(path)?;
+        let raw_data = crate::storage::compression::read_decompressed(path)?;
+        let mut cursor = &raw_data[..];
         let mut header_buf = [0u8; HEADER_SIZE];
-        file.read_exact(&mut header_buf)?;
+        cursor.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            read_header(&mut slice)?;
+            let (_version, sid) = read_header(&mut slice)?;
+            if sid != section::EDGE_OUT_CSR && sid != section::EDGE_IN_CSR {
+                return Err(StorageError::deserialize_error(format!(
+                    "unexpected section id in edge CSR: expected {:#06x} or {:#06x}, got {:#06x}",
+                    section::EDGE_OUT_CSR,
+                    section::EDGE_IN_CSR,
+                    sid
+                )));
+            }
         }
 
         let mut len_bytes = [0u8; 8];
-        file.read_exact(&mut len_bytes)?;
+        cursor.read_exact(&mut len_bytes)?;
         let len = u64::from_le_bytes(len_bytes) as usize;
 
         let mut data = vec![0u8; len];
-        file.read_exact(&mut data)?;
+        cursor.read_exact(&mut data)?;
 
         csr.load(&data)?;
+        segments.clear();
+
+        let mut segment_count_bytes = [0u8; 8];
+        cursor.read_exact(&mut segment_count_bytes)?;
+        let segment_count = u64::from_le_bytes(segment_count_bytes) as usize;
+        for _ in 0..segment_count {
+            let mut min_ts_bytes = [0u8; 4];
+            cursor.read_exact(&mut min_ts_bytes)?;
+            let min_ts = u32::from_le_bytes(min_ts_bytes);
+
+            let mut max_ts_bytes = [0u8; 4];
+            cursor.read_exact(&mut max_ts_bytes)?;
+            let max_ts = u32::from_le_bytes(max_ts_bytes);
+
+            let mut segment_len_bytes = [0u8; 8];
+            cursor.read_exact(&mut segment_len_bytes)?;
+            let segment_len = u64::from_le_bytes(segment_len_bytes) as usize;
+
+            let mut segment_data = vec![0u8; segment_len];
+            cursor.read_exact(&mut segment_data)?;
+
+            let mut segment_csr = Csr::new();
+            segment_csr.load(&segment_data)?;
+            segments.push(CsrSegment::new(segment_csr, min_ts, max_ts));
+        }
 
         Ok(())
     }
 
     fn load_properties(&mut self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
         use std::io::Read;
 
-        let mut file = File::open(path)?;
+        let raw_data = crate::storage::compression::read_decompressed(path)?;
+        let mut cursor = &raw_data[..];
         let mut header_buf = [0u8; HEADER_SIZE];
-        file.read_exact(&mut header_buf)?;
+        cursor.read_exact(&mut header_buf)?;
         {
             let mut slice = &header_buf[..];
-            read_header(&mut slice)?;
+            let (_version, sid) = read_header(&mut slice)?;
+            if sid != section::EDGE_PROPERTIES {
+                return Err(StorageError::deserialize_error(format!(
+                    "unexpected section id in edge properties: expected {:#06x}, got {:#06x}",
+                    section::EDGE_PROPERTIES,
+                    sid
+                )));
+            }
         }
 
         let mut len_bytes = [0u8; 8];
-        file.read_exact(&mut len_bytes)?;
+        cursor.read_exact(&mut len_bytes)?;
         let len = u64::from_le_bytes(len_bytes) as usize;
 
         let mut data = vec![0u8; len];
-        file.read_exact(&mut data)?;
+        cursor.read_exact(&mut data)?;
 
         self.properties.load(&data)?;
 
@@ -938,8 +1168,55 @@ impl EdgeTable {
     }
 
     pub fn compact_csr(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
-        self.out_csr.compact_with_ts(ts, reserve_ratio)
-            + self.in_csr.compact_with_ts(ts, reserve_ratio)
+        let removed = self.out_csr.compact_with_ts(ts, reserve_ratio)
+            + self.in_csr.compact_with_ts(ts, reserve_ratio);
+        self.freeze_csr(ts);
+        removed
+    }
+
+    pub fn freeze_csr(&mut self, ts: Timestamp) -> usize {
+        let out_frozen = Self::freeze_delta(&mut self.out_csr, &mut self.out_segments, ts);
+        let in_frozen = if self.schema.ie_strategy != EdgeStrategy::None {
+            Self::freeze_delta(&mut self.in_csr, &mut self.in_segments, ts)
+        } else {
+            0
+        };
+        out_frozen + in_frozen
+    }
+
+    fn freeze_delta(
+        delta: &mut MutableCsrVariant,
+        segments: &mut Vec<CsrSegment>,
+        ts: Timestamp,
+    ) -> usize {
+        let entries: Vec<_> = delta.iter(ts).collect();
+        if entries.is_empty() {
+            delta.clear();
+            return 0;
+        }
+
+        let vertex_capacity = entries
+            .iter()
+            .filter_map(|(src, _)| src.as_int64().map(|id| id as usize + 1))
+            .max()
+            .unwrap_or_else(|| delta.vertex_capacity())
+            .max(delta.vertex_capacity());
+        let min_ts = entries
+            .iter()
+            .map(|(_, nbr)| nbr.timestamp)
+            .min()
+            .unwrap_or(ts);
+        let max_ts = entries
+            .iter()
+            .map(|(_, nbr)| nbr.timestamp)
+            .max()
+            .unwrap_or(ts);
+        let csr = Csr::from_nbr_entries(&entries, vertex_capacity);
+        let frozen = entries.len();
+
+        segments.push(CsrSegment::new(csr, min_ts, max_ts));
+        delta.clear();
+        frozen
     }
 
     pub fn compact_properties(&mut self, ts: Timestamp) {
@@ -951,10 +1228,32 @@ impl EdgeTable {
             }
         }
 
+        for segment in &self.out_segments {
+            for (_, nbr) in segment.csr.iter() {
+                if nbr.timestamp <= ts
+                    && !self.is_tombstoned(nbr.edge_id, ts)
+                    && nbr.prop_offset > 0
+                {
+                    valid_offsets.insert(nbr.prop_offset);
+                }
+            }
+        }
+
         if self.schema.ie_strategy != EdgeStrategy::None {
             for (_, nbr) in self.in_csr.iter(ts) {
                 if nbr.prop_offset > 0 {
                     valid_offsets.insert(nbr.prop_offset);
+                }
+            }
+
+            for segment in &self.in_segments {
+                for (_, nbr) in segment.csr.iter() {
+                    if nbr.timestamp <= ts
+                        && !self.is_tombstoned(nbr.edge_id, ts)
+                        && nbr.prop_offset > 0
+                    {
+                        valid_offsets.insert(nbr.prop_offset);
+                    }
                 }
             }
         }
@@ -971,6 +1270,17 @@ impl EdgeTable {
 
         total += self.out_csr.used_memory_size();
         total += self.in_csr.used_memory_size();
+        total += self
+            .out_segments
+            .iter()
+            .map(|segment| segment.csr.used_memory_size())
+            .sum::<usize>();
+        total += self
+            .in_segments
+            .iter()
+            .map(|segment| segment.csr.used_memory_size())
+            .sum::<usize>();
+        total += self.tombstones.len() * std::mem::size_of::<(u64, Timestamp)>();
         total += self.properties.used_memory_size();
 
         total
@@ -978,14 +1288,48 @@ impl EdgeTable {
 }
 
 pub struct EdgeTableScanIterator<'a> {
-    table: &'a EdgeTable,
-    csr_iter: CsrIterator<'a>,
+    _table: &'a EdgeTable,
+    records: std::vec::IntoIter<EdgeRecord>,
 }
 
 impl<'a> EdgeTableScanIterator<'a> {
     pub fn new(table: &'a EdgeTable, ts: Timestamp) -> Self {
-        let csr_iter = table.out_csr.iter(ts);
-        Self { table, csr_iter }
+        let mut seen = HashSet::new();
+        let mut records = Vec::new();
+
+        for (src_vid, nbr) in table.out_csr.iter(ts) {
+            if !table.is_tombstoned(nbr.edge_id, ts) && seen.insert(nbr.edge_id) {
+                records.push(table.edge_record_from_nbr(src_vid, nbr));
+            }
+        }
+
+        for segment in table.out_segments.iter().rev() {
+            if segment.min_ts > ts {
+                continue;
+            }
+
+            for (src_vid, edge) in segment.csr.iter() {
+                if edge.timestamp <= ts
+                    && !table.is_tombstoned(edge.edge_id, ts)
+                    && seen.insert(edge.edge_id)
+                {
+                    records.push(table.edge_record_from_nbr(
+                        src_vid,
+                        Nbr::new(
+                            edge.neighbor,
+                            edge.edge_id,
+                            edge.prop_offset,
+                            edge.timestamp,
+                        ),
+                    ));
+                }
+            }
+        }
+
+        Self {
+            _table: table,
+            records: records.into_iter(),
+        }
     }
 }
 
@@ -993,47 +1337,21 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
     type Item = EdgeRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.csr_iter.next().map(|(src_vid, nbr)| {
-            let (dst_vid, rank) = EdgeTable::decode_edge_endpoint(nbr.neighbor);
-            let properties = if nbr.prop_offset > 0 {
-                self.table
-                    .properties
-                    .get(nbr.prop_offset)
-                    .map(|props| {
-                        props
-                            .into_iter()
-                            .filter_map(|(k, v)| v.map(|v| (k, v)))
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            };
-
-            EdgeRecord {
-                edge_id: nbr.edge_id,
-                src_vid,
-                dst_vid,
-                rank,
-                properties,
-            }
-        })
+        self.records.next()
     }
 }
 
 pub struct EdgeVertexIterator<'a> {
-    table: &'a EdgeTable,
-    csr_iter: CsrEdgeIterator<'a>,
-    src_vid: VertexId,
+    _table: &'a EdgeTable,
+    records: std::vec::IntoIter<EdgeRecord>,
 }
 
 impl<'a> EdgeVertexIterator<'a> {
     pub fn new(table: &'a EdgeTable, src: VertexId, ts: Timestamp) -> Self {
-        let csr_iter = table.out_csr.iter_edges(src, ts);
+        let records = table.out_edges(src, ts);
         Self {
-            table,
-            csr_iter,
-            src_vid: src,
+            _table: table,
+            records: records.into_iter(),
         }
     }
 }
@@ -1042,31 +1360,7 @@ impl<'a> Iterator for EdgeVertexIterator<'a> {
     type Item = EdgeRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.csr_iter.next().map(|nbr| {
-            let (dst_vid, rank) = EdgeTable::decode_edge_endpoint(nbr.neighbor);
-            let properties = if nbr.prop_offset > 0 {
-                self.table
-                    .properties
-                    .get(nbr.prop_offset)
-                    .map(|props| {
-                        props
-                            .into_iter()
-                            .filter_map(|(k, v)| v.map(|v| (k, v)))
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            };
-
-            EdgeRecord {
-                edge_id: nbr.edge_id,
-                src_vid: self.src_vid,
-                dst_vid,
-                rank,
-                properties,
-            }
-        })
+        self.records.next()
     }
 }
 
@@ -1169,6 +1463,66 @@ mod tests {
             .delete_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 200)
             .unwrap());
         assert!(!table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 300));
+    }
+
+    #[test]
+    fn test_freeze_csr_preserves_reads() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        table
+            .insert_edge(
+                VertexId::from_int64(0),
+                VertexId::from_int64(1),
+                0,
+                &[("weight".to_string(), Value::Double(1.5))],
+                100,
+            )
+            .unwrap();
+        table
+            .insert_edge(
+                VertexId::from_int64(0),
+                VertexId::from_int64(2),
+                0,
+                &[("weight".to_string(), Value::Double(2.5))],
+                110,
+            )
+            .unwrap();
+
+        let before = table.scan(150);
+        let frozen = table.freeze_csr(150);
+        let after = table.scan(150);
+
+        assert_eq!(frozen, 4);
+        assert_eq!(table.out_segments.len(), 1);
+        assert_eq!(table.in_segments.len(), 1);
+        assert_eq!(before.len(), after.len());
+        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 150));
+        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 0, 150));
+    }
+
+    #[test]
+    fn test_delete_base_segment_uses_tombstone() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        table
+            .insert_edge(
+                VertexId::from_int64(0),
+                VertexId::from_int64(1),
+                0,
+                &[],
+                100,
+            )
+            .unwrap();
+        table.freeze_csr(150);
+
+        assert!(table
+            .delete_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 200)
+            .unwrap());
+        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 150));
+        assert!(!table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 250));
+        assert_eq!(table.scan(250).len(), 0);
     }
 
     #[test]
@@ -1288,7 +1642,12 @@ mod tests {
         let temp_dir = std::env::temp_dir().join("edge_table_test_flush_load");
         let _ = fs::remove_dir_all(&temp_dir);
 
-        table.flush(&temp_dir).expect("flush should succeed");
+        table
+            .flush(
+                &temp_dir,
+                crate::storage::compression::CompressionType::None,
+            )
+            .expect("flush should succeed");
 
         let mut loaded_table = EdgeTable::new(create_test_schema()).unwrap();
         loaded_table.load(&temp_dir).expect("load should succeed");
@@ -1318,6 +1677,58 @@ mod tests {
             !loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 0, ts + 1),
             "deleted edge should not be visible"
         );
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_flush_load_preserves_segments_and_tombstones() {
+        use std::fs;
+
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        table
+            .insert_edge(
+                VertexId::from_int64(1),
+                VertexId::from_int64(2),
+                0,
+                &[("weight".to_string(), Value::Double(1.5))],
+                100,
+            )
+            .unwrap();
+        table
+            .insert_edge(
+                VertexId::from_int64(1),
+                VertexId::from_int64(3),
+                0,
+                &[("weight".to_string(), Value::Double(2.5))],
+                110,
+            )
+            .unwrap();
+        table.freeze_csr(150);
+        table
+            .delete_edge(VertexId::from_int64(1), VertexId::from_int64(2), 0, 200)
+            .unwrap();
+
+        let temp_dir = std::env::temp_dir().join("edge_table_test_segments_tombstones");
+        let _ = fs::remove_dir_all(&temp_dir);
+
+        table
+            .flush(
+                &temp_dir,
+                crate::storage::compression::CompressionType::None,
+            )
+            .expect("flush should succeed");
+
+        let mut loaded_table = EdgeTable::new(create_test_schema()).unwrap();
+        loaded_table.load(&temp_dir).expect("load should succeed");
+
+        assert_eq!(loaded_table.out_segments.len(), 1);
+        assert_eq!(loaded_table.in_segments.len(), 1);
+        assert!(loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(2), 0, 150));
+        assert!(!loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(2), 0, 250));
+        assert!(loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 0, 250));
 
         let _ = fs::remove_dir_all(&temp_dir);
     }

@@ -34,8 +34,8 @@ use std::time::{Duration, Instant, SystemTime};
 
 use parking_lot::RwLock;
 
-use crate::core::error::StorageResult;
 use crate::core::types::Timestamp;
+use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::snapshot_manager::{SnapshotManager, SnapshotOptions};
 use crate::storage::engine::WalManager;
 use crate::transaction::wal::{CheckpointManager, Lsn};
@@ -43,8 +43,7 @@ use crate::transaction::wal::{CheckpointManager, Lsn};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistenceState {
     Idle,
-    WalWritten,
-    Flushing,
+    FlushingData,
     Checkpointing,
     Snapshotting,
 }
@@ -181,8 +180,6 @@ impl PersistenceCoordinator {
     pub fn record_wal_entry(&self) {
         let mut pending = self.pending_wal_entries.write();
         *pending += 1;
-        drop(pending);
-        self.set_state(PersistenceState::WalWritten);
     }
 
     pub fn should_flush(&self) -> bool {
@@ -472,6 +469,36 @@ impl PersistenceCoordinator {
         Ok(())
     }
 
+    pub fn verify_snapshot(&self, snapshot_id: u64) -> StorageResult<bool> {
+        let snapshot_manager = self
+            .snapshot_manager
+            .as_ref()
+            .ok_or_else(|| StorageError::not_supported("Snapshots are not enabled"))?;
+
+        snapshot_manager.verify_snapshot(snapshot_id)
+    }
+
+    pub fn cleanup_old_snapshots(&self) -> StorageResult<usize> {
+        let snapshot_manager = self
+            .snapshot_manager
+            .as_ref()
+            .ok_or_else(|| StorageError::not_supported("Snapshots are not enabled"))?;
+
+        snapshot_manager.cleanup_old_snapshots()
+    }
+
+    pub fn snapshot_stats(&self) -> SnapshotStats {
+        if let Some(snapshot_manager) = self.snapshot_manager.as_ref() {
+            SnapshotStats {
+                snapshot_count: snapshot_manager.snapshot_count(),
+                total_size_bytes: snapshot_manager.total_snapshot_size(),
+                latest_snapshot_id: snapshot_manager.get_latest_snapshot().map(|info| info.id),
+            }
+        } else {
+            SnapshotStats::default()
+        }
+    }
+
     pub fn get_stats(&self) -> PersistenceStats {
         PersistenceStats {
             pending_wal_entries: *self.pending_wal_entries.read(),
@@ -510,7 +537,7 @@ impl PersistenceCoordinator {
     {
         let start = Instant::now();
 
-        self.set_state(PersistenceState::Flushing);
+        self.set_state(PersistenceState::FlushingData);
 
         let (flushed_tables, flushed_bytes) = flush_fn()?;
 
@@ -544,6 +571,13 @@ pub struct PersistenceStats {
     pub pending_wal_entries: u64,
     pub last_checkpoint_elapsed: Duration,
     pub last_flush_elapsed: Duration,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SnapshotStats {
+    pub snapshot_count: usize,
+    pub total_size_bytes: u64,
+    pub latest_snapshot_id: Option<u64>,
 }
 
 #[cfg(test)]

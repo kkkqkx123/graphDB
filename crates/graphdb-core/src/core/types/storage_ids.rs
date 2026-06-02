@@ -393,18 +393,9 @@ pub struct EdgePropertyUpdateContext {
 }
 
 impl EdgePropertyUpdateContext {
-    pub fn new(
-        src_label: LabelId,
-        src_vid: VertexId,
-        dst_label: LabelId,
-        dst_vid: VertexId,
-        edge_label: LabelId,
-        rank: i64,
-        property_name: String,
-        timestamp: Timestamp,
-    ) -> Self {
+    pub fn new(edge_id: EdgeIdentifier, property_name: String, timestamp: Timestamp) -> Self {
         Self {
-            edge_id: EdgeIdentifier::new(src_label, src_vid, dst_label, dst_vid, edge_label, rank),
+            edge_id,
             property_name,
             timestamp,
         }

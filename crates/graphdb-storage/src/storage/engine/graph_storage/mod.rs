@@ -540,6 +540,18 @@ impl StorageAdmin for GraphStorage {
         persistence::create_checkpoint(&self.ctx)
     }
 
+    fn verify_snapshot(&self, snapshot_id: u64) -> StorageResult<bool> {
+        persistence::verify_snapshot(&self.ctx, snapshot_id)
+    }
+
+    fn cleanup_snapshots(&self) -> StorageResult<usize> {
+        persistence::cleanup_snapshots(&self.ctx)
+    }
+
+    fn snapshot_stats(&self) -> crate::storage::SnapshotStats {
+        persistence::snapshot_stats(&self.ctx)
+    }
+
     fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> StorageResult<()> {
         persistence::compact_transactional(&self.ctx, compact_csr, reserve_ratio)
     }

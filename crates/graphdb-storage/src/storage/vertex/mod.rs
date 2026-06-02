@@ -23,18 +23,11 @@ pub use id_indexer::{IdIndexer, IdKey};
 pub use vertex_table::VertexTable;
 pub use vertex_timestamp::VertexTimestamp;
 
-use crate::core::types::TagInfo;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Value;
 use crate::storage::utils::props_to_map;
 
 pub use crate::core::types::{LabelId, Timestamp, VertexId, INVALID_TIMESTAMP, MAX_TIMESTAMP};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VertexStatus {
-    Active,
-    Deleted,
-}
 
 #[derive(Debug, Clone)]
 pub struct VertexRecord {
@@ -82,21 +75,4 @@ pub struct VertexSchema {
     pub label_name: String,
     pub properties: Vec<StoragePropertyDef>,
     pub primary_key_index: usize,
-}
-
-impl VertexSchema {
-    pub fn from_tag_info(tag: &TagInfo, label_id: LabelId) -> Self {
-        let properties: Vec<StoragePropertyDef> = tag
-            .properties
-            .iter()
-            .map(StoragePropertyDef::from_core)
-            .collect();
-        let primary_key_index = 0;
-        Self {
-            label_id,
-            label_name: tag.tag_name.clone(),
-            properties,
-            primary_key_index,
-        }
-    }
 }

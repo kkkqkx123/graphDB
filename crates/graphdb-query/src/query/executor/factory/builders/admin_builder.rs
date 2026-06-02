@@ -31,15 +31,11 @@ use crate::query::planning::plan::core::nodes::management::{
     CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
     DescribeUserNode, DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode,
-    DropTagNode, DropUserNode, EdgeAlterInfo, GrantRoleNode, RebuildEdgeIndexNode,
+    DropTagNode, DropUserNode, GrantRoleNode, RebuildEdgeIndexNode,
     RebuildTagIndexNode, RevokeRoleNode, ShowCreateEdgeNode, ShowCreateIndexNode,
     ShowCreateSpaceNode, ShowCreateTagNode, ShowEdgeIndexesNode, ShowEdgesNode, ShowIndexesNode,
-    ShowRolesNode, ShowSpacesNode, ShowStatsNode, ShowStatsType, ShowTagIndexesNode, ShowTagsNode,
-    ShowUsersNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
-};
-use crate::query::planning::plan::core::nodes::{
-    AlterUserNode as PlannerAlterUserNode, GrantRoleNode as PlannerGrantRoleNode,
-    RevokeRoleNode as PlannerRevokeRoleNode,
+    ShowRolesNode, ShowSpacesNode, ShowStatsNode, ShowTagIndexesNode, ShowTagsNode,
+    ShowUsersNode, SwitchSpaceNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::RwLock;

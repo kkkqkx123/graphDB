@@ -52,6 +52,18 @@ cargo check --workspace --features server,fulltext-search,c-api,grpc,qdrant  # c
 - Rust standard formatting (`cargo fmt`)
 - Modular design following Rust conventions
 
+## Completed Storage Refactoring
+
+The following cleanups are done (see `docs/storage/remaining_work.md` for remaining):
+
+| Phase | Description |
+|-------|-------------|
+| 1 | Deleted `TransactionWriter`, `QueryOps`, `EdgeTraversalParams` |
+| 2 | Deleted `IndexUpdater`, `IndexDataManager` trait, unused index types |
+| 3 | Column encoding integrated into compact/freeze and flush/load |
+| 4 | Physical zstd compression wired into table flush/load pipeline |
+| 7 | Deleted `InsertEdgeUndoParams`, `LoadFromPartsParams`, index method cleanup |
+
 ## Testing
 
 ```shell

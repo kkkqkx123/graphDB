@@ -5,7 +5,7 @@ use crate::storage::engine::edge_params::EdgeOperationParams;
 use crate::storage::engine::property_graph::PropertyGraph;
 use crate::storage::engine::transaction::{AddEdgeParams, DeleteEdgeParams, TransactionOps};
 use crate::transaction::codec::bytes_to_value;
-use crate::transaction::wal::{InsertEdgeRedo, UpdateEdgePropRedo};
+use crate::transaction::wal::{DeleteEdgeRedo, InsertEdgeRedo, UpdateEdgePropRedo};
 
 impl RecoveryApplier for PropertyGraph {
     fn replay_insert_vertex(
@@ -187,28 +187,23 @@ impl RecoveryApplier for PropertyGraph {
 
     fn replay_delete_edge(
         &self,
-        src_label: LabelId,
-        src_oid: &[u8],
-        dst_label: LabelId,
-        dst_oid: &[u8],
-        edge_label: LabelId,
-        rank: i64,
+        redo: &DeleteEdgeRedo,
         ts: Timestamp,
     ) -> StorageResult<()> {
-        let src_oid_str = String::from_utf8_lossy(src_oid).to_string();
-        let dst_oid_str = String::from_utf8_lossy(dst_oid).to_string();
+        let src_oid_str = String::from_utf8_lossy(&redo.src_oid).to_string();
+        let dst_oid_str = String::from_utf8_lossy(&redo.dst_oid).to_string();
 
-        let src = self.get_vertex(src_label, &src_oid_str, ts);
-        let dst = self.get_vertex(dst_label, &dst_oid_str, ts);
+        let src = self.get_vertex(redo.src_label, &src_oid_str, ts);
+        let dst = self.get_vertex(redo.dst_label, &dst_oid_str, ts);
 
         if let (Some(src), Some(dst)) = (src, dst) {
             let params = DeleteEdgeParams {
-                src_label,
+                src_label: redo.src_label,
                 src_vid: VertexId::from_u64(src.internal_id as u64),
-                dst_label,
+                dst_label: redo.dst_label,
                 dst_vid: VertexId::from_u64(dst.internal_id as u64),
-                edge_label,
-                rank,
+                edge_label: redo.edge_label,
+                rank: redo.rank,
             };
 
             {
@@ -217,11 +212,11 @@ impl RecoveryApplier for PropertyGraph {
                     StorageError::db_error(format!("Failed to replay delete edge: {}", e))
                 })?;
             }
-            self.mark_edge_modified(edge_label);
+            self.mark_edge_modified(redo.edge_label);
         } else {
             log::debug!(
                 "Vertices not found during edge delete replay: src=({},{}) dst=({},{}). Edge already deleted or vertices removed.",
-                src_label, src_oid_str, dst_label, dst_oid_str
+                redo.src_label, src_oid_str, redo.dst_label, dst_oid_str
             );
         }
 

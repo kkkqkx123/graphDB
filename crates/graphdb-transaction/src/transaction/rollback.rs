@@ -237,30 +237,6 @@ impl RollbackHelper {
         })
     }
 
-    /// Reserved for future use: insert edge undo creation
-    #[allow(dead_code)]
-    pub fn create_insert_edge_undo(
-        src_label: LabelId,
-        dst_label: LabelId,
-        edge_label: LabelId,
-        rank: i64,
-        src_vid: u64,
-        dst_vid: u64,
-        oe_offset: i32,
-        ie_offset: i32,
-    ) -> UndoLogEntry {
-        UndoLogEntry::InsertEdge(InsertEdgeUndo {
-            src_label,
-            dst_label,
-            edge_label,
-            rank,
-            src_vid: VertexId::from_u64(src_vid),
-            dst_vid: VertexId::from_u64(dst_vid),
-            oe_offset,
-            ie_offset,
-        })
-    }
-
     pub fn create_update_vertex_prop_undo(
         label: LabelId,
         vid: u64,

@@ -8,7 +8,33 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::core::{StorageError, StorageResult};
 use crate::storage::utils::{read_u32_le, read_u64_le};
 
-use super::{CsrBase, CsrType, EdgeId, ImmutableCsrTrait, ImmutableNbr, Timestamp, VertexId};
+use super::{CsrBase, CsrType, EdgeId, ImmutableNbr, Nbr, Timestamp, VertexId};
+
+fn write_vertex_id(out: &mut Vec<u8>, id: VertexId) {
+    let bytes = id.as_bytes();
+    out.push(bytes.len() as u8);
+    out.extend_from_slice(bytes);
+}
+
+fn read_vertex_id(data: &[u8], offset: &mut usize) -> StorageResult<VertexId> {
+    if *offset >= data.len() {
+        return Err(StorageError::deserialize_error(
+            "CSR data too short for vertex id length",
+        ));
+    }
+
+    let len = data[*offset] as usize;
+    *offset += 1;
+    if data.len().saturating_sub(*offset) < len {
+        return Err(StorageError::deserialize_error(
+            "CSR data too short for vertex id bytes",
+        ));
+    }
+
+    let id = VertexId::from_bytes(data[*offset..*offset + len].to_vec());
+    *offset += len;
+    Ok(id)
+}
 
 /// Immutable CSR with contiguous storage
 ///
@@ -134,7 +160,12 @@ impl Csr {
             if src < current_pos.len() - 1 {
                 let pos = current_pos[src] as usize;
                 if pos < new_edges.len() {
-                    new_edges[pos] = ImmutableNbr::new(dst_list[i], edge_ids[i], prop_offsets[i]);
+                    new_edges[pos] = ImmutableNbr::with_timestamp(
+                        dst_list[i],
+                        edge_ids[i],
+                        prop_offsets[i],
+                        _ts,
+                    );
                     current_pos[src] += 1;
                 }
             }
@@ -191,12 +222,88 @@ impl Csr {
         edges.iter().find(|e| e.edge_id == edge_id)
     }
 
-    /// Clear all data
-    pub fn clear(&mut self) {
-        self.offsets = vec![0];
-        self.edges.clear();
-        self.edge_count.store(0, Ordering::Relaxed);
-        self.vertex_capacity = 1;
+    pub fn from_nbr_entries(entries: &[(VertexId, Nbr)], vertex_capacity: usize) -> Self {
+        let mut csr = Self::with_capacity(vertex_capacity.max(1), entries.len());
+        if entries.is_empty() {
+            return csr;
+        }
+
+        let src_list: Vec<_> = entries.iter().map(|(src, _)| *src).collect();
+        let dst_list: Vec<_> = entries.iter().map(|(_, nbr)| nbr.neighbor).collect();
+        let edge_ids: Vec<_> = entries.iter().map(|(_, nbr)| nbr.edge_id).collect();
+        let prop_offsets: Vec<_> = entries.iter().map(|(_, nbr)| nbr.prop_offset).collect();
+        let timestamps: Vec<_> = entries.iter().map(|(_, nbr)| nbr.timestamp).collect();
+        csr.batch_put_edges_with_timestamps(
+            &src_list,
+            &dst_list,
+            &edge_ids,
+            &prop_offsets,
+            &timestamps,
+        );
+        csr
+    }
+
+    pub fn batch_put_edges_with_timestamps(
+        &mut self,
+        src_list: &[VertexId],
+        dst_list: &[VertexId],
+        edge_ids: &[EdgeId],
+        prop_offsets: &[u32],
+        timestamps: &[Timestamp],
+    ) {
+        if src_list.is_empty() {
+            return;
+        }
+
+        let max_vertex = src_list
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or(VertexId::zero())
+            .as_int64()
+            .unwrap_or(0) as usize;
+        if max_vertex >= self.vertex_capacity {
+            self.resize(max_vertex + 1);
+        }
+
+        let mut degrees = vec![0u32; self.vertex_capacity];
+        for src in src_list {
+            let src_idx = src.as_int64().unwrap_or(0) as usize;
+            if src_idx < degrees.len() {
+                degrees[src_idx] += 1;
+            }
+        }
+
+        let mut new_offsets = vec![0u32; self.vertex_capacity + 1];
+        let mut cumsum = 0u32;
+        for (i, &deg) in degrees.iter().enumerate() {
+            new_offsets[i] = cumsum;
+            cumsum += deg;
+        }
+        new_offsets[self.vertex_capacity] = cumsum;
+
+        let mut new_edges = vec![ImmutableNbr::new(VertexId::from_int64(0), 0, 0); src_list.len()];
+        let mut current_pos = new_offsets.clone();
+        for i in 0..src_list.len() {
+            let src = src_list[i].as_int64().unwrap_or(0) as usize;
+            if src < current_pos.len() - 1 {
+                let pos = current_pos[src] as usize;
+                if pos < new_edges.len() {
+                    new_edges[pos] = ImmutableNbr::with_timestamp(
+                        dst_list[i],
+                        edge_ids[i],
+                        prop_offsets[i],
+                        timestamps[i],
+                    );
+                    current_pos[src] += 1;
+                }
+            }
+        }
+
+        self.offsets = new_offsets;
+        self.edges = new_edges;
+        self.edge_count
+            .store(src_list.len() as u64, Ordering::Relaxed);
     }
 
     /// Create iterator over all edges
@@ -223,9 +330,10 @@ impl Csr {
 
         result.extend_from_slice(&(self.edges.len() as u64).to_le_bytes());
         for edge in &self.edges {
-            result.extend_from_slice(&edge.neighbor.as_int64().unwrap_or(0).to_le_bytes());
+            write_vertex_id(&mut result, edge.neighbor);
             result.extend_from_slice(&edge.edge_id.to_le_bytes());
             result.extend_from_slice(&edge.prop_offset.to_le_bytes());
+            result.extend_from_slice(&edge.timestamp.to_le_bytes());
         }
 
         result
@@ -254,14 +362,16 @@ impl Csr {
 
         let mut edges = Vec::with_capacity(edges_len);
         for _ in 0..edges_len {
-            let neighbor = read_u64_le(data, &mut offset)?;
+            let neighbor = read_vertex_id(data, &mut offset)?;
             let edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
+            let timestamp = read_u32_le(data, &mut offset)?;
 
-            edges.push(ImmutableNbr::new(
-                VertexId::from_u64(neighbor),
+            edges.push(ImmutableNbr::with_timestamp(
+                neighbor,
                 edge_id,
                 prop_offset,
+                timestamp,
             ));
         }
 
@@ -281,6 +391,12 @@ impl Csr {
     /// Get raw edges slice
     pub fn edges(&self) -> &[ImmutableNbr] {
         &self.edges
+    }
+
+    pub fn used_memory_size(&self) -> usize {
+        self.offsets.len() * std::mem::size_of::<u32>()
+            + self.edges.len() * std::mem::size_of::<ImmutableNbr>()
+            + std::mem::size_of::<Self>()
     }
 
     /// Create from raw components (for advanced use)
@@ -395,48 +511,12 @@ impl CsrBase for Csr {
         CsrType::Immutable
     }
 
-    fn resize(&mut self, new_vertex_capacity: usize) {
-        Csr::resize(self, new_vertex_capacity);
-    }
-
-    fn clear(&mut self) {
-        Csr::clear(self);
-    }
-
     fn dump(&self) -> Vec<u8> {
         Csr::dump(self)
     }
 
     fn load(&mut self, data: &[u8]) -> StorageResult<()> {
         Csr::load(self, data)
-    }
-}
-
-impl ImmutableCsrTrait for Csr {
-    fn get_edge(&self, src: VertexId, dst: VertexId) -> Option<&ImmutableNbr> {
-        Csr::get_edge(self, src, dst)
-    }
-
-    fn edges_of(&self, src: VertexId) -> &[ImmutableNbr] {
-        Csr::edges_of(self, src)
-    }
-
-    fn degree(&self, src: VertexId) -> usize {
-        Csr::degree(self, src)
-    }
-
-    fn has_edge(&self, src: VertexId, dst: VertexId) -> bool {
-        Csr::has_edge(self, src, dst)
-    }
-
-    fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-    ) {
-        Csr::batch_put_edges(self, src_list, dst_list, edge_ids, prop_offsets, 0);
     }
 }
 
