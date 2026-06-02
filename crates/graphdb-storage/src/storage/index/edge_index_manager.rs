@@ -6,15 +6,15 @@
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 //! Supports optional key compression for memory efficiency.
 
+use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
+use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::generic_index_manager::GenericIndexManager;
 use crate::storage::index::index_data_manager::IndexEntry;
+use crate::storage::index::index_types::IndexEstimate;
 use crate::storage::index::key_codec::{
     deserialize_value, serialize_value, CompressionConfig, EdgeIndexKeyGen, KeyBuilder, KeyParser,
     SecondaryIndexKey,
 };
-use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
-use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::index_types::IndexEstimate;
 use std::path::Path;
 
 #[derive(Clone)]
@@ -868,7 +868,7 @@ impl Default for EdgeIndexManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::index::*;
+    use super::EdgeIndexManager;
     use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
     use crate::core::Value;
 

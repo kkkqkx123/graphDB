@@ -1,6 +1,7 @@
 use crate::core::metadata::index_manager::IndexMetadataManager;
 use crate::core::types::{
-    InsertEdgeInfo, InsertVertexInfo, LabelId, UpdateInfo, UpdateOp, UpdateTarget, VertexId,
+    EdgeTypeInfo, InsertEdgeInfo, InsertVertexInfo, LabelId, Timestamp, UpdateInfo, UpdateOp,
+    UpdateTarget, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::property_graph::{InsertEdgeParams, InsertEdgeParamsByI64};
@@ -8,6 +9,26 @@ use crate::storage::engine::property_graph::{InsertEdgeParams, InsertEdgeParamsB
 use super::context::GraphStorageContext;
 use super::reader;
 use super::type_utils::{edge_label_id, endpoint_label_id, tag_label_id};
+
+#[derive(Debug)]
+struct InsertedVertexTag {
+    label_id: LabelId,
+    id: String,
+    vid: VertexId,
+    vertex_id: Value,
+    tag_name: String,
+}
+
+#[derive(Debug)]
+struct InsertedEdgeRecord {
+    edge_label_id: LabelId,
+    src_label_id: LabelId,
+    dst_label_id: LabelId,
+    src: VertexId,
+    dst: VertexId,
+    edge_type: String,
+    rank: i64,
+}
 
 pub(crate) fn insert_vertex(
     ctx: &GraphStorageContext,
@@ -20,55 +41,86 @@ pub(crate) fn insert_vertex(
         .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
     let ts = ctx.get_write_timestamp();
+    let mut rollback = Vec::new();
+    let result =
+        insert_vertex_at_timestamp(ctx, space, space_info.space_id, vertex, ts, &mut rollback);
 
-    let mut inserted_tags: Vec<(LabelId, String)> = Vec::new();
+    if result.is_err() {
+        rollback_vertex_tags(ctx, space_info.space_id, &rollback, ts);
+    }
 
+    result
+}
+
+fn insert_vertex_at_timestamp(
+    ctx: &GraphStorageContext,
+    space: &str,
+    space_id: u64,
+    vertex: Vertex,
+    ts: Timestamp,
+    rollback: &mut Vec<InsertedVertexTag>,
+) -> StorageResult<VertexId> {
     for tag in &vertex.tags {
-        if let Some(label_id) = tag_label_id(ctx, space, &tag.name)? {
-            let props: Vec<(String, Value)> = tag
-                .properties
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+        let label_id = tag_label_id(ctx, space, &tag.name)?
+            .ok_or_else(|| StorageError::not_found(format!("Tag {} not found", tag.name)))?;
+        let props: Vec<(String, Value)> = tag
+            .properties
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
 
-            let insert_result = if let Some(vid_int) = vertex.vid.as_int64() {
-                ctx.graph
-                    .insert_vertex_by_i64(label_id, vid_int, &props, ts)
-            } else {
-                let id_str = vertex.vid.to_string();
-                ctx.graph.insert_vertex(label_id, &id_str, &props, ts)
-            };
-
-            if let Err(e) = insert_result {
-                for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
-                    let _ = ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
-                }
-                return Err(e);
-            }
-
-            let vid_value = Value::from(vertex.vid);
-            if let Err(e) = update_vertex_indexes(
-                &ctx.graph,
-                &ctx.index_metadata_manager,
-                space_info.space_id,
-                &vid_value,
-                &tag.name,
-                &props,
-                ts,
-            ) {
-                for (rollback_label, rollback_id) in inserted_tags.iter().rev() {
-                    let _ = ctx.graph.delete_vertex(*rollback_label, rollback_id, ts);
-                }
-                let id_str = vertex.vid.to_string();
-                let _ = ctx.graph.delete_vertex(label_id, &id_str, ts);
-                return Err(e);
-            }
-
-            inserted_tags.push((label_id, vertex.vid.to_string()));
+        if let Some(vid_int) = vertex.vid.as_int64() {
+            ctx.graph
+                .insert_vertex_by_i64(label_id, vid_int, &props, ts)?;
+        } else {
+            let id_str = vertex.vid.to_string();
+            ctx.graph.insert_vertex(label_id, &id_str, &props, ts)?;
         }
+
+        let vid_value = Value::from(vertex.vid);
+        rollback.push(InsertedVertexTag {
+            label_id,
+            id: vertex.vid.to_string(),
+            vid: vertex.vid,
+            vertex_id: vid_value.clone(),
+            tag_name: tag.name.clone(),
+        });
+
+        update_vertex_indexes(
+            &ctx.graph,
+            &ctx.index_metadata_manager,
+            space_id,
+            &vid_value,
+            &tag.name,
+            &props,
+            ts,
+        )?;
     }
 
     Ok(vertex.vid)
+}
+
+fn rollback_vertex_tags(
+    ctx: &GraphStorageContext,
+    space_id: u64,
+    inserted: &[InsertedVertexTag],
+    ts: Timestamp,
+) {
+    for item in inserted.iter().rev() {
+        let _ = delete_vertex_indexes(
+            &ctx.graph,
+            &ctx.index_metadata_manager,
+            space_id,
+            &item.vertex_id,
+            &item.tag_name,
+            ts,
+        );
+        if let Some(vid_int) = item.vid.as_int64() {
+            let _ = ctx.graph.delete_vertex_by_i64(item.label_id, vid_int, ts);
+        } else {
+            let _ = ctx.graph.delete_vertex(item.label_id, &item.id, ts);
+        }
+    }
 }
 
 pub(crate) fn update_vertex(
@@ -181,12 +233,53 @@ pub(crate) fn batch_insert_vertices(
     space: &str,
     vertices: Vec<Vertex>,
 ) -> StorageResult<Vec<VertexId>> {
+    let space_info = ctx
+        .schema_manager
+        .get_space(space)?
+        .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
+
+    validate_vertex_batch(ctx, space, &vertices)?;
+
+    let ts = ctx.get_write_timestamp();
     let mut ids = Vec::with_capacity(vertices.len());
+    let mut rollback = Vec::new();
+
     for vertex in vertices {
-        let id = insert_vertex(ctx, space, vertex)?;
+        let id = match insert_vertex_at_timestamp(
+            ctx,
+            space,
+            space_info.space_id,
+            vertex,
+            ts,
+            &mut rollback,
+        ) {
+            Ok(id) => id,
+            Err(e) => {
+                rollback_vertex_tags(ctx, space_info.space_id, &rollback, ts);
+                return Err(e);
+            }
+        };
         ids.push(id);
     }
     Ok(ids)
+}
+
+fn validate_vertex_batch(
+    ctx: &GraphStorageContext,
+    space: &str,
+    vertices: &[Vertex],
+) -> StorageResult<()> {
+    for vertex in vertices {
+        for tag in &vertex.tags {
+            if tag_label_id(ctx, space, &tag.name)?.is_none() {
+                return Err(StorageError::not_found(format!(
+                    "Tag {} not found",
+                    tag.name
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn delete_tags(
@@ -232,72 +325,138 @@ pub(crate) fn insert_edge(ctx: &GraphStorageContext, space: &str, edge: Edge) ->
         .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
 
     let ts = ctx.get_write_timestamp();
+    let mut rollback = Vec::new();
+    let result = insert_edge_at_timestamp(ctx, space, space_info.space_id, edge, ts, &mut rollback);
 
-    if let Some(edge_label_id) = edge_label_id(ctx, space, &edge.edge_type)? {
-        let edge_types = ctx.schema_manager.list_edge_types(space)?;
-        for et in edge_types {
-            if et.edge_type_name == edge.edge_type {
-                let src_label_id = match endpoint_label_id(ctx, space, &et.src_tag_name)? {
-                    Some(id) => id,
-                    None => break,
-                };
-                let dst_label_id = match endpoint_label_id(ctx, space, &et.dst_tag_name)? {
-                    Some(id) => id,
-                    None => break,
-                };
-                let props: Vec<(String, Value)> = edge
-                    .props
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect();
-
-                let src_int = edge.src.as_int64();
-                let dst_int = edge.dst.as_int64();
-
-                if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
-                    ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
-                        edge_label: edge_label_id,
-                        src_label: src_label_id,
-                        src_id,
-                        dst_label: dst_label_id,
-                        dst_id,
-                        rank: edge.ranking,
-                        properties: &props,
-                        ts,
-                    })?;
-                } else {
-                    let src_str = edge.src.to_string();
-                    let dst_str = edge.dst.to_string();
-                    ctx.graph.insert_edge(InsertEdgeParams {
-                        edge_label: edge_label_id,
-                        src_label: src_label_id,
-                        src_id: &src_str,
-                        dst_label: dst_label_id,
-                        dst_id: &dst_str,
-                        rank: edge.ranking,
-                        properties: &props,
-                        ts,
-                    })?;
-                }
-
-                let src_value = Value::from(edge.src);
-                let dst_value = Value::from(edge.dst);
-                update_edge_indexes(EdgeIndexUpdateParams {
-                    graph: &ctx.graph,
-                    index_metadata_manager: &ctx.index_metadata_manager,
-                    space_id: space_info.space_id,
-                    src: &src_value,
-                    dst: &dst_value,
-                    edge_type: &edge.edge_type,
-                    props: &props,
-                    ts,
-                })?;
-                break;
-            }
-        }
+    if result.is_err() {
+        rollback_edges(ctx, space_info.space_id, &rollback, ts);
     }
 
+    result
+}
+
+fn insert_edge_at_timestamp(
+    ctx: &GraphStorageContext,
+    space: &str,
+    space_id: u64,
+    edge: Edge,
+    ts: Timestamp,
+    rollback: &mut Vec<InsertedEdgeRecord>,
+) -> StorageResult<()> {
+    let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
+    let edge_label_id = edge_type.edge_type_id;
+    let src_label_id =
+        endpoint_label_id(ctx, space, &edge_type.src_tag_name)?.ok_or_else(|| {
+            StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name))
+        })?;
+    let dst_label_id =
+        endpoint_label_id(ctx, space, &edge_type.dst_tag_name)?.ok_or_else(|| {
+            StorageError::not_found(format!(
+                "Destination tag {} not found",
+                edge_type.dst_tag_name
+            ))
+        })?;
+    let props: Vec<(String, Value)> = edge
+        .props
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+
+    let src_int = edge.src.as_int64();
+    let dst_int = edge.dst.as_int64();
+
+    if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
+        ctx.graph.insert_edge_by_i64(InsertEdgeParamsByI64 {
+            edge_label: edge_label_id,
+            src_label: src_label_id,
+            src_id,
+            dst_label: dst_label_id,
+            dst_id,
+            rank: edge.ranking,
+            properties: &props,
+            ts,
+        })?;
+    } else {
+        let src_str = edge.src.to_string();
+        let dst_str = edge.dst.to_string();
+        ctx.graph.insert_edge(InsertEdgeParams {
+            edge_label: edge_label_id,
+            src_label: src_label_id,
+            src_id: &src_str,
+            dst_label: dst_label_id,
+            dst_id: &dst_str,
+            rank: edge.ranking,
+            properties: &props,
+            ts,
+        })?;
+    }
+
+    rollback.push(InsertedEdgeRecord {
+        edge_label_id,
+        src_label_id,
+        dst_label_id,
+        src: edge.src,
+        dst: edge.dst,
+        edge_type: edge.edge_type.clone(),
+        rank: edge.ranking,
+    });
+
+    let src_value = Value::from(edge.src);
+    let dst_value = Value::from(edge.dst);
+    update_edge_indexes(EdgeIndexUpdateParams {
+        graph: &ctx.graph,
+        index_metadata_manager: &ctx.index_metadata_manager,
+        space_id,
+        src: &src_value,
+        dst: &dst_value,
+        edge_type: &edge.edge_type,
+        props: &props,
+        ts,
+    })?;
+
     Ok(())
+}
+
+fn resolve_edge_type(
+    ctx: &GraphStorageContext,
+    space: &str,
+    edge_type: &str,
+) -> StorageResult<EdgeTypeInfo> {
+    ctx.schema_manager
+        .get_edge_type(space, edge_type)?
+        .ok_or_else(|| StorageError::not_found(format!("Edge type {} not found", edge_type)))
+}
+
+fn rollback_edges(
+    ctx: &GraphStorageContext,
+    space_id: u64,
+    inserted: &[InsertedEdgeRecord],
+    ts: Timestamp,
+) {
+    for item in inserted.iter().rev() {
+        let src_value = Value::from(item.src);
+        let dst_value = Value::from(item.dst);
+        let _ = delete_edge_indexes(
+            &ctx.graph,
+            &ctx.index_metadata_manager,
+            space_id,
+            &src_value,
+            &dst_value,
+            &item.edge_type,
+            ts,
+        );
+        let src = item.src.to_string();
+        let dst = item.dst.to_string();
+        let _ = ctx.graph.delete_edge(
+            item.edge_label_id,
+            item.src_label_id,
+            &src,
+            item.dst_label_id,
+            &dst,
+            item.rank,
+            ts,
+        );
+    }
 }
 
 pub(crate) fn delete_edge(
@@ -364,8 +523,46 @@ pub(crate) fn batch_insert_edges(
     space: &str,
     edges: Vec<Edge>,
 ) -> StorageResult<()> {
+    let space_info = ctx
+        .schema_manager
+        .get_space(space)?
+        .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
+
+    validate_edge_batch(ctx, space, &edges)?;
+
+    let ts = ctx.get_write_timestamp();
+    let mut rollback = Vec::new();
+
     for edge in edges {
-        insert_edge(ctx, space, edge)?;
+        if let Err(e) =
+            insert_edge_at_timestamp(ctx, space, space_info.space_id, edge, ts, &mut rollback)
+        {
+            rollback_edges(ctx, space_info.space_id, &rollback, ts);
+            return Err(e);
+        }
+    }
+    Ok(())
+}
+
+fn validate_edge_batch(
+    ctx: &GraphStorageContext,
+    space: &str,
+    edges: &[Edge],
+) -> StorageResult<()> {
+    for edge in edges {
+        let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
+        if endpoint_label_id(ctx, space, &edge_type.src_tag_name)?.is_none() {
+            return Err(StorageError::not_found(format!(
+                "Source tag {} not found",
+                edge_type.src_tag_name
+            )));
+        }
+        if endpoint_label_id(ctx, space, &edge_type.dst_tag_name)?.is_none() {
+            return Err(StorageError::not_found(format!(
+                "Destination tag {} not found",
+                edge_type.dst_tag_name
+            )));
+        }
     }
     Ok(())
 }

@@ -11,8 +11,7 @@ use log::{error, info};
 use crate::api::server::{GraphService, HttpServer};
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::storage::GraphStorage;
-use crate::storage::SyncWrapper;
+use crate::storage::{GraphStorage, MetricsStorage, SyncWrapper};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// Helper: attach vector sync coordinator to an existing SyncManager (if qdrant is enabled)
@@ -71,8 +70,24 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         config.log_file()
     );
 
-    let inner_storage = Arc::new(GraphStorage::new()?);
-    info!("Storage initialized (memory mode)");
+    // Create shared StatsManager for all components before wiring storage decorators.
+    let slow_query_config = config.to_slow_query_config();
+    let m = &config.monitoring;
+    let stats_manager = Arc::new(
+        crate::core::stats::StatsManager::with_slow_query_logger(
+            m.enabled,
+            m.memory_cache_size,
+            m.slow_query_threshold_ms * 1000,
+            slow_query_config,
+        )
+        .expect("Failed to create StatsManager with slow query logger"),
+    );
+
+    let inner_storage = Arc::new(MetricsStorage::new(
+        GraphStorage::new()?,
+        stats_manager.clone(),
+    ));
+    info!("Storage initialized (memory mode, metrics enabled)");
 
     let storage = if config.fulltext.enabled || config.is_vector_enabled() {
         use crate::search::manager::FulltextIndexManager;
@@ -146,19 +161,6 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         write_lock_timeout: std::time::Duration::from_secs(10),
     };
 
-    // Create shared StatsManager for all components (before TransactionManager to enable wiring)
-    let slow_query_config = config.to_slow_query_config();
-    let m = &config.monitoring;
-    let stats_manager = Arc::new(
-        crate::core::stats::StatsManager::with_slow_query_logger(
-            m.enabled,
-            m.memory_cache_size,
-            m.slow_query_threshold_ms * 1000,
-            slow_query_config,
-        )
-        .expect("Failed to create StatsManager with slow query logger"),
-    );
-
     let transaction_manager = Arc::new(TransactionManager::with_stats_manager(
         txn_config,
         stats_manager.clone(),
@@ -166,14 +168,13 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     info!("Transaction manager initialized with StatsManager");
 
     // Create Tokio runtime for async initialization
-    let graph_service =
-        GraphService::<SyncWrapper<GraphStorage>>::new_with_transaction_manager_and_stats(
-            config.clone(),
-            storage.clone(),
-            transaction_manager.clone(),
-            stats_manager.clone(),
-        )
-        .await;
+    let graph_service = GraphService::new_with_transaction_manager_and_stats(
+        config.clone(),
+        storage.clone(),
+        transaction_manager.clone(),
+        stats_manager.clone(),
+    )
+    .await;
     info!("Graph service initialized with transaction management");
 
     // Inject StatsManager into FulltextIndexManager to enable search metrics

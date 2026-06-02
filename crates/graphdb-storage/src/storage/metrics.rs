@@ -215,3 +215,32 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::core::stats::{MetricType, StatsManager};
+    use crate::core::types::VertexId;
+    use crate::storage::{MetricsStorage, MockStorage, StorageReader, StorageWriter};
+
+    #[test]
+    fn records_read_and_write_metrics() {
+        let stats_manager = Arc::new(StatsManager::new());
+        let inner = MockStorage::new().expect("Failed to create MockStorage");
+        let mut storage = MetricsStorage::new(inner, stats_manager.clone());
+
+        storage
+            .get_vertex("test", &VertexId::from_int64(1))
+            .expect("Failed to read vertex");
+        storage
+            .batch_insert_edges("test", Vec::new())
+            .expect("Failed to write edges");
+
+        assert_eq!(stats_manager.get_value(MetricType::StorageReadOps), Some(1));
+        assert_eq!(
+            stats_manager.get_value(MetricType::StorageWriteOps),
+            Some(1)
+        );
+    }
+}

@@ -30,7 +30,6 @@ pub(crate) mod edge_index_manager;
 pub(crate) mod generic_index_manager;
 pub(crate) mod index_data_manager;
 pub(crate) mod index_gc_manager;
-pub(crate) mod index_updater;
 pub(crate) mod key_codec;
 pub(crate) mod vertex_index_manager;
 

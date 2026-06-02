@@ -22,9 +22,4 @@ pub struct EdgeOperationParams<'a> {
     pub rank: i64,
 }
 
-/// Parameters for edge traversal operations
-pub struct EdgeTraversalParams {
-    pub edge_label: LabelId,
-    pub src_label: LabelId,
-    pub dst_label: LabelId,
-}
+

@@ -503,6 +503,42 @@ mod tests {
         assert_eq!(ids.len(), 3);
     }
 
+    #[test]
+    fn test_batch_insert_vertices_rolls_back_on_failure() {
+        let mut storage = create_test_storage();
+        setup_space(&mut storage);
+        setup_person_tag(&mut storage);
+
+        let vertices = vec![
+            Vertex::new(
+                VertexId::from_int64(1),
+                vec![crate::core::vertex_edge_path::Tag::new(
+                    "Person".to_string(),
+                    vec![("name".to_string(), Value::String("Alice".to_string()))]
+                        .into_iter()
+                        .collect(),
+                )],
+            ),
+            Vertex::new(
+                VertexId::from_int64(1),
+                vec![crate::core::vertex_edge_path::Tag::new(
+                    "Person".to_string(),
+                    vec![("name".to_string(), Value::String("Duplicate".to_string()))]
+                        .into_iter()
+                        .collect(),
+                )],
+            ),
+        ];
+
+        assert!(storage
+            .batch_insert_vertices("test_space", vertices)
+            .is_err());
+        assert!(storage
+            .get_vertex("test_space", &VertexId::from_int64(1))
+            .unwrap()
+            .is_none());
+    }
+
     // ==================== Edge Operations ====================
 
     fn insert_test_vertex(storage: &mut GraphStorage, id: i64, name: &str) {
@@ -648,6 +684,43 @@ mod tests {
 
         let edges = storage.scan_edges_by_type("test_space", "KNOWS").unwrap();
         assert_eq!(edges.len(), 1);
+    }
+
+    #[test]
+    fn test_batch_insert_edges_rolls_back_on_failure() {
+        let mut storage = create_test_storage();
+        setup_space(&mut storage);
+        setup_person_tag(&mut storage);
+        setup_knows_edge(&mut storage);
+
+        insert_test_vertex(&mut storage, 1, "Alice");
+        insert_test_vertex(&mut storage, 2, "Bob");
+
+        let edges = vec![
+            Edge::new(
+                VertexId::from_int64(1),
+                VertexId::from_int64(2),
+                "KNOWS".to_string(),
+                0,
+                std::collections::HashMap::new(),
+            ),
+            Edge::new(
+                VertexId::from_int64(1),
+                VertexId::from_int64(3),
+                "KNOWS".to_string(),
+                0,
+                std::collections::HashMap::new(),
+            ),
+        ];
+
+        assert!(storage.batch_insert_edges("test_space", edges).is_err());
+        assert_eq!(
+            storage
+                .scan_edges_by_type("test_space", "KNOWS")
+                .unwrap()
+                .len(),
+            0
+        );
     }
 
     // ==================== User / Auth Operations ====================

@@ -316,6 +316,9 @@ impl Clone for IndexGcManager {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use crate::core::mvcc::VersionManager;
     use crate::storage::index::*;
 
     #[test]

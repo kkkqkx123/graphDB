@@ -10,7 +10,6 @@ mod maintenance;
 mod persistence;
 mod reader;
 mod schema_adapter;
-mod transaction_config;
 pub(crate) mod type_utils;
 mod user_ops;
 mod writer;

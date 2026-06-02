@@ -12,7 +12,7 @@ pub(crate) mod edge;
 pub(crate) mod engine;
 pub(crate) mod index;
 
-pub(crate) mod metrics;
+mod metrics;
 mod storage_client;
 pub(crate) mod storage_types;
 pub(crate) mod utils;
@@ -23,6 +23,7 @@ mod test_mock;
 pub use engine::graph_storage::GraphStorage;
 pub use engine::persistence_coordinator::CheckpointStats;
 pub use engine::sync_wrapper::SyncWrapper;
+pub use metrics::MetricsStorage;
 pub use storage_client::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
     StorageWriter,

@@ -1,6 +1,5 @@
 //! Storage Engine Module
 
-pub mod batch;
 pub mod cache_manager;
 pub mod config;
 pub mod data_store;
@@ -10,7 +9,6 @@ pub mod persistence_coordinator;
 pub mod property_graph;
 #[cfg(test)]
 pub mod property_graph_tests;
-pub mod query;
 pub mod snapshot_manager;
 pub mod sync_wrapper;
 pub mod transaction;
