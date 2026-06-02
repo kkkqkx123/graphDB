@@ -45,7 +45,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use super::index_data_manager::{GcStats, IndexDataManagerImpl, IndexGcOps};
+use crate::storage::index::index_data_manager::{GcStats, IndexDataManagerImpl, IndexGcOps};
 
 /// GC manager configuration
 #[derive(Debug, Clone)]
@@ -316,7 +316,7 @@ impl Clone for IndexGcManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::storage::index::*;
 
     #[test]
     fn test_gc_config_default() {

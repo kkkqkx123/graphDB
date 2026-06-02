@@ -43,7 +43,7 @@ pub use key_types::{deserialize_value, serialize_value, SecondaryIndexKey};
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::storage::index::secondary::key_codec::key_types::{
+    use crate::storage::index::key_codec::key_types::{
         ByteKey, KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD,
         KEY_TYPE_VERTEX_REVERSE,
     };

@@ -6,9 +6,9 @@
 //! Supports persistence through flush/load operations.
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 
-use super::edge_index_manager::EdgeIndexManager;
-use super::key_codec::{deserialize_value, serialize_value};
-use super::vertex_index_manager::VertexIndexManager;
+use crate::storage::index::edge_index_manager::EdgeIndexManager;
+use crate::storage::index::key_codec::{deserialize_value, serialize_value};
+use crate::storage::index::vertex_index_manager::VertexIndexManager;
 use crate::core::stats::StatsManager;
 use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::vertex_edge_path::Tag;
@@ -823,7 +823,7 @@ impl IndexDataManager for IndexDataManagerImpl {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::storage::index::*;
     use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
     use crate::core::Value;
 

@@ -1,13 +1,11 @@
-//! Storage Tier Indexing Data Management Module
+//! Index Module
 //!
-//! Provide index data management functions, including index data update, delete and query
+//! Provide index data management functions, including index data update, delete and query.
 //! Note: Index metadata management is the responsibility of the metadata::IndexMetadataManager.
 //!
-//! ## Index Classification
+//! ## Property Indexes
 //!
-//! ### Property Indexes
-//!
-//! Secondary indexes support complex property-based queries:
+//! BTreeMap-based property indexes supporting complex queries with MVCC:
 //! - `vertex_index_manager`: Index on vertex properties
 //! - `edge_index_manager`: Index on edge properties
 //!
@@ -20,13 +18,23 @@
 //! ## Module Structure
 //!
 //! - `index_types`: Index classification traits and types
-//! - `secondary`: Secondary indexes (Property-based)
-//!   - `vertex_index_manager`: BTreeMap-based vertex index management
-//!   - `edge_index_manager`: BTreeMap-based edge index management
-//!   - `index_data_manager`: `IndexDataManager` trait and `IndexDataManagerImpl` implementation
-//!   - `index_updater`: Automatic index maintenance during DML operations
-//!   - `key_codec`: Index key encoding/decoding and compression utilities
-//!   - `index_gc_manager`: Background GC for tombstone cleanup
+//! - `vertex_index_manager`: BTreeMap-based vertex index management
+//! - `edge_index_manager`: BTreeMap-based edge index management
+//! - `index_data_manager`: `IndexDataManager` trait and `IndexDataManagerImpl` implementation
+//! - `index_updater`: Automatic index maintenance during DML operations
+//! - `key_codec`: Index key encoding/decoding and compression utilities
+//! - `index_gc_manager`: Background GC for tombstone cleanup
 
 pub mod index_types;
-pub mod secondary;
+pub(crate) mod edge_index_manager;
+pub(crate) mod generic_index_manager;
+pub(crate) mod index_data_manager;
+pub(crate) mod index_gc_manager;
+pub(crate) mod index_updater;
+pub(crate) mod key_codec;
+pub(crate) mod vertex_index_manager;
+
+pub use index_data_manager::{
+    EdgeIndexOps, GcStats, IndexDataManagerImpl, IndexGcOps, VertexIndexOps,
+};
+pub use index_gc_manager::{IndexGcConfig, IndexGcManager};

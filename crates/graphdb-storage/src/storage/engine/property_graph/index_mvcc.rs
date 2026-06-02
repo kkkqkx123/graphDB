@@ -5,7 +5,7 @@
 
 use crate::core::types::Timestamp;
 use crate::core::{StorageResult, Value};
-use crate::storage::index::secondary::{EdgeIndexOps, VertexIndexOps};
+use crate::storage::index::{EdgeIndexOps, VertexIndexOps};
 
 use super::PropertyGraph;
 

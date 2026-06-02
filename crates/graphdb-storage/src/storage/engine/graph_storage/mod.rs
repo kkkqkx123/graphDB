@@ -33,7 +33,7 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::{PersistenceConfig, PropertyGraph};
-use crate::storage::index::secondary::{IndexGcConfig, IndexGcManager};
+use crate::storage::index::{IndexGcConfig, IndexGcManager};
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
 };

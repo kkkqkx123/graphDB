@@ -6,9 +6,9 @@
 //! Supports MVCC (Multi-Version Concurrency Control) for snapshot isolation.
 //! Supports optional key compression for memory efficiency.
 
-use super::generic_index_manager::GenericIndexManager;
-use super::index_data_manager::IndexEntry;
-use super::key_codec::{
+use crate::storage::index::generic_index_manager::GenericIndexManager;
+use crate::storage::index::index_data_manager::IndexEntry;
+use crate::storage::index::key_codec::{
     deserialize_value, serialize_value, CompressionConfig, KeyBuilder, KeyParser,
     SecondaryIndexKey, VertexIndexKeyGen,
 };
@@ -925,7 +925,7 @@ impl Default for VertexIndexManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::storage::index::*;
     use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
     use crate::core::Value;
 

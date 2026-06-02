@@ -6,7 +6,7 @@
 //! Supports undo logging for transaction rollback.
 //! Supports MVCC timestamp parameters for snapshot isolation.
 
-use super::index_data_manager::IndexDataManager;
+use crate::storage::index::index_data_manager::IndexDataManager;
 use crate::core::metadata::IndexMetadataManager;
 use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::vertex_edge_path::Tag;

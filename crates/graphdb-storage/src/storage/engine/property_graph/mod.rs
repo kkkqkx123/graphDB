@@ -29,7 +29,7 @@ use super::config::PropertyGraphConfig;
 use super::data_store::GraphDataStore;
 use super::wal_manager::WalManager;
 use crate::core::types::{TableId, TableTracker, TableTrackerConfig, TableType};
-use crate::storage::index::secondary::{GcStats, IndexDataManagerImpl, IndexGcOps};
+use crate::storage::index::{GcStats, IndexDataManagerImpl, IndexGcOps};
 
 pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
 

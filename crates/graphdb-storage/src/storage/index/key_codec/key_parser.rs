@@ -578,7 +578,7 @@ mod tests {
     use super::super::key_types::serialize_value;
     use super::*;
     use crate::core::Value;
-    use crate::storage::index::secondary::key_codec::key_builder::KeyBuilder;
+    use crate::storage::index::key_codec::key_builder::KeyBuilder;
 
     #[test]
     fn test_parse_vertex_id_from_key() {
