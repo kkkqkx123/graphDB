@@ -33,19 +33,18 @@ pub mod mutable_csr_variant;
 pub mod property_table;
 pub mod single_mutable_csr;
 
-use crate::core::types::EdgeTypeInfo;
 use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP};
 use crate::core::{Edge, Value};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::utils::props_to_map;
 
 pub use csr::Csr;
-pub use csr_trait::{CsrBase, CsrType, MutableCsrTrait};
+pub use csr_trait::{CsrBase, MutableCsrTrait};
 pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
-pub use mutable_csr::{MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator};
+pub use mutable_csr::{MutableCsr, MutableCsrIterator};
 pub use mutable_csr_variant::MutableCsrVariant;
 pub use property_table::PropertyTable;
-pub use single_mutable_csr::{SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator};
+pub use single_mutable_csr::{SingleMutableCsr, SingleMutableCsrIterator};
 
 pub const INVALID_EDGE_ID: u64 = u64::MAX;
 
@@ -106,30 +105,6 @@ pub struct EdgeSchema {
     pub ie_strategy: EdgeStrategy,
 }
 
-impl EdgeSchema {
-    pub fn from_edge_type_info(
-        edge_type: &EdgeTypeInfo,
-        label_id: LabelId,
-        src_label: LabelId,
-        dst_label: LabelId,
-    ) -> Self {
-        let properties: Vec<StoragePropertyDef> = edge_type
-            .properties
-            .iter()
-            .map(StoragePropertyDef::from_core)
-            .collect();
-        Self {
-            label_id,
-            label_name: edge_type.edge_type_name.clone(),
-            src_label,
-            dst_label,
-            properties,
-            oe_strategy: EdgeStrategy::Multiple,
-            ie_strategy: EdgeStrategy::Multiple,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Nbr {
     pub neighbor: VertexId,
@@ -153,9 +128,6 @@ impl Nbr {
         }
     }
 
-    pub fn is_deleted(&self) -> bool {
-        self.timestamp == INVALID_TIMESTAMP
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

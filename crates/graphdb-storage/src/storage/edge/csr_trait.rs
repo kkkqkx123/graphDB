@@ -5,18 +5,12 @@
 
 use crate::core::StorageResult;
 
-use super::{EdgeId, EdgeStrategy, Nbr, Timestamp, VertexId};
+use super::{EdgeId, Nbr, Timestamp, VertexId};
 
 pub trait CsrBase: std::fmt::Debug + Send + Sync {
     fn vertex_capacity(&self) -> usize;
 
     fn edge_count(&self) -> u64;
-
-    fn is_empty(&self) -> bool {
-        self.edge_count() == 0
-    }
-
-    fn csr_type(&self) -> CsrType;
 
     fn dump(&self) -> Vec<u8>;
 
@@ -68,18 +62,6 @@ pub trait MutableCsrTrait: CsrBase {
     /// Get all valid edges of a vertex at the given timestamp.
     fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr>;
 
-    /// Get the number of valid edges of a vertex.
-    fn degree(&self, src: VertexId, ts: Timestamp) -> usize;
-
-    /// Check if an edge exists between source and destination.
-    fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool;
-
-    /// Compact the CSR by removing deleted edges and reclaiming space.
-    ///
-    /// - `MutableCsr`: merges overflow back into primary, restores flat CSR layout.
-    /// - `SingleMutableCsr`: no-op (no tombstones to compact).
-    fn compact(&mut self);
-
     /// Compact with timestamp threshold and reserve ratio.
     ///
     /// Returns the number of removed edges.
@@ -97,54 +79,6 @@ pub trait MutableCsrTrait: CsrBase {
     fn used_memory_size(&self) -> usize;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CsrType {
-    Mutable,
-    SingleMutable,
-    Immutable,
-}
-
-impl CsrType {
-    pub fn from_strategy(strategy: EdgeStrategy, is_immutable: bool) -> Self {
-        match (strategy, is_immutable) {
-            (EdgeStrategy::Multiple, false) => CsrType::Mutable,
-            (EdgeStrategy::Multiple, true) => CsrType::Immutable,
-            (EdgeStrategy::Single, false) => CsrType::SingleMutable,
-            (EdgeStrategy::Single, true) => CsrType::Immutable,
-            (EdgeStrategy::None, _) => CsrType::Immutable,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn test_csr_type_from_strategy() {
-        assert_eq!(
-            CsrType::from_strategy(EdgeStrategy::Multiple, false),
-            CsrType::Mutable
-        );
-        assert_eq!(
-            CsrType::from_strategy(EdgeStrategy::Multiple, true),
-            CsrType::Immutable
-        );
-        assert_eq!(
-            CsrType::from_strategy(EdgeStrategy::Single, false),
-            CsrType::SingleMutable
-        );
-        assert_eq!(
-            CsrType::from_strategy(EdgeStrategy::Single, true),
-            CsrType::Immutable
-        );
-        assert_eq!(
-            CsrType::from_strategy(EdgeStrategy::None, false),
-            CsrType::Immutable
-        );
-        assert_eq!(
-            CsrType::from_strategy(EdgeStrategy::None, true),
-            CsrType::Immutable
-        );
-    }
 }

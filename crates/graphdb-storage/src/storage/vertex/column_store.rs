@@ -28,17 +28,8 @@ pub trait ColumnStorage: Send + Sync + std::fmt::Debug {
     fn memory_usage(&self) -> usize;
     fn clear(&mut self);
     fn resize(&mut self, new_count: usize);
-    fn data(&self) -> &[u8];
-    fn data_size(&self) -> usize;
     fn null_bitmap(&self) -> Option<&BitVec<u8, Lsb0>>;
-    fn null_bitmap_raw(&self) -> Option<&[u8]>;
     fn null_count(&self) -> usize;
-    fn load_data(
-        &mut self,
-        data: Vec<u8>,
-        offsets: Option<Vec<usize>>,
-        null_bitmap: Option<BitVec<u8, Lsb0>>,
-    );
     fn load_data_from_raw(
         &mut self,
         data: Vec<u8>,
@@ -125,20 +116,6 @@ impl FixedWidthColumn {
         }
     }
 
-    pub fn with_capacity(data_type: DataType, nullable: bool, capacity: usize) -> Self {
-        let elem_size = element_size(&data_type);
-        Self {
-            data: Vec::with_capacity(capacity * elem_size),
-            data_type: data_type.clone(),
-            element_size: elem_size,
-            null_bitmap: if nullable {
-                Some(BitVec::with_capacity(capacity))
-            } else {
-                None
-            },
-            row_count: 0,
-        }
-    }
 }
 
 impl ColumnStorage for FixedWidthColumn {
@@ -226,20 +203,8 @@ impl ColumnStorage for FixedWidthColumn {
         self.row_count = new_count;
     }
 
-    fn data(&self) -> &[u8] {
-        &self.data
-    }
-
-    fn data_size(&self) -> usize {
-        self.data.len()
-    }
-
     fn null_bitmap(&self) -> Option<&BitVec<u8, Lsb0>> {
         self.null_bitmap.as_ref()
-    }
-
-    fn null_bitmap_raw(&self) -> Option<&[u8]> {
-        self.null_bitmap.as_ref().map(|b| b.as_raw_slice())
     }
 
     fn null_count(&self) -> usize {
@@ -247,23 +212,6 @@ impl ColumnStorage for FixedWidthColumn {
             .as_ref()
             .map(|b| b.count_ones())
             .unwrap_or(0)
-    }
-
-    fn load_data(
-        &mut self,
-        data: Vec<u8>,
-        _offsets: Option<Vec<usize>>,
-        null_bitmap: Option<BitVec<u8, Lsb0>>,
-    ) {
-        self.data = data;
-        let elem_size = self.element_size.max(1);
-        let remainder = self.data.len() % elem_size;
-        if remainder != 0 {
-            self.data
-                .resize(self.data.len() + (elem_size - remainder), 0);
-        }
-        self.row_count = self.data.len() / elem_size;
-        self.null_bitmap = null_bitmap;
     }
 
     fn load_data_from_raw(
@@ -345,18 +293,6 @@ impl VariableWidthColumn {
         }
     }
 
-    pub fn with_capacity(nullable: bool, capacity: usize) -> Self {
-        Self {
-            data: Vec::new(),
-            offsets: Vec::with_capacity(capacity),
-            null_bitmap: if nullable {
-                Some(BitVec::with_capacity(capacity))
-            } else {
-                None
-            },
-            row_count: 0,
-        }
-    }
 }
 
 impl ColumnStorage for VariableWidthColumn {
@@ -465,20 +401,8 @@ impl ColumnStorage for VariableWidthColumn {
         self.row_count = new_count;
     }
 
-    fn data(&self) -> &[u8] {
-        &self.data
-    }
-
-    fn data_size(&self) -> usize {
-        self.data.len()
-    }
-
     fn null_bitmap(&self) -> Option<&BitVec<u8, Lsb0>> {
         self.null_bitmap.as_ref()
-    }
-
-    fn null_bitmap_raw(&self) -> Option<&[u8]> {
-        self.null_bitmap.as_ref().map(|b| b.as_raw_slice())
     }
 
     fn null_count(&self) -> usize {
@@ -486,23 +410,6 @@ impl ColumnStorage for VariableWidthColumn {
             .as_ref()
             .map(|b| b.count_ones())
             .unwrap_or(0)
-    }
-
-    fn load_data(
-        &mut self,
-        data: Vec<u8>,
-        offsets: Option<Vec<usize>>,
-        null_bitmap: Option<BitVec<u8, Lsb0>>,
-    ) {
-        self.data = data;
-        if let Some(offs) = offsets {
-            self.offsets = offs;
-            self.row_count = self.offsets.len();
-        } else {
-            self.offsets.clear();
-            self.row_count = 0;
-        }
-        self.null_bitmap = null_bitmap;
     }
 
     fn load_data_from_raw(
@@ -807,37 +714,6 @@ impl Column {
         }
     }
 
-    pub fn with_capacity(
-        name: String,
-        col_id: i32,
-        data_type: DataType,
-        nullable: bool,
-        capacity: usize,
-    ) -> Self {
-        let inner = if is_variable_length_type(&data_type) {
-            ColumnInner::Variable(VariableWidthColumn::with_capacity(nullable, capacity))
-        } else {
-            ColumnInner::Fixed(FixedWidthColumn::with_capacity(
-                data_type.clone(),
-                nullable,
-                capacity,
-            ))
-        };
-
-        Self {
-            name,
-            col_id,
-            data_type,
-            nullable,
-            inner,
-            encoding: ColumnEncoding::None,
-        }
-    }
-
-    pub fn element_size(data_type: &DataType) -> usize {
-        element_size(data_type)
-    }
-
     fn inner(&self) -> &dyn ColumnStorage {
         match &self.inner {
             ColumnInner::Fixed(c) => c,
@@ -907,20 +783,8 @@ impl Column {
         self.inner().is_empty()
     }
 
-    pub fn data_size(&self) -> usize {
-        self.inner().data_size()
-    }
-
-    pub fn data(&self) -> &[u8] {
-        self.inner().data()
-    }
-
     pub fn null_bitmap(&self) -> Option<&BitVec<u8, Lsb0>> {
         self.inner().null_bitmap()
-    }
-
-    pub fn null_bitmap_raw(&self) -> Option<&[u8]> {
-        self.inner().null_bitmap_raw()
     }
 
     pub fn memory_usage(&self) -> usize {
@@ -942,55 +806,8 @@ impl Column {
         self.encoding = ColumnEncoding::None;
     }
 
-    /// Reset encoding: decode all values from encoding back to raw storage,
-    /// then clear the encoding to `None`.
-    ///
-    /// This is the inverse of `auto_compress()` and allows re-encoding
-    /// with a different algorithm (e.g. when data characteristics change).
-    pub fn reset_encoding(&mut self) -> StorageResult<()> {
-        if !self.encoding.is_encoded() {
-            return Ok(());
-        }
-
-        let row_count = self.encoding.len();
-        let mut all_values: Vec<Option<Value>> = Vec::with_capacity(row_count);
-
-        for i in 0..row_count {
-            if self.encoding.is_null(i) {
-                all_values.push(None);
-            } else {
-                all_values.push(self.encoding.get(i));
-            }
-        }
-
-        self.inner_mut().clear();
-        self.encoding = ColumnEncoding::None;
-
-        self.inner_mut().resize(row_count);
-        for (i, val) in all_values.into_iter().enumerate() {
-            self.set(i, val.as_ref())?;
-        }
-
-        Ok(())
-    }
-
-    /// Recompress: reset encoding first, then re-apply compression.
-    pub fn recompress(&mut self) -> StorageResult<()> {
-        self.reset_encoding()?;
-        self.auto_compress()
-    }
-
     pub fn resize(&mut self, new_count: usize) {
         self.inner_mut().resize(new_count);
-    }
-
-    pub fn load_data(
-        &mut self,
-        data: Vec<u8>,
-        offsets: Option<Vec<usize>>,
-        null_bitmap: Option<BitVec<u8, Lsb0>>,
-    ) {
-        self.inner_mut().load_data(data, offsets, null_bitmap);
     }
 
     pub fn load_data_from_raw(
@@ -1696,41 +1513,12 @@ impl ColumnStore {
         }
     }
 
-    pub fn reset_encodings(&mut self) -> StorageResult<()> {
-        for col in &mut self.columns {
-            col.reset_encoding()?;
-        }
-        Ok(())
-    }
-
-    pub fn recompress_all(&mut self) -> StorageResult<()> {
-        for col in &mut self.columns {
-            col.recompress()?;
-        }
-        Ok(())
-    }
-
     pub fn columns(&self) -> &[Column] {
         &self.columns
     }
 
     pub fn column_names(&self) -> Vec<&str> {
         self.columns.iter().map(|c| c.name.as_str()).collect()
-    }
-
-    pub fn load_column(
-        &mut self,
-        name: &str,
-        data: Vec<u8>,
-        offsets: Option<Vec<usize>>,
-        null_bitmap: Option<BitVec<u8, Lsb0>>,
-    ) -> StorageResult<()> {
-        if let Some(col) = self.get_column_mut(name) {
-            col.load_data(data, offsets, null_bitmap);
-            Ok(())
-        } else {
-            Err(StorageError::column_not_found(name.to_string()))
-        }
     }
 
     pub fn load_column_from_raw(
@@ -1974,7 +1762,7 @@ mod tests {
         assert!(offsets.is_empty());
 
         let mut restored = Column::new("val".to_string(), 0, DataType::Int, true);
-        restored.load_data(data, None, bitmap);
+        restored.load_data_from_raw(data, Vec::new(), bitmap.map(|b| b.into_vec()), col.len());
 
         assert_eq!(restored.get(0), Some(Value::Int(10)));
         assert_eq!(restored.get(1), Some(Value::Int(20)));

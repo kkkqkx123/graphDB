@@ -84,8 +84,6 @@ pub struct SnapshotOptions {
     pub name: Option<String>,
     /// Snapshot description
     pub description: Option<String>,
-    /// Create incremental snapshot if possible
-    pub incremental: bool,
     /// Sync to disk after creation
     pub sync: bool,
 }
@@ -95,7 +93,6 @@ impl Default for SnapshotOptions {
         Self {
             name: None,
             description: None,
-            incremental: false,
             sync: true,
         }
     }
@@ -190,11 +187,6 @@ impl SnapshotManager {
         manager.init()?;
 
         Ok(manager)
-    }
-
-    /// Set retention policy
-    pub fn set_retention_policy(&mut self, policy: RetentionPolicy) {
-        self.retention_policy = policy;
     }
 
     /// Initialize snapshot manager
@@ -422,16 +414,6 @@ impl SnapshotManager {
         Ok(())
     }
 
-    /// List all snapshots
-    pub fn list_snapshots(&self) -> Vec<SnapshotInfo> {
-        self.metadata_index
-            .read()
-            .snapshots
-            .values()
-            .cloned()
-            .collect()
-    }
-
     /// Get snapshot info by ID
     pub fn get_snapshot(&self, snapshot_id: u64) -> Option<SnapshotInfo> {
         self.metadata_index
@@ -449,19 +431,6 @@ impl SnapshotManager {
         } else {
             index.snapshots.values().last().cloned()
         }
-    }
-
-    /// Get the current snapshot ID
-    pub fn current_snapshot_id(&self) -> u64 {
-        self.metadata_index.read().current_id
-    }
-
-    /// Check if a snapshot exists
-    pub fn snapshot_exists(&self, snapshot_id: u64) -> bool {
-        self.metadata_index
-            .read()
-            .snapshots
-            .contains_key(&snapshot_id)
     }
 
     /// Delete a snapshot
@@ -493,43 +462,6 @@ impl SnapshotManager {
         self.save_metadata_index()?;
 
         Ok(())
-    }
-
-    /// Restore from a snapshot
-    ///
-    /// This copies snapshot data to the target directory.
-    pub fn restore_snapshot(
-        &self,
-        snapshot_id: u64,
-        target_dir: &Path,
-    ) -> StorageResult<SnapshotInfo> {
-        let info = self.get_snapshot(snapshot_id).ok_or_else(|| {
-            StorageError::not_found(format!("Snapshot {} not found", snapshot_id))
-        })?;
-
-        let snapshot_dir = self.get_snapshot_dir(snapshot_id);
-
-        if !snapshot_dir.exists() {
-            return Err(StorageError::not_found(format!(
-                "Snapshot directory not found: {:?}",
-                snapshot_dir
-            )));
-        }
-
-        if target_dir.exists() {
-            fs::remove_dir_all(target_dir).map_err(|e| {
-                StorageError::io_error(format!("Failed to clear target directory: {}", e))
-            })?;
-        }
-
-        fs::create_dir_all(target_dir).map_err(|e| {
-            StorageError::io_error(format!("Failed to create target directory: {}", e))
-        })?;
-
-        let mut size_bytes = 0u64;
-        self.copy_directory(&snapshot_dir, target_dir, &mut size_bytes)?;
-
-        Ok(info)
     }
 
     /// Clean up old snapshots based on retention policy
@@ -669,42 +601,7 @@ mod tests {
         assert_eq!(info.vertex_count, 100);
         assert_eq!(info.edge_count, 50);
 
-        let snapshots = manager.list_snapshots();
-        assert_eq!(snapshots.len(), 1);
-    }
-
-    #[test]
-    fn test_restore_snapshot() {
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        let snapshots_dir = temp_dir.path().join("snapshots");
-        let work_dir = temp_dir.path().join("work");
-        let data_dir = temp_dir.path().join("data");
-        let restore_dir = temp_dir.path().join("restore");
-
-        fs::create_dir_all(&data_dir).expect("Failed to create data dir");
-        fs::write(data_dir.join("test.txt"), "test data").expect("Failed to write test file");
-
-        let manager =
-            SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
-
-        manager
-            .create_snapshot(CreateSnapshotParams {
-                data_dir: data_dir.to_path_buf(),
-                snapshot_id: 1,
-                vertex_count: 100,
-                edge_count: 50,
-                checkpoint_seq: 1,
-                wal_lsn: 1000,
-                options: SnapshotOptions::default(),
-            })
-            .expect("Failed to create snapshot");
-
-        let info = manager
-            .restore_snapshot(1, &restore_dir)
-            .expect("Failed to restore snapshot");
-
-        assert_eq!(info.id, 1);
-        assert!(restore_dir.join("test.txt").exists());
+        assert_eq!(manager.snapshot_count(), 1);
     }
 
     #[test]
@@ -741,7 +638,7 @@ mod tests {
     }
 
     #[test]
-    fn test_retention_policy() {
+    fn test_cleanup_old_snapshots() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let snapshots_dir = temp_dir.path().join("snapshots");
         let work_dir = temp_dir.path().join("work");
@@ -749,13 +646,8 @@ mod tests {
 
         fs::create_dir_all(&data_dir).expect("Failed to create data dir");
 
-        let mut manager =
+        let manager =
             SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
-        manager.set_retention_policy(RetentionPolicy {
-            max_snapshots: 2,
-            max_age_seconds: 0,
-            min_interval_seconds: 0,
-        });
 
         for i in 1..=3 {
             manager
@@ -771,6 +663,6 @@ mod tests {
                 .expect("Failed to create snapshot");
         }
 
-        assert!(manager.snapshot_count() <= 2);
+        assert_eq!(manager.snapshot_count(), 3);
     }
 }

@@ -15,36 +15,25 @@ use super::bitpacking::BitPackedColumn;
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::utils::NullBitmap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum AlpFloatType {
-    Float32,
-    #[default]
-    Float64,
-}
-
 #[derive(Debug, Clone)]
 pub struct AlpEncoder {
-    exponent: i8,
     factor: f64,
-    float_type: AlpFloatType,
     bit_packed: BitPackedColumn,
 }
 
 impl AlpEncoder {
     pub fn new() -> Self {
         Self {
-            exponent: 0,
-            factor: 1.0,
-            float_type: AlpFloatType::Float64,
+            factor: 0.0,
             bit_packed: BitPackedColumn::new(),
         }
     }
 
-    pub fn analyze(values: &[f64], float_type: AlpFloatType) -> Self {
+    pub fn analyze(values: &[f64]) -> Self {
         if values.is_empty() {
             return Self {
-                float_type,
-                ..Default::default()
+                factor: 1.0,
+                bit_packed: BitPackedColumn::new(),
             };
         }
 
@@ -59,16 +48,14 @@ impl AlpEncoder {
         let bit_packed = BitPackedColumn::analyze(&int_values);
 
         Self {
-            exponent: best_exponent,
-            factor,
-            float_type,
+            factor: 10f64.powi(best_exponent as i32),
             bit_packed,
         }
     }
 
     pub fn analyze_f32(values: &[f32]) -> Self {
         let f64_values: Vec<f64> = values.iter().map(|&v| v as f64).collect();
-        Self::analyze(&f64_values, AlpFloatType::Float32)
+        Self::analyze(&f64_values)
     }
 
     fn find_optimal_exponent(values: &[f64]) -> i8 {
@@ -125,36 +112,12 @@ impl AlpEncoder {
         value as f64 / self.factor
     }
 
-    pub fn compress_f32(&self, value: f32) -> i64 {
-        self.compress(value as f64)
-    }
-
-    pub fn decompress_f32(&self, value: i64) -> f32 {
-        self.decompress(value) as f32
-    }
-
-    pub fn exponent(&self) -> i8 {
-        self.exponent
-    }
-
     pub fn factor(&self) -> f64 {
         self.factor
     }
 
-    pub fn float_type(&self) -> AlpFloatType {
-        self.float_type
-    }
-
-    pub fn bit_width(&self) -> u8 {
-        self.bit_packed.bit_width()
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.bit_packed.memory_usage() + std::mem::size_of::<Self>()
-    }
-
-    pub fn compression_ratio(&self) -> f64 {
-        self.bit_packed.compression_ratio()
     }
 }
 
@@ -191,7 +154,7 @@ impl AlpColumn {
             };
         }
 
-        let encoder = AlpEncoder::analyze(&non_null, AlpFloatType::Float64);
+        let encoder = AlpEncoder::analyze(&non_null);
 
         let int_values: Vec<Option<i64>> = values
             .iter()
@@ -202,8 +165,8 @@ impl AlpColumn {
 
         Self {
             encoder: AlpEncoder {
+                factor: encoder.factor,
                 bit_packed,
-                ..encoder
             },
             row_count: values.len(),
             null_bitmap: Self::build_bitmap(values),
@@ -271,15 +234,8 @@ impl AlpColumn {
         Some(self.encoder.decompress(int_val))
     }
 
-    pub fn get_f32(&self, row_idx: usize) -> Option<f32> {
-        self.get(row_idx).map(|v| v as f32)
-    }
-
     pub fn get_value(&self, row_idx: usize) -> Option<Value> {
-        match self.encoder.float_type {
-            AlpFloatType::Float32 => self.get_f32(row_idx).map(Value::Float),
-            AlpFloatType::Float64 => self.get(row_idx).map(Value::Double),
-        }
+        self.get(row_idx).map(Value::Double)
     }
 
     pub fn set(&mut self, row_idx: usize, value: Option<f64>) -> StorageResult<()> {
@@ -308,30 +264,8 @@ impl AlpColumn {
         self.row_count
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.row_count == 0
-    }
-
-    pub fn is_null(&self, row_idx: usize) -> bool {
-        row_idx < self.null_bitmap.len() && self.null_bitmap.is_null(row_idx)
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.encoder.memory_usage() + self.null_bitmap.memory_usage()
-    }
-
-    pub fn compression_ratio(&self) -> f64 {
-        self.encoder.compression_ratio()
-    }
-
-    pub fn clear(&mut self) {
-        self.encoder.bit_packed.clear();
-        self.null_bitmap.clear();
-        self.row_count = 0;
-    }
-
-    pub fn encoder(&self) -> &AlpEncoder {
-        &self.encoder
     }
 }
 
@@ -341,31 +275,9 @@ impl Default for AlpColumn {
     }
 }
 
-impl super::EncodedColumn for AlpColumn {
-    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
-        self.get_value(row_idx)
-    }
 
-    fn len(&self) -> usize {
-        AlpColumn::len(self)
-    }
 
-    fn is_null(&self, row_idx: usize) -> bool {
-        AlpColumn::is_null(self, row_idx)
-    }
 
-    fn memory_usage(&self) -> usize {
-        AlpColumn::memory_usage(self)
-    }
-
-    fn encoding_type(&self) -> super::EncodingType {
-        super::EncodingType::Alp
-    }
-
-    fn compression_ratio(&self) -> f64 {
-        AlpColumn::compression_ratio(self)
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -381,7 +293,7 @@ mod tests {
     #[test]
     fn test_alp_encoder_basic() {
         let values = vec![1.5, 2.5, 3.5, 4.5, 5.5];
-        let encoder = AlpEncoder::analyze(&values, AlpFloatType::Float64);
+        let encoder = AlpEncoder::analyze(&values);
 
         for &v in &values {
             let compressed = encoder.compress(v);
@@ -391,17 +303,9 @@ mod tests {
     }
 
     #[test]
-    fn test_alp_encoder_exponent() {
-        let values = vec![1.23, 4.56, 7.89];
-        let encoder = AlpEncoder::analyze(&values, AlpFloatType::Float64);
-
-        assert!(encoder.exponent() >= 0);
-    }
-
-    #[test]
     fn test_alp_encoder_compression() {
         let values: Vec<f64> = (0..1000).map(|i| i as f64 * 0.01).collect();
-        let encoder = AlpEncoder::analyze(&values, AlpFloatType::Float64);
+        let encoder = AlpEncoder::analyze(&values);
 
         let original_size = values.len() * 8;
         let compressed_size = encoder.memory_usage();
@@ -417,19 +321,8 @@ mod tests {
 
         assert_eq!(column.len(), 4);
         assert!((column.get(0).unwrap() - 1.5).abs() < 1e-9);
-        assert!(column.is_null(1));
+        assert!(column.get(1).is_none());
         assert!((column.get(2).unwrap() - 3.5).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_alp_column_f32() {
-        let values = vec![Some(1.5f32), Some(2.5f32), None];
-
-        let column = AlpColumn::analyze_f32(&values);
-
-        assert_eq!(column.len(), 3);
-        assert!((column.get_f32(0).unwrap() - 1.5f32).abs() < 1e-6);
-        assert!(column.is_null(2));
     }
 
     #[test]
@@ -449,7 +342,7 @@ mod tests {
         );
 
         column.set(1, None).unwrap();
-        assert!(column.is_null(1));
+        assert!(column.get(1).is_none());
     }
 
     #[test]
@@ -459,7 +352,7 @@ mod tests {
         let column = AlpColumn::analyze_values(&values, DataType::Double).unwrap();
 
         assert_eq!(column.get_value(0), Some(Value::Double(1.5)));
-        assert!(column.is_null(1));
+        assert!(column.get(1).is_none());
         assert_eq!(column.get_value(2), Some(Value::Double(3.5)));
     }
 
@@ -475,7 +368,7 @@ mod tests {
     #[test]
     fn test_alp_roundtrip_precision() {
         let values = vec![1.234567, 2.345678, 3.456789, 4.567890, 5.678901];
-        let encoder = AlpEncoder::analyze(&values, AlpFloatType::Float64);
+        let encoder = AlpEncoder::analyze(&values);
 
         for &v in &values {
             let compressed = encoder.compress(v);
@@ -493,7 +386,7 @@ mod tests {
     #[test]
     fn test_alp_negative_values() {
         let values = vec![-1.5, -2.5, 0.0, 1.5, 2.5];
-        let encoder = AlpEncoder::analyze(&values, AlpFloatType::Float64);
+        let encoder = AlpEncoder::analyze(&values);
 
         for &v in &values {
             let compressed = encoder.compress(v);

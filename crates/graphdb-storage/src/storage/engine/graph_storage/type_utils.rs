@@ -54,16 +54,6 @@ pub(crate) fn edge_label_id(
         .map(|edge_type| edge_type.edge_type_id))
 }
 
-pub fn vertex_id_to_string(vid: &VertexId) -> String {
-    if let Some(i) = vid.as_int64() {
-        i.to_string()
-    } else if let Some(s) = vid.as_str() {
-        s.to_string()
-    } else {
-        format!("{:?}", vid)
-    }
-}
-
 pub fn value_to_string(value: &Value) -> String {
     match value {
         Value::SmallInt(i) => i.to_string(),

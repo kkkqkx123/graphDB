@@ -5,7 +5,7 @@
 
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::writer::WalWriter;
-use crate::transaction::wal::{LocalWalWriter, Lsn, WalConfig, WalOpType};
+use crate::transaction::wal::{LocalWalWriter, Lsn, WalConfig};
 use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
@@ -74,29 +74,6 @@ impl WalManager {
         Ok(())
     }
 
-    pub fn append_entry(
-        &self,
-        op_type: WalOpType,
-        timestamp: u32,
-        data: &[u8],
-    ) -> StorageResult<Lsn> {
-        if let Some(ref writer) = self.local_writer {
-            let mut w = writer.write();
-            w.append_entry(op_type, timestamp, data).map_err(|e| {
-                StorageError::wal_error(format!("Failed to append WAL entry: {:?}", e))
-            })?;
-            Ok(w.current_lsn())
-        } else if let Some(ref writer) = self.dyn_writer {
-            let mut w = writer.write();
-            w.append(data).map_err(|e| {
-                StorageError::wal_error(format!("Failed to append WAL entry: {:?}", e))
-            })?;
-            Ok(Lsn::ZERO)
-        } else {
-            Err(StorageError::wal_error("WAL writer not initialized"))
-        }
-    }
-
     pub fn truncate(&self, lsn: Lsn) -> StorageResult<()> {
         if let Some(ref writer) = self.local_writer {
             writer.write().set_current_lsn(lsn);
@@ -104,14 +81,6 @@ impl WalManager {
         Ok(())
     }
 
-    pub fn close(&mut self) -> StorageResult<()> {
-        if let Some(ref writer) = self.local_writer {
-            writer.write().close();
-        }
-        self.local_writer = None;
-        self.dyn_writer = None;
-        Ok(())
-    }
 }
 
 impl Default for WalManager {
@@ -126,7 +95,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn test_wal_manager_lsn_consistency() {
+    fn test_wal_manager_open_and_current_lsn() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let mut manager = WalManager::new();
 
@@ -134,20 +103,6 @@ mod tests {
             .open(temp_dir.path(), 0)
             .expect("Failed to open WAL");
 
-        let lsn1 = manager
-            .append_entry(WalOpType::InsertVertex, 1, b"test_data")
-            .expect("Failed to append");
-
-        assert!(lsn1.as_u64() > 0);
-        assert_eq!(manager.current_lsn(), lsn1);
-
-        let lsn2 = manager
-            .append_entry(WalOpType::InsertEdge, 2, b"more_data")
-            .expect("Failed to append");
-
-        assert!(lsn2.as_u64() > lsn1.as_u64());
-        assert_eq!(manager.current_lsn(), lsn2);
-
-        manager.close().expect("Failed to close");
+        assert!(manager.is_enabled());
     }
 }

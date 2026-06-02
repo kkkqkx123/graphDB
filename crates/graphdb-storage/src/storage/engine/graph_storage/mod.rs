@@ -22,8 +22,6 @@ pub use context::GraphStorageContext;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use parking_lot::RwLock;
-
 use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
@@ -31,8 +29,8 @@ use crate::core::types::{
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
-use crate::storage::engine::{PersistenceConfig, PropertyGraph};
-use crate::storage::index::{IndexGcConfig, IndexGcManager};
+use crate::storage::engine::PersistenceConfig;
+use crate::storage::index::IndexGcConfig;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
 };
@@ -85,14 +83,6 @@ impl GraphStorage {
         self.ctx.is_index_gc_running()
     }
 
-    pub(crate) fn index_gc_manager(&self) -> Option<Arc<IndexGcManager>> {
-        self.ctx.index_gc_manager.clone()
-    }
-
-    pub(crate) fn get_db(&self) -> Arc<PropertyGraph> {
-        self.ctx.graph.clone()
-    }
-
     pub fn get_schema_manager(&self) -> Arc<SchemaManager> {
         self.ctx.schema_manager.clone()
     }
@@ -103,12 +93,6 @@ impl GraphStorage {
 
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
         self.ctx.set_transaction_context(context);
-    }
-
-    pub(crate) fn persistence(
-        &self,
-    ) -> Option<Arc<RwLock<crate::storage::engine::PersistenceCoordinator>>> {
-        self.ctx.persistence.clone()
     }
 
     pub fn is_persistence_enabled(&self) -> bool {

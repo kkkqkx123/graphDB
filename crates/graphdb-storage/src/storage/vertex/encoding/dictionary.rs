@@ -23,13 +23,6 @@ impl StringDictionary {
         }
     }
 
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            values: Vec::with_capacity(capacity),
-            index_map: HashMap::with_capacity(capacity),
-        }
-    }
-
     pub fn insert(&mut self, value: &str) -> u32 {
         if let Some(&idx) = self.index_map.get(value) {
             return idx;
@@ -46,36 +39,12 @@ impl StringDictionary {
         self.values.get(index as usize).map(|s| s.as_ref())
     }
 
-    pub fn get_index(&self, value: &str) -> Option<u32> {
-        self.index_map.get(value).copied()
-    }
-
-    pub fn len(&self) -> usize {
-        self.values.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.values.is_empty()
-    }
-
     pub fn memory_usage(&self) -> usize {
         let values_size: usize = self.values.iter().map(|s| s.len()).sum();
         let overhead = self.values.len() * std::mem::size_of::<Arc<str>>();
         let map_overhead =
             self.index_map.len() * (std::mem::size_of::<Arc<str>>() + std::mem::size_of::<u32>());
         values_size + overhead + map_overhead
-    }
-
-    pub fn clear(&mut self) {
-        self.values.clear();
-        self.index_map.clear();
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (u32, &str)> {
-        self.values
-            .iter()
-            .enumerate()
-            .map(|(i, s)| (i as u32, s.as_ref()))
     }
 }
 
@@ -98,14 +67,6 @@ impl DictionaryEncoder {
             dictionary: StringDictionary::new(),
             indices: Vec::new(),
             null_bitmap: NullBitmap::new(),
-        }
-    }
-
-    pub fn with_capacity(dict_capacity: usize, row_capacity: usize) -> Self {
-        Self {
-            dictionary: StringDictionary::with_capacity(dict_capacity),
-            indices: Vec::with_capacity(row_capacity),
-            null_bitmap: NullBitmap::with_capacity(row_capacity),
         }
     }
 
@@ -137,40 +98,10 @@ impl DictionaryEncoder {
         self.indices.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.indices.is_empty()
-    }
-
-    pub fn dictionary_size(&self) -> usize {
-        self.dictionary.len()
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.dictionary.memory_usage()
             + self.indices.len() * std::mem::size_of::<u32>()
             + self.null_bitmap.memory_usage()
-    }
-
-    pub fn compression_stats(&self, original_total_len: usize) -> super::EncodingStats {
-        super::EncodingStats::new(
-            super::EncodingType::Dictionary,
-            original_total_len,
-            self.memory_usage(),
-        )
-    }
-
-    pub fn clear(&mut self) {
-        self.dictionary.clear();
-        self.indices.clear();
-        self.null_bitmap.clear();
-    }
-
-    pub fn dictionary(&self) -> &StringDictionary {
-        &self.dictionary
-    }
-
-    pub fn indices(&self) -> &[u32] {
-        &self.indices
     }
 }
 
@@ -234,24 +165,12 @@ impl DictionaryColumn {
             .map(|s| Value::String(s.to_string()))
     }
 
-    pub fn is_null(&self, row_idx: usize) -> bool {
-        self.encoder.null_bitmap.is_null(row_idx)
-    }
-
     pub fn len(&self) -> usize {
         self.encoder.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.encoder.is_empty()
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.encoder.memory_usage()
-    }
-
-    pub fn clear(&mut self) {
-        self.encoder.clear();
     }
 }
 
@@ -261,27 +180,11 @@ impl Default for DictionaryColumn {
     }
 }
 
-impl super::EncodedColumn for DictionaryColumn {
-    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
-        DictionaryColumn::get(self, row_idx)
-    }
 
-    fn len(&self) -> usize {
-        DictionaryColumn::len(self)
-    }
 
-    fn is_null(&self, row_idx: usize) -> bool {
-        DictionaryColumn::is_null(self, row_idx)
-    }
+    
 
-    fn memory_usage(&self) -> usize {
-        DictionaryColumn::memory_usage(self)
-    }
 
-    fn encoding_type(&self) -> super::EncodingType {
-        super::EncodingType::Dictionary
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -301,7 +204,6 @@ mod tests {
 
         assert_eq!(dict.get(0), Some("apple"));
         assert_eq!(dict.get(1), Some("banana"));
-        assert_eq!(dict.len(), 2);
     }
 
     #[test]
@@ -317,8 +219,6 @@ mod tests {
         assert_eq!(encoder.decode(1), Some("world"));
         assert_eq!(encoder.decode(2), None);
         assert_eq!(encoder.decode(3), Some("hello"));
-
-        assert_eq!(encoder.dictionary_size(), 2);
     }
 
     #[test]
@@ -332,7 +232,7 @@ mod tests {
 
         assert_eq!(col.get(0), Some(Value::String("a".to_string())));
         assert_eq!(col.get(1), Some(Value::String("b".to_string())));
-        assert!(col.is_null(2));
+        assert!(col.get(2).is_none());
         assert_eq!(col.get(3), Some(Value::String("a".to_string())));
     }
 }

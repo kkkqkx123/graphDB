@@ -2,6 +2,7 @@
 
 use crate::core::{DataType, Value};
 use crate::storage::edge::EdgeStrategy;
+use crate::storage::engine::edge_params::EdgeOperationParams;
 use crate::storage::engine::property_graph::{
     InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams,
 };
@@ -97,12 +98,14 @@ fn test_create_edge() {
 
     let edge = graph
         .get_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            0,
+            &EdgeOperationParams {
+                edge_label: knows_label,
+                src_label: person_label,
+                src_id: "alice",
+                dst_label: person_label,
+                dst_id: "bob",
+                rank: 0,
+            },
             100,
         )
         .unwrap();
@@ -463,12 +466,14 @@ fn test_update_edge_property() {
 
     let edge = graph
         .get_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            0,
+            &EdgeOperationParams {
+                edge_label: knows_label,
+                src_label: person_label,
+                src_id: "alice",
+                dst_label: person_label,
+                dst_id: "bob",
+                rank: 0,
+            },
             100,
         )
         .unwrap();
@@ -540,24 +545,28 @@ fn test_delete_edge() {
 
     let deleted = graph
         .delete_edge(
-            knows_label,
-            person_label,
-            "alice",
-            person_label,
-            "bob",
-            0,
+            &EdgeOperationParams {
+                edge_label: knows_label,
+                src_label: person_label,
+                src_id: "alice",
+                dst_label: person_label,
+                dst_id: "bob",
+                rank: 0,
+            },
             100,
         )
         .unwrap();
     assert!(deleted);
 
     let edge = graph.get_edge(
-        knows_label,
-        person_label,
-        "alice",
-        person_label,
-        "bob",
-        0,
+        &EdgeOperationParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            rank: 0,
+        },
         100,
     );
     assert!(edge.is_none());
@@ -910,12 +919,14 @@ fn test_get_nonexistent_edge() {
         .unwrap();
 
     let result = graph.get_edge(
-        knows_label,
-        person_label,
-        "alice",
-        person_label,
-        "bob",
-        0,
+        &EdgeOperationParams {
+            edge_label: knows_label,
+            src_label: person_label,
+            src_id: "alice",
+            dst_label: person_label,
+            dst_id: "bob",
+            rank: 0,
+        },
         100,
     );
     assert!(result.is_none());

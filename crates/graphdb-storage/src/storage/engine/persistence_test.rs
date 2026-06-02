@@ -5,7 +5,7 @@ mod tests {
     use crate::core::{DataType, Value};
     use crate::storage::edge::EdgeStrategy;
     use crate::storage::engine::config::PropertyGraphConfig;
-    use crate::storage::engine::edge_params::CreateEdgeTypeParams;
+    use crate::storage::engine::edge_params::{CreateEdgeTypeParams, EdgeOperationParams};
     use crate::storage::engine::property_graph::{InsertEdgeParams, PropertyGraph};
     use crate::storage::storage_types::StoragePropertyDef;
 
@@ -146,12 +146,14 @@ mod tests {
 
         let edge = graph2
             .get_edge(
-                knows_label,
-                person_label,
-                "alice",
-                person_label,
-                "bob",
-                0,
+                &EdgeOperationParams {
+                    edge_label: knows_label,
+                    src_label: person_label,
+                    src_id: "alice",
+                    dst_label: person_label,
+                    dst_id: "bob",
+                    rank: 0,
+                },
                 100,
             )
             .expect("Edge should exist after reload");

@@ -14,7 +14,7 @@ use crate::core::{StorageError, StorageResult};
 use crate::storage::utils::{read_u32_le, read_u64_le};
 
 use super::{
-    CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_EDGE_ID,
+    CsrBase, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_EDGE_ID,
     INVALID_TIMESTAMP,
 };
 
@@ -103,10 +103,6 @@ impl SingleMutableCsr {
         self.edge_count.load(Ordering::Relaxed)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.edge_count.load(Ordering::Relaxed) == 0
-    }
-
     pub fn resize(&mut self, new_vertex_capacity: usize) {
         if new_vertex_capacity <= self.vertex_capacity {
             return;
@@ -165,41 +161,6 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn update_edge(
-        &mut self,
-        src: VertexId,
-        dst: VertexId,
-        edge_id: EdgeId,
-        prop_offset: u32,
-        ts: Timestamp,
-    ) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-
-        if src_idx >= self.vertex_capacity {
-            return false;
-        }
-
-        let nbr = &mut self.nbr_list[src_idx];
-
-        if nbr.timestamp == INVALID_TIMESTAMP {
-            return false;
-        }
-
-        if nbr.neighbor != dst {
-            return false;
-        }
-
-        if nbr.timestamp > ts {
-            return false;
-        }
-
-        nbr.edge_id = edge_id;
-        nbr.prop_offset = prop_offset;
-        nbr.timestamp = ts;
-
-        true
-    }
-
     pub fn delete_edge(&mut self, src: VertexId, ts: Timestamp) -> bool {
         let src_idx = src.as_int64().unwrap_or(0) as usize;
 
@@ -247,25 +208,6 @@ impl SingleMutableCsr {
         self.delete_edge(src, ts)
     }
 
-    pub fn revert_delete(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-
-        if src_idx >= self.vertex_capacity {
-            return false;
-        }
-
-        let nbr = &mut self.nbr_list[src_idx];
-
-        if nbr.timestamp != INVALID_TIMESTAMP {
-            return false;
-        }
-
-        nbr.neighbor = dst;
-        nbr.timestamp = ts;
-        self.edge_count.fetch_add(1, Ordering::Relaxed);
-        true
-    }
-
     pub fn revert_delete_by_offset(&mut self, src: VertexId, _offset: i32, ts: Timestamp) -> bool {
         if _offset != 0 {
             return false;
@@ -280,22 +222,6 @@ impl SingleMutableCsr {
         let nbr = &mut self.nbr_list[src_idx];
 
         if nbr.timestamp != INVALID_TIMESTAMP {
-            return false;
-        }
-
-        nbr.timestamp = ts;
-        self.edge_count.fetch_add(1, Ordering::Relaxed);
-        true
-    }
-
-    pub fn revert_delete_by_id(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            return false;
-        }
-
-        let nbr = &mut self.nbr_list[src_idx];
-        if nbr.timestamp != INVALID_TIMESTAMP || nbr.edge_id != edge_id {
             return false;
         }
 
@@ -333,18 +259,6 @@ impl SingleMutableCsr {
         self.get_edge(src, ts).map_or(Vec::new(), |nbr| vec![nbr])
     }
 
-    pub fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        if self.get_edge(src, ts).is_some() {
-            1
-        } else {
-            0
-        }
-    }
-
-    pub fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        self.get_edge_by_dst(src, dst, ts).is_some()
-    }
-
     pub fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
         let src_idx = src.as_int64().unwrap_or(0) as usize;
 
@@ -373,47 +287,10 @@ impl SingleMutableCsr {
         self.edge_count.store(0, Ordering::Relaxed);
     }
 
-    pub fn compact(&mut self) {
-        // No-op for single CSR - no tombstones to compact
-        // Deleted edges are already marked with INVALID_TIMESTAMP
-    }
-
     pub fn compact_with_ts(&mut self, _ts: Timestamp, _reserve_ratio: f32) -> usize {
         // No-op for single CSR - no tombstones to compact
         // Returns 0 as no edges are removed
         0
-    }
-
-    pub fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-        ts: Timestamp,
-    ) {
-        let max_vertex = src_list
-            .iter()
-            .max()
-            .cloned()
-            .unwrap_or(VertexId::zero())
-            .as_int64()
-            .unwrap_or(0) as usize;
-        self.ensure_vertex_capacity(max_vertex + 1);
-
-        for i in 0..src_list.len() {
-            let src_idx = src_list[i].as_int64().unwrap_or(0) as usize;
-            let nbr = &mut self.nbr_list[src_idx];
-
-            if nbr.timestamp == INVALID_TIMESTAMP {
-                self.edge_count.fetch_add(1, Ordering::Relaxed);
-            }
-
-            nbr.neighbor = dst_list[i];
-            nbr.edge_id = edge_ids[i];
-            nbr.prop_offset = prop_offsets[i];
-            nbr.timestamp = ts;
-        }
     }
 
     pub fn dump(&self) -> Vec<u8> {
@@ -469,40 +346,6 @@ impl SingleMutableCsr {
         SingleMutableCsrIterator::new(self, ts)
     }
 
-    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> SingleCsrEdgeIterator<'_> {
-        SingleCsrEdgeIterator::new(self, src, ts)
-    }
-}
-
-pub struct SingleCsrEdgeIterator<'a> {
-    csr: &'a SingleMutableCsr,
-    src: VertexId,
-    ts: Timestamp,
-    consumed: bool,
-}
-
-impl<'a> SingleCsrEdgeIterator<'a> {
-    pub fn new(csr: &'a SingleMutableCsr, src: VertexId, ts: Timestamp) -> Self {
-        Self {
-            csr,
-            src,
-            ts,
-            consumed: false,
-        }
-    }
-}
-
-impl<'a> Iterator for SingleCsrEdgeIterator<'a> {
-    type Item = Nbr;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.consumed {
-            return None;
-        }
-
-        self.consumed = true;
-        self.csr.get_edge(self.src, self.ts)
-    }
 }
 
 impl Default for SingleMutableCsr {
@@ -552,10 +395,6 @@ impl CsrBase for SingleMutableCsr {
         self.edge_count.load(Ordering::Relaxed)
     }
 
-    fn csr_type(&self) -> CsrType {
-        CsrType::SingleMutable
-    }
-
     fn dump(&self) -> Vec<u8> {
         SingleMutableCsr::dump(self)
     }
@@ -601,18 +440,6 @@ impl MutableCsrTrait for SingleMutableCsr {
         SingleMutableCsr::edges_of(self, src, ts)
     }
 
-    fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        SingleMutableCsr::degree(self, src, ts)
-    }
-
-    fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        SingleMutableCsr::has_edge(self, src, dst, ts)
-    }
-
-    fn compact(&mut self) {
-        SingleMutableCsr::compact(self);
-    }
-
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         SingleMutableCsr::compact_with_ts(self, ts, reserve_ratio)
     }
@@ -651,59 +478,16 @@ mod tests {
         ));
 
         assert_eq!(csr.edge_count(), 1);
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 150));
-        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 150));
-    }
-
-    #[test]
-    fn test_delete_and_revert() {
-        let mut csr = SingleMutableCsr::with_capacity(10);
-
-        csr.insert_edge(
-            VertexId::from_int64(0),
-            VertexId::from_int64(1),
-            100,
-            0,
-            100,
-        );
-        assert_eq!(csr.edge_count(), 1);
-
-        assert!(csr.delete_edge(VertexId::from_int64(0), 150));
-        assert_eq!(csr.edge_count(), 0);
-
-        assert!(csr.revert_delete(VertexId::from_int64(0), VertexId::from_int64(1), 100));
-        assert_eq!(csr.edge_count(), 1);
-    }
-
-    #[test]
-    fn test_batch_put() {
-        let mut csr = SingleMutableCsr::new();
-
-        csr.batch_put_edges(
-            &[0, 1, 2].map(VertexId::from_int64),
-            &[10, 20, 30].map(VertexId::from_int64),
-            &[100, 101, 102],
-            &[0, 1, 2],
-            100,
-        );
-
-        assert_eq!(csr.edge_count(), 3);
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(10), 100));
-        assert!(csr.has_edge(VertexId::from_int64(1), VertexId::from_int64(20), 100));
-        assert!(csr.has_edge(VertexId::from_int64(2), VertexId::from_int64(30), 100));
     }
 
     #[test]
     fn test_dump_and_load() {
         let mut csr1 = SingleMutableCsr::with_capacity(10);
 
-        csr1.batch_put_edges(
-            &[0, 1, 2].map(VertexId::from_int64),
-            &[10, 20, 30].map(VertexId::from_int64),
-            &[100, 101, 102],
-            &[0, 1, 2],
-            100,
-        );
+        // Use insert_edge to populate data
+        csr1.insert_edge(VertexId::from_int64(0), VertexId::from_int64(10), 100, 0, 100);
+        csr1.insert_edge(VertexId::from_int64(1), VertexId::from_int64(20), 101, 0, 100);
+        csr1.insert_edge(VertexId::from_int64(2), VertexId::from_int64(30), 102, 0, 100);
 
         let data = csr1.dump();
 
@@ -712,7 +496,5 @@ mod tests {
 
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
-        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(10), 100));
-        assert!(csr2.has_edge(VertexId::from_int64(1), VertexId::from_int64(20), 100));
     }
 }

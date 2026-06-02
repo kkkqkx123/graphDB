@@ -19,6 +19,6 @@ mod data_store_test;
 #[cfg(test)]
 mod persistence_test;
 
-pub use persistence_coordinator::{PersistenceConfig, PersistenceCoordinator};
+pub use persistence_coordinator::PersistenceConfig;
 pub use property_graph::PropertyGraph;
 pub use wal_manager::WalManager;

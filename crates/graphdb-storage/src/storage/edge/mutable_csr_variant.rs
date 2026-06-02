@@ -13,8 +13,8 @@
 use crate::core::StorageResult;
 
 use super::{
-    CsrBase, CsrType, EdgeId, EdgeStrategy, MutableCsr, MutableCsrEdgeIterator, MutableCsrIterator,
-    MutableCsrTrait, Nbr, SingleCsrEdgeIterator, SingleMutableCsr, SingleMutableCsrIterator,
+    CsrBase, EdgeId, EdgeStrategy, MutableCsr, MutableCsrIterator,
+    MutableCsrTrait, Nbr, SingleMutableCsr, SingleMutableCsrIterator,
     Timestamp, VertexId,
 };
 
@@ -54,40 +54,12 @@ impl MutableCsrVariant {
         }
     }
 
-    #[inline]
-    pub fn is_single(&self) -> bool {
-        matches!(self, MutableCsrVariant::Single(_))
-    }
-
-    #[inline]
-    pub fn is_multiple(&self) -> bool {
-        matches!(self, MutableCsrVariant::Multiple(_))
-    }
-
     pub fn resize(&mut self, new_vertex_capacity: usize) {
         delegate!(self.resize(new_vertex_capacity))
     }
 
     pub fn clear(&mut self) {
         delegate!(self.clear())
-    }
-
-    pub fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        match self {
-            MutableCsrVariant::Multiple(csr) => csr.revert_delete(src, edge_id, ts),
-            MutableCsrVariant::Single(csr) => csr.revert_delete_by_id(src, edge_id, ts),
-        }
-    }
-
-    pub fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-        ts: Timestamp,
-    ) {
-        delegate!(self.batch_put_edges(src_list, dst_list, edge_ids, prop_offsets, ts))
     }
 }
 
@@ -98,13 +70,6 @@ impl CsrBase for MutableCsrVariant {
 
     fn edge_count(&self) -> u64 {
         delegate!(self.edge_count())
-    }
-
-    fn csr_type(&self) -> CsrType {
-        match self {
-            MutableCsrVariant::Multiple(_) => CsrType::Mutable,
-            MutableCsrVariant::Single(_) => CsrType::SingleMutable,
-        }
     }
 
     fn dump(&self) -> Vec<u8> {
@@ -158,18 +123,6 @@ impl MutableCsrTrait for MutableCsrVariant {
         delegate!(self.edges_of(src, ts))
     }
 
-    fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        delegate!(self.degree(src, ts))
-    }
-
-    fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        delegate!(self.has_edge(src, dst, ts))
-    }
-
-    fn compact(&mut self) {
-        delegate!(self.compact())
-    }
-
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         delegate!(self.compact_with_ts(ts, reserve_ratio))
     }
@@ -184,33 +137,10 @@ impl MutableCsrTrait for MutableCsrVariant {
 }
 
 impl MutableCsrVariant {
-    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> CsrEdgeIterator<'_> {
-        match self {
-            MutableCsrVariant::Multiple(csr) => CsrEdgeIterator::Multiple(csr.iter_edges(src, ts)),
-            MutableCsrVariant::Single(csr) => CsrEdgeIterator::Single(csr.iter_edges(src, ts)),
-        }
-    }
-
     pub fn iter(&self, ts: Timestamp) -> CsrIterator<'_> {
         match self {
             MutableCsrVariant::Multiple(csr) => CsrIterator::Multiple(csr.iter(ts)),
             MutableCsrVariant::Single(csr) => CsrIterator::Single(csr.iter(ts)),
-        }
-    }
-}
-
-pub enum CsrEdgeIterator<'a> {
-    Multiple(MutableCsrEdgeIterator<'a>),
-    Single(SingleCsrEdgeIterator<'a>),
-}
-
-impl<'a> Iterator for CsrEdgeIterator<'a> {
-    type Item = Nbr;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            CsrEdgeIterator::Multiple(iter) => iter.next(),
-            CsrEdgeIterator::Single(iter) => iter.next(),
         }
     }
 }
@@ -239,12 +169,7 @@ mod tests {
     fn test_multiple_csr_variant() {
         let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
 
-        assert!(csr.is_multiple());
-        assert!(!csr.is_single());
-        assert_eq!(csr.csr_type(), CsrType::Mutable);
-
         assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
@@ -252,12 +177,7 @@ mod tests {
     fn test_single_csr_variant() {
         let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Single, 10, 100).unwrap();
 
-        assert!(csr.is_single());
-        assert!(!csr.is_multiple());
-        assert_eq!(csr.csr_type(), CsrType::SingleMutable);
-
         assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
@@ -268,6 +188,5 @@ mod tests {
 
         let csr2 = csr1.clone();
         assert_eq!(csr2.edge_count(), 1);
-        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
     }
 }

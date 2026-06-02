@@ -36,8 +36,6 @@ pub struct UpdateEdgePropertyByOffsetParams {
     pub src: VertexId,
     pub dst: VertexId,
     pub rank: i64,
-    pub oe_offset: EdgeOffset,
-    pub ie_offset: EdgeOffset,
     pub prop_id: u16,
     pub value: Value,
     pub ts: Timestamp,
@@ -455,13 +453,6 @@ impl EdgeTable {
         Ok(reverted)
     }
 
-    pub fn delete_edge_by_id(&mut self, _edge_id: u64, _ts: Timestamp) -> StorageResult<bool> {
-        Err(StorageError::invalid_operation(
-            "delete_edge_by_id is not supported. Use delete_edge or delete_edge_by_offset instead."
-                .to_string(),
-        ))
-    }
-
     pub fn get_edge(
         &self,
         src: VertexId,
@@ -498,30 +489,6 @@ impl EdgeTable {
         }
         let dst_key = Self::edge_endpoint_key(dst, rank);
         self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
-    }
-
-    pub fn get_edge_by_offset(
-        &self,
-        src: VertexId,
-        dst: VertexId,
-        rank: i64,
-        ts: Timestamp,
-    ) -> Option<EdgeRecord> {
-        if !self.is_open {
-            return None;
-        }
-
-        let dst_key = Self::edge_endpoint_key(dst, rank);
-        let nbr = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)?;
-        let properties = self.properties_for_offset(nbr.prop_offset);
-
-        Some(EdgeRecord {
-            edge_id: nbr.edge_id,
-            src_vid: src,
-            dst_vid: dst,
-            rank,
-            properties,
-        })
     }
 
     pub fn update_properties(
@@ -619,22 +586,6 @@ impl EdgeTable {
                 }
             })
             .collect()
-    }
-
-    pub fn out_degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        if !self.is_open {
-            return 0;
-        }
-        self.merged_edges_of(&self.out_csr, &self.out_segments, src, ts)
-            .len()
-    }
-
-    pub fn in_degree(&self, dst: VertexId, ts: Timestamp) -> usize {
-        if !self.is_open {
-            return 0;
-        }
-        self.merged_edges_of(&self.in_csr, &self.in_segments, dst, ts)
-            .len()
     }
 
     pub fn has_edge(&self, src: VertexId, dst: VertexId, rank: i64, ts: Timestamp) -> bool {
@@ -758,33 +709,6 @@ impl EdgeTable {
         Ok(false)
     }
 
-    pub fn revert_delete_edge(
-        &mut self,
-        src: VertexId,
-        dst: VertexId,
-        rank: i64,
-        ts: Timestamp,
-    ) -> StorageResult<bool> {
-        if !self.is_open {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let dst_key = Self::edge_endpoint_key(dst, rank);
-        let eid = self.out_csr.find_deleted_edge(src, dst_key);
-        let eid = match eid {
-            Some(id) => id,
-            None => return Ok(false),
-        };
-
-        let reverted = self.out_csr.revert_delete(src, eid, ts);
-
-        if reverted && self.schema.ie_strategy != EdgeStrategy::None {
-            self.in_csr.revert_delete(dst, eid, ts);
-        }
-
-        Ok(reverted)
-    }
-
     pub fn label(&self) -> LabelId {
         self.label
     }
@@ -813,13 +737,6 @@ impl EdgeTable {
         self.is_open
     }
 
-    pub fn vertex_capacity(&self) -> usize {
-        self.out_segments
-            .iter()
-            .map(|segment| segment.csr.vertex_capacity())
-            .fold(self.out_csr.vertex_capacity(), usize::max)
-    }
-
     pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<super::Nbr> {
         if !self.is_open {
             return Vec::new();
@@ -829,33 +746,6 @@ impl EdgeTable {
 
     pub fn iter(&self, ts: Timestamp) -> EdgeTableScanIterator<'_> {
         EdgeTableScanIterator::new(self, ts)
-    }
-
-    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> EdgeVertexIterator<'_> {
-        EdgeVertexIterator::new(self, src, ts)
-    }
-
-    pub fn get_properties(&self, prop_offset: u32) -> Option<Vec<(String, Value)>> {
-        self.properties.get(prop_offset).map(|props| {
-            props
-                .into_iter()
-                .filter_map(|(k, v)| v.map(|v| (k, v)))
-                .collect()
-        })
-    }
-
-    pub fn compact(&mut self) {
-        self.out_csr.compact();
-        self.in_csr.compact();
-    }
-
-    pub fn clear(&mut self) {
-        self.out_csr.clear();
-        self.in_csr.clear();
-        self.out_segments.clear();
-        self.in_segments.clear();
-        self.tombstones.clear();
-        self.properties.clear();
     }
 
     pub fn flush<P: AsRef<Path>>(
@@ -1341,29 +1231,6 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
     }
 }
 
-pub struct EdgeVertexIterator<'a> {
-    _table: &'a EdgeTable,
-    records: std::vec::IntoIter<EdgeRecord>,
-}
-
-impl<'a> EdgeVertexIterator<'a> {
-    pub fn new(table: &'a EdgeTable, src: VertexId, ts: Timestamp) -> Self {
-        let records = table.out_edges(src, ts);
-        Self {
-            _table: table,
-            records: records.into_iter(),
-        }
-    }
-}
-
-impl<'a> Iterator for EdgeVertexIterator<'a> {
-    type Item = EdgeRecord;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.records.next()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1558,16 +1425,10 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(table.out_degree(VertexId::from_int64(0), 100), 2);
-        assert_eq!(table.in_degree(VertexId::from_int64(0), 100), 1);
-        assert_eq!(table.out_degree(VertexId::from_int64(1), 100), 1);
-        assert_eq!(table.in_degree(VertexId::from_int64(1), 100), 1);
-
-        let out_edges = table.out_edges(VertexId::from_int64(0), 100);
-        assert_eq!(out_edges.len(), 2);
-
-        let in_edges = table.in_edges(VertexId::from_int64(0), 100);
-        assert_eq!(in_edges.len(), 1);
+        assert_eq!(table.out_edges(VertexId::from_int64(0), 100).len(), 2);
+        assert_eq!(table.in_edges(VertexId::from_int64(0), 100).len(), 1);
+        assert_eq!(table.out_edges(VertexId::from_int64(1), 100).len(), 1);
+        assert_eq!(table.in_edges(VertexId::from_int64(1), 100).len(), 1);
     }
 
     #[test]
@@ -1653,12 +1514,12 @@ mod tests {
         loaded_table.load(&temp_dir).expect("load should succeed");
 
         assert_eq!(
-            loaded_table.out_degree(VertexId::from_int64(1), ts),
+            loaded_table.out_edges(VertexId::from_int64(1), ts).len(),
             2,
             "scan should work after load"
         );
         assert_eq!(
-            loaded_table.out_degree(VertexId::from_int64(2), ts),
+            loaded_table.out_edges(VertexId::from_int64(2), ts).len(),
             1,
             "scan should work after load"
         );

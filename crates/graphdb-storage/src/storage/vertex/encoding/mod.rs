@@ -61,26 +61,6 @@ impl EncodingType {
     }
 }
 
-pub trait EncodedColumn: Send + Sync {
-    fn get(&self, row_idx: usize) -> Option<Value>;
-
-    fn len(&self) -> usize;
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    fn is_null(&self, row_idx: usize) -> bool;
-
-    fn memory_usage(&self) -> usize;
-
-    fn encoding_type(&self) -> EncodingType;
-
-    fn compression_ratio(&self) -> f64 {
-        0.0
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub enum ColumnEncoding {
     #[default]
@@ -129,22 +109,6 @@ impl ColumnEncoding {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn is_null(&self, row_idx: usize) -> bool {
-        match self {
-            Self::None => true,
-            Self::Fsst(col) => col.is_null(row_idx),
-            Self::Dictionary(col) => col.is_null(row_idx),
-            Self::RleInt(col) => col.is_null(row_idx),
-            Self::RleBool(col) => col.is_null(row_idx),
-            Self::BitPacked(col) => col.is_null(row_idx),
-            Self::Alp(col) => col.is_null(row_idx),
-        }
-    }
-
     pub fn memory_usage(&self) -> usize {
         match self {
             Self::None => 0,
@@ -154,40 +118,6 @@ impl ColumnEncoding {
             Self::RleBool(col) => col.memory_usage(),
             Self::BitPacked(col) => col.memory_usage(),
             Self::Alp(col) => col.memory_usage(),
-        }
-    }
-
-    pub fn compression_ratio(&self) -> f64 {
-        match self {
-            Self::None => 0.0,
-            Self::Fsst(col) => col.compression_ratio(),
-            Self::Dictionary(col) => {
-                let dict_size = col.memory_usage();
-                if dict_size == 0 {
-                    return 0.0;
-                }
-                0.0
-            }
-            Self::RleInt(col) => {
-                let mem = col.memory_usage();
-                let original = col.len() * 8;
-                if original == 0 {
-                    0.0
-                } else {
-                    (original - mem) as f64 / original as f64
-                }
-            }
-            Self::RleBool(col) => {
-                let mem = col.memory_usage();
-                let original = col.len();
-                if original == 0 {
-                    0.0
-                } else {
-                    (original - mem) as f64 / original as f64
-                }
-            }
-            Self::BitPacked(col) => col.compression_ratio(),
-            Self::Alp(col) => col.compression_ratio(),
         }
     }
 
@@ -240,18 +170,6 @@ impl ColumnEncoding {
             }
         }
     }
-
-    pub fn clear(&mut self) {
-        match self {
-            Self::None => {}
-            Self::Fsst(col) => col.clear(),
-            Self::Dictionary(col) => col.clear(),
-            Self::RleInt(col) => col.clear(),
-            Self::RleBool(col) => col.clear(),
-            Self::BitPacked(col) => col.clear(),
-            Self::Alp(col) => col.clear(),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -289,11 +207,8 @@ mod tests {
         assert_eq!(encoding.encoding_type(), EncodingType::None);
         assert!(!encoding.is_encoded());
         assert_eq!(encoding.len(), 0);
-        assert!(encoding.is_empty());
         assert_eq!(encoding.memory_usage(), 0);
-        assert_eq!(encoding.compression_ratio(), 0.0);
         assert!(encoding.get(0).is_none());
-        assert!(encoding.is_null(0));
     }
 
     #[test]
@@ -305,11 +220,8 @@ mod tests {
         assert_eq!(encoding.encoding_type(), EncodingType::Fsst);
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
-        assert!(!encoding.is_empty());
         assert!(encoding.memory_usage() > 0);
         assert!(encoding.get(0).is_some());
-        assert!(encoding.is_null(1));
-        assert!(!encoding.is_null(0));
     }
 
     #[test]
@@ -327,7 +239,6 @@ mod tests {
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
         assert!(encoding.get(0).is_some());
-        assert!(encoding.is_null(2));
     }
 
     #[test]
@@ -373,7 +284,6 @@ mod tests {
         assert!(encoding.is_encoded());
         assert_eq!(encoding.len(), 3);
         assert!(encoding.get(0).is_some());
-        assert!(encoding.is_null(2));
     }
 
     #[test]
@@ -388,19 +298,7 @@ mod tests {
         assert_eq!(encoding.get(0), Some(Value::String("world".to_string())));
 
         encoding.set(0, None).unwrap();
-        assert!(encoding.is_null(0));
     }
 
-    #[test]
-    fn test_column_encoding_clear() {
-        let strings = vec![Some("hello"), Some("world")];
-        let col = FsstColumn::train_and_build(&strings, 100);
-        let mut encoding = ColumnEncoding::Fsst(col);
 
-        assert_eq!(encoding.len(), 2);
-
-        encoding.clear();
-        assert_eq!(encoding.len(), 0);
-        assert!(encoding.is_empty());
-    }
 }

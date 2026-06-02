@@ -147,78 +147,6 @@ impl TransactionOps {
         Ok(edge_id)
     }
 
-    pub fn get_vertex_id(
-        vertex_tables: &HashMap<LabelId, VertexTable>,
-        label: LabelId,
-        oid: &[u8],
-        ts: Timestamp,
-    ) -> Option<VertexId> {
-        let external_id = std::str::from_utf8(oid).ok()?;
-        vertex_tables
-            .get(&label)?
-            .get_internal_id(external_id, ts)
-            .map(|id| VertexId::from_int64(id as i64))
-    }
-
-    pub fn get_vertex_oid(
-        vertex_tables: &HashMap<LabelId, VertexTable>,
-        label: LabelId,
-        vid: VertexId,
-        ts: Timestamp,
-    ) -> Option<Vec<u8>> {
-        vertex_tables
-            .get(&label)?
-            .get_external_id(vid.as_int64().unwrap_or(0) as u32, ts)
-            .map(|id_key| match id_key {
-                crate::storage::vertex::IdKey::Text(s) => s.into_bytes(),
-                crate::storage::vertex::IdKey::Int(i) => i.to_string().into_bytes(),
-            })
-    }
-
-    pub fn get_vertex_property_types(
-        vertex_tables: &HashMap<LabelId, VertexTable>,
-        label: LabelId,
-    ) -> Vec<String> {
-        vertex_tables
-            .get(&label)
-            .map(|t| {
-                t.schema()
-                    .properties
-                    .iter()
-                    .map(|p| p.name.clone())
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn get_edge_property_types(
-        edge_tables: &HashMap<EdgeTableKey, EdgeTable>,
-        edge_label: LabelId,
-    ) -> Vec<String> {
-        edge_tables
-            .values()
-            .find(|t| t.label() == edge_label)
-            .map(|t| {
-                t.schema()
-                    .properties
-                    .iter()
-                    .map(|p| p.name.clone())
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn vertex_label_num(vertex_tables: &HashMap<LabelId, VertexTable>) -> usize {
-        vertex_tables.len()
-    }
-
-    pub fn lid_num(vertex_tables: &HashMap<LabelId, VertexTable>, label: LabelId) -> usize {
-        vertex_tables
-            .get(&label)
-            .map(|t| t.total_count())
-            .unwrap_or(0)
-    }
-
     pub fn delete_vertex_type(
         vertex_tables: &mut HashMap<LabelId, VertexTable>,
         edge_tables: &mut HashMap<EdgeTableKey, EdgeTable>,
@@ -339,28 +267,6 @@ impl TransactionOps {
         Ok(())
     }
 
-    pub fn insert_vertex_undo(
-        vertex_tables: &mut HashMap<LabelId, VertexTable>,
-        label: LabelId,
-        external_id: &str,
-        properties: &[(String, PropertyValue)],
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
-        let props: Vec<(String, Value)> = properties
-            .iter()
-            .map(|(k, v)| (k.clone(), property_value_to_value(v.clone())))
-            .collect();
-
-        let table = vertex_tables
-            .get_mut(&label)
-            .ok_or(UndoLogError::LabelNotFound(label))?;
-
-        table
-            .insert(external_id, &props, ts)
-            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
-        Ok(())
-    }
-
     pub fn update_vertex_property(
         vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
@@ -445,8 +351,8 @@ impl TransactionOps {
     pub fn update_edge_property_undo(
         edge_tables: &mut HashMap<EdgeTableKey, EdgeTable>,
         params: UpdateEdgePropertyUndoParams,
-        oe_offset: i32,
-        ie_offset: i32,
+        _oe_offset: i32,
+        _ie_offset: i32,
         prop_id: u16,
         old_value: PropertyValue,
         ts: Timestamp,
@@ -462,8 +368,6 @@ impl TransactionOps {
                 src: params.src_vid,
                 dst: params.dst_vid,
                 rank: params.rank,
-                oe_offset: crate::storage::storage_types::EdgeOffset(oe_offset),
-                ie_offset: crate::storage::storage_types::EdgeOffset(ie_offset),
                 prop_id,
                 value,
                 ts,

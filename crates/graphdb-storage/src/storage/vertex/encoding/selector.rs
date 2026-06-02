@@ -9,8 +9,6 @@
 //! 2. Consider access patterns (hot/cold data)
 //! 3. Select encoding that balances compression ratio and query speed
 
-use std::collections::HashMap;
-
 use crate::core::{DataType, Value};
 
 use super::EncodingType;
@@ -24,7 +22,6 @@ pub struct ColumnStats {
     pub max_value: Option<Value>,
     pub avg_length: f64,
     pub run_count: usize,
-    pub access_count: usize,
     pub data_type: DataType,
 }
 
@@ -38,7 +35,6 @@ impl Default for ColumnStats {
             max_value: None,
             avg_length: 0.0,
             run_count: 0,
-            access_count: 0,
             data_type: DataType::String,
         }
     }
@@ -50,13 +46,6 @@ impl ColumnStats {
             data_type,
             ..Default::default()
         }
-    }
-
-    pub fn null_ratio(&self) -> f64 {
-        if self.row_count == 0 {
-            return 0.0;
-        }
-        self.null_count as f64 / self.row_count as f64
     }
 
     pub fn cardinality_ratio(&self) -> f64 {
@@ -82,19 +71,10 @@ impl ColumnStats {
         }
     }
 
-    pub fn is_hot(&self, threshold: usize) -> bool {
-        self.access_count > threshold
-    }
-
-    pub fn is_cold(&self, threshold: usize) -> bool {
-        self.access_count < threshold
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct CompressionConfig {
-    pub hot_access_threshold: usize,
-    pub cold_access_threshold: usize,
     pub min_rows_for_compression: usize,
     pub max_dictionary_size: usize,
     pub prefer_speed_over_ratio: bool,
@@ -103,8 +83,6 @@ pub struct CompressionConfig {
 impl Default for CompressionConfig {
     fn default() -> Self {
         Self {
-            hot_access_threshold: 1000,
-            cold_access_threshold: 100,
             min_rows_for_compression: 100,
             max_dictionary_size: 10000,
             prefer_speed_over_ratio: false,
@@ -115,30 +93,23 @@ impl Default for CompressionConfig {
 #[derive(Debug, Clone)]
 pub struct CompressionSelector {
     config: CompressionConfig,
-    stats_cache: HashMap<String, ColumnStats>,
 }
 
 impl CompressionSelector {
     pub fn new() -> Self {
         Self {
             config: CompressionConfig::default(),
-            stats_cache: HashMap::new(),
         }
     }
 
     pub fn with_config(config: CompressionConfig) -> Self {
         Self {
             config,
-            stats_cache: HashMap::new(),
         }
     }
 
     pub fn select(&self, stats: &ColumnStats) -> EncodingType {
         if stats.row_count < self.config.min_rows_for_compression {
-            return EncodingType::None;
-        }
-
-        if stats.is_hot(self.config.hot_access_threshold) && self.config.prefer_speed_over_ratio {
             return EncodingType::None;
         }
 
@@ -200,10 +171,6 @@ impl CompressionSelector {
             return EncodingType::None;
         }
 
-        if stats.is_hot(self.config.hot_access_threshold) {
-            return EncodingType::None;
-        }
-
         EncodingType::Alp
     }
 
@@ -214,195 +181,12 @@ impl CompressionSelector {
         EncodingType::None
     }
 
-    pub fn update_stats(&mut self, column_name: &str, stats: ColumnStats) {
-        self.stats_cache.insert(column_name.to_string(), stats);
-    }
-
-    pub fn get_stats(&self, column_name: &str) -> Option<&ColumnStats> {
-        self.stats_cache.get(column_name)
-    }
-
-    pub fn reevaluate(&self, column_name: &str) -> Option<EncodingType> {
-        self.stats_cache
-            .get(column_name)
-            .map(|stats| self.select(stats))
-    }
-
-    pub fn reevaluate_all(&self) -> HashMap<String, EncodingType> {
-        self.stats_cache
-            .iter()
-            .map(|(name, stats)| (name.clone(), self.select(stats)))
-            .collect()
-    }
-
     pub fn config(&self) -> &CompressionConfig {
         &self.config
-    }
-
-    pub fn set_config(&mut self, config: CompressionConfig) {
-        self.config = config;
     }
 }
 
 impl Default for CompressionSelector {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DataTemperature {
-    Hot,
-    Warm,
-    Cold,
-}
-
-impl DataTemperature {
-    pub fn from_access_count(count: usize, hot_threshold: usize, cold_threshold: usize) -> Self {
-        if count >= hot_threshold {
-            Self::Hot
-        } else if count <= cold_threshold {
-            Self::Cold
-        } else {
-            Self::Warm
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TieredCompressionStrategy {
-    selector: CompressionSelector,
-    tier_configs: HashMap<DataTemperature, TierConfig>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TierConfig {
-    pub prefer_speed: bool,
-    pub min_compression_ratio: f64,
-    pub allowed_encodings: Vec<EncodingType>,
-}
-
-impl Default for TierConfig {
-    fn default() -> Self {
-        Self {
-            prefer_speed: false,
-            min_compression_ratio: 0.1,
-            allowed_encodings: vec![
-                EncodingType::None,
-                EncodingType::Dictionary,
-                EncodingType::Rle,
-                EncodingType::BitPacking,
-                EncodingType::Fsst,
-                EncodingType::Alp,
-            ],
-        }
-    }
-}
-
-impl TierConfig {
-    pub fn hot() -> Self {
-        Self {
-            prefer_speed: true,
-            min_compression_ratio: 0.3,
-            allowed_encodings: vec![EncodingType::None, EncodingType::Rle],
-        }
-    }
-
-    pub fn cold() -> Self {
-        Self {
-            prefer_speed: false,
-            min_compression_ratio: 0.0,
-            allowed_encodings: vec![
-                EncodingType::Dictionary,
-                EncodingType::Rle,
-                EncodingType::BitPacking,
-                EncodingType::Fsst,
-                EncodingType::Alp,
-            ],
-        }
-    }
-}
-
-impl TieredCompressionStrategy {
-    pub fn new() -> Self {
-        let mut tier_configs = HashMap::new();
-        tier_configs.insert(DataTemperature::Hot, TierConfig::hot());
-        tier_configs.insert(DataTemperature::Warm, TierConfig::default());
-        tier_configs.insert(DataTemperature::Cold, TierConfig::cold());
-
-        Self {
-            selector: CompressionSelector::new(),
-            tier_configs,
-        }
-    }
-
-    pub fn select_for_tier(
-        &self,
-        stats: &ColumnStats,
-        temperature: DataTemperature,
-    ) -> EncodingType {
-        let base_encoding = self.selector.select(stats);
-
-        if let Some(tier_config) = self.tier_configs.get(&temperature) {
-            if tier_config.allowed_encodings.contains(&base_encoding) {
-                return base_encoding;
-            }
-
-            for encoding in &tier_config.allowed_encodings {
-                if self.is_encoding_suitable(encoding, stats) {
-                    return *encoding;
-                }
-            }
-        }
-
-        EncodingType::None
-    }
-
-    fn is_encoding_suitable(&self, encoding: &EncodingType, stats: &ColumnStats) -> bool {
-        match encoding {
-            EncodingType::Dictionary => {
-                stats.cardinality_ratio() < 0.5
-                    && stats.distinct_count < self.selector.config().max_dictionary_size
-            }
-            EncodingType::Rle => stats.run_ratio() < 0.3,
-            EncodingType::BitPacking => {
-                if let Some(range) = stats.value_range() {
-                    let bit_width = if range == 0 {
-                        1
-                    } else {
-                        64 - range.leading_zeros() as u8
-                    };
-                    bit_width < 32
-                } else {
-                    false
-                }
-            }
-            EncodingType::Fsst => stats.avg_length >= 20.0 && stats.cardinality_ratio() > 0.5,
-            EncodingType::Alp => {
-                matches!(stats.data_type, DataType::Float | DataType::Double)
-            }
-            EncodingType::None => true,
-        }
-    }
-
-    pub fn selector(&self) -> &CompressionSelector {
-        &self.selector
-    }
-
-    pub fn selector_mut(&mut self) -> &mut CompressionSelector {
-        &mut self.selector
-    }
-
-    pub fn tier_config(&self, temperature: DataTemperature) -> Option<&TierConfig> {
-        self.tier_configs.get(&temperature)
-    }
-
-    pub fn set_tier_config(&mut self, temperature: DataTemperature, config: TierConfig) {
-        self.tier_configs.insert(temperature, config);
-    }
-}
-
-impl Default for TieredCompressionStrategy {
     fn default() -> Self {
         Self::new()
     }
@@ -422,7 +206,6 @@ mod tests {
             ..Default::default()
         };
 
-        assert!((stats.null_ratio() - 0.1).abs() < 1e-9);
         assert!((stats.cardinality_ratio() - 0.05).abs() < 1e-9);
     }
 
@@ -494,7 +277,6 @@ mod tests {
     fn test_compression_selector_float_alp() {
         let stats = ColumnStats {
             row_count: 1000,
-            access_count: 50,
             data_type: DataType::Double,
             ..Default::default()
         };
@@ -505,70 +287,4 @@ mod tests {
         assert_eq!(encoding, EncodingType::Alp);
     }
 
-    #[test]
-    fn test_tiered_strategy_hot() {
-        let stats = ColumnStats {
-            row_count: 1000,
-            distinct_count: 50,
-            avg_length: 20.0,
-            data_type: DataType::String,
-            ..Default::default()
-        };
-
-        let strategy = TieredCompressionStrategy::new();
-        let encoding = strategy.select_for_tier(&stats, DataTemperature::Hot);
-
-        assert!(matches!(encoding, EncodingType::None | EncodingType::Rle));
-    }
-
-    #[test]
-    fn test_tiered_strategy_cold() {
-        let stats = ColumnStats {
-            row_count: 1000,
-            distinct_count: 50,
-            avg_length: 20.0,
-            data_type: DataType::String,
-            ..Default::default()
-        };
-
-        let strategy = TieredCompressionStrategy::new();
-        let encoding = strategy.select_for_tier(&stats, DataTemperature::Cold);
-
-        assert_eq!(encoding, EncodingType::Dictionary);
-    }
-
-    #[test]
-    fn test_data_temperature() {
-        assert_eq!(
-            DataTemperature::from_access_count(2000, 1000, 100),
-            DataTemperature::Hot
-        );
-        assert_eq!(
-            DataTemperature::from_access_count(50, 1000, 100),
-            DataTemperature::Cold
-        );
-        assert_eq!(
-            DataTemperature::from_access_count(500, 1000, 100),
-            DataTemperature::Warm
-        );
-    }
-
-    #[test]
-    fn test_hot_data_no_compression() {
-        let stats = ColumnStats {
-            row_count: 1000,
-            access_count: 5000,
-            data_type: DataType::Double,
-            ..Default::default()
-        };
-
-        let config = CompressionConfig {
-            prefer_speed_over_ratio: true,
-            ..Default::default()
-        };
-        let selector = CompressionSelector::with_config(config);
-        let encoding = selector.select(&stats);
-
-        assert_eq!(encoding, EncodingType::None);
-    }
 }

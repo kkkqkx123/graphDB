@@ -83,16 +83,12 @@ impl Default for FsstSymbolTable {
 #[derive(Debug, Clone)]
 pub struct FsstEncoder {
     table: FsstSymbolTable,
-    total_input_bytes: usize,
-    total_output_bytes: usize,
 }
 
 impl FsstEncoder {
     pub fn new() -> Self {
         Self {
             table: FsstSymbolTable::new(),
-            total_input_bytes: 0,
-            total_output_bytes: 0,
         }
     }
 
@@ -185,18 +181,6 @@ impl FsstEncoder {
         result
     }
 
-    pub fn encode_with_stats(&mut self, s: &str) -> Vec<u8> {
-        let bytes = s.as_bytes();
-        if bytes.is_empty() {
-            return Vec::new();
-        }
-
-        let result = self.encode(s);
-        self.total_input_bytes += bytes.len();
-        self.total_output_bytes += result.len();
-        result
-    }
-
     pub fn decode(&self, encoded: &[u8]) -> Vec<u8> {
         let mut result = Vec::with_capacity(encoded.len() * 2);
 
@@ -223,28 +207,12 @@ impl FsstEncoder {
         &self.table
     }
 
-    pub fn compression_ratio(&self) -> f64 {
-        if self.total_input_bytes == 0 {
-            return 0.0;
-        }
-        (self.total_input_bytes - self.total_output_bytes) as f64 / self.total_input_bytes as f64
-    }
-
     pub fn symbol_count(&self) -> usize {
         self.table.len()
     }
 
-    pub fn reset_stats(&mut self) {
-        self.total_input_bytes = 0;
-        self.total_output_bytes = 0;
-    }
-
     pub fn with_table(table: FsstSymbolTable) -> Self {
-        Self {
-            table,
-            total_input_bytes: 0,
-            total_output_bytes: 0,
-        }
+        Self { table }
     }
 }
 
@@ -309,7 +277,7 @@ impl FsstColumn {
     pub fn append_with_stats(&mut self, value: Option<&str>) {
         match value {
             Some(s) => {
-                let encoded = self.encoder.encode_with_stats(s);
+                let encoded = self.encoder.encode(s);
                 self.encoded_data.push(encoded);
                 self.null_bitmap.push(false);
             }
@@ -397,7 +365,7 @@ impl FsstColumn {
     }
 
     pub fn fast_compression_ratio(&self) -> f64 {
-        self.encoder.compression_ratio()
+        self.compression_ratio()
     }
 }
 
@@ -407,31 +375,11 @@ impl Default for FsstColumn {
     }
 }
 
-impl super::EncodedColumn for FsstColumn {
-    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
-        self.get(row_idx).map(crate::core::Value::String)
-    }
 
-    fn len(&self) -> usize {
-        FsstColumn::len(self)
-    }
 
-    fn is_null(&self, row_idx: usize) -> bool {
-        FsstColumn::is_null(self, row_idx)
-    }
+    
 
-    fn memory_usage(&self) -> usize {
-        FsstColumn::memory_usage(self)
-    }
-
-    fn encoding_type(&self) -> super::EncodingType {
-        super::EncodingType::Fsst
-    }
-
-    fn compression_ratio(&self) -> f64 {
-        FsstColumn::compression_ratio(self)
-    }
-}
+    
 
 #[cfg(test)]
 mod tests {
@@ -559,16 +507,12 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_with_stats() {
+    fn test_encode() {
         let strings = vec!["hello world", "hello rust"];
-        let mut encoder = FsstEncoder::train(&strings, 100);
+        let encoder = FsstEncoder::train(&strings, 100);
 
-        let _ = encoder.encode_with_stats("hello world");
-        let _ = encoder.encode_with_stats("hello rust");
-
-        assert!(encoder.total_input_bytes > 0);
-        assert!(encoder.total_output_bytes > 0);
-        assert!(encoder.compression_ratio() >= 0.0);
+        let _ = encoder.encode("hello world");
+        let _ = encoder.encode("hello rust");
     }
 
     #[test]

@@ -13,7 +13,7 @@ use crate::core::{StorageError, StorageResult};
 use crate::storage::utils::{read_u32_le, read_u64_le};
 
 use super::{
-    CsrBase, CsrType, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP,
+    CsrBase, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP,
 };
 
 fn write_vertex_id(out: &mut Vec<u8>, id: VertexId) {
@@ -278,18 +278,6 @@ impl MutableCsr {
         true
     }
 
-    /// Insert edge with automatic capacity expansion (alias for insert_edge)
-    pub fn insert_edge_with_expand(
-        &mut self,
-        src: VertexId,
-        dst: VertexId,
-        edge_id: EdgeId,
-        prop_offset: u32,
-        ts: Timestamp,
-    ) -> bool {
-        self.insert_edge(src, dst, edge_id, prop_offset, ts)
-    }
-
     fn scan_overflow_for_edge_id(&self, src_idx: usize, edge_id: EdgeId) -> Option<usize> {
         if self.overflow_starts[src_idx] == NO_OVERFLOW {
             return None;
@@ -405,39 +393,6 @@ impl MutableCsr {
             self.edge_count.fetch_sub(1, Ordering::Relaxed);
             return true;
         }
-        false
-    }
-
-    /// Revert a deleted edge
-    pub fn revert_delete(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            return false;
-        }
-
-        // Scan primary
-        let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx] as usize;
-        for i in 0..degree {
-            let nbr = &mut self.nbr_list[offset + i];
-            if nbr.edge_id == edge_id && nbr.timestamp == INVALID_TIMESTAMP {
-                nbr.timestamp = ts;
-                self.edge_count.fetch_add(1, Ordering::Relaxed);
-                return true;
-            }
-        }
-
-        // Scan overflow
-        if let Some(idx) = self.scan_overflow_for_edge_id(src_idx, edge_id) {
-            let o_start = self.overflow_starts[src_idx] as usize;
-            let nbr = &mut self.nbr_list[o_start + idx];
-            if nbr.timestamp == INVALID_TIMESTAMP {
-                nbr.timestamp = ts;
-                self.edge_count.fetch_add(1, Ordering::Relaxed);
-                return true;
-            }
-        }
-
         false
     }
 
@@ -631,60 +586,6 @@ impl MutableCsr {
         self.vertex_capacity
     }
 
-    pub fn get_degrees(&self) -> &[u32] {
-        &self.degrees
-    }
-
-    pub fn get_adj_offsets(&self) -> &[u32] {
-        &self.adj_offsets
-    }
-
-    pub fn get_nbr_list(&self) -> &[Nbr] {
-        &self.nbr_list
-    }
-
-    /// Get degree of a vertex at a given timestamp
-    pub fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            return 0;
-        }
-        self.count_valid_primary(src_idx, ts) + self.count_valid_overflow(src_idx, ts)
-    }
-
-    /// Check if an edge exists
-    pub fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            return false;
-        }
-
-        // Scan primary
-        let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx] as usize;
-        for i in 0..degree {
-            let nbr = &self.nbr_list[offset + i];
-            if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return true;
-            }
-        }
-
-        // Scan overflow
-        if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx] as usize;
-            let o_count = self.overflow_counts[src_idx] as usize;
-            for i in 0..o_count {
-                let nbr = &self.nbr_list[o_start + i];
-                if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP
-                {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
     /// Get a specific edge
     pub fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
         let src_idx = src.as_int64().unwrap_or(0) as usize;
@@ -718,41 +619,6 @@ impl MutableCsr {
         None
     }
 
-    /// Get edge by edge_id
-    pub fn get_edge_by_id(&self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> Option<Nbr> {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            return None;
-        }
-
-        // Scan primary
-        let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx] as usize;
-        for i in 0..degree {
-            let nbr = &self.nbr_list[offset + i];
-            if nbr.edge_id == edge_id && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return Some(*nbr);
-            }
-        }
-
-        // Scan overflow
-        if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx] as usize;
-            let o_count = self.overflow_counts[src_idx] as usize;
-            for i in 0..o_count {
-                let nbr = &self.nbr_list[o_start + i];
-                if nbr.edge_id == edge_id
-                    && nbr.timestamp <= ts
-                    && nbr.timestamp != INVALID_TIMESTAMP
-                {
-                    return Some(*nbr);
-                }
-            }
-        }
-
-        None
-    }
-
     /// Clear all edges
     pub fn clear(&mut self) {
         for nbr in &mut self.nbr_list {
@@ -765,106 +631,6 @@ impl MutableCsr {
             *o_count = 0;
         }
         self.edge_count.store(0, Ordering::Relaxed);
-    }
-
-    /// Compact: remove deleted edges and merge overflow into primary
-    pub fn compact(&mut self) {
-        let mut total_removed = 0u64;
-
-        for src_idx in 0..self.vertex_capacity {
-            let degree = self.degrees[src_idx] as usize;
-            let capacity = self.primary_capacities[src_idx] as usize;
-            let offset = self.adj_offsets[src_idx] as usize;
-
-            // Compact primary block (in-place): pack active edges to front
-            let mut write_idx = 0;
-            for read_idx in 0..degree {
-                let nbr = &self.nbr_list[offset + read_idx];
-                if nbr.timestamp != INVALID_TIMESTAMP {
-                    if write_idx != read_idx {
-                        self.nbr_list[offset + write_idx] = *nbr;
-                    }
-                    write_idx += 1;
-                }
-            }
-            let primary_removed = degree - write_idx;
-            total_removed += primary_removed as u64;
-
-            // Copy active overflow edges into freed primary space
-            if self.overflow_starts[src_idx] != NO_OVERFLOW {
-                let o_start = self.overflow_starts[src_idx] as usize;
-                let o_count = self.overflow_counts[src_idx] as usize;
-                for i in 0..o_count {
-                    let nbr = &self.nbr_list[o_start + i];
-                    if nbr.timestamp != INVALID_TIMESTAMP {
-                        if write_idx < capacity {
-                            self.nbr_list[offset + write_idx] = *nbr;
-                            write_idx += 1;
-                        } else {
-                            total_removed += 1;
-                        }
-                    } else {
-                        total_removed += 1;
-                    }
-                }
-                self.overflow_starts[src_idx] = NO_OVERFLOW;
-                self.overflow_counts[src_idx] = 0;
-            }
-
-            self.degrees[src_idx] = write_idx as u32;
-        }
-
-        if total_removed > 0 {
-            self.edge_count.fetch_sub(total_removed, Ordering::Relaxed);
-        }
-    }
-
-    /// Batch insert edges (no silent drop: overflow if primary full)
-    pub fn batch_put_edges(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-        ts: Timestamp,
-    ) {
-        let max_vertex = src_list
-            .iter()
-            .max()
-            .cloned()
-            .unwrap_or(VertexId::zero())
-            .as_int64()
-            .unwrap_or(0) as usize;
-        self.ensure_vertex_capacity(max_vertex + 1);
-
-        for i in 0..src_list.len() {
-            let dst = dst_list[i];
-            let edge_id = edge_ids[i];
-            let prop_offset = prop_offsets[i];
-
-            let src_idx = src_list[i].as_int64().unwrap_or(0) as usize;
-            let degree = self.degrees[src_idx] as usize;
-            let capacity = self.primary_capacities[src_idx] as usize;
-            let offset = self.adj_offsets[src_idx] as usize;
-
-            if self.overflow_starts[src_idx] == NO_OVERFLOW && degree < capacity {
-                self.nbr_list[offset + degree] = Nbr::new(dst, edge_id, prop_offset, ts);
-                self.degrees[src_idx] += 1;
-                self.edge_count.fetch_add(1, Ordering::Relaxed);
-            } else {
-                // No silent drop: write to overflow, expanding if needed
-                if self.overflow_starts[src_idx] == NO_OVERFLOW
-                    || self.overflow_counts[src_idx] >= self.overflow_capacities[src_idx]
-                {
-                    self.expand_vertex_capacity(src_idx);
-                }
-                let o_start = self.overflow_starts[src_idx] as usize;
-                let o_count = self.overflow_counts[src_idx] as usize;
-                self.nbr_list[o_start + o_count] = Nbr::new(dst, edge_id, prop_offset, ts);
-                self.overflow_counts[src_idx] += 1;
-                self.edge_count.fetch_add(1, Ordering::Relaxed);
-            }
-        }
     }
 
     /// Batch insert edges with parallel optimization
@@ -1020,11 +786,6 @@ impl MutableCsr {
         MutableCsrIterator::new(self, ts)
     }
 
-    /// Create iterator over edges of a specific vertex
-    pub fn iter_edges(&self, src: VertexId, ts: Timestamp) -> MutableCsrEdgeIterator<'_> {
-        MutableCsrEdgeIterator::new(self, src, ts)
-    }
-
     /// Dump to bytes
     ///
     /// Format:
@@ -1146,36 +907,6 @@ impl MutableCsr {
         self.edge_count.store(edge_count, Ordering::Relaxed);
 
         Ok(())
-    }
-
-    /// Get raw neighbor slice (for internal use)
-    pub fn nbr_slice(&self) -> &[Nbr] {
-        &self.nbr_list
-    }
-
-    /// Get raw neighbor slice mut (for internal use)
-    pub fn nbr_slice_mut(&mut self) -> &mut [Nbr] {
-        &mut self.nbr_list
-    }
-
-    /// Get degrees slice
-    pub fn degrees(&self) -> &[u32] {
-        &self.degrees
-    }
-
-    /// Get primary capacities slice
-    pub fn primary_capacities(&self) -> &[u32] {
-        &self.primary_capacities
-    }
-
-    /// Get adj_offsets slice
-    pub fn adj_offsets(&self) -> &[u32] {
-        &self.adj_offsets
-    }
-
-    /// Get overflow start positions (NO_OVERFLOW = no overflow block)
-    pub fn overflow_starts(&self) -> &[u32] {
-        &self.overflow_starts
     }
 
     /// Compact CSR by removing deleted edges and reclaiming space.
@@ -1363,78 +1094,6 @@ impl<'a> Iterator for MutableCsrIterator<'a> {
     }
 }
 
-/// Iterator over edges of a specific vertex
-pub struct MutableCsrEdgeIterator<'a> {
-    csr: &'a MutableCsr,
-    ts: Timestamp,
-    offset: usize,
-    degree: usize,
-    current: usize,
-    overflow_start: usize,
-    overflow_count: usize,
-    overflow_current: usize,
-}
-
-impl<'a> MutableCsrEdgeIterator<'a> {
-    pub fn new(csr: &'a MutableCsr, src: VertexId, ts: Timestamp) -> Self {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        let (offset, degree) = if src_idx < csr.vertex_capacity {
-            (
-                csr.adj_offsets[src_idx] as usize,
-                csr.degrees[src_idx] as usize,
-            )
-        } else {
-            (0, 0)
-        };
-        let (overflow_start, overflow_count) =
-            if src_idx < csr.vertex_capacity && csr.overflow_starts[src_idx] != NO_OVERFLOW {
-                (
-                    csr.overflow_starts[src_idx] as usize,
-                    csr.overflow_counts[src_idx] as usize,
-                )
-            } else {
-                (0, 0)
-            };
-
-        Self {
-            csr,
-            ts,
-            offset,
-            degree,
-            current: 0,
-            overflow_start,
-            overflow_count,
-            overflow_current: 0,
-        }
-    }
-}
-
-impl<'a> Iterator for MutableCsrEdgeIterator<'a> {
-    type Item = Nbr;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // Scan primary
-        while self.current < self.degree {
-            let nbr = self.csr.nbr_list[self.offset + self.current];
-            self.current += 1;
-            if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return Some(nbr);
-            }
-        }
-
-        // Scan overflow
-        while self.overflow_current < self.overflow_count {
-            let nbr = self.csr.nbr_list[self.overflow_start + self.overflow_current];
-            self.overflow_current += 1;
-            if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
-                return Some(nbr);
-            }
-        }
-
-        None
-    }
-}
-
 impl CsrBase for MutableCsr {
     fn vertex_capacity(&self) -> usize {
         self.vertex_capacity
@@ -1442,10 +1101,6 @@ impl CsrBase for MutableCsr {
 
     fn edge_count(&self) -> u64 {
         self.edge_count.load(Ordering::Relaxed)
-    }
-
-    fn csr_type(&self) -> CsrType {
-        CsrType::Mutable
     }
 
     fn dump(&self) -> Vec<u8> {
@@ -1493,18 +1148,6 @@ impl MutableCsrTrait for MutableCsr {
         MutableCsr::edges_of(self, src, ts)
     }
 
-    fn degree(&self, src: VertexId, ts: Timestamp) -> usize {
-        MutableCsr::degree(self, src, ts)
-    }
-
-    fn has_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        MutableCsr::has_edge(self, src, dst, ts)
-    }
-
-    fn compact(&mut self) {
-        MutableCsr::compact(self);
-    }
-
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         MutableCsr::compact_with_ts(self, ts, reserve_ratio)
     }
@@ -1532,15 +1175,6 @@ mod tests {
 
         assert!(!csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 103, 0, 1));
 
-        assert_eq!(csr.degree(VertexId::from_int64(0), 1), 2);
-        assert_eq!(csr.degree(VertexId::from_int64(1), 1), 1);
-        assert_eq!(csr.degree(VertexId::from_int64(2), 1), 0);
-
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 1));
-        assert!(csr.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 1));
-        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(3), 1));
-
         assert_eq!(csr.edge_count(), 3);
     }
 
@@ -1552,37 +1186,8 @@ mod tests {
         csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1);
 
         assert!(csr.delete_edge(VertexId::from_int64(0), 100, 2));
-        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 2));
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 2));
 
         assert_eq!(csr.edge_count(), 1);
-    }
-
-    #[test]
-    fn test_revert_delete() {
-        let mut csr = MutableCsr::with_capacity(10, 100);
-
-        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
-        csr.delete_edge(VertexId::from_int64(0), 100, 2);
-
-        assert!(csr.revert_delete(VertexId::from_int64(0), 100, 3));
-        assert!(csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 3));
-    }
-
-    #[test]
-    fn test_compact() {
-        let mut csr = MutableCsr::with_capacity(10, 100);
-
-        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
-        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1);
-        csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(3), 102, 0, 1);
-
-        csr.delete_edge(VertexId::from_int64(0), 101, 2);
-
-        csr.compact();
-
-        let edges: Vec<_> = csr.iter_edges(VertexId::from_int64(0), 3).collect();
-        assert_eq!(edges.len(), 2);
     }
 
     #[test]
@@ -1600,9 +1205,6 @@ mod tests {
 
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
-        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 1));
-        assert!(csr2.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 1));
-        assert!(csr2.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 1));
     }
 
     #[test]
@@ -1619,7 +1221,6 @@ mod tests {
         );
 
         assert!(csr.vertex_capacity() >= 101);
-        assert!(csr.has_edge(VertexId::from_int64(100), VertexId::from_int64(1), 1));
     }
 
     #[test]
@@ -1638,60 +1239,26 @@ mod tests {
     fn test_overflow_insert() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        // Fill primary for vertex 0 (capacity = 4)
         assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
         assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 0, 1));
         assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(3), 102, 0, 1));
         assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(4), 103, 0, 1));
-
-        // This should go to overflow
         assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(5), 104, 0, 1));
 
-        assert_eq!(csr.degree(VertexId::from_int64(0), 1), 5);
         assert_eq!(csr.edge_count(), 5);
 
-        // Verify all edges accessible
-        let edges: Vec<_> = csr.iter_edges(VertexId::from_int64(0), 1).collect();
+        let edges = csr.edges_of(VertexId::from_int64(0), 1);
         assert_eq!(edges.len(), 5);
 
-        // Verify duplicate check works across overflow
         assert!(!csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(5), 105, 0, 1));
 
-        // Delete from overflow
         assert!(csr.delete_edge(VertexId::from_int64(0), 104, 2));
-        assert_eq!(csr.degree(VertexId::from_int64(0), 2), 4);
-        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(5), 2));
-    }
-
-    #[test]
-    fn test_overflow_compact() {
-        let mut csr = MutableCsr::with_capacity(10, 100);
-
-        // Insert 6 edges (4 primary + 2 overflow)
-        for i in 1..=6 {
-            let dst = VertexId::from_int64(i as i64);
-            assert!(csr.insert_edge(VertexId::from_int64(0), dst, i as u64, 0, 1));
-        }
-
-        // Delete from both primary and overflow
-        assert!(csr.delete_edge(VertexId::from_int64(0), 2, 2)); // primary
-        assert!(csr.delete_edge(VertexId::from_int64(0), 6, 2)); // overflow
-
-        csr.compact();
-
-        // After compact, should be flat layout with 4 edges
-        assert_eq!(csr.degree(VertexId::from_int64(0), 3), 4);
-        assert!(csr.overflow_starts[0] == NO_OVERFLOW);
-
-        let edges: Vec<_> = csr.iter_edges(VertexId::from_int64(0), 3).collect();
-        assert_eq!(edges.len(), 4);
     }
 
     #[test]
     fn test_overflow_dump_and_load() {
         let mut csr1 = MutableCsr::with_capacity(10, 100);
 
-        // Insert 6 edges (4 primary + 2 overflow)
         for i in 1..=6 {
             let dst = VertexId::from_int64(i as i64);
             csr1.insert_edge(VertexId::from_int64(0), dst, i as u64, 0, 1);
@@ -1704,9 +1271,6 @@ mod tests {
 
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
-        assert_eq!(csr2.degree(VertexId::from_int64(0), 1), 6);
-
-        // Verify overflow was restored
         assert_eq!(csr2.overflow_counts[0], 2);
     }
 
@@ -1714,26 +1278,21 @@ mod tests {
     fn test_compact_with_ts_merges_overflow() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        // Insert 6 edges into vertex 0
         for i in 1..=6 {
             let dst = VertexId::from_int64(i as i64);
             csr.insert_edge(VertexId::from_int64(0), dst, i as u64, 0, 1);
         }
 
-        // Delete some
         csr.delete_edge(VertexId::from_int64(0), 3, 5);
         csr.delete_edge(VertexId::from_int64(0), 5, 5);
         csr.delete_edge(VertexId::from_int64(0), 6, 5);
 
-        // compact_with_ts (ts=3): keep edges with ts <= 3
         let removed = csr.compact_with_ts(3, 0.25);
         assert_eq!(removed, 3);
 
-        // After merge, overflow should be empty
         assert!(csr.overflow_starts[0] == NO_OVERFLOW);
 
-        // Should have edges 1, 2, 4 (edge_id 1, 2, 4 with ts=1)
-        let edges: Vec<_> = csr.iter_edges(VertexId::from_int64(0), 3).collect();
+        let edges = csr.edges_of(VertexId::from_int64(0), 3);
         assert_eq!(edges.len(), 3);
     }
 
@@ -1741,43 +1300,19 @@ mod tests {
     fn test_overflow_iterator() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        // Fill primary + overflow for vertex 0
         for i in 1..=6 {
             let dst = VertexId::from_int64(i as i64);
             csr.insert_edge(VertexId::from_int64(0), dst, i as u64, 0, 1);
         }
 
-        // Iterate all edges
         let all_edges: Vec<_> = csr.iter(1).collect();
         assert_eq!(all_edges.len(), 6);
-    }
-
-    #[test]
-    fn test_batch_put_no_silent_drop() {
-        let mut csr = MutableCsr::with_capacity(10, 100);
-
-        // Fill primary
-        for i in 1..=4 {
-            let dst = VertexId::from_int64(i as i64);
-            csr.insert_edge(VertexId::from_int64(0), dst, i as u64, 0, 1);
-        }
-
-        // Batch put 2 more (should go to overflow, not silently dropped)
-        let srcs = vec![VertexId::from_int64(0), VertexId::from_int64(0)];
-        let dsts = vec![VertexId::from_int64(5), VertexId::from_int64(6)];
-        let eids = vec![5u64, 6u64];
-        let poffs = vec![0u32, 0u32];
-        csr.batch_put_edges(&srcs, &dsts, &eids, &poffs, 1);
-
-        assert_eq!(csr.degree(VertexId::from_int64(0), 1), 6);
-        assert_eq!(csr.overflow_counts[0], 2);
     }
 
     #[test]
     fn test_multiple_vertices_overflow() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        // Fill primary for multiple vertices
         for v in 0..3 {
             for i in 0..6 {
                 let src = VertexId::from_int64(v);
@@ -1786,14 +1321,6 @@ mod tests {
             }
         }
 
-        assert_eq!(csr.degree(VertexId::from_int64(0), 1), 6);
-        assert_eq!(csr.degree(VertexId::from_int64(1), 1), 6);
-        assert_eq!(csr.degree(VertexId::from_int64(2), 1), 6);
-
-        // Check cross-vertex correctness
-        assert!(!csr.has_edge(VertexId::from_int64(0), VertexId::from_int64(101), 1));
-
-        // All vertices' edges visible via full iterator
         let all: Vec<_> = csr.iter(1).collect();
         assert_eq!(all.len(), 18);
     }

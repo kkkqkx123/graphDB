@@ -92,10 +92,7 @@ impl PropertySchema {
 }
 
 #[derive(Debug, Clone)]
-pub struct OverflowPointer {
-    pub overflow_id: u64,
-    pub original_size: u32,
-}
+pub struct OverflowPointer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct OverflowKey {
@@ -160,10 +157,7 @@ impl OverflowStore {
             .insert(OverflowKey { col_idx, row_idx }, id);
         self.entry_count += 1;
 
-        OverflowPointer {
-            overflow_id: id,
-            original_size: bytes.len() as u32,
-        }
+        OverflowPointer
     }
 
     /// Best-fit allocation: find smallest free slot that fits the needed size.
@@ -246,10 +240,6 @@ impl OverflowStore {
         self.next_id = 0;
         self.free_list.clear();
         self.entry_count = 0;
-    }
-
-    pub fn entry_count(&self) -> usize {
-        self.entry_count
     }
 
     pub fn memory_size(&self) -> usize {
@@ -421,14 +411,6 @@ impl RowGroup {
             column_indices: Vec::new(),
         }
     }
-
-    pub fn row_count(&self) -> usize {
-        self.end_row - self.start_row
-    }
-
-    pub fn contains_row(&self, row_idx: usize) -> bool {
-        row_idx >= self.start_row && row_idx < self.end_row
-    }
 }
 
 #[derive(Debug)]
@@ -512,44 +494,6 @@ impl PropertyTable {
         self.columns.push(column);
 
         prop_id
-    }
-
-    pub fn rename_property(&mut self, old_name: &str, new_name: &str) -> StorageResult<()> {
-        let col_idx = self
-            .name_indexer
-            .get_id(old_name)
-            .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?
-            .as_usize();
-
-        if let Some(schema) = self.schema.get_mut(col_idx) {
-            schema.name = new_name.to_string();
-        }
-        if let Some(column) = self.columns.get_mut(col_idx) {
-            column.name = new_name.to_string();
-        }
-
-        self.name_indexer.remove(old_name);
-        self.name_indexer.register(new_name.to_string());
-
-        Ok(())
-    }
-
-    pub fn remove_property(&mut self, name: &str) -> StorageResult<()> {
-        let col_idx = self
-            .name_indexer
-            .get_id(name)
-            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?
-            .as_usize();
-
-        self.schema.remove(col_idx);
-        self.columns.remove(col_idx);
-        self.name_indexer.remove(name);
-
-        for (idx, schema) in self.schema.iter_mut().enumerate() {
-            schema.prop_id = idx as i32;
-        }
-
-        Ok(())
     }
 
     pub fn apply_encoding(
@@ -769,39 +713,6 @@ impl PropertyTable {
         )
     }
 
-    pub fn get_property(&self, offset: u32, name: &str) -> Option<Value> {
-        let col_idx = self.name_indexer.get_id(name)?;
-        let row_idx = prop_offset_to_index(offset)?;
-        if row_idx >= self.row_count {
-            return None;
-        }
-
-        let col_idx = col_idx.as_usize();
-        if col_idx < self.columns.len() {
-            self.columns[col_idx]
-                .get(row_idx)
-                .or_else(|| self.overflow_store.retrieve(col_idx, row_idx))
-        } else {
-            None
-        }
-    }
-
-    pub fn get_property_by_id(&self, offset: u32, prop_id: PropertyId) -> Option<Value> {
-        let col_idx = prop_id.as_usize();
-        let row_idx = prop_offset_to_index(offset)?;
-        if row_idx >= self.row_count {
-            return None;
-        }
-
-        if col_idx < self.columns.len() {
-            self.columns[col_idx]
-                .get(row_idx)
-                .or_else(|| self.overflow_store.retrieve(col_idx, row_idx))
-        } else {
-            None
-        }
-    }
-
     pub fn set_property(
         &mut self,
         offset: u32,
@@ -893,67 +804,8 @@ impl PropertyTable {
         true
     }
 
-    pub fn row_count(&self) -> usize {
-        self.row_count - self.free_list.len()
-    }
-
-    pub fn property_count(&self) -> usize {
-        self.schema.len()
-    }
-
-    pub fn schema(&self) -> &[PropertySchema] {
-        &self.schema
-    }
-
-    pub fn property_names(&self) -> Vec<&str> {
-        self.schema.iter().map(|s| s.name.as_str()).collect()
-    }
-
-    pub fn clear(&mut self) {
-        for col in &mut self.columns {
-            col.clear();
-        }
-        self.row_count = 0;
-        self.free_list.clear();
-        self.overflow_store.clear();
-        self.row_groups.clear();
-    }
-
     pub fn has_property(&self, name: &str) -> bool {
         self.name_indexer.contains(name)
-    }
-
-    pub fn get_schema(&self, name: &str) -> Option<&PropertySchema> {
-        self.name_indexer
-            .get_id(name)
-            .map(|id| id.as_usize())
-            .and_then(|idx| self.schema.get(idx))
-    }
-
-    pub fn get_schema_by_id(&self, prop_id: PropertyId) -> Option<&PropertySchema> {
-        self.schema.get(prop_id.as_usize())
-    }
-
-    pub fn get_property_type(&self, prop_id: PropertyId) -> Option<DataType> {
-        self.schema
-            .get(prop_id.as_usize())
-            .map(|s| s.data_type.clone())
-    }
-
-    pub fn name_indexer(&self) -> &NameIndexer {
-        &self.name_indexer
-    }
-
-    pub fn row_group_count(&self) -> usize {
-        self.row_groups.len()
-    }
-
-    pub fn get_row_group(&self, group_idx: usize) -> Option<&RowGroup> {
-        self.row_groups.get(group_idx)
-    }
-
-    pub fn get_row_group_for_row(&self, row_idx: usize) -> Option<&RowGroup> {
-        self.row_groups.iter().find(|rg| rg.contains_row(row_idx))
     }
 
     pub fn dump(&self) -> Vec<u8> {
@@ -1310,74 +1162,6 @@ impl PropertyTable {
         let _ = self.auto_apply_encodings(None);
     }
 
-    pub fn compact_row_group(&mut self, group_idx: usize) -> StorageResult<()> {
-        if group_idx >= self.row_groups.len() {
-            return Err(StorageError::invalid_input(format!(
-                "Row group index {} out of range",
-                group_idx
-            )));
-        }
-
-        let group = &self.row_groups[group_idx];
-        let mut valid_offsets = HashSet::new();
-
-        for row_idx in group.start_row..group.end_row {
-            valid_offsets.insert(prop_index_to_offset(row_idx));
-        }
-
-        let mut new_columns: Vec<Column> = Vec::with_capacity(self.columns.len());
-        let mut new_row_count = 0;
-
-        for col in &self.columns {
-            let new_col = Column::new(
-                col.name.clone(),
-                col.col_id,
-                col.data_type.clone(),
-                col.nullable,
-            );
-            new_columns.push(new_col);
-        }
-
-        for old_row_idx in group.start_row..group.end_row {
-            let old_offset = prop_index_to_offset(old_row_idx);
-            if valid_offsets.contains(&old_offset) {
-                for (col_idx, col) in self.columns.iter().enumerate() {
-                    let value = col
-                        .get(old_row_idx)
-                        .or_else(|| self.overflow_store.retrieve(col_idx, old_row_idx));
-                    let _ = new_columns[col_idx].set(new_row_count, value.as_ref());
-                }
-                new_row_count += 1;
-            }
-        }
-
-        for (col_idx, new_col) in new_columns.into_iter().enumerate() {
-            self.columns[col_idx] = new_col;
-        }
-
-        self.row_groups[group_idx].end_row = self.row_groups[group_idx].start_row + new_row_count;
-
-        Ok(())
-    }
-
-    pub fn memory_size(&self) -> usize {
-        let mut total = 0;
-
-        total += self.schema.len() * std::mem::size_of::<PropertySchema>();
-        total += self.columns.len() * std::mem::size_of::<Column>();
-        total += self.free_list.len() * std::mem::size_of::<u32>();
-        total += std::mem::size_of::<Self>();
-        total += self.overflow_store.memory_size();
-        total += self.row_groups.len() * std::mem::size_of::<RowGroup>();
-        total += self.name_indexer.memory_size();
-
-        for col in &self.columns {
-            total += col.used_memory_size();
-        }
-
-        total
-    }
-
     pub fn used_memory_size(&self) -> usize {
         let mut total = 0;
         for col in &self.columns {
@@ -1387,13 +1171,6 @@ impl PropertyTable {
         total + std::mem::size_of::<Self>()
     }
 
-    pub fn overflow_store(&self) -> &OverflowStore {
-        &self.overflow_store
-    }
-
-    pub fn overflow_count(&self) -> usize {
-        self.overflow_store.entry_count()
-    }
 }
 
 impl Default for PropertyTable {
@@ -1423,11 +1200,10 @@ mod tests {
         let props = table.get(offset).unwrap();
         assert_eq!(props.len(), 2);
 
-        assert_eq!(
-            table.get_property(offset, "weight"),
-            Some(Value::Double(1.5))
-        );
-        assert_eq!(table.get_property(offset, "since"), Some(Value::Int(2020)));
+        let weight = table.get(offset).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        assert_eq!(weight, Some(Value::Double(1.5)));
+        let since = table.get(offset).unwrap().into_iter().find(|(n, _)| n == "since").and_then(|(_, v)| v);
+        assert_eq!(since, Some(Value::Int(2020)));
     }
 
     #[test]
@@ -1443,10 +1219,8 @@ mod tests {
             .update(offset, &[("weight".to_string(), Value::Double(2.0))])
             .unwrap();
 
-        assert_eq!(
-            table.get_property(offset, "weight"),
-            Some(Value::Double(2.0))
-        );
+        let weight = table.get(offset).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        assert_eq!(weight, Some(Value::Double(2.0)));
     }
 
     #[test]
@@ -1462,7 +1236,6 @@ mod tests {
             .unwrap();
 
         assert!(table.delete(offset1));
-        assert_eq!(table.row_count(), 1);
 
         let offset3 = table
             .insert(&[("weight".to_string(), Value::Double(3.0))])
@@ -1495,103 +1268,9 @@ mod tests {
         let mut loaded_table = PropertyTable::new();
         let _ = loaded_table.load(&data);
 
-        assert_eq!(loaded_table.property_count(), 2);
-        assert_eq!(loaded_table.row_count(), 2);
-
-        assert_eq!(
-            loaded_table.get_property(offset1, "weight"),
-            Some(Value::Double(1.5))
-        );
-        assert_eq!(
-            loaded_table.get_property(offset2, "weight"),
-            Some(Value::Double(2.5))
-        );
-    }
-
-    #[test]
-    fn test_overflow_storage() {
-        let mut table = PropertyTable::new();
-        table.add_property("data".to_string(), DataType::String, false);
-
-        let large_string = "x".repeat(OVERFLOW_THRESHOLD + 100);
-        let offset = table
-            .insert(&[("data".to_string(), Value::String(large_string.clone()))])
-            .unwrap();
-
-        assert_eq!(table.overflow_count(), 1);
-
-        let retrieved = table.get_property(offset, "data");
-        assert_eq!(retrieved, Some(Value::String(large_string)));
-    }
-
-    #[test]
-    fn test_overflow_storage_with_dump_load() {
-        let mut table = PropertyTable::new();
-        table.add_property("data".to_string(), DataType::String, false);
-
-        let large_string = "x".repeat(OVERFLOW_THRESHOLD + 100);
-        let offset = table
-            .insert(&[("data".to_string(), Value::String(large_string.clone()))])
-            .unwrap();
-
-        let data = table.dump();
-
-        let mut loaded_table = PropertyTable::new();
-        let _ = loaded_table.load(&data);
-
-        assert_eq!(loaded_table.overflow_count(), 1);
-
-        let retrieved = loaded_table.get_property(offset, "data");
-        assert_eq!(retrieved, Some(Value::String(large_string)));
-    }
-
-    #[test]
-    fn test_row_groups() {
-        let mut table = PropertyTable::with_row_group_size(100, 10);
-        table.add_property("id".to_string(), DataType::Int, false);
-
-        for i in 0..25 {
-            table.insert(&[("id".to_string(), Value::Int(i))]).unwrap();
-        }
-
-        assert!(table.row_group_count() > 0);
-
-        let group = table.get_row_group(0).unwrap();
-        assert_eq!(group.start_row, 0);
-        assert!(group.end_row <= 10);
-    }
-
-    #[test]
-    fn test_encoding_application() {
-        let mut table = PropertyTable::new();
-        table.add_property("status".to_string(), DataType::Int, false);
-
-        for i in 0..100 {
-            table
-                .insert(&[(
-                    "status".to_string(),
-                    Value::Int(if i % 2 == 0 { 1 } else { 0 }),
-                )])
-                .unwrap();
-        }
-
-        assert!(table
-            .apply_encoding(PropertyId(0), EncodingType::Rle)
-            .is_ok());
-    }
-
-    #[test]
-    fn test_compact_row_group() {
-        let mut table = PropertyTable::with_row_group_size(100, 10);
-        table.add_property("id".to_string(), DataType::Int, false);
-
-        let offsets: Vec<u32> = (0..15)
-            .map(|i| table.insert(&[("id".to_string(), Value::Int(i))]).unwrap())
-            .collect();
-
-        table.delete(offsets[5]);
-        table.delete(offsets[10]);
-
-        assert!(table.compact_row_group(0).is_ok());
+        let weight1 = loaded_table.get(offset1).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        assert_eq!(weight1, Some(Value::Double(1.5)));
+        let weight2 = loaded_table.get(offset2).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        assert_eq!(weight2, Some(Value::Double(2.5)));
     }
 }

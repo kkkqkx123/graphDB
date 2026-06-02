@@ -43,28 +43,13 @@ use crate::transaction::wal::{CheckpointManager, Lsn};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistenceState {
     Idle,
-    FlushingData,
     Checkpointing,
     Snapshotting,
 }
 
 #[derive(Debug, Clone)]
 pub struct CheckpointInfo {
-    pub checkpoint_id: u64,
-    pub timestamp: Timestamp,
     pub lsn: Lsn,
-    pub created_at: SystemTime,
-    pub data_size: u64,
-    pub vertex_count: u64,
-    pub edge_count: u64,
-}
-
-#[derive(Debug, Clone)]
-pub struct FlushStats {
-    pub flushed_tables: usize,
-    pub flushed_bytes: u64,
-    pub duration: Duration,
-    pub wal_entries_flushed: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -161,25 +146,8 @@ impl PersistenceCoordinator {
         self.wal_manager.clone()
     }
 
-    pub fn checkpoint_manager(&self) -> &RwLock<CheckpointManager> {
-        &self.checkpoint_manager
-    }
-
-    pub fn snapshot_manager(&self) -> Option<Arc<SnapshotManager>> {
-        self.snapshot_manager.clone()
-    }
-
-    pub fn current_state(&self) -> PersistenceState {
-        *self.state.read()
-    }
-
     fn set_state(&self, state: PersistenceState) {
         *self.state.write() = state;
-    }
-
-    pub fn record_wal_entry(&self) {
-        let mut pending = self.pending_wal_entries.write();
-        *pending += 1;
     }
 
     pub fn should_flush(&self) -> bool {
@@ -384,89 +352,18 @@ impl PersistenceCoordinator {
         let file = File::open(metadata_path)?;
         let reader = BufReader::new(file);
 
-        let mut checkpoint_id = 0u64;
-        let mut timestamp = 0u32;
         let mut lsn = 0u64;
-        let mut vertex_count = 0u64;
-        let mut edge_count = 0u64;
-        let mut data_size = 0u64;
 
         for line in reader.lines() {
             let line = line?;
             let parts: Vec<&str> = line.splitn(2, '=').collect();
-            if parts.len() == 2 {
-                match parts[0] {
-                    "checkpoint_id" => checkpoint_id = parts[1].parse().unwrap_or(0),
-                    "timestamp" => timestamp = parts[1].parse().unwrap_or(0),
-                    "wal_lsn" => lsn = parts[1].parse().unwrap_or(0),
-                    "vertex_count" => vertex_count = parts[1].parse().unwrap_or(0),
-                    "edge_count" => edge_count = parts[1].parse().unwrap_or(0),
-                    "data_size" => data_size = parts[1].parse().unwrap_or(0),
-                    _ => {}
-                }
+            if parts.len() == 2 && parts[0] == "wal_lsn" {
+                lsn = parts[1].parse().unwrap_or(0);
+                break;
             }
         }
 
-        Ok(CheckpointInfo {
-            checkpoint_id,
-            timestamp,
-            lsn: Lsn::new(lsn),
-            created_at: SystemTime::now(),
-            data_size,
-            vertex_count,
-            edge_count,
-        })
-    }
-
-    pub fn recover(
-        &self,
-        load_checkpoint: impl FnOnce(&Path) -> StorageResult<()>,
-        apply_wal: impl FnOnce(&WalManager) -> StorageResult<()>,
-    ) -> StorageResult<Option<CheckpointInfo>> {
-        log::info!("Starting recovery process");
-
-        let checkpoint_info = self.load_latest_checkpoint(load_checkpoint)?;
-
-        apply_wal(&self.wal_manager.read())?;
-
-        log::info!("Recovery completed");
-
-        Ok(checkpoint_info)
-    }
-
-    pub fn cleanup_old_checkpoints(&self, keep_count: usize) -> StorageResult<()> {
-        let checkpoints_dir = &self.config.checkpoint_dir;
-
-        if !checkpoints_dir.exists() {
-            return Ok(());
-        }
-
-        let mut checkpoints: Vec<(u64, PathBuf)> = std::fs::read_dir(checkpoints_dir)?
-            .filter_map(|entry| entry.ok())
-            .filter_map(|entry| {
-                let path = entry.path();
-                if path.is_dir() {
-                    let name = path.file_name()?.to_string_lossy();
-                    if name.starts_with("checkpoint_") {
-                        let id: u64 = name.trim_start_matches("checkpoint_").parse().ok()?;
-                        Some((id, path))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        checkpoints.sort_by_key(|(id, _)| std::cmp::Reverse(*id));
-
-        for (_, path) in checkpoints.into_iter().skip(keep_count) {
-            log::info!("Removing old checkpoint: {:?}", path);
-            std::fs::remove_dir_all(&path)?;
-        }
-
-        Ok(())
+        Ok(CheckpointInfo { lsn: Lsn::new(lsn) })
     }
 
     pub fn verify_snapshot(&self, snapshot_id: u64) -> StorageResult<bool> {
@@ -499,14 +396,6 @@ impl PersistenceCoordinator {
         }
     }
 
-    pub fn get_stats(&self) -> PersistenceStats {
-        PersistenceStats {
-            pending_wal_entries: *self.pending_wal_entries.read(),
-            last_checkpoint_elapsed: self.last_checkpoint_time.read().elapsed(),
-            last_flush_elapsed: self.last_flush_time.read().elapsed(),
-        }
-    }
-
     pub fn reset_flush_timer(&mut self) {
         *self.last_flush_time.write() = Instant::now();
     }
@@ -515,48 +404,6 @@ impl PersistenceCoordinator {
         *self.last_checkpoint_time.write() = Instant::now();
     }
 
-    pub fn register_transaction(&self, tx_id: u64) {
-        self.checkpoint_manager.write().register_transaction(tx_id);
-    }
-
-    pub fn unregister_transaction(&self, tx_id: u64) {
-        self.checkpoint_manager
-            .write()
-            .unregister_transaction(tx_id);
-    }
-
-    /// Trigger a flush operation through the persistence chain
-    ///
-    /// This method coordinates the flush operation:
-    /// 1. Sync WAL to ensure all logged operations are persisted
-    /// 2. Flush memory tables to disk via the provided flush function
-    /// 3. Reset timers and counters
-    pub fn trigger_flush<F>(&self, flush_fn: F) -> StorageResult<FlushStats>
-    where
-        F: FnOnce() -> StorageResult<(usize, u64)>,
-    {
-        let start = Instant::now();
-
-        self.set_state(PersistenceState::FlushingData);
-
-        let (flushed_tables, flushed_bytes) = flush_fn()?;
-
-        let wal_entries = {
-            let wal = self.wal_manager.read();
-            wal.current_lsn().into()
-        };
-
-        *self.pending_wal_entries.write() = 0;
-        *self.last_flush_time.write() = Instant::now();
-        self.set_state(PersistenceState::Idle);
-
-        Ok(FlushStats {
-            flushed_tables,
-            flushed_bytes,
-            duration: start.elapsed(),
-            wal_entries_flushed: wal_entries,
-        })
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -564,13 +411,6 @@ pub struct CheckpointData {
     pub vertex_count: u64,
     pub edge_count: u64,
     pub data_size: u64,
-}
-
-#[derive(Debug, Clone)]
-pub struct PersistenceStats {
-    pub pending_wal_entries: u64,
-    pub last_checkpoint_elapsed: Duration,
-    pub last_flush_elapsed: Duration,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

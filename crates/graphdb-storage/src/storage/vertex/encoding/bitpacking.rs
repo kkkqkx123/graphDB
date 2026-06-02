@@ -27,16 +27,6 @@ impl BitPackedColumn {
         }
     }
 
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            data: BitVec::with_capacity(capacity * 64),
-            bit_width: 64,
-            min_value: 0,
-            row_count: 0,
-            null_bitmap: None,
-        }
-    }
-
     pub fn analyze(values: &[i64]) -> Self {
         if values.is_empty() {
             return Self::new();
@@ -215,22 +205,6 @@ impl BitPackedColumn {
         self.row_count
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.row_count == 0
-    }
-
-    pub fn bit_width(&self) -> u8 {
-        self.bit_width
-    }
-
-    pub fn min_value(&self) -> i64 {
-        self.min_value
-    }
-
-    pub fn max_value(&self) -> i64 {
-        self.min_value + ((1u64 << self.bit_width) - 1) as i64
-    }
-
     pub fn memory_usage(&self) -> usize {
         let data_size = self.data.len().div_ceil(8);
         let null_size = self
@@ -240,64 +214,11 @@ impl BitPackedColumn {
             .unwrap_or(0);
         data_size + null_size + std::mem::size_of::<Self>()
     }
-
-    pub fn compression_ratio(&self) -> f64 {
-        if self.row_count == 0 {
-            return 0.0;
-        }
-
-        let original_size = self.row_count * 8;
-        let compressed_size = self.memory_usage();
-
-        if original_size == 0 {
-            return 0.0;
-        }
-
-        (original_size - compressed_size) as f64 / original_size as f64
-    }
-
-    pub fn clear(&mut self) {
-        self.data.clear();
-        self.row_count = 0;
-        if let Some(ref mut bitmap) = self.null_bitmap {
-            bitmap.clear();
-        }
-    }
-
-    pub fn iter(&self) -> BitPackedIterator<'_> {
-        BitPackedIterator {
-            column: self,
-            current: 0,
-        }
-    }
-
-    pub fn to_values(&self) -> Vec<Option<i64>> {
-        (0..self.row_count).map(|i| self.get(i)).collect()
-    }
 }
 
 impl Default for BitPackedColumn {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-pub struct BitPackedIterator<'a> {
-    column: &'a BitPackedColumn,
-    current: usize,
-}
-
-impl<'a> Iterator for BitPackedIterator<'a> {
-    type Item = Option<i64>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current >= self.column.row_count {
-            return None;
-        }
-
-        let value = self.column.get(self.current);
-        self.current += 1;
-        Some(value)
     }
 }
 
@@ -308,13 +229,6 @@ pub struct BitPackedIntColumn {
 }
 
 impl BitPackedIntColumn {
-    pub fn new(data_type: DataType) -> Self {
-        Self {
-            packed: BitPackedColumn::new(),
-            data_type,
-        }
-    }
-
     pub fn analyze(values: &[Option<Value>], data_type: DataType) -> StorageResult<Self> {
         let int_values: Vec<Option<i64>> = values
             .iter()
@@ -369,52 +283,16 @@ impl BitPackedIntColumn {
         self.packed.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.packed.is_empty()
-    }
-
-    pub fn is_null(&self, row_idx: usize) -> bool {
-        self.packed.is_null(row_idx)
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.packed.memory_usage()
     }
-
-    pub fn compression_ratio(&self) -> f64 {
-        self.packed.compression_ratio()
-    }
-
-    pub fn clear(&mut self) {
-        self.packed.clear();
-    }
 }
 
-impl super::EncodedColumn for BitPackedIntColumn {
-    fn get(&self, row_idx: usize) -> Option<crate::core::Value> {
-        BitPackedIntColumn::get(self, row_idx)
-    }
 
-    fn len(&self) -> usize {
-        BitPackedIntColumn::len(self)
-    }
 
-    fn is_null(&self, row_idx: usize) -> bool {
-        BitPackedIntColumn::is_null(self, row_idx)
-    }
+    
 
-    fn memory_usage(&self) -> usize {
-        BitPackedIntColumn::memory_usage(self)
-    }
 
-    fn encoding_type(&self) -> super::EncodingType {
-        super::EncodingType::BitPacking
-    }
-
-    fn compression_ratio(&self) -> f64 {
-        BitPackedIntColumn::compression_ratio(self)
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -437,7 +315,6 @@ mod tests {
         assert_eq!(column.len(), 5);
         assert_eq!(column.get(0), Some(10));
         assert_eq!(column.get(4), Some(50));
-        assert_eq!(column.bit_width(), 6);
     }
 
     #[test]
@@ -445,8 +322,9 @@ mod tests {
         let values: Vec<i64> = (0..100).collect();
         let column = BitPackedColumn::analyze(&values);
 
-        assert_eq!(column.bit_width(), 7);
-        assert!(column.compression_ratio() > 0.7);
+        let original_size = 100 * 8;
+        let compressed_size = column.memory_usage();
+        assert!(compressed_size < original_size);
     }
 
     #[test]
@@ -471,15 +349,6 @@ mod tests {
     }
 
     #[test]
-    fn test_bitpacking_iterator() {
-        let values = vec![10, 20, 30];
-        let column = BitPackedColumn::analyze(&values);
-
-        let collected: Vec<Option<i64>> = column.iter().collect();
-        assert_eq!(collected, vec![Some(10), Some(20), Some(30)]);
-    }
-
-    #[test]
     fn test_bitpacking_memory_usage() {
         let values: Vec<i64> = (0..1000).collect();
         let column = BitPackedColumn::analyze(&values);
@@ -488,7 +357,6 @@ mod tests {
         let compressed_size = column.memory_usage();
 
         assert!(compressed_size < original_size);
-        assert!(column.compression_ratio() > 0.7);
     }
 
     #[test]
@@ -507,7 +375,7 @@ mod tests {
         let column = BitPackedIntColumn::analyze(&values, DataType::Int).unwrap();
 
         assert_eq!(column.get(0), Some(Value::Int(10)));
-        assert!(column.is_null(1));
+        assert!(column.get(1).is_none());
         assert_eq!(column.get(2), Some(Value::Int(30)));
     }
 }
