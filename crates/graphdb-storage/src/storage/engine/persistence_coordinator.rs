@@ -99,8 +99,9 @@ pub struct PersistenceCoordinator {
     snapshot_manager: Option<Arc<SnapshotManager>>,
     last_checkpoint_time: RwLock<Instant>,
     last_flush_time: RwLock<Instant>,
+    last_checkpoint_lsn: RwLock<Lsn>,
+    last_flush_lsn: RwLock<Lsn>,
     last_snapshot_time: RwLock<Option<SystemTime>>,
-    pending_wal_entries: RwLock<u64>,
     state: RwLock<PersistenceState>,
 }
 
@@ -136,8 +137,9 @@ impl PersistenceCoordinator {
             snapshot_manager,
             last_checkpoint_time: RwLock::new(Instant::now()),
             last_flush_time: RwLock::new(Instant::now()),
+            last_checkpoint_lsn: RwLock::new(Lsn::ZERO),
+            last_flush_lsn: RwLock::new(Lsn::ZERO),
             last_snapshot_time: RwLock::new(None),
-            pending_wal_entries: RwLock::new(0),
             state: RwLock::new(PersistenceState::Idle),
         })
     }
@@ -150,19 +152,29 @@ impl PersistenceCoordinator {
         *self.state.write() = state;
     }
 
+    fn current_lsn(&self) -> Lsn {
+        self.wal_manager.read().current_lsn()
+    }
+
+    fn wal_bytes_since(&self, base_lsn: Lsn) -> u64 {
+        self.current_lsn().offset_in_file(base_lsn)
+    }
+
     pub fn should_flush(&self) -> bool {
-        let pending = *self.pending_wal_entries.read();
+        let last_flush_lsn = *self.last_flush_lsn.read();
         let last_flush = *self.last_flush_time.read();
 
-        pending >= self.config.checkpoint_threshold
+        self.wal_bytes_since(last_flush_lsn) >= self.config.checkpoint_threshold
             || last_flush.elapsed() >= self.config.auto_flush_interval
     }
 
     pub fn should_checkpoint(&self) -> bool {
-        let pending = *self.pending_wal_entries.read();
+        let last_checkpoint_lsn = *self.last_checkpoint_lsn.read();
         let last_checkpoint = *self.last_checkpoint_time.read();
+        let wal_bytes_since_checkpoint = self.wal_bytes_since(last_checkpoint_lsn);
 
-        pending >= self.config.checkpoint_threshold
+        wal_bytes_since_checkpoint >= self.config.checkpoint_threshold
+            || wal_bytes_since_checkpoint >= self.config.max_wal_size
             || last_checkpoint.elapsed() >= self.config.auto_checkpoint_interval
     }
 
@@ -222,8 +234,7 @@ impl PersistenceCoordinator {
             wal.truncate(wal_lsn)?;
         }
 
-        *self.pending_wal_entries.write() = 0;
-        *self.last_checkpoint_time.write() = Instant::now();
+        self.mark_checkpointed(wal_lsn);
 
         let snapshot_created = if self.should_snapshot() {
             self.set_state(PersistenceState::Snapshotting);
@@ -396,12 +407,16 @@ impl PersistenceCoordinator {
         }
     }
 
-    pub fn reset_flush_timer(&mut self) {
+    pub fn mark_flushed(&self, lsn: Lsn) {
+        *self.last_flush_lsn.write() = lsn;
         *self.last_flush_time.write() = Instant::now();
     }
 
-    pub fn reset_checkpoint_timer(&mut self) {
+    pub fn mark_checkpointed(&self, lsn: Lsn) {
+        *self.last_checkpoint_lsn.write() = lsn;
         *self.last_checkpoint_time.write() = Instant::now();
+        *self.last_flush_lsn.write() = lsn;
+        *self.last_flush_time.write() = Instant::now();
     }
 }
 
@@ -422,11 +437,48 @@ pub struct SnapshotStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn test_persistence_config_default() {
         let config = PersistenceConfig::default();
         assert_eq!(config.data_dir, PathBuf::from("data"));
         assert_eq!(config.auto_flush_interval, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_should_flush_and_checkpoint_track_lsn_progress() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config = PersistenceConfig {
+            data_dir: temp_dir.path().join("data"),
+            wal_dir: temp_dir.path().join("wal"),
+            checkpoint_dir: temp_dir.path().join("checkpoint"),
+            snapshot_dir: temp_dir.path().join("snapshots"),
+            auto_flush_interval: Duration::from_secs(3600),
+            auto_checkpoint_interval: Duration::from_secs(3600),
+            checkpoint_threshold: 8,
+            max_wal_size: 16,
+            enable_snapshots: false,
+            snapshot_interval: Duration::from_secs(3600),
+        };
+
+        let coordinator =
+            PersistenceCoordinator::new(config).expect("Failed to create coordinator");
+        assert!(!coordinator.should_flush());
+        assert!(!coordinator.should_checkpoint());
+
+        {
+            let wal = coordinator.wal_manager();
+            wal.write()
+                .truncate(Lsn::new(12))
+                .expect("Failed to update LSN");
+        }
+
+        assert!(coordinator.should_flush());
+        assert!(coordinator.should_checkpoint());
+
+        coordinator.mark_checkpointed(Lsn::new(12));
+        assert!(!coordinator.should_flush());
+        assert!(!coordinator.should_checkpoint());
     }
 }

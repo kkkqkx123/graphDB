@@ -66,6 +66,7 @@ pub struct RecoveryStats {
     pub checkpoints_processed: usize,
     pub recovery_time_ms: u64,
     pub errors_encountered: usize,
+    pub last_lsn: crate::transaction::wal::Lsn,
 }
 
 /// Trait for applying recovered operations to the storage engine.
@@ -100,6 +101,7 @@ impl RecoveryManager {
         self.restore_from_checkpoint(&wal_result)?;
 
         self.replay_wal_entries(&wal_result, applier)?;
+        self.stats.last_lsn = wal_result.last_lsn;
 
         self.stats.recovery_time_ms = start.elapsed().as_millis() as u64;
 
@@ -342,6 +344,7 @@ mod tests {
         assert_eq!(stats.checkpoints_processed, 0);
         assert_eq!(stats.recovery_time_ms, 0);
         assert_eq!(stats.errors_encountered, 0);
+        assert_eq!(stats.last_lsn, crate::transaction::wal::Lsn::ZERO);
     }
 
     #[test]

@@ -10,6 +10,40 @@ use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
 
+struct SharedLocalWalWriter {
+    inner: Arc<RwLock<LocalWalWriter>>,
+}
+
+impl SharedLocalWalWriter {
+    fn new(inner: Arc<RwLock<LocalWalWriter>>) -> Self {
+        Self { inner }
+    }
+}
+
+impl WalWriter for SharedLocalWalWriter {
+    fn open(&mut self) -> crate::transaction::wal::WalResult<()> {
+        self.inner.write().open()
+    }
+
+    fn close(&mut self) {
+        self.inner.write().close();
+    }
+
+    fn append(&mut self, data: &[u8]) -> crate::transaction::wal::WalResult<bool> {
+        self.inner.write().append(data)
+    }
+
+    fn sync(&self) -> crate::transaction::wal::WalResult<()> {
+        self.inner.read().sync()
+    }
+}
+
+pub(crate) fn shared_local_wal_writer(
+    inner: Arc<RwLock<LocalWalWriter>>,
+) -> Arc<RwLock<Box<dyn WalWriter>>> {
+    Arc::new(RwLock::new(Box::new(SharedLocalWalWriter::new(inner))))
+}
+
 /// Unified WAL manager that wraps LocalWalWriter
 ///
 /// This manager ensures LSN consistency by delegating all LSN operations

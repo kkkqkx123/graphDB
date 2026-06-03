@@ -13,6 +13,7 @@ use crate::core::mvcc::VersionManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::UserStorage;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
+use crate::storage::engine::wal_manager::shared_local_wal_writer;
 use crate::storage::engine::PropertyGraph;
 use crate::storage::index::{IndexGcConfig, IndexGcManager};
 
@@ -31,6 +32,22 @@ pub struct GraphStorageContext {
 }
 
 impl GraphStorageContext {
+    fn attach_persistence_wal(
+        graph: &Arc<PropertyGraph>,
+        persistence: &Arc<RwLock<PersistenceCoordinator>>,
+    ) {
+        let shared_writer = {
+            let coordinator = persistence.read();
+            let wal_manager = coordinator.wal_manager();
+            let writer = wal_manager.read().writer();
+            writer.map(shared_local_wal_writer)
+        };
+
+        if let Some(shared_writer) = shared_writer {
+            graph.set_wal_writer(shared_writer);
+        }
+    }
+
     pub fn new() -> Self {
         let graph = Arc::new(PropertyGraph::new());
         let schema_manager = Arc::new(SchemaManager::new());
@@ -72,6 +89,7 @@ impl GraphStorageContext {
         let persistence = Arc::new(RwLock::new(PersistenceCoordinator::new(
             persistence_config,
         )?));
+        Self::attach_persistence_wal(&graph, &persistence);
 
         Ok(Self {
             graph,
@@ -98,6 +116,7 @@ impl GraphStorageContext {
         let user_storage = Arc::new(UserStorage::new());
 
         let persistence = PersistenceCoordinator::new(config).map(|p| Arc::new(RwLock::new(p)))?;
+        Self::attach_persistence_wal(&graph, &persistence);
 
         Ok(Self {
             graph,
@@ -123,7 +142,7 @@ impl GraphStorageContext {
     }
 
     pub fn get_read_timestamp(&self) -> u32 {
-        if let Some(txn_ctx) = self.current_txn_context.write().clone() {
+        if let Some(txn_ctx) = self.current_txn_context.read().clone() {
             txn_ctx.timestamp
         } else {
             self.version_manager.read_timestamp()
@@ -131,7 +150,7 @@ impl GraphStorageContext {
     }
 
     pub fn get_write_timestamp(&self) -> u32 {
-        if let Some(txn_ctx) = self.current_txn_context.write().clone() {
+        if let Some(txn_ctx) = self.current_txn_context.read().clone() {
             txn_ctx.timestamp
         } else {
             self.version_manager.write_timestamp()
@@ -139,7 +158,7 @@ impl GraphStorageContext {
     }
 
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
-        self.current_txn_context.write().clone()
+        self.current_txn_context.read().clone()
     }
 
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {

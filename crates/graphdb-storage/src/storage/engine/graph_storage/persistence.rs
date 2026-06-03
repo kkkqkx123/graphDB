@@ -33,6 +33,14 @@ pub(crate) fn save_data_to_dir(ctx: &GraphStorageContext, dir: &Path) -> Storage
     ctx.graph.flush_tables_to_dir(&data_dir)?;
     ctx.user_storage.save_to_dir(&data_dir)?;
 
+    if let Some(ref persistence) = ctx.persistence {
+        let wal_lsn = {
+            let coordinator = persistence.read();
+            coordinator.wal_manager().read().current_lsn()
+        };
+        persistence.write().mark_flushed(wal_lsn);
+    }
+
     log::info!("Data saved to {:?}", data_dir);
     Ok(())
 }
@@ -120,6 +128,12 @@ pub(crate) fn load_latest_checkpoint(
             graph.restore_from_checkpoint(checkpoint_dir)?;
             user_storage.load_from_dir(checkpoint_dir.join("data"))
         })
+        .map(|result| {
+            if let Some(ref info) = result {
+                persistence.write().mark_checkpointed(info.lsn);
+            }
+            result
+        })
 }
 
 pub(crate) fn should_flush(ctx: &GraphStorageContext) -> bool {
@@ -141,9 +155,6 @@ pub(crate) fn should_checkpoint(ctx: &GraphStorageContext) -> bool {
 pub(crate) fn auto_flush_if_needed(ctx: &GraphStorageContext) -> StorageResult<bool> {
     if should_flush(ctx) {
         flush(ctx)?;
-        if let Some(ref persistence) = ctx.persistence {
-            persistence.write().reset_flush_timer();
-        }
         return Ok(true);
     }
     Ok(false)
@@ -154,9 +165,6 @@ pub(crate) fn auto_checkpoint_if_needed(
 ) -> StorageResult<Option<CheckpointStats>> {
     if should_checkpoint(ctx) {
         let stats = create_checkpoint(ctx)?;
-        if let Some(ref persistence) = ctx.persistence {
-            persistence.write().reset_checkpoint_timer();
-        }
         return Ok(stats);
     }
     Ok(None)
@@ -277,7 +285,13 @@ pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<Recov
 
     let mut manager = RecoveryManager::new(config);
 
-    manager.recover_with_applier(&*ctx.graph)
+    let stats = manager.recover_with_applier(&*ctx.graph)?;
+
+    if let Some(ref persistence) = ctx.persistence {
+        persistence.write().mark_checkpointed(stats.last_lsn);
+    }
+
+    Ok(stats)
 }
 
 pub(crate) fn recover_from_wal_with_config(
@@ -286,7 +300,13 @@ pub(crate) fn recover_from_wal_with_config(
 ) -> StorageResult<RecoveryStats> {
     let mut manager = RecoveryManager::new(config);
 
-    manager.recover_with_applier(&*ctx.graph)
+    let stats = manager.recover_with_applier(&*ctx.graph)?;
+
+    if let Some(ref persistence) = ctx.persistence {
+        persistence.write().mark_checkpointed(stats.last_lsn);
+    }
+
+    Ok(stats)
 }
 
 pub(crate) fn needs_recovery(ctx: &GraphStorageContext) -> bool {
