@@ -110,8 +110,9 @@ impl FulltextSearchPlanner {
             },
             Stmt::ShowFulltextIndex(show) => self.transform_show_fulltext_index(show, &space_name),
             Stmt::DescribeFulltextIndex(describe) => match metadata_context {
-                Some(metadata_context) => self
-                    .transform_describe_fulltext_index_with_metadata(describe, metadata_context),
+                Some(metadata_context) => {
+                    self.transform_describe_fulltext_index_with_metadata(describe, metadata_context)
+                }
                 None => self.transform_describe_fulltext_index(describe),
             },
             Stmt::Search(search) => match metadata_context {

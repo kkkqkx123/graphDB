@@ -5,7 +5,7 @@
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use crate::core::types::{EdgeTypeSchema, PropertyDef};
+use crate::core::types::{EdgeStrategy, EdgeTypeSchema, PropertyDef};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
@@ -32,6 +32,8 @@ pub fn edge_type_schema_from_executor(executor_info: &ExecutorEdgeInfo) -> EdgeT
         comment: executor_info.comment.clone(),
         ttl_duration: None,
         ttl_col: None,
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::Multiple,
     }
 }
 

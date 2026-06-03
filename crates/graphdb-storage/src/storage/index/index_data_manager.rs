@@ -195,7 +195,8 @@ impl VertexIndexOps for IndexDataManagerImpl {
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
         if write_ts == MAX_TIMESTAMP {
-            self.vertex_manager.delete_vertex_indexes(space_id, vertex_id)
+            self.vertex_manager
+                .delete_vertex_indexes(space_id, vertex_id)
         } else {
             self.vertex_manager
                 .delete_vertex_indexes_mvcc(space_id, vertex_id, write_ts)

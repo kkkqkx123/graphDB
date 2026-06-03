@@ -655,6 +655,8 @@ impl SchemaValidator {
             comment: Some("Auto-created for Cypher CREATE".to_string()),
             ttl_duration: None,
             ttl_col: None,
+            oe_strategy: crate::core::types::EdgeStrategy::Multiple,
+            ie_strategy: crate::core::types::EdgeStrategy::Multiple,
         };
 
         // Create an Edge Type

@@ -457,9 +457,13 @@ mod tests {
         let strings = vec![Some("hello world")];
         let mut column = build_fsst_column(&strings, 100);
 
-        column.encoded_data.push(column.encoder.encode("hello rust"));
+        column
+            .encoded_data
+            .push(column.encoder.encode("hello rust"));
         column.null_bitmap.push(false);
-        column.encoded_data.push(column.encoder.encode("hello code"));
+        column
+            .encoded_data
+            .push(column.encoder.encode("hello code"));
         column.null_bitmap.push(false);
 
         let mut original_size = 0usize;

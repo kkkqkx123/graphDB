@@ -14,7 +14,6 @@ impl Compressor for NoopCompressor {
     fn compress(&self, data: &[u8]) -> WalResult<(Vec<u8>, WalCompression)> {
         Ok((data.to_vec(), WalCompression::None))
     }
-
 }
 
 /// Zstd compressor
@@ -44,7 +43,6 @@ impl Compressor for ZstdCompressor {
             Ok((data.to_vec(), WalCompression::None))
         }
     }
-
 }
 
 /// Create a compressor based on configuration

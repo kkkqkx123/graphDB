@@ -38,6 +38,7 @@ use crate::core::{Edge, Value};
 use crate::storage::storage_types::StoragePropertyDef;
 use crate::storage::utils::props_to_map;
 
+pub use crate::core::types::EdgeStrategy;
 pub use csr::Csr;
 pub use csr_trait::{CsrBase, MutableCsrTrait};
 pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
@@ -47,13 +48,6 @@ pub use property_table::PropertyTable;
 pub use single_mutable_csr::{SingleMutableCsr, SingleMutableCsrIterator};
 
 pub const INVALID_EDGE_ID: u64 = u64::MAX;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum EdgeStrategy {
-    None,
-    Single,
-    Multiple,
-}
 
 #[derive(Debug, Clone)]
 pub struct EdgeRecord {

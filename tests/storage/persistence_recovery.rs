@@ -19,7 +19,8 @@ use graphdb::storage::{
 use std::path::Path;
 
 fn setup_storage_with_path(path: &Path) -> GraphStorage {
-    GraphStorage::new_with_path(path.to_path_buf()).expect("Failed to create GraphStorage with path")
+    GraphStorage::new_with_path(path.to_path_buf())
+        .expect("Failed to create GraphStorage with path")
 }
 
 fn setup_space_and_types(storage: &mut GraphStorage) {

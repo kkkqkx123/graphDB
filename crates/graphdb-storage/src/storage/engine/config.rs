@@ -11,8 +11,6 @@ pub struct FlushConfig {
     pub flush_threshold: usize,
     pub flush_interval: Duration,
     pub compression: CompressionType,
-    pub background_flush_enabled: bool,
-    pub work_dir: PathBuf,
 }
 
 impl Default for FlushConfig {
@@ -21,8 +19,6 @@ impl Default for FlushConfig {
             flush_threshold: 1000,
             flush_interval: Duration::from_secs(60),
             compression: CompressionType::Zstd { level: 3 },
-            background_flush_enabled: true,
-            work_dir: PathBuf::from("./data"),
         }
     }
 }
@@ -35,7 +31,6 @@ pub struct PropertyGraphConfig {
     pub enable_cache: bool,
     pub cache_memory: usize,
     pub flush_config: FlushConfig,
-    pub enable_background_flush: bool,
 }
 
 impl Default for PropertyGraphConfig {
@@ -47,7 +42,6 @@ impl Default for PropertyGraphConfig {
             enable_cache: true,
             cache_memory: 128 * 1024 * 1024,
             flush_config: FlushConfig::default(),
-            enable_background_flush: true,
         }
     }
 }
@@ -72,11 +66,6 @@ impl PropertyGraphConfig {
 
     pub fn with_flush_config(mut self, config: FlushConfig) -> Self {
         self.flush_config = config;
-        self
-    }
-
-    pub fn with_background_flush(mut self, enable: bool) -> Self {
-        self.enable_background_flush = enable;
         self
     }
 

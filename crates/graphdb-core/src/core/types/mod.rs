@@ -195,7 +195,7 @@ impl DataType {
 }
 
 // Exporting Base Schema Types from Atomic Modules
-pub use self::edge::EdgeTypeInfo;
+pub use self::edge::{EdgeStrategy, EdgeTypeInfo};
 pub use self::index::{Index, IndexConfig, IndexField, IndexStatus, IndexType};
 // Export full-text index types
 pub use self::index::{

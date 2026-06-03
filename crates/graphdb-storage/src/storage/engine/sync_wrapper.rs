@@ -798,6 +798,10 @@ impl<S: StorageClient + 'static> StorageAdmin for SyncWrapper<S> {
         self.inner.save_to_disk()
     }
 
+    fn flush(&self) -> Result<(), StorageError> {
+        self.inner.flush()
+    }
+
     fn get_storage_stats(&self) -> crate::storage::StorageStats {
         self.inner.get_storage_stats()
     }
@@ -812,6 +816,89 @@ impl<S: StorageClient + 'static> StorageAdmin for SyncWrapper<S> {
 
     fn get_db_path(&self) -> &str {
         self.inner.get_db_path()
+    }
+
+    fn create_checkpoint(
+        &self,
+    ) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>> {
+        self.inner.create_checkpoint()
+    }
+
+    fn verify_snapshot(&self, snapshot_id: u64) -> crate::core::StorageResult<bool> {
+        self.inner.verify_snapshot(snapshot_id)
+    }
+
+    fn cleanup_snapshots(&self) -> crate::core::StorageResult<usize> {
+        self.inner.cleanup_snapshots()
+    }
+
+    fn snapshot_stats(&self) -> crate::storage::SnapshotStats {
+        self.inner.snapshot_stats()
+    }
+
+    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> crate::core::StorageResult<()> {
+        self.inner.compact(compact_csr, reserve_ratio)
+    }
+
+    fn save_data(&self) -> crate::core::StorageResult<()> {
+        self.inner.save_data()
+    }
+
+    fn save_data_to_dir(&self, dir: &std::path::Path) -> crate::core::StorageResult<()> {
+        self.inner.save_data_to_dir(dir)
+    }
+
+    fn auto_flush_if_needed(&self) -> crate::core::StorageResult<bool> {
+        self.inner.auto_flush_if_needed()
+    }
+
+    fn auto_checkpoint_if_needed(
+        &self,
+    ) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>> {
+        self.inner.auto_checkpoint_if_needed()
+    }
+
+    fn should_flush(&self) -> bool {
+        self.inner.should_flush()
+    }
+
+    fn should_checkpoint(&self) -> bool {
+        self.inner.should_checkpoint()
+    }
+
+    fn needs_recovery(&self) -> bool {
+        self.inner.needs_recovery()
+    }
+
+    fn recover_from_wal(
+        &self,
+    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        self.inner.recover_from_wal()
+    }
+
+    fn recover_from_wal_with_config(
+        &self,
+        config: crate::transaction::wal::recovery::RecoveryConfig,
+    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        self.inner.recover_from_wal_with_config(config)
+    }
+
+    fn init_with_recovery(
+        &self,
+    ) -> crate::core::StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
+        self.inner.init_with_recovery()
+    }
+
+    fn is_index_gc_running(&self) -> bool {
+        self.inner.is_index_gc_running()
+    }
+
+    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
+        self.inner.start_index_gc()
+    }
+
+    fn stop_index_gc(&self) {
+        self.inner.stop_index_gc();
     }
 
     fn get_sync_manager(&self) -> Option<std::sync::Arc<crate::sync::SyncManager>> {

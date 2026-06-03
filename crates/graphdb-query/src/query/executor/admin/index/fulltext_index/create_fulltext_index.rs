@@ -91,15 +91,14 @@ impl<S: StorageClient> Executor<S> for CreateFulltextIndexExecutor<S> {
         })?;
 
         for field in &self.fields {
-            let result = futures::executor::block_on(
-                self.fulltext_manager.create_index_with_engine_config(
+            let result =
+                futures::executor::block_on(self.fulltext_manager.create_index_with_engine_config(
                     self.space_id,
                     tag_name,
                     &field.field_name,
                     Some(engine_type),
                     Some(engine_config.clone()),
-                ),
-            );
+                ));
 
             match result {
                 Ok(index_id) => {

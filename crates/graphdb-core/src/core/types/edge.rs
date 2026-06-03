@@ -4,6 +4,19 @@ use super::property::PropertyDef;
 use super::schema_trait::SchemaInfo;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum EdgeStrategy {
+    None,
+    Single,
+    Multiple,
+}
+
+impl Default for EdgeStrategy {
+    fn default() -> Self {
+        Self::Multiple
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EdgeTypeInfo {
     pub edge_type_id: u32,
@@ -14,6 +27,10 @@ pub struct EdgeTypeInfo {
     pub comment: Option<String>,
     pub ttl_duration: Option<i64>,
     pub ttl_col: Option<String>,
+    #[serde(default)]
+    pub oe_strategy: EdgeStrategy,
+    #[serde(default)]
+    pub ie_strategy: EdgeStrategy,
 }
 
 impl SchemaInfo for EdgeTypeInfo {
@@ -82,6 +99,8 @@ impl EdgeTypeInfo {
             comment: None,
             ttl_duration: None,
             ttl_col: None,
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
         }
     }
 
@@ -108,6 +127,12 @@ impl EdgeTypeInfo {
     pub fn with_ttl(mut self, duration: Option<i64>, col: Option<String>) -> Self {
         self.ttl_duration = duration;
         self.ttl_col = col;
+        self
+    }
+
+    pub fn with_strategies(mut self, oe_strategy: EdgeStrategy, ie_strategy: EdgeStrategy) -> Self {
+        self.oe_strategy = oe_strategy;
+        self.ie_strategy = ie_strategy;
         self
     }
 }

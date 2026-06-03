@@ -1,7 +1,6 @@
 use crate::core::error::storage::StorageErrorKind;
 use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::{StorageError, StorageResult};
-use crate::storage::edge::EdgeStrategy;
 use crate::storage::engine::edge_params::CreateEdgeTypeParams;
 use crate::storage::storage_types::StoragePropertyDef;
 
@@ -200,8 +199,8 @@ pub(crate) fn create_edge_type(
             src_label: src_label_id,
             dst_label: dst_label_id,
             properties,
-            oe_strategy: EdgeStrategy::Multiple,
-            ie_strategy: EdgeStrategy::Multiple,
+            oe_strategy: edge_type.oe_strategy,
+            ie_strategy: edge_type.ie_strategy,
         },
         edge_type_id,
     )?;
@@ -290,8 +289,8 @@ pub(crate) fn ensure_graph_types_from_schema(ctx: &GraphStorageContext) -> Stora
                     src_label,
                     dst_label,
                     properties,
-                    oe_strategy: EdgeStrategy::Multiple,
-                    ie_strategy: EdgeStrategy::Multiple,
+                    oe_strategy: edge_type.oe_strategy,
+                    ie_strategy: edge_type.ie_strategy,
                 },
                 edge_type.edge_type_id,
             );

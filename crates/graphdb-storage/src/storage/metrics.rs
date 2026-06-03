@@ -36,17 +36,6 @@ macro_rules! wrap_write {
     };
 }
 
-macro_rules! wrap_read_mut {
-    ($fn:ident($self:ident $(, $arg:ident: $ty:ty)*) -> $ret:ty) => {
-        fn $fn(&mut $self, $($arg: $ty),*) -> $ret {
-            let start = Instant::now();
-            let result = $self.inner.$fn($($arg),*);
-            $self.record_read(start.elapsed().as_micros() as u64, result.is_ok());
-            result
-        }
-    };
-}
-
 pub struct MetricsStorage<S: StorageClient> {
     inner: S,
     stats_manager: Arc<StatsManager>,
@@ -163,7 +152,12 @@ impl<S: StorageClient> StorageAuthOps for MetricsStorage<S> {
 }
 
 impl<S: StorageClient> StorageAdmin for MetricsStorage<S> {
-    wrap_read_mut!(load_from_disk(self) -> Result<(), StorageError>);
+    fn load_from_disk(&mut self) -> Result<(), StorageError> {
+        let start = Instant::now();
+        let result = self.inner.load_from_disk();
+        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
         let start = Instant::now();
@@ -176,12 +170,116 @@ impl<S: StorageClient> StorageAdmin for MetricsStorage<S> {
         self.inner.get_storage_stats()
     }
 
-    wrap_read!(find_dangling_edges(self, space: &str) -> Result<Vec<Edge>, StorageError>);
-    wrap_write!(repair_dangling_edges(self, space: &str) -> Result<usize, StorageError>);
+    fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
+        let start = Instant::now();
+        let result = self.inner.find_dangling_edges(space);
+        self.record_read(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
+
+    fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError> {
+        let start = Instant::now();
+        let result = self.inner.repair_dangling_edges(space);
+        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
 
     fn get_db_path(&self) -> &str {
         self.inner.get_db_path()
     }
+    fn flush(&self) -> Result<(), StorageError> {
+        let start = Instant::now();
+        let result = self.inner.flush();
+        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
+
+    fn create_checkpoint(
+        &self,
+    ) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>> {
+        self.inner.create_checkpoint()
+    }
+
+    fn verify_snapshot(&self, snapshot_id: u64) -> crate::core::StorageResult<bool> {
+        self.inner.verify_snapshot(snapshot_id)
+    }
+
+    fn cleanup_snapshots(&self) -> crate::core::StorageResult<usize> {
+        self.inner.cleanup_snapshots()
+    }
+
+    fn snapshot_stats(&self) -> crate::storage::SnapshotStats {
+        self.inner.snapshot_stats()
+    }
+
+    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> crate::core::StorageResult<()> {
+        self.inner.compact(compact_csr, reserve_ratio)
+    }
+
+    fn save_data(&self) -> crate::core::StorageResult<()> {
+        let start = Instant::now();
+        let result = self.inner.save_data();
+        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
+
+    fn save_data_to_dir(&self, dir: &std::path::Path) -> crate::core::StorageResult<()> {
+        self.inner.save_data_to_dir(dir)
+    }
+
+    fn auto_flush_if_needed(&self) -> crate::core::StorageResult<bool> {
+        self.inner.auto_flush_if_needed()
+    }
+
+    fn auto_checkpoint_if_needed(
+        &self,
+    ) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>> {
+        self.inner.auto_checkpoint_if_needed()
+    }
+
+    fn should_flush(&self) -> bool {
+        self.inner.should_flush()
+    }
+
+    fn should_checkpoint(&self) -> bool {
+        self.inner.should_checkpoint()
+    }
+
+    fn needs_recovery(&self) -> bool {
+        self.inner.needs_recovery()
+    }
+
+    fn recover_from_wal(
+        &self,
+    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        self.inner.recover_from_wal()
+    }
+
+    fn recover_from_wal_with_config(
+        &self,
+        config: crate::transaction::wal::recovery::RecoveryConfig,
+    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        self.inner.recover_from_wal_with_config(config)
+    }
+
+    fn init_with_recovery(
+        &self,
+    ) -> crate::core::StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
+        self.inner.init_with_recovery()
+    }
+
+    fn is_index_gc_running(&self) -> bool {
+        self.inner.is_index_gc_running()
+    }
+
+    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
+        self.inner.start_index_gc()
+    }
+
+    fn stop_index_gc(&self) {
+        self.inner.stop_index_gc();
+    }
+
     fn get_sync_manager(&self) -> Option<Arc<SyncManager>> {
         self.inner.get_sync_manager()
     }
@@ -222,7 +320,9 @@ mod tests {
 
     use crate::core::stats::{MetricType, StatsManager};
     use crate::core::types::VertexId;
-    use crate::storage::{MetricsStorage, MockStorage, StorageReader, StorageWriter};
+    use crate::storage::{
+        GraphStorage, MetricsStorage, MockStorage, StorageAdmin, StorageReader, StorageWriter,
+    };
 
     #[test]
     fn records_read_and_write_metrics() {
@@ -242,5 +342,20 @@ mod tests {
             stats_manager.get_value(MetricType::StorageWriteOps),
             Some(1)
         );
+    }
+
+    #[test]
+    fn delegates_admin_checkpoint_operations() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let inner = GraphStorage::new_with_path(temp_dir.path().to_path_buf())
+            .expect("Failed to create GraphStorage");
+        let stats_manager = Arc::new(StatsManager::new());
+        let storage = MetricsStorage::new(inner, stats_manager);
+
+        let checkpoint = storage
+            .create_checkpoint()
+            .expect("checkpoint should succeed");
+
+        assert!(checkpoint.is_some());
     }
 }
