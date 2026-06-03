@@ -192,11 +192,6 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             offset: node.offset,
         };
 
-        let search_engine = context
-            .search_engine()
-            .ok_or_else(|| QueryError::execution("Search engine not available".to_string()))?
-            .clone();
-
         let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
@@ -205,8 +200,6 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             let params = FulltextSearchExecutorParams {
                 id: node.id(),
                 statement,
-                engine: search_engine,
-                context: context.clone(),
                 storage,
                 expr_context: context.expression_context().clone(),
                 fulltext_manager,
@@ -219,8 +212,6 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             FulltextSearchExecutor::new(
                 node.id(),
                 statement,
-                search_engine,
-                context.clone(),
                 storage,
                 context.expression_context().clone(),
                 fulltext_manager,
@@ -236,11 +227,6 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
         context: &ExecutionContext,
         sync_manager: Option<&Arc<SyncManager>>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let search_engine = context
-            .search_engine()
-            .ok_or_else(|| QueryError::execution("Search engine not available".to_string()))?
-            .clone();
-
         let fulltext_manager = sync_manager
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
@@ -255,8 +241,6 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
                 tag_name: node.tag_name.clone(),
                 field_name: node.field_name.clone(),
             },
-            search_engine,
-            context.clone(),
             storage,
             context.expression_context().clone(),
             fulltext_manager,

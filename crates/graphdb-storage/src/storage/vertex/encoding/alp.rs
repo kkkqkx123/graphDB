@@ -53,11 +53,6 @@ impl AlpEncoder {
         }
     }
 
-    pub fn analyze_f32(values: &[f32]) -> Self {
-        let f64_values: Vec<f64> = values.iter().map(|&v| v as f64).collect();
-        Self::analyze(&f64_values)
-    }
-
     fn find_optimal_exponent(values: &[f64]) -> i8 {
         let mut best_exponent: i8 = 0;
         let mut best_bit_width = 64;
@@ -110,10 +105,6 @@ impl AlpEncoder {
 
     pub fn decompress(&self, value: i64) -> f64 {
         value as f64 / self.factor
-    }
-
-    pub fn factor(&self) -> f64 {
-        self.factor
     }
 
     pub fn memory_usage(&self) -> usize {
@@ -274,10 +265,6 @@ impl Default for AlpColumn {
         Self::new()
     }
 }
-
-
-
-
 
 #[cfg(test)]
 mod tests {

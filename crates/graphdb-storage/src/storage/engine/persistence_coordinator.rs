@@ -403,7 +403,6 @@ impl PersistenceCoordinator {
     pub fn reset_checkpoint_timer(&mut self) {
         *self.last_checkpoint_time.write() = Instant::now();
     }
-
 }
 
 #[derive(Debug, Clone)]

@@ -47,11 +47,7 @@ use std::collections::HashSet;
 /// Information about a table in the JOIN tree
 #[derive(Debug, Clone)]
 struct TableInfo {
-    #[allow(dead_code)]
-    name: String,
     estimated_rows: f64,
-    #[allow(dead_code)]
-    columns: HashSet<String>,
 }
 
 /// Rules for multi-table JOIN reordering
@@ -71,18 +67,14 @@ impl JoinReorderRule {
 
     fn collect_tables_recursive(&self, node: &PlanNodeEnum, tables: &mut Vec<TableInfo>) {
         match node {
-            PlanNodeEnum::ScanVertices(v) => {
+            PlanNodeEnum::ScanVertices(_) => {
                 tables.push(TableInfo {
-                    name: format!("vertices_{}", v.space_id()),
                     estimated_rows: 10000.0,
-                    columns: HashSet::new(),
                 });
             }
-            PlanNodeEnum::ScanEdges(e) => {
+            PlanNodeEnum::ScanEdges(_) => {
                 tables.push(TableInfo {
-                    name: format!("edges_{}", e.space_id()),
                     estimated_rows: 50000.0,
-                    columns: HashSet::new(),
                 });
             }
             PlanNodeEnum::HashInnerJoin(join) => {
@@ -282,19 +274,13 @@ mod tests {
         let rule = JoinReorderRule::new();
         let tables = vec![
             TableInfo {
-                name: "A".to_string(),
                 estimated_rows: 1000.0,
-                columns: HashSet::new(),
             },
             TableInfo {
-                name: "B".to_string(),
                 estimated_rows: 100.0,
-                columns: HashSet::new(),
             },
             TableInfo {
-                name: "C".to_string(),
                 estimated_rows: 10.0,
-                columns: HashSet::new(),
             },
         ];
 
@@ -310,24 +296,16 @@ mod tests {
         let rule = JoinReorderRule::new();
         let tables = vec![
             TableInfo {
-                name: "A".to_string(),
                 estimated_rows: 10000.0,
-                columns: HashSet::new(),
             },
             TableInfo {
-                name: "B".to_string(),
                 estimated_rows: 1000.0,
-                columns: HashSet::new(),
             },
             TableInfo {
-                name: "C".to_string(),
                 estimated_rows: 100.0,
-                columns: HashSet::new(),
             },
             TableInfo {
-                name: "D".to_string(),
                 estimated_rows: 10.0,
-                columns: HashSet::new(),
             },
         ];
 

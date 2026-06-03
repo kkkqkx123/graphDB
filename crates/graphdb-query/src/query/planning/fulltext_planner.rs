@@ -30,7 +30,6 @@ use crate::query::QueryContext;
 #[derive(Debug, Clone, Default)]
 pub struct FulltextSearchPlanner {
     /// Metadata context for pre-resolved metadata (optional for backward compatibility)
-    #[allow(dead_code)]
     metadata_context: Option<Arc<MetadataContext>>,
 }
 
@@ -56,26 +55,7 @@ impl Planner for FulltextSearchPlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let stmt = validated.stmt();
-        let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
-
-        match stmt {
-            Stmt::CreateFulltextIndex(create) => {
-                self.transform_create_fulltext_index(create, &space_name)
-            }
-            Stmt::DropFulltextIndex(drop) => self.transform_drop_fulltext_index(drop),
-            Stmt::AlterFulltextIndex(alter) => self.transform_alter_fulltext_index(alter),
-            Stmt::ShowFulltextIndex(show) => self.transform_show_fulltext_index(show, &space_name),
-            Stmt::DescribeFulltextIndex(describe) => {
-                self.transform_describe_fulltext_index(describe)
-            }
-            Stmt::Search(search) => self.transform_search(search),
-            Stmt::LookupFulltext(lookup) => self.transform_lookup_fulltext(lookup, &space_name),
-            Stmt::MatchFulltext(match_stmt) => self.transform_match_fulltext(match_stmt),
-            _ => Err(PlannerError::PlanGenerationFailed(
-                "Not a full-text search statement".to_string(),
-            )),
-        }
+        self.transform_impl(validated, qctx, self.metadata_context.as_deref())
     }
 
     fn match_planner(&self, stmt: &Stmt) -> bool {
@@ -98,31 +78,62 @@ impl Planner for FulltextSearchPlanner {
         qctx: Arc<QueryContext>,
         metadata_context: &MetadataContext,
     ) -> Result<SubPlan, PlannerError> {
+        self.transform_impl(validated, qctx, Some(metadata_context))
+    }
+}
+
+impl FulltextSearchPlanner {
+    fn transform_impl(
+        &self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+        metadata_context: Option<&MetadataContext>,
+    ) -> Result<SubPlan, PlannerError> {
         let stmt = validated.stmt();
         let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
         match stmt {
-            Stmt::CreateFulltextIndex(create) => self
-                .transform_create_fulltext_index_with_metadata(
+            Stmt::CreateFulltextIndex(create) => match metadata_context {
+                Some(metadata_context) => self.transform_create_fulltext_index_with_metadata(
                     create,
                     &space_name,
                     metadata_context,
                 ),
+                None => self.transform_create_fulltext_index(create, &space_name),
+            },
             Stmt::DropFulltextIndex(drop) => self.transform_drop_fulltext_index(drop),
-            Stmt::AlterFulltextIndex(alter) => {
-                self.transform_alter_fulltext_index_with_metadata(alter, metadata_context)
-            }
+            Stmt::AlterFulltextIndex(alter) => match metadata_context {
+                Some(metadata_context) => {
+                    self.transform_alter_fulltext_index_with_metadata(alter, metadata_context)
+                }
+                None => self.transform_alter_fulltext_index(alter),
+            },
             Stmt::ShowFulltextIndex(show) => self.transform_show_fulltext_index(show, &space_name),
-            Stmt::DescribeFulltextIndex(describe) => {
-                self.transform_describe_fulltext_index_with_metadata(describe, metadata_context)
-            }
-            Stmt::Search(search) => self.transform_search_with_metadata(search, metadata_context),
-            Stmt::LookupFulltext(lookup) => {
-                self.transform_lookup_fulltext_with_metadata(lookup, &space_name, metadata_context)
-            }
-            Stmt::MatchFulltext(match_stmt) => {
-                self.transform_match_fulltext_with_metadata(match_stmt, metadata_context)
-            }
+            Stmt::DescribeFulltextIndex(describe) => match metadata_context {
+                Some(metadata_context) => self
+                    .transform_describe_fulltext_index_with_metadata(describe, metadata_context),
+                None => self.transform_describe_fulltext_index(describe),
+            },
+            Stmt::Search(search) => match metadata_context {
+                Some(metadata_context) => {
+                    self.transform_search_with_metadata(search, metadata_context)
+                }
+                None => self.transform_search(search),
+            },
+            Stmt::LookupFulltext(lookup) => match metadata_context {
+                Some(metadata_context) => self.transform_lookup_fulltext_with_metadata(
+                    lookup,
+                    &space_name,
+                    metadata_context,
+                ),
+                None => self.transform_lookup_fulltext(lookup, &space_name),
+            },
+            Stmt::MatchFulltext(match_stmt) => match metadata_context {
+                Some(metadata_context) => {
+                    self.transform_match_fulltext_with_metadata(match_stmt, metadata_context)
+                }
+                None => self.transform_match_fulltext(match_stmt),
+            },
             _ => Err(PlannerError::PlanGenerationFailed(
                 "Not a full-text search statement".to_string(),
             )),

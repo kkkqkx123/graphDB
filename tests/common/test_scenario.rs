@@ -80,20 +80,13 @@ impl TestScenario {
     }
 
     /// Execute a DDL statement
-    pub fn exec_ddl(mut self, query: &str) -> Self {
+    pub fn exec_ddl(self, query: &str) -> Self {
         self.exec_dcl(query)
     }
 
     /// Execute a DML statement
-    pub fn exec_dml(mut self, query: &str) -> Self {
+    pub fn exec_dml(self, query: &str) -> Self {
         self.exec_dcl(query)
-    }
-
-    /// Execute a DCL statement and return just the result for non-fluent use
-    pub fn exec_dcl_raw(&self, query: &str) -> graphdb::query::query_pipeline_manager::QueryResult {
-        self.pipeline
-            .execute_query_with_space(query, self.current_space.clone())
-            .expect(&format!("DCL query '{}' should not panic", query))
     }
 
     // ==================== Query Execution (generic) ====================

@@ -135,14 +135,6 @@ impl IndexGcManager {
         }
     }
 
-    /// Create a new GC manager with default configuration
-    pub fn with_defaults(
-        index_manager: IndexDataManagerImpl,
-        version_manager: Arc<VersionManager>,
-    ) -> Self {
-        Self::new(index_manager, version_manager, IndexGcConfig::default())
-    }
-
     /// Run a single GC pass
     ///
     /// Returns the number of entries removed.
@@ -321,7 +313,8 @@ mod tests {
     fn test_gc_manager_creation() {
         let version_manager = Arc::new(VersionManager::new());
         let index_manager = IndexDataManagerImpl::new();
-        let gc_manager = IndexGcManager::with_defaults(index_manager, version_manager);
+        let gc_manager =
+            IndexGcManager::new(index_manager, version_manager, IndexGcConfig::default());
 
         assert!(!gc_manager.is_running());
         assert_eq!(gc_manager.tombstone_count(), 0);
@@ -331,7 +324,8 @@ mod tests {
     fn test_gc_pass_empty() {
         let version_manager = Arc::new(VersionManager::new());
         let index_manager = IndexDataManagerImpl::new();
-        let gc_manager = IndexGcManager::with_defaults(index_manager, version_manager);
+        let gc_manager =
+            IndexGcManager::new(index_manager, version_manager, IndexGcConfig::default());
 
         let stats = gc_manager.run_gc_pass();
         assert!(stats.is_empty());

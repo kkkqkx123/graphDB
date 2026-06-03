@@ -185,11 +185,7 @@ impl RecoveryApplier for PropertyGraph {
         Ok(())
     }
 
-    fn replay_delete_edge(
-        &self,
-        redo: &DeleteEdgeRedo,
-        ts: Timestamp,
-    ) -> StorageResult<()> {
+    fn replay_delete_edge(&self, redo: &DeleteEdgeRedo, ts: Timestamp) -> StorageResult<()> {
         let src_oid_str = String::from_utf8_lossy(&redo.src_oid).to_string();
         let dst_oid_str = String::from_utf8_lossy(&redo.dst_oid).to_string();
 

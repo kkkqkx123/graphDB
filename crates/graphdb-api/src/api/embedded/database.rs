@@ -52,11 +52,13 @@ fn attach_vector_coordinator(mut sync: SyncManager) -> CoreResult<SyncManager> {
     Ok(sync)
 }
 
+type InitManagers = (Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>);
+
 /// Full init path when qdrant is enabled but fulltext is not: create a full sync pipeline
 /// just to host the vector coordinator.
 #[cfg(feature = "qdrant")]
 fn setup_sync_with_vector_only(
-) -> CoreResult<(Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>)> {
+) -> CoreResult<InitManagers> {
     let vector_config = VectorClientConfig::default();
     if !vector_config.enabled {
         return Ok((None, None));
@@ -86,7 +88,7 @@ fn setup_sync_with_vector_only(
 /// Stub: no qdrant, return (None, None)
 #[cfg(not(feature = "qdrant"))]
 fn setup_sync_with_vector_only(
-) -> CoreResult<(Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>)> {
+) -> CoreResult<InitManagers> {
     Ok((None, None))
 }
 

@@ -6,12 +6,12 @@
 use std::path::Path;
 
 use crate::core::types::LabelId;
-use crate::core::types::{TableId, TableType};
 use crate::core::{StorageError, StorageResult};
 
 use super::{PropertyGraph, DATA_FORMAT_VERSION};
 use crate::storage::engine::data_store::EdgeTableKey;
 
+#[cfg(test)]
 pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
     use std::fs;
     use std::io::Write;
@@ -64,7 +64,10 @@ pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
     Ok(())
 }
 
-pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<TableId>> {
+#[cfg(test)]
+pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<crate::core::types::TableId>> {
+    use crate::core::types::TableType;
+
     let modified_tables = graph.table_tracker.flush_and_reset();
 
     if modified_tables.is_empty() {

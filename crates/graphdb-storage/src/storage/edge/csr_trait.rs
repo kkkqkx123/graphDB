@@ -80,5 +80,4 @@ pub trait MutableCsrTrait: CsrBase {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

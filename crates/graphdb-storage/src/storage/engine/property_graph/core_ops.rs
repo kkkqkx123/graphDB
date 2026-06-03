@@ -597,35 +597,43 @@ pub fn delete_edge(
 
     let vertex_tables = graph.data_store.vertex_tables().read();
 
-    let src_internal =
-        resolve_internal_id_from_vertex_tables_str(&vertex_tables, params.src_label, params.src_id, ts)
-            .or_else(|| {
-                if let Ok(id) = params.src_id.parse::<i64>() {
-                    resolve_internal_id_from_vertex_tables(&vertex_tables, params.src_label, id, ts)
-                } else {
-                    None
-                }
-            })
-            .ok_or(StorageError::vertex_not_found())?;
+    let src_internal = resolve_internal_id_from_vertex_tables_str(
+        &vertex_tables,
+        params.src_label,
+        params.src_id,
+        ts,
+    )
+    .or_else(|| {
+        if let Ok(id) = params.src_id.parse::<i64>() {
+            resolve_internal_id_from_vertex_tables(&vertex_tables, params.src_label, id, ts)
+        } else {
+            None
+        }
+    })
+    .ok_or(StorageError::vertex_not_found())?;
 
-    let dst_internal =
-        resolve_internal_id_from_vertex_tables_str(&vertex_tables, params.dst_label, params.dst_id, ts)
-            .or_else(|| {
-                if let Ok(id) = params.dst_id.parse::<i64>() {
-                    resolve_internal_id_from_vertex_tables(&vertex_tables, params.dst_label, id, ts)
-                } else {
-                    None
-                }
-            })
-            .ok_or(StorageError::vertex_not_found())?;
+    let dst_internal = resolve_internal_id_from_vertex_tables_str(
+        &vertex_tables,
+        params.dst_label,
+        params.dst_id,
+        ts,
+    )
+    .or_else(|| {
+        if let Ok(id) = params.dst_id.parse::<i64>() {
+            resolve_internal_id_from_vertex_tables(&vertex_tables, params.dst_label, id, ts)
+        } else {
+            None
+        }
+    })
+    .ok_or(StorageError::vertex_not_found())?;
 
     drop(vertex_tables);
 
     let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
     let mut edge_tables = graph.data_store.edge_tables().write();
-    let edge_table = edge_tables
-        .get_mut(&key)
-        .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", params.edge_label)))?;
+    let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
+        StorageError::label_not_found(format!("edge label {}", params.edge_label))
+    })?;
 
     let deleted = edge_table.delete_edge(
         VertexId::from_int64(src_internal as i64),

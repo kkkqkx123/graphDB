@@ -57,7 +57,6 @@ pub struct YieldClauseData {
     pub need_gen_project: bool,
     pub agg_output_column_names: Vec<String>,
     pub proj_output_column_names: Vec<String>,
-    pub proj_cols: Vec<YieldColumn>,
     pub filter_condition: Option<ContextualExpression>,
     pub skip: Option<usize>,
     pub limit: Option<usize>,

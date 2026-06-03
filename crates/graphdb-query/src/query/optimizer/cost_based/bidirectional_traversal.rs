@@ -122,7 +122,6 @@ impl BidirectionalDecision {
 /// Bidirectional Traversal Optimizer
 pub struct BidirectionalTraversalOptimizer {
     /// Cost Calculator (reserved for more accurate cost estimations in the future)
-    #[allow(dead_code)]
     cost_calculator: Arc<CostCalculator>,
     /// Statistics Information Manager
     stats_manager: Arc<StatisticsManager>,
@@ -244,19 +243,6 @@ impl BidirectionalTraversalOptimizer {
             total_branching / count as f64
         } else {
             2.0 // Default value
-        }
-    }
-
-    /// Estimating the number of nodes that can be reached from a certain point
-    #[allow(dead_code)]
-    fn estimate_reachable_nodes(&self, edge_types: &[String], depth: u32) -> f64 {
-        let branching = self.estimate_average_branching(edge_types);
-
-        // Use the formula for geometric series: 1 + b + b^2 + ... + b^d = (b^(d+1) - 1) / (b - 1)
-        if (branching - 1.0).abs() < f64::EPSILON {
-            (depth + 1) as f64
-        } else {
-            (branching.powi((depth + 1) as i32) - 1.0) / (branching - 1.0)
         }
     }
 

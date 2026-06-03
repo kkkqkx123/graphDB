@@ -5,8 +5,6 @@ use crate::transaction::wal::types::{WalCompression, WalConfig, WalError, WalRes
 /// Compression strategy trait
 pub(crate) trait Compressor: Send + Sync {
     fn compress(&self, data: &[u8]) -> WalResult<(Vec<u8>, WalCompression)>;
-    #[allow(dead_code)]
-    fn decompress(&self, data: &[u8], compression: WalCompression) -> WalResult<Vec<u8>>;
 }
 
 /// No-op compressor (no compression)
@@ -17,9 +15,6 @@ impl Compressor for NoopCompressor {
         Ok((data.to_vec(), WalCompression::None))
     }
 
-    fn decompress(&self, data: &[u8], _compression: WalCompression) -> WalResult<Vec<u8>> {
-        Ok(data.to_vec())
-    }
 }
 
 /// Zstd compressor
@@ -50,14 +45,6 @@ impl Compressor for ZstdCompressor {
         }
     }
 
-    fn decompress(&self, data: &[u8], compression: WalCompression) -> WalResult<Vec<u8>> {
-        match compression {
-            WalCompression::Zstd => {
-                zstd::decode_all(data).map_err(|e| WalError::DeserializationError(e.to_string()))
-            }
-            WalCompression::None => Ok(data.to_vec()),
-        }
-    }
 }
 
 /// Create a compressor based on configuration
@@ -92,11 +79,6 @@ mod tests {
         let (compressed, compression) = compressor.compress(data).unwrap();
         assert_eq!(compression, WalCompression::None);
         assert_eq!(compressed.as_slice(), data);
-
-        let decompressed = compressor
-            .decompress(&compressed, WalCompression::None)
-            .unwrap();
-        assert_eq!(decompressed.as_slice(), data);
     }
 
     #[test]

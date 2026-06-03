@@ -1,7 +1,7 @@
 use crate::core::metadata::index_manager::IndexMetadataManager;
 use crate::core::types::Index;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::VertexIndexOps;
+use crate::storage::index::{EdgeIndexOps, VertexIndexOps};
 
 use super::context::GraphStorageContext;
 
@@ -26,8 +26,16 @@ pub(crate) fn drop_tag_index(
     index_name: &str,
 ) -> StorageResult<bool> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
-    ctx.index_metadata_manager
-        .drop_tag_index(space_id, index_name)
+    let dropped = ctx
+        .index_metadata_manager
+        .drop_tag_index(space_id, index_name)?;
+    if dropped {
+        ctx.graph
+            .index_data_manager()
+            .write()
+            .clear_tag_index(space_id, index_name)?;
+    }
+    Ok(dropped)
 }
 
 pub(crate) fn get_tag_index(
@@ -69,8 +77,16 @@ pub(crate) fn drop_edge_index(
     index_name: &str,
 ) -> StorageResult<bool> {
     let space_id = ctx.schema_manager.get_space_id(space)?;
-    ctx.index_metadata_manager
-        .drop_edge_index(space_id, index_name)
+    let dropped = ctx
+        .index_metadata_manager
+        .drop_edge_index(space_id, index_name)?;
+    if dropped {
+        ctx.graph
+            .index_data_manager()
+            .write()
+            .clear_edge_index(space_id, index_name)?;
+    }
+    Ok(dropped)
 }
 
 pub(crate) fn get_edge_index(

@@ -80,7 +80,6 @@ impl WalManager {
         }
         Ok(())
     }
-
 }
 
 impl Default for WalManager {

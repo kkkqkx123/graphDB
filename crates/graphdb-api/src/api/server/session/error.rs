@@ -78,15 +78,6 @@ impl SessionError {
         &self.message
     }
 
-    #[allow(dead_code)]
-    fn from_boxed<E: Error + Send + Sync + 'static>(kind: SessionErrorKind, error: E) -> Self {
-        Self {
-            kind,
-            message: error.to_string(),
-            source: Some(Box::new(error)),
-        }
-    }
-
     // Convenience constructors
     pub fn session_not_found(session_id: i64) -> Self {
         Self::new(

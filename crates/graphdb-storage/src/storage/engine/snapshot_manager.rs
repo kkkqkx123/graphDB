@@ -646,8 +646,9 @@ mod tests {
 
         fs::create_dir_all(&data_dir).expect("Failed to create data dir");
 
-        let manager =
+        let mut manager =
             SnapshotManager::new(&snapshots_dir, &work_dir).expect("Failed to create manager");
+        manager.retention_policy.min_interval_seconds = 0;
 
         for i in 1..=3 {
             manager

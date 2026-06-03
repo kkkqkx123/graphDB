@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use parking_lot::{Mutex, RwLock};
 
-use crate::core::types::{LabelId, Timestamp};
+use crate::core::types::{CompactConfig, LabelId, Timestamp};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{EdgeRecord, EdgeStrategy};
@@ -99,9 +99,9 @@ pub struct InsertEdgeParamsByI64<'a> {
     pub ts: Timestamp,
 }
 
+pub use crate::storage::engine::edge_params::EdgeOperationParams;
 /// Parameters for edge operations with i64 vertex IDs
 pub use crate::storage::engine::edge_params::EdgeOperationParamsByI64;
-pub use crate::storage::engine::edge_params::EdgeOperationParams;
 
 /// Parameters for update_edge_property operation in PropertyGraph
 pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
@@ -477,11 +477,7 @@ impl PropertyGraph {
         core_ops::insert_edge_by_i64(self, params)
     }
 
-    pub fn get_edge(
-        &self,
-        params: &EdgeOperationParams,
-        ts: Timestamp,
-    ) -> Option<EdgeRecord> {
+    pub fn get_edge(&self, params: &EdgeOperationParams, ts: Timestamp) -> Option<EdgeRecord> {
         core_ops::get_edge(self, params, ts)
     }
 
@@ -493,11 +489,7 @@ impl PropertyGraph {
         core_ops::get_edge_by_i64(self, params, ts)
     }
 
-    pub fn delete_edge(
-        &self,
-        params: &EdgeOperationParams,
-        ts: Timestamp,
-    ) -> StorageResult<bool> {
+    pub fn delete_edge(&self, params: &EdgeOperationParams, ts: Timestamp) -> StorageResult<bool> {
         core_ops::delete_edge(self, params, ts)
     }
 
@@ -675,76 +667,131 @@ impl PropertyGraph {
 
     // ==================== Persistence Operations ====================
 
-    pub fn flush_to_disk(&self) -> StorageResult<()> {
+    #[cfg(test)]
+    pub(crate) fn flush_to_disk(&self) -> StorageResult<()> {
         flush::flush_to_disk_impl(self)
     }
 
-    pub fn flush_incremental(&self) -> StorageResult<Vec<TableId>> {
+    #[cfg(test)]
+    pub(crate) fn flush_incremental(&self) -> StorageResult<Vec<TableId>> {
         flush::flush_incremental(self)
     }
 
-    pub fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
+    pub(crate) fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
         flush::flush_tables_to_dir(self, data_dir)
-    }
-
-    pub fn load(&self) -> StorageResult<()> {
-        self.load_data()
     }
 
     pub(crate) fn load_data(&self) -> StorageResult<()> {
         flush::load_data(self)
     }
 
-    pub fn restore_from_checkpoint(&self, checkpoint_dir: &Path) -> StorageResult<()> {
+    pub(crate) fn restore_from_checkpoint(&self, checkpoint_dir: &Path) -> StorageResult<()> {
         flush::restore_from_checkpoint(self, checkpoint_dir)
     }
 
     // ==================== Compaction Operations ====================
 
-    pub fn compact_vertex_table(&self, label: LabelId) -> StorageResult<()> {
+    pub(crate) fn compact_maintenance(
+        &self,
+        config: &CompactConfig,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
         if !self.is_open.load(Ordering::Acquire) {
             return Err(StorageError::storage_not_open());
         }
 
+        let mut last_compacted_vertices = self.last_compacted_vertices.lock();
+        last_compacted_vertices.clear();
+
+        let vertex_labels: Vec<LabelId>;
         {
             let mut vertex_tables = self.data_store.vertex_tables().write();
-            if let Some(table) = vertex_tables.get_mut(&label) {
-                table.compact();
+            vertex_labels = vertex_tables.keys().copied().collect();
+
+            for &label_id in &vertex_labels {
+                let table = vertex_tables.get_mut(&label_id).expect("label must exist");
+                let removed = table.compact_with_ts_collect(ts);
+                if !removed.is_empty() {
+                    last_compacted_vertices.push((label_id, removed));
+                }
             }
         }
-        self.cache_manager.invalidate_vertices_by_label(label);
+
+        for &label_id in &vertex_labels {
+            self.mark_vertex_modified(label_id);
+        }
+
+        let total_vertices_removed: usize = last_compacted_vertices
+            .iter()
+            .map(|(_, removed)| removed.len())
+            .sum();
+
+        log::info!(
+            "Compacted vertex tables: {} vertices removed",
+            total_vertices_removed
+        );
+
+        let edge_keys: Vec<EdgeTableKey>;
+        let mut total_edges_removed = 0usize;
+        {
+            let mut edge_tables = self.data_store.edge_tables().write();
+            edge_keys = edge_tables.keys().copied().collect();
+
+            if config.enable_structure_compaction {
+                for &key in &edge_keys {
+                    let table = edge_tables.get_mut(&key).expect("edge key must exist");
+                    let removed = table.compact_csr(ts, config.reserve_ratio);
+                    total_edges_removed += removed;
+                }
+
+                log::info!(
+                    "Compacted CSR structures: {} edges removed",
+                    total_edges_removed
+                );
+            }
+
+            for &key in &edge_keys {
+                let table = edge_tables.get_mut(&key).expect("edge key must exist");
+                table.compact_properties(ts);
+            }
+        }
+
+        for &key in &edge_keys {
+            self.mark_edge_modified(key.edge_label);
+        }
+
+        match self.gc_index_tombstones(ts) {
+            Ok(index_gc_stats) if index_gc_stats.total_removed() > 0 => {
+                log::info!(
+                    "Index GC during compaction: removed {} vertex entries, {} edge entries",
+                    index_gc_stats.vertex_entries_removed,
+                    index_gc_stats.edge_entries_removed
+                );
+            }
+            Ok(_) => {}
+            Err(err) => {
+                log::warn!("Index GC during compaction failed: {}", err);
+            }
+        }
+
+        self.cache_manager.clear_cache();
+
+        log::info!(
+            "Compaction completed: {} vertices, {} edges removed",
+            total_vertices_removed,
+            total_edges_removed
+        );
 
         Ok(())
     }
 
-    pub fn compact_vertex_table_with_ts(
-        &self,
-        label: LabelId,
-        ts: Timestamp,
-    ) -> Vec<crate::storage::vertex::IdKey> {
-        let removed = {
-            let mut vertex_tables = self.data_store.vertex_tables().write();
-            vertex_tables
-                .get_mut(&label)
-                .map(|table| table.compact_with_ts_collect(ts))
-                .unwrap_or_default()
-        };
-        if !removed.is_empty() {
-            self.last_compacted_vertices
-                .lock()
-                .push((label, removed.clone()));
-        }
-        self.cache_manager.invalidate_vertices_by_label(label);
-        removed
-    }
-
     // ==================== Index Operations ====================
 
-    pub fn index_data_manager(&self) -> &RwLock<IndexDataManagerImpl> {
+    pub(crate) fn index_data_manager(&self) -> &RwLock<IndexDataManagerImpl> {
         &self.index_data_manager
     }
 
-    pub fn update_vertex_indexes_mvcc(
+    pub(crate) fn update_vertex_indexes_mvcc(
         &self,
         space_id: u64,
         vertex_id: &Value,
@@ -755,7 +802,7 @@ impl PropertyGraph {
         index_mvcc::update_vertex_indexes_mvcc(self, space_id, vertex_id, index_name, props, ts)
     }
 
-    pub fn delete_vertex_indexes_mvcc(
+    pub(crate) fn delete_vertex_indexes_mvcc(
         &self,
         space_id: u64,
         vertex_id: &Value,
@@ -764,7 +811,7 @@ impl PropertyGraph {
         index_mvcc::delete_vertex_indexes_mvcc(self, space_id, vertex_id, ts)
     }
 
-    pub fn update_edge_indexes_mvcc(
+    pub(crate) fn update_edge_indexes_mvcc(
         &self,
         space_id: u64,
         src: &Value,
@@ -776,7 +823,7 @@ impl PropertyGraph {
         index_mvcc::update_edge_indexes_mvcc(self, space_id, src, dst, index_name, props, ts)
     }
 
-    pub fn delete_edge_indexes_mvcc(
+    pub(crate) fn delete_edge_indexes_mvcc(
         &self,
         space_id: u64,
         src: &Value,
@@ -787,17 +834,7 @@ impl PropertyGraph {
         index_mvcc::delete_edge_indexes_mvcc(self, space_id, src, dst, index_names, ts)
     }
 
-    pub fn gc_index_tombstones(&self, ts: Timestamp) -> StorageResult<GcStats> {
+    pub(crate) fn gc_index_tombstones(&self, ts: Timestamp) -> StorageResult<GcStats> {
         self.index_data_manager.write().gc_tombstones(ts)
-    }
-
-    pub fn gc_index_tombstones_incremental(
-        &self,
-        ts: Timestamp,
-        batch_size: usize,
-    ) -> StorageResult<GcStats> {
-        self.index_data_manager
-            .read()
-            .gc_tombstones_incremental(ts, batch_size)
     }
 }

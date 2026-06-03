@@ -9,14 +9,12 @@ use crate::core::Value;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage,
 };
-use crate::query::executor::ExecutionContext;
 use crate::query::parser::ast::fulltext::{
     ComparisonOp, FulltextOrderDirection, FulltextQueryExpr, OrderClause, OrderItem,
     SearchStatement, WhereCondition, YieldExpression,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::manager::FulltextIndexManager;
-use crate::search::SearchEngine;
 use crate::storage::StorageClient;
 use parking_lot::RwLock;
 use std::cmp::Ordering;
@@ -27,8 +25,6 @@ use std::sync::Arc;
 pub struct FulltextSearchExecutorParams<S: StorageClient> {
     pub id: i64,
     pub statement: SearchStatement,
-    pub engine: Arc<dyn SearchEngine>,
-    pub context: ExecutionContext,
     pub storage: Arc<RwLock<S>>,
     pub expr_context: Arc<ExpressionAnalysisContext>,
     pub fulltext_manager: Arc<FulltextIndexManager>,
@@ -43,12 +39,6 @@ pub struct FulltextSearchExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     /// Search statement
     statement: SearchStatement,
-    /// Search engine reference
-    #[allow(dead_code)]
-    engine: Arc<dyn SearchEngine>,
-    /// Execution context
-    #[allow(dead_code)]
-    context: ExecutionContext,
     /// Fulltext manager
     fulltext_manager: Arc<FulltextIndexManager>,
     /// Pre-resolved space_id from planner
@@ -65,8 +55,6 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
     pub fn new(
         id: i64,
         statement: SearchStatement,
-        engine: Arc<dyn SearchEngine>,
-        context: ExecutionContext,
         storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         fulltext_manager: Arc<FulltextIndexManager>,
@@ -79,8 +67,6 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
                 expr_context,
             ),
             statement,
-            engine,
-            context,
             fulltext_manager,
             space_id: 0,
             tag_name: String::new(),
@@ -99,8 +85,6 @@ impl<S: StorageClient> FulltextSearchExecutor<S> {
                 params.expr_context,
             ),
             statement: params.statement,
-            engine: params.engine,
-            context: params.context,
             fulltext_manager: params.fulltext_manager,
             space_id: params.space_id,
             tag_name: params.tag_name,
@@ -354,12 +338,6 @@ pub struct FulltextScanExecutor<S: StorageClient> {
     index_name: String,
     /// Search query
     query: String,
-    /// Search engine reference
-    #[allow(dead_code)]
-    engine: Arc<dyn SearchEngine>,
-    /// Execution context
-    #[allow(dead_code)]
-    context: ExecutionContext,
     /// Fulltext manager
     fulltext_manager: Arc<FulltextIndexManager>,
     /// Limit
@@ -378,8 +356,6 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
     pub fn new(
         id: i64,
         config: FulltextScanConfig,
-        engine: Arc<dyn SearchEngine>,
-        context: ExecutionContext,
         storage: Arc<RwLock<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
         fulltext_manager: Arc<FulltextIndexManager>,
@@ -393,8 +369,6 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
             ),
             index_name: config.index_name,
             query: config.query,
-            engine,
-            context,
             fulltext_manager,
             limit: config.limit,
             space_id: config.space_id,
@@ -751,9 +725,7 @@ impl<S: StorageClient> HasStorage<S> for FulltextScanExecutor<S> {
 #[cfg(all(test, feature = "fulltext-search"))]
 mod tests {
     use super::*;
-    use crate::search::tantivy_index::TantivyConfig;
     use crate::storage::MockStorage;
-    use tempfile::TempDir;
 
     fn create_test_executor() -> FulltextSearchExecutor<MockStorage> {
         let statement = SearchStatement::new(
@@ -767,8 +739,6 @@ mod tests {
                 .expect("Failed to create manager"),
         );
 
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
-
         FulltextSearchExecutor {
             base: BaseExecutor::new(
                 1,
@@ -779,16 +749,6 @@ mod tests {
                 std::sync::Arc::new(ExpressionAnalysisContext::new()),
             ),
             statement,
-            engine: std::sync::Arc::new(
-                crate::search::tantivy_index::TantivySearchEngine::open_or_create(
-                    temp_dir.path(),
-                    TantivyConfig::default(),
-                )
-                .expect("Failed to create engine"),
-            ),
-            context: crate::query::executor::ExecutionContext::new(std::sync::Arc::new(
-                ExpressionAnalysisContext::new(),
-            )),
             fulltext_manager,
             space_id: 0,
             tag_name: String::new(),

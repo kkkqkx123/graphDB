@@ -34,8 +34,6 @@ pub struct GroupByValidator {
     group_items: Vec<ContextualExpression>,
     agg_output_col_names: Vec<String>,
     need_gen_project: bool,
-    #[allow(dead_code)]
-    proj_cols: Vec<ContextualExpression>,
     yield_cols: Vec<ContextualExpression>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
@@ -50,7 +48,6 @@ impl GroupByValidator {
             group_items: Vec::new(),
             agg_output_col_names: Vec::new(),
             need_gen_project: false,
-            proj_cols: Vec::new(),
             yield_cols: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),

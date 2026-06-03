@@ -59,7 +59,6 @@ pub struct PropertySchema {
     pub prop_id: i32,
     pub data_type: DataType,
     pub nullable: bool,
-    pub default_value: Option<Value>,
     pub encoding: Option<EncodingType>,
 }
 
@@ -70,18 +69,12 @@ impl PropertySchema {
             prop_id,
             data_type,
             nullable: false,
-            default_value: None,
             encoding: None,
         }
     }
 
     pub fn nullable(mut self, nullable: bool) -> Self {
         self.nullable = nullable;
-        self
-    }
-
-    pub fn default(mut self, value: Value) -> Self {
-        self.default_value = Some(value);
         self
     }
 
@@ -119,17 +112,6 @@ impl OverflowStore {
     pub fn new() -> Self {
         Self {
             data_pool: Vec::new(),
-            index: HashMap::new(),
-            location_index: HashMap::new(),
-            next_id: 0,
-            free_list: Vec::new(),
-            entry_count: 0,
-        }
-    }
-
-    pub fn with_pool_capacity(pool_size: usize) -> Self {
-        Self {
-            data_pool: Vec::with_capacity(pool_size),
             index: HashMap::new(),
             location_index: HashMap::new(),
             next_id: 0,
@@ -400,16 +382,11 @@ impl Default for OverflowStore {
 pub struct RowGroup {
     pub start_row: usize,
     pub end_row: usize,
-    pub column_indices: Vec<usize>,
 }
 
 impl RowGroup {
     pub fn new(start_row: usize, end_row: usize) -> Self {
-        Self {
-            start_row,
-            end_row,
-            column_indices: Vec::new(),
-        }
+        Self { start_row, end_row }
     }
 }
 
@@ -449,19 +426,6 @@ impl PropertyTable {
             overflow_store: OverflowStore::new(),
             row_groups: Vec::new(),
             row_group_size: DEFAULT_ROW_GROUP_SIZE,
-        }
-    }
-
-    pub fn with_row_group_size(capacity: usize, row_group_size: usize) -> Self {
-        Self {
-            schema: Vec::new(),
-            name_indexer: NameIndexer::with_capacity(capacity),
-            columns: Vec::new(),
-            row_count: 0,
-            free_list: Vec::with_capacity(capacity),
-            overflow_store: OverflowStore::new(),
-            row_groups: Vec::new(),
-            row_group_size,
         }
     }
 
@@ -1170,7 +1134,6 @@ impl PropertyTable {
         total += self.overflow_store.memory_size();
         total + std::mem::size_of::<Self>()
     }
-
 }
 
 impl Default for PropertyTable {
@@ -1200,9 +1163,19 @@ mod tests {
         let props = table.get(offset).unwrap();
         assert_eq!(props.len(), 2);
 
-        let weight = table.get(offset).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        let weight = table
+            .get(offset)
+            .unwrap()
+            .into_iter()
+            .find(|(n, _)| n == "weight")
+            .and_then(|(_, v)| v);
         assert_eq!(weight, Some(Value::Double(1.5)));
-        let since = table.get(offset).unwrap().into_iter().find(|(n, _)| n == "since").and_then(|(_, v)| v);
+        let since = table
+            .get(offset)
+            .unwrap()
+            .into_iter()
+            .find(|(n, _)| n == "since")
+            .and_then(|(_, v)| v);
         assert_eq!(since, Some(Value::Int(2020)));
     }
 
@@ -1219,7 +1192,12 @@ mod tests {
             .update(offset, &[("weight".to_string(), Value::Double(2.0))])
             .unwrap();
 
-        let weight = table.get(offset).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        let weight = table
+            .get(offset)
+            .unwrap()
+            .into_iter()
+            .find(|(n, _)| n == "weight")
+            .and_then(|(_, v)| v);
         assert_eq!(weight, Some(Value::Double(2.0)));
     }
 
@@ -1268,9 +1246,19 @@ mod tests {
         let mut loaded_table = PropertyTable::new();
         let _ = loaded_table.load(&data);
 
-        let weight1 = loaded_table.get(offset1).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        let weight1 = loaded_table
+            .get(offset1)
+            .unwrap()
+            .into_iter()
+            .find(|(n, _)| n == "weight")
+            .and_then(|(_, v)| v);
         assert_eq!(weight1, Some(Value::Double(1.5)));
-        let weight2 = loaded_table.get(offset2).unwrap().into_iter().find(|(n, _)| n == "weight").and_then(|(_, v)| v);
+        let weight2 = loaded_table
+            .get(offset2)
+            .unwrap()
+            .into_iter()
+            .find(|(n, _)| n == "weight")
+            .and_then(|(_, v)| v);
         assert_eq!(weight2, Some(Value::Double(2.5)));
     }
 }

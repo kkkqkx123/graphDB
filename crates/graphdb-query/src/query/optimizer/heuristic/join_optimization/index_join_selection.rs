@@ -61,30 +61,6 @@ impl IndexJoinSelectionRule {
             || key.contains("id")
     }
 
-    #[allow(dead_code)]
-    fn estimate_hash_join_cost(&self, left_rows: f64, right_rows: f64) -> f64 {
-        let build_cost = right_rows;
-        let probe_cost = left_rows;
-        build_cost + probe_cost
-    }
-
-    #[allow(dead_code)]
-    fn estimate_index_join_cost(&self, left_rows: f64, _right_rows: f64, selectivity: f64) -> f64 {
-        left_rows * selectivity * 2.0
-    }
-
-    #[allow(dead_code)]
-    fn should_use_index_join(&self, left_rows: f64, right_rows: f64, selectivity: f64) -> bool {
-        if left_rows <= 0.0 || right_rows <= 0.0 {
-            return false;
-        }
-
-        let hash_cost = self.estimate_hash_join_cost(left_rows, right_rows);
-        let index_cost = self.estimate_index_join_cost(left_rows, right_rows, selectivity);
-
-        index_cost < hash_cost * 0.8
-    }
-
     fn apply_to_hash_inner_join(
         &self,
         join: &HashInnerJoinNode,
@@ -164,24 +140,5 @@ mod tests {
         assert!(rule.is_indexable_join_key("v.id"));
         assert!(rule.is_indexable_join_key("e._src"));
         assert!(rule.is_indexable_join_key("e._dst"));
-    }
-
-    #[test]
-    fn test_cost_estimation() {
-        let rule = IndexJoinSelectionRule::new();
-
-        let hash_cost = rule.estimate_hash_join_cost(1000.0, 1000.0);
-        assert!(hash_cost > 0.0);
-
-        let index_cost = rule.estimate_index_join_cost(1000.0, 1000.0, 0.1);
-        assert!(index_cost > 0.0);
-    }
-
-    #[test]
-    fn test_should_use_index_join() {
-        let rule = IndexJoinSelectionRule::new();
-
-        assert!(rule.should_use_index_join(100.0, 10000.0, 0.01));
-        assert!(!rule.should_use_index_join(10000.0, 100.0, 0.5));
     }
 }

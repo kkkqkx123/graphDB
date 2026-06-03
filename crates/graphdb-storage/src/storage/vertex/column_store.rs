@@ -8,9 +8,7 @@
 //! - `VariableWidthColumn`: For variable-length types (String)
 //! - `Column`: Public wrapper that selects the appropriate variant at construction time
 
-use super::encoding::{
-    ColumnEncoding, ColumnStats, CompressionSelector, EncodingType, FsstColumn, FsstEncoder,
-};
+use super::encoding::{ColumnEncoding, ColumnStats, EncodingType, FsstColumn, FsstEncoder};
 use crate::core::value::{DateTimeValue, DateValue, TimeValue};
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::utils::NullBitmap;
@@ -115,7 +113,6 @@ impl FixedWidthColumn {
             row_count: 0,
         }
     }
-
 }
 
 impl ColumnStorage for FixedWidthColumn {
@@ -292,7 +289,6 @@ impl VariableWidthColumn {
             row_count: 0,
         }
     }
-
 }
 
 impl ColumnStorage for VariableWidthColumn {
@@ -978,88 +974,12 @@ impl Column {
         stats
     }
 
-    pub fn collect_stats(&self) -> ColumnStats {
-        let mut stats = ColumnStats::new(self.data_type.clone());
-        stats.row_count = self.len();
-        stats.null_count = self.null_count();
-
-        let mut distinct_values: std::collections::HashSet<String> =
-            std::collections::HashSet::new();
-        let mut total_length = 0usize;
-        let mut run_count = 1usize;
-        let mut prev_value: Option<Value> = None;
-
-        for i in 0..self.len() {
-            if let Some(value) = self.get(i) {
-                match &value {
-                    Value::String(s) => {
-                        distinct_values.insert(s.clone());
-                        total_length += s.len();
-                    }
-                    Value::SmallInt(v) => {
-                        Self::update_int_stats(&mut stats, *v as i64);
-                    }
-                    Value::Int(v) => {
-                        Self::update_int_stats(&mut stats, *v as i64);
-                    }
-                    Value::BigInt(v) => {
-                        Self::update_int_stats(&mut stats, *v);
-                    }
-                    _ => {}
-                }
-
-                if let Some(ref prev) = prev_value {
-                    if *prev != value {
-                        run_count += 1;
-                    }
-                }
-                prev_value = Some(value);
-            }
-        }
-
-        stats.distinct_count = distinct_values.len();
-        stats.avg_length = if !self.is_empty() {
-            total_length as f64 / self.len() as f64
-        } else {
-            0.0
-        };
-        stats.run_count = run_count;
-
-        stats
-    }
-
-    fn update_int_stats(stats: &mut ColumnStats, value: i64) {
-        match (&stats.min_value, &stats.max_value) {
-            (None, None) => {
-                stats.min_value = Some(Value::BigInt(value));
-                stats.max_value = Some(Value::BigInt(value));
-            }
-            (Some(min), Some(max)) => {
-                if let Value::BigInt(min_val) = min {
-                    if value < *min_val {
-                        stats.min_value = Some(Value::BigInt(value));
-                    }
-                }
-                if let Value::BigInt(max_val) = max {
-                    if value > *max_val {
-                        stats.max_value = Some(Value::BigInt(value));
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
     // -----------------------------------------------------------------------
     // Encoding
     // -----------------------------------------------------------------------
 
     pub fn encoding_type(&self) -> EncodingType {
         self.encoding.encoding_type()
-    }
-
-    pub fn encoding(&self) -> &ColumnEncoding {
-        &self.encoding
     }
 
     fn sync_row_count_from_encoding(&mut self) {
@@ -1118,194 +1038,6 @@ impl Column {
         };
 
         self.encoding = ColumnEncoding::Fsst(fsst_col);
-
-        Ok(())
-    }
-
-    pub fn decode_fsst_value(&self, row_idx: usize) -> Option<Value> {
-        if self.encoding.encoding_type() != EncodingType::Fsst {
-            return None;
-        }
-
-        match &self.encoding {
-            ColumnEncoding::Fsst(col) => {
-                if row_idx >= col.len() || col.is_null(row_idx) {
-                    return None;
-                }
-                col.get(row_idx).map(Value::String)
-            }
-            _ => None,
-        }
-    }
-
-    pub fn get_encoded_fsst(&self, row_idx: usize) -> Option<&[u8]> {
-        match &self.encoding {
-            ColumnEncoding::Fsst(col) => {
-                if row_idx >= col.encoded_data.len() {
-                    return None;
-                }
-                Some(&col.encoded_data[row_idx])
-            }
-            _ => None,
-        }
-    }
-
-    pub fn fsst_encoder(&self) -> Option<&FsstEncoder> {
-        match &self.encoding {
-            ColumnEncoding::Fsst(col) => Some(&col.encoder),
-            _ => None,
-        }
-    }
-
-    pub fn fsst_column(&self) -> Option<&FsstColumn> {
-        match &self.encoding {
-            ColumnEncoding::Fsst(col) => Some(col),
-            _ => None,
-        }
-    }
-
-    pub fn fsst_symbol_table_bytes(&self) -> Option<Vec<u8>> {
-        match &self.encoding {
-            ColumnEncoding::Fsst(col) => {
-                let encoder = &col.encoder;
-                let table = encoder.table();
-                let mut bytes = Vec::new();
-
-                let symbol_count = table.len() as u32;
-                bytes.extend_from_slice(&symbol_count.to_le_bytes());
-
-                for code in 1..=255u8 {
-                    if let Some(symbol_bytes) = table.get_by_code(code) {
-                        bytes.push(code);
-                        bytes.push(symbol_bytes.len() as u8);
-                        bytes.extend_from_slice(symbol_bytes);
-                    }
-                }
-
-                Some(bytes)
-            }
-            _ => None,
-        }
-    }
-
-    pub fn load_fsst_from_data(
-        &mut self,
-        encoded_data: Vec<Vec<u8>>,
-        null_bitmap: NullBitmap,
-        symbol_table_bytes: &[u8],
-    ) -> StorageResult<()> {
-        let mut table = super::encoding::FsstSymbolTable::new();
-
-        if symbol_table_bytes.len() >= 4 {
-            let symbol_count =
-                u32::from_le_bytes(symbol_table_bytes[0..4].try_into().map_err(|_| {
-                    StorageError::deserialize_error("failed to read FSST symbol count")
-                })?) as usize;
-            let mut offset = 4;
-
-            for _ in 0..symbol_count {
-                if offset + 2 > symbol_table_bytes.len() {
-                    break;
-                }
-
-                let code = symbol_table_bytes[offset];
-                let sym_len = symbol_table_bytes[offset + 1] as usize;
-                offset += 2;
-
-                if offset + sym_len > symbol_table_bytes.len() {
-                    break;
-                }
-
-                let sym_bytes = symbol_table_bytes[offset..offset + sym_len].to_vec();
-                offset += sym_len;
-
-                table.insert(sym_bytes, code);
-            }
-        }
-
-        let encoder = FsstEncoder::with_table(table);
-
-        self.encoding = ColumnEncoding::Fsst(FsstColumn {
-            encoder,
-            encoded_data,
-            null_bitmap,
-        });
-
-        Ok(())
-    }
-
-    pub fn append_fsst_value(&mut self, value: Option<&str>) -> StorageResult<()> {
-        if self.data_type != DataType::String {
-            return Err(StorageError::not_supported(
-                "FSST encoding only supports String type".to_string(),
-            ));
-        }
-
-        match &mut self.encoding {
-            ColumnEncoding::Fsst(fsst_col) => {
-                fsst_col.append_with_stats(value);
-                let new_len = fsst_col.len();
-                self.inner_mut().resize(new_len);
-            }
-            _ => {
-                return Err(StorageError::invalid_operation(
-                    "FSST encoding not initialized. Call apply_fsst_encoding first.".to_string(),
-                ));
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn can_append_fsst(&self) -> bool {
-        matches!(self.encoding, ColumnEncoding::Fsst(_))
-    }
-
-    pub fn fsst_row_count(&self) -> usize {
-        match &self.encoding {
-            ColumnEncoding::Fsst(col) => col.len(),
-            _ => 0,
-        }
-    }
-
-    pub fn fsst_compression_ratio(&self) -> Option<f64> {
-        match &self.encoding {
-            ColumnEncoding::Fsst(col) => Some(col.fast_compression_ratio()),
-            _ => None,
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Encoding application (Dictionary, RLE, BitPacking, ALP)
-    // -----------------------------------------------------------------------
-
-    pub fn auto_compress(&mut self) -> StorageResult<()> {
-        if self.encoding.is_encoded() {
-            return Ok(());
-        }
-
-        let stats = self.collect_stats();
-        let selector = CompressionSelector::new();
-        let encoding_type = selector.select(&stats);
-
-        match encoding_type {
-            EncodingType::Fsst => {
-                self.apply_fsst_encoding(255)?;
-            }
-            EncodingType::Dictionary => {
-                self.apply_dictionary_encoding()?;
-            }
-            EncodingType::Rle => {
-                self.apply_rle_encoding()?;
-            }
-            EncodingType::BitPacking => {
-                self.apply_bitpacking_encoding()?;
-            }
-            EncodingType::Alp => {
-                self.apply_alp_encoding()?;
-            }
-            EncodingType::None => {}
-        }
 
         Ok(())
     }
@@ -1477,10 +1209,6 @@ impl ColumnStore {
             .collect()
     }
 
-    pub fn get_property(&self, row_idx: usize, col_name: &str) -> Option<Value> {
-        self.get_column(col_name)?.get(row_idx)
-    }
-
     pub fn set_property(
         &mut self,
         row_idx: usize,
@@ -1517,10 +1245,6 @@ impl ColumnStore {
         &self.columns
     }
 
-    pub fn column_names(&self) -> Vec<&str> {
-        self.columns.iter().map(|c| c.name.as_str()).collect()
-    }
-
     pub fn load_column_from_raw(
         &mut self,
         name: &str,
@@ -1535,21 +1259,6 @@ impl ColumnStore {
         } else {
             Err(StorageError::column_not_found(name.to_string()))
         }
-    }
-
-    pub fn iter_columns(&self) -> impl Iterator<Item = (&String, &Column)> {
-        self.name_to_index
-            .iter()
-            .filter_map(|(name, &idx)| self.columns.get(idx).map(|col| (name, col)))
-    }
-
-    pub fn apply_fsst_to_string_columns(&mut self, max_symbols: usize) -> StorageResult<()> {
-        for col in &mut self.columns {
-            if col.data_type == DataType::String && !col.is_empty() {
-                col.apply_fsst_encoding(max_symbols)?;
-            }
-        }
-        Ok(())
     }
 
     pub fn apply_encoding_to_column(
@@ -1726,9 +1435,12 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(store.get_property(0, "age"), Some(Value::Int(30)));
         assert_eq!(
-            store.get_property(1, "name"),
+            store.get_column("age").and_then(|col| col.get(0)),
+            Some(Value::Int(30))
+        );
+        assert_eq!(
+            store.get_column("name").and_then(|col| col.get(1)),
             Some(Value::String("Bob".to_string()))
         );
     }

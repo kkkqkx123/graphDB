@@ -162,16 +162,6 @@ pub fn print_table(headers: &[&str], rows: &[Vec<String>]) -> Result<()> {
     print_table_to(&mut *stdout, headers, rows)
 }
 
-/// Quick print a table with string slices
-#[allow(dead_code)]
-pub fn print_table_slices(headers: &[&str], rows: &[&[&str]]) -> Result<()> {
-    let string_rows: Vec<Vec<String>> = rows
-        .iter()
-        .map(|row| row.iter().map(|s| s.to_string()).collect())
-        .collect();
-    print_table(headers, &string_rows)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

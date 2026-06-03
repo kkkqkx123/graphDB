@@ -7,15 +7,8 @@
 
 use super::common;
 
-use common::TestStorage;
-
-use graphdb::core::stats::StatsManager;
-use graphdb::query::optimizer::OptimizerEngine;
+use common::test_scenario::TestScenario;
 use graphdb::query::parser::Parser;
-use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use std::sync::Arc;
-
-use common::TestScenario;
 
 fn new_scenario() -> TestScenario {
     TestScenario::new().expect("Failed to create test scenario")
@@ -344,7 +337,7 @@ fn test_dcl_parser_kind_coverage() {
             query,
             result.err()
         );
-        let stmt = result.expect(&format!("Parsing '{}' should succeed", query));
+        let stmt = result.unwrap_or_else(|_| panic!("Parsing '{}' should succeed", query));
         assert_eq!(
             stmt.ast.stmt.kind(),
             expected_kind,

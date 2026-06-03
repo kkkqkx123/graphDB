@@ -89,7 +89,6 @@ pub struct YieldClauseContext {
     pub need_gen_project: bool,
     pub agg_output_column_names: Vec<String>,
     pub proj_output_column_names: Vec<String>,
-    pub proj_cols: Vec<YieldColumn>,
     pub paths: Vec<Path>,
     pub query_parts: Vec<QueryPart>,
     pub errors: Vec<ValidationError>,

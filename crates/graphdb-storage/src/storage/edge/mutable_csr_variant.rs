@@ -13,9 +13,8 @@
 use crate::core::StorageResult;
 
 use super::{
-    CsrBase, EdgeId, EdgeStrategy, MutableCsr, MutableCsrIterator,
-    MutableCsrTrait, Nbr, SingleMutableCsr, SingleMutableCsrIterator,
-    Timestamp, VertexId,
+    CsrBase, EdgeId, EdgeStrategy, MutableCsr, MutableCsrIterator, MutableCsrTrait, Nbr,
+    SingleMutableCsr, SingleMutableCsrIterator, Timestamp, VertexId,
 };
 
 /// Macro to eliminate repetitive match-based delegation to both CSR variants.
@@ -52,10 +51,6 @@ impl MutableCsrVariant {
                 "Cannot create MutableCsrVariant with EdgeStrategy::None",
             )),
         }
-    }
-
-    pub fn resize(&mut self, new_vertex_capacity: usize) {
-        delegate!(self.resize(new_vertex_capacity))
     }
 
     pub fn clear(&mut self) {

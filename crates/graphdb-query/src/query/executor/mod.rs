@@ -82,13 +82,11 @@ pub use explain::{
 /// The number of variants of PlanNodeEnum
 /// When adding or removing variants of PlanNodeEnum, this constant needs to be updated.
 /// This constant is only used for compile-time assertion checks; therefore, it is marked as allowing its non-use.
-#[allow(dead_code)]
 const PLAN_NODE_VARIANT_COUNT: usize = 68;
 
 /// The number of variants of ExecutorEnum
 /// When adding or removing variants of ExecutorEnum, this constant needs to be updated.
 /// This constant is only used for compile-time assertion checking, so it is marked to allow unused
-#[allow(dead_code)]
 const EXECUTOR_VARIANT_COUNT: usize = 68;
 
 // Compilation-time assertion: Ensure that the number of variants in both enumerations is the same.

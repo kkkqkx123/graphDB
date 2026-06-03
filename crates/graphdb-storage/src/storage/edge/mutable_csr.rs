@@ -12,9 +12,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::core::{StorageError, StorageResult};
 use crate::storage::utils::{read_u32_le, read_u64_le};
 
-use super::{
-    CsrBase, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP,
-};
+use super::{CsrBase, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP};
 
 fn write_vertex_id(out: &mut Vec<u8>, id: VertexId) {
     let bytes = id.as_bytes();
@@ -149,10 +147,6 @@ impl MutableCsr {
 
     pub fn edge_count(&self) -> u64 {
         self.edge_count.load(Ordering::Relaxed)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.edge_count.load(Ordering::Relaxed) == 0
     }
 
     /// Resize vertex capacity (requires exclusive access)
@@ -486,73 +480,6 @@ impl MutableCsr {
         result
     }
 
-    /// Get edges of a vertex with prefetch optimization
-    #[cfg(target_arch = "x86_64")]
-    pub fn edges_of_with_prefetch(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
-        use std::arch::x86_64::_mm_prefetch;
-        use std::arch::x86_64::_MM_HINT_T0;
-
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
-        if src_idx >= self.vertex_capacity {
-            return Vec::new();
-        }
-
-        let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx] as usize;
-
-        let total_valid_primary = self.count_valid_primary(src_idx, ts);
-        let total_valid_overflow = self.count_valid_overflow(src_idx, ts);
-        let mut result = Vec::with_capacity(total_valid_primary + total_valid_overflow);
-
-        const PREFETCH_DISTANCE: usize = 8;
-
-        for i in 0..degree {
-            if i + PREFETCH_DISTANCE < degree {
-                let prefetch_idx = offset + i + PREFETCH_DISTANCE;
-                if prefetch_idx < self.nbr_list.len() {
-                    unsafe {
-                        _mm_prefetch(
-                            &self.nbr_list[prefetch_idx] as *const Nbr as *const i8,
-                            _MM_HINT_T0,
-                        );
-                    }
-                }
-            }
-
-            let nbr = &self.nbr_list[offset + i];
-            if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                result.push(*nbr);
-            }
-        }
-
-        if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx] as usize;
-            let o_count = self.overflow_counts[src_idx] as usize;
-            for i in 0..o_count {
-                if i + PREFETCH_DISTANCE < o_count {
-                    unsafe {
-                        _mm_prefetch(
-                            &self.nbr_list[o_start + i + PREFETCH_DISTANCE] as *const Nbr
-                                as *const i8,
-                            _MM_HINT_T0,
-                        );
-                    }
-                }
-                let nbr = &self.nbr_list[o_start + i];
-                if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
-                    result.push(*nbr);
-                }
-            }
-        }
-
-        result
-    }
-
-    #[cfg(not(target_arch = "x86_64"))]
-    pub fn edges_of_with_prefetch(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
-        self.edges_of(src, ts)
-    }
-
     fn count_valid_primary(&self, src_idx: usize, ts: Timestamp) -> usize {
         let degree = self.degrees[src_idx] as usize;
         let offset = self.adj_offsets[src_idx] as usize;
@@ -580,10 +507,6 @@ impl MutableCsr {
             }
         }
         count
-    }
-
-    pub fn get_vertex_capacity(&self) -> usize {
-        self.vertex_capacity
     }
 
     /// Get a specific edge
@@ -631,154 +554,6 @@ impl MutableCsr {
             *o_count = 0;
         }
         self.edge_count.store(0, Ordering::Relaxed);
-    }
-
-    /// Batch insert edges with parallel optimization
-    ///
-    /// Uses a two-phase approach:
-    /// - Phase 1 (sequential): Group edges by source, calculate primary/overflow split
-    /// - Phase 2 (parallel): Write primary edges via unsafe non-overlapping writes
-    /// - Phase 3 (sequential): Write overflow edges to per-vertex Vecs
-    ///
-    /// # Safety
-    ///
-    /// Parallel writes are safe because each vertex's primary region is non-overlapping.
-    pub fn batch_insert_parallel(
-        &mut self,
-        src_list: &[VertexId],
-        dst_list: &[VertexId],
-        edge_ids: &[EdgeId],
-        prop_offsets: &[u32],
-        ts: Timestamp,
-    ) {
-        use rayon::prelude::*;
-        use std::collections::HashMap;
-
-        assert_eq!(
-            src_list.len(),
-            dst_list.len(),
-            "Source and destination lists must have equal length"
-        );
-        assert_eq!(
-            src_list.len(),
-            edge_ids.len(),
-            "Source and edge ID lists must have equal length"
-        );
-        assert_eq!(
-            src_list.len(),
-            prop_offsets.len(),
-            "Source and property offset lists must have equal length"
-        );
-
-        if src_list.is_empty() {
-            return;
-        }
-
-        // Phase 1: Pre-allocation and grouping (sequential)
-        let max_vertex = src_list
-            .iter()
-            .max()
-            .cloned()
-            .unwrap_or(VertexId::zero())
-            .as_int64()
-            .unwrap_or(0) as usize;
-        self.ensure_vertex_capacity(max_vertex + 1);
-
-        // Group edges by source vertex and split into primary/overflow
-        let mut groups: HashMap<VertexId, Vec<(VertexId, EdgeId, u32)>> = HashMap::new();
-        for i in 0..src_list.len() {
-            groups.entry(src_list[i]).or_default().push((
-                dst_list[i],
-                edge_ids[i],
-                prop_offsets[i],
-            ));
-        }
-
-        struct VertexBatch {
-            primary_start: usize,
-            primary_count: usize,
-        }
-
-        let mut batch_info: HashMap<VertexId, VertexBatch> = HashMap::new();
-        let mut total_new_edges = 0usize;
-
-        for (&src, edges) in &groups {
-            let src_idx = src.as_int64().unwrap_or(0) as usize;
-            let current_degree = self.degrees[src_idx] as usize;
-            let capacity = self.primary_capacities[src_idx] as usize;
-            let new_edges = edges.len();
-            let primary_space = capacity.saturating_sub(current_degree);
-            let primary_count = primary_space.min(new_edges);
-
-            batch_info.insert(
-                src,
-                VertexBatch {
-                    primary_start: (self.adj_offsets[src_idx] as usize) + current_degree,
-                    primary_count,
-                },
-            );
-            total_new_edges += new_edges;
-        }
-
-        // Phase 2: Parallel primary writes (unsafe non-overlapping regions)
-        // Clone batch_info so the closure doesn't consume the original
-        let nbr_list_ptr = self.nbr_list.as_mut_ptr() as usize;
-        let degrees_ptr = self.degrees.as_mut_ptr() as usize;
-
-        groups.par_iter().for_each(|(src, edges)| {
-            let src_idx = src.as_int64().unwrap_or(0) as usize;
-            let info = &batch_info[src];
-            let mut pos = info.primary_start;
-            let mut written = 0usize;
-
-            unsafe {
-                let nbr_list_ptr = nbr_list_ptr as *mut Nbr;
-                let degrees_ptr = degrees_ptr as *mut u32;
-                for (dst, edge_id, prop_offset) in edges {
-                    if written >= info.primary_count {
-                        break;
-                    }
-                    std::ptr::write(
-                        nbr_list_ptr.add(pos),
-                        Nbr::new(*dst, *edge_id, *prop_offset, ts),
-                    );
-                    pos += 1;
-                    written += 1;
-                }
-                let old_degree = std::ptr::read(degrees_ptr.add(src_idx));
-                std::ptr::write(degrees_ptr.add(src_idx), old_degree + written as u32);
-            }
-        });
-
-        // Phase 3: Sequential overflow writes (expand overflow blocks in nbr_list)
-        for (src, edges) in &groups {
-            let info = &batch_info[src];
-            if info.primary_count < edges.len() {
-                let src_idx = src.as_int64().unwrap_or(0) as usize;
-                for (dst, edge_id, prop_offset) in &edges[info.primary_count..] {
-                    if self.overflow_starts[src_idx] == NO_OVERFLOW
-                        || self.overflow_counts[src_idx] >= self.overflow_capacities[src_idx]
-                    {
-                        self.expand_vertex_capacity(src_idx);
-                    }
-                    let o_start = self.overflow_starts[src_idx] as usize;
-                    let o_count = self.overflow_counts[src_idx] as usize;
-                    self.nbr_list[o_start + o_count] = Nbr::new(*dst, *edge_id, *prop_offset, ts);
-                    self.overflow_counts[src_idx] += 1;
-                }
-            }
-        }
-
-        // Update global edge count
-        self.edge_count
-            .fetch_add(total_new_edges as u64, Ordering::Relaxed);
-    }
-
-    /// Batch delete edges
-    pub fn batch_delete_edges(&mut self, edges: &[(VertexId, EdgeId)], ts: Timestamp) {
-        for (src, edge_id) in edges {
-            self.delete_edge(*src, *edge_id, ts);
-        }
     }
 
     /// Create iterator over all edges
@@ -996,22 +771,6 @@ impl MutableCsr {
         }
 
         removed_count
-    }
-
-    /// Get memory size
-    pub fn memory_size(&self) -> usize {
-        let mut total = 0;
-
-        total += self.nbr_list.len() * std::mem::size_of::<Nbr>();
-        total += self.adj_offsets.len() * std::mem::size_of::<u32>();
-        total += self.degrees.len() * std::mem::size_of::<u32>();
-        total += self.primary_capacities.len() * std::mem::size_of::<u32>();
-        total += self.overflow_starts.len() * std::mem::size_of::<u32>();
-        total += self.overflow_counts.len() * std::mem::size_of::<u32>();
-        total += self.overflow_capacities.len() * std::mem::size_of::<u32>();
-        total += std::mem::size_of::<Self>();
-
-        total
     }
 
     /// Get used memory size (active edges only)

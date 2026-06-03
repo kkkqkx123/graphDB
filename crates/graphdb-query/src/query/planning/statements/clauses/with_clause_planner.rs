@@ -338,7 +338,6 @@ impl WithClausePlanner {
             need_gen_project: has_agg,
             agg_output_column_names: vec![],
             proj_output_column_names: vec![],
-            proj_cols: vec![],
             paths: vec![],
             query_parts: vec![],
             errors: vec![],

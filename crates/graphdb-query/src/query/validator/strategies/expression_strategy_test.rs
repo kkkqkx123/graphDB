@@ -113,7 +113,6 @@ mod expression_strategy_tests {
             need_gen_project: false,
             agg_output_column_names: vec![],
             proj_output_column_names: vec![],
-            proj_cols: vec![],
             paths: vec![],
             query_parts: vec![],
             errors: vec![],

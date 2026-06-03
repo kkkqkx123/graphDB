@@ -127,21 +127,6 @@ impl IdIndexerConfig {
         self.initial_capacity = capacity;
         self
     }
-
-    pub fn with_growth_factor(mut self, factor: f64) -> Self {
-        self.growth_factor = factor;
-        self
-    }
-
-    pub fn with_max_capacity(mut self, max: usize) -> Self {
-        self.max_capacity = max;
-        self
-    }
-
-    pub fn with_free_list(mut self, enable: bool) -> Self {
-        self.enable_free_list = enable;
-        self
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -240,37 +225,6 @@ impl IdIndexer {
         self.key_to_index.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.key_to_index.is_empty()
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.keys.capacity()
-    }
-
-    pub fn free_count(&self) -> usize {
-        self.free_list.len()
-    }
-
-    pub fn total_slots(&self) -> usize {
-        self.keys.len()
-    }
-
-    pub fn reserve(&mut self, additional: usize) {
-        let new_capacity = self.keys.len() + additional;
-        if new_capacity > self.keys.capacity() {
-            self.keys.reserve(new_capacity - self.keys.capacity());
-            self.key_to_index.reserve(additional);
-        }
-    }
-
-    pub fn shrink_to_fit(&mut self) {
-        if self.free_list.is_empty() {
-            self.keys.shrink_to_fit();
-            self.key_to_index.shrink_to_fit();
-        }
-    }
-
     pub fn compact(&mut self) -> StorageResult<HashMap<u32, u32>> {
         if self.free_list.is_empty() {
             return Ok(HashMap::new());
@@ -303,10 +257,6 @@ impl IdIndexer {
             .iter()
             .enumerate()
             .filter_map(|(i, k)| k.as_ref().map(|k| (k, i as u32)))
-    }
-
-    pub fn keys(&self) -> impl Iterator<Item = &IdKey> {
-        self.keys.iter().filter_map(|k| k.as_ref())
     }
 
     pub fn clear(&mut self) {
@@ -414,11 +364,12 @@ mod tests {
 
     #[test]
     fn test_dynamic_expansion() {
-        let mut indexer = IdIndexer::with_config(
-            IdIndexerConfig::default()
-                .with_initial_capacity(2)
-                .with_growth_factor(2.0),
-        );
+        let mut indexer = IdIndexer::with_config(IdIndexerConfig {
+            initial_capacity: 2,
+            growth_factor: 2.0,
+            max_capacity: MAX_CAPACITY,
+            enable_free_list: true,
+        });
 
         assert!(indexer.insert(IdKey::Text("v1".to_string())).is_ok());
         assert!(indexer.insert(IdKey::Text("v2".to_string())).is_ok());
@@ -431,18 +382,23 @@ mod tests {
 
     #[test]
     fn test_free_list_reuse() {
-        let mut indexer = IdIndexer::with_config(IdIndexerConfig::default().with_free_list(true));
+        let mut indexer = IdIndexer::with_config(IdIndexerConfig {
+            initial_capacity: DEFAULT_INITIAL_CAPACITY,
+            growth_factor: DEFAULT_GROWTH_FACTOR,
+            max_capacity: MAX_CAPACITY,
+            enable_free_list: true,
+        });
 
         let _idx1 = indexer.insert(IdKey::Text("v1".to_string())).unwrap();
         let idx2 = indexer.insert(IdKey::Text("v2".to_string())).unwrap();
         let _idx3 = indexer.insert(IdKey::Text("v3".to_string())).unwrap();
 
         assert_eq!(indexer.remove(&IdKey::Text("v2".to_string())), Some(idx2));
-        assert_eq!(indexer.free_count(), 1);
+        assert_eq!(indexer.free_list.len(), 1);
 
         let idx4 = indexer.insert(IdKey::Text("v4".to_string())).unwrap();
         assert_eq!(idx4, idx2);
-        assert_eq!(indexer.free_count(), 0);
+        assert_eq!(indexer.free_list.len(), 0);
     }
 
     #[test]
@@ -457,13 +413,13 @@ mod tests {
         indexer.remove(&IdKey::Text("v2".to_string()));
         indexer.remove(&IdKey::Text("v4".to_string()));
 
-        assert_eq!(indexer.free_count(), 2);
-        assert_eq!(indexer.total_slots(), 4);
+        assert_eq!(indexer.free_list.len(), 2);
+        assert_eq!(indexer.keys.len(), 4);
         assert_eq!(indexer.len(), 2);
 
         let _mapping = indexer.compact().unwrap();
-        assert_eq!(indexer.free_count(), 0);
-        assert_eq!(indexer.total_slots(), 2);
+        assert_eq!(indexer.free_list.len(), 0);
+        assert_eq!(indexer.keys.len(), 2);
         assert_eq!(indexer.len(), 2);
     }
 
@@ -477,11 +433,12 @@ mod tests {
 
     #[test]
     fn test_max_capacity() {
-        let mut indexer = IdIndexer::with_config(
-            IdIndexerConfig::default()
-                .with_initial_capacity(2)
-                .with_max_capacity(3),
-        );
+        let mut indexer = IdIndexer::with_config(IdIndexerConfig {
+            initial_capacity: 2,
+            growth_factor: DEFAULT_GROWTH_FACTOR,
+            max_capacity: 3,
+            enable_free_list: true,
+        });
 
         assert!(indexer.insert(IdKey::Text("v1".to_string())).is_ok());
         assert!(indexer.insert(IdKey::Text("v2".to_string())).is_ok());

@@ -67,19 +67,8 @@ impl VertexTable {
         }
     }
 
-    pub fn open<P: AsRef<Path>>(&mut self, _path: P) -> StorageResult<()> {
-        self.is_open = true;
-        Ok(())
-    }
-
     pub fn close(&mut self) {
         self.is_open = false;
-    }
-
-    pub fn ensure_capacity(&mut self, capacity: usize) {
-        self.id_indexer.reserve(capacity);
-        self.timestamps.reserve(capacity);
-        self.columns.resize(capacity);
     }
 
     pub fn insert(
@@ -149,43 +138,6 @@ impl VertexTable {
         Ok(internal_id)
     }
 
-    pub fn get(&self, external_id: &str, ts: Timestamp) -> Option<VertexRecord> {
-        self.get_by_key(&IdKey::Text(external_id.to_string()), ts)
-    }
-
-    pub fn get_by_i64(&self, external_id: i64, ts: Timestamp) -> Option<VertexRecord> {
-        self.get_by_key(&IdKey::Int(external_id), ts)
-    }
-
-    fn get_by_key(&self, key: &IdKey, ts: Timestamp) -> Option<VertexRecord> {
-        if !self.is_open {
-            return None;
-        }
-
-        let internal_id = self.id_indexer.get_index(key)?;
-
-        if !self.timestamps.is_valid(internal_id, ts) {
-            return None;
-        }
-
-        let props = self.columns.get(internal_id as usize);
-        let properties: Vec<(String, Value)> = props
-            .into_iter()
-            .filter_map(|(name, opt_val)| opt_val.map(|v| (name, v)))
-            .collect();
-
-        let vid = match key {
-            IdKey::Int(i) => VertexId::from_int64(*i),
-            IdKey::Text(s) => VertexId::from_string(s),
-        };
-
-        Some(VertexRecord {
-            vid,
-            internal_id,
-            properties,
-        })
-    }
-
     pub fn get_by_internal_id(&self, internal_id: u32, ts: Timestamp) -> Option<VertexRecord> {
         if !self.is_open {
             return None;
@@ -212,13 +164,6 @@ impl VertexTable {
             internal_id,
             properties,
         })
-    }
-
-    pub fn get_property(&self, internal_id: u32, col_name: &str, ts: Timestamp) -> Option<Value> {
-        if !self.is_open || !self.timestamps.is_valid(internal_id, ts) {
-            return None;
-        }
-        self.columns.get_property(internal_id as usize, col_name)
     }
 
     pub fn update_property(
@@ -317,82 +262,6 @@ impl VertexTable {
         Ok(())
     }
 
-    pub fn batch_insert(
-        &mut self,
-        vertices: &[(String, Vec<(String, Value)>)],
-        ts: Timestamp,
-    ) -> StorageResult<Vec<u32>> {
-        if !self.is_open {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let count = vertices.len();
-        self.ensure_capacity(self.total_count() + count);
-
-        let mut internal_ids = Vec::with_capacity(count);
-
-        for (external_id, properties) in vertices {
-            let internal_id = self.insert(external_id, properties, ts)?;
-            internal_ids.push(internal_id);
-        }
-
-        Ok(internal_ids)
-    }
-
-    pub fn batch_delete(&mut self, external_ids: &[IdKey], ts: Timestamp) -> StorageResult<usize> {
-        if !self.is_open {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let mut deleted_count = 0;
-
-        for external_id in external_ids {
-            if let Some(internal_id) = self.id_indexer.get_index(external_id) {
-                self.timestamps.remove(internal_id, ts);
-                deleted_count += 1;
-            }
-        }
-
-        Ok(deleted_count)
-    }
-
-    pub fn batch_get(&self, external_ids: &[IdKey], ts: Timestamp) -> Vec<Option<VertexRecord>> {
-        if !self.is_open {
-            return vec![None; external_ids.len()];
-        }
-
-        external_ids
-            .iter()
-            .map(|id| self.get_by_key(id, ts))
-            .collect()
-    }
-
-    pub fn batch_update(
-        &mut self,
-        updates: &[(IdKey, Vec<(String, Value)>)],
-        ts: Timestamp,
-    ) -> StorageResult<usize> {
-        if !self.is_open {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let mut updated_count = 0;
-
-        for (external_id, properties) in updates {
-            if let Some(internal_id) = self.id_indexer.get_index(external_id) {
-                if self.timestamps.is_valid(internal_id, ts) {
-                    for (col_name, value) in properties {
-                        self.columns
-                            .set_property(internal_id as usize, col_name, Some(value))?;
-                    }
-                    updated_count += 1;
-                }
-            }
-        }
-
-        Ok(updated_count)
-    }
-
     pub fn revert_delete(&mut self, internal_id: u32, ts: Timestamp) -> StorageResult<()> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
@@ -405,28 +274,6 @@ impl VertexTable {
             )));
         }
         Ok(())
-    }
-
-    pub fn contains(&self, external_id: &str, ts: Timestamp) -> bool {
-        if !self.is_open {
-            return false;
-        }
-
-        self.id_indexer
-            .get_index(&IdKey::Text(external_id.to_string()))
-            .map(|id| self.timestamps.is_valid(id, ts))
-            .unwrap_or(false)
-    }
-
-    pub fn contains_by_i64(&self, external_id: i64, ts: Timestamp) -> bool {
-        if !self.is_open {
-            return false;
-        }
-
-        self.id_indexer
-            .get_index(&IdKey::Int(external_id))
-            .map(|id| self.timestamps.is_valid(id, ts))
-            .unwrap_or(false)
     }
 
     pub fn get_internal_id(&self, external_id: &str, ts: Timestamp) -> Option<u32> {
@@ -508,14 +355,6 @@ impl VertexTable {
         self.schema = schema;
     }
 
-    pub fn is_open(&self) -> bool {
-        self.is_open
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.id_indexer.capacity()
-    }
-
     pub fn compact(&mut self) {
         let id_mapping = self.id_indexer.compact().unwrap_or_default();
         if id_mapping.is_empty() {
@@ -585,21 +424,6 @@ impl VertexTable {
         }
 
         self.timestamps = new_timestamps;
-    }
-
-    pub fn fragmentation_ratio(&self) -> f64 {
-        let total_slots = self.id_indexer.total_slots();
-        let active_count = self.id_indexer.len();
-
-        if total_slots == 0 {
-            return 0.0;
-        }
-
-        (total_slots - active_count) as f64 / total_slots as f64
-    }
-
-    pub fn deleted_count(&self) -> usize {
-        self.timestamps.size() - self.timestamps.valid_count(super::MAX_TIMESTAMP - 1)
     }
 
     pub fn flush<P: AsRef<Path>>(
@@ -981,10 +805,6 @@ impl VertexTable {
         Ok(())
     }
 
-    pub fn compact_with_ts(&mut self, ts: Timestamp) -> usize {
-        self.compact_with_ts_collect(ts).len()
-    }
-
     pub fn compact_with_ts_collect(&mut self, ts: Timestamp) -> Vec<IdKey> {
         let deleted_ids: Vec<u32> = self.timestamps.iter_deleted(ts).collect();
 
@@ -1102,7 +922,8 @@ mod tests {
 
         assert_eq!(internal_id, 0);
 
-        let record = table.get("v1", 100).unwrap();
+        let lookup_id = table.get_internal_id("v1", 100).unwrap();
+        let record = table.get_by_internal_id(lookup_id, 100).unwrap();
         assert_eq!(record.properties.len(), 2);
     }
 
@@ -1121,8 +942,9 @@ mod tests {
 
         table.delete("v1", 200).unwrap();
 
-        assert!(table.get("v1", 150).is_some());
-        assert!(table.get("v1", 250).is_none());
+        let internal_id = table.get_internal_id("v1", 150).unwrap();
+        assert!(table.get_by_internal_id(internal_id, 150).is_some());
+        assert!(table.get_internal_id("v1", 250).is_none());
     }
 
     #[test]

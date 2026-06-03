@@ -25,13 +25,6 @@ impl<T: Clone + PartialEq> RleEncoder<T> {
         }
     }
 
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            runs: Vec::with_capacity(capacity),
-            total_count: 0,
-        }
-    }
-
     pub fn encode(&mut self, value: T) {
         self.total_count += 1;
 
@@ -65,25 +58,8 @@ impl<T: Clone + PartialEq> RleEncoder<T> {
         self.total_count
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.total_count == 0
-    }
-
-    pub fn run_count(&self) -> usize {
-        self.runs.len()
-    }
-
-    pub fn runs(&self) -> &[RleRun<T>] {
-        &self.runs
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.runs.len() * (std::mem::size_of::<RleRun<T>>())
-    }
-
-    pub fn clear(&mut self) {
-        self.runs.clear();
-        self.total_count = 0;
     }
 }
 
@@ -143,29 +119,12 @@ impl RleIntColumn {
         self.encoder.decode(row_idx).map(|&v| Value::BigInt(v))
     }
 
-    pub fn is_null(&self, row_idx: usize) -> bool {
-        self.null_bitmap.is_null(row_idx)
-    }
-
     pub fn len(&self) -> usize {
         self.encoder.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.encoder.is_empty()
-    }
-
-    pub fn run_count(&self) -> usize {
-        self.encoder.run_count()
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.encoder.memory_usage() + self.null_bitmap.memory_usage()
-    }
-
-    pub fn clear(&mut self) {
-        self.encoder.clear();
-        self.null_bitmap.clear();
     }
 }
 
@@ -217,29 +176,12 @@ impl RleBoolColumn {
         self.encoder.decode(row_idx).map(|&v| Value::Bool(v))
     }
 
-    pub fn is_null(&self, row_idx: usize) -> bool {
-        self.null_bitmap.is_null(row_idx)
-    }
-
     pub fn len(&self) -> usize {
         self.encoder.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.encoder.is_empty()
-    }
-
-    pub fn run_count(&self) -> usize {
-        self.encoder.run_count()
-    }
-
     pub fn memory_usage(&self) -> usize {
         self.encoder.memory_usage() + self.null_bitmap.memory_usage()
-    }
-
-    pub fn clear(&mut self) {
-        self.encoder.clear();
-        self.null_bitmap.clear();
     }
 }
 
@@ -248,7 +190,6 @@ impl Default for RleBoolColumn {
         Self::new()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -266,7 +207,7 @@ mod tests {
         encoder.encode(3);
 
         assert_eq!(encoder.len(), 6);
-        assert_eq!(encoder.run_count(), 3);
+        assert_eq!(encoder.runs.len(), 3);
 
         assert_eq!(encoder.decode(0), Some(&1));
         assert_eq!(encoder.decode(2), Some(&1));
@@ -286,8 +227,8 @@ mod tests {
 
         assert_eq!(col.get(0), Some(Value::BigInt(1)));
         assert_eq!(col.get(3), Some(Value::BigInt(2)));
-        assert!(col.is_null(4));
-        assert_eq!(col.run_count(), 3);
+        assert!(col.null_bitmap.is_null(4));
+        assert_eq!(col.encoder.runs.len(), 3);
     }
 
     #[test]
@@ -301,6 +242,7 @@ mod tests {
 
         assert_eq!(col.get(0), Some(Value::Bool(true)));
         assert_eq!(col.get(2), Some(Value::Bool(false)));
-        assert!(col.is_null(3));
+        assert!(col.null_bitmap.is_null(3));
+        assert_eq!(col.encoder.runs.len(), 2);
     }
 }

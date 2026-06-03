@@ -1,13 +1,26 @@
 //! User Storage Manager
 //!
 //! Manages user account creation, modification, deletion, and role authorization.
-//! This is a pure in-memory storage for user metadata, separate from graph data storage.
+//! This storage is in-memory by default and can be persisted to a JSON snapshot.
 
 use crate::core::types::{PasswordInfo, UserAlterInfo, UserInfo};
-use crate::core::{RoleType, StorageError};
+use crate::core::{RoleType, StorageError, StorageResult};
 use parking_lot::RwLock;
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+
+const USER_STORAGE_FORMAT_VERSION: u32 = 1;
+const USER_STORAGE_FILE_NAME: &str = "users.json";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct UserStorageSnapshot {
+    version: u32,
+    users: Vec<UserInfo>,
+}
 
 /// Manages user accounts and role assignments in memory.
 #[derive(Clone)]
@@ -35,6 +48,83 @@ impl UserStorage {
         Self {
             users: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    fn snapshot(&self) -> UserStorageSnapshot {
+        let mut users: Vec<UserInfo> = self.users.write().values().cloned().collect();
+        users.sort_by(|left, right| left.username.cmp(&right.username));
+
+        UserStorageSnapshot {
+            version: USER_STORAGE_FORMAT_VERSION,
+            users,
+        }
+    }
+
+    /// Clear all users.
+    pub fn clear(&self) {
+        self.users.write().clear();
+    }
+
+    /// Persist users to a directory snapshot.
+    pub fn save_to_dir<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+        let path = path.as_ref();
+        fs::create_dir_all(path)?;
+
+        let snapshot = self.snapshot();
+        let content = serde_json::to_string_pretty(&snapshot).map_err(|e| {
+            StorageError::serialize_error(format!("Failed to serialize user storage: {}", e))
+        })?;
+
+        let file_path = path.join(USER_STORAGE_FILE_NAME);
+        fs::write(&file_path, content).map_err(|e| {
+            StorageError::io_error(format!(
+                "Failed to write user storage file {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Load users from a directory snapshot.
+    pub fn load_from_dir<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
+        let path = path.as_ref();
+        let file_path = path.join(USER_STORAGE_FILE_NAME);
+
+        if !file_path.exists() {
+            self.clear();
+            return Ok(());
+        }
+
+        let content = fs::read_to_string(&file_path).map_err(|e| {
+            StorageError::io_error(format!(
+                "Failed to read user storage file {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
+        let snapshot: UserStorageSnapshot = serde_json::from_str(&content).map_err(|e| {
+            StorageError::deserialize_error(format!("Failed to deserialize user storage: {}", e))
+        })?;
+
+        if snapshot.version != USER_STORAGE_FORMAT_VERSION {
+            return Err(StorageError::deserialize_error(format!(
+                "Unsupported user storage version: {}",
+                snapshot.version
+            )));
+        }
+
+        let mut users = HashMap::with_capacity(snapshot.users.len());
+        for user in snapshot.users {
+            if users.insert(user.username.clone(), user).is_some() {
+                return Err(StorageError::deserialize_error(
+                    "Duplicate user entry in user storage snapshot".to_string(),
+                ));
+            }
+        }
+
+        *self.users.write() = users;
+        Ok(())
     }
 
     /// Change the user password.
@@ -272,5 +362,53 @@ mod tests {
         let storage = UserStorage::new();
         let result = storage.revoke_role("nonexistent", 1);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_save_and_load_round_trip() {
+        let base_dir = std::env::temp_dir()
+            .join("graphdb_user_storage_test")
+            .join(format!("round_trip_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base_dir);
+        std::fs::create_dir_all(&base_dir).expect("create temp dir should succeed");
+
+        let storage = UserStorage::new();
+        let alice = UserInfo::new("alice".to_string(), "secret".to_string())
+            .expect("UserInfo::new should succeed");
+        let bob = UserInfo::new("bob".to_string(), "password".to_string())
+            .expect("UserInfo::new should succeed")
+            .with_locked(true)
+            .with_max_queries_per_hour(12);
+
+        storage
+            .create_user(&alice)
+            .expect("create alice should succeed");
+        storage
+            .create_user(&bob)
+            .expect("create bob should succeed");
+        storage
+            .save_to_dir(&base_dir)
+            .expect("save_to_dir should succeed");
+
+        let restored = UserStorage::new();
+        restored
+            .load_from_dir(&base_dir)
+            .expect("load_from_dir should succeed");
+
+        assert!(restored.user_exists("alice"));
+        assert!(restored.user_exists("bob"));
+
+        let loaded_alice = restored
+            .get_user("alice")
+            .expect("alice should exist after load");
+        assert!(loaded_alice.verify_password("secret"));
+
+        let loaded_bob = restored
+            .get_user("bob")
+            .expect("bob should exist after load");
+        assert!(loaded_bob.is_locked);
+        assert_eq!(loaded_bob.max_queries_per_hour, 12);
+
+        let _ = std::fs::remove_dir_all(&base_dir);
     }
 }

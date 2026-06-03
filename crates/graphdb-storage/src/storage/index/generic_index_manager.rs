@@ -6,9 +6,7 @@
 use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::index::index_data_manager::IndexEntry;
-use crate::storage::index::key_codec::{
-    CompressionConfig, IndexCompressor, IndexKeyGenerator, SecondaryIndexKey,
-};
+use crate::storage::index::key_codec::{IndexKeyGenerator, SecondaryIndexKey};
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
@@ -19,13 +17,11 @@ use std::sync::Arc;
 ///
 /// Provides common functionality for index management including:
 /// - In-memory storage with BTreeMap
-/// - Optional key compression
 /// - Persistence (flush/load)
 /// - GC for tombstones
 pub struct GenericIndexManager<K: IndexKeyGenerator> {
     forward_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
     reverse_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
-    compressor: Option<Arc<RwLock<IndexCompressor>>>,
     _marker: PhantomData<K>,
 }
 
@@ -34,7 +30,6 @@ impl<K: IndexKeyGenerator> Clone for GenericIndexManager<K> {
         Self {
             forward_index: Arc::clone(&self.forward_index),
             reverse_index: Arc::clone(&self.reverse_index),
-            compressor: self.compressor.as_ref().map(Arc::clone),
             _marker: PhantomData,
         }
     }
@@ -45,83 +40,16 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
         Self {
             forward_index: Arc::new(RwLock::new(BTreeMap::new())),
             reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
-            compressor: None,
             _marker: PhantomData,
         }
     }
 
-    pub fn with_compression(config: CompressionConfig) -> Self {
-        Self {
-            forward_index: Arc::new(RwLock::new(BTreeMap::new())),
-            reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
-            compressor: Some(Arc::new(RwLock::new(IndexCompressor::new(config)))),
-            _marker: PhantomData,
-        }
-    }
-
-    pub fn is_compression_enabled(&self) -> bool {
-        self.compressor
-            .as_ref()
-            .map(|c| c.read().is_enabled())
-            .unwrap_or(false)
-    }
-
-    fn compress_key(&self, key: &[u8]) -> Vec<u8> {
-        if let Some(ref compressor) = self.compressor {
-            compressor.read().compress_key(key)
-        } else {
-            key.to_vec()
-        }
-    }
-
-    fn decompress_key(&self, compressed: &[u8]) -> StorageResult<Vec<u8>> {
-        if let Some(ref compressor) = self.compressor {
-            compressor.read().decompress_key(compressed)
-        } else {
-            Ok(compressed.to_vec())
-        }
-    }
-
-    pub fn train_compression(&self, keys: &[Vec<u8>]) -> StorageResult<()> {
-        if let Some(ref compressor) = self.compressor {
-            compressor.write().train_keys(keys)?;
-        }
-        Ok(())
-    }
-
-    pub fn compression_ratio(&self) -> Option<f64> {
-        self.compressor.as_ref().and_then(|c| {
-            let c = c.read();
-            if c.is_enabled() {
-                let forward = self.forward_index.read();
-                let original: Vec<Vec<u8>> = forward
-                    .keys()
-                    .map(|k| c.decompress_key(k).unwrap_or_else(|_| k.clone()))
-                    .collect();
-                let compressed: Vec<Vec<u8>> = forward.keys().cloned().collect();
-                Some(c.compression_ratio(&original, &compressed))
-            } else {
-                None
-            }
-        })
-    }
-
-    pub fn clear_all(&self) -> Result<(), StorageError> {
-        {
-            let mut forward_index = self.forward_index.write();
-            forward_index.clear();
-        }
-        {
-            let mut reverse_index = self.reverse_index.write();
-            reverse_index.clear();
-        }
-        Ok(())
-    }
-
-    pub fn entry_count(&self) -> (usize, usize) {
-        let forward_count = self.forward_index.read().len();
-        let reverse_count = self.reverse_index.read().len();
-        (forward_count, reverse_count)
+    #[cfg(test)]
+    pub(crate) fn entry_count(&self) -> (usize, usize) {
+        (
+            self.forward_index.read().len(),
+            self.reverse_index.read().len(),
+        )
     }
 
     pub fn gc_tombstones(&self, safe_ts: Timestamp) -> Result<usize, StorageError> {
@@ -305,16 +233,6 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
         Ok(())
     }
 
-    pub fn save<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
-        let path = path.as_ref();
-        std::fs::create_dir_all(path)?;
-
-        self.flush_forward_index(&path.join("forward_index.bin"))?;
-        self.flush_reverse_index(&path.join("reverse_index.bin"))?;
-
-        Ok(())
-    }
-
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
         let path = path.as_ref();
 
@@ -428,14 +346,6 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
 
     pub fn reverse_index(&self) -> &Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>> {
         &self.reverse_index
-    }
-
-    pub fn compress_key_public(&self, key: &[u8]) -> Vec<u8> {
-        self.compress_key(key)
-    }
-
-    pub fn decompress_key_public(&self, compressed: &[u8]) -> StorageResult<Vec<u8>> {
-        self.decompress_key(compressed)
     }
 }
 

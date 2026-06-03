@@ -1,6 +1,6 @@
 //! Index Key Codec Module
 //!
-//! This module provides key encoding, decoding, and compression functionality
+//! This module provides key encoding and decoding functionality
 //! for the index system.
 //!
 //! ## Module Structure
@@ -8,7 +8,7 @@
 //! - `key_types`: Core types and constants for index keys
 //! - `key_builder`: Functions for building index keys
 //! - `key_parser`: Functions for parsing index keys
-//! - `compression`: Compression algorithms for index keys
+//! - `compression`: removed; index compression is not wired in this crate
 //!
 //! ## Usage
 //!
@@ -27,16 +27,15 @@
 //! let vertex_id = KeyParser::parse_vertex_id_from_key(&key.0)?;
 //! ```
 
-pub mod compression;
 pub mod key_builder;
 pub mod key_generator;
 pub mod key_parser;
 pub mod key_types;
 
-pub use compression::{CompressionConfig, IndexCompressor};
 pub use key_builder::KeyBuilder;
 pub use key_generator::{EdgeIndexKeyGen, IndexKeyGenerator, VertexIndexKeyGen};
 pub use key_parser::KeyParser;
+#[allow(unused_imports)]
 pub use key_types::{deserialize_value, serialize_value, SecondaryIndexKey};
 
 #[cfg(test)]
@@ -130,24 +129,5 @@ mod tests {
         let prefix = ByteKey(vec![1, 2, 3]);
         let end = KeyBuilder::build_range_end(&prefix);
         assert_eq!(end.0, vec![1, 2, 4]);
-    }
-
-    #[test]
-    fn test_compression_integration() {
-        let config = CompressionConfig::default();
-        let mut compressor = IndexCompressor::new(config);
-
-        let keys = vec![
-            b"index_key_001".to_vec(),
-            b"index_key_002".to_vec(),
-            b"index_key_003".to_vec(),
-        ];
-
-        compressor.train_keys(&keys).expect("Training failed");
-
-        let compressed: Vec<Vec<u8>> = keys.iter().map(|k| compressor.compress_key(k)).collect();
-        let ratio = compressor.compression_ratio(&keys, &compressed);
-
-        assert!(ratio > 0.0, "Compression should reduce size");
     }
 }

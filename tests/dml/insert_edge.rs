@@ -7,9 +7,7 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::core::Value;
 use graphdb::query::parser::Parser;
-use std::collections::HashMap;
 
 // ==================== INSERT EDGE Parser Tests ====================
 

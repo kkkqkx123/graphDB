@@ -9,7 +9,6 @@ use super::{Timestamp, INVALID_TIMESTAMP, MAX_TIMESTAMP};
 pub struct VertexTimestamp {
     start_ts: Vec<Timestamp>,
     end_ts: Vec<Timestamp>,
-    capacity: usize,
 }
 
 impl VertexTimestamp {
@@ -21,7 +20,6 @@ impl VertexTimestamp {
         Self {
             start_ts: Vec::with_capacity(capacity),
             end_ts: Vec::with_capacity(capacity),
-            capacity,
         }
     }
 
@@ -67,13 +65,6 @@ impl VertexTimestamp {
         start <= ts && end > ts
     }
 
-    pub fn is_deleted(&self, index: u32) -> bool {
-        let idx = index as usize;
-        idx < self.start_ts.len()
-            && self.start_ts[idx] != INVALID_TIMESTAMP
-            && self.end_ts[idx] != MAX_TIMESTAMP
-    }
-
     pub fn get_start_ts(&self, index: u32) -> Option<Timestamp> {
         let idx = index as usize;
         if idx < self.start_ts.len() {
@@ -106,23 +97,6 @@ impl VertexTimestamp {
 
     pub fn size(&self) -> usize {
         self.start_ts.len()
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
-    pub fn reserve(&mut self, new_capacity: usize) {
-        if new_capacity > self.capacity {
-            self.capacity = new_capacity;
-            self.start_ts.reserve(new_capacity);
-            self.end_ts.reserve(new_capacity);
-        }
-    }
-
-    pub fn resize(&mut self, new_size: usize) {
-        self.start_ts.resize(new_size, INVALID_TIMESTAMP);
-        self.end_ts.resize(new_size, MAX_TIMESTAMP);
     }
 
     pub fn clear(&mut self) {
@@ -218,12 +192,12 @@ mod tests {
         vts.insert(0, 100);
         vts.remove(0, 200);
 
-        assert!(vts.is_deleted(0));
+        assert!(vts.get_end_ts(0).is_some());
         assert!(vts.is_valid(0, 150));
         assert!(!vts.is_valid(0, 250));
 
         vts.revert_remove(0, 200);
-        assert!(!vts.is_deleted(0));
+        assert!(vts.get_end_ts(0).is_none());
         assert!(vts.is_valid(0, 150));
         assert!(vts.is_valid(0, 250));
     }

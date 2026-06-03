@@ -118,16 +118,6 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
             .collect()
     }
 
-    /// Build column names from output fields
-    #[allow(dead_code)]
-    fn build_col_names(&self) -> Vec<String> {
-        self.node
-            .output_fields
-            .iter()
-            .map(|field| field.alias.clone().unwrap_or_else(|| field.name.clone()))
-            .collect()
-    }
-
     /// Execute vector search using blocking runtime
     fn execute_search(&self) -> DBResult<Vec<SearchResult>> {
         // Parse query vector
@@ -463,16 +453,6 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
                 }
             }
         }
-    }
-
-    /// Build column names from yield fields
-    #[allow(dead_code)]
-    fn build_col_names(&self) -> Vec<String> {
-        self.node
-            .yield_fields
-            .iter()
-            .map(|field| field.alias.clone().unwrap_or_else(|| field.name.clone()))
-            .collect()
     }
 
     /// Execute vector search using blocking runtime

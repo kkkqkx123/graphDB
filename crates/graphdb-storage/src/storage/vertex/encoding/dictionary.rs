@@ -180,12 +180,6 @@ impl Default for DictionaryColumn {
     }
 }
 
-
-
-    
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

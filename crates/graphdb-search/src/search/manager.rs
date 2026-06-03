@@ -358,8 +358,22 @@ impl FulltextIndexManager {
         field_name: &str,
         engine_type: Option<EngineType>,
     ) -> Result<String, SearchError> {
+        self.create_index_with_engine_config(space_id, tag_name, field_name, engine_type, None)
+            .await
+    }
+
+    pub async fn create_index_with_engine_config(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        engine_type: Option<EngineType>,
+        engine_config: Option<serde_json::Value>,
+    ) -> Result<String, SearchError> {
         self.validate_space_exists(space_id)?;
         self.validate_tag_exists(space_id, tag_name)?;
+        #[cfg(not(feature = "fulltext-search"))]
+        let _ = &engine_config;
 
         let key = IndexKey::new(space_id, tag_name, field_name);
         let index_id = key.to_index_id();
@@ -395,7 +409,7 @@ impl FulltextIndexManager {
                 last_updated: chrono::Utc::now(),
                 doc_count: 0,
                 status: IndexStatus::Active,
-                engine_config: None,
+                engine_config,
             };
 
             self.engines.insert(key.clone(), engine);

@@ -127,7 +127,6 @@ impl Nbr {
             timestamp,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

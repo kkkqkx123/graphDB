@@ -454,7 +454,6 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     }
 
     /// Get transaction handle (for internal use by C API)
-    #[allow(dead_code)]
     pub(crate) fn txn_handle(&self) -> TransactionHandle {
         self.txn_handle
     }

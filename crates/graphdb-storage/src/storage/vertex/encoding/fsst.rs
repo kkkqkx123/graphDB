@@ -87,9 +87,7 @@ pub struct FsstEncoder {
 
 impl FsstEncoder {
     pub fn new() -> Self {
-        Self {
-            table: FsstSymbolTable::new(),
-        }
+        Self::with_table(FsstSymbolTable::new())
     }
 
     pub fn train(strings: &[&str], max_symbols: usize) -> Self {
@@ -154,6 +152,9 @@ impl FsstEncoder {
         if bytes.is_empty() {
             return Vec::new();
         }
+        if self.symbol_count() == 0 {
+            return bytes.to_vec();
+        }
 
         let mut result = Vec::with_capacity(bytes.len());
         let mut i = 0;
@@ -182,6 +183,10 @@ impl FsstEncoder {
     }
 
     pub fn decode(&self, encoded: &[u8]) -> Vec<u8> {
+        if self.table.is_empty() {
+            return encoded.to_vec();
+        }
+
         let mut result = Vec::with_capacity(encoded.len() * 2);
 
         for &code in encoded {
@@ -238,56 +243,6 @@ impl FsstColumn {
         }
     }
 
-    pub fn train_and_build(strings: &[Option<&str>], max_symbols: usize) -> Self {
-        let non_null: Vec<&str> = strings.iter().filter_map(|s| *s).collect();
-
-        if non_null.is_empty() {
-            return Self::new();
-        }
-
-        let encoder = FsstEncoder::train(&non_null, max_symbols);
-
-        let mut column = Self {
-            encoder,
-            encoded_data: Vec::with_capacity(strings.len()),
-            null_bitmap: NullBitmap::with_capacity(strings.len()),
-        };
-
-        for s in strings {
-            column.append(*s);
-        }
-
-        column
-    }
-
-    pub fn append(&mut self, value: Option<&str>) {
-        match value {
-            Some(s) => {
-                let encoded = self.encoder.encode(s);
-                self.encoded_data.push(encoded);
-                self.null_bitmap.push(false);
-            }
-            None => {
-                self.encoded_data.push(Vec::new());
-                self.null_bitmap.push(true);
-            }
-        }
-    }
-
-    pub fn append_with_stats(&mut self, value: Option<&str>) {
-        match value {
-            Some(s) => {
-                let encoded = self.encoder.encode(s);
-                self.encoded_data.push(encoded);
-                self.null_bitmap.push(false);
-            }
-            None => {
-                self.encoded_data.push(Vec::new());
-                self.null_bitmap.push(true);
-            }
-        }
-    }
-
     pub fn get(&self, row_idx: usize) -> Option<String> {
         if row_idx >= self.encoded_data.len() || self.null_bitmap.is_null(row_idx) {
             return None;
@@ -317,55 +272,12 @@ impl FsstColumn {
         self.encoded_data.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.encoded_data.is_empty()
-    }
-
-    pub fn is_null(&self, row_idx: usize) -> bool {
-        row_idx < self.null_bitmap.len() && self.null_bitmap.is_null(row_idx)
-    }
-
     pub fn memory_usage(&self) -> usize {
         let data_size: usize = self.encoded_data.iter().map(|v| v.len()).sum();
         let null_size = self.null_bitmap.memory_usage();
         let table_size = self.encoder.table().memory_usage();
 
         data_size + null_size + table_size
-    }
-
-    pub fn compression_ratio(&self) -> f64 {
-        if self.encoded_data.is_empty() {
-            return 0.0;
-        }
-
-        let mut original_size = 0usize;
-        let mut compressed_size = 0usize;
-
-        for (i, data) in self.encoded_data.iter().enumerate() {
-            if !self.null_bitmap.is_null(i) {
-                original_size += self.encoder.decode(data).len();
-                compressed_size += data.len();
-            }
-        }
-
-        if original_size == 0 {
-            return 0.0;
-        }
-
-        (original_size - compressed_size) as f64 / original_size as f64
-    }
-
-    pub fn clear(&mut self) {
-        self.encoded_data.clear();
-        self.null_bitmap.clear();
-    }
-
-    pub fn encoder(&self) -> &FsstEncoder {
-        &self.encoder
-    }
-
-    pub fn fast_compression_ratio(&self) -> f64 {
-        self.compression_ratio()
     }
 }
 
@@ -375,15 +287,40 @@ impl Default for FsstColumn {
     }
 }
 
-
-
-    
-
-    
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::NullBitmap;
+
+    fn build_fsst_column(strings: &[Option<&str>], max_symbols: usize) -> FsstColumn {
+        let non_null: Vec<&str> = strings.iter().filter_map(|s| *s).collect();
+        let encoder = if non_null.is_empty() {
+            FsstEncoder::new()
+        } else {
+            FsstEncoder::train(&non_null, max_symbols)
+        };
+
+        let mut column = FsstColumn {
+            encoder,
+            encoded_data: Vec::with_capacity(strings.len()),
+            null_bitmap: NullBitmap::with_capacity(strings.len()),
+        };
+
+        for value in strings {
+            match value {
+                Some(s) => {
+                    column.encoded_data.push(column.encoder.encode(s));
+                    column.null_bitmap.push(false);
+                }
+                None => {
+                    column.encoded_data.push(Vec::new());
+                    column.null_bitmap.push(true);
+                }
+            }
+        }
+
+        column
+    }
 
     fn select_fsst(values: &[&str]) -> bool {
         values.len() >= 64
@@ -444,24 +381,24 @@ mod tests {
             Some("hello code"),
         ];
 
-        let column = FsstColumn::train_and_build(&strings, 100);
+        let column = build_fsst_column(&strings, 100);
 
         assert_eq!(column.len(), 4);
         assert_eq!(column.get(0), Some("hello world".to_string()));
-        assert!(column.is_null(1));
+        assert!(column.null_bitmap.is_null(1));
         assert_eq!(column.get(2), Some("hello rust".to_string()));
     }
 
     #[test]
     fn test_fsst_column_set() {
         let strings = vec![Some("hello world")];
-        let mut column = FsstColumn::train_and_build(&strings, 100);
+        let mut column = build_fsst_column(&strings, 100);
 
         column.set(0, Some("hello rust"));
         assert_eq!(column.get(0), Some("hello rust".to_string()));
 
         column.set(0, None);
-        assert!(column.is_null(0));
+        assert!(column.null_bitmap.is_null(0));
     }
 
     #[test]
@@ -518,12 +455,23 @@ mod tests {
     #[test]
     fn test_append_with_stats() {
         let strings = vec![Some("hello world")];
-        let mut column = FsstColumn::train_and_build(&strings, 100);
+        let mut column = build_fsst_column(&strings, 100);
 
-        column.append_with_stats(Some("hello rust"));
-        column.append_with_stats(Some("hello code"));
+        column.encoded_data.push(column.encoder.encode("hello rust"));
+        column.null_bitmap.push(false);
+        column.encoded_data.push(column.encoder.encode("hello code"));
+        column.null_bitmap.push(false);
 
-        assert!(column.fast_compression_ratio() >= 0.0);
+        let mut original_size = 0usize;
+        let mut compressed_size = 0usize;
+        for (idx, data) in column.encoded_data.iter().enumerate() {
+            if !column.null_bitmap.is_null(idx) {
+                original_size += column.encoder.decode(data).len();
+                compressed_size += data.len();
+            }
+        }
+
+        assert!(original_size >= compressed_size);
     }
 
     #[test]

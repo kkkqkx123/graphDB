@@ -22,7 +22,7 @@ use crate::core::{DataType, Value};
 pub use alp::AlpColumn;
 pub use bitpacking::BitPackedIntColumn;
 pub use dictionary::DictionaryColumn;
-pub use fsst::{FsstColumn, FsstEncoder, FsstSymbolTable};
+pub use fsst::{FsstColumn, FsstEncoder};
 pub use rle::{RleBoolColumn, RleIntColumn};
 pub use selector::{ColumnStats, CompressionConfig, CompressionSelector};
 
@@ -172,33 +172,40 @@ impl ColumnEncoding {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct EncodingStats {
-    pub encoding_type: EncodingType,
-    pub original_size: usize,
-    pub encoded_size: usize,
-    pub compression_ratio: f64,
-}
-
-impl EncodingStats {
-    pub fn new(encoding_type: EncodingType, original_size: usize, encoded_size: usize) -> Self {
-        let compression_ratio = if original_size > 0 {
-            (original_size as f64 - encoded_size as f64) / original_size as f64
-        } else {
-            0.0
-        };
-        Self {
-            encoding_type,
-            original_size,
-            encoded_size,
-            compression_ratio,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::NullBitmap;
+
+    fn build_fsst_column(strings: &[Option<&str>], max_symbols: usize) -> FsstColumn {
+        let non_null: Vec<&str> = strings.iter().filter_map(|s| *s).collect();
+        let encoder = if non_null.is_empty() {
+            FsstEncoder::new()
+        } else {
+            FsstEncoder::train(&non_null, max_symbols)
+        };
+
+        let mut column = FsstColumn {
+            encoder,
+            encoded_data: Vec::with_capacity(strings.len()),
+            null_bitmap: NullBitmap::with_capacity(strings.len()),
+        };
+
+        for value in strings {
+            match value {
+                Some(s) => {
+                    column.encoded_data.push(column.encoder.encode(s));
+                    column.null_bitmap.push(false);
+                }
+                None => {
+                    column.encoded_data.push(Vec::new());
+                    column.null_bitmap.push(true);
+                }
+            }
+        }
+
+        column
+    }
 
     #[test]
     fn test_column_encoding_none() {
@@ -214,7 +221,7 @@ mod tests {
     #[test]
     fn test_column_encoding_fsst() {
         let strings = vec![Some("hello world"), None, Some("hello rust")];
-        let col = FsstColumn::train_and_build(&strings, 100);
+        let col = build_fsst_column(&strings, 100);
         let encoding = ColumnEncoding::Fsst(col);
 
         assert_eq!(encoding.encoding_type(), EncodingType::Fsst);
@@ -289,7 +296,7 @@ mod tests {
     #[test]
     fn test_column_encoding_set_fsst() {
         let strings = vec![Some("hello")];
-        let col = FsstColumn::train_and_build(&strings, 100);
+        let col = build_fsst_column(&strings, 100);
         let mut encoding = ColumnEncoding::Fsst(col);
 
         encoding
@@ -299,6 +306,4 @@ mod tests {
 
         encoding.set(0, None).unwrap();
     }
-
-
 }

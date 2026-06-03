@@ -6,20 +6,14 @@
 
 use super::common;
 
-use common::TestStorage;
-
-use graphdb::core::stats::StatsManager;
-use graphdb::query::optimizer::OptimizerEngine;
+use common::test_scenario::TestScenario;
 use graphdb::query::parser::Parser;
-use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use std::sync::Arc;
-
-use common::TestScenario;
 
 fn new_scenario() -> TestScenario {
     TestScenario::new().expect("Failed to create test scenario")
 }
 
+#[allow(dead_code)]
 fn with_space(scenario: TestScenario, space: &str) -> TestScenario {
     scenario
         .exec_dcl(&format!("CREATE SPACE {} WITH DIMENSION=128", space))

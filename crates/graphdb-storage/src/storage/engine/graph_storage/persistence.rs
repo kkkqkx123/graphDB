@@ -31,6 +31,7 @@ pub(crate) fn save_data_to_dir(ctx: &GraphStorageContext, dir: &Path) -> Storage
     writeln!(file, "1")?;
 
     ctx.graph.flush_tables_to_dir(&data_dir)?;
+    ctx.user_storage.save_to_dir(&data_dir)?;
 
     log::info!("Data saved to {:?}", data_dir);
     Ok(())
@@ -50,6 +51,7 @@ pub(crate) fn create_checkpoint(
 
     let ts = ctx.get_write_timestamp();
     let graph = ctx.graph.clone();
+    let user_storage = ctx.user_storage.clone();
 
     let stats = persistence.write().create_checkpoint(
         |checkpoint_dir, _timestamp| {
@@ -57,6 +59,7 @@ pub(crate) fn create_checkpoint(
             std::fs::create_dir_all(&data_dir)?;
 
             graph.flush_tables_to_dir(&data_dir)?;
+            user_storage.save_to_dir(&data_dir)?;
 
             let vertex_count = graph.total_vertex_count() as u64;
             let edge_count = graph.total_edge_count() as u64;
@@ -109,10 +112,14 @@ pub(crate) fn load_latest_checkpoint(
     };
 
     let graph = ctx.graph.clone();
+    let user_storage = ctx.user_storage.clone();
 
     persistence
         .write()
-        .load_latest_checkpoint(|checkpoint_dir| graph.restore_from_checkpoint(checkpoint_dir))
+        .load_latest_checkpoint(|checkpoint_dir| {
+            graph.restore_from_checkpoint(checkpoint_dir)?;
+            user_storage.load_from_dir(checkpoint_dir.join("data"))
+        })
 }
 
 pub(crate) fn should_flush(ctx: &GraphStorageContext) -> bool {
@@ -210,18 +217,19 @@ pub(crate) fn compact_transactional(
 
 pub(crate) fn load_from_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
     if let Some(ref path) = ctx.work_dir {
-        let schema_path = path.join("schema");
+        let schema_path = path.join("schema").join("schema.json");
         if schema_path.exists() {
             ctx.schema_manager.load_schema(&schema_path)?;
         }
 
-        let index_meta_path = path.join("index_meta");
+        let index_meta_path = path.join("index_meta").join("index_meta.json");
         if index_meta_path.exists() {
             ctx.index_metadata_manager.load_indexes(&index_meta_path)?;
         }
 
         super::schema_adapter::ensure_graph_types_from_schema(ctx)?;
         ctx.graph.restore_from_checkpoint(path)?;
+        ctx.user_storage.load_from_dir(path.join("data"))?;
 
         let index_path = path.join("indexes");
         if index_path.exists() {
@@ -235,13 +243,15 @@ pub(crate) fn save_to_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
     if let Some(ref path) = ctx.work_dir {
         std::fs::create_dir_all(path).map_err(|e| StorageError::io_error(e.to_string()))?;
 
-        let schema_path = path.join("schema");
-        std::fs::create_dir_all(&schema_path).map_err(|e| StorageError::io_error(e.to_string()))?;
+        let schema_dir = path.join("schema");
+        std::fs::create_dir_all(&schema_dir).map_err(|e| StorageError::io_error(e.to_string()))?;
+        let schema_path = schema_dir.join("schema.json");
         ctx.schema_manager.save_schema(&schema_path)?;
 
-        let index_meta_path = path.join("index_meta");
-        std::fs::create_dir_all(&index_meta_path)
+        let index_meta_dir = path.join("index_meta");
+        std::fs::create_dir_all(&index_meta_dir)
             .map_err(|e| StorageError::io_error(e.to_string()))?;
+        let index_meta_path = index_meta_dir.join("index_meta.json");
         ctx.index_metadata_manager.save_indexes(&index_meta_path)?;
 
         save_data_to_dir(ctx, path)?;

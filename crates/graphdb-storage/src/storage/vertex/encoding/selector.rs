@@ -70,14 +70,12 @@ impl ColumnStats {
             _ => None,
         }
     }
-
 }
 
 #[derive(Debug, Clone)]
 pub struct CompressionConfig {
     pub min_rows_for_compression: usize,
     pub max_dictionary_size: usize,
-    pub prefer_speed_over_ratio: bool,
 }
 
 impl Default for CompressionConfig {
@@ -85,7 +83,6 @@ impl Default for CompressionConfig {
         Self {
             min_rows_for_compression: 100,
             max_dictionary_size: 10000,
-            prefer_speed_over_ratio: false,
         }
     }
 }
@@ -103,9 +100,7 @@ impl CompressionSelector {
     }
 
     pub fn with_config(config: CompressionConfig) -> Self {
-        Self {
-            config,
-        }
+        Self { config }
     }
 
     pub fn select(&self, stats: &ColumnStats) -> EncodingType {
@@ -179,10 +174,6 @@ impl CompressionSelector {
             return EncodingType::Rle;
         }
         EncodingType::None
-    }
-
-    pub fn config(&self) -> &CompressionConfig {
-        &self.config
     }
 }
 
@@ -286,5 +277,4 @@ mod tests {
 
         assert_eq!(encoding, EncodingType::Alp);
     }
-
 }

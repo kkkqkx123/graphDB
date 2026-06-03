@@ -431,7 +431,7 @@ mod tests {
         graph2.load_data().unwrap();
 
         for i in 0..5 {
-            let v = graph2.get_vertex(person_label, &format!("user_{}", i), 100);
+            let v = graph2.get_vertex(person_label, &format!("user_{}", i), 200);
             assert!(v.is_some(), "user_{} should exist after reload", i);
         }
 

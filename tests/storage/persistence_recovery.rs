@@ -16,10 +16,10 @@ use graphdb::core::{Edge, Value, Vertex};
 use graphdb::storage::{
     GraphStorage, StorageAdmin, StorageReader, StorageSchemaOps, StorageWriter,
 };
-use std::path::PathBuf;
+use std::path::Path;
 
-fn setup_storage_with_path(path: &PathBuf) -> GraphStorage {
-    GraphStorage::new_with_path(path.clone()).expect("Failed to create GraphStorage with path")
+fn setup_storage_with_path(path: &Path) -> GraphStorage {
+    GraphStorage::new_with_path(path.to_path_buf()).expect("Failed to create GraphStorage with path")
 }
 
 fn setup_space_and_types(storage: &mut GraphStorage) {

@@ -14,8 +14,7 @@ use crate::core::{StorageError, StorageResult};
 use crate::storage::utils::{read_u32_le, read_u64_le};
 
 use super::{
-    CsrBase, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_EDGE_ID,
-    INVALID_TIMESTAMP,
+    CsrBase, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_EDGE_ID, INVALID_TIMESTAMP,
 };
 
 fn write_vertex_id(out: &mut Vec<u8>, id: VertexId) {
@@ -345,7 +344,6 @@ impl SingleMutableCsr {
     pub fn iter(&self, ts: Timestamp) -> SingleMutableCsrIterator<'_> {
         SingleMutableCsrIterator::new(self, ts)
     }
-
 }
 
 impl Default for SingleMutableCsr {
@@ -485,9 +483,27 @@ mod tests {
         let mut csr1 = SingleMutableCsr::with_capacity(10);
 
         // Use insert_edge to populate data
-        csr1.insert_edge(VertexId::from_int64(0), VertexId::from_int64(10), 100, 0, 100);
-        csr1.insert_edge(VertexId::from_int64(1), VertexId::from_int64(20), 101, 0, 100);
-        csr1.insert_edge(VertexId::from_int64(2), VertexId::from_int64(30), 102, 0, 100);
+        csr1.insert_edge(
+            VertexId::from_int64(0),
+            VertexId::from_int64(10),
+            100,
+            0,
+            100,
+        );
+        csr1.insert_edge(
+            VertexId::from_int64(1),
+            VertexId::from_int64(20),
+            101,
+            0,
+            100,
+        );
+        csr1.insert_edge(
+            VertexId::from_int64(2),
+            VertexId::from_int64(30),
+            102,
+            0,
+            100,
+        );
 
         let data = csr1.dump();
 

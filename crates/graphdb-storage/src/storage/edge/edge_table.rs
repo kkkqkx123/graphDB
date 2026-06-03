@@ -3,9 +3,6 @@
 //! Combines out/in CSRs and property storage for edge management.
 //! Uses EdgeOffset (CSR-native offset) instead of global EdgeId for edge identification.
 
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
-
 use super::{
     Csr, CsrBase, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsrTrait,
     MutableCsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
@@ -15,6 +12,8 @@ use crate::storage::storage_types::{EdgeOffset, PropertyId, StoragePropertyDef};
 use crate::storage::utils::persistence_format::{
     read_header, section, write_header_to, HEADER_SIZE,
 };
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct EdgeTableConfig {
@@ -270,18 +269,8 @@ impl EdgeTable {
 }
 
 impl EdgeTable {
-    pub fn open<P: AsRef<Path>>(&mut self, _path: P) -> StorageResult<()> {
-        self.is_open = true;
-        Ok(())
-    }
-
     pub fn close(&mut self) {
         self.is_open = false;
-    }
-
-    pub fn ensure_capacity(&mut self, vertex_capacity: usize, _edge_capacity: usize) {
-        self.out_csr.resize(vertex_capacity);
-        self.in_csr.resize(vertex_capacity);
     }
 
     pub fn insert_edge(
@@ -477,73 +466,6 @@ impl EdgeTable {
         })
     }
 
-    pub fn get_edge_nbr(
-        &self,
-        src: VertexId,
-        dst: VertexId,
-        rank: i64,
-        ts: Timestamp,
-    ) -> Option<super::Nbr> {
-        if !self.is_open {
-            return None;
-        }
-        let dst_key = Self::edge_endpoint_key(dst, rank);
-        self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
-    }
-
-    pub fn update_properties(
-        &mut self,
-        src: VertexId,
-        dst: VertexId,
-        rank: i64,
-        values: &[(String, Value)],
-        ts: Timestamp,
-    ) -> StorageResult<bool> {
-        if !self.is_open {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let dst_key = Self::edge_endpoint_key(dst, rank);
-        if let Some(nbr) = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
-        {
-            self.properties.update(nbr.prop_offset, values)?;
-
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-
-    pub fn update_properties_by_id(
-        &mut self,
-        src: VertexId,
-        dst: VertexId,
-        rank: i64,
-        values: &[(u16, Value)],
-        ts: Timestamp,
-    ) -> StorageResult<bool> {
-        if !self.is_open {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let dst_key = Self::edge_endpoint_key(dst, rank);
-        if let Some(nbr) = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
-        {
-            for (prop_id, value) in values {
-                let prop_id = PropertyId::new(*prop_id);
-                self.properties.set_property_by_id(
-                    nbr.prop_offset,
-                    prop_id,
-                    Some(value.clone()),
-                )?;
-            }
-
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-
     pub fn out_edges(&self, src: VertexId, ts: Timestamp) -> Vec<EdgeRecord> {
         if !self.is_open {
             return Vec::new();
@@ -717,31 +639,12 @@ impl EdgeTable {
         &self.label_name
     }
 
-    pub fn src_label(&self) -> LabelId {
-        self.src_label
-    }
-
-    pub fn dst_label(&self) -> LabelId {
-        self.dst_label
-    }
-
     pub fn schema(&self) -> &EdgeSchema {
         &self.schema
     }
 
     pub fn set_schema(&mut self, schema: EdgeSchema) {
         self.schema = schema;
-    }
-
-    pub fn is_open(&self) -> bool {
-        self.is_open
-    }
-
-    pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<super::Nbr> {
-        if !self.is_open {
-            return Vec::new();
-        }
-        self.merged_edges_of(&self.out_csr, &self.out_segments, src, ts)
     }
 
     pub fn iter(&self, ts: Timestamp) -> EdgeTableScanIterator<'_> {
@@ -1432,7 +1335,7 @@ mod tests {
     }
 
     #[test]
-    fn test_update_properties() {
+    fn test_update_edge_property() {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema).unwrap();
 
@@ -1446,15 +1349,17 @@ mod tests {
             )
             .unwrap();
 
-        table
-            .update_properties(
+        let updated = table
+            .update_edge_property(
                 VertexId::from_int64(0),
                 VertexId::from_int64(1),
                 0,
-                &[("weight".to_string(), Value::Double(2.0))],
+                "weight",
+                &Value::Double(2.0),
                 100,
             )
             .unwrap();
+        assert!(updated);
 
         let edge = table
             .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 100)

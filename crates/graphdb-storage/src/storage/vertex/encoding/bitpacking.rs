@@ -268,17 +268,6 @@ impl BitPackedIntColumn {
         self.packed.set(row_idx, int_val)
     }
 
-    pub fn append(&mut self, value: Option<&Value>) {
-        let int_val = value.and_then(|v| match v {
-            Value::SmallInt(i) => Some(*i as i64),
-            Value::Int(i) => Some(*i as i64),
-            Value::BigInt(i) => Some(*i),
-            _ => None,
-        });
-
-        self.packed.append_optional(int_val);
-    }
-
     pub fn len(&self) -> usize {
         self.packed.len()
     }
@@ -287,12 +276,6 @@ impl BitPackedIntColumn {
         self.packed.memory_usage()
     }
 }
-
-
-
-    
-
-
 
 #[cfg(test)]
 mod tests {

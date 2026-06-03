@@ -39,7 +39,6 @@ pub struct CreateFulltextIndexExecutor<S: StorageClient> {
     schema_name: String,
     fields: Vec<IndexFieldDef>,
     engine_type: FulltextEngineType,
-    #[allow(dead_code)]
     options: IndexOptions,
     if_not_exists: bool,
     space_id: u64,
@@ -87,14 +86,20 @@ impl<S: StorageClient> Executor<S> for CreateFulltextIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let engine_type = Self::convert_engine_type(self.engine_type);
         let tag_name = &self.schema_name;
+        let engine_config = serde_json::to_value(&self.options).map_err(|e| {
+            DBError::validation(format!("Failed to serialize fulltext options: {}", e))
+        })?;
 
         for field in &self.fields {
-            let result = futures::executor::block_on(self.fulltext_manager.create_index(
-                self.space_id,
-                tag_name,
-                &field.field_name,
-                Some(engine_type),
-            ));
+            let result = futures::executor::block_on(
+                self.fulltext_manager.create_index_with_engine_config(
+                    self.space_id,
+                    tag_name,
+                    &field.field_name,
+                    Some(engine_type),
+                    Some(engine_config.clone()),
+                ),
+            );
 
             match result {
                 Ok(index_id) => {

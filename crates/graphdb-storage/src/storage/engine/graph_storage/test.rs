@@ -788,6 +788,26 @@ mod tests {
         storage.drop_user("role_user").unwrap();
     }
 
+    #[test]
+    fn test_user_storage_persists_across_reload() {
+        let (temp_dir, mut storage) = create_persistent_storage();
+
+        let user = UserInfo::new("persist_user".to_string(), "password123".to_string())
+            .expect("UserInfo::new should succeed")
+            .with_locked(true)
+            .with_max_queries_per_hour(42);
+
+        storage.create_user(&user).unwrap();
+        storage.save_to_disk().unwrap();
+
+        let mut reloaded = GraphStorage::new_with_path(temp_dir.path().to_path_buf())
+            .expect("Failed to recreate GraphStorage");
+        reloaded.load_from_disk().unwrap();
+
+        assert!(reloaded.user_exists("persist_user"));
+        assert!(reloaded.create_user(&user).is_err());
+    }
+
     // ==================== Storage Admin Operations ====================
 
     #[test]

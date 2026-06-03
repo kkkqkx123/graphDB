@@ -8,15 +8,13 @@
 
 use super::common;
 
+use common::test_scenario::TestScenario;
 use common::TestStorage;
-
 use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use std::sync::Arc;
-
-use common::TestScenario;
 
 fn new_scenario() -> TestScenario {
     TestScenario::new().expect("Failed to create test scenario")
@@ -438,7 +436,7 @@ fn test_dcl_if_not_exists_if_exists() {
 
 #[test]
 fn test_dcl_error_handling() {
-    let scenario = new_scenario();
+    let _scenario = new_scenario();
     let invalid_queries = vec![
         "CREATE USER",
         "CREATE USER testuser",
