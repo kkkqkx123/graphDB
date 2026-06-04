@@ -7,13 +7,11 @@
 mod context;
 mod index_engine;
 mod index_manager;
-mod maintenance;
+mod ops;
 mod persistence;
 mod reader;
 mod schema_adapter;
 mod schema_engine;
-pub(crate) mod type_utils;
-mod user_ops;
 mod writer;
 
 #[cfg(test)]
@@ -432,19 +430,19 @@ impl StorageSchemaOps for GraphStorage {
 
 impl StorageAuthOps for GraphStorage {
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
-        user_ops::change_password(&self.ctx, info)
+        ops::change_password(&self.ctx, info)
     }
 
     fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError> {
-        user_ops::create_user(&self.ctx, info)
+        ops::create_user(&self.ctx, info)
     }
 
     fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError> {
-        user_ops::alter_user(&self.ctx, info)
+        ops::alter_user(&self.ctx, info)
     }
 
     fn drop_user(&mut self, username: &str) -> Result<bool, StorageError> {
-        user_ops::drop_user(&self.ctx, username)
+        ops::drop_user(&self.ctx, username)
     }
 
     fn user_exists(&self, username: &str) -> bool {
@@ -457,11 +455,11 @@ impl StorageAuthOps for GraphStorage {
         space_id: u64,
         role: RoleType,
     ) -> Result<bool, StorageError> {
-        user_ops::grant_role(&self.ctx, username, space_id, role)
+        ops::grant_role(&self.ctx, username, space_id, role)
     }
 
     fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError> {
-        user_ops::revoke_role(&self.ctx, username, space_id)
+        ops::revoke_role(&self.ctx, username, space_id)
     }
 }
 
@@ -475,15 +473,15 @@ impl StorageAdmin for GraphStorage {
     }
 
     fn get_storage_stats(&self) -> StorageStats {
-        maintenance::get_storage_stats(&self.ctx)
+        ops::get_storage_stats(&self.ctx)
     }
 
     fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
-        maintenance::find_dangling_edges(&self.ctx, space)
+        ops::find_dangling_edges(&self.ctx, space)
     }
 
     fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError> {
-        maintenance::repair_dangling_edges(&self.ctx, space)
+        ops::repair_dangling_edges(&self.ctx, space)
     }
 
     fn get_db_path(&self) -> &str {

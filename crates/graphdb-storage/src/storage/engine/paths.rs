@@ -26,16 +26,6 @@ impl StoragePaths {
         self.root.join("wal")
     }
 
-    #[allow(dead_code)]
-    pub fn checkpoint_dir(&self) -> PathBuf {
-        self.root.join("checkpoint")
-    }
-
-    #[allow(dead_code)]
-    pub fn snapshot_dir(&self) -> PathBuf {
-        self.root.join("snapshots")
-    }
-
     pub fn schema_dir(&self) -> PathBuf {
         self.root.join("schema")
     }
@@ -91,14 +81,6 @@ mod tests {
         assert_eq!(paths.root(), Path::new("/tmp/graphdb"));
         assert_eq!(paths.data_dir(), PathBuf::from("/tmp/graphdb/data"));
         assert_eq!(paths.wal_dir(), PathBuf::from("/tmp/graphdb/wal"));
-        assert_eq!(
-            paths.checkpoint_dir(),
-            PathBuf::from("/tmp/graphdb/checkpoint")
-        );
-        assert_eq!(
-            paths.snapshot_dir(),
-            PathBuf::from("/tmp/graphdb/snapshots")
-        );
         assert_eq!(
             paths.schema_file(),
             PathBuf::from("/tmp/graphdb/schema/schema.json")

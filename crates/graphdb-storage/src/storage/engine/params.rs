@@ -14,23 +14,13 @@ pub struct CreateEdgeTypeParams<'a> {
     pub ie_strategy: EdgeStrategy,
 }
 
-/// Parameters for edge operations that need vertex/edge labels and IDs (string-based)
+/// Parameters for edge operations.
 pub struct EdgeOperationParams<'a> {
     pub edge_label: LabelId,
     pub src_label: LabelId,
     pub src_id: &'a str,
     pub dst_label: LabelId,
     pub dst_id: &'a str,
-    pub rank: i64,
-}
-
-/// Parameters for edge operations with i64 vertex IDs
-pub struct EdgeOperationParamsByI64 {
-    pub edge_label: LabelId,
-    pub src_label: LabelId,
-    pub src_id: i64,
-    pub dst_label: LabelId,
-    pub dst_id: i64,
     pub rank: i64,
 }
 
@@ -41,18 +31,6 @@ pub struct InsertEdgeParams<'a> {
     pub src_id: &'a str,
     pub dst_label: LabelId,
     pub dst_id: &'a str,
-    pub rank: i64,
-    pub properties: &'a [(String, Value)],
-    pub ts: Timestamp,
-}
-
-/// Parameters for insert_edge operation with i64 vertex IDs.
-pub struct InsertEdgeParamsByI64<'a> {
-    pub edge_label: LabelId,
-    pub src_label: LabelId,
-    pub src_id: i64,
-    pub dst_label: LabelId,
-    pub dst_id: i64,
     pub rank: i64,
     pub properties: &'a [(String, Value)],
     pub ts: Timestamp,

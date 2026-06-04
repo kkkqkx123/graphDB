@@ -18,8 +18,7 @@ mod data_store_test;
 mod persistence_test;
 
 pub use params::{
-    EdgeOperationParams, EdgeOperationParamsByI64, InsertEdgeParams, InsertEdgeParamsByI64,
-    PropertyGraphUpdateEdgePropertyParams,
+    EdgeOperationParams, InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams,
 };
 pub use persistence_coordinator::PersistenceConfig;
 pub use wal_manager::WalManager;

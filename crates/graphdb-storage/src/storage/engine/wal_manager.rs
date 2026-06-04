@@ -10,47 +10,12 @@ use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
 
-struct SharedLocalWalWriter {
-    inner: Arc<RwLock<LocalWalWriter>>,
-}
-
-impl SharedLocalWalWriter {
-    fn new(inner: Arc<RwLock<LocalWalWriter>>) -> Self {
-        Self { inner }
-    }
-}
-
-impl WalWriter for SharedLocalWalWriter {
-    fn open(&mut self) -> crate::transaction::wal::WalResult<()> {
-        self.inner.write().open()
-    }
-
-    fn close(&mut self) {
-        self.inner.write().close();
-    }
-
-    fn append(&mut self, data: &[u8]) -> crate::transaction::wal::WalResult<bool> {
-        self.inner.write().append(data)
-    }
-
-    fn sync(&self) -> crate::transaction::wal::WalResult<()> {
-        self.inner.read().sync()
-    }
-}
-
-pub(crate) fn shared_local_wal_writer(
-    inner: Arc<RwLock<LocalWalWriter>>,
-) -> Arc<RwLock<Box<dyn WalWriter>>> {
-    Arc::new(RwLock::new(Box::new(SharedLocalWalWriter::new(inner))))
-}
-
 /// Unified WAL manager that wraps LocalWalWriter
 ///
 /// This manager ensures LSN consistency by delegating all LSN operations
 /// to the underlying LocalWalWriter, avoiding the dual LSN tracking issue.
 pub struct WalManager {
     local_writer: Option<Arc<RwLock<LocalWalWriter>>>,
-    dyn_writer: Option<Arc<RwLock<Box<dyn WalWriter>>>>,
     config: WalConfig,
 }
 
@@ -58,7 +23,6 @@ impl WalManager {
     pub fn new() -> Self {
         Self {
             local_writer: None,
-            dyn_writer: None,
             config: WalConfig::default(),
         }
     }
@@ -73,16 +37,12 @@ impl WalManager {
         Ok(())
     }
 
-    pub fn set_wal_writer(&mut self, writer: Arc<RwLock<Box<dyn WalWriter>>>) {
-        self.dyn_writer = Some(writer);
-    }
-
     pub fn writer(&self) -> Option<Arc<RwLock<LocalWalWriter>>> {
         self.local_writer.clone()
     }
 
     pub fn is_enabled(&self) -> bool {
-        self.local_writer.is_some() || self.dyn_writer.is_some()
+        self.local_writer.is_some()
     }
 
     pub fn current_lsn(&self) -> Lsn {
@@ -95,11 +55,6 @@ impl WalManager {
 
     pub fn sync(&self) -> StorageResult<()> {
         if let Some(ref writer) = self.local_writer {
-            writer
-                .write()
-                .sync()
-                .map_err(|e| StorageError::wal_error(format!("Failed to sync WAL: {:?}", e)))?;
-        } else if let Some(ref writer) = self.dyn_writer {
             writer
                 .write()
                 .sync()

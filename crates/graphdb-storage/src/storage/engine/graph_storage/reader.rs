@@ -1,9 +1,9 @@
 use crate::core::types::{EdgeTypeInfo, LabelId, TagInfo, VertexId};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-use crate::storage::engine::params::{EdgeOperationParams, EdgeOperationParamsByI64};
+use crate::storage::engine::params::EdgeOperationParams;
 
 use super::context::GraphStorageContext;
-use super::type_utils::{
+use super::ops::{
     edge_record_to_edge, endpoint_label_id, serialize_properties, value_to_string,
     vertex_record_to_vertex,
 };
@@ -159,23 +159,6 @@ pub(crate) fn get_edge(
     ) {
         let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
         return Ok(Some(edge));
-    }
-
-    if let (Some(src_int), Some(dst_int)) = (src.as_int64(), dst.as_int64()) {
-        if let Some(record) = ctx.get_edge_by_i64(
-            &EdgeOperationParamsByI64 {
-                edge_label: edge_label_id,
-                src_label: src_label_id,
-                src_id: src_int,
-                dst_label: dst_label_id,
-                dst_id: dst_int,
-                rank,
-            },
-            ts,
-        ) {
-            let edge = edge_record_to_edge(&record, edge_type, &src_str, &dst_str);
-            return Ok(Some(edge));
-        }
     }
 
     Ok(None)

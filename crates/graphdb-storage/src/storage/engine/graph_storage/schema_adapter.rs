@@ -5,7 +5,7 @@ use crate::storage::engine::params::CreateEdgeTypeParams;
 use crate::storage::types::StoragePropertyDef;
 
 use super::context::GraphStorageContext;
-use super::type_utils::{
+use super::ops::{
     edge_type_storage_name, endpoint_label_id, tag_label_id, vertex_type_storage_name,
 };
 
@@ -321,7 +321,7 @@ pub(crate) fn alter_edge_type(
         return Ok(false);
     }
 
-    if let Some(edge_label_id) = super::type_utils::edge_label_id(ctx, space, edge_type_name)? {
+        if let Some(edge_label_id) = super::ops::edge_label_id(ctx, space, edge_type_name)? {
         for prop in additions {
             let storage_prop = StoragePropertyDef::from_core(&prop);
             ctx.add_edge_property(edge_label_id, storage_prop)?;

@@ -20,18 +20,17 @@ use crate::storage::engine::config::PropertyGraphConfig;
 use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
 use crate::storage::engine::params::CreateEdgeTypeParams;
 use crate::storage::engine::{
-    EdgeOperationParams, EdgeOperationParamsByI64, InsertEdgeParams, InsertEdgeParamsByI64,
-    PropertyGraphUpdateEdgePropertyParams,
+    EdgeOperationParams, InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams,
 };
 use crate::storage::engine::paths::StoragePaths;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
-use crate::storage::engine::wal_manager::{shared_local_wal_writer, WalManager};
+use crate::storage::engine::wal_manager::WalManager;
 use crate::storage::index::{
     GcStats, IndexDataManagerImpl, IndexGcConfig, IndexGcManager, IndexGcOps,
 };
 use crate::storage::types::{EdgeOffset, StoragePropertyDef};
 use crate::storage::vertex::{IdKey, VertexId, VertexRecord};
-use crate::transaction::wal::writer::WalWriter;
+
 
 #[derive(Clone)]
 struct GraphStorageLayout {
@@ -150,22 +149,6 @@ impl GraphStoragePersistent {
         Self::new_with_config(PropertyGraphConfig::default())
     }
 
-    fn attach_persistence_wal(
-        persistence: &Arc<RwLock<PersistenceCoordinator>>,
-        wal_manager: &Arc<Mutex<WalManager>>,
-    ) {
-        let shared_writer = {
-            let coordinator = persistence.read();
-            let coordinator_wal = coordinator.wal_manager();
-            let writer = coordinator_wal.read().writer();
-            writer.map(shared_local_wal_writer)
-        };
-
-        if let Some(shared_writer) = shared_writer {
-            wal_manager.lock().set_wal_writer(shared_writer);
-        }
-    }
-
     fn new_with_persistence(
         path: PathBuf,
         config: crate::storage::engine::PersistenceConfig,
@@ -176,7 +159,6 @@ impl GraphStoragePersistent {
             Self::build_core_components();
 
         let persistence = PersistenceCoordinator::new(config).map(|p| Arc::new(RwLock::new(p)))?;
-        Self::attach_persistence_wal(&persistence, &wal_manager);
 
         Ok(Self {
             data_store,
@@ -441,10 +423,6 @@ impl GraphStorageContext {
     }
 
     // ── PropertyGraph-compatible API ──
-
-    pub fn set_wal_writer(&self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) {
-        self.persistent.wal_manager.lock().set_wal_writer(wal_writer);
-    }
 
     pub fn wal_enabled(&self) -> bool {
         self.persistent.wal_manager.lock().is_enabled()
@@ -995,87 +973,21 @@ impl GraphStorageContext {
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
 
-        let src_internal = if params.src_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id(params.src_id, params.ts))
-                .ok_or(StorageError::vertex_not_found())?
-        } else {
-            let src_table = vertex_tables.get(&params.src_label).ok_or_else(|| {
-                StorageError::label_not_found(format!("source vertex label {}", params.src_label))
-            })?;
-            src_table
-                .get_internal_id(params.src_id, params.ts)
-                .ok_or(StorageError::vertex_not_found())?
-        };
+        let src_internal = self.resolve_internal_id_from_str(&vertex_tables, params.src_label, params.src_id, params.ts)
+            .or_else(|| {
+                params.src_id.parse::<i64>().ok().and_then(|id| {
+                    self.resolve_internal_id_from_i64(&vertex_tables, params.src_label, id, params.ts)
+                })
+            })
+            .ok_or(StorageError::vertex_not_found())?;
 
-        let dst_internal = if params.dst_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id(params.dst_id, params.ts))
-                .ok_or(StorageError::vertex_not_found())?
-        } else {
-            let dst_table = vertex_tables.get(&params.dst_label).ok_or_else(|| {
-                StorageError::label_not_found(format!("destination vertex label {}", params.dst_label))
-            })?;
-            dst_table
-                .get_internal_id(params.dst_id, params.ts)
-                .ok_or(StorageError::vertex_not_found())?
-        };
-        drop(vertex_tables);
-
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
-        let mut edge_tables = self.persistent.data_store.edge_tables().write();
-        let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
-            StorageError::label_not_found(format!("edge label {}", params.edge_label))
-        })?;
-
-        let offset = edge_table.insert_edge(
-            VertexId::from_int64(src_internal as i64),
-            VertexId::from_int64(dst_internal as i64),
-            params.rank,
-            params.properties,
-            params.ts,
-        )?;
-        self.mark_edge_modified(params.edge_label);
-
-        Ok(offset)
-    }
-
-    pub fn insert_edge_by_i64(&self, params: InsertEdgeParamsByI64) -> StorageResult<EdgeOffset> {
-        if !self.persistent.is_open.load(Ordering::Acquire) {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let vertex_tables = self.persistent.data_store.vertex_tables().read();
-
-        let src_internal = if params.src_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id_by_i64(params.src_id, params.ts))
-                .ok_or(StorageError::vertex_not_found())?
-        } else {
-            let src_table = vertex_tables.get(&params.src_label).ok_or_else(|| {
-                StorageError::label_not_found(format!("source vertex label {}", params.src_label))
-            })?;
-            src_table
-                .get_internal_id_by_i64(params.src_id, params.ts)
-                .ok_or(StorageError::vertex_not_found())?
-        };
-
-        let dst_internal = if params.dst_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id_by_i64(params.dst_id, params.ts))
-                .ok_or(StorageError::vertex_not_found())?
-        } else {
-            let dst_table = vertex_tables.get(&params.dst_label).ok_or_else(|| {
-                StorageError::label_not_found(format!("destination vertex label {}", params.dst_label))
-            })?;
-            dst_table
-                .get_internal_id_by_i64(params.dst_id, params.ts)
-                .ok_or(StorageError::vertex_not_found())?
-        };
+        let dst_internal = self.resolve_internal_id_from_str(&vertex_tables, params.dst_label, params.dst_id, params.ts)
+            .or_else(|| {
+                params.dst_id.parse::<i64>().ok().and_then(|id| {
+                    self.resolve_internal_id_from_i64(&vertex_tables, params.dst_label, id, params.ts)
+                })
+            })
+            .ok_or(StorageError::vertex_not_found())?;
         drop(vertex_tables);
 
         let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
@@ -1107,65 +1019,19 @@ impl GraphStorageContext {
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
 
-        let src_internal = if params.src_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id(params.src_id, ts))?
-        } else {
-            let src_table = vertex_tables.get(&params.src_label)?;
-            src_table.get_internal_id(params.src_id, ts)?
-        };
+        let src_internal = self.resolve_internal_id_from_str(&vertex_tables, params.src_label, params.src_id, ts)
+            .or_else(|| {
+                params.src_id.parse::<i64>().ok().and_then(|id| {
+                    self.resolve_internal_id_from_i64(&vertex_tables, params.src_label, id, ts)
+                })
+            })?;
 
-        let dst_internal = if params.dst_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id(params.dst_id, ts))?
-        } else {
-            let dst_table = vertex_tables.get(&params.dst_label)?;
-            dst_table.get_internal_id(params.dst_id, ts)?
-        };
-        drop(vertex_tables);
-
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
-        let edge_tables = self.persistent.data_store.edge_tables().read();
-        let edge_table = edge_tables.get(&key)?;
-
-        edge_table.get_edge(
-            VertexId::from_int64(src_internal as i64),
-            VertexId::from_int64(dst_internal as i64),
-            params.rank,
-            ts,
-        )
-    }
-
-    pub fn get_edge_by_i64(
-        &self,
-        params: &EdgeOperationParamsByI64,
-        ts: Timestamp,
-    ) -> Option<EdgeRecord> {
-        if !self.persistent.is_open.load(Ordering::Acquire) {
-            return None;
-        }
-
-        let vertex_tables = self.persistent.data_store.vertex_tables().read();
-
-        let src_internal = if params.src_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id_by_i64(params.src_id, ts))?
-        } else {
-            let src_table = vertex_tables.get(&params.src_label)?;
-            src_table.get_internal_id_by_i64(params.src_id, ts)?
-        };
-
-        let dst_internal = if params.dst_label == 0 {
-            vertex_tables
-                .values()
-                .find_map(|t| t.get_internal_id_by_i64(params.dst_id, ts))?
-        } else {
-            let dst_table = vertex_tables.get(&params.dst_label)?;
-            dst_table.get_internal_id_by_i64(params.dst_id, ts)?
-        };
+        let dst_internal = self.resolve_internal_id_from_str(&vertex_tables, params.dst_label, params.dst_id, ts)
+            .or_else(|| {
+                params.dst_id.parse::<i64>().ok().and_then(|id| {
+                    self.resolve_internal_id_from_i64(&vertex_tables, params.dst_label, id, ts)
+                })
+            })?;
         drop(vertex_tables);
 
         let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);

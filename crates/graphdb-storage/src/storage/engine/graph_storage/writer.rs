@@ -5,12 +5,12 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::params::{
-    EdgeOperationParams, InsertEdgeParams, InsertEdgeParamsByI64,
+    EdgeOperationParams, InsertEdgeParams,
 };
 
 use super::context::GraphStorageContext;
 use super::reader;
-use super::type_utils::{edge_label_id, endpoint_label_id, tag_label_id};
+use super::ops::{edge_label_id, endpoint_label_id, tag_label_id};
 
 #[derive(Debug)]
 struct InsertedVertexTag {
@@ -364,34 +364,18 @@ fn insert_edge_at_timestamp(
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
 
-    let src_int = edge.src.as_int64();
-    let dst_int = edge.dst.as_int64();
-
-    if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
-        ctx.insert_edge_by_i64(InsertEdgeParamsByI64 {
-            edge_label: edge_label_id,
-            src_label: src_label_id,
-            src_id,
-            dst_label: dst_label_id,
-            dst_id,
-            rank: edge.ranking,
-            properties: &props,
-            ts,
-        })?;
-    } else {
-        let src_str = edge.src.to_string();
-        let dst_str = edge.dst.to_string();
-        ctx.insert_edge(InsertEdgeParams {
-            edge_label: edge_label_id,
-            src_label: src_label_id,
-            src_id: &src_str,
-            dst_label: dst_label_id,
-            dst_id: &dst_str,
-            rank: edge.ranking,
-            properties: &props,
-            ts,
-        })?;
-    }
+    let src_str = edge.src.to_string();
+    let dst_str = edge.dst.to_string();
+    ctx.insert_edge(InsertEdgeParams {
+        edge_label: edge_label_id,
+        src_label: src_label_id,
+        src_id: &src_str,
+        dst_label: dst_label_id,
+        dst_id: &dst_str,
+        rank: edge.ranking,
+        properties: &props,
+        ts,
+    })?;
 
     rollback.push(InsertedEdgeRecord {
         edge_label_id,
@@ -662,34 +646,19 @@ pub(crate) fn insert_edge_data(
                 edge_type.dst_tag_name
             ))
         })?;
-    let src_int = src_vid.as_int64();
-    let dst_int = dst_vid.as_int64();
+    let src_id = src_vid.to_string();
+    let dst_id = dst_vid.to_string();
 
-    let result = if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
-        ctx.insert_edge_by_i64(InsertEdgeParamsByI64 {
-            edge_label: edge_label_id,
-            src_label: src_label_id,
-            src_id,
-            dst_label: dst_label_id,
-            dst_id,
-            rank: info.rank,
-            properties: &info.props,
-            ts,
-        })
-    } else {
-        let src_id = src_vid.to_string();
-        let dst_id = dst_vid.to_string();
-        ctx.insert_edge(InsertEdgeParams {
-            edge_label: edge_label_id,
-            src_label: src_label_id,
-            src_id: &src_id,
-            dst_label: dst_label_id,
-            dst_id: &dst_id,
-            rank: info.rank,
-            properties: &info.props,
-            ts,
-        })
-    };
+    let result = ctx.insert_edge(InsertEdgeParams {
+        edge_label: edge_label_id,
+        src_label: src_label_id,
+        src_id: &src_id,
+        dst_label: dst_label_id,
+        dst_id: &dst_id,
+        rank: info.rank,
+        properties: &info.props,
+        ts,
+    });
 
     match result {
         Ok(_) => {
