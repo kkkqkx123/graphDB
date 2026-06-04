@@ -44,13 +44,6 @@ pub trait StorageReader: Send + Sync + std::fmt::Debug {
         index: &str,
         value: &Value,
     ) -> Result<Vec<Value>, StorageError>;
-    fn lookup_index_with_score(
-        &self,
-        space: &str,
-        index: &str,
-        value: &Value,
-    ) -> Result<Vec<(Value, f32)>, StorageError>;
-
     fn get_vertex_with_schema(
         &self,
         space: &str,
@@ -206,7 +199,7 @@ pub trait StorageAuthOps: Send + Sync + std::fmt::Debug {
     fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError>;
 }
 
-/// Administrative operations: persistence, stats, maintenance, optional components.
+/// Administrative operations: stats, maintenance, optional components.
 pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
     fn load_from_disk(&mut self) -> Result<(), StorageError>;
     fn save_to_disk(&self) -> Result<(), StorageError>;
@@ -216,78 +209,74 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
     fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError>;
 
     fn get_db_path(&self) -> &str;
+}
 
-    /// Persistence operations
-    fn flush(&self) -> StorageResult<()> {
-        self.save_to_disk()
-    }
+/// Persistence operations for flushing, checkpointing, and compaction.
+pub trait StoragePersistenceOps: Send + Sync + std::fmt::Debug {
+    fn flush(&self) -> StorageResult<()>;
 
-    fn create_checkpoint(&self) -> StorageResult<Option<crate::storage::CheckpointStats>> {
-        let _ = self;
-        Ok(None)
-    }
+    fn create_checkpoint(&self) -> StorageResult<Option<crate::storage::CheckpointStats>>;
 
-    fn verify_snapshot(&self, _snapshot_id: u64) -> StorageResult<bool> {
-        let _ = self;
-        Err(StorageError::not_supported("Snapshots are not supported"))
-    }
+    fn verify_snapshot(&self, snapshot_id: u64) -> StorageResult<bool>;
 
-    fn cleanup_snapshots(&self) -> StorageResult<usize> {
-        let _ = self;
-        Err(StorageError::not_supported("Snapshots are not supported"))
-    }
+    fn cleanup_snapshots(&self) -> StorageResult<usize>;
 
-    fn snapshot_stats(&self) -> crate::storage::SnapshotStats {
-        crate::storage::SnapshotStats::default()
-    }
+    fn snapshot_stats(&self) -> crate::storage::SnapshotStats;
 
-    fn compact(&self, _compact_csr: bool, _reserve_ratio: f32) -> StorageResult<()> {
-        let _ = self;
-        Ok(())
-    }
+    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> StorageResult<()>;
 
     fn save_data(&self) -> StorageResult<()> {
-        self.save_to_disk()
+        self.flush()
     }
 
-    fn save_data_to_dir(&self, _dir: &std::path::Path) -> StorageResult<()> {
-        let _ = self;
-        Ok(())
-    }
+    fn save_data_to_dir(&self, dir: &std::path::Path) -> StorageResult<()>;
 
     fn auto_flush_if_needed(&self) -> StorageResult<bool> {
-        let _ = self;
-        Ok(false)
+        if self.should_flush() {
+            self.flush()?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn auto_checkpoint_if_needed(&self) -> StorageResult<Option<crate::storage::CheckpointStats>> {
-        let _ = self;
-        Ok(None)
+        if self.should_checkpoint() {
+            self.create_checkpoint()
+        } else {
+            Ok(None)
+        }
     }
 
-    fn should_flush(&self) -> bool {
-        false
-    }
+    fn should_flush(&self) -> bool;
 
-    fn should_checkpoint(&self) -> bool {
-        false
-    }
+    fn should_checkpoint(&self) -> bool;
+}
 
-    /// WAL recovery operations
-    fn needs_recovery(&self) -> bool {
-        false
-    }
+/// Access to persistent schema context shared with higher-level components.
+pub trait StorageSchemaContextOps: Send + Sync + std::fmt::Debug {
+    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>>;
+}
 
-    fn recover_from_wal(&self) -> StorageResult<RecoveryStats> {
-        Err(StorageError::not_supported("WAL recovery not supported"))
-    }
+/// Access to transaction runtime context shared with higher-level components.
+pub trait StorageTransactionContextOps: Send + Sync + std::fmt::Debug {
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>>;
 
-    fn recover_from_wal_with_config(
-        &self,
-        _config: RecoveryConfig,
-    ) -> StorageResult<RecoveryStats> {
-        Err(StorageError::not_supported("WAL recovery not supported"))
-    }
+    fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>);
+}
+
+/// Access to sync runtime context shared with higher-level components.
+pub trait StorageSyncContextOps: Send + Sync + std::fmt::Debug {
+    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>>;
+}
+
+/// WAL recovery operations.
+pub trait StorageRecoveryOps: Send + Sync + std::fmt::Debug {
+    fn needs_recovery(&self) -> bool;
+
+    fn recover_from_wal(&self) -> StorageResult<RecoveryStats>;
+
+    fn recover_from_wal_with_config(&self, config: RecoveryConfig) -> StorageResult<RecoveryStats>;
 
     fn init_with_recovery(&self) -> StorageResult<Option<RecoveryStats>> {
         if self.needs_recovery() {
@@ -297,35 +286,15 @@ pub trait StorageAdmin: Send + Sync + std::fmt::Debug {
             Ok(None)
         }
     }
+}
 
-    /// Index GC operations
-    fn is_index_gc_running(&self) -> bool {
-        false
-    }
+/// Index GC operations.
+pub trait StorageGcOps: Send + Sync + std::fmt::Debug {
+    fn is_index_gc_running(&self) -> bool;
 
-    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
-        let _ = self;
-        None
-    }
+    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>>;
 
-    fn stop_index_gc(&self) {}
-
-    /// Schema manager access
-    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
-        None
-    }
-
-    /// Transaction context
-    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
-        None
-    }
-
-    fn set_transaction_context(&self, _context: Option<Arc<TransactionContextInfo>>) {}
-
-    /// Sync manager
-    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
-        None
-    }
+    fn stop_index_gc(&self);
 }
 
 /// Combined storage interface with full read/write/schema/auth/admin capabilities.
@@ -338,6 +307,12 @@ pub trait StorageClient:
     + StorageSchemaOps
     + StorageAuthOps
     + StorageAdmin
+    + StoragePersistenceOps
+    + StorageSchemaContextOps
+    + StorageTransactionContextOps
+    + StorageSyncContextOps
+    + StorageRecoveryOps
+    + StorageGcOps
     + Send
     + Sync
     + std::fmt::Debug
@@ -351,6 +326,12 @@ impl<T> StorageClient for T where
         + StorageSchemaOps
         + StorageAuthOps
         + StorageAdmin
+        + StoragePersistenceOps
+        + StorageSchemaContextOps
+        + StorageTransactionContextOps
+        + StorageSyncContextOps
+        + StorageRecoveryOps
+        + StorageGcOps
         + Send
         + Sync
         + std::fmt::Debug

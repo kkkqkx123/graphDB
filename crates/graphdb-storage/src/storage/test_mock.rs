@@ -1,12 +1,15 @@
 use crate::core::error::StorageError;
 use crate::core::types::{
     EdgeTypeInfo, EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
-    PropertyDef, SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
+    PropertyDef, SpaceInfo, TagInfo, TransactionContextInfo, UpdateInfo, UserAlterInfo, UserInfo,
+    VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
 use crate::storage::engine::PropertyGraph;
 use crate::storage::{
-    StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
+    StorageAdmin, StorageAuthOps, StorageGcOps, StoragePersistenceOps, StorageReader,
+    StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
+    StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -23,6 +26,11 @@ macro_rules! mock_stub {
 #[derive(Debug, Clone)]
 pub struct MockStorage {
     graph: Arc<RwLock<PropertyGraph>>,
+    schema_manager: Arc<crate::core::metadata::SchemaManager>,
+    transaction_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
+    fail_insert_edge: Arc<RwLock<bool>>,
+    fail_delete_edge: Arc<RwLock<bool>>,
+    fail_batch_insert_edges: Arc<RwLock<bool>>,
 }
 
 impl MockStorage {
@@ -30,11 +38,28 @@ impl MockStorage {
         let graph = PropertyGraph::new();
         Ok(Self {
             graph: Arc::new(RwLock::new(graph)),
+            schema_manager: Arc::new(crate::core::metadata::SchemaManager::new()),
+            transaction_context: Arc::new(RwLock::new(None)),
+            fail_insert_edge: Arc::new(RwLock::new(false)),
+            fail_delete_edge: Arc::new(RwLock::new(false)),
+            fail_batch_insert_edges: Arc::new(RwLock::new(false)),
         })
     }
 
     pub fn get_graph(&self) -> &Arc<RwLock<PropertyGraph>> {
         &self.graph
+    }
+
+    pub fn set_fail_insert_edge(&self, enabled: bool) {
+        *self.fail_insert_edge.write() = enabled;
+    }
+
+    pub fn set_fail_delete_edge(&self, enabled: bool) {
+        *self.fail_delete_edge.write() = enabled;
+    }
+
+    pub fn set_fail_batch_insert_edges(&self, enabled: bool) {
+        *self.fail_batch_insert_edges.write() = enabled;
     }
 }
 
@@ -54,7 +79,6 @@ impl StorageReader for MockStorage {
     mock_stub!(&self, scan_edges_by_type(_space: &str, _edge_type: &str) -> Result<Vec<Edge>, StorageError>, Ok(Vec::new()));
     mock_stub!(&self, scan_all_edges(_space: &str) -> Result<Vec<Edge>, StorageError>, Ok(Vec::new()));
     mock_stub!(&self, lookup_index(_space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError>, Ok(Vec::new()));
-    mock_stub!(&self, lookup_index_with_score(_space: &str, _index: &str, _value: &Value) -> Result<Vec<(Value, f32)>, StorageError>, Ok(Vec::new()));
     mock_stub!(&self, get_vertex_with_schema(_space: &str, _tag: &str, _id: &Value) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError>, Ok(None));
     mock_stub!(&self, get_edge_with_schema(_space: &str, _edge_type: &str, _src: &Value, _dst: &Value) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError>, Ok(None));
     mock_stub!(&self, scan_vertices_with_schema(_space: &str, _tag: &str) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError>, Ok(Vec::new()));
@@ -81,9 +105,36 @@ impl StorageWriter for MockStorage {
     mock_stub!(&mut self, delete_vertex_with_edges(_space: &str, _id: &VertexId) -> Result<(), StorageError>, Ok(()));
     mock_stub!(&mut self, batch_insert_vertices(_space: &str, _vertices: Vec<Vertex>) -> Result<Vec<VertexId>, StorageError>, Ok(Vec::new()));
     mock_stub!(&mut self, delete_tags(_space: &str, _vertex_id: &VertexId, _tag_names: &[String]) -> Result<usize, StorageError>, Ok(0));
-    mock_stub!(&mut self, insert_edge(_space: &str, _edge: Edge) -> Result<(), StorageError>, Ok(()));
-    mock_stub!(&mut self, delete_edge(_space: &str, _src: &VertexId, _dst: &VertexId, _edge_type: &str, _rank: i64) -> Result<(), StorageError>, Ok(()));
-    mock_stub!(&mut self, batch_insert_edges(_space: &str, _edges: Vec<Edge>) -> Result<(), StorageError>, Ok(()));
+    fn insert_edge(&mut self, _space: &str, _edge: Edge) -> Result<(), StorageError> {
+        if *self.fail_insert_edge.read() {
+            Err(StorageError::db_error("insert_edge failed".to_string()))
+        } else {
+            Ok(())
+        }
+    }
+    fn delete_edge(
+        &mut self,
+        _space: &str,
+        _src: &VertexId,
+        _dst: &VertexId,
+        _edge_type: &str,
+        _rank: i64,
+    ) -> Result<(), StorageError> {
+        if *self.fail_delete_edge.read() {
+            Err(StorageError::db_error("delete_edge failed".to_string()))
+        } else {
+            Ok(())
+        }
+    }
+    fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
+        if *self.fail_batch_insert_edges.read() {
+            Err(StorageError::db_error(
+                "batch_insert_edges failed".to_string(),
+            ))
+        } else {
+            Ok(())
+        }
+    }
     mock_stub!(&mut self, insert_vertex_data(_space: &str, _info: &InsertVertexInfo) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, insert_edge_data(_space: &str, _info: &InsertEdgeInfo) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, delete_vertex_data(_space: &str, _vertex_id: &str) -> Result<bool, StorageError>, Ok(true));
@@ -140,4 +191,97 @@ impl StorageAdmin for MockStorage {
     mock_stub!(&self, find_dangling_edges(_space: &str) -> Result<Vec<Edge>, StorageError>, Ok(Vec::new()));
     mock_stub!(&mut self, repair_dangling_edges(_space: &str) -> Result<usize, StorageError>, Ok(0));
     mock_stub!(&self, get_db_path() -> &str, "");
+}
+
+impl StoragePersistenceOps for MockStorage {
+    fn flush(&self) -> crate::core::StorageResult<()> {
+        Ok(())
+    }
+
+    fn create_checkpoint(
+        &self,
+    ) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>> {
+        Ok(None)
+    }
+
+    fn verify_snapshot(&self, _snapshot_id: u64) -> crate::core::StorageResult<bool> {
+        Ok(false)
+    }
+
+    fn cleanup_snapshots(&self) -> crate::core::StorageResult<usize> {
+        Ok(0)
+    }
+
+    fn snapshot_stats(&self) -> crate::storage::SnapshotStats {
+        Default::default()
+    }
+
+    fn compact(&self, _compact_csr: bool, _reserve_ratio: f32) -> crate::core::StorageResult<()> {
+        Ok(())
+    }
+
+    fn save_data_to_dir(&self, _dir: &std::path::Path) -> crate::core::StorageResult<()> {
+        Ok(())
+    }
+
+    fn should_flush(&self) -> bool {
+        false
+    }
+
+    fn should_checkpoint(&self) -> bool {
+        false
+    }
+}
+
+impl StorageSchemaContextOps for MockStorage {
+    fn get_schema_manager(&self) -> Option<Arc<crate::core::metadata::SchemaManager>> {
+        Some(self.schema_manager.clone())
+    }
+}
+
+impl StorageTransactionContextOps for MockStorage {
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
+        self.transaction_context.read().clone()
+    }
+
+    fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
+        *self.transaction_context.write() = context;
+    }
+}
+
+impl StorageSyncContextOps for MockStorage {
+    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
+        None
+    }
+}
+
+impl StorageRecoveryOps for MockStorage {
+    fn needs_recovery(&self) -> bool {
+        false
+    }
+
+    fn recover_from_wal(
+        &self,
+    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        Ok(Default::default())
+    }
+
+    fn recover_from_wal_with_config(
+        &self,
+        _config: crate::transaction::wal::recovery::RecoveryConfig,
+    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
+        Ok(Default::default())
+    }
+}
+
+impl StorageGcOps for MockStorage {
+    fn is_index_gc_running(&self) -> bool {
+        false
+    }
+
+    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
+        None
+    }
+
+    fn stop_index_gc(&self) {}
 }

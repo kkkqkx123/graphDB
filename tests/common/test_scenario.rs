@@ -7,8 +7,7 @@ use graphdb::core::types::VertexId;
 use graphdb::core::Value;
 use graphdb::query::executor::base::ExecutionResult;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::GraphStorage;
-use graphdb::storage::StorageReader;
+use graphdb::storage::{GraphStorage, StorageReader, StorageSchemaContextOps};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -38,7 +37,9 @@ impl TestScenario {
         let optimizer = Arc::new(OptimizerEngine::default());
         let schema_manager = {
             let storage_guard = storage.write();
-            storage_guard.get_schema_manager()
+            storage_guard
+                .get_schema_manager()
+                .expect("Storage should provide a schema manager")
         };
         let pipeline =
             QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, optimizer)

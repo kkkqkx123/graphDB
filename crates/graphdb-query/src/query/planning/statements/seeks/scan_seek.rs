@@ -5,7 +5,7 @@
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Value, Vertex};
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 #[derive(Debug, Clone)]
 pub struct ScanSeek {
@@ -30,7 +30,7 @@ impl ScanSeek {
 }
 
 impl SeekStrategy for ScanSeek {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,
@@ -48,7 +48,7 @@ impl SeekStrategy for ScanSeek {
 }
 
 impl ScanSeek {
-    fn scan_all_labels<S: StorageClient>(
+    fn scan_all_labels<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,
@@ -75,7 +75,7 @@ impl ScanSeek {
         })
     }
 
-    fn scan_specific_labels<S: StorageClient>(
+    fn scan_specific_labels<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,

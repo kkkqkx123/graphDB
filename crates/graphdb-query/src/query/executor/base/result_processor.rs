@@ -8,7 +8,6 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::query::executor::base::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
 use parking_lot::RwLock;
 
 /// Result Processor Context
@@ -43,7 +42,7 @@ impl Default for ResultProcessorContext {
 /// Results Processor Unified Interface
 ///
 /// All result processing actuators should implement this interface
-pub trait ResultProcessor<S: StorageClient> {
+pub trait ResultProcessor {
     /// Processes input data and returns results
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
 
@@ -80,7 +79,7 @@ pub trait ResultProcessor<S: StorageClient> {
 /// Results processor base implementation
 ///
 /// Provide generic result processor functionality, other actuators can inherit this base implementation
-pub struct BaseResultProcessor<S: StorageClient> {
+pub struct BaseResultProcessor<S> {
     /// Actuator ID
     pub id: i64,
     /// Actuator name
@@ -99,7 +98,7 @@ pub struct BaseResultProcessor<S: StorageClient> {
     pub stats: crate::query::executor::base::ExecutorStats,
 }
 
-impl<S: StorageClient> BaseResultProcessor<S> {
+impl<S> BaseResultProcessor<S> {
     /// Creating a new base results processor
     pub fn new(id: i64, name: String, description: String, storage: Arc<RwLock<S>>) -> Self {
         Self {

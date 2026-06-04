@@ -8,10 +8,10 @@ use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
-pub struct GetNeighborsExecutor<S: StorageClient + 'static> {
+pub struct GetNeighborsExecutor<S: StorageReader + 'static> {
     base: BaseExecutor<S>,
     vertex_ids: Vec<Value>,
     edge_direction: EdgeDirection,
@@ -19,7 +19,7 @@ pub struct GetNeighborsExecutor<S: StorageClient + 'static> {
     space_name: String,
 }
 
-impl<S: StorageClient> GetNeighborsExecutor<S> {
+impl<S: StorageReader> GetNeighborsExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -44,7 +44,7 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
     }
 }
 
-impl<S: StorageClient + 'static> Executor<S> for GetNeighborsExecutor<S> {
+impl<S: StorageReader + 'static> Executor<S> for GetNeighborsExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -95,13 +95,13 @@ impl<S: StorageClient + 'static> Executor<S> for GetNeighborsExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for GetNeighborsExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for GetNeighborsExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
+impl<S: StorageReader + 'static> GetNeighborsExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         if self.vertex_ids.is_empty() {
             return Ok(Vec::new());

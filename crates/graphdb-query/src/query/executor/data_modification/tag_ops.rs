@@ -12,13 +12,13 @@ use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::{StorageReader, StorageWriter};
 use parking_lot::RwLock;
 
 /// Delete Label Enforcer
 ///
 /// Responsible for removing labels from vertices
-pub struct DeleteTagExecutor<S: StorageClient> {
+pub struct DeleteTagExecutor<S: StorageReader + StorageWriter> {
     base: BaseExecutor<S>,
     tag_names: Vec<String>,
     vertex_ids: Vec<Value>,
@@ -26,7 +26,7 @@ pub struct DeleteTagExecutor<S: StorageClient> {
     delete_all_tags: bool,
 }
 
-impl<S: StorageClient> DeleteTagExecutor<S> {
+impl<S: StorageReader + StorageWriter> DeleteTagExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -55,7 +55,9 @@ impl<S: StorageClient> DeleteTagExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteTagExecutor<S> {
+impl<S: StorageReader + StorageWriter + Send + Sync + 'static> Executor<S>
+    for DeleteTagExecutor<S>
+{
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -106,13 +108,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteTagExecutor
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for DeleteTagExecutor<S> {
+impl<S: StorageReader + StorageWriter> HasStorage<S> for DeleteTagExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
+impl<S: StorageReader + StorageWriter + Send + Sync + 'static> DeleteTagExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
         let mut storage = self.get_storage().write();

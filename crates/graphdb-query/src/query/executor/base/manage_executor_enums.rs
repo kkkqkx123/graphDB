@@ -39,7 +39,6 @@ use crate::query::executor::admin::user::{
 #[cfg(feature = "qdrant")]
 use crate::query::executor::data_access::{CreateVectorIndexExecutor, DropVectorIndexExecutor};
 use crate::storage::StorageClient;
-
 macro_rules! define_manage_executor_enum {
     (
         $(#[$meta:meta])*

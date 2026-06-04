@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::core::types::{PropertyDef, TagInfo};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::{StorageReader, StorageSchemaOps};
 
 pub fn tag_info_from_executor(executor_info: &ExecutorTagInfo) -> TagInfo {
     let properties: Vec<PropertyDef> = executor_info
@@ -67,13 +67,13 @@ impl ExecutorTagInfo {
 ///
 /// This executor is responsible for creating new labels in the specified graph space.
 #[derive(Debug)]
-pub struct CreateTagExecutor<S: StorageClient> {
+pub struct CreateTagExecutor<S: StorageReader + StorageSchemaOps> {
     base: BaseExecutor<S>,
     tag_info: ExecutorTagInfo,
     if_not_exists: bool,
 }
 
-impl<S: StorageClient> CreateTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> CreateTagExecutor<S> {
     /// Create a new CreateTagExecutor
     pub fn new(
         id: i64,
@@ -103,7 +103,9 @@ impl<S: StorageClient> CreateTagExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps + Send + Sync + 'static> Executor<S>
+    for CreateTagExecutor<S>
+{
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
@@ -161,7 +163,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> crate::query::executor::base::HasStorage<S>
+    for CreateTagExecutor<S>
+{
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

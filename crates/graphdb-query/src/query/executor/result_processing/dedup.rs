@@ -395,7 +395,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for DedupExecutor<S> {
     fn process(&mut self, _input: ExecutionResult) -> DBResult<ExecutionResult> {
         // Reset the memory usage.
         self.reset_memory_usage();
@@ -534,9 +534,10 @@ mod tests {
         let input_result = ExecutionResult::DataSet(dataset);
 
         // Use the set_input method of the ResultProcessor trait.
-        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
-            MockStorage,
-        >>::set_input(&mut executor, input_result);
+        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor>::set_input(
+            &mut executor,
+            input_result,
+        );
 
         // Remove duplicates.
         let result = executor
@@ -580,9 +581,10 @@ mod tests {
 
         // Use the `set_input` method to set the input data.
         let input_dataset = DataSet::from_rows(test_rows, vec!["id".to_string()]);
-        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
-            MockStorage,
-        >>::set_input(&mut executor, ExecutionResult::DataSet(input_dataset));
+        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor>::set_input(
+            &mut executor,
+            ExecutionResult::DataSet(input_dataset),
+        );
 
         // Handle deduplication.
         let result = executor

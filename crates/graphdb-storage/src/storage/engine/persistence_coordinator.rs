@@ -92,6 +92,19 @@ impl Default for PersistenceConfig {
     }
 }
 
+impl PersistenceConfig {
+    pub fn for_work_dir(path: impl AsRef<Path>) -> Self {
+        let path = path.as_ref();
+        Self {
+            data_dir: path.join("data"),
+            wal_dir: path.join("wal"),
+            checkpoint_dir: path.join("checkpoint"),
+            snapshot_dir: path.join("snapshots"),
+            ..Default::default()
+        }
+    }
+}
+
 pub struct PersistenceCoordinator {
     config: PersistenceConfig,
     wal_manager: Arc<RwLock<WalManager>>,

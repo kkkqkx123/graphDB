@@ -14,7 +14,7 @@ use crate::core::types::TransactionContextInfo;
 use crate::core::{DataType, MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::{StorageClient, StorageSyncContextOps, StorageTransactionContextOps};
 use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::RwLock;
@@ -24,17 +24,17 @@ use std::time::Duration;
 use vector_client::VectorManager;
 
 /// RAII guard to ensure transaction context is always cleared from storage.
-struct TransactionContextGuard<'a, S: StorageClient + ?Sized> {
+struct TransactionContextGuard<'a, S: StorageTransactionContextOps + ?Sized> {
     storage: &'a S,
 }
 
-impl<'a, S: StorageClient + ?Sized> TransactionContextGuard<'a, S> {
+impl<'a, S: StorageTransactionContextOps + ?Sized> TransactionContextGuard<'a, S> {
     fn new(storage: &'a S) -> Self {
         Self { storage }
     }
 }
 
-impl<S: StorageClient + ?Sized> Drop for TransactionContextGuard<'_, S> {
+impl<S: StorageTransactionContextOps + ?Sized> Drop for TransactionContextGuard<'_, S> {
     fn drop(&mut self) {
         self.storage.set_transaction_context(None);
     }

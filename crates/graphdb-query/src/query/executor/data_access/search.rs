@@ -11,13 +11,13 @@ use crate::core::{NullType, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 /// IndexScanExecutor - Index Scan Executor
 ///
 /// Used to perform index-based scanning operations, supporting complex index queries
-pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
+pub struct IndexScanExecutor<S: StorageReader + Send + 'static> {
     base: BaseExecutor<S>,
     space_id: u64,
     tag_id: i32,
@@ -32,7 +32,7 @@ pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
     is_edge: bool,
 }
 
-impl<S: StorageClient> IndexScanExecutor<S> {
+impl<S: StorageReader> IndexScanExecutor<S> {
     pub fn new(base_config: ExecutorConfig<S>, scan_config: IndexScanConfig) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -528,7 +528,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
+impl<S: StorageReader + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         eprintln!("IndexScanExecutor::execute called");
         eprintln!(
@@ -722,7 +722,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for IndexScanExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

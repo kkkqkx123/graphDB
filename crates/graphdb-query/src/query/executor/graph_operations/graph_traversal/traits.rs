@@ -1,11 +1,10 @@
 use crate::query::executor::base::EdgeDirection;
-use crate::storage::StorageClient;
 
 /// General characteristics of graph traversal executors
 ///
 /// This trait provides a unified configuration interface for graph traversal executors.
 /// All graph traversal executors should implement this trait to provide consistent configuration management.
-pub trait GraphTraversalExecutor<S: StorageClient> {
+pub trait GraphTraversalExecutor<S> {
     /// Set the border direction
     fn set_edge_direction(&mut self, direction: EdgeDirection);
 

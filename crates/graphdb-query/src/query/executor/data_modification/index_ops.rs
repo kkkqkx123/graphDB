@@ -11,13 +11,13 @@ use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::StorageSchemaOps;
 use parking_lot::RwLock;
 
 /// Creating an Indexing Executor
 ///
 /// Responsible for creating indexes in the storage tier
-pub struct CreateIndexExecutor<S: StorageClient> {
+pub struct CreateIndexExecutor<S: StorageSchemaOps> {
     base: BaseExecutor<S>,
     index_name: String,
     index_type: crate::core::types::IndexType,
@@ -25,7 +25,7 @@ pub struct CreateIndexExecutor<S: StorageClient> {
     tag_name: Option<String>,
 }
 
-impl<S: StorageClient> CreateIndexExecutor<S> {
+impl<S: StorageSchemaOps> CreateIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -45,13 +45,13 @@ impl<S: StorageClient> CreateIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for CreateIndexExecutor<S> {
+impl<S: StorageSchemaOps> HasStorage<S> for CreateIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateIndexExecutor<S> {
+impl<S: StorageSchemaOps + Send + Sync + 'static> Executor<S> for CreateIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -96,7 +96,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateIndexExecut
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
+impl<S: StorageSchemaOps + Send + Sync + 'static> CreateIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<()> {
         let mut storage = self.get_storage().write();
 
@@ -140,12 +140,12 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
 /// Delete Index Executor
 ///
 /// Responsible for deleting indexes from the storage tier
-pub struct DropIndexExecutor<S: StorageClient> {
+pub struct DropIndexExecutor<S: StorageSchemaOps> {
     base: BaseExecutor<S>,
     _index_name: String,
 }
 
-impl<S: StorageClient> DropIndexExecutor<S> {
+impl<S: StorageSchemaOps> DropIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -159,13 +159,13 @@ impl<S: StorageClient> DropIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for DropIndexExecutor<S> {
+impl<S: StorageSchemaOps> HasStorage<S> for DropIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropIndexExecutor<S> {
+impl<S: StorageSchemaOps + Send + Sync + 'static> Executor<S> for DropIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -210,7 +210,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropIndexExecutor
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> DropIndexExecutor<S> {
+impl<S: StorageSchemaOps + Send + Sync + 'static> DropIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<()> {
         let mut storage = self.get_storage().write();
 

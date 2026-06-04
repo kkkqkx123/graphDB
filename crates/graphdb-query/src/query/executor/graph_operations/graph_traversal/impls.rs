@@ -9,7 +9,9 @@ use crate::query::executor::graph_operations::graph_traversal::traverse::Travers
 /// Macro definition: Implements general statistical information for executors that have access to node statistics.
 macro_rules! impl_graph_traversal_executor_with_stats {
     ($executor:ty, $visited_nodes_field:ident) => {
-        impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for $executor {
+        impl<S: crate::storage::StorageClient + Send + 'static> GraphTraversalExecutor<S>
+            for $executor
+        {
             fn set_edge_direction(
                 &mut self,
                 direction: crate::query::executor::base::EdgeDirection,
@@ -64,7 +66,9 @@ impl_graph_traversal_executor_with_stats!(ExpandAllExecutor<S>, visited_nodes);
 impl_graph_traversal_executor_with_stats!(TraverseExecutor<S>, visited_nodes);
 
 /// Provide a special implementation for ShortestPathExecutor.
-impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPathExecutor<S> {
+impl<S: crate::storage::StorageClient + Send + 'static> GraphTraversalExecutor<S>
+    for ShortestPathExecutor<S>
+{
     fn set_edge_direction(&mut self, direction: crate::query::executor::base::EdgeDirection) {
         self.edge_direction = direction;
     }

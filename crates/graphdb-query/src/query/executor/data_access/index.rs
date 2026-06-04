@@ -6,11 +6,11 @@ use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 #[derive(Debug)]
-pub struct LookupIndexExecutor<S: StorageClient> {
+pub struct LookupIndexExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     index_name: String,
     index_condition: Option<(String, Value)>,
@@ -18,7 +18,7 @@ pub struct LookupIndexExecutor<S: StorageClient> {
     limit: Option<usize>,
 }
 
-impl<S: StorageClient> LookupIndexExecutor<S> {
+impl<S: StorageReader> LookupIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -38,7 +38,7 @@ impl<S: StorageClient> LookupIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for LookupIndexExecutor<S> {
+impl<S: StorageReader> Executor<S> for LookupIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -87,13 +87,13 @@ impl<S: StorageClient> Executor<S> for LookupIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for LookupIndexExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for LookupIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> LookupIndexExecutor<S> {
+impl<S: StorageReader> LookupIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         let storage = self.get_storage().read();
 

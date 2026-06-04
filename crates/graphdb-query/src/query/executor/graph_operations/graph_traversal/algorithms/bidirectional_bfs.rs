@@ -8,14 +8,14 @@ use std::sync::Arc;
 use crate::core::types::{EdgeDirection, VertexId};
 use crate::core::{Edge, NPath, Path, Vertex};
 use crate::query::QueryError;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 use super::traits::ShortestPathAlgorithm;
 use super::types::{combine_npaths, has_duplicate_edges, AlgorithmStats, SelfLoopDedup};
 
 /// Bidirectional BFS (Broad-Search First) shortest path algorithm
-pub struct BidirectionalBFS<S: StorageClient> {
+pub struct BidirectionalBFS<S: StorageReader> {
     storage: Arc<RwLock<S>>,
     stats: AlgorithmStats,
     edge_direction: EdgeDirection,
@@ -23,7 +23,7 @@ pub struct BidirectionalBFS<S: StorageClient> {
     space_name: String,
 }
 
-impl<S: StorageClient> BidirectionalBFS<S> {
+impl<S: StorageReader> BidirectionalBFS<S> {
     pub fn new(storage: Arc<RwLock<S>>, space_name: String) -> Self {
         Self {
             storage,
@@ -119,7 +119,7 @@ impl<S: StorageClient> BidirectionalBFS<S> {
     }
 }
 
-impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
+impl<S: StorageReader> ShortestPathAlgorithm for BidirectionalBFS<S> {
     fn find_paths(
         &mut self,
         start_ids: &[VertexId],

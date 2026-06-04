@@ -406,10 +406,10 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for FilterExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for FilterExecutor<S> {
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         if self.input_executor.is_none() && self.base.input.is_none() {
-            <Self as ResultProcessor<S>>::set_input(self, input.clone());
+            <Self as ResultProcessor>::set_input(self, input.clone());
         }
         self.process_input()
     }
@@ -555,7 +555,7 @@ mod tests {
         let mut executor = FilterExecutor::new(1, storage, ctx_condition);
 
         // Setting the input data
-        <FilterExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
+        <FilterExecutor<MockStorage> as ResultProcessor>::set_input(
             &mut executor,
             ExecutionResult::DataSet(dataset),
         );

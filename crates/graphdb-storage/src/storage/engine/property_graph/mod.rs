@@ -29,8 +29,11 @@ use super::config::PropertyGraphConfig;
 use super::data_store::GraphDataStore;
 use super::wal_manager::WalManager;
 use crate::core::types::{TableId, TableTracker, TableTrackerConfig, TableType};
+#[cfg(test)]
+use crate::storage::engine::paths::StoragePaths;
 use crate::storage::index::{GcStats, IndexDataManagerImpl, IndexGcOps};
 
+#[cfg(test)]
 pub(crate) const DATA_FORMAT_VERSION: u32 = 1;
 
 pub struct PropertyGraph {
@@ -141,11 +144,6 @@ impl PropertyGraph {
         }
     }
 
-    pub fn with_wal(self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) -> Self {
-        self.wal_manager.lock().set_wal_writer(wal_writer);
-        self
-    }
-
     pub fn set_wal_writer(&self, wal_writer: Arc<RwLock<Box<dyn WalWriter>>>) {
         self.wal_manager.lock().set_wal_writer(wal_writer);
     }
@@ -211,14 +209,9 @@ impl PropertyGraph {
         &self.cache_manager
     }
 
-    pub fn open<P: AsRef<Path>>(path: P) -> StorageResult<Self> {
-        let config = PropertyGraphConfig {
-            work_dir: path.as_ref().to_path_buf(),
-            ..Default::default()
-        };
-        let graph = Self::with_config(config);
-        graph.load_data()?;
-        Ok(graph)
+    #[cfg(test)]
+    pub(crate) fn storage_paths(&self) -> StoragePaths {
+        StoragePaths::new(self.config.work_dir.clone())
     }
 
     pub fn close(&self) {
@@ -681,6 +674,7 @@ impl PropertyGraph {
         flush::flush_tables_to_dir(self, data_dir)
     }
 
+    #[cfg(test)]
     pub(crate) fn load_data(&self) -> StorageResult<()> {
         flush::load_data(self)
     }

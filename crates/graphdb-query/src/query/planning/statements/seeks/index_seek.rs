@@ -5,7 +5,7 @@
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Value, Vertex};
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 #[derive(Debug, Clone)]
 pub struct IndexSeek;
@@ -23,7 +23,7 @@ impl IndexSeek {
 }
 
 impl SeekStrategy for IndexSeek {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,

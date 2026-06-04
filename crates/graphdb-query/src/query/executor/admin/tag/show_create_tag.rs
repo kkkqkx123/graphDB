@@ -10,20 +10,20 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 /// Show CREATE TAG Executor
 ///
 /// This executor is responsible for generating the CREATE TAG statement
 /// for the specified tag.
 #[derive(Debug)]
-pub struct ShowCreateTagExecutor<S: StorageClient> {
+pub struct ShowCreateTagExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     space_name: String,
     tag_name: String,
 }
 
-impl<S: StorageClient> ShowCreateTagExecutor<S> {
+impl<S: StorageReader> ShowCreateTagExecutor<S> {
     /// Create a new ShowCreateTagExecutor
     pub fn new(
         id: i64,
@@ -45,7 +45,7 @@ impl<S: StorageClient> ShowCreateTagExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowCreateTagExecutor<S> {
+impl<S: StorageReader + Send + Sync + 'static> Executor<S> for ShowCreateTagExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.read();
@@ -139,7 +139,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowCreateTagExec
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowCreateTagExecutor<S> {
+impl<S: StorageReader> crate::query::executor::base::HasStorage<S> for ShowCreateTagExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

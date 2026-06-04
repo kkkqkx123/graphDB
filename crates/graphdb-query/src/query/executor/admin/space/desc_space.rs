@@ -9,7 +9,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 /// Figure space details
@@ -38,12 +38,12 @@ impl SpaceDesc {
 ///
 /// This executor is responsible for returning detailed information about the specified graph space.
 #[derive(Debug)]
-pub struct DescSpaceExecutor<S: StorageClient> {
+pub struct DescSpaceExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     space_name: String,
 }
 
-impl<S: StorageClient> DescSpaceExecutor<S> {
+impl<S: StorageReader> DescSpaceExecutor<S> {
     /// Creating a new DescSpaceExecutor
     pub fn new(
         id: i64,
@@ -58,7 +58,7 @@ impl<S: StorageClient> DescSpaceExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor<S> {
+impl<S: StorageReader + Send + Sync + 'static> Executor<S> for DescSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.read();
@@ -127,7 +127,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescSpaceExecutor<S> {
+impl<S: StorageReader> crate::query::executor::base::HasStorage<S> for DescSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

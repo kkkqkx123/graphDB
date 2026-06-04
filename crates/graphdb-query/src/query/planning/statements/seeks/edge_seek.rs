@@ -10,7 +10,7 @@
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Value};
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 /// Edge pattern information
 #[derive(Debug, Clone, PartialEq)]
@@ -101,7 +101,7 @@ impl EdgeSeek {
 }
 
 impl SeekStrategy for EdgeSeek {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         _context: &SeekStrategyContext,

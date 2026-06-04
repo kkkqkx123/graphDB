@@ -6,7 +6,7 @@ use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::types::VertexId;
 use crate::core::{StorageError, Value, Vertex};
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 #[derive(Debug, Clone)]
 pub struct VertexSeek;
@@ -24,7 +24,7 @@ impl VertexSeek {
 }
 
 impl SeekStrategy for VertexSeek {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,

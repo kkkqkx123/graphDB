@@ -27,7 +27,7 @@ pub(crate) fn tag_label_id(
     tag_name: &str,
 ) -> StorageResult<Option<LabelId>> {
     Ok(ctx
-        .schema_manager
+        .schema_manager()
         .get_tag(space, tag_name)?
         .map(|tag| tag.tag_id))
 }
@@ -49,7 +49,7 @@ pub(crate) fn edge_label_id(
     edge_type_name: &str,
 ) -> StorageResult<Option<LabelId>> {
     Ok(ctx
-        .schema_manager
+        .schema_manager()
         .get_edge_type(space, edge_type_name)?
         .map(|edge_type| edge_type.edge_type_id))
 }

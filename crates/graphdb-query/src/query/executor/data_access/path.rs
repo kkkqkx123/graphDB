@@ -7,11 +7,11 @@ use crate::core::{Path, Step, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 #[derive(Debug)]
-pub struct AllPathsExecutor<S: StorageClient> {
+pub struct AllPathsExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     start_vertex: Value,
     end_vertex: Option<Value>,
@@ -21,7 +21,7 @@ pub struct AllPathsExecutor<S: StorageClient> {
     space_name: String,
 }
 
-impl<S: StorageClient> AllPathsExecutor<S> {
+impl<S: StorageReader> AllPathsExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -41,7 +41,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
+impl<S: StorageReader> Executor<S> for AllPathsExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage().read();
 
@@ -142,7 +142,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for AllPathsExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for AllPathsExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.storage.as_ref().expect("Storage not initialized")
     }

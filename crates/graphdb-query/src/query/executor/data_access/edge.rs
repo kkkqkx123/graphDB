@@ -9,10 +9,10 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
-pub struct GetEdgesExecutor<S: StorageClient> {
+pub struct GetEdgesExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     edge_type: Option<String>,
     src: Option<String>,
@@ -21,7 +21,7 @@ pub struct GetEdgesExecutor<S: StorageClient> {
     space_name: String,
 }
 
-impl<S: StorageClient> GetEdgesExecutor<S> {
+impl<S: StorageReader> GetEdgesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -59,7 +59,7 @@ impl<S: StorageClient> GetEdgesExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for GetEdgesExecutor<S> {
+impl<S: StorageReader> Executor<S> for GetEdgesExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -109,13 +109,13 @@ impl<S: StorageClient> Executor<S> for GetEdgesExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for GetEdgesExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for GetEdgesExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> GetEdgesExecutor<S> {
+impl<S: StorageReader> GetEdgesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
         let storage = self.get_storage().read();
 
@@ -151,14 +151,14 @@ impl<S: StorageClient> GetEdgesExecutor<S> {
     }
 }
 
-pub struct ScanEdgesExecutor<S: StorageClient> {
+pub struct ScanEdgesExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     edge_type: Option<String>,
     filter: Option<crate::core::Expression>,
     limit: Option<usize>,
 }
 
-impl<S: StorageClient> ScanEdgesExecutor<S> {
+impl<S: StorageReader> ScanEdgesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -176,7 +176,7 @@ impl<S: StorageClient> ScanEdgesExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for ScanEdgesExecutor<S> {
+impl<S: StorageReader> Executor<S> for ScanEdgesExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -226,13 +226,13 @@ impl<S: StorageClient> Executor<S> for ScanEdgesExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for ScanEdgesExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for ScanEdgesExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> ScanEdgesExecutor<S> {
+impl<S: StorageReader> ScanEdgesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
         let storage = self.get_storage().read();
 

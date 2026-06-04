@@ -8,7 +8,8 @@ mod tests {
     use crate::core::DataType;
     use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
     use crate::storage::{
-        GraphStorage, StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageWriter,
+        GraphStorage, StorageAdmin, StorageAuthOps, StoragePersistenceOps, StorageReader,
+        StorageSchemaOps, StorageWriter,
     };
 
     fn create_test_storage() -> GraphStorage {
@@ -800,9 +801,8 @@ mod tests {
         storage.create_user(&user).unwrap();
         storage.save_to_disk().unwrap();
 
-        let mut reloaded = GraphStorage::new_with_path(temp_dir.path().to_path_buf())
-            .expect("Failed to recreate GraphStorage");
-        reloaded.load_from_disk().unwrap();
+        let mut reloaded = GraphStorage::open(temp_dir.path().to_path_buf())
+            .expect("Failed to reopen GraphStorage");
 
         assert!(reloaded.user_exists("persist_user"));
         assert!(reloaded.create_user(&user).is_err());

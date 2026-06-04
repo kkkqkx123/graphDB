@@ -100,7 +100,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for LimitExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for LimitExecutor<S> {
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         if self.input_executor.is_none() && self.base.input.is_none() {
             ResultProcessor::set_input(self, input);

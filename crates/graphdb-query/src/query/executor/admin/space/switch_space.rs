@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 /// Switching space actuators
@@ -14,12 +14,12 @@ use parking_lot::RwLock;
 /// This executor is responsible for switching the space of the current session.
 /// It returns SpaceSwitched result with the space summary on success.
 #[derive(Debug)]
-pub struct SwitchSpaceExecutor<S: StorageClient> {
+pub struct SwitchSpaceExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     space_name: String,
 }
 
-impl<S: StorageClient> SwitchSpaceExecutor<S> {
+impl<S: StorageReader> SwitchSpaceExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -33,7 +33,7 @@ impl<S: StorageClient> SwitchSpaceExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SwitchSpaceExecutor<S> {
+impl<S: StorageReader + Send + Sync + 'static> Executor<S> for SwitchSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.read();
@@ -106,7 +106,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SwitchSpaceExecut
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for SwitchSpaceExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for SwitchSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

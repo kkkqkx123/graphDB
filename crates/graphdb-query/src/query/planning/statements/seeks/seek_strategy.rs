@@ -3,7 +3,7 @@
 //! Define vertex search strategies and selectors to determine the method for finding the starting vertex in MATCH queries.
 
 use crate::core::StorageError;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 use super::edge_seek::{EdgePattern, EdgeSeek};
 use super::index_seek::IndexSeek;
@@ -16,7 +16,7 @@ use super::variable_prop_index_seek::VariablePropIndexSeek;
 use super::vertex_seek::VertexSeek;
 
 pub trait SeekStrategy: Send + Sync {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,
@@ -56,7 +56,7 @@ impl Clone for AnySeekStrategy {
 }
 
 impl SeekStrategy for AnySeekStrategy {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,
@@ -105,7 +105,7 @@ impl SeekStrategySelector {
         AnySeekStrategy::EdgeSeek(EdgeSeek::new(edge_pattern))
     }
 
-    pub fn find<S: StorageClient>(
+    pub fn find<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,

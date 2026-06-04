@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::core::types::VertexId;
 use crate::core::{Edge, Path, Step, Vertex};
 use crate::query::QueryError;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 use super::traits::ShortestPathAlgorithm;
@@ -18,7 +18,7 @@ use super::types::{
 };
 
 /// Dijkstra's Shortest Path Algorithm
-pub struct Dijkstra<S: StorageClient> {
+pub struct Dijkstra<S: StorageReader> {
     storage: Arc<RwLock<S>>,
     stats: AlgorithmStats,
     edge_direction: crate::core::types::EdgeDirection,
@@ -26,7 +26,7 @@ pub struct Dijkstra<S: StorageClient> {
     space_name: String,
 }
 
-impl<S: StorageClient> Dijkstra<S> {
+impl<S: StorageReader> Dijkstra<S> {
     pub fn new(storage: Arc<RwLock<S>>, space_name: String) -> Self {
         Self {
             storage,
@@ -177,7 +177,7 @@ impl<S: StorageClient> Dijkstra<S> {
     }
 }
 
-impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
+impl<S: StorageReader> ShortestPathAlgorithm for Dijkstra<S> {
     fn find_paths(
         &mut self,
         start_ids: &[VertexId],

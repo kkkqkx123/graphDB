@@ -6,26 +6,33 @@
 use std::path::Path;
 
 use crate::core::types::LabelId;
-use crate::core::{StorageError, StorageResult};
-
-use super::{PropertyGraph, DATA_FORMAT_VERSION};
+use crate::core::StorageResult;
 use crate::storage::engine::data_store::EdgeTableKey;
+use crate::storage::engine::paths::StoragePaths;
+
+use super::PropertyGraph;
+
+#[cfg(test)]
+use super::DATA_FORMAT_VERSION;
+#[cfg(test)]
+use crate::core::StorageError;
 
 #[cfg(test)]
 pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
     use std::fs;
     use std::io::Write;
 
-    let data_dir = graph.config.work_dir.join("data");
+    let paths = graph.storage_paths();
+    let data_dir = paths.data_dir();
     fs::create_dir_all(&data_dir)?;
 
-    let version_file = data_dir.join("version");
+    let version_file = paths.version_file();
     let mut file = fs::File::create(&version_file)
         .map_err(|e| StorageError::io_error(format!("Failed to create version file: {}", e)))?;
     writeln!(file, "{}", DATA_FORMAT_VERSION)
         .map_err(|e| StorageError::io_error(format!("Failed to write version file: {}", e)))?;
 
-    let vertex_dir = data_dir.join("vertices");
+    let vertex_dir = paths.vertices_dir();
     fs::create_dir_all(&vertex_dir)?;
 
     let compression = graph.config.flush_config.compression;
@@ -38,7 +45,7 @@ pub fn flush_to_disk_impl(graph: &PropertyGraph) -> StorageResult<()> {
         }
     }
 
-    let edge_dir = data_dir.join("edges");
+    let edge_dir = paths.edges_dir();
     fs::create_dir_all(&edge_dir)?;
 
     {
@@ -75,7 +82,8 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<crate::core
     }
 
     use std::fs;
-    let data_dir = graph.config.work_dir.join("data");
+    let paths = graph.storage_paths();
+    let data_dir = paths.data_dir();
     fs::create_dir_all(&data_dir)?;
 
     let mut flushed_labels = std::collections::HashSet::new();
@@ -88,8 +96,7 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<crate::core
             TableType::Vertex => {
                 if flushed_labels.insert(("vertex", table_id.label_id)) {
                     if let Some(table) = vertex_tables.get(&table_id.label_id) {
-                        let vertex_dir = data_dir.join("vertices");
-                        let table_dir = vertex_dir.join(format!("label_{}", table_id.label_id));
+                        let table_dir = paths.vertex_dir(table_id.label_id);
                         table.flush(&table_dir, compression)?;
                     }
                 }
@@ -98,11 +105,8 @@ pub fn flush_incremental(graph: &PropertyGraph) -> StorageResult<Vec<crate::core
                 if flushed_labels.insert(("edge", table_id.label_id)) {
                     for (key, table) in &*edge_tables {
                         if key.edge_label == table_id.label_id {
-                            let edge_dir = data_dir.join("edges");
-                            let table_dir = edge_dir.join(format!(
-                                "{}_{}_{}",
-                                key.src_label, key.dst_label, key.edge_label
-                            ));
+                            let table_dir =
+                                paths.edge_dir(key.src_label, key.dst_label, key.edge_label);
                             table.flush(&table_dir, compression)?;
                         }
                     }
@@ -161,6 +165,7 @@ pub fn flush_tables_to_dir(graph: &PropertyGraph, data_dir: &Path) -> StorageRes
     Ok(())
 }
 
+#[cfg(test)]
 pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
     use std::fs;
     use std::io::Read;
@@ -241,9 +246,9 @@ pub fn load_data(graph: &PropertyGraph) -> StorageResult<()> {
 pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> StorageResult<()> {
     use std::fs;
 
-    let data_dir = checkpoint_dir.join("data");
+    let checkpoint_paths = StoragePaths::new(checkpoint_dir);
 
-    let vertex_dir = data_dir.join("vertices");
+    let vertex_dir = checkpoint_paths.vertices_dir();
     if vertex_dir.exists() {
         let mut vertex_tables = graph.data_store.vertex_tables().write();
         for entry in fs::read_dir(&vertex_dir)? {
@@ -265,7 +270,7 @@ pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> 
         }
     }
 
-    let edge_dir = data_dir.join("edges");
+    let edge_dir = checkpoint_paths.edges_dir();
     if edge_dir.exists() {
         let mut edge_tables = graph.data_store.edge_tables().write();
         for entry in fs::read_dir(&edge_dir)? {
@@ -293,7 +298,7 @@ pub fn restore_from_checkpoint(graph: &PropertyGraph, checkpoint_dir: &Path) -> 
         }
     }
 
-    let index_dir = data_dir.join("indexes");
+    let index_dir = checkpoint_paths.indexes_dir();
     if index_dir.exists() {
         graph.index_data_manager.write().load(&index_dir)?;
     }

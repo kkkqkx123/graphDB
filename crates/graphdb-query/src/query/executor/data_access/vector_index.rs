@@ -11,7 +11,7 @@ use crate::query::executor::base::{
 use crate::query::planning::plan::core::nodes::search::vector::management::{
     CreateVectorIndexNode, DropVectorIndexNode,
 };
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use parking_lot::RwLock;
 
@@ -32,14 +32,14 @@ fn convert_distance(
 }
 
 /// Create vector index executor
-pub struct CreateVectorIndexExecutor<S: StorageClient> {
+pub struct CreateVectorIndexExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     node: CreateVectorIndexNode,
     coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient> CreateVectorIndexExecutor<S> {
+impl<S: StorageReader> CreateVectorIndexExecutor<S> {
     /// Create a new create vector index executor
     pub fn new(
         id: i64,
@@ -62,7 +62,7 @@ impl<S: StorageClient> CreateVectorIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
+impl<S: StorageReader> Executor<S> for CreateVectorIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         // Get space_id from execution context
         let space_id = self.base.context.current_space_id().unwrap_or(0);
@@ -151,7 +151,7 @@ impl<S: StorageClient> Executor<S> for CreateVectorIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for CreateVectorIndexExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for CreateVectorIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage
@@ -161,14 +161,14 @@ impl<S: StorageClient> HasStorage<S> for CreateVectorIndexExecutor<S> {
 }
 
 /// Drop vector index executor
-pub struct DropVectorIndexExecutor<S: StorageClient> {
+pub struct DropVectorIndexExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     node: DropVectorIndexNode,
     coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient> DropVectorIndexExecutor<S> {
+impl<S: StorageReader> DropVectorIndexExecutor<S> {
     /// Create a new drop vector index executor
     pub fn new(
         id: i64,
@@ -191,7 +191,7 @@ impl<S: StorageClient> DropVectorIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
+impl<S: StorageReader> Executor<S> for DropVectorIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         // Get space_id from execution context
         let space_id = self.base.context.current_space_id().unwrap_or(0);
@@ -263,7 +263,7 @@ impl<S: StorageClient> Executor<S> for DropVectorIndexExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for DropVectorIndexExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for DropVectorIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base
             .storage

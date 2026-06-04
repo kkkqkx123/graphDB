@@ -9,7 +9,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 /// Parameters for creating GetVerticesExecutor
@@ -35,7 +35,7 @@ impl GetVerticesParams {
     }
 }
 
-pub struct GetVerticesExecutor<S: StorageClient + 'static> {
+pub struct GetVerticesExecutor<S: StorageReader + 'static> {
     base: BaseExecutor<S>,
     space_name: String,
     vertex_ids: Option<Vec<Value>>,
@@ -45,7 +45,7 @@ pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     col_names: Vec<String>,
 }
 
-impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
+impl<S: StorageReader + 'static> GetVerticesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -69,7 +69,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     }
 }
 
-impl<S: StorageClient + 'static> Executor<S> for GetVerticesExecutor<S> {
+impl<S: StorageReader + 'static> Executor<S> for GetVerticesExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
 
@@ -124,13 +124,13 @@ impl<S: StorageClient + 'static> Executor<S> for GetVerticesExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for GetVerticesExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for GetVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
+impl<S: StorageReader + 'static> GetVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
         match &self.vertex_ids {
             Some(ids) if ids.len() > 1 => {
@@ -258,7 +258,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     }
 }
 
-pub struct ScanVerticesExecutor<S: StorageClient> {
+pub struct ScanVerticesExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     tag_filter: Option<crate::core::Expression>,
     vertex_filter: Option<crate::core::Expression>,
@@ -266,7 +266,7 @@ pub struct ScanVerticesExecutor<S: StorageClient> {
     col_names: Vec<String>,
 }
 
-impl<S: StorageClient> ScanVerticesExecutor<S> {
+impl<S: StorageReader> ScanVerticesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -296,7 +296,7 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for ScanVerticesExecutor<S> {
+impl<S: StorageReader> Executor<S> for ScanVerticesExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -348,13 +348,13 @@ impl<S: StorageClient> Executor<S> for ScanVerticesExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for ScanVerticesExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for ScanVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> ScanVerticesExecutor<S> {
+impl<S: StorageReader> ScanVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
         let storage = self.get_storage().read();
 

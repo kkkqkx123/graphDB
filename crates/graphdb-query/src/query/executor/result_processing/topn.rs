@@ -1082,7 +1082,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for TopNExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for TopNExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for TopNExecutor<S> {
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         self.base.input = Some(input.clone());
         self.process_input()

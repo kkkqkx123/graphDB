@@ -10,7 +10,7 @@
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{IndexInfo, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Value};
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 /// Variable attribute predicate
 #[derive(Debug, Clone, PartialEq)]
@@ -248,7 +248,7 @@ impl VariablePropIndexSeek {
 }
 
 impl SeekStrategy for VariablePropIndexSeek {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,

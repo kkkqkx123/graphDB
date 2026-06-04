@@ -21,7 +21,7 @@ pub mod c_api_helpers;
 
 use graphdb::core::error::DBError;
 use graphdb::core::metadata::SchemaManager;
-use graphdb::storage::GraphStorage;
+use graphdb::storage::{GraphStorage, StorageSchemaContextOps};
 use parking_lot::RwLock;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -72,7 +72,9 @@ impl TestStorage {
     /// Getting the Schema Manager from Storage
     pub fn schema_manager(&self) -> Arc<SchemaManager> {
         let storage = self.storage.read();
-        storage.get_schema_manager()
+        storage
+            .get_schema_manager()
+            .expect("Storage should provide a schema manager")
     }
 }
 

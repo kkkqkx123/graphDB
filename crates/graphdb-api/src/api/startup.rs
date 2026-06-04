@@ -2,6 +2,7 @@
 //!
 //! Orchestrates storage, sync, transaction manager, and graph service initialization.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[cfg(feature = "qdrant")]
@@ -83,11 +84,15 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         .expect("Failed to create StatsManager with slow query logger"),
     );
 
+    let storage_path = PathBuf::from(config.storage_path());
     let inner_storage = Arc::new(MetricsStorage::new(
-        GraphStorage::new()?,
+        GraphStorage::open(storage_path)?,
         stats_manager.clone(),
     ));
-    info!("Storage initialized (memory mode, metrics enabled)");
+    info!(
+        "Storage initialized (persistent mode at {}, metrics enabled)",
+        config.storage_path()
+    );
 
     let storage = if config.fulltext.enabled || config.is_vector_enabled() {
         use crate::search::manager::FulltextIndexManager;

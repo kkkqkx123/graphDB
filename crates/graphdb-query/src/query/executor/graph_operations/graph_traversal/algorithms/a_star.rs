@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::core::types::VertexId;
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::QueryError;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 use super::traits::ShortestPathAlgorithm;
@@ -53,7 +53,7 @@ impl PartialOrd for AStarNode {
 }
 
 /// A* shortest path algorithm
-pub struct AStar<S: StorageClient> {
+pub struct AStar<S: StorageReader> {
     storage: Arc<RwLock<S>>,
     stats: AlgorithmStats,
     edge_direction: crate::core::types::EdgeDirection,
@@ -64,7 +64,7 @@ pub struct AStar<S: StorageClient> {
     space_name: String,
 }
 
-impl<S: StorageClient> AStar<S> {
+impl<S: StorageReader> AStar<S> {
     pub fn new(storage: Arc<RwLock<S>>, space_name: String) -> Self {
         Self {
             storage,
@@ -268,7 +268,7 @@ impl<S: StorageClient> AStar<S> {
     }
 }
 
-impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
+impl<S: StorageReader> ShortestPathAlgorithm for AStar<S> {
     fn find_paths(
         &mut self,
         start_ids: &[VertexId],

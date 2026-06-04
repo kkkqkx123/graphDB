@@ -18,6 +18,7 @@ pub(crate) mod storage_types;
 pub(crate) mod utils;
 pub(crate) mod vertex;
 
+#[cfg(any(test, feature = "test-support"))]
 mod test_mock;
 
 pub use engine::graph_storage::GraphStorage;
@@ -25,10 +26,12 @@ pub use engine::persistence_coordinator::{CheckpointStats, SnapshotStats};
 pub use engine::sync_wrapper::SyncWrapper;
 pub use metrics::MetricsStorage;
 pub use storage_client::{
-    StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
-    StorageWriter,
+    StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
+    StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
+    StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
 
 pub use crate::core::StorageError;
 
+#[cfg(any(test, feature = "test-support"))]
 pub use test_mock::MockStorage;

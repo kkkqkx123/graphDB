@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::core::types::PropertyDef;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::{StorageReader, StorageSchemaOps};
 
 /// Type of label modification operation
 #[derive(Debug, Clone)]
@@ -78,12 +78,12 @@ impl AlterTagInfo {
 ///
 /// This executor is responsible for modifying the attribute definitions of existing tags.
 #[derive(Debug)]
-pub struct AlterTagExecutor<S: StorageClient> {
+pub struct AlterTagExecutor<S: StorageReader + StorageSchemaOps> {
     base: BaseExecutor<S>,
     alter_info: AlterTagInfo,
 }
 
-impl<S: StorageClient> AlterTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> AlterTagExecutor<S> {
     /// Create a new AlterTagExecutor
     pub fn new(
         id: i64,
@@ -98,7 +98,9 @@ impl<S: StorageClient> AlterTagExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps + Send + Sync + 'static> Executor<S>
+    for AlterTagExecutor<S>
+{
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
@@ -192,7 +194,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterTagExecutor<
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for AlterTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> crate::query::executor::base::HasStorage<S>
+    for AlterTagExecutor<S>
+{
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

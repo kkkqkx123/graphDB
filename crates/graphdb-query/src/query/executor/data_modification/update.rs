@@ -23,13 +23,13 @@ use crate::query::executor::expression::evaluation_context::DefaultExpressionCon
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::{StorageReader, StorageWriter};
 use parking_lot::RwLock;
 
 /// Update the executor.
 ///
 /// Responsible for updating the properties of vertices and edges.
-pub struct UpdateExecutor<S: StorageClient> {
+pub struct UpdateExecutor<S: StorageReader + StorageWriter> {
     base: BaseExecutor<S>,
     vertex_updates: Option<Vec<VertexUpdate>>,
     edge_updates: Option<Vec<EdgeUpdate>>,
@@ -71,7 +71,7 @@ pub struct UpdateResult {
     pub returned_props: HashMap<String, Value>,
 }
 
-impl<S: StorageClient> UpdateExecutor<S> {
+impl<S: StorageReader + StorageWriter> UpdateExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -113,7 +113,7 @@ impl<S: StorageClient> UpdateExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UpdateExecutor<S> {
+impl<S: StorageReader + StorageWriter + Send + Sync + 'static> Executor<S> for UpdateExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -158,13 +158,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UpdateExecutor<S>
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for UpdateExecutor<S> {
+impl<S: StorageReader + StorageWriter> HasStorage<S> for UpdateExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
+impl<S: StorageReader + StorageWriter + Send + Sync + 'static> UpdateExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<UpdateResult>> {
         let mut results = Vec::new();
 

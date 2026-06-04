@@ -12,7 +12,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::optimizer::stats::{EdgeTypeStatistics, StatisticsManager, TagStatistics};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 /// Analysis of the target type
 #[derive(Debug, Clone)]
@@ -35,13 +35,13 @@ pub enum AnalyzeTarget {
 /// This executor is responsible for collecting statistical information from the database, which is used for the cost calculation of the query optimizer.
 /// The execution is triggered by the ANALYZE command.
 #[derive(Debug)]
-pub struct AnalyzeExecutor<S: StorageClient> {
+pub struct AnalyzeExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     target: AnalyzeTarget,
     stats_manager: Arc<RwLock<StatisticsManager>>,
 }
 
-impl<S: StorageClient> AnalyzeExecutor<S> {
+impl<S: StorageReader> AnalyzeExecutor<S> {
     /// Create a new AnalyzeExecutor.
     pub fn new(
         id: i64,
@@ -293,7 +293,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AnalyzeExecutor<S> {
+impl<S: StorageReader + Send + Sync + 'static> Executor<S> for AnalyzeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         // Get the current space name from the context variable.
         let space = self
@@ -345,7 +345,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AnalyzeExecutor<S
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for AnalyzeExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for AnalyzeExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

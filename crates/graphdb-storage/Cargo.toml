@@ -3,6 +3,10 @@ name = "graphdb-storage"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+test-support = []
+
 [dependencies]
 graphdb-core = { path = "../graphdb-core" }
 graphdb-transaction = { path = "../graphdb-transaction" }

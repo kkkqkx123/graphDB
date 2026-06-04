@@ -32,7 +32,9 @@ use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Va
 use crate::storage::engine::PersistenceConfig;
 use crate::storage::index::IndexGcConfig;
 use crate::storage::{
-    StorageAdmin, StorageAuthOps, StorageReader, StorageSchemaOps, StorageStats, StorageWriter,
+    StorageAdmin, StorageAuthOps, StorageGcOps, StoragePersistenceOps, StorageReader,
+    StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
+    StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
 
 #[derive(Clone)]
@@ -43,8 +45,8 @@ pub struct GraphStorage {
 impl std::fmt::Debug for GraphStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GraphStorage")
-            .field("work_dir", &self.ctx.work_dir)
-            .field("db_path", &self.ctx.db_path)
+            .field("work_dir", &self.ctx.work_dir())
+            .field("db_path", &self.ctx.db_path())
             .finish()
     }
 }
@@ -60,6 +62,17 @@ impl GraphStorage {
         GraphStorageContext::new_with_path(path).map(|ctx| Self { ctx: Arc::new(ctx) })
     }
 
+    /// Open a persistent storage instance and load the on-disk state.
+    ///
+    /// This is the entry point for production usage. It loads the persisted
+    /// data first and then replays any remaining WAL entries if recovery is needed.
+    pub fn open(path: PathBuf) -> StorageResult<Self> {
+        let config = PersistenceConfig::for_work_dir(&path);
+        let storage = Self::new_with_persistence(path, config)?;
+        let _ = persistence::initialize_with_recovery(&storage.ctx)?;
+        Ok(storage)
+    }
+
     pub fn new_with_persistence(path: PathBuf, config: PersistenceConfig) -> StorageResult<Self> {
         GraphStorageContext::new_with_persistence(path, config)
             .map(|ctx| Self { ctx: Arc::new(ctx) })
@@ -69,30 +82,6 @@ impl GraphStorage {
         let new_ctx = Arc::new((*self.ctx).clone().with_index_gc(config));
         self.ctx = new_ctx;
         self
-    }
-
-    pub fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
-        self.ctx.start_index_gc()
-    }
-
-    pub fn stop_index_gc(&self) {
-        self.ctx.stop_index_gc();
-    }
-
-    pub fn is_index_gc_running(&self) -> bool {
-        self.ctx.is_index_gc_running()
-    }
-
-    pub fn get_schema_manager(&self) -> Arc<SchemaManager> {
-        self.ctx.schema_manager.clone()
-    }
-
-    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
-        self.ctx.get_transaction_context()
-    }
-
-    pub fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
-        self.ctx.set_transaction_context(context);
     }
 
     pub fn is_persistence_enabled(&self) -> bool {
@@ -164,15 +153,6 @@ impl StorageReader for GraphStorage {
         value: &Value,
     ) -> Result<Vec<Value>, StorageError> {
         index_manager::lookup_index(&self.ctx, space, index_name, value)
-    }
-
-    fn lookup_index_with_score(
-        &self,
-        space: &str,
-        index_name: &str,
-        value: &Value,
-    ) -> Result<Vec<(Value, f32)>, StorageError> {
-        index_manager::lookup_index_with_score(&self.ctx, space, index_name, value)
     }
 
     fn get_vertex_with_schema(
@@ -466,7 +446,7 @@ impl StorageAuthOps for GraphStorage {
     }
 
     fn user_exists(&self, username: &str) -> bool {
-        self.ctx.user_storage.user_exists(username)
+        self.ctx.user_storage().user_exists(username)
     }
 
     fn grant_role(
@@ -505,19 +485,13 @@ impl StorageAdmin for GraphStorage {
     }
 
     fn get_db_path(&self) -> &str {
-        &self.ctx.db_path
+        self.ctx.db_path()
     }
+}
 
+impl StoragePersistenceOps for GraphStorage {
     fn flush(&self) -> StorageResult<()> {
         persistence::flush(&self.ctx)
-    }
-
-    fn save_data(&self) -> StorageResult<()> {
-        persistence::save_data(&self.ctx)
-    }
-
-    fn save_data_to_dir(&self, dir: &std::path::Path) -> StorageResult<()> {
-        persistence::save_data_to_dir(&self.ctx, dir)
     }
 
     fn create_checkpoint(&self) -> StorageResult<Option<crate::storage::CheckpointStats>> {
@@ -540,6 +514,14 @@ impl StorageAdmin for GraphStorage {
         persistence::compact_transactional(&self.ctx, compact_csr, reserve_ratio)
     }
 
+    fn save_data(&self) -> StorageResult<()> {
+        persistence::save_data(&self.ctx)
+    }
+
+    fn save_data_to_dir(&self, dir: &std::path::Path) -> StorageResult<()> {
+        persistence::save_data_to_dir(&self.ctx, dir)
+    }
+
     fn auto_flush_if_needed(&self) -> StorageResult<bool> {
         persistence::auto_flush_if_needed(&self.ctx)
     }
@@ -555,7 +537,31 @@ impl StorageAdmin for GraphStorage {
     fn should_checkpoint(&self) -> bool {
         persistence::should_checkpoint(&self.ctx)
     }
+}
 
+impl StorageSchemaContextOps for GraphStorage {
+    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
+        Some(self.ctx.schema_manager().clone())
+    }
+}
+
+impl StorageTransactionContextOps for GraphStorage {
+    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
+        self.ctx.get_transaction_context()
+    }
+
+    fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
+        self.ctx.set_transaction_context(context);
+    }
+}
+
+impl StorageSyncContextOps for GraphStorage {
+    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
+        None
+    }
+}
+
+impl StorageRecoveryOps for GraphStorage {
     fn needs_recovery(&self) -> bool {
         persistence::needs_recovery(&self.ctx)
     }
@@ -574,47 +580,11 @@ impl StorageAdmin for GraphStorage {
     fn init_with_recovery(
         &self,
     ) -> StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
-        if !self.needs_recovery() {
-            return Ok(None);
-        }
-
-        log::info!("WAL recovery needed, starting recovery...");
-
-        // Load schema and index metadata from the work directory (these are not checkpointed)
-        if let Some(ref path) = self.ctx.work_dir {
-            let schema_path = path.join("schema");
-            if schema_path.exists() {
-                self.ctx.schema_manager.load_schema(&schema_path)?;
-            }
-            let index_meta_path = path.join("index_meta");
-            if index_meta_path.exists() {
-                self.ctx
-                    .index_metadata_manager
-                    .load_indexes(&index_meta_path)?;
-            }
-        }
-
-        schema_adapter::ensure_graph_types_from_schema(&self.ctx)?;
-
-        // Try checkpoint recovery first
-        let checkpoint_loaded = persistence::load_latest_checkpoint(&self.ctx)?;
-
-        if checkpoint_loaded.is_none() {
-            // No checkpoint available, load full state from disk
-            persistence::load_from_disk(&self.ctx)?;
-        }
-
-        // Replay remaining WAL entries on top of restored state
-        let stats = self.recover_from_wal()?;
-
-        log::info!(
-            "WAL recovery completed: {} entries replayed in {}ms",
-            stats.wal_entries_replayed,
-            stats.recovery_time_ms
-        );
-        Ok(Some(stats))
+        persistence::initialize_with_recovery(&self.ctx)
     }
+}
 
+impl StorageGcOps for GraphStorage {
     fn is_index_gc_running(&self) -> bool {
         self.ctx.is_index_gc_running()
     }
@@ -625,17 +595,5 @@ impl StorageAdmin for GraphStorage {
 
     fn stop_index_gc(&self) {
         self.ctx.stop_index_gc();
-    }
-
-    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
-        self.ctx.get_transaction_context()
-    }
-
-    fn set_transaction_context(&self, context: Option<Arc<TransactionContextInfo>>) {
-        self.ctx.set_transaction_context(context);
-    }
-
-    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
-        Some(self.ctx.schema_manager.clone())
     }
 }

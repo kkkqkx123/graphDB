@@ -5,7 +5,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::types::VertexId;
 use crate::core::Edge;
 use crate::query::executor::base::EdgeDirection;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 /// Obtaining neighbor nodes
@@ -34,7 +34,7 @@ use parking_lot::RwLock;
 ///     false,
 /// )?;
 /// ```
-pub fn get_neighbors<S: StorageClient>(
+pub fn get_neighbors<S: StorageReader>(
     storage: &Arc<RwLock<S>>,
     node_id: &VertexId,
     edge_direction: EdgeDirection,
@@ -115,7 +115,7 @@ pub fn get_neighbors<S: StorageClient>(
 ///
 /// # Back
 /// List of tuples representing neighbor nodes and edges
-pub fn get_neighbors_with_edges<S: StorageClient>(
+pub fn get_neighbors_with_edges<S: StorageReader>(
     storage: &Arc<RwLock<S>>,
     node_id: &VertexId,
     edge_direction: EdgeDirection,

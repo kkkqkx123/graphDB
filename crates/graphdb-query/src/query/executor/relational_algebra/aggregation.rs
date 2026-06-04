@@ -835,7 +835,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for AggregateExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for AggregateExecutor<S> {
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
         let dataset = self.process_input()?;
@@ -1099,7 +1099,7 @@ impl<S: StorageClient> HavingExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for HavingExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for HavingExecutor<S> {
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
         let dataset = self.process_input()?;

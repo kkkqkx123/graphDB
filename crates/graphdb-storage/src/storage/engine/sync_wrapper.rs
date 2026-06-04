@@ -7,7 +7,9 @@ use crate::core::metadata::SchemaManager;
 use crate::core::types::{EdgeTypeInfo, TagInfo, VertexId};
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::{
-    StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageWriter,
+    StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
+    StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps,
+    StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
 use crate::sync::coordinator::ChangeType;
 use std::fmt::Debug;
@@ -110,192 +112,139 @@ impl<S: StorageClient> SyncWrapper<S> {
     }
 }
 
+macro_rules! forward_storage_methods {
+    ($field:ident; $(fn $name:ident(&self $(, $arg:ident : $ty:ty)* $(,)?);)+) => {
+        $(
+            fn $name(&self, $($arg: $ty),*) {
+                self.$field.$name($($arg),*)
+            }
+        )+
+    };
+    ($field:ident; $(fn $name:ident(&mut self $(, $arg:ident : $ty:ty)* $(,)?);)+) => {
+        $(
+            fn $name(&mut self, $($arg: $ty),*) {
+                self.$field.$name($($arg),*)
+            }
+        )+
+    };
+    ($field:ident; $(fn $name:ident(&self $(, $arg:ident : $ty:ty)* $(,)?) -> $ret:ty;)+) => {
+        $(
+            fn $name(&self, $($arg: $ty),*) -> $ret {
+                self.$field.$name($($arg),*)
+            }
+        )+
+    };
+    ($field:ident; $(fn $name:ident(&mut self $(, $arg:ident : $ty:ty)* $(,)?) -> $ret:ty;)+) => {
+        $(
+            fn $name(&mut self, $($arg: $ty),*) -> $ret {
+                self.$field.$name($($arg),*)
+            }
+        )+
+    };
+}
+
 impl<S: StorageClient + 'static> StorageReader for SyncWrapper<S> {
-    fn get_vertex(&self, space: &str, id: &VertexId) -> Result<Option<Vertex>, StorageError> {
-        self.inner.get_vertex(space, id)
-    }
-
-    fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
-        self.inner.scan_vertices(space)
-    }
-
-    fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
-        self.inner.scan_vertices_by_tag(space, tag)
-    }
-
-    fn scan_vertices_by_prop(
-        &self,
-        space: &str,
-        tag: &str,
-        prop: &str,
-        value: &Value,
-    ) -> Result<Vec<Vertex>, StorageError> {
-        self.inner.scan_vertices_by_prop(space, tag, prop, value)
-    }
-
-    fn get_edge(
-        &self,
-        space: &str,
-        src: &VertexId,
-        dst: &VertexId,
-        edge_type: &str,
-        rank: i64,
-    ) -> Result<Option<Edge>, StorageError> {
-        self.inner.get_edge(space, src, dst, edge_type, rank)
-    }
-
-    fn get_node_edges(
-        &self,
-        space: &str,
-        node_id: &VertexId,
-        direction: crate::core::EdgeDirection,
-    ) -> Result<Vec<Edge>, StorageError> {
-        self.inner.get_node_edges(space, node_id, direction)
-    }
-
-    fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
-        self.inner.scan_edges_by_type(space, edge_type)
-    }
-
-    fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
-        self.inner.scan_all_edges(space)
-    }
-
-    fn lookup_index(
-        &self,
-        space: &str,
-        index: &str,
-        value: &Value,
-    ) -> Result<Vec<Value>, StorageError> {
-        self.inner.lookup_index(space, index, value)
-    }
-
-    fn lookup_index_with_score(
-        &self,
-        space: &str,
-        index: &str,
-        value: &Value,
-    ) -> Result<Vec<(Value, f32)>, StorageError> {
-        self.inner.lookup_index_with_score(space, index, value)
-    }
-
-    fn get_vertex_with_schema(
-        &self,
-        space: &str,
-        tag: &str,
-        id: &Value,
-    ) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError> {
-        self.inner.get_vertex_with_schema(space, tag, id)
-    }
-
-    fn get_edge_with_schema(
-        &self,
-        space: &str,
-        edge_type: &str,
-        src: &Value,
-        dst: &Value,
-    ) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError> {
-        self.inner.get_edge_with_schema(space, edge_type, src, dst)
-    }
-
-    fn scan_vertices_with_schema(
-        &self,
-        space: &str,
-        tag: &str,
-    ) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError> {
-        self.inner.scan_vertices_with_schema(space, tag)
-    }
-
-    fn scan_edges_with_schema(
-        &self,
-        space: &str,
-        edge_type: &str,
-    ) -> Result<Vec<(EdgeTypeInfo, Vec<u8>)>, StorageError> {
-        self.inner.scan_edges_with_schema(space, edge_type)
-    }
-
-    fn get_space(
-        &self,
-        space: &str,
-    ) -> Result<Option<crate::core::types::SpaceInfo>, StorageError> {
-        self.inner.get_space(space)
-    }
-
-    fn get_space_by_id(
-        &self,
-        space_id: u64,
-    ) -> Result<Option<crate::core::types::SpaceInfo>, StorageError> {
-        self.inner.get_space_by_id(space_id)
-    }
-
-    fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, StorageError> {
-        self.inner.list_spaces()
-    }
-
-    fn get_space_id(&self, space: &str) -> Result<u64, StorageError> {
-        self.inner.get_space_id(space)
-    }
-
-    fn space_exists(&self, space: &str) -> bool {
-        self.inner.space_exists(space)
-    }
-
-    fn get_tag(
-        &self,
-        space: &str,
-        tag: &str,
-    ) -> Result<Option<crate::core::types::TagInfo>, StorageError> {
-        self.inner.get_tag(space, tag)
-    }
-
-    fn list_tags(&self, space: &str) -> Result<Vec<crate::core::types::TagInfo>, StorageError> {
-        self.inner.list_tags(space)
-    }
-
-    fn get_edge_type(
-        &self,
-        space: &str,
-        edge: &str,
-    ) -> Result<Option<crate::core::types::EdgeTypeInfo>, StorageError> {
-        self.inner.get_edge_type(space, edge)
-    }
-
-    fn list_edge_types(
-        &self,
-        space: &str,
-    ) -> Result<Vec<crate::core::types::EdgeTypeInfo>, StorageError> {
-        self.inner.list_edge_types(space)
-    }
-
-    fn get_tag_index(
-        &self,
-        space: &str,
-        index: &str,
-    ) -> Result<Option<crate::core::types::Index>, StorageError> {
-        self.inner.get_tag_index(space, index)
-    }
-
-    fn list_tag_indexes(
-        &self,
-        space: &str,
-    ) -> Result<Vec<crate::core::types::Index>, StorageError> {
-        self.inner.list_tag_indexes(space)
-    }
-
-    fn get_edge_index(
-        &self,
-        space: &str,
-        index: &str,
-    ) -> Result<Option<crate::core::types::Index>, StorageError> {
-        self.inner.get_edge_index(space, index)
-    }
-
-    fn list_edge_indexes(
-        &self,
-        space: &str,
-    ) -> Result<Vec<crate::core::types::Index>, StorageError> {
-        self.inner.list_edge_indexes(space)
-    }
+    forward_storage_methods!(inner;
+        fn get_vertex(&self, space: &str, id: &VertexId) -> Result<Option<Vertex>, StorageError>;
+        fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError>;
+        fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError>;
+        fn scan_vertices_by_prop(
+            &self,
+            space: &str,
+            tag: &str,
+            prop: &str,
+            value: &Value,
+        ) -> Result<Vec<Vertex>, StorageError>;
+        fn get_edge(
+            &self,
+            space: &str,
+            src: &VertexId,
+            dst: &VertexId,
+            edge_type: &str,
+            rank: i64,
+        ) -> Result<Option<Edge>, StorageError>;
+        fn get_node_edges(
+            &self,
+            space: &str,
+            node_id: &VertexId,
+            direction: crate::core::EdgeDirection,
+        ) -> Result<Vec<Edge>, StorageError>;
+        fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError>;
+        fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
+        fn lookup_index(
+            &self,
+            space: &str,
+            index: &str,
+            value: &Value,
+        ) -> Result<Vec<Value>, StorageError>;
+        fn get_vertex_with_schema(
+            &self,
+            space: &str,
+            tag: &str,
+            id: &Value,
+        ) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError>;
+        fn get_edge_with_schema(
+            &self,
+            space: &str,
+            edge_type: &str,
+            src: &Value,
+            dst: &Value,
+        ) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError>;
+        fn scan_vertices_with_schema(
+            &self,
+            space: &str,
+            tag: &str,
+        ) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError>;
+        fn scan_edges_with_schema(
+            &self,
+            space: &str,
+            edge_type: &str,
+        ) -> Result<Vec<(EdgeTypeInfo, Vec<u8>)>, StorageError>;
+        fn get_space(
+            &self,
+            space: &str,
+        ) -> Result<Option<crate::core::types::SpaceInfo>, StorageError>;
+        fn get_space_by_id(
+            &self,
+            space_id: u64,
+        ) -> Result<Option<crate::core::types::SpaceInfo>, StorageError>;
+        fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, StorageError>;
+        fn get_space_id(&self, space: &str) -> Result<u64, StorageError>;
+        fn space_exists(&self, space: &str) -> bool;
+        fn get_tag(
+            &self,
+            space: &str,
+            tag: &str,
+        ) -> Result<Option<crate::core::types::TagInfo>, StorageError>;
+        fn list_tags(&self, space: &str) -> Result<Vec<crate::core::types::TagInfo>, StorageError>;
+        fn get_edge_type(
+            &self,
+            space: &str,
+            edge: &str,
+        ) -> Result<Option<crate::core::types::EdgeTypeInfo>, StorageError>;
+        fn list_edge_types(
+            &self,
+            space: &str,
+        ) -> Result<Vec<crate::core::types::EdgeTypeInfo>, StorageError>;
+        fn get_tag_index(
+            &self,
+            space: &str,
+            index: &str,
+        ) -> Result<Option<crate::core::types::Index>, StorageError>;
+        fn list_tag_indexes(
+            &self,
+            space: &str,
+        ) -> Result<Vec<crate::core::types::Index>, StorageError>;
+        fn get_edge_index(
+            &self,
+            space: &str,
+            index: &str,
+        ) -> Result<Option<crate::core::types::Index>, StorageError>;
+        fn list_edge_indexes(
+            &self,
+            space: &str,
+        ) -> Result<Vec<crate::core::types::Index>, StorageError>;
+    );
 }
 
 impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
@@ -534,7 +483,7 @@ impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
         let result = self.inner.insert_edge(space, edge.clone());
 
-        if self.enabled {
+        if result.is_ok() && self.enabled {
             if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
@@ -561,7 +510,7 @@ impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
     ) -> Result<(), StorageError> {
         let result = self.inner.delete_edge(space, src, dst, edge_type, rank);
 
-        if self.enabled {
+        if result.is_ok() && self.enabled {
             if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
@@ -583,7 +532,7 @@ impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
         let result = self.inner.batch_insert_edges(space, edges.clone());
 
-        if self.enabled {
+        if result.is_ok() && self.enabled {
             if let Some(sync_manager) = self.get_sync_manager() {
                 if let Ok(space_id) = self.inner.get_space_id(space) {
                     let txn_id = self.get_current_txn_id();
@@ -643,265 +592,233 @@ impl<S: StorageClient + 'static> StorageWriter for SyncWrapper<S> {
 }
 
 impl<S: StorageClient + 'static> StorageSchemaOps for SyncWrapper<S> {
-    fn create_space(
-        &mut self,
-        space: &mut crate::core::types::SpaceInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.create_space(space)
-    }
-
-    fn drop_space(&mut self, space: &str) -> Result<bool, StorageError> {
-        self.inner.drop_space(space)
-    }
-
-    fn clear_space(&mut self, space: &str) -> Result<bool, StorageError> {
-        self.inner.clear_space(space)
-    }
-
-    fn alter_space_comment(
-        &mut self,
-        space_id: u64,
-        comment: String,
-    ) -> Result<bool, StorageError> {
-        self.inner.alter_space_comment(space_id, comment)
-    }
-
-    fn create_tag(
-        &mut self,
-        space: &str,
-        tag: &crate::core::types::TagInfo,
-    ) -> Result<u32, StorageError> {
-        self.inner.create_tag(space, tag)
-    }
-
-    fn alter_tag(
-        &mut self,
-        space: &str,
-        tag: &str,
-        additions: Vec<crate::core::types::PropertyDef>,
-        deletions: Vec<String>,
-    ) -> Result<bool, StorageError> {
-        self.inner.alter_tag(space, tag, additions, deletions)
-    }
-
-    fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError> {
-        self.inner.drop_tag(space, tag)
-    }
-
-    fn create_edge_type(
-        &mut self,
-        space: &str,
-        edge: &crate::core::types::EdgeTypeInfo,
-    ) -> Result<u32, StorageError> {
-        self.inner.create_edge_type(space, edge)
-    }
-
-    fn alter_edge_type(
-        &mut self,
-        space: &str,
-        edge_type: &str,
-        additions: Vec<crate::core::types::PropertyDef>,
-        deletions: Vec<String>,
-    ) -> Result<bool, StorageError> {
-        self.inner
-            .alter_edge_type(space, edge_type, additions, deletions)
-    }
-
-    fn drop_edge_type(&mut self, space: &str, edge: &str) -> Result<bool, StorageError> {
-        self.inner.drop_edge_type(space, edge)
-    }
-
-    fn create_tag_index(
-        &mut self,
-        space: &str,
-        info: &crate::core::types::Index,
-    ) -> Result<bool, StorageError> {
-        self.inner.create_tag_index(space, info)
-    }
-
-    fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        self.inner.drop_tag_index(space, index)
-    }
-
-    fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        self.inner.rebuild_tag_index(space, index)
-    }
-
-    fn create_edge_index(
-        &mut self,
-        space: &str,
-        info: &crate::core::types::Index,
-    ) -> Result<bool, StorageError> {
-        self.inner.create_edge_index(space, info)
-    }
-
-    fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        self.inner.drop_edge_index(space, index)
-    }
-
-    fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        self.inner.rebuild_edge_index(space, index)
-    }
+    forward_storage_methods!(inner;
+        fn create_space(&mut self, space: &mut crate::core::types::SpaceInfo) -> Result<bool, StorageError>;
+        fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;
+        fn clear_space(&mut self, space: &str) -> Result<bool, StorageError>;
+        fn alter_space_comment(&mut self, space_id: u64, comment: String) -> Result<bool, StorageError>;
+        fn create_tag(&mut self, space: &str, tag: &crate::core::types::TagInfo) -> Result<u32, StorageError>;
+        fn alter_tag(
+            &mut self,
+            space: &str,
+            tag: &str,
+            additions: Vec<crate::core::types::PropertyDef>,
+            deletions: Vec<String>,
+        ) -> Result<bool, StorageError>;
+        fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError>;
+        fn create_edge_type(
+            &mut self,
+            space: &str,
+            edge: &crate::core::types::EdgeTypeInfo,
+        ) -> Result<u32, StorageError>;
+        fn alter_edge_type(
+            &mut self,
+            space: &str,
+            edge_type: &str,
+            additions: Vec<crate::core::types::PropertyDef>,
+            deletions: Vec<String>,
+        ) -> Result<bool, StorageError>;
+        fn drop_edge_type(&mut self, space: &str, edge: &str) -> Result<bool, StorageError>;
+        fn create_tag_index(
+            &mut self,
+            space: &str,
+            info: &crate::core::types::Index,
+        ) -> Result<bool, StorageError>;
+        fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+        fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+        fn create_edge_index(
+            &mut self,
+            space: &str,
+            info: &crate::core::types::Index,
+        ) -> Result<bool, StorageError>;
+        fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+        fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
+    );
 }
 
 impl<S: StorageClient + 'static> StorageAuthOps for SyncWrapper<S> {
-    fn change_password(
-        &mut self,
-        info: &crate::core::types::PasswordInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.change_password(info)
-    }
-
-    fn create_user(&mut self, info: &crate::core::types::UserInfo) -> Result<bool, StorageError> {
-        self.inner.create_user(info)
-    }
-
-    fn alter_user(
-        &mut self,
-        info: &crate::core::types::UserAlterInfo,
-    ) -> Result<bool, StorageError> {
-        self.inner.alter_user(info)
-    }
-
-    fn drop_user(&mut self, username: &str) -> Result<bool, StorageError> {
-        self.inner.drop_user(username)
-    }
+    forward_storage_methods!(inner;
+        fn change_password(&mut self, info: &crate::core::types::PasswordInfo) -> Result<bool, StorageError>;
+        fn create_user(&mut self, info: &crate::core::types::UserInfo) -> Result<bool, StorageError>;
+        fn alter_user(&mut self, info: &crate::core::types::UserAlterInfo) -> Result<bool, StorageError>;
+        fn drop_user(&mut self, username: &str) -> Result<bool, StorageError>;
+        fn grant_role(
+            &mut self,
+            username: &str,
+            space_id: u64,
+            role: crate::core::RoleType,
+        ) -> Result<bool, StorageError>;
+        fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError>;
+    );
 
     fn user_exists(&self, username: &str) -> bool {
         self.inner.user_exists(username)
     }
-
-    fn grant_role(
-        &mut self,
-        username: &str,
-        space_id: u64,
-        role: crate::core::RoleType,
-    ) -> Result<bool, StorageError> {
-        self.inner.grant_role(username, space_id, role)
-    }
-
-    fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError> {
-        self.inner.revoke_role(username, space_id)
-    }
 }
 
 impl<S: StorageClient + 'static> StorageAdmin for SyncWrapper<S> {
-    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
-        self.inner.get_schema_manager()
-    }
+    forward_storage_methods!(inner;
+        fn load_from_disk(&mut self) -> Result<(), StorageError>;
+        fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError>;
+    );
 
-    fn load_from_disk(&mut self) -> Result<(), StorageError> {
-        self.inner.load_from_disk()
-    }
+    forward_storage_methods!(inner;
+        fn save_to_disk(&self) -> Result<(), StorageError>;
+        fn get_storage_stats(&self) -> crate::storage::StorageStats;
+        fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
+        fn get_db_path(&self) -> &str;
+    );
+}
 
-    fn save_to_disk(&self) -> Result<(), StorageError> {
-        self.inner.save_to_disk()
-    }
+impl<S: StorageClient + 'static> StoragePersistenceOps for SyncWrapper<S> {
+    forward_storage_methods!(inner;
+        fn flush(&self) -> Result<(), StorageError>;
+        fn save_data(&self) -> crate::core::StorageResult<()>;
+        fn save_data_to_dir(&self, dir: &std::path::Path) -> crate::core::StorageResult<()>;
+        fn create_checkpoint(&self) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>>;
+        fn verify_snapshot(&self, snapshot_id: u64) -> crate::core::StorageResult<bool>;
+        fn cleanup_snapshots(&self) -> crate::core::StorageResult<usize>;
+        fn snapshot_stats(&self) -> crate::storage::SnapshotStats;
+        fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> crate::core::StorageResult<()>;
+        fn auto_flush_if_needed(&self) -> crate::core::StorageResult<bool>;
+        fn auto_checkpoint_if_needed(&self) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>>;
+        fn should_flush(&self) -> bool;
+        fn should_checkpoint(&self) -> bool;
+    );
+}
 
-    fn flush(&self) -> Result<(), StorageError> {
-        self.inner.flush()
-    }
+impl<S: StorageClient + 'static> StorageSchemaContextOps for SyncWrapper<S> {
+    forward_storage_methods!(inner;
+        fn get_schema_manager(&self) -> Option<Arc<SchemaManager>>;
+    );
+}
 
-    fn get_storage_stats(&self) -> crate::storage::StorageStats {
-        self.inner.get_storage_stats()
-    }
+impl<S: StorageClient + 'static> StorageTransactionContextOps for SyncWrapper<S> {
+    forward_storage_methods!(inner;
+        fn get_transaction_context(&self) -> Option<Arc<crate::core::types::TransactionContextInfo>>;
+    );
 
-    fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
-        self.inner.find_dangling_edges(space)
-    }
+    forward_storage_methods!(inner;
+        fn set_transaction_context(&self, context: Option<Arc<crate::core::types::TransactionContextInfo>>);
+    );
+}
 
-    fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError> {
-        self.inner.repair_dangling_edges(space)
-    }
-
-    fn get_db_path(&self) -> &str {
-        self.inner.get_db_path()
-    }
-
-    fn create_checkpoint(
-        &self,
-    ) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>> {
-        self.inner.create_checkpoint()
-    }
-
-    fn verify_snapshot(&self, snapshot_id: u64) -> crate::core::StorageResult<bool> {
-        self.inner.verify_snapshot(snapshot_id)
-    }
-
-    fn cleanup_snapshots(&self) -> crate::core::StorageResult<usize> {
-        self.inner.cleanup_snapshots()
-    }
-
-    fn snapshot_stats(&self) -> crate::storage::SnapshotStats {
-        self.inner.snapshot_stats()
-    }
-
-    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> crate::core::StorageResult<()> {
-        self.inner.compact(compact_csr, reserve_ratio)
-    }
-
-    fn save_data(&self) -> crate::core::StorageResult<()> {
-        self.inner.save_data()
-    }
-
-    fn save_data_to_dir(&self, dir: &std::path::Path) -> crate::core::StorageResult<()> {
-        self.inner.save_data_to_dir(dir)
-    }
-
-    fn auto_flush_if_needed(&self) -> crate::core::StorageResult<bool> {
-        self.inner.auto_flush_if_needed()
-    }
-
-    fn auto_checkpoint_if_needed(
-        &self,
-    ) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>> {
-        self.inner.auto_checkpoint_if_needed()
-    }
-
-    fn should_flush(&self) -> bool {
-        self.inner.should_flush()
-    }
-
-    fn should_checkpoint(&self) -> bool {
-        self.inner.should_checkpoint()
-    }
-
-    fn needs_recovery(&self) -> bool {
-        self.inner.needs_recovery()
-    }
-
-    fn recover_from_wal(
-        &self,
-    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
-        self.inner.recover_from_wal()
-    }
-
-    fn recover_from_wal_with_config(
-        &self,
-        config: crate::transaction::wal::recovery::RecoveryConfig,
-    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
-        self.inner.recover_from_wal_with_config(config)
-    }
-
-    fn init_with_recovery(
-        &self,
-    ) -> crate::core::StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
-        self.inner.init_with_recovery()
-    }
-
-    fn is_index_gc_running(&self) -> bool {
-        self.inner.is_index_gc_running()
-    }
-
-    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
-        self.inner.start_index_gc()
-    }
-
-    fn stop_index_gc(&self) {
-        self.inner.stop_index_gc();
-    }
-
-    fn get_sync_manager(&self) -> Option<std::sync::Arc<crate::sync::SyncManager>> {
+impl<S: StorageClient + 'static> StorageSyncContextOps for SyncWrapper<S> {
+    fn get_sync_manager(&self) -> Option<Arc<crate::sync::SyncManager>> {
         self.sync_manager.clone()
+    }
+}
+
+impl<S: StorageClient + 'static> StorageRecoveryOps for SyncWrapper<S> {
+    forward_storage_methods!(inner;
+        fn needs_recovery(&self) -> bool;
+        fn recover_from_wal(&self) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats>;
+        fn recover_from_wal_with_config(
+            &self,
+            config: crate::transaction::wal::recovery::RecoveryConfig,
+        ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats>;
+        fn init_with_recovery(&self) -> crate::core::StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>>;
+    );
+}
+
+impl<S: StorageClient + 'static> StorageGcOps for SyncWrapper<S> {
+    forward_storage_methods!(inner;
+        fn is_index_gc_running(&self) -> bool;
+        fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>>;
+    );
+
+    forward_storage_methods!(inner;
+        fn stop_index_gc(&self);
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use crate::core::stats::{MetricType, StatsManager};
+    use crate::core::types::VertexId;
+    use crate::core::Edge;
+    use crate::storage::{
+        GraphStorage, MetricsStorage, MockStorage, StoragePersistenceOps, StorageReader,
+        StorageWriter, SyncWrapper,
+    };
+    use crate::sync::batch::BatchConfig;
+    use crate::sync::coordinator::SyncCoordinator;
+    use crate::sync::SyncManager;
+    use graphdb_sync::search::manager::FulltextIndexManager;
+    use graphdb_sync::search::FulltextConfig;
+
+    #[test]
+    fn records_read_and_write_metrics() {
+        let stats_manager = Arc::new(StatsManager::new());
+        let inner = MockStorage::new().expect("Failed to create MockStorage");
+        let mut storage = MetricsStorage::new(inner, stats_manager.clone());
+
+        storage
+            .get_vertex("test", &VertexId::from_int64(1))
+            .expect("Failed to read vertex");
+        storage
+            .batch_insert_edges("test", Vec::new())
+            .expect("Failed to write edges");
+
+        assert_eq!(stats_manager.get_value(MetricType::StorageReadOps), Some(1));
+        assert_eq!(
+            stats_manager.get_value(MetricType::StorageWriteOps),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn delegates_admin_checkpoint_operations() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let inner = GraphStorage::new_with_path(temp_dir.path().to_path_buf())
+            .expect("Failed to create GraphStorage");
+        let stats_manager = Arc::new(StatsManager::new());
+        let storage = MetricsStorage::new(inner, stats_manager);
+
+        let checkpoint = storage
+            .create_checkpoint()
+            .expect("checkpoint should succeed");
+
+        assert!(checkpoint.is_some());
+    }
+
+    #[test]
+    fn does_not_buffer_sync_events_when_edge_insert_fails() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let fulltext_config = FulltextConfig {
+            index_path: temp_dir.path().join("fulltext"),
+            ..Default::default()
+        };
+        let fulltext_manager = Arc::new(
+            FulltextIndexManager::new(fulltext_config).expect("Failed to create fulltext manager"),
+        );
+        let sync_manager = Arc::new(SyncManager::new(Arc::new(SyncCoordinator::new(
+            fulltext_manager,
+            BatchConfig::default(),
+        ))));
+
+        let inner = MockStorage::new().expect("Failed to create MockStorage");
+        inner.set_fail_insert_edge(true);
+
+        let mut storage = SyncWrapper::with_sync_manager(inner, sync_manager.clone());
+        let edge = Edge {
+            src: VertexId::from_int64(1),
+            dst: VertexId::from_int64(2),
+            edge_type: "KNOWS".to_string(),
+            ranking: 0,
+            id: 0,
+            props: HashMap::new(),
+        };
+
+        let result = storage.insert_edge("test", edge);
+
+        assert!(result.is_err());
+        assert_eq!(
+            sync_manager.sync_coordinator().transaction_buffer_count(0),
+            0
+        );
     }
 }

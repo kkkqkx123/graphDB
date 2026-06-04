@@ -15,14 +15,14 @@ use crate::query::parser::ast::fulltext::{
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::manager::FulltextIndexManager;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Parameters for creating FulltextSearchExecutor with metadata
-pub struct FulltextSearchExecutorParams<S: StorageClient> {
+pub struct FulltextSearchExecutorParams<S: StorageReader> {
     pub id: i64,
     pub statement: SearchStatement,
     pub storage: Arc<RwLock<S>>,
@@ -34,7 +34,7 @@ pub struct FulltextSearchExecutorParams<S: StorageClient> {
 }
 
 /// Full-text search executor for SEARCH statements
-pub struct FulltextSearchExecutor<S: StorageClient> {
+pub struct FulltextSearchExecutor<S: StorageReader> {
     /// Base executor
     base: BaseExecutor<S>,
     /// Search statement
@@ -50,7 +50,7 @@ pub struct FulltextSearchExecutor<S: StorageClient> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient> FulltextSearchExecutor<S> {
+impl<S: StorageReader> FulltextSearchExecutor<S> {
     /// Create a new full-text search executor
     pub fn new(
         id: i64,
@@ -331,7 +331,7 @@ pub struct FulltextScanConfig {
 }
 
 /// Full-text scan executor for LOOKUP FULLTEXT operations
-pub struct FulltextScanExecutor<S: StorageClient> {
+pub struct FulltextScanExecutor<S: StorageReader> {
     /// Base executor
     base: BaseExecutor<S>,
     /// Index name
@@ -351,7 +351,7 @@ pub struct FulltextScanExecutor<S: StorageClient> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient> FulltextScanExecutor<S> {
+impl<S: StorageReader> FulltextScanExecutor<S> {
     /// Create a new full-text scan executor
     pub fn new(
         id: i64,
@@ -403,7 +403,7 @@ impl<S: StorageClient> FulltextScanExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
+impl<S: StorageReader> Executor<S> for FulltextSearchExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let (space_id, tag_name, field_name) = self.resolve_metadata()?;
 
@@ -587,13 +587,13 @@ impl<S: StorageClient> Executor<S> for FulltextSearchExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for FulltextSearchExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for FulltextSearchExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
+impl<S: StorageReader> Executor<S> for FulltextScanExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let (space_id, tag_name, field_name) = self.resolve_metadata()?;
 
@@ -716,7 +716,7 @@ impl<S: StorageClient> Executor<S> for FulltextScanExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for FulltextScanExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for FulltextScanExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

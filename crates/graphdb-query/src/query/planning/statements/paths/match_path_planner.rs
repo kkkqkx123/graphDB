@@ -7,7 +7,6 @@ use crate::core::{StorageError, Value};
 use crate::query::planning::statements::seeks::seek_strategy_base::{
     NodePattern, SeekStrategyContext, SeekStrategySelector, SeekStrategyType,
 };
-use crate::storage::StorageClient;
 
 pub type PlannerError = StorageError;
 
@@ -34,15 +33,14 @@ impl MatchPathPlanner {
         Self
     }
 
-    pub fn plan_path_pattern<S: StorageClient>(
+    pub fn plan_path_pattern(
         &self,
-        storage: &S,
         pattern: &PathPattern,
         space_id: u64,
     ) -> Result<PathPlan, PlannerError> {
         match &pattern.kind {
             PathPatternKind::Simple { start, edge, end } => {
-                self.plan_simple_pattern(storage, start, edge, end, space_id)
+                self.plan_simple_pattern(start, edge, end, space_id)
             }
             PathPatternKind::VariableLength {
                 start,
@@ -58,10 +56,10 @@ impl MatchPathPlanner {
                     lower: *lower,
                     upper: *upper,
                 };
-                self.plan_variable_length_pattern(storage, &pattern, space_id)
+                self.plan_variable_length_pattern(&pattern, space_id)
             }
             PathPatternKind::Named { name, inner } => {
-                let inner_plan = self.plan_path_pattern(storage, inner, space_id)?;
+                let inner_plan = self.plan_path_pattern(inner, space_id)?;
                 Ok(PathPlan::Named {
                     name: name.clone(),
                     inner: Box::new(inner_plan),
@@ -70,15 +68,14 @@ impl MatchPathPlanner {
         }
     }
 
-    fn plan_simple_pattern<S: StorageClient>(
+    fn plan_simple_pattern(
         &self,
-        storage: &S,
         start: &NodePattern,
         edge: &EdgePattern,
         end: &NodePattern,
         space_id: u64,
     ) -> Result<PathPlan, PlannerError> {
-        let start_finder = self.plan_start_finder(storage, start, space_id)?;
+        let start_finder = self.plan_start_finder(start, space_id)?;
         let edge_traversal = self.plan_edge_traversal(edge)?;
         let end_finder = self.plan_end_finder(end)?;
 
@@ -89,13 +86,12 @@ impl MatchPathPlanner {
         })
     }
 
-    fn plan_variable_length_pattern<S: StorageClient>(
+    fn plan_variable_length_pattern(
         &self,
-        storage: &S,
         pattern: &VariableLengthPathPattern,
         space_id: u64,
     ) -> Result<PathPlan, PlannerError> {
-        let start_finder = self.plan_start_finder(storage, pattern.start, space_id)?;
+        let start_finder = self.plan_start_finder(pattern.start, space_id)?;
         let edge_types = self.extract_edge_types(pattern.edge)?;
         let direction = self.extract_direction(pattern.edge)?;
         let end_finder = self.plan_end_finder(pattern.end)?;
@@ -110,9 +106,8 @@ impl MatchPathPlanner {
         })
     }
 
-    fn plan_start_finder<S: StorageClient>(
+    fn plan_start_finder(
         &self,
-        _storage: &S,
         pattern: &NodePattern,
         space_id: u64,
     ) -> Result<StartVidFinder, PlannerError> {

@@ -6,20 +6,20 @@ use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::StorageSchemaOps;
 use parking_lot::RwLock;
 
 /// Delete the image space executor.
 ///
 /// This executor is responsible for deleting the specified graph space and all its data.
 #[derive(Debug)]
-pub struct DropSpaceExecutor<S: StorageClient> {
+pub struct DropSpaceExecutor<S: StorageSchemaOps> {
     base: BaseExecutor<S>,
     space_name: String,
     if_exists: bool,
 }
 
-impl<S: StorageClient> DropSpaceExecutor<S> {
+impl<S: StorageSchemaOps> DropSpaceExecutor<S> {
     /// Create a new DropSpaceExecutor.
     pub fn new(
         id: i64,
@@ -49,7 +49,7 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor<S> {
+impl<S: StorageSchemaOps + Send + Sync + 'static> Executor<S> for DropSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
@@ -108,7 +108,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropSpaceExecutor<S> {
+impl<S: StorageSchemaOps> crate::query::executor::base::HasStorage<S> for DropSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

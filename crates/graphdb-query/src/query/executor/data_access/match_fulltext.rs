@@ -14,10 +14,10 @@ use crate::query::parser::ast::fulltext::{
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::manager::FulltextIndexManager;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 /// Executor for MATCH FULLTEXT operations
-pub struct MatchFulltextExecutor<S: StorageClient> {
+pub struct MatchFulltextExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     /// Full-text match condition
     fulltext_condition: FulltextMatchCondition,
@@ -33,7 +33,7 @@ pub struct MatchFulltextExecutor<S: StorageClient> {
     field_name: String,
 }
 
-impl<S: StorageClient> MatchFulltextExecutor<S> {
+impl<S: StorageReader> MatchFulltextExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -95,13 +95,13 @@ impl<S: StorageClient> MatchFulltextExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for MatchFulltextExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for MatchFulltextExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> Executor<S> for MatchFulltextExecutor<S> {
+impl<S: StorageReader> Executor<S> for MatchFulltextExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let field = &self.fulltext_condition.field;
         let query = &self.fulltext_condition.query;

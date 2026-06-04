@@ -10,18 +10,18 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 /// List labeling actuators
 ///
 /// This executor is responsible for returning a list of all labels in the specified graph space.
 #[derive(Debug)]
-pub struct ShowTagsExecutor<S: StorageClient> {
+pub struct ShowTagsExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     space_name: String,
 }
 
-impl<S: StorageClient> ShowTagsExecutor<S> {
+impl<S: StorageReader> ShowTagsExecutor<S> {
     /// Create a new ShowTagsExecutor
     pub fn new(
         id: i64,
@@ -36,7 +36,7 @@ impl<S: StorageClient> ShowTagsExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagsExecutor<S> {
+impl<S: StorageReader + Send + Sync + 'static> Executor<S> for ShowTagsExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.read();
@@ -96,7 +96,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagsExecutor<
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowTagsExecutor<S> {
+impl<S: StorageReader> crate::query::executor::base::HasStorage<S> for ShowTagsExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

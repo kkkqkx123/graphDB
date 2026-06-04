@@ -166,7 +166,7 @@ impl GraphDatabase<GraphStorage> {
             let path = config
                 .path()
                 .ok_or_else(|| CoreError::StorageError("Database path is empty".to_string()))?;
-            GraphStorage::new_with_path(path.to_path_buf()).map_err(|e| {
+            GraphStorage::open(path.to_path_buf()).map_err(|e| {
                 CoreError::StorageError(format!("Failed to initialize storage: {}", e))
             })?
         };

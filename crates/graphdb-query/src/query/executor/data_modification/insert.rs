@@ -10,13 +10,13 @@ use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::{StorageReader, StorageWriter};
 use parking_lot::RwLock;
 
 /// Insert the actuator.
 ///
 /// Responsible for inserting new vertex and edge data
-pub struct InsertExecutor<S: StorageClient> {
+pub struct InsertExecutor<S: StorageReader + StorageWriter> {
     base: BaseExecutor<S>,
     space_name: String,
     vertex_data: Option<Vec<Vertex>>,
@@ -24,7 +24,7 @@ pub struct InsertExecutor<S: StorageClient> {
     if_not_exists: bool,
 }
 
-impl<S: StorageClient> InsertExecutor<S> {
+impl<S: StorageReader + StorageWriter> InsertExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -109,7 +109,7 @@ impl<S: StorageClient> InsertExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for InsertExecutor<S> {
+impl<S: StorageReader + StorageWriter + Send + Sync + 'static> Executor<S> for InsertExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -160,13 +160,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for InsertExecutor<S>
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for InsertExecutor<S> {
+impl<S: StorageReader + StorageWriter> HasStorage<S> for InsertExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
+impl<S: StorageReader + StorageWriter + Send + Sync + 'static> InsertExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_inserted = 0;
 

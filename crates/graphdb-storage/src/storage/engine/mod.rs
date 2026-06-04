@@ -5,6 +5,7 @@ pub mod config;
 pub mod data_store;
 pub mod edge_params;
 pub mod graph_storage;
+pub mod paths;
 pub mod persistence_coordinator;
 pub mod property_graph;
 #[cfg(test)]

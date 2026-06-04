@@ -7,20 +7,20 @@ use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::{StorageReader, StorageSchemaOps};
 
 /// Delete Label Enforcer
 ///
 /// This actuator is responsible for deleting the specified tag and all its data.
 #[derive(Debug)]
-pub struct DropTagExecutor<S: StorageClient> {
+pub struct DropTagExecutor<S: StorageReader + StorageSchemaOps> {
     base: BaseExecutor<S>,
     space_name: String,
     tag_name: String,
     if_exists: bool,
 }
 
-impl<S: StorageClient> DropTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> DropTagExecutor<S> {
     /// Create a new DropTagExecutor
     pub fn new(
         id: i64,
@@ -54,7 +54,9 @@ impl<S: StorageClient> DropTagExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps + Send + Sync + 'static> Executor<S>
+    for DropTagExecutor<S>
+{
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
@@ -122,7 +124,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagExecutor<S
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropTagExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> crate::query::executor::base::HasStorage<S>
+    for DropTagExecutor<S>
+{
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

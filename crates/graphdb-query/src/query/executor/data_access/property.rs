@@ -8,18 +8,18 @@ use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 #[derive(Debug)]
-pub struct GetPropExecutor<S: StorageClient> {
+pub struct GetPropExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     edge_ids: Option<Vec<Value>>,
     prop_names: Vec<String>,
 }
 
-impl<S: StorageClient> GetPropExecutor<S> {
+impl<S: StorageReader> GetPropExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -37,7 +37,7 @@ impl<S: StorageClient> GetPropExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for GetPropExecutor<S> {
+impl<S: StorageReader> Executor<S> for GetPropExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -88,13 +88,13 @@ impl<S: StorageClient> Executor<S> for GetPropExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for GetPropExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> GetPropExecutor<S> {
+impl<S: StorageReader> GetPropExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         let storage = self.get_storage().read();
 

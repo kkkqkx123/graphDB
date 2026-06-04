@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::core::types::{DataType, EngineType, SpaceInfo, SpaceStatus};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::StorageSchemaOps;
 use parking_lot::RwLock;
 
 pub fn space_info_from_executor(executor_info: &ExecutorSpaceInfo) -> SpaceInfo {
@@ -89,13 +89,13 @@ impl ExecutorSpaceInfo {
 }
 
 #[derive(Debug)]
-pub struct CreateSpaceExecutor<S: StorageClient> {
+pub struct CreateSpaceExecutor<S: StorageSchemaOps> {
     base: BaseExecutor<S>,
     space_info: ExecutorSpaceInfo,
     if_not_exists: bool,
 }
 
-impl<S: StorageClient> CreateSpaceExecutor<S> {
+impl<S: StorageSchemaOps> CreateSpaceExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -123,7 +123,7 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecutor<S> {
+impl<S: StorageSchemaOps + Send + Sync + 'static> Executor<S> for CreateSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
@@ -183,7 +183,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecut
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateSpaceExecutor<S> {
+impl<S: StorageSchemaOps> crate::query::executor::base::HasStorage<S> for CreateSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

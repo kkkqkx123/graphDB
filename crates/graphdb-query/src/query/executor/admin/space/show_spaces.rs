@@ -9,18 +9,18 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
 
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use parking_lot::RwLock;
 
 /// List the executors that run in the graph space
 ///
 /// This executor is responsible for returning a list of all the created graph spaces.
 #[derive(Debug)]
-pub struct ShowSpacesExecutor<S: StorageClient> {
+pub struct ShowSpacesExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
 }
 
-impl<S: StorageClient> ShowSpacesExecutor<S> {
+impl<S: StorageReader> ShowSpacesExecutor<S> {
     /// Create a new ShowSpacesExecutor
     pub fn new(
         id: i64,
@@ -33,7 +33,7 @@ impl<S: StorageClient> ShowSpacesExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecutor<S> {
+impl<S: StorageReader + Send + Sync + 'static> Executor<S> for ShowSpacesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.read();
@@ -103,7 +103,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
     }
 }
 
-impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowSpacesExecutor<S> {
+impl<S: StorageReader> crate::query::executor::base::HasStorage<S> for ShowSpacesExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

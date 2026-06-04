@@ -8,7 +8,7 @@ use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::query::planning::statements::seeks::seek_strategy_base::{
     NodePattern, SeekStrategyContext, SeekStrategySelector, SeekStrategyType,
 };
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 pub type PlannerError = StorageError;
@@ -27,9 +27,8 @@ impl ShortestPathPlanner {
         Self
     }
 
-    pub fn plan_shortest_path<S: StorageClient>(
+    pub fn plan_shortest_path(
         &self,
-        _storage: &S,
         start: &NodePattern,
         end: &NodePattern,
         edge_pattern: &EdgePattern,
@@ -127,7 +126,7 @@ pub struct ShortestPath {
 }
 
 impl ShortestPathPlanner {
-    pub fn find_shortest_path<S: StorageClient>(
+    pub fn find_shortest_path<S: StorageReader>(
         &self,
         storage: &S,
         plan: &ShortestPathPlan,
@@ -162,7 +161,7 @@ impl ShortestPathPlanner {
         })
     }
 
-    fn resolve_start_vids<S: StorageClient>(
+    fn resolve_start_vids<S: StorageReader>(
         &self,
         storage: &S,
         start: &StartVidSource,
@@ -185,7 +184,7 @@ impl ShortestPathPlanner {
         }
     }
 
-    fn resolve_end_vid<S: StorageClient>(
+    fn resolve_end_vid<S: StorageReader>(
         &self,
         storage: &S,
         pattern: &NodePattern,
@@ -202,7 +201,7 @@ impl ShortestPathPlanner {
         }
     }
 
-    fn scan_matching_vertices<S: StorageClient>(
+    fn scan_matching_vertices<S: StorageReader>(
         &self,
         storage: &S,
         pattern: &NodePattern,
@@ -243,7 +242,7 @@ impl ShortestPathPlanner {
         true
     }
 
-    fn bfs_search<S: StorageClient>(
+    fn bfs_search<S: StorageReader>(
         &self,
         storage: &S,
         start: &Value,

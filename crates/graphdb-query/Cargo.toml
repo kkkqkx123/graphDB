@@ -27,3 +27,6 @@ vector-client = { path = "../vector-client", features = ["qdrant-http"], optiona
 [features]
 qdrant = ["dep:vector-client", "graphdb-sync/qdrant"]
 fulltext-search = ["graphdb-search/fulltext-search", "graphdb-sync/fulltext-search"]
+
+[dev-dependencies]
+graphdb-storage = { path = "../graphdb-storage", features = ["test-support"] }

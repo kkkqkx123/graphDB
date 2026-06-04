@@ -9,8 +9,9 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::{
-    StorageAdmin, StorageAuthOps, StorageClient, StorageReader, StorageSchemaOps, StorageStats,
-    StorageWriter,
+    StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
+    StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
+    StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
 use crate::sync::SyncManager;
 
@@ -33,6 +34,37 @@ macro_rules! wrap_write {
             $self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
             result
         }
+    };
+}
+
+macro_rules! forward_methods {
+    ($field:ident; $(fn $fn:ident(&self $(, $arg:ident : $ty:ty)* $(,)?);)+) => {
+        $(
+            fn $fn(&self, $($arg: $ty),*) {
+                self.$field.$fn($($arg),*)
+            }
+        )+
+    };
+    ($field:ident; $(fn $fn:ident(&mut self $(, $arg:ident : $ty:ty)* $(,)?);)+) => {
+        $(
+            fn $fn(&mut self, $($arg: $ty),*) {
+                self.$field.$fn($($arg),*)
+            }
+        )+
+    };
+    ($field:ident; $(fn $fn:ident(&self $(, $arg:ident : $ty:ty)* $(,)?) -> $ret:ty;)+) => {
+        $(
+            fn $fn(&self, $($arg: $ty),*) -> $ret {
+                self.$field.$fn($($arg),*)
+            }
+        )+
+    };
+    ($field:ident; $(fn $fn:ident(&mut self $(, $arg:ident : $ty:ty)* $(,)?) -> $ret:ty;)+) => {
+        $(
+            fn $fn(&mut self, $($arg: $ty),*) -> $ret {
+                self.$field.$fn($($arg),*)
+            }
+        )+
     };
 }
 
@@ -76,7 +108,6 @@ impl<S: StorageClient> StorageReader for MetricsStorage<S> {
     wrap_read!(scan_edges_by_type(self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError>);
     wrap_read!(scan_all_edges(self, space: &str) -> Result<Vec<Edge>, StorageError>);
     wrap_read!(lookup_index(self, space: &str, index: &str, value: &Value) -> Result<Vec<Value>, StorageError>);
-    wrap_read!(lookup_index_with_score(self, space: &str, index: &str, value: &Value) -> Result<Vec<(Value, f32)>, StorageError>);
     wrap_read!(get_vertex_with_schema(self, space: &str, tag: &str, id: &Value) -> Result<Option<(TagInfo, Vec<u8>)>, StorageError>);
     wrap_read!(get_edge_with_schema(self, space: &str, edge_type: &str, src: &Value, dst: &Value) -> Result<Option<(EdgeTypeInfo, Vec<u8>)>, StorageError>);
     wrap_read!(scan_vertices_with_schema(self, space: &str, tag: &str) -> Result<Vec<(TagInfo, Vec<u8>)>, StorageError>);
@@ -187,11 +218,25 @@ impl<S: StorageClient> StorageAdmin for MetricsStorage<S> {
     fn get_db_path(&self) -> &str {
         self.inner.get_db_path()
     }
+}
+
+impl<S: StorageClient> StoragePersistenceOps for MetricsStorage<S> {
     fn flush(&self) -> Result<(), StorageError> {
         let start = Instant::now();
         let result = self.inner.flush();
         self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
         result
+    }
+
+    fn save_data(&self) -> crate::core::StorageResult<()> {
+        let start = Instant::now();
+        let result = self.inner.save_data();
+        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
+
+    fn save_data_to_dir(&self, dir: &std::path::Path) -> crate::core::StorageResult<()> {
+        self.inner.save_data_to_dir(dir)
     }
 
     fn create_checkpoint(
@@ -216,17 +261,6 @@ impl<S: StorageClient> StorageAdmin for MetricsStorage<S> {
         self.inner.compact(compact_csr, reserve_ratio)
     }
 
-    fn save_data(&self) -> crate::core::StorageResult<()> {
-        let start = Instant::now();
-        let result = self.inner.save_data();
-        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
-        result
-    }
-
-    fn save_data_to_dir(&self, dir: &std::path::Path) -> crate::core::StorageResult<()> {
-        self.inner.save_data_to_dir(dir)
-    }
-
     fn auto_flush_if_needed(&self) -> crate::core::StorageResult<bool> {
         self.inner.auto_flush_if_needed()
     }
@@ -244,54 +278,51 @@ impl<S: StorageClient> StorageAdmin for MetricsStorage<S> {
     fn should_checkpoint(&self) -> bool {
         self.inner.should_checkpoint()
     }
+}
 
-    fn needs_recovery(&self) -> bool {
-        self.inner.needs_recovery()
-    }
+impl<S: StorageClient> StorageSchemaContextOps for MetricsStorage<S> {
+    forward_methods!(inner;
+        fn get_schema_manager(&self) -> Option<Arc<SchemaManager>>;
+    );
+}
 
-    fn recover_from_wal(
-        &self,
-    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
-        self.inner.recover_from_wal()
-    }
+impl<S: StorageClient> StorageTransactionContextOps for MetricsStorage<S> {
+    forward_methods!(inner;
+        fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>>;
+    );
 
-    fn recover_from_wal_with_config(
-        &self,
-        config: crate::transaction::wal::recovery::RecoveryConfig,
-    ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats> {
-        self.inner.recover_from_wal_with_config(config)
-    }
+    forward_methods!(inner;
+        fn set_transaction_context(&self, ctx: Option<Arc<TransactionContextInfo>>);
+    );
+}
 
-    fn init_with_recovery(
-        &self,
-    ) -> crate::core::StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>> {
-        self.inner.init_with_recovery()
-    }
+impl<S: StorageClient> StorageSyncContextOps for MetricsStorage<S> {
+    forward_methods!(inner;
+        fn get_sync_manager(&self) -> Option<Arc<SyncManager>>;
+    );
+}
 
-    fn is_index_gc_running(&self) -> bool {
-        self.inner.is_index_gc_running()
-    }
+impl<S: StorageClient> StorageRecoveryOps for MetricsStorage<S> {
+    forward_methods!(inner;
+        fn needs_recovery(&self) -> bool;
+        fn recover_from_wal(&self) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats>;
+        fn recover_from_wal_with_config(
+            &self,
+            config: crate::transaction::wal::recovery::RecoveryConfig,
+        ) -> crate::core::StorageResult<crate::transaction::wal::recovery::RecoveryStats>;
+        fn init_with_recovery(&self) -> crate::core::StorageResult<Option<crate::transaction::wal::recovery::RecoveryStats>>;
+    );
+}
 
-    fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>> {
-        self.inner.start_index_gc()
-    }
+impl<S: StorageClient> StorageGcOps for MetricsStorage<S> {
+    forward_methods!(inner;
+        fn is_index_gc_running(&self) -> bool;
+        fn start_index_gc(&self) -> Option<std::thread::JoinHandle<()>>;
+    );
 
-    fn stop_index_gc(&self) {
-        self.inner.stop_index_gc();
-    }
-
-    fn get_sync_manager(&self) -> Option<Arc<SyncManager>> {
-        self.inner.get_sync_manager()
-    }
-    fn get_schema_manager(&self) -> Option<Arc<SchemaManager>> {
-        self.inner.get_schema_manager()
-    }
-    fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>> {
-        self.inner.get_transaction_context()
-    }
-    fn set_transaction_context(&self, ctx: Option<Arc<TransactionContextInfo>>) {
-        self.inner.set_transaction_context(ctx);
-    }
+    forward_methods!(inner;
+        fn stop_index_gc(&self);
+    );
 }
 
 impl<S: StorageClient> std::fmt::Debug for MetricsStorage<S> {
@@ -321,7 +352,8 @@ mod tests {
     use crate::core::stats::{MetricType, StatsManager};
     use crate::core::types::VertexId;
     use crate::storage::{
-        GraphStorage, MetricsStorage, MockStorage, StorageAdmin, StorageReader, StorageWriter,
+        GraphStorage, MetricsStorage, MockStorage, StoragePersistenceOps, StorageReader,
+        StorageWriter,
     };
 
     #[test]

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::core::error::DBError;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::{StorageReader, StorageSchemaOps};
 
 /// Space modification options
 #[derive(Debug, Clone)]
@@ -20,13 +20,13 @@ pub enum SpaceAlterOption {
 ///
 /// This actuator is responsible for modifying the configuration of the graphical space.
 #[derive(Debug)]
-pub struct AlterSpaceExecutor<S: StorageClient> {
+pub struct AlterSpaceExecutor<S: StorageReader + StorageSchemaOps> {
     base: BaseExecutor<S>,
     space_name: String,
     options: Vec<SpaceAlterOption>,
 }
 
-impl<S: StorageClient> AlterSpaceExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> AlterSpaceExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -42,7 +42,9 @@ impl<S: StorageClient> AlterSpaceExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterSpaceExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps + Send + Sync + 'static> Executor<S>
+    for AlterSpaceExecutor<S>
+{
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
@@ -100,7 +102,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterSpaceExecuto
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for AlterSpaceExecutor<S> {
+impl<S: StorageReader + StorageSchemaOps> HasStorage<S> for AlterSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

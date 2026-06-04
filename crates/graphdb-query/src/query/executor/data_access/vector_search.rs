@@ -17,20 +17,20 @@ use crate::query::planning::plan::core::nodes::search::vector::data_access::{
     OutputField, VectorLookupNode, VectorMatchNode, VectorSearchNode,
 };
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 use crate::sync::vector_sync::{SearchOptions, VectorSyncCoordinator};
 use parking_lot::RwLock;
 use vector_client::types::SearchResult;
 
 /// Vector search executor
-pub struct VectorSearchExecutor<S: StorageClient> {
+pub struct VectorSearchExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     node: VectorSearchNode,
     coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient> VectorSearchExecutor<S> {
+impl<S: StorageReader> VectorSearchExecutor<S> {
     /// Create a new vector search executor
     pub fn new(
         id: i64,
@@ -313,7 +313,7 @@ impl<S: StorageClient> VectorSearchExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for VectorSearchExecutor<S> {
+impl<S: StorageReader> Executor<S> for VectorSearchExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         // Execute vector search
         let results = self.execute_search()?;
@@ -357,7 +357,7 @@ impl<S: StorageClient> Executor<S> for VectorSearchExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for VectorSearchExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for VectorSearchExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
@@ -366,14 +366,14 @@ impl<S: StorageClient> HasStorage<S> for VectorSearchExecutor<S> {
 // ============== Vector Lookup Executor ==============
 
 /// Vector lookup executor
-pub struct VectorLookupExecutor<S: StorageClient> {
+pub struct VectorLookupExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     node: VectorLookupNode,
     coordinator: Arc<VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient> VectorLookupExecutor<S> {
+impl<S: StorageReader> VectorLookupExecutor<S> {
     /// Create a new vector lookup executor
     pub fn new(
         id: i64,
@@ -537,7 +537,7 @@ impl<S: StorageClient> VectorLookupExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for VectorLookupExecutor<S> {
+impl<S: StorageReader> Executor<S> for VectorLookupExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let results = self.execute_search()?;
         let dataset = self.build_dataset(results)?;
@@ -577,7 +577,7 @@ impl<S: StorageClient> Executor<S> for VectorLookupExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for VectorLookupExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for VectorLookupExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
@@ -586,14 +586,14 @@ impl<S: StorageClient> HasStorage<S> for VectorLookupExecutor<S> {
 // ============== Vector Match Executor ==============
 
 /// Vector match executor
-pub struct VectorMatchExecutor<S: StorageClient> {
+pub struct VectorMatchExecutor<S: StorageReader> {
     base: BaseExecutor<S>,
     node: VectorMatchNode,
     coordinator: Arc<crate::sync::vector_sync::VectorSyncCoordinator>,
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient> VectorMatchExecutor<S> {
+impl<S: StorageReader> VectorMatchExecutor<S> {
     /// Create a new vector match executor
     pub fn new(
         id: i64,
@@ -718,7 +718,7 @@ impl<S: StorageClient> VectorMatchExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for VectorMatchExecutor<S> {
+impl<S: StorageReader> Executor<S> for VectorMatchExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let results = self.execute_search()?;
 
@@ -769,7 +769,7 @@ impl<S: StorageClient> Executor<S> for VectorMatchExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for VectorMatchExecutor<S> {
+impl<S: StorageReader> HasStorage<S> for VectorMatchExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

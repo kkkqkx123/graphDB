@@ -17,7 +17,7 @@ use crate::query::executor::base::ExecutorEnum;
 /// A unified Executor trait
 ///
 /// The core trait that all actuators must implement includes functions for execution, lifecycle management, and metadata handling.
-pub trait Executor<S: StorageClient>: Send {
+pub trait Executor<S>: Send {
     /// Please provide the text you would like to have translated.
     fn execute(&mut self) -> DBResult<ExecutionResult>;
 
@@ -54,14 +54,14 @@ pub trait Executor<S: StorageClient>: Send {
 /// "Storage Access Trait"
 ///
 /// Only executors that have access to storage capabilities can implement this trait.
-pub trait HasStorage<S: StorageClient> {
+pub trait HasStorage<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>>;
 }
 
 /// “Input Access Trait” – A unified mechanism for handling user input
 ///
 /// Executors that need to access the input data should implement this trait.
-pub trait HasInput<S: StorageClient> {
+pub trait HasInput<S> {
     fn get_input(&self) -> Option<&ExecutionResult>;
     fn set_input(&mut self, input: ExecutionResult);
 }
@@ -87,7 +87,7 @@ pub trait ChainableExecutor<S: StorageClient + Send + 'static>:
 ///
 /// Provide general functions for actuators, including storage access, statistical information, lifecycle management, etc.
 #[derive(Clone, Debug)]
-pub struct BaseExecutor<S: StorageClient> {
+pub struct BaseExecutor<S> {
     /// Actuator ID
     pub id: i64,
     /// Actuator name
@@ -104,7 +104,7 @@ pub struct BaseExecutor<S: StorageClient> {
     stats: ExecutorStats,
 }
 
-impl<S: StorageClient> BaseExecutor<S> {
+impl<S> BaseExecutor<S> {
     /// Create a new basic executor (with storage).
     pub fn new(
         id: i64,
@@ -206,13 +206,13 @@ impl<S: StorageClient> BaseExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for BaseExecutor<S> {
+impl<S> HasStorage<S> for BaseExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.storage.as_ref().expect("Storage not set")
     }
 }
 
-impl<S: StorageClient> Executor<S> for BaseExecutor<S> {
+impl<S: Send + Sync> Executor<S> for BaseExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = Ok(ExecutionResult::Success);
@@ -259,11 +259,11 @@ impl<S: StorageClient> Executor<S> for BaseExecutor<S> {
 ///
 /// It indicates the starting point for the execution of the query; no actual data is generated.
 #[derive(Debug)]
-pub struct StartExecutor<S: StorageClient> {
+pub struct StartExecutor<S> {
     base: BaseExecutor<S>,
 }
 
-impl<S: StorageClient> StartExecutor<S> {
+impl<S> StartExecutor<S> {
     /// Create a new start executor.
     pub fn new(id: i64, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
@@ -272,7 +272,7 @@ impl<S: StorageClient> StartExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for StartExecutor<S> {
+impl<S: Send + Sync> Executor<S> for StartExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = Ok(ExecutionResult::Success);

@@ -842,7 +842,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for SortExecutor<S> {
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
         let dataset = self.process_input()?;

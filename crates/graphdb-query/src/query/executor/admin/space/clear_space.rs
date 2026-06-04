@@ -7,18 +7,18 @@ use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::storage::StorageClient;
+use crate::storage::StorageSchemaOps;
 
 /// Empty space actuator
 ///
 /// This executor is responsible for emptying all data in the specified space.
 #[derive(Debug)]
-pub struct ClearSpaceExecutor<S: StorageClient> {
+pub struct ClearSpaceExecutor<S: StorageSchemaOps> {
     base: BaseExecutor<S>,
     space_name: String,
 }
 
-impl<S: StorageClient> ClearSpaceExecutor<S> {
+impl<S: StorageSchemaOps> ClearSpaceExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -32,7 +32,7 @@ impl<S: StorageClient> ClearSpaceExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ClearSpaceExecutor<S> {
+impl<S: StorageSchemaOps + Send + Sync + 'static> Executor<S> for ClearSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.write();
@@ -81,7 +81,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ClearSpaceExecuto
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for ClearSpaceExecutor<S> {
+impl<S: StorageSchemaOps> HasStorage<S> for ClearSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }

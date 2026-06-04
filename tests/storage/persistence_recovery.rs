@@ -14,7 +14,8 @@ use graphdb::core::types::{Index, IndexConfig, IndexField, IndexType, VertexId};
 use graphdb::core::value::DateValue;
 use graphdb::core::{Edge, Value, Vertex};
 use graphdb::storage::{
-    GraphStorage, StorageAdmin, StorageReader, StorageSchemaOps, StorageWriter,
+    GraphStorage, StorageAdmin, StoragePersistenceOps, StorageReader, StorageSchemaOps,
+    StorageWriter,
 };
 use std::path::Path;
 

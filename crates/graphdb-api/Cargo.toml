@@ -48,3 +48,6 @@ server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "de
 grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
 qdrant = ["dep:vector-client", "graphdb-sync/qdrant", "graphdb-query/qdrant"]
 embedded = []
+
+[dev-dependencies]
+graphdb-storage = { path = "../graphdb-storage", features = ["test-support"] }

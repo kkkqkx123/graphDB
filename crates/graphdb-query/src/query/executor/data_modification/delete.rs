@@ -18,13 +18,13 @@ use crate::query::executor::expression::evaluator::expression_evaluator::Express
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
-use crate::storage::StorageClient;
+use crate::storage::{StorageClient, StorageReader, StorageSchemaOps, StorageWriter};
 use parking_lot::RwLock;
 
 /// Delete the executor.
 ///
 /// Responsible for deleting vertices and edges
-pub struct DeleteExecutor<S: StorageClient> {
+pub struct DeleteExecutor<S: StorageReader + StorageWriter + StorageSchemaOps> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     edge_ids: Option<Vec<(Value, Value, String)>>,
@@ -36,7 +36,7 @@ pub struct DeleteExecutor<S: StorageClient> {
     index_name: Option<String>,
 }
 
-impl<S: StorageClient> DeleteExecutor<S> {
+impl<S: StorageReader + StorageWriter + StorageSchemaOps> DeleteExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
@@ -84,7 +84,9 @@ impl<S: StorageClient> DeleteExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteExecutor<S> {
+impl<S: StorageReader + StorageWriter + StorageSchemaOps + Send + Sync + 'static> Executor<S>
+    for DeleteExecutor<S>
+{
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -135,13 +137,15 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteExecutor<S>
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for DeleteExecutor<S> {
+impl<S: StorageReader + StorageWriter + StorageSchemaOps> HasStorage<S> for DeleteExecutor<S> {
     fn get_storage(&self) -> &Arc<RwLock<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
+impl<S: StorageReader + StorageWriter + StorageSchemaOps + Send + Sync + 'static>
+    DeleteExecutor<S>
+{
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
 

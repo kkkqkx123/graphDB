@@ -15,9 +15,7 @@ use graphdb::config::Config;
 use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::storage::GraphStorage;
-use graphdb::storage::StorageAdmin;
-use graphdb::storage::SyncWrapper;
+use graphdb::storage::{GraphStorage, StorageSchemaContextOps, SyncWrapper};
 use std::sync::Arc;
 use vector_client::VectorClientConfig;
 
@@ -127,7 +125,7 @@ fn test_sync_storage_inner_access() {
     let _inner = sync_storage.inner();
 }
 
-/// Test StorageClient trait method get_schema_manager
+/// Test schema-context access through the storage wrapper
 #[test]
 fn test_storage_client_get_schema_manager() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");

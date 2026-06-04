@@ -175,10 +175,10 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> ResultProcessor<S> for SampleExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor for SampleExecutor<S> {
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         if self.input_executor.is_none() && self.base.input.is_none() {
-            <Self as ResultProcessor<S>>::set_input(self, input.clone());
+            <Self as ResultProcessor>::set_input(self, input.clone());
         }
         self.process_input()
     }
@@ -296,7 +296,7 @@ mod tests {
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Random, 10, Some(42));
 
         // Setting the input data
-        <SampleExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
+        <SampleExecutor<MockStorage> as ResultProcessor>::set_input(
             &mut executor,
             ExecutionResult::DataSet(dataset),
         );
@@ -340,7 +340,7 @@ mod tests {
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Reservoir, 5, Some(123));
 
         // Set the input data
-        <SampleExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
+        <SampleExecutor<MockStorage> as ResultProcessor>::set_input(
             &mut executor,
             ExecutionResult::DataSet(dataset),
         );

@@ -12,7 +12,7 @@ use super::seek_strategy_base::{IndexInfo, SeekResult, SeekStrategyContext, Seek
 use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::expr::visitor_collectors::OrConditionCollector;
 use crate::core::{StorageError, Value};
-use crate::storage::StorageClient;
+use crate::storage::StorageReader;
 
 /// Attribute filtering criteria
 #[derive(Debug, Clone, PartialEq)]
@@ -257,7 +257,7 @@ impl PropIndexSeek {
 }
 
 impl SeekStrategy for PropIndexSeek {
-    fn execute<S: StorageClient>(
+    fn execute<S: StorageReader>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,

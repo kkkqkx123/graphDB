@@ -484,7 +484,7 @@ fn test_update_divide_by_zero() {
     use graphdb::core::stats::StatsManager;
     use graphdb::query::optimizer::OptimizerEngine;
     use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-    use graphdb::storage::StorageReader;
+    use graphdb::storage::{StorageReader, StorageSchemaContextOps};
     use std::sync::Arc;
 
     let test_storage = TestStorage::new().expect("Failed to create test storage");
@@ -493,7 +493,9 @@ fn test_update_divide_by_zero() {
     let optimizer = Arc::new(OptimizerEngine::default());
     let schema_manager = {
         let storage_guard = storage.write();
-        storage_guard.get_schema_manager()
+        storage_guard
+            .get_schema_manager()
+            .expect("Storage should provide a schema manager")
     };
     let mut pipeline =
         QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, optimizer)
