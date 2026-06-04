@@ -5,7 +5,7 @@ use crate::core::types::{
     VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, Value, Vertex};
-use crate::storage::engine::PropertyGraph;
+use crate::storage::engine::graph_storage::GraphStorageContext;
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageGcOps, StoragePersistenceOps, StorageReader,
     StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
@@ -25,7 +25,7 @@ macro_rules! mock_stub {
 
 #[derive(Debug, Clone)]
 pub struct MockStorage {
-    graph: Arc<RwLock<PropertyGraph>>,
+    graph: GraphStorageContext,
     schema_manager: Arc<crate::core::metadata::SchemaManager>,
     transaction_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
     fail_insert_edge: Arc<RwLock<bool>>,
@@ -35,9 +35,8 @@ pub struct MockStorage {
 
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
-        let graph = PropertyGraph::new();
         Ok(Self {
-            graph: Arc::new(RwLock::new(graph)),
+            graph: GraphStorageContext::new(),
             schema_manager: Arc::new(crate::core::metadata::SchemaManager::new()),
             transaction_context: Arc::new(RwLock::new(None)),
             fail_insert_edge: Arc::new(RwLock::new(false)),
@@ -46,7 +45,7 @@ impl MockStorage {
         })
     }
 
-    pub fn get_graph(&self) -> &Arc<RwLock<PropertyGraph>> {
+    pub fn get_graph(&self) -> &GraphStorageContext {
         &self.graph
     }
 

@@ -1,8 +1,8 @@
 use crate::core::types::{CompactConfig, CompactResult, CompactStats, CompactTarget};
 use crate::core::types::{CompactError, Timestamp};
-use crate::storage::engine::property_graph::PropertyGraph;
+use crate::storage::engine::graph_storage::GraphStorageContext;
 
-impl CompactTarget for PropertyGraph {
+impl CompactTarget for GraphStorageContext {
     fn compact(&self, config: &CompactConfig, ts: Timestamp) -> CompactResult<()> {
         log::info!(
             "Starting compaction: enable_structure_compaction={}, reserve_ratio={}, ts={}",

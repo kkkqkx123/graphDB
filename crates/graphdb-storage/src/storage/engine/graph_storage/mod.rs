@@ -1,15 +1,17 @@
 //! Storage Interface Implementation
 //!
-//! Implements the StorageClient trait for PropertyGraph storage.
+//! Implements the StorageClient trait for the storage engine.
 //! This module acts as an adapter layer between the high-level StorageClient API
-//! and the low-level PropertyGraph storage engine.
+//! and the low-level storage engine.
 
 mod context;
+mod index_engine;
 mod index_manager;
 mod maintenance;
 mod persistence;
 mod reader;
 mod schema_adapter;
+mod schema_engine;
 pub(crate) mod type_utils;
 mod user_ops;
 mod writer;

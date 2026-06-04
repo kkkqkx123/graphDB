@@ -1,36 +1,31 @@
-//! Type Operations
-//!
-//! Contains vertex and edge type creation/deletion operations for PropertyGraph.
-//! This module handles low-level type management at the storage engine level.
-
 use std::sync::atomic::Ordering;
 
 use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::edge::{EdgeSchema, EdgeStrategy, EdgeTable};
 use crate::storage::engine::data_store::EdgeTableKey;
+use crate::storage::engine::params::CreateEdgeTypeParams;
 use crate::storage::types::StoragePropertyDef;
 use crate::storage::vertex::{VertexSchema, VertexTable};
 
-use super::super::params::CreateEdgeTypeParams;
-use super::PropertyGraph;
+use super::context::GraphStorageContext;
 
 pub fn create_vertex_type(
-    graph: &PropertyGraph,
+    ctx: &GraphStorageContext,
     name: &str,
     properties: Vec<StoragePropertyDef>,
     primary_key: &str,
 ) -> StorageResult<LabelId> {
-    if !graph.is_open.load(Ordering::Acquire) {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
-    let mut vertex_label_names = graph.data_store.vertex_label_names().write();
+    let mut vertex_label_names = ctx.data_store().vertex_label_names().write();
     if vertex_label_names.contains_key(name) {
         return Err(StorageError::label_already_exists(name.to_string()));
     }
 
-    let mut vertex_label_counter = graph.data_store.vertex_label_counter().write();
+    let mut vertex_label_counter = ctx.data_store().vertex_label_counter().write();
     let label_id = *vertex_label_counter;
     *vertex_label_counter += 1;
 
@@ -47,8 +42,7 @@ pub fn create_vertex_type(
     };
 
     let table = VertexTable::new(label_id, name.to_string(), schema);
-    graph
-        .data_store
+    ctx.data_store()
         .vertex_tables()
         .write()
         .insert(label_id, table);
@@ -58,23 +52,23 @@ pub fn create_vertex_type(
 }
 
 pub fn create_vertex_type_with_id(
-    graph: &PropertyGraph,
+    ctx: &GraphStorageContext,
     name: &str,
     label_id: LabelId,
     properties: Vec<StoragePropertyDef>,
     primary_key: &str,
 ) -> StorageResult<LabelId> {
-    if !graph.is_open.load(Ordering::Acquire) {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
-    let mut vertex_label_names = graph.data_store.vertex_label_names().write();
+    let mut vertex_label_names = ctx.data_store().vertex_label_names().write();
     if vertex_label_names.contains_key(name) {
         return Err(StorageError::label_already_exists(name.to_string()));
     }
 
-    if graph
-        .data_store
+    if ctx
+        .data_store()
         .vertex_tables()
         .read()
         .contains_key(&label_id)
@@ -85,7 +79,7 @@ pub fn create_vertex_type_with_id(
         )));
     }
 
-    let mut vertex_label_counter = graph.data_store.vertex_label_counter().write();
+    let mut vertex_label_counter = ctx.data_store().vertex_label_counter().write();
     if label_id >= *vertex_label_counter {
         *vertex_label_counter = label_id + 1;
     }
@@ -103,8 +97,7 @@ pub fn create_vertex_type_with_id(
     };
 
     let table = VertexTable::new(label_id, name.to_string(), schema);
-    graph
-        .data_store
+    ctx.data_store()
         .vertex_tables()
         .write()
         .insert(label_id, table);
@@ -114,7 +107,7 @@ pub fn create_vertex_type_with_id(
 }
 
 pub fn create_edge_type(
-    graph: &PropertyGraph,
+    ctx: &GraphStorageContext,
     name: &str,
     src_label: LabelId,
     dst_label: LabelId,
@@ -122,12 +115,12 @@ pub fn create_edge_type(
     oe_strategy: EdgeStrategy,
     ie_strategy: EdgeStrategy,
 ) -> StorageResult<LabelId> {
-    if !graph.is_open.load(Ordering::Acquire) {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
-    if !graph
-        .data_store
+    if !ctx
+        .data_store()
         .vertex_tables()
         .read()
         .contains_key(&src_label)
@@ -137,8 +130,8 @@ pub fn create_edge_type(
             src_label
         )));
     }
-    if !graph
-        .data_store
+    if !ctx
+        .data_store()
         .vertex_tables()
         .read()
         .contains_key(&dst_label)
@@ -149,12 +142,12 @@ pub fn create_edge_type(
         )));
     }
 
-    let mut edge_label_names = graph.data_store.edge_label_names().write();
+    let mut edge_label_names = ctx.data_store().edge_label_names().write();
     if edge_label_names.contains_key(name) {
         return Err(StorageError::label_already_exists(name.to_string()));
     }
 
-    let mut edge_label_counter = graph.data_store.edge_label_counter().write();
+    let mut edge_label_counter = ctx.data_store().edge_label_counter().write();
     let label_id = *edge_label_counter;
     *edge_label_counter += 1;
 
@@ -170,24 +163,24 @@ pub fn create_edge_type(
 
     let table = EdgeTable::new(schema)?;
     let key = EdgeTableKey::new(src_label, dst_label, label_id);
-    graph.data_store.edge_tables().write().insert(key, table);
+    ctx.data_store().edge_tables().write().insert(key, table);
     edge_label_names.insert(name.to_string(), label_id);
 
     Ok(label_id)
 }
 
 pub fn create_edge_type_with_id(
-    graph: &PropertyGraph,
+    ctx: &GraphStorageContext,
     params: CreateEdgeTypeParams,
     label_id: LabelId,
 ) -> StorageResult<LabelId> {
-    if !graph.is_open.load(Ordering::Acquire) {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
     if params.src_label != 0
-        && !graph
-            .data_store
+        && !ctx
+            .data_store()
             .vertex_tables()
             .read()
             .contains_key(&params.src_label)
@@ -198,8 +191,8 @@ pub fn create_edge_type_with_id(
         )));
     }
     if params.dst_label != 0
-        && !graph
-            .data_store
+        && !ctx
+            .data_store()
             .vertex_tables()
             .read()
             .contains_key(&params.dst_label)
@@ -210,12 +203,12 @@ pub fn create_edge_type_with_id(
         )));
     }
 
-    let mut edge_label_names = graph.data_store.edge_label_names().write();
+    let mut edge_label_names = ctx.data_store().edge_label_names().write();
     if edge_label_names.contains_key(params.name) {
         return Err(StorageError::label_already_exists(params.name.to_string()));
     }
 
-    let mut edge_label_counter = graph.data_store.edge_label_counter().write();
+    let mut edge_label_counter = ctx.data_store().edge_label_counter().write();
     if label_id >= *edge_label_counter {
         *edge_label_counter = label_id + 1;
     }
@@ -232,27 +225,26 @@ pub fn create_edge_type_with_id(
 
     let table = EdgeTable::new(schema)?;
     let key = EdgeTableKey::new(params.src_label, params.dst_label, label_id);
-    graph.data_store.edge_tables().write().insert(key, table);
+    ctx.data_store().edge_tables().write().insert(key, table);
     edge_label_names.insert(params.name.to_string(), label_id);
 
     Ok(label_id)
 }
 
-pub fn drop_vertex_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> {
-    if !graph.is_open.load(Ordering::Acquire) {
+pub fn drop_vertex_type(ctx: &GraphStorageContext, name: &str) -> StorageResult<()> {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
     let label_id = {
-        let mut vertex_label_names = graph.data_store.vertex_label_names().write();
+        let mut vertex_label_names = ctx.data_store().vertex_label_names().write();
         vertex_label_names
             .remove(name)
             .ok_or_else(|| StorageError::label_not_found(name.to_string()))?
     };
 
-    graph.data_store.vertex_tables().write().remove(&label_id);
-    graph
-        .data_store
+    ctx.data_store().vertex_tables().write().remove(&label_id);
+    ctx.data_store()
         .edge_tables()
         .write()
         .retain(|key, _table| key.src_label != label_id && key.dst_label != label_id);
@@ -260,20 +252,19 @@ pub fn drop_vertex_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> 
     Ok(())
 }
 
-pub fn drop_edge_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> {
-    if !graph.is_open.load(Ordering::Acquire) {
+pub fn drop_edge_type(ctx: &GraphStorageContext, name: &str) -> StorageResult<()> {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
     let label_id = {
-        let mut edge_label_names = graph.data_store.edge_label_names().write();
+        let mut edge_label_names = ctx.data_store().edge_label_names().write();
         edge_label_names
             .remove(name)
             .ok_or_else(|| StorageError::label_not_found(name.to_string()))?
     };
 
-    graph
-        .data_store
+    ctx.data_store()
         .edge_tables()
         .write()
         .retain(|_key, _table| _key.edge_label != label_id);
@@ -282,15 +273,15 @@ pub fn drop_edge_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> {
 }
 
 pub fn add_vertex_property(
-    graph: &PropertyGraph,
+    ctx: &GraphStorageContext,
     label: LabelId,
     prop: crate::storage::types::StoragePropertyDef,
 ) -> StorageResult<()> {
-    if !graph.is_open.load(Ordering::Acquire) {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
-    let mut vertex_tables = graph.data_store.vertex_tables().write();
+    let mut vertex_tables = ctx.data_store().vertex_tables().write();
     let table = vertex_tables
         .get_mut(&label)
         .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
@@ -301,15 +292,15 @@ pub fn add_vertex_property(
 }
 
 pub fn add_edge_property(
-    graph: &PropertyGraph,
+    ctx: &GraphStorageContext,
     edge_label: LabelId,
     prop: StoragePropertyDef,
 ) -> StorageResult<()> {
-    if !graph.is_open.load(Ordering::Acquire) {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }
 
-    let mut edge_tables = graph.data_store.edge_tables().write();
+    let mut edge_tables = ctx.data_store().edge_tables().write();
     let mut updated = false;
 
     for (key, table) in edge_tables.iter_mut() {

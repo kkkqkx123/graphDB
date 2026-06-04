@@ -6,8 +6,8 @@ use super::type_utils::edge_record_to_edge;
 use super::writer;
 
 pub(crate) fn get_storage_stats(ctx: &GraphStorageContext) -> StorageStats {
-    let total_vertices = ctx.graph().total_vertex_count();
-    let total_edges = ctx.graph().total_edge_count();
+    let total_vertices = ctx.total_vertex_count();
+    let total_edges = ctx.total_edge_count();
 
     let spaces = ctx.schema_manager().list_spaces().unwrap_or_default();
     let tags = spaces
@@ -22,8 +22,8 @@ pub(crate) fn get_storage_stats(ctx: &GraphStorageContext) -> StorageStats {
         .flatten()
         .count();
 
-    let total_size = ctx.graph().storage_size() as u64;
-    let data_size = ctx.graph().used_storage_size() as u64;
+    let total_size = ctx.storage_size() as u64;
+    let data_size = ctx.used_storage_size() as u64;
 
     StorageStats {
         total_vertices,
@@ -55,13 +55,12 @@ pub(crate) fn find_dangling_edges(
         .map(|edge_type| (edge_type.edge_type_id, edge_type.edge_type_name))
         .collect();
 
-    let edge_records = ctx.graph().collect_all_edge_records(ts);
+    let edge_records = ctx.collect_all_edge_records(ts);
     for (src_label_id, dst_label_id, edge_label_id, record) in edge_records {
         let Some(edge_type_name) = edge_type_names.get(&edge_label_id) else {
             continue;
         };
         let src_exists = ctx
-            .graph()
             .get_vertex_by_internal_id(
                 src_label_id,
                 record.src_vid.as_int64().unwrap_or(0) as u32,
@@ -69,7 +68,6 @@ pub(crate) fn find_dangling_edges(
             )
             .is_some();
         let dst_exists = ctx
-            .graph()
             .get_vertex_by_internal_id(
                 dst_label_id,
                 record.dst_vid.as_int64().unwrap_or(0) as u32,

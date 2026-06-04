@@ -17,7 +17,7 @@ pub use crate::core::types::UndoLogResult;
 /// Property value type for undo operations
 pub use crate::core::types::PropertyValue;
 
-/// Target for undo operations (will be PropertyGraph in phase 2)
+/// Target for undo operations (will be GraphStorageContext in phase 2)
 pub use crate::core::types::UndoTarget;
 
 /// Undo log for create vertex type operation

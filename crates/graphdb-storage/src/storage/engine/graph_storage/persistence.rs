@@ -33,12 +33,12 @@ fn load_schema_and_index_metadata(ctx: &GraphStorageContext) -> StorageResult<()
 fn restore_full_state_from_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
     if let Some(path) = ctx.work_dir().as_ref() {
         let paths = StoragePaths::new(path.clone());
-        ctx.graph().restore_from_checkpoint(path)?;
+        ctx.restore_from_checkpoint(path)?;
         ctx.user_storage().load_from_dir(paths.data_dir())?;
 
         let index_path = paths.indexes_dir();
         if index_path.exists() {
-            ctx.graph().index_data_manager().write().load(&index_path)?;
+            ctx.index_data_manager().write().load(&index_path)?;
         }
     }
 
@@ -97,7 +97,7 @@ pub(crate) fn save_data_to_dir(ctx: &GraphStorageContext, dir: &Path) -> Storage
     let mut file = File::create(&version_file)?;
     writeln!(file, "1")?;
 
-    ctx.graph().flush_tables_to_dir(&data_dir)?;
+    ctx.flush_tables_to_dir(&data_dir)?;
     ctx.user_storage().save_to_dir(&data_dir)?;
 
     if let Some(persistence) = ctx.persistence().as_ref() {
@@ -125,7 +125,7 @@ pub(crate) fn create_checkpoint(
     };
 
     let ts = ctx.get_write_timestamp();
-    let graph = ctx.graph().clone();
+    let graph = ctx.clone();
     let user_storage = ctx.user_storage().clone();
 
     let stats = persistence.write().create_checkpoint(
@@ -186,7 +186,7 @@ pub(crate) fn load_latest_checkpoint(
         None => return Ok(None),
     };
 
-    let graph = ctx.graph().clone();
+    let graph = ctx.clone();
     let user_storage = ctx.user_storage().clone();
 
     persistence
@@ -259,7 +259,7 @@ pub(crate) fn compact_transactional(
     let version_manager = ctx.version_manager().as_ref();
 
     let txn = CompactTransaction::new(
-        ctx.graph().as_ref(),
+        ctx,
         version_manager,
         &mut *wal_writer_guard,
         compact_csr,
@@ -279,7 +279,7 @@ pub(crate) fn compact_transactional(
     txn.commit()
         .map_err(|e| StorageError::db_error(format!("Compact transaction failed: {}", e)))?;
 
-    let after_stats = ctx.graph().get_compact_stats();
+    let after_stats = ctx.get_compact_stats();
     log::info!(
         "Compaction completed: size={}/{} (freed {} bytes)",
         after_stats.used_size,
@@ -317,7 +317,7 @@ pub(crate) fn save_to_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
 
         let index_path = paths.indexes_dir();
         std::fs::create_dir_all(&index_path).map_err(|e| StorageError::io_error(e.to_string()))?;
-        ctx.graph().index_data_manager().read().flush(&index_path)?;
+        ctx.index_data_manager().read().flush(&index_path)?;
     }
     Ok(())
 }
@@ -335,7 +335,7 @@ pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<Recov
 
     let mut manager = RecoveryManager::new(config);
 
-    let stats = manager.recover_with_applier(ctx.graph().as_ref())?;
+    let stats = manager.recover_with_applier(ctx)?;
 
     if let Some(persistence) = ctx.persistence().as_ref() {
         persistence.write().mark_checkpointed(stats.last_lsn);
@@ -350,7 +350,7 @@ pub(crate) fn recover_from_wal_with_config(
 ) -> StorageResult<RecoveryStats> {
     let mut manager = RecoveryManager::new(config);
 
-    let stats = manager.recover_with_applier(ctx.graph().as_ref())?;
+    let stats = manager.recover_with_applier(ctx)?;
 
     if let Some(persistence) = ctx.persistence().as_ref() {
         persistence.write().mark_checkpointed(stats.last_lsn);

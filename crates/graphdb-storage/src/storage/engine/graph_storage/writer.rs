@@ -4,8 +4,9 @@ use crate::core::types::{
     UpdateTarget, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-use crate::storage::engine::params::EdgeOperationParams;
-use crate::storage::engine::property_graph::{InsertEdgeParams, InsertEdgeParamsByI64};
+use crate::storage::engine::params::{
+    EdgeOperationParams, InsertEdgeParams, InsertEdgeParamsByI64,
+};
 
 use super::context::GraphStorageContext;
 use super::reader;
@@ -71,11 +72,11 @@ fn insert_vertex_at_timestamp(
             .collect();
 
         if let Some(vid_int) = vertex.vid.as_int64() {
-            ctx.graph()
+            ctx
                 .insert_vertex_by_i64(label_id, vid_int, &props, ts)?;
         } else {
             let id_str = vertex.vid.to_string();
-            ctx.graph().insert_vertex(label_id, &id_str, &props, ts)?;
+            ctx.insert_vertex(label_id, &id_str, &props, ts)?;
         }
 
         let vid_value = Value::from(vertex.vid);
@@ -88,8 +89,8 @@ fn insert_vertex_at_timestamp(
         });
 
         update_vertex_indexes(
-            &ctx.graph(),
-            &ctx.index_metadata_manager(),
+            ctx,
+            ctx.index_metadata_manager(),
             space_id,
             &vid_value,
             &tag.name,
@@ -109,17 +110,17 @@ fn rollback_vertex_tags(
 ) {
     for item in inserted.iter().rev() {
         let _ = delete_vertex_indexes(
-            &ctx.graph(),
-            &ctx.index_metadata_manager(),
+            ctx,
+            ctx.index_metadata_manager(),
             space_id,
             &item.vertex_id,
             &item.tag_name,
             ts,
         );
         if let Some(vid_int) = item.vid.as_int64() {
-            let _ = ctx.graph().delete_vertex_by_i64(item.label_id, vid_int, ts);
+            let _ = ctx.delete_vertex_by_i64(item.label_id, vid_int, ts);
         } else {
-            let _ = ctx.graph().delete_vertex(item.label_id, &item.id, ts);
+            let _ = ctx.delete_vertex(item.label_id, &item.id, ts);
         }
     }
 }
@@ -141,11 +142,11 @@ pub(crate) fn update_vertex(
         if let Some(label_id) = tag_label_id(ctx, space, &tag.name)? {
             for (prop_name, value) in &tag.properties {
                 if let Some(id_int) = vid_int {
-                    ctx.graph()
+                    ctx
                         .update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
                 } else {
                     let id_str = vertex.vid.to_string();
-                    ctx.graph()
+                    ctx
                         .update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
                 }
             }
@@ -157,8 +158,8 @@ pub(crate) fn update_vertex(
                 .collect();
             let vid_value = Value::from(vertex.vid);
             update_vertex_indexes(
-                &ctx.graph(),
-                &ctx.index_metadata_manager(),
+                ctx,
+                ctx.index_metadata_manager(),
                 space_info.space_id,
                 &vid_value,
                 &tag.name,
@@ -188,16 +189,16 @@ pub(crate) fn delete_vertex(
     for tag in &tags {
         let label_id = tag.tag_id;
         if let Some(vid_int) = id_int {
-            let _ = ctx.graph().delete_vertex_by_i64(label_id, vid_int, ts);
+            let _ = ctx.delete_vertex_by_i64(label_id, vid_int, ts);
         } else {
             let id_str = id.to_string();
-            let _ = ctx.graph().delete_vertex(label_id, &id_str, ts);
+            let _ = ctx.delete_vertex(label_id, &id_str, ts);
         }
 
         let id_value = Value::from(*id);
         delete_vertex_indexes(
-            &ctx.graph(),
-            &ctx.index_metadata_manager(),
+            ctx,
+            ctx.index_metadata_manager(),
             space_info.space_id,
             &id_value,
             &tag.tag_name,
@@ -301,11 +302,11 @@ pub(crate) fn delete_tags(
 
     for tag_name in tag_names {
         if let Some(label_id) = tag_label_id(ctx, space, tag_name)? {
-            if ctx.graph().delete_vertex(label_id, &id_str, ts).is_ok() {
+            if ctx.delete_vertex(label_id, &id_str, ts).is_ok() {
                 let vertex_id_value = Value::from(*vertex_id);
                 delete_vertex_indexes(
-                    &ctx.graph(),
-                    &ctx.index_metadata_manager(),
+                    ctx,
+                    ctx.index_metadata_manager(),
                     space_info.space_id,
                     &vertex_id_value,
                     tag_name,
@@ -367,7 +368,7 @@ fn insert_edge_at_timestamp(
     let dst_int = edge.dst.as_int64();
 
     if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
-        ctx.graph().insert_edge_by_i64(InsertEdgeParamsByI64 {
+        ctx.insert_edge_by_i64(InsertEdgeParamsByI64 {
             edge_label: edge_label_id,
             src_label: src_label_id,
             src_id,
@@ -380,7 +381,7 @@ fn insert_edge_at_timestamp(
     } else {
         let src_str = edge.src.to_string();
         let dst_str = edge.dst.to_string();
-        ctx.graph().insert_edge(InsertEdgeParams {
+        ctx.insert_edge(InsertEdgeParams {
             edge_label: edge_label_id,
             src_label: src_label_id,
             src_id: &src_str,
@@ -405,8 +406,8 @@ fn insert_edge_at_timestamp(
     let src_value = Value::from(edge.src);
     let dst_value = Value::from(edge.dst);
     update_edge_indexes(EdgeIndexUpdateParams {
-        graph: &ctx.graph(),
-        index_metadata_manager: &ctx.index_metadata_manager(),
+        ctx,
+        index_metadata_manager: ctx.index_metadata_manager(),
         space_id,
         src: &src_value,
         dst: &dst_value,
@@ -438,8 +439,8 @@ fn rollback_edges(
         let src_value = Value::from(item.src);
         let dst_value = Value::from(item.dst);
         let _ = delete_edge_indexes(
-            &ctx.graph(),
-            &ctx.index_metadata_manager(),
+            ctx,
+            ctx.index_metadata_manager(),
             space_id,
             &src_value,
             &dst_value,
@@ -448,7 +449,7 @@ fn rollback_edges(
         );
         let src = item.src.to_string();
         let dst = item.dst.to_string();
-        let _ = ctx.graph().delete_edge(
+        let _ = ctx.delete_edge(
             &EdgeOperationParams {
                 edge_label: item.edge_label_id,
                 src_label: item.src_label_id,
@@ -492,7 +493,7 @@ pub(crate) fn delete_edge(
                 let src_str = src.to_string();
                 let dst_str = dst.to_string();
 
-                ctx.graph().delete_edge(
+                ctx.delete_edge(
                     &EdgeOperationParams {
                         edge_label: edge_label_id,
                         src_label: src_label_id,
@@ -507,8 +508,8 @@ pub(crate) fn delete_edge(
                 let src_value = Value::from(*src);
                 let dst_value = Value::from(*dst);
                 delete_edge_indexes(
-                    &ctx.graph(),
-                    &ctx.index_metadata_manager(),
+                    ctx,
+                    ctx.index_metadata_manager(),
                     space_info.space_id,
                     &src_value,
                     &dst_value,
@@ -599,13 +600,12 @@ pub(crate) fn insert_vertex_data(
     let id_str = vid.to_string();
 
     let result = ctx
-        .graph()
         .insert_vertex(label_id, &id_str, &info.props, ts);
     match result {
         Ok(_) => {
             update_vertex_indexes(
-                &ctx.graph(),
-                &ctx.index_metadata_manager(),
+                ctx,
+                ctx.index_metadata_manager(),
                 space_info.space_id,
                 &info.vertex_id,
                 &info.tag_name,
@@ -666,7 +666,7 @@ pub(crate) fn insert_edge_data(
     let dst_int = dst_vid.as_int64();
 
     let result = if let (Some(src_id), Some(dst_id)) = (src_int, dst_int) {
-        ctx.graph().insert_edge_by_i64(InsertEdgeParamsByI64 {
+        ctx.insert_edge_by_i64(InsertEdgeParamsByI64 {
             edge_label: edge_label_id,
             src_label: src_label_id,
             src_id,
@@ -679,7 +679,7 @@ pub(crate) fn insert_edge_data(
     } else {
         let src_id = src_vid.to_string();
         let dst_id = dst_vid.to_string();
-        ctx.graph().insert_edge(InsertEdgeParams {
+        ctx.insert_edge(InsertEdgeParams {
             edge_label: edge_label_id,
             src_label: src_label_id,
             src_id: &src_id,
@@ -694,8 +694,8 @@ pub(crate) fn insert_edge_data(
     match result {
         Ok(_) => {
             update_edge_indexes(EdgeIndexUpdateParams {
-                graph: &ctx.graph(),
-                index_metadata_manager: &ctx.index_metadata_manager(),
+                ctx,
+                index_metadata_manager: ctx.index_metadata_manager(),
                 space_id: space_info.space_id,
                 src: &info.src_vertex_id,
                 dst: &info.dst_vertex_id,
@@ -730,10 +730,10 @@ pub(crate) fn delete_vertex_data(
 
     for tag in tags {
         let label_id = tag.tag_id;
-        if ctx.graph().delete_vertex(label_id, vertex_id, ts).is_ok() {
+        if ctx.delete_vertex(label_id, vertex_id, ts).is_ok() {
             delete_vertex_indexes(
-                &ctx.graph(),
-                &ctx.index_metadata_manager(),
+                ctx,
+                ctx.index_metadata_manager(),
                 space_info.space_id,
                 &Value::String(vertex_id.to_string()),
                 &tag.tag_name,
@@ -773,7 +773,6 @@ pub(crate) fn delete_edge_data(
             None => continue,
         };
         if ctx
-            .graph()
             .delete_edge(
                 &EdgeOperationParams {
                     edge_label: edge_label_id,
@@ -788,8 +787,8 @@ pub(crate) fn delete_edge_data(
             .is_ok()
         {
             delete_edge_indexes(
-                &ctx.graph(),
-                &ctx.index_metadata_manager(),
+                ctx,
+                ctx.index_metadata_manager(),
                 space_info.space_id,
                 &Value::String(src.to_string()),
                 &Value::String(dst.to_string()),
@@ -839,7 +838,7 @@ pub(crate) fn update_data(
         let value = match &info.update_op {
             UpdateOp::Set => info.value.clone(),
             UpdateOp::Add => {
-                if let Some(current) = ctx.graph().get_vertex(label_id, &id_str, ts) {
+                if let Some(current) = ctx.get_vertex(label_id, &id_str, ts) {
                     let current_val = current
                         .properties
                         .iter()
@@ -857,7 +856,7 @@ pub(crate) fn update_data(
                 }
             }
             UpdateOp::Subtract => {
-                if let Some(current) = ctx.graph().get_vertex(label_id, &id_str, ts) {
+                if let Some(current) = ctx.get_vertex(label_id, &id_str, ts) {
                     let current_val = current
                         .properties
                         .iter()
@@ -877,13 +876,13 @@ pub(crate) fn update_data(
             _ => info.value.clone(),
         };
 
-        ctx.graph()
+        ctx
             .update_vertex_property(label_id, &id_str, prop, &value, ts)?;
 
         let props = vec![(prop.clone(), value)];
         update_vertex_indexes(
-            &ctx.graph(),
-            &ctx.index_metadata_manager(),
+            ctx,
+            ctx.index_metadata_manager(),
             space_info.space_id,
             id,
             label,
@@ -900,7 +899,7 @@ pub(crate) fn update_data(
 }
 
 fn update_vertex_indexes(
-    graph: &crate::storage::engine::PropertyGraph,
+    ctx: &GraphStorageContext,
     index_metadata_manager: &crate::core::metadata::IndexManager,
     space_id: u64,
     vertex_id: &Value,
@@ -911,14 +910,14 @@ fn update_vertex_indexes(
     let indexes = index_metadata_manager.list_tag_indexes(space_id)?;
     for index in indexes {
         if index.schema_name == tag_name {
-            graph.update_vertex_indexes_mvcc(space_id, vertex_id, &index.name, props, ts)?;
+            ctx.update_vertex_indexes_mvcc(space_id, vertex_id, &index.name, props, ts)?;
         }
     }
     Ok(())
 }
 
 struct EdgeIndexUpdateParams<'a> {
-    graph: &'a crate::storage::engine::PropertyGraph,
+    ctx: &'a GraphStorageContext,
     index_metadata_manager: &'a crate::core::metadata::IndexManager,
     space_id: u64,
     src: &'a Value,
@@ -934,7 +933,7 @@ fn update_edge_indexes(params: EdgeIndexUpdateParams) -> StorageResult<()> {
         .list_edge_indexes(params.space_id)?;
     for index in indexes {
         if index.schema_name == params.edge_type {
-            params.graph.update_edge_indexes_mvcc(
+            params.ctx.update_edge_indexes_mvcc(
                 params.space_id,
                 params.src,
                 params.dst,
@@ -948,7 +947,7 @@ fn update_edge_indexes(params: EdgeIndexUpdateParams) -> StorageResult<()> {
 }
 
 fn delete_vertex_indexes(
-    graph: &crate::storage::engine::PropertyGraph,
+    ctx: &GraphStorageContext,
     index_metadata_manager: &crate::core::metadata::IndexManager,
     space_id: u64,
     vertex_id: &Value,
@@ -958,14 +957,14 @@ fn delete_vertex_indexes(
     let indexes = index_metadata_manager.list_tag_indexes(space_id)?;
     for index in indexes {
         if index.schema_name == tag_name {
-            graph.delete_vertex_indexes_mvcc(space_id, vertex_id, ts)?;
+            ctx.delete_vertex_indexes_mvcc(space_id, vertex_id, ts)?;
         }
     }
     Ok(())
 }
 
 fn delete_edge_indexes(
-    graph: &crate::storage::engine::PropertyGraph,
+    ctx: &GraphStorageContext,
     index_metadata_manager: &crate::core::metadata::IndexManager,
     space_id: u64,
     src: &Value,
@@ -981,7 +980,7 @@ fn delete_edge_indexes(
         .collect();
 
     if !index_names.is_empty() {
-        graph.delete_edge_indexes_mvcc(space_id, src, dst, &index_names, ts)?;
+        ctx.delete_edge_indexes_mvcc(space_id, src, dst, &index_names, ts)?;
     }
     Ok(())
 }

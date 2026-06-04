@@ -7,7 +7,6 @@ pub mod graph_storage;
 pub(crate) mod params;
 pub mod paths;
 pub mod persistence_coordinator;
-pub mod property_graph;
 pub mod snapshot_manager;
 pub mod sync_wrapper;
 pub mod transaction;
@@ -18,6 +17,9 @@ mod data_store_test;
 #[cfg(test)]
 mod persistence_test;
 
+pub use params::{
+    EdgeOperationParams, EdgeOperationParamsByI64, InsertEdgeParams, InsertEdgeParamsByI64,
+    PropertyGraphUpdateEdgePropertyParams,
+};
 pub use persistence_coordinator::PersistenceConfig;
-pub use property_graph::PropertyGraph;
 pub use wal_manager::WalManager;

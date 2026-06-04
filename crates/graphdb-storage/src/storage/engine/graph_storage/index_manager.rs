@@ -30,7 +30,7 @@ pub(crate) fn drop_tag_index(
         .index_metadata_manager()
         .drop_tag_index(space_id, index_name)?;
     if dropped {
-        ctx.graph()
+        ctx
             .index_data_manager()
             .write()
             .clear_tag_index(space_id, index_name)?;
@@ -81,7 +81,7 @@ pub(crate) fn drop_edge_index(
         .index_metadata_manager()
         .drop_edge_index(space_id, index_name)?;
     if dropped {
-        ctx.graph()
+        ctx
             .index_data_manager()
             .write()
             .clear_edge_index(space_id, index_name)?;
@@ -127,7 +127,7 @@ pub(crate) fn rebuild_tag_index(
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
         let vid_value = Value::from(vertex.vid);
-        ctx.graph()
+        ctx
             .update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
     }
 
@@ -155,7 +155,7 @@ pub(crate) fn rebuild_edge_index(
             .collect();
         let src_value = Value::from(edge.src);
         let dst_value = Value::from(edge.dst);
-        ctx.graph().update_edge_indexes_mvcc(
+        ctx.update_edge_indexes_mvcc(
             space_id,
             &src_value,
             &dst_value,
@@ -182,7 +182,6 @@ pub(crate) fn lookup_index(
         .ok_or_else(|| StorageError::not_found(format!("Index {} not found", index_name)))?;
 
     let results = ctx
-        .graph()
         .index_data_manager()
         .read()
         .lookup_tag_index(space_id, &index, value)?;

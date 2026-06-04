@@ -23,12 +23,10 @@ pub(crate) fn drop_space(ctx: &GraphStorageContext, space: &str) -> StorageResul
 
     for tag in tags {
         let _ = ctx
-            .graph()
             .drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
     }
     for et in edge_types {
         let _ = ctx
-            .graph()
             .drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
     }
 
@@ -72,12 +70,10 @@ pub(crate) fn clear_space(ctx: &GraphStorageContext, space: &str) -> StorageResu
 
     for tag in tags {
         let _ = ctx
-            .graph()
             .drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
     }
     for et in edge_types {
         let _ = ctx
-            .graph()
             .drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
     }
 
@@ -112,7 +108,7 @@ pub(crate) fn create_tag(
         .map(|p| p.name.as_str())
         .unwrap_or("id");
 
-    ctx.graph().create_vertex_type_with_id(
+    ctx.create_vertex_type_with_id(
         &vertex_type_storage_name(space_id, &tag.tag_name),
         tag_id,
         properties,
@@ -129,7 +125,6 @@ pub(crate) fn drop_tag(
 ) -> StorageResult<bool> {
     let space_id = ctx.schema_manager().get_space_id(space)?;
     let _ = ctx
-        .graph()
         .drop_vertex_type(&vertex_type_storage_name(space_id, tag_name));
 
     ctx.schema_manager().drop_tag(space, tag_name)
@@ -165,7 +160,7 @@ pub(crate) fn alter_tag(
     if let Some(label_id) = tag_label_id(ctx, space, tag_name)? {
         for prop in additions {
             let storage_prop = StoragePropertyDef::from_core(&prop);
-            ctx.graph().add_vertex_property(label_id, storage_prop)?;
+            ctx.add_vertex_property(label_id, storage_prop)?;
         }
     }
 
@@ -197,7 +192,7 @@ pub(crate) fn create_edge_type(
         .iter()
         .map(StoragePropertyDef::from_core)
         .collect();
-    ctx.graph().create_edge_type_with_id(
+    ctx.create_edge_type_with_id(
         CreateEdgeTypeParams {
             name: &edge_type_storage_name(space_id, &edge_type.edge_type_name),
             src_label: src_label_id,
@@ -219,7 +214,6 @@ pub(crate) fn drop_edge_type(
 ) -> StorageResult<bool> {
     let space_id = ctx.schema_manager().get_space_id(space)?;
     let _ = ctx
-        .graph()
         .drop_edge_type(&edge_type_storage_name(space_id, edge_type_name));
 
     ctx.schema_manager().drop_edge_type(space, edge_type_name)
@@ -254,7 +248,7 @@ pub(crate) fn ensure_graph_types_from_schema(ctx: &GraphStorageContext) -> Stora
                 .first()
                 .map(|p| p.name.as_str())
                 .unwrap_or("id");
-            let result = ctx.graph().create_vertex_type_with_id(
+            let result = ctx.create_vertex_type_with_id(
                 &vertex_type_storage_name(space_id, &tag.tag_name),
                 tag.tag_id,
                 properties,
@@ -287,7 +281,7 @@ pub(crate) fn ensure_graph_types_from_schema(ctx: &GraphStorageContext) -> Stora
                 .iter()
                 .map(StoragePropertyDef::from_core)
                 .collect();
-            let result = ctx.graph().create_edge_type_with_id(
+            let result = ctx.create_edge_type_with_id(
                 CreateEdgeTypeParams {
                     name: &edge_type_storage_name(space_id, &edge_type.edge_type_name),
                     src_label,
@@ -330,7 +324,7 @@ pub(crate) fn alter_edge_type(
     if let Some(edge_label_id) = super::type_utils::edge_label_id(ctx, space, edge_type_name)? {
         for prop in additions {
             let storage_prop = StoragePropertyDef::from_core(&prop);
-            ctx.graph().add_edge_property(edge_label_id, storage_prop)?;
+            ctx.add_edge_property(edge_label_id, storage_prop)?;
         }
     }
 
