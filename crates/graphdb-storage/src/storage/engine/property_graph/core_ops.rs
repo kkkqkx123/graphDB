@@ -8,7 +8,7 @@ use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeRecord;
 use crate::storage::engine::data_store::EdgeTableKey;
-use crate::storage::storage_types::EdgeOffset;
+use crate::storage::types::EdgeOffset;
 use crate::storage::vertex::{VertexRecord, VertexTable};
 
 use super::{

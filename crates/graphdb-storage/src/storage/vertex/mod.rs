@@ -16,7 +16,7 @@ pub mod id_indexer;
 pub mod vertex_table;
 pub mod vertex_timestamp;
 
-use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::types::StoragePropertyDef;
 
 pub use column_store::ColumnStore;
 pub use id_indexer::{IdIndexer, IdKey};

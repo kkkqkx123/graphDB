@@ -15,7 +15,7 @@ mod user_ops;
 mod writer;
 
 #[cfg(test)]
-mod test;
+mod tests;
 
 pub use context::GraphStorageContext;
 

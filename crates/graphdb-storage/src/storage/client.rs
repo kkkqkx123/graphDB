@@ -299,8 +299,8 @@ pub trait StorageGcOps: Send + Sync + std::fmt::Debug {
 
 /// Combined storage interface with full read/write/schema/auth/admin capabilities.
 ///
-/// This supertrait is the union of all narrower traits.
-/// Consumers that need selective access can use the individual subtrait bounds instead.
+/// Runtime context accessors such as schema, transaction, and sync context are kept
+/// as separate traits so higher-level components only depend on them when necessary.
 pub trait StorageClient:
     StorageReader
     + StorageWriter
@@ -308,9 +308,6 @@ pub trait StorageClient:
     + StorageAuthOps
     + StorageAdmin
     + StoragePersistenceOps
-    + StorageSchemaContextOps
-    + StorageTransactionContextOps
-    + StorageSyncContextOps
     + StorageRecoveryOps
     + StorageGcOps
     + Send
@@ -327,9 +324,6 @@ impl<T> StorageClient for T where
         + StorageAuthOps
         + StorageAdmin
         + StoragePersistenceOps
-        + StorageSchemaContextOps
-        + StorageTransactionContextOps
-        + StorageSyncContextOps
         + StorageRecoveryOps
         + StorageGcOps
         + Send

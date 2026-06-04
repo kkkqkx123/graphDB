@@ -3,13 +3,11 @@
 pub mod cache_manager;
 pub mod config;
 pub mod data_store;
-pub mod edge_params;
 pub mod graph_storage;
+pub(crate) mod params;
 pub mod paths;
 pub mod persistence_coordinator;
 pub mod property_graph;
-#[cfg(test)]
-pub mod property_graph_tests;
 pub mod snapshot_manager;
 pub mod sync_wrapper;
 pub mod transaction;

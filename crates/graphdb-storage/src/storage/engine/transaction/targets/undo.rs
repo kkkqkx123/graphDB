@@ -4,7 +4,7 @@ use crate::core::types::{
 };
 use crate::storage::engine::property_graph::PropertyGraph;
 use crate::storage::engine::transaction::{
-    DeleteEdgeParams, DeleteEdgeTypeParams, EdgeLabelParams, RevertDeleteEdgeParams,
+    DeleteEdgeParams, DeleteEdgeTypeParams, EdgeTypeLabelParams, RevertDeleteEdgeParams,
     TransactionOps, UpdateEdgePropertyUndoParams,
 };
 
@@ -194,7 +194,7 @@ impl UndoTarget for PropertyGraph {
             let vertex_tables = self.data_store.vertex_tables().read();
             let mut edge_tables = self.data_store.edge_tables().write();
             let mut edge_label_names = self.data_store.edge_label_names().write();
-            let edge_params = EdgeLabelParams {
+            let edge_labels = EdgeTypeLabelParams {
                 src_label,
                 dst_label,
                 edge_label,
@@ -204,7 +204,7 @@ impl UndoTarget for PropertyGraph {
                 &mut edge_label_names,
                 &vertex_tables,
                 prop_names,
-                &edge_params,
+                &edge_labels,
             )?;
             edge_label_names.get(edge_label).copied()
         };
@@ -299,7 +299,7 @@ impl UndoTarget for PropertyGraph {
             let vertex_tables = self.data_store.vertex_tables().read();
             let mut edge_tables = self.data_store.edge_tables().write();
             let mut edge_label_names = self.data_store.edge_label_names().write();
-            let edge_params = EdgeLabelParams {
+            let edge_labels = EdgeTypeLabelParams {
                 src_label,
                 dst_label,
                 edge_label,
@@ -308,7 +308,7 @@ impl UndoTarget for PropertyGraph {
                 &mut edge_tables,
                 &mut edge_label_names,
                 &vertex_tables,
-                &edge_params,
+                &edge_labels,
                 current_names,
                 original_names,
             )?;

@@ -127,7 +127,7 @@ fn test_sync_storage_inner_access() {
 
 /// Test schema-context access through the storage wrapper
 #[test]
-fn test_storage_client_get_schema_manager() {
+fn test_storage_get_schema_manager() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test.db");
     let storage = GraphStorage::new_with_path(db_path).expect("Failed to create storage");

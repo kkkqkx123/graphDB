@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::core::{DataType, DateValue, NullType, StorageError, StorageResult, Value};
-use crate::storage::storage_types::PropertyId;
+use crate::storage::types::PropertyId;
 use crate::storage::utils::persistence_format::{read_header, section, write_header};
 use crate::storage::utils::{read_u32_le, read_u64_le, NameIndexer};
 use crate::storage::vertex::column_store::Column;

@@ -9,10 +9,10 @@ use crate::core::types::LabelId;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::edge::{EdgeSchema, EdgeStrategy, EdgeTable};
 use crate::storage::engine::data_store::EdgeTableKey;
-use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::types::StoragePropertyDef;
 use crate::storage::vertex::{VertexSchema, VertexTable};
 
-use super::super::edge_params::CreateEdgeTypeParams;
+use super::super::params::CreateEdgeTypeParams;
 use super::PropertyGraph;
 
 pub fn create_vertex_type(
@@ -284,7 +284,7 @@ pub fn drop_edge_type(graph: &PropertyGraph, name: &str) -> StorageResult<()> {
 pub fn add_vertex_property(
     graph: &PropertyGraph,
     label: LabelId,
-    prop: crate::storage::storage_types::StoragePropertyDef,
+    prop: crate::storage::types::StoragePropertyDef,
 ) -> StorageResult<()> {
     if !graph.is_open.load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());

@@ -2,11 +2,11 @@
 
 use crate::core::{DataType, Value};
 use crate::storage::edge::EdgeStrategy;
-use crate::storage::engine::edge_params::EdgeOperationParams;
+use crate::storage::engine::params::EdgeOperationParams;
 use crate::storage::engine::property_graph::{
     InsertEdgeParams, PropertyGraph, PropertyGraphUpdateEdgePropertyParams,
 };
-use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::types::StoragePropertyDef;
 
 #[test]
 fn test_create_and_get_vertex() {

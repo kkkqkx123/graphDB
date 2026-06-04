@@ -1,6 +1,6 @@
 use crate::core::types::{EdgeTypeInfo, LabelId, TagInfo, VertexId};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-use crate::storage::engine::edge_params::{EdgeOperationParams, EdgeOperationParamsByI64};
+use crate::storage::engine::params::{EdgeOperationParams, EdgeOperationParamsByI64};
 
 use super::context::GraphStorageContext;
 use super::type_utils::{

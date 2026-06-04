@@ -1,8 +1,8 @@
 use crate::core::error::storage::StorageErrorKind;
 use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::{StorageError, StorageResult};
-use crate::storage::engine::edge_params::CreateEdgeTypeParams;
-use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::engine::params::CreateEdgeTypeParams;
+use crate::storage::types::StoragePropertyDef;
 
 use super::context::GraphStorageContext;
 use super::type_utils::{

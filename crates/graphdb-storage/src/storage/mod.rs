@@ -7,29 +7,29 @@
 //! - Engine: Storage engine core
 
 pub(crate) mod cache;
+pub(crate) mod client;
 pub(crate) mod compression;
 pub(crate) mod edge;
 pub(crate) mod engine;
 pub(crate) mod index;
 
 mod metrics;
-mod storage_client;
-pub(crate) mod storage_types;
+pub(crate) mod types;
 pub(crate) mod utils;
 pub(crate) mod vertex;
 
 #[cfg(any(test, feature = "test-support"))]
 mod test_mock;
 
-pub use engine::graph_storage::GraphStorage;
-pub use engine::persistence_coordinator::{CheckpointStats, SnapshotStats};
-pub use engine::sync_wrapper::SyncWrapper;
-pub use metrics::MetricsStorage;
-pub use storage_client::{
+pub use client::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
     StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
     StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
+pub use engine::graph_storage::GraphStorage;
+pub use engine::persistence_coordinator::{CheckpointStats, SnapshotStats};
+pub use engine::sync_wrapper::SyncWrapper;
+pub use metrics::MetricsStorage;
 
 pub use crate::core::StorageError;
 

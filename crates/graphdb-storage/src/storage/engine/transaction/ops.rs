@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::Value;
 use crate::storage::edge::UpdateEdgePropertyByOffsetParams;
-use crate::storage::storage_types::EdgeOffset;
+use crate::storage::types::EdgeOffset;
 use crate::transaction::codec::{bytes_to_value, property_value_to_value};
 use crate::transaction::insert_transaction::{InsertTransactionError, InsertTransactionResult};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult};
@@ -65,7 +65,7 @@ pub struct DeleteEdgeTypeParams {
 }
 
 /// Parameters identifying an edge type by label names
-pub struct EdgeLabelParams<'a> {
+pub struct EdgeTypeLabelParams<'a> {
     pub src_label: &'a str,
     pub dst_label: &'a str,
     pub edge_label: &'a str,
@@ -258,8 +258,8 @@ impl TransactionOps {
                     params.src_vid,
                     params.dst_vid,
                     params.rank,
-                    crate::storage::storage_types::EdgeOffset(oe_offset),
-                    crate::storage::storage_types::EdgeOffset(ie_offset),
+                    crate::storage::types::EdgeOffset(oe_offset),
+                    crate::storage::types::EdgeOffset(ie_offset),
                     ts,
                 )
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
@@ -311,7 +311,7 @@ impl TransactionOps {
     pub fn update_edge_property(
         edge_tables: &mut HashMap<EdgeTableKey, EdgeTable>,
         vertex_tables: &HashMap<LabelId, VertexTable>,
-        params: crate::storage::engine::edge_params::EdgeOperationParams,
+        params: crate::storage::engine::params::EdgeOperationParams,
         prop_name: &str,
         value: &Value,
         ts: Timestamp,
@@ -474,22 +474,22 @@ impl TransactionOps {
         edge_tables: &mut HashMap<EdgeTableKey, EdgeTable>,
         edge_label_names: &mut HashMap<String, LabelId>,
         vertex_tables: &HashMap<LabelId, VertexTable>,
-        edge_params: &EdgeLabelParams,
+        edge_labels: &EdgeTypeLabelParams,
         current_names: &[String],
         original_names: &[String],
     ) -> UndoLogResult<()> {
         let src_label_id = vertex_tables
             .values()
-            .find(|t| t.label_name() == edge_params.src_label)
+            .find(|t| t.label_name() == edge_labels.src_label)
             .map(|t| t.label())
             .ok_or(UndoLogError::LabelNotFound(0))?;
         let dst_label_id = vertex_tables
             .values()
-            .find(|t| t.label_name() == edge_params.dst_label)
+            .find(|t| t.label_name() == edge_labels.dst_label)
             .map(|t| t.label())
             .ok_or(UndoLogError::LabelNotFound(0))?;
         let edge_label_id = edge_label_names
-            .get(edge_params.edge_label)
+            .get(edge_labels.edge_label)
             .copied()
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
@@ -539,20 +539,20 @@ impl TransactionOps {
         edge_label_names: &mut HashMap<String, LabelId>,
         vertex_tables: &HashMap<LabelId, VertexTable>,
         prop_names: &[String],
-        edge_params: &EdgeLabelParams,
+        edge_labels: &EdgeTypeLabelParams,
     ) -> UndoLogResult<()> {
         let src_label_id = vertex_tables
             .values()
-            .find(|t| t.label_name() == edge_params.src_label)
+            .find(|t| t.label_name() == edge_labels.src_label)
             .map(|t| t.label())
             .ok_or(UndoLogError::LabelNotFound(0))?;
         let dst_label_id = vertex_tables
             .values()
-            .find(|t| t.label_name() == edge_params.dst_label)
+            .find(|t| t.label_name() == edge_labels.dst_label)
             .map(|t| t.label())
             .ok_or(UndoLogError::LabelNotFound(0))?;
         let edge_label_id = edge_label_names
-            .get(edge_params.edge_label)
+            .get(edge_labels.edge_label)
             .copied()
             .ok_or(UndoLogError::LabelNotFound(0))?;
 

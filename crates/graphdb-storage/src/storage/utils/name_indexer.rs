@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use crate::storage::storage_types::PropertyId;
+use crate::storage::types::PropertyId;
 
 /// Maps string names to PropertyId and vice versa.
 #[derive(Debug, Clone)]

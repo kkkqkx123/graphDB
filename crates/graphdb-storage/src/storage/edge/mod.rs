@@ -35,7 +35,7 @@ pub mod single_mutable_csr;
 
 use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP};
 use crate::core::{Edge, Value};
-use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::types::StoragePropertyDef;
 use crate::storage::utils::props_to_map;
 
 pub use crate::core::types::EdgeStrategy;

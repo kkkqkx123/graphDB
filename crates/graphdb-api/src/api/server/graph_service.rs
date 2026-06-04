@@ -14,7 +14,9 @@ use crate::core::types::TransactionContextInfo;
 use crate::core::{DataType, MetricType, Permission};
 use crate::query::executor::ExecutionResult;
 use crate::query::DataSet;
-use crate::storage::{StorageClient, StorageSyncContextOps, StorageTransactionContextOps};
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::RwLock;
@@ -55,7 +57,15 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     transaction_manager: Option<Arc<TransactionManager>>,
 }
 
-impl<S: StorageClient + Clone + 'static> GraphService<S> {
+impl<
+        S: StorageClient
+            + StorageSchemaContextOps
+            + StorageSyncContextOps
+            + StorageTransactionContextOps
+            + Clone
+            + 'static,
+    > GraphService<S>
+{
     /// Create a new GraphService (without a transaction manager, for use in a production environment).
     pub async fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
         Self::create_service(config, storage, None, true, None).await

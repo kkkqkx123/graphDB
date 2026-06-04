@@ -280,13 +280,15 @@ impl<S: StorageClient> StoragePersistenceOps for MetricsStorage<S> {
     }
 }
 
-impl<S: StorageClient> StorageSchemaContextOps for MetricsStorage<S> {
+impl<S: StorageClient + StorageSchemaContextOps> StorageSchemaContextOps for MetricsStorage<S> {
     forward_methods!(inner;
         fn get_schema_manager(&self) -> Option<Arc<SchemaManager>>;
     );
 }
 
-impl<S: StorageClient> StorageTransactionContextOps for MetricsStorage<S> {
+impl<S: StorageClient + StorageTransactionContextOps> StorageTransactionContextOps
+    for MetricsStorage<S>
+{
     forward_methods!(inner;
         fn get_transaction_context(&self) -> Option<Arc<TransactionContextInfo>>;
     );
@@ -296,7 +298,7 @@ impl<S: StorageClient> StorageTransactionContextOps for MetricsStorage<S> {
     );
 }
 
-impl<S: StorageClient> StorageSyncContextOps for MetricsStorage<S> {
+impl<S: StorageClient + StorageSyncContextOps> StorageSyncContextOps for MetricsStorage<S> {
     forward_methods!(inner;
         fn get_sync_manager(&self) -> Option<Arc<SyncManager>>;
     );

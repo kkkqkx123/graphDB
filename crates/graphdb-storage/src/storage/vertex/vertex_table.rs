@@ -10,7 +10,7 @@ use super::{
     VertexTimestamp,
 };
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::storage_types::StoragePropertyDef;
+use crate::storage::types::StoragePropertyDef;
 use crate::storage::utils::persistence_format::{
     read_header, section, write_header_to, HEADER_SIZE,
 };
@@ -889,7 +889,7 @@ impl<'a> Iterator for VertexIterator<'a> {
 mod tests {
     use super::*;
     use crate::core::DataType;
-    use crate::storage::storage_types::StoragePropertyDef;
+    use crate::storage::types::StoragePropertyDef;
     use crate::storage::vertex::VertexSchema;
 
     fn create_test_schema() -> VertexSchema {

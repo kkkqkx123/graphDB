@@ -5,9 +5,9 @@ mod tests {
     use crate::core::{DataType, Value};
     use crate::storage::edge::EdgeStrategy;
     use crate::storage::engine::config::PropertyGraphConfig;
-    use crate::storage::engine::edge_params::{CreateEdgeTypeParams, EdgeOperationParams};
+    use crate::storage::engine::params::{CreateEdgeTypeParams, EdgeOperationParams};
     use crate::storage::engine::property_graph::{InsertEdgeParams, PropertyGraph};
-    use crate::storage::storage_types::StoragePropertyDef;
+    use crate::storage::types::StoragePropertyDef;
 
     fn temp_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir()

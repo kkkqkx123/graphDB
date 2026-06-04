@@ -4,7 +4,7 @@ use crate::core::types::{
     UpdateTarget, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-use crate::storage::engine::edge_params::EdgeOperationParams;
+use crate::storage::engine::params::EdgeOperationParams;
 use crate::storage::engine::property_graph::{InsertEdgeParams, InsertEdgeParamsByI64};
 
 use super::context::GraphStorageContext;

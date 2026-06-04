@@ -8,6 +8,9 @@ mod flush;
 mod index_mvcc;
 mod type_ops;
 
+#[cfg(test)]
+mod tests;
+
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -19,8 +22,8 @@ use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::cache::RecordCacheStats;
 use crate::storage::edge::{EdgeRecord, EdgeStrategy};
 use crate::storage::engine::data_store::EdgeTableKey;
-use crate::storage::engine::edge_params::CreateEdgeTypeParams;
-use crate::storage::storage_types::{EdgeOffset, StoragePropertyDef};
+use crate::storage::engine::params::CreateEdgeTypeParams;
+use crate::storage::types::{EdgeOffset, StoragePropertyDef};
 use crate::storage::vertex::VertexRecord;
 use crate::transaction::wal::writer::WalWriter;
 
@@ -78,46 +81,10 @@ impl Default for PropertyGraph {
     }
 }
 
-/// Parameters for insert_edge operation
-pub struct InsertEdgeParams<'a> {
-    pub edge_label: LabelId,
-    pub src_label: LabelId,
-    pub src_id: &'a str,
-    pub dst_label: LabelId,
-    pub dst_id: &'a str,
-    pub rank: i64,
-    pub properties: &'a [(String, Value)],
-    pub ts: Timestamp,
-}
-
-/// Parameters for insert_edge operation with i64 vertex IDs
-pub struct InsertEdgeParamsByI64<'a> {
-    pub edge_label: LabelId,
-    pub src_label: LabelId,
-    pub src_id: i64,
-    pub dst_label: LabelId,
-    pub dst_id: i64,
-    pub rank: i64,
-    pub properties: &'a [(String, Value)],
-    pub ts: Timestamp,
-}
-
-pub use crate::storage::engine::edge_params::EdgeOperationParams;
-/// Parameters for edge operations with i64 vertex IDs
-pub use crate::storage::engine::edge_params::EdgeOperationParamsByI64;
-
-/// Parameters for update_edge_property operation in PropertyGraph
-pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
-    pub edge_label: LabelId,
-    pub src_label: LabelId,
-    pub src_id: &'a str,
-    pub dst_label: LabelId,
-    pub dst_id: &'a str,
-    pub rank: i64,
-    pub prop_name: &'a str,
-    pub value: &'a Value,
-    pub ts: Timestamp,
-}
+pub use crate::storage::engine::params::{
+    EdgeOperationParams, EdgeOperationParamsByI64, InsertEdgeParams, InsertEdgeParamsByI64,
+    PropertyGraphUpdateEdgePropertyParams,
+};
 
 impl PropertyGraph {
     pub fn new() -> Self {
@@ -328,7 +295,7 @@ impl PropertyGraph {
     pub fn add_vertex_property(
         &self,
         label: LabelId,
-        prop: crate::storage::storage_types::StoragePropertyDef,
+        prop: crate::storage::types::StoragePropertyDef,
     ) -> StorageResult<()> {
         type_ops::add_vertex_property(self, label, prop)
     }
@@ -336,7 +303,7 @@ impl PropertyGraph {
     pub fn add_edge_property(
         &self,
         edge_label: LabelId,
-        prop: crate::storage::storage_types::StoragePropertyDef,
+        prop: crate::storage::types::StoragePropertyDef,
     ) -> StorageResult<()> {
         type_ops::add_edge_property(self, edge_label, prop)
     }
