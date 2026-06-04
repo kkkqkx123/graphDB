@@ -1,4 +1,5 @@
-use crate::core::types::{EdgeTypeInfo, LabelId, TagInfo, VertexId};
+use crate::core::types::VertexId;
+use crate::core::types::{EdgeTypeInfo, LabelId, TagInfo};
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::params::EdgeOperationParams;
 
@@ -150,9 +151,9 @@ pub(crate) fn get_edge(
         &EdgeOperationParams {
             edge_label: edge_label_id,
             src_label: src_label_id,
-            src_id: &src_str,
+            src_id: *src,
             dst_label: dst_label_id,
-            dst_id: &dst_str,
+            dst_id: *dst,
             rank,
         },
         ts,
@@ -194,18 +195,15 @@ pub(crate) fn get_node_edges(
         match direction {
             EdgeDirection::Out => {
                 if let Some(out_edges) =
-                    ctx
-                        .out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                    ctx.out_edges(edge_label_id, src_label_id, dst_label_id, *node_id, ts)
                 {
                     for record in out_edges {
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
                         let dst_external = if dst_label_id != 0 {
-                            ctx
-                                .get_external_id(dst_label_id, dst_internal, ts)
+                            ctx.get_external_id(dst_label_id, dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         } else {
-                            ctx
-                                .get_external_id_any(dst_internal, ts)
+                            ctx.get_external_id_any(dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         };
 
@@ -217,18 +215,15 @@ pub(crate) fn get_node_edges(
             }
             EdgeDirection::In => {
                 if let Some(in_edges) =
-                    ctx
-                        .in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                    ctx.in_edges(edge_label_id, src_label_id, dst_label_id, *node_id, ts)
                 {
                     for record in in_edges {
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
                         let src_external = if src_label_id != 0 {
-                            ctx
-                                .get_external_id(src_label_id, src_internal, ts)
+                            ctx.get_external_id(src_label_id, src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         } else {
-                            ctx
-                                .get_external_id_any(src_internal, ts)
+                            ctx.get_external_id_any(src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         };
 
@@ -240,18 +235,15 @@ pub(crate) fn get_node_edges(
             }
             EdgeDirection::Both => {
                 if let Some(out_edges) =
-                    ctx
-                        .out_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                    ctx.out_edges(edge_label_id, src_label_id, dst_label_id, *node_id, ts)
                 {
                     for record in out_edges {
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
                         let dst_external = if dst_label_id != 0 {
-                            ctx
-                                .get_external_id(dst_label_id, dst_internal, ts)
+                            ctx.get_external_id(dst_label_id, dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         } else {
-                            ctx
-                                .get_external_id_any(dst_internal, ts)
+                            ctx.get_external_id_any(dst_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.dst_vid))
                         };
 
@@ -261,18 +253,15 @@ pub(crate) fn get_node_edges(
                     }
                 }
                 if let Some(in_edges) =
-                    ctx
-                        .in_edges(edge_label_id, src_label_id, dst_label_id, &node_str, ts)
+                    ctx.in_edges(edge_label_id, src_label_id, dst_label_id, *node_id, ts)
                 {
                     for record in in_edges {
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
                         let src_external = if src_label_id != 0 {
-                            ctx
-                                .get_external_id(src_label_id, src_internal, ts)
+                            ctx.get_external_id(src_label_id, src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         } else {
-                            ctx
-                                .get_external_id_any(src_internal, ts)
+                            ctx.get_external_id_any(src_internal, ts)
                                 .unwrap_or_else(|| format!("{}", record.src_vid))
                         };
 
@@ -320,8 +309,7 @@ pub(crate) fn scan_edges_by_type(
     let records = if edge_info.src_tag_name.is_empty() || edge_info.dst_tag_name.is_empty() {
         ctx.scan_edges_by_label(edge_label_id, ts)
     } else {
-        ctx
-            .scan_edges(src_label_id, dst_label_id, edge_label_id, ts)
+        ctx.scan_edges(src_label_id, dst_label_id, edge_label_id, ts)
     };
 
     for record in records {
@@ -329,22 +317,18 @@ pub(crate) fn scan_edges_by_type(
         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
 
         let src_external = if src_label_id != 0 {
-            ctx
-                .get_external_id(src_label_id, src_internal, ts)
+            ctx.get_external_id(src_label_id, src_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.src_vid))
         } else {
-            ctx
-                .get_external_id_any(src_internal, ts)
+            ctx.get_external_id_any(src_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.src_vid))
         };
 
         let dst_external = if dst_label_id != 0 {
-            ctx
-                .get_external_id(dst_label_id, dst_internal, ts)
+            ctx.get_external_id(dst_label_id, dst_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.dst_vid))
         } else {
-            ctx
-                .get_external_id_any(dst_internal, ts)
+            ctx.get_external_id_any(dst_internal, ts)
                 .unwrap_or_else(|| format!("{}", record.dst_vid))
         };
 
@@ -412,8 +396,8 @@ pub(crate) fn get_edge_with_schema(
         })?;
 
     let ts = ctx.get_read_timestamp();
-    let src_str = value_to_string(src);
-    let dst_str = value_to_string(dst);
+    let src_vid = VertexId::try_from(src)?;
+    let dst_vid = VertexId::try_from(dst)?;
 
     let edge_label_id = edge_info.edge_type_id;
     let src_label_id = match endpoint_label_id(ctx, space, &edge_info.src_tag_name)? {
@@ -428,9 +412,9 @@ pub(crate) fn get_edge_with_schema(
         &EdgeOperationParams {
             edge_label: edge_label_id,
             src_label: src_label_id,
-            src_id: &src_str,
+            src_id: src_vid,
             dst_label: dst_label_id,
-            dst_id: &dst_str,
+            dst_id: dst_vid,
             rank: 0,
         },
         ts,
@@ -502,8 +486,7 @@ pub(crate) fn scan_edges_with_schema(
             Some(id) => id,
             None => return Ok(results),
         };
-        let records = ctx
-            .scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
+        let records = ctx.scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
         for record in records {
             let data = serialize_properties(&record.properties);
             results.push((edge_info.clone(), data));

@@ -291,6 +291,37 @@ pub fn add_vertex_property(
     Ok(())
 }
 
+pub fn delete_vertex_property(ctx: &GraphStorageContext, label: LabelId, prop_name: &str) -> StorageResult<()> {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
+        return Err(StorageError::storage_not_open());
+    }
+
+    let mut vertex_tables = ctx.data_store().vertex_tables().write();
+    let table = vertex_tables
+        .get_mut(&label)
+        .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
+
+    table.remove_property(prop_name)
+}
+
+pub fn rename_vertex_property(
+    ctx: &GraphStorageContext,
+    label: LabelId,
+    old_name: &str,
+    new_name: &str,
+) -> StorageResult<()> {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
+        return Err(StorageError::storage_not_open());
+    }
+
+    let mut vertex_tables = ctx.data_store().vertex_tables().write();
+    let table = vertex_tables
+        .get_mut(&label)
+        .ok_or_else(|| StorageError::label_not_found(format!("vertex label {}", label)))?;
+
+    table.rename_property(old_name, new_name)
+}
+
 pub fn add_edge_property(
     ctx: &GraphStorageContext,
     edge_label: LabelId,
@@ -306,6 +337,65 @@ pub fn add_edge_property(
     for (key, table) in edge_tables.iter_mut() {
         if key.edge_label == edge_label {
             table.add_property(prop.name.clone(), prop.data_type.clone(), prop.nullable)?;
+            updated = true;
+        }
+    }
+
+    if !updated {
+        return Err(StorageError::label_not_found(format!(
+            "edge label {}",
+            edge_label
+        )));
+    }
+
+    Ok(())
+}
+
+pub fn delete_edge_property(
+    ctx: &GraphStorageContext,
+    edge_label: LabelId,
+    prop_name: &str,
+) -> StorageResult<()> {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
+        return Err(StorageError::storage_not_open());
+    }
+
+    let mut edge_tables = ctx.data_store().edge_tables().write();
+    let mut updated = false;
+
+    for table in edge_tables.values_mut() {
+        if table.label() == edge_label {
+            table.remove_property(prop_name)?;
+            updated = true;
+        }
+    }
+
+    if !updated {
+        return Err(StorageError::label_not_found(format!(
+            "edge label {}",
+            edge_label
+        )));
+    }
+
+    Ok(())
+}
+
+pub fn rename_edge_property(
+    ctx: &GraphStorageContext,
+    edge_label: LabelId,
+    old_name: &str,
+    new_name: &str,
+) -> StorageResult<()> {
+    if !ctx.is_open_flag().load(Ordering::Acquire) {
+        return Err(StorageError::storage_not_open());
+    }
+
+    let mut edge_tables = ctx.data_store().edge_tables().write();
+    let mut updated = false;
+
+    for table in edge_tables.values_mut() {
+        if table.label() == edge_label {
+            table.rename_property(old_name, new_name)?;
             updated = true;
         }
     }

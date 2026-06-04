@@ -74,16 +74,23 @@ pub struct EdgeTypeLabelParams<'a> {
 pub struct TransactionOps;
 
 impl TransactionOps {
+    /// Resolve an external VertexId to an internal row ID.
+    pub fn resolve_vertex_id(table: &VertexTable, vid: VertexId, ts: Timestamp) -> Option<u32> {
+        if let Some(int_id) = vid.as_int64() {
+            table.get_internal_id_by_i64(int_id, ts)
+        } else if let Some(str_id) = vid.as_str() {
+            table.get_internal_id(str_id, ts)
+        } else {
+            None
+        }
+    }
     pub fn add_vertex(
         vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
-        oid: &[u8],
+        vid: VertexId,
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<VertexId> {
-        let external_id = std::str::from_utf8(oid)
-            .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
-
         let props: Vec<(String, Value)> = properties
             .iter()
             .filter_map(|(k, v)| bytes_to_value(v).map(|val| (k.clone(), val)))
@@ -93,9 +100,19 @@ impl TransactionOps {
             .get_mut(&label)
             .ok_or(InsertTransactionError::LabelNotFound(label))?;
 
-        let internal_id = table
-            .insert(external_id, &props, ts)
-            .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
+        let internal_id = if let Some(int_id) = vid.as_int64() {
+            table
+                .insert_by_i64(int_id, &props, ts)
+                .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?
+        } else if let Some(str_id) = vid.as_str() {
+            table
+                .insert(str_id, &props, ts)
+                .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?
+        } else {
+            return Err(InsertTransactionError::SerializationError(
+                "Invalid VertexId: neither int64 nor string".to_string(),
+            ));
+        };
 
         Ok(VertexId::from_int64(internal_id as i64))
     }
@@ -207,6 +224,25 @@ impl TransactionOps {
         Ok(())
     }
 
+    pub fn delete_vertex_by_external_vid(
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        label: LabelId,
+        vid: VertexId,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let table = vertex_tables
+            .get_mut(&label)
+            .ok_or(UndoLogError::LabelNotFound(label))?;
+
+        let internal_id =
+            Self::resolve_vertex_id(table, vid, ts).ok_or(UndoLogError::LabelNotFound(0))?;
+
+        table
+            .delete_by_internal_id(internal_id, ts)
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        Ok(())
+    }
+
     pub fn revert_delete_vertex(
         vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
@@ -289,6 +325,33 @@ impl TransactionOps {
         Ok(())
     }
 
+    pub fn update_vertex_property_by_vid(
+        vertex_tables: &mut HashMap<LabelId, VertexTable>,
+        label: LabelId,
+        vid: VertexId,
+        prop_name: &str,
+        value: &Value,
+        ts: Timestamp,
+    ) -> UndoLogResult<()> {
+        let table = vertex_tables
+            .get_mut(&label)
+            .ok_or(UndoLogError::LabelNotFound(label))?;
+
+        let internal_id = if let Some(int_id) = vid.as_int64() {
+            table.get_internal_id_by_i64(int_id, ts)
+        } else if let Some(str_id) = vid.as_str() {
+            table.get_internal_id(str_id, ts)
+        } else {
+            None
+        }
+        .ok_or(UndoLogError::LabelNotFound(0))?;
+
+        table
+            .update_property(internal_id, prop_name, value, ts)
+            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
+        Ok(())
+    }
+
     pub fn update_vertex_property_undo(
         vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
@@ -323,11 +386,9 @@ impl TransactionOps {
             .get(&params.dst_label)
             .ok_or(UndoLogError::LabelNotFound(params.dst_label))?;
 
-        let src_internal = src_table
-            .get_internal_id(params.src_id, ts)
+        let src_internal = Self::resolve_vertex_id(src_table, params.src_id, ts)
             .ok_or(UndoLogError::LabelNotFound(0))?;
-        let dst_internal = dst_table
-            .get_internal_id(params.dst_id, ts)
+        let dst_internal = Self::resolve_vertex_id(dst_table, params.dst_id, ts)
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);

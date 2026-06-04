@@ -1,5 +1,4 @@
-use crate::core::types::LabelId;
-use crate::core::types::Timestamp;
+use crate::core::types::{LabelId, Timestamp, VertexId};
 use crate::core::Value;
 use crate::storage::edge::EdgeStrategy;
 use crate::storage::types::StoragePropertyDef;
@@ -15,12 +14,12 @@ pub struct CreateEdgeTypeParams<'a> {
 }
 
 /// Parameters for edge operations.
-pub struct EdgeOperationParams<'a> {
+pub struct EdgeOperationParams {
     pub edge_label: LabelId,
     pub src_label: LabelId,
-    pub src_id: &'a str,
+    pub src_id: VertexId,
     pub dst_label: LabelId,
-    pub dst_id: &'a str,
+    pub dst_id: VertexId,
     pub rank: i64,
 }
 
@@ -28,9 +27,9 @@ pub struct EdgeOperationParams<'a> {
 pub struct InsertEdgeParams<'a> {
     pub edge_label: LabelId,
     pub src_label: LabelId,
-    pub src_id: &'a str,
+    pub src_id: VertexId,
     pub dst_label: LabelId,
-    pub dst_id: &'a str,
+    pub dst_id: VertexId,
     pub rank: i64,
     pub properties: &'a [(String, Value)],
     pub ts: Timestamp,
@@ -40,9 +39,9 @@ pub struct InsertEdgeParams<'a> {
 pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
     pub edge_label: LabelId,
     pub src_label: LabelId,
-    pub src_id: &'a str,
+    pub src_id: VertexId,
     pub dst_label: LabelId,
-    pub dst_id: &'a str,
+    pub dst_id: VertexId,
     pub rank: i64,
     pub prop_name: &'a str,
     pub value: &'a Value,

@@ -49,6 +49,7 @@ pub enum PersistenceState {
 
 #[derive(Debug, Clone)]
 pub struct CheckpointInfo {
+    pub checkpoint_id: u64,
     pub lsn: Lsn,
 }
 
@@ -133,6 +134,8 @@ impl PersistenceCoordinator {
             crate::core::StorageError::db_error(format!("Failed to init checkpoint manager: {}", e))
         })?;
 
+        wal_manager.set_checkpoint_seq(checkpoint_manager.current_seq())?;
+
         let snapshot_manager = if config.enable_snapshots {
             std::fs::create_dir_all(&config.snapshot_dir)?;
             Some(Arc::new(SnapshotManager::new(
@@ -159,6 +162,18 @@ impl PersistenceCoordinator {
 
     pub fn wal_manager(&self) -> Arc<RwLock<WalManager>> {
         self.wal_manager.clone()
+    }
+
+    pub fn wal_dir(&self) -> PathBuf {
+        self.config.wal_dir.clone()
+    }
+
+    pub fn checkpoint_dir(&self) -> PathBuf {
+        self.config.checkpoint_dir.clone()
+    }
+
+    pub fn data_dir(&self) -> PathBuf {
+        self.config.data_dir.clone()
     }
 
     fn set_state(&self, state: PersistenceState) {
@@ -231,6 +246,11 @@ impl PersistenceCoordinator {
                 crate::core::StorageError::db_error(format!("Failed to create checkpoint: {}", e))
             })?
         };
+
+        {
+            let wal = self.wal_manager.read();
+            wal.set_checkpoint_seq(checkpoint.seq)?;
+        }
 
         let checkpoint_dir = self
             .config
@@ -359,6 +379,7 @@ impl PersistenceCoordinator {
 
             {
                 let wal = self.wal_manager.read();
+                wal.set_checkpoint_seq(info.checkpoint_id)?;
                 wal.truncate(info.lsn)?;
             }
 
@@ -376,18 +397,25 @@ impl PersistenceCoordinator {
         let file = File::open(metadata_path)?;
         let reader = BufReader::new(file);
 
+        let mut checkpoint_id = 0u64;
         let mut lsn = 0u64;
 
         for line in reader.lines() {
             let line = line?;
             let parts: Vec<&str> = line.splitn(2, '=').collect();
-            if parts.len() == 2 && parts[0] == "wal_lsn" {
-                lsn = parts[1].parse().unwrap_or(0);
-                break;
+            if parts.len() == 2 {
+                if parts[0] == "checkpoint_id" {
+                    checkpoint_id = parts[1].parse().unwrap_or(0);
+                } else if parts[0] == "wal_lsn" {
+                    lsn = parts[1].parse().unwrap_or(0);
+                }
             }
         }
 
-        Ok(CheckpointInfo { lsn: Lsn::new(lsn) })
+        Ok(CheckpointInfo {
+            checkpoint_id,
+            lsn: Lsn::new(lsn),
+        })
     }
 
     pub fn verify_snapshot(&self, snapshot_id: u64) -> StorageResult<bool> {

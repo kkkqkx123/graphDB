@@ -9,7 +9,7 @@ use crate::core::metadata::{IndexManager, SchemaManager};
 use crate::core::mvcc::VersionManager;
 use crate::core::types::{
     CompactConfig, LabelId, TableId, TableTracker, TableTrackerConfig, TableType, Timestamp,
-    TransactionContextInfo,
+    TransactionContextInfo, VertexId,
 };
 use crate::core::UserStorage;
 use crate::core::{StorageError, StorageResult, Value};
@@ -19,18 +19,17 @@ use crate::storage::engine::cache_manager::CacheManager;
 use crate::storage::engine::config::PropertyGraphConfig;
 use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
 use crate::storage::engine::params::CreateEdgeTypeParams;
-use crate::storage::engine::{
-    EdgeOperationParams, InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams,
-};
 use crate::storage::engine::paths::StoragePaths;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
 use crate::storage::engine::wal_manager::WalManager;
+use crate::storage::engine::{
+    EdgeOperationParams, InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams,
+};
 use crate::storage::index::{
     GcStats, IndexDataManagerImpl, IndexGcConfig, IndexGcManager, IndexGcOps,
 };
 use crate::storage::types::{EdgeOffset, StoragePropertyDef};
-use crate::storage::vertex::{IdKey, VertexId, VertexRecord};
-
+use crate::storage::vertex::{IdKey, VertexRecord};
 
 #[derive(Clone)]
 struct GraphStorageLayout {
@@ -153,10 +152,19 @@ impl GraphStoragePersistent {
         path: PathBuf,
         config: crate::storage::engine::PersistenceConfig,
     ) -> crate::core::StorageResult<Self> {
-        let (data_store, cache_manager, wal_manager, table_tracker, is_open,
-             last_compacted_vertices, index_data_manager,
-             schema_manager, index_metadata_manager, version_manager, user_storage) =
-            Self::build_core_components();
+        let (
+            data_store,
+            cache_manager,
+            wal_manager,
+            table_tracker,
+            is_open,
+            last_compacted_vertices,
+            index_data_manager,
+            schema_manager,
+            index_metadata_manager,
+            version_manager,
+            user_storage,
+        ) = Self::build_core_components();
 
         let persistence = PersistenceCoordinator::new(config).map(|p| Arc::new(RwLock::new(p)))?;
 
@@ -425,7 +433,11 @@ impl GraphStorageContext {
     // ── PropertyGraph-compatible API ──
 
     pub fn wal_enabled(&self) -> bool {
-        self.persistent.wal_manager.lock().is_enabled()
+        if let Some(persistence) = self.persistent.persistence.as_ref() {
+            persistence.read().wal_manager().read().is_enabled()
+        } else {
+            self.persistent.wal_manager.lock().is_enabled()
+        }
     }
 
     pub fn should_flush(&self) -> bool {
@@ -549,7 +561,13 @@ impl GraphStorageContext {
         properties: Vec<StoragePropertyDef>,
         primary_key: &str,
     ) -> StorageResult<LabelId> {
-        super::schema_engine::create_vertex_type_with_id(self, name, label_id, properties, primary_key)
+        super::schema_engine::create_vertex_type_with_id(
+            self,
+            name,
+            label_id,
+            properties,
+            primary_key,
+        )
     }
 
     pub fn create_edge_type(
@@ -561,7 +579,15 @@ impl GraphStorageContext {
         oe_strategy: EdgeStrategy,
         ie_strategy: EdgeStrategy,
     ) -> StorageResult<LabelId> {
-        super::schema_engine::create_edge_type(self, name, src_label, dst_label, properties, oe_strategy, ie_strategy)
+        super::schema_engine::create_edge_type(
+            self,
+            name,
+            src_label,
+            dst_label,
+            properties,
+            oe_strategy,
+            ie_strategy,
+        )
     }
 
     pub fn create_edge_type_with_id(
@@ -588,12 +614,38 @@ impl GraphStorageContext {
         super::schema_engine::add_vertex_property(self, label, prop)
     }
 
+    pub fn delete_vertex_property(&self, label: LabelId, prop_name: &str) -> StorageResult<()> {
+        super::schema_engine::delete_vertex_property(self, label, prop_name)
+    }
+
+    pub fn rename_vertex_property(
+        &self,
+        label: LabelId,
+        old_name: &str,
+        new_name: &str,
+    ) -> StorageResult<()> {
+        super::schema_engine::rename_vertex_property(self, label, old_name, new_name)
+    }
+
     pub fn add_edge_property(
         &self,
         edge_label: LabelId,
         prop: StoragePropertyDef,
     ) -> StorageResult<()> {
         super::schema_engine::add_edge_property(self, edge_label, prop)
+    }
+
+    pub fn delete_edge_property(&self, edge_label: LabelId, prop_name: &str) -> StorageResult<()> {
+        super::schema_engine::delete_edge_property(self, edge_label, prop_name)
+    }
+
+    pub fn rename_edge_property(
+        &self,
+        edge_label: LabelId,
+        old_name: &str,
+        new_name: &str,
+    ) -> StorageResult<()> {
+        super::schema_engine::rename_edge_property(self, edge_label, old_name, new_name)
     }
 
     // ── Vertex Operations ──
@@ -640,9 +692,12 @@ impl GraphStorageContext {
 
         let internal_id = table.insert_by_i64(external_id, properties, ts)?;
 
-        self.persistent
-            .cache_manager
-            .cache_vertex_id(label, &external_id.to_string(), internal_id, ts);
+        self.persistent.cache_manager.cache_vertex_id(
+            label,
+            &external_id.to_string(),
+            internal_id,
+            ts,
+        );
         self.mark_vertex_modified(label);
 
         Ok(internal_id)
@@ -675,14 +730,20 @@ impl GraphStorageContext {
                 id
             })?;
 
-        if let Some(cached) = self
-            .persistent
-            .cache_manager
-            .get_cached_vertex(label, internal_id, ts)
+        if let Some(cached) =
+            self.persistent
+                .cache_manager
+                .get_cached_vertex(label, internal_id, ts)
         {
             return Some(VertexRecord {
                 internal_id: cached.internal_id,
-                vid: cached.external_id.parse::<i64>().map(crate::core::types::VertexId::from_int64).unwrap_or_else(|_| crate::core::types::VertexId::from_string(&cached.external_id)),
+                vid: cached
+                    .external_id
+                    .parse::<i64>()
+                    .map(crate::core::types::VertexId::from_int64)
+                    .unwrap_or_else(|_| {
+                        crate::core::types::VertexId::from_string(&cached.external_id)
+                    }),
                 properties: cached.properties,
             });
         }
@@ -735,10 +796,10 @@ impl GraphStorageContext {
                 id
             })?;
 
-        if let Some(cached) = self
-            .persistent
-            .cache_manager
-            .get_cached_vertex(label, internal_id, ts)
+        if let Some(cached) =
+            self.persistent
+                .cache_manager
+                .get_cached_vertex(label, internal_id, ts)
         {
             return Some(VertexRecord {
                 internal_id: cached.internal_id,
@@ -775,14 +836,20 @@ impl GraphStorageContext {
             return None;
         }
 
-        if let Some(cached) = self
-            .persistent
-            .cache_manager
-            .get_cached_vertex(label, internal_id, ts)
+        if let Some(cached) =
+            self.persistent
+                .cache_manager
+                .get_cached_vertex(label, internal_id, ts)
         {
             return Some(VertexRecord {
                 internal_id: cached.internal_id,
-                vid: cached.external_id.parse::<i64>().map(crate::core::types::VertexId::from_int64).unwrap_or_else(|_| crate::core::types::VertexId::from_string(&cached.external_id)),
+                vid: cached
+                    .external_id
+                    .parse::<i64>()
+                    .map(crate::core::types::VertexId::from_int64)
+                    .unwrap_or_else(|_| {
+                        crate::core::types::VertexId::from_string(&cached.external_id)
+                    }),
                 properties: cached.properties,
             });
         }
@@ -859,9 +926,13 @@ impl GraphStorageContext {
         let internal_id = table.get_internal_id(external_id, ts);
         table.delete(external_id, ts)?;
 
-        self.persistent.cache_manager.remove_cached_vertex_id(label, external_id);
+        self.persistent
+            .cache_manager
+            .remove_cached_vertex_id(label, external_id);
         if let Some(id) = internal_id {
-            self.persistent.cache_manager.remove_cached_vertex(label, id);
+            self.persistent
+                .cache_manager
+                .remove_cached_vertex(label, id);
         }
         self.mark_vertex_modified(label);
 
@@ -887,9 +958,13 @@ impl GraphStorageContext {
         let external_id_str = external_id.to_string();
         table.delete_by_i64(external_id, ts)?;
 
-        self.persistent.cache_manager.remove_cached_vertex_id(label, &external_id_str);
+        self.persistent
+            .cache_manager
+            .remove_cached_vertex_id(label, &external_id_str);
         if let Some(id) = internal_id {
-            self.persistent.cache_manager.remove_cached_vertex(label, id);
+            self.persistent
+                .cache_manager
+                .remove_cached_vertex(label, id);
         }
         self.mark_vertex_modified(label);
 
@@ -919,7 +994,9 @@ impl GraphStorageContext {
 
         table.update_property(internal_id, property_name, value, ts)?;
 
-        self.persistent.cache_manager.remove_cached_vertex(label, internal_id);
+        self.persistent
+            .cache_manager
+            .remove_cached_vertex(label, internal_id);
         self.mark_vertex_modified(label);
 
         Ok(())
@@ -948,7 +1025,9 @@ impl GraphStorageContext {
 
         table.update_property(internal_id, property_name, value, ts)?;
 
-        self.persistent.cache_manager.remove_cached_vertex(label, internal_id);
+        self.persistent
+            .cache_manager
+            .remove_cached_vertex(label, internal_id);
         self.mark_vertex_modified(label);
 
         Ok(())
@@ -973,20 +1052,12 @@ impl GraphStorageContext {
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
 
-        let src_internal = self.resolve_internal_id_from_str(&vertex_tables, params.src_label, params.src_id, params.ts)
-            .or_else(|| {
-                params.src_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.src_label, id, params.ts)
-                })
-            })
+        let src_internal = self
+            .resolve_internal_id(&vertex_tables, params.src_label, params.src_id, params.ts)
             .ok_or(StorageError::vertex_not_found())?;
 
-        let dst_internal = self.resolve_internal_id_from_str(&vertex_tables, params.dst_label, params.dst_id, params.ts)
-            .or_else(|| {
-                params.dst_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.dst_label, id, params.ts)
-                })
-            })
+        let dst_internal = self
+            .resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, params.ts)
             .ok_or(StorageError::vertex_not_found())?;
         drop(vertex_tables);
 
@@ -1008,30 +1079,18 @@ impl GraphStorageContext {
         Ok(offset)
     }
 
-    pub fn get_edge(
-        &self,
-        params: &EdgeOperationParams,
-        ts: Timestamp,
-    ) -> Option<EdgeRecord> {
+    pub fn get_edge(&self, params: &EdgeOperationParams, ts: Timestamp) -> Option<EdgeRecord> {
         if !self.persistent.is_open.load(Ordering::Acquire) {
             return None;
         }
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
 
-        let src_internal = self.resolve_internal_id_from_str(&vertex_tables, params.src_label, params.src_id, ts)
-            .or_else(|| {
-                params.src_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.src_label, id, ts)
-                })
-            })?;
+        let src_internal =
+            self.resolve_internal_id(&vertex_tables, params.src_label, params.src_id, ts)?;
 
-        let dst_internal = self.resolve_internal_id_from_str(&vertex_tables, params.dst_label, params.dst_id, ts)
-            .or_else(|| {
-                params.dst_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.dst_label, id, ts)
-                })
-            })?;
+        let dst_internal =
+            self.resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, ts)?;
         drop(vertex_tables);
 
         let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
@@ -1046,31 +1105,19 @@ impl GraphStorageContext {
         )
     }
 
-    pub fn delete_edge(
-        &self,
-        params: &EdgeOperationParams,
-        ts: Timestamp,
-    ) -> StorageResult<bool> {
+    pub fn delete_edge(&self, params: &EdgeOperationParams, ts: Timestamp) -> StorageResult<bool> {
         if !self.persistent.is_open.load(Ordering::Acquire) {
             return Err(StorageError::storage_not_open());
         }
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
 
-        let src_internal = self.resolve_internal_id_from_str(&vertex_tables, params.src_label, &params.src_id, ts)
-            .or_else(|| {
-                params.src_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.src_label, id, ts)
-                })
-            })
+        let src_internal = self
+            .resolve_internal_id(&vertex_tables, params.src_label, params.src_id, ts)
             .ok_or(StorageError::vertex_not_found())?;
 
-        let dst_internal = self.resolve_internal_id_from_str(&vertex_tables, params.dst_label, &params.dst_id, ts)
-            .or_else(|| {
-                params.dst_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.dst_label, id, ts)
-                })
-            })
+        let dst_internal = self
+            .resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, ts)
             .ok_or(StorageError::vertex_not_found())?;
 
         drop(vertex_tables);
@@ -1104,20 +1151,12 @@ impl GraphStorageContext {
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
 
-        let src_internal = self.resolve_internal_id_from_str(&vertex_tables, params.src_label, &params.src_id, params.ts)
-            .or_else(|| {
-                params.src_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.src_label, id, params.ts)
-                })
-            })
+        let src_internal = self
+            .resolve_internal_id(&vertex_tables, params.src_label, params.src_id, params.ts)
             .ok_or(StorageError::vertex_not_found())?;
 
-        let dst_internal = self.resolve_internal_id_from_str(&vertex_tables, params.dst_label, &params.dst_id, params.ts)
-            .or_else(|| {
-                params.dst_id.parse::<i64>().ok().and_then(|id| {
-                    self.resolve_internal_id_from_i64(&vertex_tables, params.dst_label, id, params.ts)
-                })
-            })
+        let dst_internal = self
+            .resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, params.ts)
             .ok_or(StorageError::vertex_not_found())?;
 
         drop(vertex_tables);
@@ -1148,7 +1187,7 @@ impl GraphStorageContext {
         edge_label: LabelId,
         src_label: LabelId,
         dst_label: LabelId,
-        src_id: &str,
+        src_id: VertexId,
         ts: Timestamp,
     ) -> Option<Vec<EdgeRecord>> {
         if !self.persistent.is_open.load(Ordering::Acquire) {
@@ -1156,12 +1195,7 @@ impl GraphStorageContext {
         }
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
-        let src_internal = if let Ok(id) = src_id.parse::<i64>() {
-            self.resolve_internal_id_from_i64(&vertex_tables, src_label, id, ts)
-                .or_else(|| self.resolve_internal_id_from_str(&vertex_tables, src_label, src_id, ts))
-        } else {
-            self.resolve_internal_id_from_str(&vertex_tables, src_label, src_id, ts)
-        }?;
+        let src_internal = self.resolve_internal_id(&vertex_tables, src_label, src_id, ts)?;
         drop(vertex_tables);
 
         let key = EdgeTableKey::new(src_label, dst_label, edge_label);
@@ -1176,7 +1210,7 @@ impl GraphStorageContext {
         edge_label: LabelId,
         src_label: LabelId,
         dst_label: LabelId,
-        dst_id: &str,
+        dst_id: VertexId,
         ts: Timestamp,
     ) -> Option<Vec<EdgeRecord>> {
         if !self.persistent.is_open.load(Ordering::Acquire) {
@@ -1184,12 +1218,7 @@ impl GraphStorageContext {
         }
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
-        let dst_internal = if let Ok(id) = dst_id.parse::<i64>() {
-            self.resolve_internal_id_from_i64(&vertex_tables, dst_label, id, ts)
-                .or_else(|| self.resolve_internal_id_from_str(&vertex_tables, dst_label, dst_id, ts))
-        } else {
-            self.resolve_internal_id_from_str(&vertex_tables, dst_label, dst_id, ts)
-        }?;
+        let dst_internal = self.resolve_internal_id(&vertex_tables, dst_label, dst_id, ts)?;
         drop(vertex_tables);
 
         let key = EdgeTableKey::new(src_label, dst_label, edge_label);
@@ -1380,21 +1409,31 @@ impl GraphStorageContext {
             let edge_tables = self.persistent.data_store.edge_tables().read();
             for (
                 EdgeTableKey {
-                    src_label, dst_label, edge_label,
+                    src_label,
+                    dst_label,
+                    edge_label,
                 },
                 table,
             ) in &*edge_tables
             {
-                let table_dir = edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
+                let table_dir =
+                    edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
                 table.flush(&table_dir, compression)?;
             }
         }
 
         let index_dir = data_dir.join("indexes");
         fs::create_dir_all(&index_dir)?;
-        self.persistent.index_data_manager.read().flush(&index_dir)?;
+        self.persistent
+            .index_data_manager
+            .read()
+            .flush(&index_dir)?;
 
-        self.persistent.wal_manager.lock().sync()?;
+        if let Some(persistence) = self.persistent.persistence.as_ref() {
+            persistence.read().wal_manager().read().sync()?;
+        } else {
+            self.persistent.wal_manager.lock().sync()?;
+        }
 
         Ok(())
     }
@@ -1456,7 +1495,10 @@ impl GraphStorageContext {
 
         let index_dir = checkpoint_paths.indexes_dir();
         if index_dir.exists() {
-            self.persistent.index_data_manager.write().load(&index_dir)?;
+            self.persistent
+                .index_data_manager
+                .write()
+                .load(&index_dir)?;
         }
 
         Ok(())
@@ -1568,7 +1610,9 @@ impl GraphStorageContext {
         props: &[(String, Value)],
         ts: Timestamp,
     ) -> StorageResult<()> {
-        super::index_engine::update_vertex_indexes_mvcc(self, space_id, vertex_id, index_name, props, ts)
+        super::index_engine::update_vertex_indexes_mvcc(
+            self, space_id, vertex_id, index_name, props, ts,
+        )
     }
 
     pub(crate) fn delete_vertex_indexes_mvcc(
@@ -1589,7 +1633,9 @@ impl GraphStorageContext {
         props: &[(String, Value)],
         ts: Timestamp,
     ) -> StorageResult<()> {
-        super::index_engine::update_edge_indexes_mvcc(self, space_id, src, dst, index_name, props, ts)
+        super::index_engine::update_edge_indexes_mvcc(
+            self, space_id, src, dst, index_name, props, ts,
+        )
     }
 
     pub(crate) fn delete_edge_indexes_mvcc(
@@ -1608,6 +1654,22 @@ impl GraphStorageContext {
     }
 
     // ── Helper Methods ──
+
+    fn resolve_internal_id(
+        &self,
+        vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
+        label: LabelId,
+        id: VertexId,
+        ts: Timestamp,
+    ) -> Option<u32> {
+        if let Some(int_id) = id.as_int64() {
+            self.resolve_internal_id_from_i64(vertex_tables, label, int_id, ts)
+        } else if let Some(str_id) = id.as_str() {
+            self.resolve_internal_id_from_str(vertex_tables, label, str_id, ts)
+        } else {
+            None
+        }
+    }
 
     fn resolve_internal_id_from_i64(
         &self,

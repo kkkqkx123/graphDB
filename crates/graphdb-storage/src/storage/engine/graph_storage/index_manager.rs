@@ -30,8 +30,7 @@ pub(crate) fn drop_tag_index(
         .index_metadata_manager()
         .drop_tag_index(space_id, index_name)?;
     if dropped {
-        ctx
-            .index_data_manager()
+        ctx.index_data_manager()
             .write()
             .clear_tag_index(space_id, index_name)?;
     }
@@ -81,8 +80,7 @@ pub(crate) fn drop_edge_index(
         .index_metadata_manager()
         .drop_edge_index(space_id, index_name)?;
     if dropped {
-        ctx
-            .index_data_manager()
+        ctx.index_data_manager()
             .write()
             .clear_edge_index(space_id, index_name)?;
     }
@@ -127,8 +125,7 @@ pub(crate) fn rebuild_tag_index(
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
         let vid_value = Value::from(vertex.vid);
-        ctx
-            .update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
+        ctx.update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
     }
 
     Ok(true)
@@ -155,14 +152,7 @@ pub(crate) fn rebuild_edge_index(
             .collect();
         let src_value = Value::from(edge.src);
         let dst_value = Value::from(edge.dst);
-        ctx.update_edge_indexes_mvcc(
-            space_id,
-            &src_value,
-            &dst_value,
-            &index.name,
-            &props,
-            ts,
-        )?;
+        ctx.update_edge_indexes_mvcc(space_id, &src_value, &dst_value, &index.name, &props, ts)?;
     }
 
     Ok(true)

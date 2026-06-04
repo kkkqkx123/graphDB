@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::core::types::CompactTarget;
 use crate::core::{StorageError, StorageResult};
@@ -8,6 +8,7 @@ use crate::storage::engine::persistence_coordinator::{
 };
 use crate::transaction::compact_transaction::CompactTransaction;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryManager, RecoveryStats};
+use crate::transaction::wal::{Lsn, ParallelWalParser, WalRecoveryMode};
 
 use super::context::GraphStorageContext;
 
@@ -323,13 +324,14 @@ pub(crate) fn save_to_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
 }
 
 pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<RecoveryStats> {
-    let paths = ctx
-        .storage_paths()
+    let (wal_dir, data_dir, checkpoint_dir) = persistence_dirs(ctx)
         .ok_or_else(|| StorageError::db_error("No work directory configured".to_string()))?;
 
+    let start_lsn = latest_checkpoint_info_from_dir(&checkpoint_dir)?.map(|info| info.lsn);
     let config = RecoveryConfig {
-        wal_dir: paths.wal_dir(),
-        data_dir: paths.data_dir(),
+        wal_dir,
+        data_dir,
+        start_lsn,
         ..Default::default()
     };
 
@@ -346,8 +348,14 @@ pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<Recov
 
 pub(crate) fn recover_from_wal_with_config(
     ctx: &GraphStorageContext,
-    config: RecoveryConfig,
+    mut config: RecoveryConfig,
 ) -> StorageResult<RecoveryStats> {
+    if config.start_lsn.is_none() {
+        let (_, _, checkpoint_dir) = persistence_dirs(ctx)
+            .ok_or_else(|| StorageError::db_error("No work directory configured".to_string()))?;
+        config.start_lsn = latest_checkpoint_info_from_dir(&checkpoint_dir)?.map(|info| info.lsn);
+    }
+
     let mut manager = RecoveryManager::new(config);
 
     let stats = manager.recover_with_applier(ctx)?;
@@ -360,13 +368,241 @@ pub(crate) fn recover_from_wal_with_config(
 }
 
 pub(crate) fn needs_recovery(ctx: &GraphStorageContext) -> bool {
-    if let Some(paths) = ctx.storage_paths() {
-        let wal_dir = paths.wal_dir();
+    if let Some((wal_dir, _, checkpoint_dir)) = persistence_dirs(ctx) {
         if wal_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&wal_dir) {
-                return entries.count() > 0;
+            let latest_checkpoint_lsn = latest_checkpoint_info_from_dir(&checkpoint_dir)
+                .ok()
+                .flatten()
+                .map(|info| info.lsn)
+                .unwrap_or(Lsn::ZERO);
+
+            match ParallelWalParser::new()
+                .with_recovery_mode(WalRecoveryMode::default())
+                .parse_parallel(&wal_dir)
+            {
+                Ok(result) => {
+                    return result.last_lsn > latest_checkpoint_lsn;
+                }
+                Err(_) => {
+                    return true;
+                }
             }
         }
     }
     false
+}
+
+fn latest_checkpoint_info_from_dir(
+    checkpoints_dir: &Path,
+) -> StorageResult<Option<CheckpointInfo>> {
+    if !checkpoints_dir.exists() {
+        return Ok(None);
+    }
+
+    let mut checkpoints: Vec<(u64, std::path::PathBuf)> = std::fs::read_dir(&checkpoints_dir)?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let path = entry.path();
+            if path.is_dir() {
+                let name = path.file_name()?.to_string_lossy();
+                if name.starts_with("checkpoint_") {
+                    let id: u64 = name.trim_start_matches("checkpoint_").parse().ok()?;
+                    Some((id, path))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    checkpoints.sort_by_key(|(id, _)| std::cmp::Reverse(*id));
+
+    if let Some((_, checkpoint_path)) = checkpoints.first() {
+        return read_checkpoint_metadata(checkpoint_path).map(Some);
+    }
+
+    Ok(None)
+}
+
+fn persistence_dirs(ctx: &GraphStorageContext) -> Option<(PathBuf, PathBuf, PathBuf)> {
+    if let Some(persistence) = ctx.persistence().as_ref() {
+        let coordinator = persistence.read();
+        Some((
+            coordinator.wal_dir(),
+            coordinator.data_dir(),
+            coordinator.checkpoint_dir(),
+        ))
+    } else {
+        ctx.storage_paths().map(|paths| {
+            let root = paths.root().to_path_buf();
+            (paths.wal_dir(), paths.data_dir(), root.join("checkpoint"))
+        })
+    }
+}
+
+fn read_checkpoint_metadata(dir: &Path) -> StorageResult<CheckpointInfo> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    let metadata_path = dir.join("checkpoint.meta");
+    let file = File::open(metadata_path)?;
+    let reader = BufReader::new(file);
+
+    let mut checkpoint_id = 0u64;
+    let mut lsn = 0u64;
+
+    for line in reader.lines() {
+        let line = line?;
+        let parts: Vec<&str> = line.splitn(2, '=').collect();
+        if parts.len() == 2 {
+            if parts[0] == "checkpoint_id" {
+                checkpoint_id = parts[1].parse().unwrap_or(0);
+            } else if parts[0] == "wal_lsn" {
+                lsn = parts[1].parse().unwrap_or(0);
+            }
+        }
+    }
+
+    Ok(CheckpointInfo {
+        checkpoint_id,
+        lsn: Lsn::new(lsn),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::VertexId;
+    use crate::storage::engine::PersistenceConfig;
+    use crate::transaction::wal::writer::WalWriter;
+    use crate::transaction::wal::{InsertVertexRedo, LocalWalWriter, WalOpType};
+    use postcard::to_allocvec;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    fn write_insert_vertex_wal(
+        wal_dir: &Path,
+        timestamp: u32,
+        label: u32,
+        vid: i64,
+        name: &str,
+    ) -> StorageResult<Lsn> {
+        let wal_uri = wal_dir.to_string_lossy().to_string();
+        let mut writer = LocalWalWriter::new(&wal_uri, 0);
+        writer
+            .open()
+            .map_err(|e| StorageError::wal_error(format!("Failed to open WAL: {:?}", e)))?;
+
+        let redo = InsertVertexRedo {
+            label,
+            vid: VertexId::from_int64(vid),
+            properties: vec![("name".to_string(), name.as_bytes().to_vec())],
+        };
+        let payload =
+            to_allocvec(&redo).map_err(|e| StorageError::serialize_error(e.to_string()))?;
+
+        writer
+            .append_entry(WalOpType::InsertVertex, timestamp, &payload)
+            .map_err(|e| StorageError::wal_error(format!("Failed to append WAL: {:?}", e)))?;
+
+        let lsn = writer.current_lsn();
+        writer
+            .sync()
+            .map_err(|e| StorageError::wal_error(format!("Failed to sync WAL: {:?}", e)))?;
+        writer.close();
+
+        Ok(lsn)
+    }
+
+    fn write_checkpoint_metadata(
+        checkpoint_dir: &Path,
+        checkpoint_id: u64,
+        wal_lsn: Lsn,
+    ) -> StorageResult<()> {
+        let checkpoint_path = checkpoint_dir.join(format!("checkpoint_{}", checkpoint_id));
+        fs::create_dir_all(&checkpoint_path)?;
+
+        let metadata_path = checkpoint_path.join("checkpoint.meta");
+        let mut file = fs::File::create(metadata_path)?;
+        writeln!(file, "checkpoint_id={}", checkpoint_id)?;
+        writeln!(file, "wal_lsn={}", wal_lsn.as_u64())?;
+
+        Ok(())
+    }
+
+    fn create_context(temp_dir: &TempDir) -> StorageResult<GraphStorageContext> {
+        let config = PersistenceConfig::for_work_dir(temp_dir.path());
+        GraphStorageContext::new_with_persistence(temp_dir.path().to_path_buf(), config)
+    }
+
+    #[test]
+    fn test_needs_recovery_false_after_checkpoint() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let ctx = create_context(&temp_dir).expect("Failed to create storage context");
+
+        let (wal_dir, checkpoint_dir) = {
+            let persistence = ctx
+                .persistence()
+                .as_ref()
+                .expect("Persistence should exist");
+            let coordinator = persistence.read();
+            (coordinator.wal_dir(), coordinator.checkpoint_dir())
+        };
+
+        let wal_lsn =
+            write_insert_vertex_wal(&wal_dir, 1, 1, 1001, "Alice").expect("Failed to write WAL");
+        write_checkpoint_metadata(&checkpoint_dir, 1, wal_lsn)
+            .expect("Failed to write checkpoint metadata");
+
+        assert!(!needs_recovery(&ctx));
+    }
+
+    #[test]
+    fn test_needs_recovery_true_when_wal_is_ahead_of_checkpoint() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let ctx = create_context(&temp_dir).expect("Failed to create storage context");
+
+        let (wal_dir, checkpoint_dir) = {
+            let persistence = ctx
+                .persistence()
+                .as_ref()
+                .expect("Persistence should exist");
+            let coordinator = persistence.read();
+            (coordinator.wal_dir(), coordinator.checkpoint_dir())
+        };
+
+        let wal_uri = wal_dir.to_string_lossy().to_string();
+        let mut writer = LocalWalWriter::new(&wal_uri, 0);
+        writer.open().expect("Failed to open WAL");
+
+        let first_redo = InsertVertexRedo {
+            label: 1,
+            vid: VertexId::from_int64(1001),
+            properties: vec![("name".to_string(), b"Alice".to_vec())],
+        };
+        let first_payload = to_allocvec(&first_redo).expect("Failed to serialize first redo");
+        writer
+            .append_entry(WalOpType::InsertVertex, 1, &first_payload)
+            .expect("Failed to append first WAL entry");
+        let checkpoint_lsn = writer.current_lsn();
+
+        let second_redo = InsertVertexRedo {
+            label: 1,
+            vid: VertexId::from_int64(1002),
+            properties: vec![("name".to_string(), b"Bob".to_vec())],
+        };
+        let second_payload = to_allocvec(&second_redo).expect("Failed to serialize second redo");
+        writer
+            .append_entry(WalOpType::InsertVertex, 2, &second_payload)
+            .expect("Failed to append second WAL entry");
+        writer.close();
+
+        write_checkpoint_metadata(&checkpoint_dir, 1, checkpoint_lsn)
+            .expect("Failed to write checkpoint metadata");
+
+        assert!(needs_recovery(&ctx));
+    }
 }

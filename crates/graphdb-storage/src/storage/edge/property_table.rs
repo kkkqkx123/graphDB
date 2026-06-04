@@ -460,6 +460,74 @@ impl PropertyTable {
         prop_id
     }
 
+    pub fn remove_property(&mut self, name: &str) -> StorageResult<()> {
+        let index = self
+            .schema
+            .iter()
+            .position(|prop| prop.name == name)
+            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
+
+        for row_idx in 0..self.row_count {
+            self.overflow_store.remove(index, row_idx);
+        }
+
+        let mut remapped_locations = HashMap::with_capacity(self.overflow_store.location_index.len());
+        for (key, overflow_id) in self.overflow_store.location_index.drain() {
+            if key.col_idx == index {
+                continue;
+            }
+
+            let new_key = if key.col_idx > index {
+                OverflowKey {
+                    col_idx: key.col_idx - 1,
+                    row_idx: key.row_idx,
+                }
+            } else {
+                key
+            };
+            remapped_locations.insert(new_key, overflow_id);
+        }
+        self.overflow_store.location_index = remapped_locations;
+
+        self.schema.remove(index);
+        self.columns.remove(index);
+
+        self.name_indexer.clear();
+        for (idx, schema) in self.schema.iter_mut().enumerate() {
+            schema.prop_id = idx as i32;
+            self.name_indexer.register(schema.name.clone());
+        }
+
+        for (idx, column) in self.columns.iter_mut().enumerate() {
+            column.col_id = idx as i32;
+        }
+
+        Ok(())
+    }
+
+    pub fn rename_property(&mut self, old_name: &str, new_name: &str) -> StorageResult<()> {
+        if self.has_property(new_name) {
+            return Err(StorageError::column_already_exists(new_name.to_string()));
+        }
+
+        let index = self
+            .schema
+            .iter()
+            .position(|prop| prop.name == old_name)
+            .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?;
+
+        self.schema[index].name = new_name.to_string();
+        self.columns[index].name = new_name.to_string();
+
+        self.name_indexer.clear();
+        for (idx, schema) in self.schema.iter_mut().enumerate() {
+            schema.prop_id = idx as i32;
+            self.name_indexer.register(schema.name.clone());
+        }
+
+        Ok(())
+    }
+
     pub fn apply_encoding(
         &mut self,
         prop_id: PropertyId,
@@ -1260,5 +1328,41 @@ mod tests {
             .find(|(n, _)| n == "weight")
             .and_then(|(_, v)| v);
         assert_eq!(weight2, Some(Value::Double(2.5)));
+    }
+
+    #[test]
+    fn test_rename_and_remove_property() {
+        let mut table = PropertyTable::new();
+        table.add_property("weight".to_string(), DataType::Double, false);
+        table.add_property("since".to_string(), DataType::Int, true);
+
+        let offset = table
+            .insert(&[
+                ("weight".to_string(), Value::Double(1.5)),
+                ("since".to_string(), Value::Int(2020)),
+            ])
+            .unwrap();
+
+        table
+            .rename_property("weight", "mass")
+            .expect("rename should succeed");
+        table
+            .remove_property("since")
+            .expect("remove should succeed");
+
+        assert!(table.has_property("mass"));
+        assert!(!table.has_property("weight"));
+        assert!(!table.has_property("since"));
+
+        let props = table.get(offset).expect("row should remain visible");
+        assert_eq!(
+            props
+                .iter()
+                .find(|(name, _)| name == "mass")
+                .and_then(|(_, value)| value.clone()),
+            Some(Value::Double(1.5))
+        );
+        assert!(props.iter().all(|(name, _)| name != "weight"));
+        assert!(props.iter().all(|(name, _)| name != "since"));
     }
 }

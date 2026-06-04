@@ -63,6 +63,13 @@ impl WalManager {
         Ok(())
     }
 
+    pub fn set_checkpoint_seq(&self, seq: u64) -> StorageResult<()> {
+        if let Some(ref writer) = self.local_writer {
+            writer.write().set_checkpoint_seq(seq);
+        }
+        Ok(())
+    }
+
     pub fn truncate(&self, lsn: Lsn) -> StorageResult<()> {
         if let Some(ref writer) = self.local_writer {
             writer.write().set_current_lsn(lsn);

@@ -238,6 +238,45 @@ impl SchemaManager {
         Ok(tag_id)
     }
 
+    pub fn create_tag_with_id(
+        &self,
+        space_name: &str,
+        tag: &TagInfo,
+        tag_id: u32,
+    ) -> Result<u32, StorageError> {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
+        })?;
+
+        let existing_tags = self.list_tags(space_name)?;
+        if existing_tags
+            .iter()
+            .any(|existing| existing.tag_name == tag.tag_name)
+        {
+            return Err(StorageError::label_already_exists(tag.tag_name.clone()));
+        }
+
+        let mut tag_with_id = tag.clone();
+        tag_with_id.tag_id = tag_id;
+
+        let mut tags = self.tags.write();
+        tags.insert(
+            (space_info.space_id, tag_id),
+            TagData { info: tag_with_id },
+        );
+
+        let entry = self
+            .tag_id_counter
+            .entry(0)
+            .or_insert_with(|| AtomicU32::new(0));
+        let current = entry.load(Ordering::SeqCst);
+        if tag_id > current {
+            entry.store(tag_id, Ordering::SeqCst);
+        }
+
+        Ok(tag_id)
+    }
+
     pub fn drop_tag(&self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
         let space_info = self.get_space(space_name)?.ok_or_else(|| {
             StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
@@ -285,6 +324,23 @@ impl SchemaManager {
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
+    }
+
+    pub fn find_tag_by_id(&self, tag_id: u32) -> Option<(String, TagInfo)> {
+        let tags = self.tags.read();
+        let spaces = self.spaces.read();
+
+        tags.iter().find_map(|((space_id, current_tag_id), data)| {
+            if *current_tag_id != tag_id {
+                return None;
+            }
+
+            let space_name = spaces
+                .get(space_id)
+                .map(|space| space.info.space_name.clone())?;
+
+            Some((space_name, data.info.clone()))
+        })
     }
 
     pub fn update_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
@@ -337,6 +393,47 @@ impl SchemaManager {
             (space_info.space_id, edge_type_id),
             EdgeTypeData { info: edge_with_id },
         );
+
+        Ok(edge_type_id)
+    }
+
+    pub fn create_edge_type_with_id(
+        &self,
+        space_name: &str,
+        edge_type: &EdgeTypeInfo,
+        edge_type_id: u32,
+    ) -> Result<u32, StorageError> {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
+        })?;
+
+        let existing = self.list_edge_types(space_name)?;
+        if existing
+            .iter()
+            .any(|e| e.edge_type_name == edge_type.edge_type_name)
+        {
+            return Err(StorageError::label_already_exists(
+                edge_type.edge_type_name.clone(),
+            ));
+        }
+
+        let mut edge_with_id = edge_type.clone();
+        edge_with_id.edge_type_id = edge_type_id;
+
+        let mut edge_types = self.edge_types.write();
+        edge_types.insert(
+            (space_info.space_id, edge_type_id),
+            EdgeTypeData { info: edge_with_id },
+        );
+
+        let entry = self
+            .edge_type_id_counter
+            .entry(0)
+            .or_insert_with(|| AtomicU32::new(0));
+        let current = entry.load(Ordering::SeqCst);
+        if edge_type_id > current {
+            entry.store(edge_type_id, Ordering::SeqCst);
+        }
 
         Ok(edge_type_id)
     }
@@ -396,6 +493,25 @@ impl SchemaManager {
             .filter(|((sid, _), _)| *sid == space_info.space_id)
             .map(|(_, data)| data.info.clone())
             .collect())
+    }
+
+    pub fn find_edge_type_by_id(&self, edge_type_id: u32) -> Option<(String, EdgeTypeInfo)> {
+        let edge_types = self.edge_types.read();
+        let spaces = self.spaces.read();
+
+        edge_types
+            .iter()
+            .find_map(|((space_id, current_edge_type_id), data)| {
+                if *current_edge_type_id != edge_type_id {
+                    return None;
+                }
+
+                let space_name = spaces
+                    .get(space_id)
+                    .map(|space| space.info.space_name.clone())?;
+
+                Some((space_name, data.info.clone()))
+            })
     }
 
     pub fn update_edge_type(

@@ -6,8 +6,8 @@
 //! - recovery: WAL recovery replay for GraphStorageContext
 //! - compact: Compaction operations for GraphStorageContext
 
-mod ops;
 mod compact;
+mod ops;
 mod recovery;
 mod undo;
 

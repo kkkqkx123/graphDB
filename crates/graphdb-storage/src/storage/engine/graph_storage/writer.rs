@@ -4,13 +4,11 @@ use crate::core::types::{
     UpdateTarget, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-use crate::storage::engine::params::{
-    EdgeOperationParams, InsertEdgeParams,
-};
+use crate::storage::engine::params::{EdgeOperationParams, InsertEdgeParams};
 
 use super::context::GraphStorageContext;
-use super::reader;
 use super::ops::{edge_label_id, endpoint_label_id, tag_label_id};
+use super::reader;
 
 #[derive(Debug)]
 struct InsertedVertexTag {
@@ -72,8 +70,7 @@ fn insert_vertex_at_timestamp(
             .collect();
 
         if let Some(vid_int) = vertex.vid.as_int64() {
-            ctx
-                .insert_vertex_by_i64(label_id, vid_int, &props, ts)?;
+            ctx.insert_vertex_by_i64(label_id, vid_int, &props, ts)?;
         } else {
             let id_str = vertex.vid.to_string();
             ctx.insert_vertex(label_id, &id_str, &props, ts)?;
@@ -142,12 +139,10 @@ pub(crate) fn update_vertex(
         if let Some(label_id) = tag_label_id(ctx, space, &tag.name)? {
             for (prop_name, value) in &tag.properties {
                 if let Some(id_int) = vid_int {
-                    ctx
-                        .update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
+                    ctx.update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
                 } else {
                     let id_str = vertex.vid.to_string();
-                    ctx
-                        .update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
+                    ctx.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
                 }
             }
 
@@ -364,14 +359,12 @@ fn insert_edge_at_timestamp(
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
 
-    let src_str = edge.src.to_string();
-    let dst_str = edge.dst.to_string();
     ctx.insert_edge(InsertEdgeParams {
         edge_label: edge_label_id,
         src_label: src_label_id,
-        src_id: &src_str,
+        src_id: edge.src,
         dst_label: dst_label_id,
-        dst_id: &dst_str,
+        dst_id: edge.dst,
         rank: edge.ranking,
         properties: &props,
         ts,
@@ -431,15 +424,13 @@ fn rollback_edges(
             &item.edge_type,
             ts,
         );
-        let src = item.src.to_string();
-        let dst = item.dst.to_string();
         let _ = ctx.delete_edge(
             &EdgeOperationParams {
                 edge_label: item.edge_label_id,
                 src_label: item.src_label_id,
-                src_id: &src,
+                src_id: item.src,
                 dst_label: item.dst_label_id,
-                dst_id: &dst,
+                dst_id: item.dst,
                 rank: item.rank,
             },
             ts,
@@ -474,16 +465,13 @@ pub(crate) fn delete_edge(
                     Some(id) => id,
                     None => break,
                 };
-                let src_str = src.to_string();
-                let dst_str = dst.to_string();
-
                 ctx.delete_edge(
                     &EdgeOperationParams {
                         edge_label: edge_label_id,
                         src_label: src_label_id,
-                        src_id: &src_str,
+                        src_id: *src,
                         dst_label: dst_label_id,
-                        dst_id: &dst_str,
+                        dst_id: *dst,
                         rank,
                     },
                     ts,
@@ -583,8 +571,7 @@ pub(crate) fn insert_vertex_data(
         .map_err(|e| StorageError::invalid_input(e.to_string()))?;
     let id_str = vid.to_string();
 
-    let result = ctx
-        .insert_vertex(label_id, &id_str, &info.props, ts);
+    let result = ctx.insert_vertex(label_id, &id_str, &info.props, ts);
     match result {
         Ok(_) => {
             update_vertex_indexes(
@@ -646,15 +633,12 @@ pub(crate) fn insert_edge_data(
                 edge_type.dst_tag_name
             ))
         })?;
-    let src_id = src_vid.to_string();
-    let dst_id = dst_vid.to_string();
-
     let result = ctx.insert_edge(InsertEdgeParams {
         edge_label: edge_label_id,
         src_label: src_label_id,
-        src_id: &src_id,
+        src_id: src_vid,
         dst_label: dst_label_id,
-        dst_id: &dst_id,
+        dst_id: dst_vid,
         rank: info.rank,
         properties: &info.props,
         ts,
@@ -741,14 +725,22 @@ pub(crate) fn delete_edge_data(
             Some(id) => id,
             None => continue,
         };
+        let src_vid = src
+            .parse::<i64>()
+            .map(VertexId::from_int64)
+            .unwrap_or_else(|_| VertexId::from_string(src));
+        let dst_vid = dst
+            .parse::<i64>()
+            .map(VertexId::from_int64)
+            .unwrap_or_else(|_| VertexId::from_string(dst));
         if ctx
             .delete_edge(
                 &EdgeOperationParams {
                     edge_label: edge_label_id,
                     src_label: src_label_id,
-                    src_id: src,
+                    src_id: src_vid,
                     dst_label: dst_label_id,
-                    dst_id: dst,
+                    dst_id: dst_vid,
                     rank,
                 },
                 ts,
@@ -845,8 +837,7 @@ pub(crate) fn update_data(
             _ => info.value.clone(),
         };
 
-        ctx
-            .update_vertex_property(label_id, &id_str, prop, &value, ts)?;
+        ctx.update_vertex_property(label_id, &id_str, prop, &value, ts)?;
 
         let props = vec![(prop.clone(), value)];
         update_vertex_indexes(

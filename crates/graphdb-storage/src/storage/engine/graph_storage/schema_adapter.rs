@@ -22,12 +22,10 @@ pub(crate) fn drop_space(ctx: &GraphStorageContext, space: &str) -> StorageResul
     let edge_types = ctx.schema_manager().list_edge_types(space)?;
 
     for tag in tags {
-        let _ = ctx
-            .drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
+        let _ = ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
     }
     for et in edge_types {
-        let _ = ctx
-            .drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
+        let _ = ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
     }
 
     ctx.schema_manager().drop_space(space)
@@ -69,12 +67,10 @@ pub(crate) fn clear_space(ctx: &GraphStorageContext, space: &str) -> StorageResu
     let edge_types = ctx.schema_manager().list_edge_types(space)?;
 
     for tag in tags {
-        let _ = ctx
-            .drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
+        let _ = ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
     }
     for et in edge_types {
-        let _ = ctx
-            .drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
+        let _ = ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
     }
 
     ctx.schema_manager().clear_space(space)
@@ -124,8 +120,7 @@ pub(crate) fn drop_tag(
     tag_name: &str,
 ) -> StorageResult<bool> {
     let space_id = ctx.schema_manager().get_space_id(space)?;
-    let _ = ctx
-        .drop_vertex_type(&vertex_type_storage_name(space_id, tag_name));
+    let _ = ctx.drop_vertex_type(&vertex_type_storage_name(space_id, tag_name));
 
     ctx.schema_manager().drop_tag(space, tag_name)
 }
@@ -151,13 +146,16 @@ pub(crate) fn alter_tag(
 ) -> StorageResult<bool> {
     let result = ctx
         .schema_manager()
-        .alter_tag(space, tag_name, additions.clone(), deletions)?;
+        .alter_tag(space, tag_name, additions.clone(), deletions.clone())?;
 
     if !result {
         return Ok(false);
     }
 
     if let Some(label_id) = tag_label_id(ctx, space, tag_name)? {
+        for deletion in &deletions {
+            ctx.delete_vertex_property(label_id, deletion)?;
+        }
         for prop in additions {
             let storage_prop = StoragePropertyDef::from_core(&prop);
             ctx.add_vertex_property(label_id, storage_prop)?;
@@ -213,8 +211,7 @@ pub(crate) fn drop_edge_type(
     edge_type_name: &str,
 ) -> StorageResult<bool> {
     let space_id = ctx.schema_manager().get_space_id(space)?;
-    let _ = ctx
-        .drop_edge_type(&edge_type_storage_name(space_id, edge_type_name));
+    let _ = ctx.drop_edge_type(&edge_type_storage_name(space_id, edge_type_name));
 
     ctx.schema_manager().drop_edge_type(space, edge_type_name)
 }
@@ -314,14 +311,17 @@ pub(crate) fn alter_edge_type(
         space,
         edge_type_name,
         additions.clone(),
-        deletions,
+        deletions.clone(),
     )?;
 
     if !result {
         return Ok(false);
     }
 
-        if let Some(edge_label_id) = super::ops::edge_label_id(ctx, space, edge_type_name)? {
+    if let Some(edge_label_id) = super::ops::edge_label_id(ctx, space, edge_type_name)? {
+        for deletion in &deletions {
+            ctx.delete_edge_property(edge_label_id, deletion)?;
+        }
         for prop in additions {
             let storage_prop = StoragePropertyDef::from_core(&prop);
             ctx.add_edge_property(edge_label_id, storage_prop)?;

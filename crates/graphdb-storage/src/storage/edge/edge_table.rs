@@ -564,6 +564,44 @@ impl EdgeTable {
         Ok(())
     }
 
+    pub fn remove_property(&mut self, name: &str) -> StorageResult<()> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        let index = self
+            .schema
+            .properties
+            .iter()
+            .position(|prop| prop.name == name)
+            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
+
+        self.schema.properties.remove(index);
+        self.properties.remove_property(name)?;
+        Ok(())
+    }
+
+    pub fn rename_property(&mut self, old_name: &str, new_name: &str) -> StorageResult<()> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        if self.schema.properties.iter().any(|prop| prop.name == new_name) {
+            return Err(StorageError::column_already_exists(new_name.to_string()));
+        }
+
+        let index = self
+            .schema
+            .properties
+            .iter()
+            .position(|prop| prop.name == old_name)
+            .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?;
+
+        self.schema.properties[index].name = new_name.to_string();
+        self.properties.rename_property(old_name, new_name)?;
+        Ok(())
+    }
+
     pub fn update_edge_property(
         &mut self,
         src: VertexId,

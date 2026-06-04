@@ -12,8 +12,9 @@ use postcard::{from_bytes, to_allocvec};
 use super::read_transaction::INVALID_TIMESTAMP;
 use super::wal::types::{InsertEdgeRedo, InsertVertexRedo, WalHeader, WalOpType};
 use super::wal::writer::WalWriter;
-use super::wal::{EdgeId, LabelId, Timestamp, VertexId};
+use super::wal::{EdgeId, LabelId, Timestamp};
 use crate::core::mvcc::{VersionManager, VersionManagerError};
+use crate::core::types::VertexId;
 
 /// Insert transaction error
 #[derive(Debug, Clone, thiserror::Error)]
@@ -92,16 +93,21 @@ pub trait InsertTarget: Send + Sync {
     fn add_vertex(
         &mut self,
         label: LabelId,
-        oid: &[u8],
+        vid: VertexId,
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
     ) -> InsertTransactionResult<VertexId>;
 
     fn add_edge(&mut self, param: AddEdgeInsertParam) -> InsertTransactionResult<EdgeId>;
 
-    fn get_vertex_id(&self, label: LabelId, oid: &[u8], ts: Timestamp) -> Option<VertexId>;
+    fn get_vertex_id(&self, label: LabelId, vid: VertexId, ts: Timestamp) -> Option<VertexId>;
 
-    fn get_vertex_oid(&self, label: LabelId, vid: VertexId, ts: Timestamp) -> Option<Vec<u8>>;
+    fn get_vertex_external_vid(
+        &self,
+        label: LabelId,
+        internal_vid: VertexId,
+        ts: Timestamp,
+    ) -> Option<VertexId>;
 
     fn get_vertex_property_types(&self, label: LabelId) -> Vec<String>;
     fn get_edge_property_types(
@@ -142,10 +148,10 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
         self.timestamp
     }
 
-    /// Get vertex index by label and object ID
-    pub fn get_vertex_index(&self, label: LabelId, oid: &[u8]) -> Option<VertexId> {
-        if let Some(vid) = self.graph.get_vertex_id(label, oid, self.timestamp) {
-            return Some(vid);
+    /// Get vertex index by label and external VertexId
+    pub fn get_vertex_index(&self, label: LabelId, vid: VertexId) -> Option<VertexId> {
+        if let Some(internal_id) = self.graph.get_vertex_id(label, vid, self.timestamp) {
+            return Some(internal_id);
         }
 
         if let Some(&base) = self.added_vertices.get(&label) {
@@ -158,21 +164,22 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
         None
     }
 
-    /// Get vertex object ID by label and internal ID
-    pub fn get_vertex_id(&self, label: LabelId, vid: VertexId) -> Option<Vec<u8>> {
+    /// Get external VertexId by label and internal ID
+    pub fn get_vertex_external_vid(&self, label: LabelId, vid: VertexId) -> Option<VertexId> {
         if let Some(&base) = self.added_vertices.get(&label) {
             if vid >= base {
                 return None;
             }
         }
-        self.graph.get_vertex_oid(label, vid, self.timestamp)
+        self.graph
+            .get_vertex_external_vid(label, vid, self.timestamp)
     }
 
     /// Add a new vertex
     ///
     /// # Arguments
     /// * `label` - Vertex label ID
-    /// * `oid` - Object ID (external ID)
+    /// * `vid` - External vertex ID (int64 or string)
     /// * `properties` - Vertex properties as (name, value) pairs
     ///
     /// # Returns
@@ -180,7 +187,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
     pub fn add_vertex(
         &mut self,
         label: LabelId,
-        oid: &[u8],
+        vid: VertexId,
         properties: &[(String, Vec<u8>)],
     ) -> InsertTransactionResult<VertexId> {
         let expected_types = self.graph.get_vertex_property_types(label);
@@ -191,7 +198,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
             });
         }
 
-        if self.get_vertex_index(label, oid).is_some() {
+        if self.get_vertex_index(label, vid).is_some() {
             return Err(InsertTransactionError::VertexAlreadyExists(VertexId::zero()));
         }
 
@@ -200,17 +207,17 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
             .entry(label)
             .or_insert_with(|| VertexId::from_int64(self.graph.lid_num(label) as i64));
         let num = self.vertex_nums.entry(label).or_insert(0u64);
-        let vid = *base + *num;
+        let internal_vid = *base + *num;
         *num += 1;
 
         let redo = InsertVertexRedo {
             label,
-            oid: oid.to_vec(),
+            vid,
             properties: properties.to_vec(),
         };
         self.serialize_redo(WalOpType::InsertVertex, &redo)?;
 
-        Ok(vid)
+        Ok(internal_vid)
     }
 
     /// Add a new edge
@@ -228,20 +235,20 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
             });
         }
 
-        let src_oid = self
+        let src_vid = self
             .graph
-            .get_vertex_oid(param.src_label, param.src_vid, self.timestamp)
+            .get_vertex_external_vid(param.src_label, param.src_vid, self.timestamp)
             .ok_or(InsertTransactionError::VertexNotFound(param.src_vid))?;
-        let dst_oid = self
+        let dst_vid = self
             .graph
-            .get_vertex_oid(param.dst_label, param.dst_vid, self.timestamp)
+            .get_vertex_external_vid(param.dst_label, param.dst_vid, self.timestamp)
             .ok_or(InsertTransactionError::VertexNotFound(param.dst_vid))?;
 
         let redo = InsertEdgeRedo {
             src_label: param.src_label,
-            src_oid,
+            src_vid,
             dst_label: param.dst_label,
-            dst_oid,
+            dst_vid,
             edge_label: param.edge_label,
             rank: param.rank,
             properties: param.properties.to_vec(),
@@ -346,7 +353,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
                         .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
                     self.graph.add_vertex(
                         redo.label,
-                        &redo.oid,
+                        redo.vid,
                         &redo.properties,
                         self.timestamp,
                     )?;
@@ -354,19 +361,19 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
                 WalOpType::InsertEdge => {
                     let redo: InsertEdgeRedo = from_bytes(payload)
                         .map_err(|e| InsertTransactionError::SerializationError(e.to_string()))?;
-                    let src_vid = self
+                    let src_internal = self
                         .graph
-                        .get_vertex_id(redo.src_label, &redo.src_oid, self.timestamp)
+                        .get_vertex_id(redo.src_label, redo.src_vid, self.timestamp)
                         .ok_or(InsertTransactionError::VertexNotFound(VertexId::zero()))?;
-                    let dst_vid = self
+                    let dst_internal = self
                         .graph
-                        .get_vertex_id(redo.dst_label, &redo.dst_oid, self.timestamp)
+                        .get_vertex_id(redo.dst_label, redo.dst_vid, self.timestamp)
                         .ok_or(InsertTransactionError::VertexNotFound(VertexId::zero()))?;
                     let edge_param = AddEdgeInsertParam {
                         src_label: redo.src_label,
-                        src_vid,
+                        src_vid: src_internal,
                         dst_label: redo.dst_label,
-                        dst_vid,
+                        dst_vid: dst_internal,
                         edge_label: redo.edge_label,
                         rank: redo.rank,
                         properties: &redo.properties,
@@ -422,7 +429,7 @@ mod tests {
         fn add_vertex(
             &mut self,
             _label: LabelId,
-            _oid: &[u8],
+            _vid: VertexId,
             _properties: &[(String, Vec<u8>)],
             _ts: Timestamp,
         ) -> InsertTransactionResult<VertexId> {
@@ -433,17 +440,22 @@ mod tests {
             Ok(1)
         }
 
-        fn get_vertex_id(&self, _label: LabelId, _oid: &[u8], _ts: Timestamp) -> Option<VertexId> {
-            None
-        }
-
-        fn get_vertex_oid(
+        fn get_vertex_id(
             &self,
             _label: LabelId,
             _vid: VertexId,
             _ts: Timestamp,
-        ) -> Option<Vec<u8>> {
-            Some(vec![])
+        ) -> Option<VertexId> {
+            None
+        }
+
+        fn get_vertex_external_vid(
+            &self,
+            _label: LabelId,
+            _vid: VertexId,
+            _ts: Timestamp,
+        ) -> Option<VertexId> {
+            Some(VertexId::from_int64(1))
         }
 
         fn get_vertex_property_types(&self, _label: LabelId) -> Vec<String> {

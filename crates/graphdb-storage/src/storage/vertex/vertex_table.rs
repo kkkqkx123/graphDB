@@ -339,6 +339,55 @@ impl VertexTable {
         Ok(())
     }
 
+    pub fn remove_property(&mut self, prop_name: &str) -> StorageResult<()> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        let index = self
+            .schema
+            .properties
+            .iter()
+            .position(|prop| prop.name == prop_name)
+            .ok_or_else(|| StorageError::column_not_found(prop_name.to_string()))?;
+
+        if index == self.schema.primary_key_index {
+            return Err(StorageError::not_supported(
+                "Removing the primary key property is not supported".to_string(),
+            ));
+        }
+
+        self.schema.properties.remove(index);
+        if index < self.schema.primary_key_index {
+            self.schema.primary_key_index -= 1;
+        }
+
+        self.columns.remove_column(prop_name)?;
+        Ok(())
+    }
+
+    pub fn rename_property(&mut self, old_name: &str, new_name: &str) -> StorageResult<()> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        if self.schema.properties.iter().any(|prop| prop.name == new_name) {
+            return Err(StorageError::column_already_exists(new_name.to_string()));
+        }
+
+        let index = self
+            .schema
+            .properties
+            .iter()
+            .position(|prop| prop.name == old_name)
+            .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?;
+
+        self.schema.properties[index].name = new_name.to_string();
+        self.columns
+            .rename_column(old_name, new_name.to_string())?;
+        Ok(())
+    }
+
     pub fn label(&self) -> LabelId {
         self.label
     }
@@ -976,5 +1025,58 @@ mod tests {
 
         let count = table.scan(100).count();
         assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn test_rename_and_remove_property() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        table
+            .add_property(StoragePropertyDef::new("city".to_string(), DataType::String))
+            .expect("add property should succeed");
+
+        let internal_id = table
+            .insert(
+                "v1",
+                &[
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(30)),
+                    ("city".to_string(), Value::String("Shanghai".to_string())),
+                ],
+                100,
+            )
+            .unwrap();
+
+        table
+            .rename_property("age", "years")
+            .expect("rename should succeed");
+        table
+            .remove_property("city")
+            .expect("remove should succeed");
+
+        let record = table
+            .get_by_internal_id(internal_id, 100)
+            .expect("record should remain visible");
+
+        assert_eq!(
+            record
+                .properties
+                .iter()
+                .find(|(name, _)| name == "years")
+                .map(|(_, value)| value),
+            Some(&Value::Int(30))
+        );
+        assert!(record.properties.iter().all(|(name, _)| name != "age"));
+        assert!(record.properties.iter().all(|(name, _)| name != "city"));
+        assert_eq!(
+            table
+                .schema()
+                .properties
+                .iter()
+                .map(|prop| prop.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["name", "years"]
+        );
     }
 }

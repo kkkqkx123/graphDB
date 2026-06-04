@@ -16,7 +16,10 @@ use super::undo_log::{
     DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo, UndoLogEntry,
     UndoLogError, UndoLogManager, UndoTarget,
 };
-use super::wal::types::{CreateEdgeTypeRedo, CreateVertexTypeRedo, WalHeader, WalOpType};
+use super::wal::types::{
+    CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo, UpdateEdgePropRedo,
+    UpdateVertexPropRedo, WalHeader, WalOpType,
+};
 use super::wal::writer::WalWriter;
 use super::wal::{LabelId, Timestamp, VertexId};
 use crate::core::mvcc::{VersionManager, VersionManagerError};
@@ -232,6 +235,13 @@ pub trait UpdateTarget: Send + Sync + UndoTarget {
         &mut self,
         param: &DeleteEdgePropertiesParam,
     ) -> UpdateTransactionResult<()>;
+
+    fn get_vertex_external_vid(
+        &self,
+        label: LabelId,
+        internal_vid: VertexId,
+        ts: Timestamp,
+    ) -> Option<VertexId>;
 
     fn update_vertex_property(
         &mut self,
@@ -538,6 +548,20 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.graph
             .update_vertex_property(param, prop_name, value, self.timestamp)?;
 
+        let external_vid = self
+            .graph
+            .get_vertex_external_vid(label, vid, self.timestamp)
+            .unwrap_or(vid);
+
+        let redo = UpdateVertexPropRedo {
+            label,
+            vid: external_vid,
+            prop_name: prop_name.to_string(),
+            value: value.to_vec(),
+        };
+        self.serialize_redo(WalOpType::UpdateVertexProp, &redo)?;
+        self.op_num += 1;
+
         self.undo_logs
             .add(RollbackHelper::create_update_vertex_prop_undo(
                 label,
@@ -569,6 +593,28 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             self.timestamp,
         )?;
 
+        let src_external = self
+            .graph
+            .get_vertex_external_vid(param.src_label, param.src_vid, self.timestamp)
+            .unwrap_or(param.src_vid);
+        let dst_external = self
+            .graph
+            .get_vertex_external_vid(param.dst_label, param.dst_vid, self.timestamp)
+            .unwrap_or(param.dst_vid);
+
+        let redo = UpdateEdgePropRedo {
+            src_label: param.src_label,
+            src_vid: src_external,
+            dst_label: param.dst_label,
+            dst_vid: dst_external,
+            edge_label: param.edge_label,
+            rank: param.rank,
+            prop_name: param.prop_name.to_string(),
+            value: param.value.to_vec(),
+        };
+        self.serialize_redo(WalOpType::UpdateEdgeProp, &redo)?;
+        self.op_num += 1;
+
         self.undo_logs
             .add(RollbackHelper::create_update_edge_prop_undo(
                 super::rollback::CreateUpdateEdgePropUndoParams {
@@ -591,6 +637,18 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
     /// Delete a vertex
     pub fn delete_vertex(&mut self, label: LabelId, vid: VertexId) -> UpdateTransactionResult<()> {
         let related_edges = UpdateTarget::delete_vertex(self.graph, label, vid, self.timestamp)?;
+
+        let external_vid = self
+            .graph
+            .get_vertex_external_vid(label, vid, self.timestamp)
+            .unwrap_or(vid);
+
+        let redo = DeleteVertexRedo {
+            label,
+            vid: external_vid,
+        };
+        self.serialize_redo(WalOpType::DeleteVertex, &redo)?;
+        self.op_num += 1;
 
         self.undo_logs
             .add(RollbackHelper::create_remove_vertex_undo(
@@ -633,6 +691,26 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             rank,
         };
         UpdateTarget::delete_edge(self.graph, param, self.timestamp)?;
+
+        let src_external = self
+            .graph
+            .get_vertex_external_vid(src_label, src_vid, self.timestamp)
+            .unwrap_or(src_vid);
+        let dst_external = self
+            .graph
+            .get_vertex_external_vid(dst_label, dst_vid, self.timestamp)
+            .unwrap_or(dst_vid);
+
+        let redo = DeleteEdgeRedo {
+            src_label,
+            src_vid: src_external,
+            dst_label,
+            dst_vid: dst_external,
+            edge_label,
+            rank,
+        };
+        self.serialize_redo(WalOpType::DeleteEdge, &redo)?;
+        self.op_num += 1;
 
         self.undo_logs.add(RollbackHelper::create_remove_edge_undo(
             super::rollback::CreateRemoveEdgeUndoParams {
@@ -867,6 +945,15 @@ mod tests {
             _param: &CreateEdgeTypeParam,
         ) -> UpdateTransactionResult<()> {
             Ok(())
+        }
+
+        fn get_vertex_external_vid(
+            &self,
+            _label: LabelId,
+            _internal_vid: VertexId,
+            _ts: Timestamp,
+        ) -> Option<VertexId> {
+            None
         }
 
         fn delete_vertex_type(&mut self, _label: LabelId) -> UpdateTransactionResult<()> {

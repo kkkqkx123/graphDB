@@ -1221,6 +1221,47 @@ impl ColumnStore {
         col.set(row_idx, value)
     }
 
+    pub fn remove_column(&mut self, name: &str) -> StorageResult<()> {
+        let index = self
+            .name_to_index
+            .get(name)
+            .copied()
+            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
+
+        self.columns.remove(index);
+
+        self.name_to_index.clear();
+        for (idx, column) in self.columns.iter_mut().enumerate() {
+            column.col_id = idx as i32;
+            self.name_to_index.insert(column.name.clone(), idx);
+        }
+
+        Ok(())
+    }
+
+    pub fn rename_column(&mut self, old_name: &str, new_name: String) -> StorageResult<()> {
+        if self.name_to_index.contains_key(&new_name) {
+            return Err(StorageError::column_already_exists(new_name));
+        }
+
+        let index = self
+            .name_to_index
+            .get(old_name)
+            .copied()
+            .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?;
+
+        if let Some(column) = self.columns.get_mut(index) {
+            column.name = new_name;
+        }
+
+        self.name_to_index.clear();
+        for (idx, column) in self.columns.iter().enumerate() {
+            self.name_to_index.insert(column.name.clone(), idx);
+        }
+
+        Ok(())
+    }
+
     pub fn column_count(&self) -> usize {
         self.columns.len()
     }
@@ -1442,6 +1483,43 @@ mod tests {
         assert_eq!(
             store.get_column("name").and_then(|col| col.get(1)),
             Some(Value::String("Bob".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_column_store_remove_and_rename() {
+        let mut store = ColumnStore::new();
+
+        store.add_column("name".to_string(), DataType::String, false);
+        store.add_column("age".to_string(), DataType::Int, true);
+
+        store
+            .set(
+                0,
+                &[
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(30)),
+                ],
+            )
+            .unwrap();
+
+        store
+            .rename_column("age", "years".to_string())
+            .expect("rename should succeed");
+        assert!(store.get_column("age").is_none());
+        assert_eq!(
+            store.get_column("years").and_then(|col| col.get(0)),
+            Some(Value::Int(30))
+        );
+
+        store
+            .remove_column("name")
+            .expect("remove should succeed");
+        assert!(store.get_column("name").is_none());
+        assert_eq!(store.column_count(), 1);
+        assert_eq!(
+            store.get_column("years").and_then(|col| col.get(0)),
+            Some(Value::Int(30))
         );
     }
 

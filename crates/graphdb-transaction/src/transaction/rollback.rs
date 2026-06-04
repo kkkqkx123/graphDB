@@ -284,8 +284,17 @@ mod tests {
         let undo = RollbackHelper::create_insert_vertex_undo(1, 100);
         assert!(undo.description().contains("InsertVertexUndo"));
 
-        let undo = RollbackHelper::create_insert_edge_undo(1, 2, 3, 0, 100, 200, 0, 0);
-        assert!(undo.description().contains("InsertEdgeUndo"));
+        let undo = RollbackHelper::create_remove_edge_undo(CreateRemoveEdgeUndoParams {
+            src_label: 1,
+            src_vid: 100,
+            dst_label: 2,
+            dst_vid: 200,
+            edge_label: 3,
+            rank: 0,
+            oe_offset: 0,
+            ie_offset: 0,
+        });
+        assert!(undo.description().contains("RemoveEdgeUndo"));
 
         let undo =
             RollbackHelper::create_update_vertex_prop_undo(1, 100, 0, PropertyValue::Int(42));
