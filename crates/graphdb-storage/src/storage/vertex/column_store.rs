@@ -1512,9 +1512,7 @@ mod tests {
             Some(Value::Int(30))
         );
 
-        store
-            .remove_column("name")
-            .expect("remove should succeed");
+        store.remove_column("name").expect("remove should succeed");
         assert!(store.get_column("name").is_none());
         assert_eq!(store.column_count(), 1);
         assert_eq!(

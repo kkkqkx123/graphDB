@@ -4,9 +4,12 @@
 //! This module provides a single source of truth for LSN management and WAL operations.
 
 use crate::core::{StorageError, StorageResult};
+use crate::transaction::wal::types::WalOpType;
 use crate::transaction::wal::writer::WalWriter;
 use crate::transaction::wal::{LocalWalWriter, Lsn, WalConfig};
 use parking_lot::RwLock;
+use postcard::to_allocvec;
+use serde::Serialize;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -63,16 +66,52 @@ impl WalManager {
         Ok(())
     }
 
+    pub fn append_redo<T: Serialize>(
+        &self,
+        op_type: WalOpType,
+        timestamp: u32,
+        redo: &T,
+    ) -> StorageResult<()> {
+        let Some(writer) = self.local_writer.as_ref() else {
+            return Err(StorageError::wal_error(
+                "WAL writer is not initialized".to_string(),
+            ));
+        };
+
+        let payload = to_allocvec(redo).map_err(|e| {
+            StorageError::serialize_error(format!("Failed to serialize WAL redo: {}", e))
+        })?;
+
+        writer
+            .write()
+            .append_entry(op_type, timestamp, &payload)
+            .map_err(|e| StorageError::wal_error(format!("Failed to append WAL entry: {:?}", e)))?;
+
+        Ok(())
+    }
+
     pub fn set_checkpoint_seq(&self, seq: u64) -> StorageResult<()> {
         if let Some(ref writer) = self.local_writer {
-            writer.write().set_checkpoint_seq(seq);
+            writer.write().set_checkpoint_seq(seq).map_err(|e| {
+                StorageError::wal_error(format!("Failed to update checkpoint seq: {:?}", e))
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn set_current_lsn(&self, lsn: Lsn) -> StorageResult<()> {
+        if let Some(ref writer) = self.local_writer {
+            writer.write().set_current_lsn(lsn);
         }
         Ok(())
     }
 
     pub fn truncate(&self, lsn: Lsn) -> StorageResult<()> {
         if let Some(ref writer) = self.local_writer {
-            writer.write().set_current_lsn(lsn);
+            writer
+                .write()
+                .truncate(lsn)
+                .map_err(|e| StorageError::wal_error(format!("Failed to truncate WAL: {:?}", e)))?;
         }
         Ok(())
     }

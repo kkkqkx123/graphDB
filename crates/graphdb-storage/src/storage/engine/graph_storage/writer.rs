@@ -5,6 +5,11 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::params::{EdgeOperationParams, InsertEdgeParams};
+use crate::transaction::codec::value_to_bytes;
+use crate::transaction::wal::types::{
+    DeleteEdgeRedo, DeleteVertexRedo, InsertEdgeRedo, InsertVertexRedo, UpdateVertexPropRedo,
+    WalOpType,
+};
 
 use super::context::GraphStorageContext;
 use super::ops::{edge_label_id, endpoint_label_id, tag_label_id};
@@ -68,6 +73,15 @@ fn insert_vertex_at_timestamp(
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
+        let redo = InsertVertexRedo {
+            label: label_id,
+            vid: vertex.vid,
+            properties: props
+                .iter()
+                .map(|(name, value)| (name.clone(), value_to_bytes(value)))
+                .collect(),
+        };
+        ctx.append_wal_redo(WalOpType::InsertVertex, ts, &redo)?;
 
         if let Some(vid_int) = vertex.vid.as_int64() {
             ctx.insert_vertex_by_i64(label_id, vid_int, &props, ts)?;
@@ -138,6 +152,14 @@ pub(crate) fn update_vertex(
     for tag in &vertex.tags {
         if let Some(label_id) = tag_label_id(ctx, space, &tag.name)? {
             for (prop_name, value) in &tag.properties {
+                let redo = UpdateVertexPropRedo {
+                    label: label_id,
+                    vid: vertex.vid,
+                    prop_name: prop_name.clone(),
+                    value: value_to_bytes(value),
+                };
+                ctx.append_wal_redo(WalOpType::UpdateVertexProp, ts, &redo)?;
+
                 if let Some(id_int) = vid_int {
                     ctx.update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
                 } else {
@@ -183,6 +205,12 @@ pub(crate) fn delete_vertex(
 
     for tag in &tags {
         let label_id = tag.tag_id;
+        let redo = DeleteVertexRedo {
+            label: label_id,
+            vid: *id,
+        };
+        ctx.append_wal_redo(WalOpType::DeleteVertex, ts, &redo)?;
+
         if let Some(vid_int) = id_int {
             let _ = ctx.delete_vertex_by_i64(label_id, vid_int, ts);
         } else {
@@ -297,6 +325,12 @@ pub(crate) fn delete_tags(
 
     for tag_name in tag_names {
         if let Some(label_id) = tag_label_id(ctx, space, tag_name)? {
+            let redo = DeleteVertexRedo {
+                label: label_id,
+                vid: *vertex_id,
+            };
+            ctx.append_wal_redo(WalOpType::DeleteVertex, ts, &redo)?;
+
             if ctx.delete_vertex(label_id, &id_str, ts).is_ok() {
                 let vertex_id_value = Value::from(*vertex_id);
                 delete_vertex_indexes(
@@ -358,6 +392,19 @@ fn insert_edge_at_timestamp(
         .iter()
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
+    let redo = InsertEdgeRedo {
+        src_label: src_label_id,
+        src_vid: edge.src,
+        dst_label: dst_label_id,
+        dst_vid: edge.dst,
+        edge_label: edge_label_id,
+        rank: edge.ranking,
+        properties: props
+            .iter()
+            .map(|(name, value)| (name.clone(), value_to_bytes(value)))
+            .collect(),
+    };
+    ctx.append_wal_redo(WalOpType::InsertEdge, ts, &redo)?;
 
     ctx.insert_edge(InsertEdgeParams {
         edge_label: edge_label_id,
@@ -465,6 +512,16 @@ pub(crate) fn delete_edge(
                     Some(id) => id,
                     None => break,
                 };
+                let redo = DeleteEdgeRedo {
+                    src_label: src_label_id,
+                    src_vid: *src,
+                    dst_label: dst_label_id,
+                    dst_vid: *dst,
+                    edge_label: edge_label_id,
+                    rank,
+                };
+                ctx.append_wal_redo(WalOpType::DeleteEdge, ts, &redo)?;
+
                 ctx.delete_edge(
                     &EdgeOperationParams {
                         edge_label: edge_label_id,

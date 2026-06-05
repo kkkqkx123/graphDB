@@ -299,7 +299,12 @@ impl CheckpointManager {
 
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "wal") {
+            if path.extension().is_some_and(|ext| ext == "wal")
+                || path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.starts_with("thread_") && n.contains("_wal_"))
+            {
                 if let Ok(true) = self.is_wal_file_before_checkpoint(&path) {
                     wal_files.push(path);
                 }

@@ -6,10 +6,10 @@ use crate::core::error::StorageResult;
 use crate::core::types::{LabelId, Timestamp, VertexId};
 
 use super::redo::{
-    AddEdgePropRedo, AddVertexPropRedo, CreateEdgeTypeRedo, CreateVertexTypeRedo,
-    DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo, DeleteVertexPropRedo,
-    DeleteVertexTypeRedo, InsertEdgeRedo, RenameEdgePropRedo, RenameVertexPropRedo,
-    UpdateEdgePropRedo,
+    AddEdgePropRedo, AddVertexPropRedo, AlterSpaceCommentRedo, ClearSpaceRedo, CreateEdgeTypeRedo,
+    CreateSpaceRedo, CreateVertexTypeRedo, DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo,
+    DeleteVertexPropRedo, DeleteVertexTypeRedo, DropSpaceRedo, InsertEdgeRedo, RenameEdgePropRedo,
+    RenameVertexPropRedo, UpdateEdgePropRedo,
 };
 use super::types::WalResult;
 
@@ -65,6 +65,18 @@ pub trait RecoveryApplier {
     // ========================================================================
     // Schema Operations
     // ========================================================================
+
+    fn replay_create_space(&self, redo: &CreateSpaceRedo, ts: Timestamp) -> StorageResult<()>;
+
+    fn replay_drop_space(&self, redo: &DropSpaceRedo, ts: Timestamp) -> StorageResult<()>;
+
+    fn replay_clear_space(&self, redo: &ClearSpaceRedo, ts: Timestamp) -> StorageResult<()>;
+
+    fn replay_alter_space_comment(
+        &self,
+        redo: &AlterSpaceCommentRedo,
+        ts: Timestamp,
+    ) -> StorageResult<()>;
 
     fn replay_create_vertex_type(
         &self,

@@ -8,11 +8,12 @@ use postcard::from_bytes;
 
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::{
-    AddEdgePropRedo, AddVertexPropRedo, CreateEdgeTypeRedo, CreateVertexTypeRedo,
-    DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo, DeleteVertexPropRedo, DeleteVertexRedo,
-    DeleteVertexTypeRedo, InsertEdgeRedo, InsertVertexRedo, LocalWalParser, Lsn, ParallelWalParser,
-    ParsedWalEntry, RecoveryResult, RenameEdgePropRedo, RenameVertexPropRedo, UpdateEdgePropRedo,
-    UpdateVertexPropRedo, WalOpType, WalParser, WalRecoveryMode,
+    AddEdgePropRedo, AddVertexPropRedo, AlterSpaceCommentRedo, ClearSpaceRedo, CreateEdgeTypeRedo,
+    CreateSpaceRedo, CreateVertexTypeRedo, DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo,
+    DeleteVertexPropRedo, DeleteVertexRedo, DeleteVertexTypeRedo, DropSpaceRedo, InsertEdgeRedo,
+    InsertVertexRedo, LocalWalParser, Lsn, ParallelWalParser, ParsedWalEntry, RecoveryResult,
+    RenameEdgePropRedo, RenameVertexPropRedo, UpdateEdgePropRedo, UpdateVertexPropRedo, WalOpType,
+    WalParser, WalRecoveryMode,
 };
 
 /// Recovery configuration
@@ -276,6 +277,52 @@ impl RecoveryManager {
                         self.stats.errors_encountered += 1;
                     }
                 },
+                WalOpType::CreateSpace => match self.deserialize_create_space(payload) {
+                    Ok(redo) => {
+                        applier.replay_create_space(&redo, ts)?;
+                        self.stats.wal_entries_replayed += 1;
+                        self.stats.last_lsn = entry.lsn;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize CreateSpace redo: {}", e);
+                        self.stats.errors_encountered += 1;
+                    }
+                },
+                WalOpType::DropSpace => match self.deserialize_drop_space(payload) {
+                    Ok(redo) => {
+                        applier.replay_drop_space(&redo, ts)?;
+                        self.stats.wal_entries_replayed += 1;
+                        self.stats.last_lsn = entry.lsn;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize DropSpace redo: {}", e);
+                        self.stats.errors_encountered += 1;
+                    }
+                },
+                WalOpType::ClearSpace => match self.deserialize_clear_space(payload) {
+                    Ok(redo) => {
+                        applier.replay_clear_space(&redo, ts)?;
+                        self.stats.wal_entries_replayed += 1;
+                        self.stats.last_lsn = entry.lsn;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize ClearSpace redo: {}", e);
+                        self.stats.errors_encountered += 1;
+                    }
+                },
+                WalOpType::AlterSpaceComment => {
+                    match self.deserialize_alter_space_comment(payload) {
+                        Ok(redo) => {
+                            applier.replay_alter_space_comment(&redo, ts)?;
+                            self.stats.wal_entries_replayed += 1;
+                            self.stats.last_lsn = entry.lsn;
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to deserialize AlterSpaceComment redo: {}", e);
+                            self.stats.errors_encountered += 1;
+                        }
+                    }
+                }
                 WalOpType::AddVertexProp => match self.deserialize_add_vertex_prop(payload) {
                     Ok(redo) => {
                         applier.replay_add_vertex_prop(&redo, ts)?;
@@ -398,6 +445,25 @@ impl RecoveryManager {
     }
 
     fn deserialize_delete_edge_type(&self, payload: &[u8]) -> StorageResult<DeleteEdgeTypeRedo> {
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
+    }
+
+    fn deserialize_create_space(&self, payload: &[u8]) -> StorageResult<CreateSpaceRedo> {
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
+    }
+
+    fn deserialize_drop_space(&self, payload: &[u8]) -> StorageResult<DropSpaceRedo> {
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
+    }
+
+    fn deserialize_clear_space(&self, payload: &[u8]) -> StorageResult<ClearSpaceRedo> {
+        from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
+    }
+
+    fn deserialize_alter_space_comment(
+        &self,
+        payload: &[u8],
+    ) -> StorageResult<AlterSpaceCommentRedo> {
         from_bytes(payload).map_err(|e| StorageError::deserialize_error(e.to_string()))
     }
 

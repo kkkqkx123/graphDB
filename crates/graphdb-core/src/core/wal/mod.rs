@@ -8,10 +8,11 @@ pub mod traits;
 pub mod types;
 
 pub use redo::{
-    AddEdgePropRedo, AddVertexPropRedo, CompactRedo, CreateEdgeTypeRedo, CreateVertexTypeRedo,
-    DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo, DeleteVertexPropRedo, DeleteVertexRedo,
-    DeleteVertexTypeRedo, InsertEdgeRedo, InsertVertexRedo, RenameEdgePropRedo,
-    RenameVertexPropRedo, UpdateEdgePropRedo, UpdateVertexPropRedo,
+    AddEdgePropRedo, AddVertexPropRedo, AlterSpaceCommentRedo, ClearSpaceRedo, CompactRedo,
+    CreateEdgeTypeRedo, CreateSpaceRedo, CreateVertexTypeRedo, DeleteEdgePropRedo, DeleteEdgeRedo,
+    DeleteEdgeTypeRedo, DeleteVertexPropRedo, DeleteVertexRedo, DeleteVertexTypeRedo,
+    DropSpaceRedo, InsertEdgeRedo, InsertVertexRedo, RenameEdgePropRedo, RenameVertexPropRedo,
+    UpdateEdgePropRedo, UpdateVertexPropRedo,
 };
 pub use traits::{RecoveryApplier, WalWriter};
 pub use types::{

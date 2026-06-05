@@ -586,7 +586,12 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
-        if self.schema.properties.iter().any(|prop| prop.name == new_name) {
+        if self
+            .schema
+            .properties
+            .iter()
+            .any(|prop| prop.name == new_name)
+        {
             return Err(StorageError::column_already_exists(new_name.to_string()));
         }
 

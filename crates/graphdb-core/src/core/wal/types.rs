@@ -110,6 +110,10 @@ pub enum WalOpType {
     RenameVertexProp = 14,
     RenameEdgeProp = 15,
     Compact = 16,
+    CreateSpace = 17,
+    DropSpace = 18,
+    ClearSpace = 19,
+    AlterSpaceComment = 20,
 }
 
 impl TryFrom<u8> for WalOpType {
@@ -134,6 +138,10 @@ impl TryFrom<u8> for WalOpType {
             14 => Ok(WalOpType::RenameVertexProp),
             15 => Ok(WalOpType::RenameEdgeProp),
             16 => Ok(WalOpType::Compact),
+            17 => Ok(WalOpType::CreateSpace),
+            18 => Ok(WalOpType::DropSpace),
+            19 => Ok(WalOpType::ClearSpace),
+            20 => Ok(WalOpType::AlterSpaceComment),
             _ => Err(WalError::InvalidOpType(value)),
         }
     }
@@ -159,6 +167,10 @@ impl fmt::Display for WalOpType {
             WalOpType::RenameVertexProp => write!(f, "RenameVertexProp"),
             WalOpType::RenameEdgeProp => write!(f, "RenameEdgeProp"),
             WalOpType::Compact => write!(f, "Compact"),
+            WalOpType::CreateSpace => write!(f, "CreateSpace"),
+            WalOpType::DropSpace => write!(f, "DropSpace"),
+            WalOpType::ClearSpace => write!(f, "ClearSpace"),
+            WalOpType::AlterSpaceComment => write!(f, "AlterSpaceComment"),
         }
     }
 }
@@ -894,6 +906,7 @@ mod tests {
     fn test_wal_op_type() {
         assert_eq!(WalOpType::try_from(0).unwrap(), WalOpType::InsertVertex);
         assert_eq!(WalOpType::try_from(6).unwrap(), WalOpType::UpdateVertexProp);
+        assert_eq!(WalOpType::try_from(17).unwrap(), WalOpType::CreateSpace);
         assert!(WalOpType::try_from(100).is_err());
     }
 

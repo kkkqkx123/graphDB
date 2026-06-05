@@ -140,6 +140,15 @@ impl LocalWalWriter {
     fn write_file_header(&mut self) -> WalResult<()> {
         let current_lsn = Lsn::new(self.current_lsn.load(Ordering::SeqCst));
         let header = WalFileHeader::new(self.thread_id, self.checkpoint_seq, current_lsn);
+        self.persist_file_header(header, true)
+    }
+
+    /// Persist a WAL file header to disk.
+    fn persist_file_header(
+        &mut self,
+        header: WalFileHeader,
+        reset_file_used: bool,
+    ) -> WalResult<()> {
         let header_bytes = header.as_bytes();
 
         let file = self.file.as_mut().ok_or(WalError::Closed)?;
@@ -148,8 +157,11 @@ impl LocalWalWriter {
         file.sync_all()?;
 
         self.file_header = Some(header);
-        self.file_start_lsn = current_lsn;
-        self.file_used = WAL_FILE_HEADER_SIZE;
+        self.file_start_lsn = header.start_lsn();
+
+        if reset_file_used {
+            self.file_used = WAL_FILE_HEADER_SIZE;
+        }
 
         Ok(())
     }
@@ -172,14 +184,45 @@ impl LocalWalWriter {
             let entry = entry?;
             let path = entry.path();
 
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if name.starts_with("wal_") && name.len() == 12 {
-                    files.push(path);
-                }
+            if self.is_managed_wal_file(&path) {
+                files.push(path);
             }
         }
 
         Ok(files)
+    }
+
+    /// Determine whether a path belongs to this writer's WAL set.
+    fn is_managed_wal_file(&self, path: &Path) -> bool {
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|name| {
+                name.starts_with(&format!("thread_{}_wal_", self.thread_id))
+                    || (name.starts_with("wal_") && name.len() == 12)
+            })
+    }
+
+    /// Return the currently open WAL file path, if any.
+    fn current_file_path(&self) -> Option<PathBuf> {
+        self.file_path.clone()
+    }
+
+    /// Read the WAL file header from disk.
+    fn read_file_header(&self, path: &Path) -> WalResult<Option<WalFileHeader>> {
+        use std::io::Read;
+
+        let mut file = match std::fs::File::open(path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(WalError::IoError(e.to_string())),
+        };
+
+        let mut buffer = [0u8; WAL_FILE_HEADER_SIZE];
+        if let Err(e) = file.read_exact(&mut buffer) {
+            return Err(WalError::IoError(e.to_string()));
+        }
+
+        Ok(WalFileHeader::from_bytes(&buffer))
     }
 
     /// Get total size of all WAL files
@@ -334,6 +377,7 @@ impl LocalWalWriter {
         }
 
         let mut deleted_count = 0;
+        let current_file = self.current_file_path();
 
         let mut wal_files = self.list_wal_files()?;
 
@@ -351,6 +395,10 @@ impl LocalWalWriter {
                 let mut current_size = total_size;
 
                 for file in &wal_files {
+                    if current_file.as_ref().is_some_and(|current| current == file) {
+                        continue;
+                    }
+
                     if current_size <= self.config.max_total_size {
                         break;
                     }
@@ -369,6 +417,10 @@ impl LocalWalWriter {
             let ttl = Duration::from_secs(self.config.ttl_seconds);
 
             for file in &wal_files {
+                if current_file.as_ref().is_some_and(|current| current == file) {
+                    continue;
+                }
+
                 if let Ok(metadata) = std::fs::metadata(file) {
                     if let Ok(modified) = metadata.modified() {
                         if modified.elapsed().unwrap_or(Duration::from_secs(0)) > ttl {
@@ -386,6 +438,77 @@ impl LocalWalWriter {
 
         self.last_cleanup_time = Some(Instant::now());
         self.writes_since_cleanup = 0;
+
+        Ok(deleted_count)
+    }
+
+    /// Rewrite the current file header with the latest checkpoint sequence.
+    fn refresh_file_header(&mut self) -> WalResult<()> {
+        if self.file.is_none() {
+            return Ok(());
+        }
+
+        let Some(header) = self.file_header else {
+            return Ok(());
+        };
+
+        let updated_header = WalFileHeader {
+            checkpoint_seq: self.checkpoint_seq,
+            ..header
+        };
+        self.persist_file_header(updated_header, false)
+    }
+
+    /// Remove WAL files that are older than the current checkpoint boundary.
+    fn reclaim_before_checkpoint(&mut self) -> WalResult<usize> {
+        let current_file = self.current_file_path();
+        let checkpoint_seq = self.checkpoint_seq;
+
+        if checkpoint_seq == 0 {
+            return Ok(0);
+        }
+
+        let wal_dir = self.get_wal_dir();
+        if !wal_dir.exists() {
+            return Ok(0);
+        }
+
+        let mut deleted_count = 0;
+
+        for entry in std::fs::read_dir(&wal_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if current_file
+                .as_ref()
+                .is_some_and(|current| current == &path)
+            {
+                continue;
+            }
+
+            if !self.is_managed_wal_file(&path) {
+                continue;
+            }
+
+            let Some(header) = self.read_file_header(&path)? else {
+                continue;
+            };
+
+            if header.thread_id != self.thread_id || header.checkpoint_seq >= checkpoint_seq {
+                continue;
+            }
+
+            self.delete_or_archive_file(&path)?;
+            deleted_count += 1;
+        }
+
+        if deleted_count > 0 {
+            log::info!(
+                "Reclaimed {} WAL files before checkpoint seq {}",
+                deleted_count,
+                checkpoint_seq
+            );
+        }
 
         Ok(deleted_count)
     }
@@ -661,8 +784,21 @@ impl LocalWalWriter {
         self.checkpoint_seq
     }
 
-    pub fn set_checkpoint_seq(&mut self, seq: u64) {
+    pub fn set_checkpoint_seq(&mut self, seq: u64) -> WalResult<()> {
         self.checkpoint_seq = seq;
+        if self.file.is_some() {
+            self.refresh_file_header()?;
+        }
+        Ok(())
+    }
+
+    pub fn truncate(&mut self, lsn: Lsn) -> WalResult<usize> {
+        self.set_current_lsn(lsn);
+        if self.file.is_some() {
+            self.refresh_file_header()?;
+        }
+
+        self.reclaim_before_checkpoint()
     }
 
     pub fn file_header(&self) -> Option<&WalFileHeader> {
@@ -898,6 +1034,80 @@ mod tests {
     }
 
     #[test]
+    fn test_set_checkpoint_seq_updates_open_file_header() {
+        use std::io::Read;
+
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let mut writer = LocalWalWriter::new(&wal_path, 0);
+        writer.open().expect("Failed to open WAL");
+
+        writer
+            .set_checkpoint_seq(7)
+            .expect("Failed to update checkpoint seq");
+
+        let file_path = writer
+            .file_path
+            .as_ref()
+            .expect("WAL file path should exist")
+            .clone();
+        let mut file = std::fs::File::open(&file_path).expect("Failed to open WAL file");
+        let mut buffer = [0u8; WAL_FILE_HEADER_SIZE];
+        file.read_exact(&mut buffer)
+            .expect("Failed to read WAL header");
+
+        let header = WalFileHeader::from_bytes(&buffer).expect("Failed to parse WAL header");
+        assert_eq!(header.checkpoint_seq, 7);
+
+        writer.close();
+    }
+
+    #[test]
+    fn test_truncate_reclaims_old_wal_files() {
+        use std::io::Write;
+
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let wal_path = temp_dir.path().to_string_lossy().to_string();
+
+        let mut writer = LocalWalWriter::new(&wal_path, 0);
+        writer.open().expect("Failed to open WAL");
+
+        writer
+            .append_entry(WalOpType::InsertVertex, 1, b"payload")
+            .expect("Failed to append entry");
+
+        let old_file_path = writer.get_wal_file_path(0);
+        let old_header = WalFileHeader::new(0, 0, Lsn::ZERO);
+        let mut old_file = std::fs::File::create(&old_file_path).expect("Failed to create WAL");
+        old_file
+            .write_all(old_header.as_bytes())
+            .expect("Failed to write WAL header");
+        old_file
+            .write_all(b"stale")
+            .expect("Failed to write stale WAL data");
+
+        let current_lsn = writer.current_lsn();
+        writer
+            .set_checkpoint_seq(1)
+            .expect("Failed to update checkpoint seq");
+
+        let deleted = writer
+            .truncate(current_lsn)
+            .expect("Failed to reclaim old WAL files");
+
+        assert_eq!(deleted, 1);
+        assert!(!old_file_path.exists());
+        assert!(writer
+            .file_path
+            .as_ref()
+            .expect("WAL file path should exist")
+            .exists());
+
+        writer.close();
+    }
+
+    #[test]
     fn test_lsn_tracking() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let wal_path = temp_dir.path().to_string_lossy().to_string();
@@ -1045,10 +1255,15 @@ mod tests {
 
         writer.cleanup_old_wal_files().expect("Failed to cleanup");
 
+        assert!(writer
+            .file_path
+            .as_ref()
+            .expect("WAL file path should exist")
+            .exists());
         let total_size = writer
             .get_total_wal_size()
             .expect("Failed to get total size");
-        assert!(total_size <= config.max_total_size);
+        assert!(total_size > 0);
         writer.close();
     }
 

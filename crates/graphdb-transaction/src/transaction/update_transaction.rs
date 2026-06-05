@@ -327,6 +327,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.serialize_redo(
             WalOpType::CreateVertexType,
             &CreateVertexTypeRedo {
+                label_id: None,
                 label_name: param.label_name.clone(),
                 schema: param
                     .properties
@@ -365,6 +366,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.serialize_redo(
             WalOpType::CreateEdgeType,
             &CreateEdgeTypeRedo {
+                label_id: None,
                 src_label: param.src_label.clone(),
                 dst_label: param.dst_label.clone(),
                 edge_label: param.edge_label.clone(),

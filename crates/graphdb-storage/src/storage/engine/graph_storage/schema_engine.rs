@@ -291,7 +291,11 @@ pub fn add_vertex_property(
     Ok(())
 }
 
-pub fn delete_vertex_property(ctx: &GraphStorageContext, label: LabelId, prop_name: &str) -> StorageResult<()> {
+pub fn delete_vertex_property(
+    ctx: &GraphStorageContext,
+    label: LabelId,
+    prop_name: &str,
+) -> StorageResult<()> {
     if !ctx.is_open_flag().load(Ordering::Acquire) {
         return Err(StorageError::storage_not_open());
     }

@@ -454,6 +454,7 @@ impl PersistenceCoordinator {
     }
 
     pub fn mark_checkpointed(&self, lsn: Lsn) {
+        let _ = self.wal_manager.read().set_current_lsn(lsn);
         *self.last_checkpoint_lsn.write() = lsn;
         *self.last_checkpoint_time.write() = Instant::now();
         *self.last_flush_lsn.write() = lsn;
@@ -521,5 +522,36 @@ mod tests {
         coordinator.mark_checkpointed(Lsn::new(12));
         assert!(!coordinator.should_flush());
         assert!(!coordinator.should_checkpoint());
+    }
+
+    #[test]
+    fn test_mark_checkpointed_updates_wal_lsn() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config = PersistenceConfig {
+            data_dir: temp_dir.path().join("data"),
+            wal_dir: temp_dir.path().join("wal"),
+            checkpoint_dir: temp_dir.path().join("checkpoint"),
+            snapshot_dir: temp_dir.path().join("snapshots"),
+            auto_flush_interval: Duration::from_secs(3600),
+            auto_checkpoint_interval: Duration::from_secs(3600),
+            checkpoint_threshold: 8,
+            max_wal_size: 16,
+            enable_snapshots: false,
+            snapshot_interval: Duration::from_secs(3600),
+        };
+
+        let coordinator =
+            PersistenceCoordinator::new(config).expect("Failed to create coordinator");
+
+        {
+            let wal = coordinator.wal_manager();
+            wal.write()
+                .truncate(Lsn::new(12))
+                .expect("Failed to update LSN");
+        }
+
+        coordinator.mark_checkpointed(Lsn::new(24));
+
+        assert_eq!(coordinator.wal_manager().read().current_lsn(), Lsn::new(24));
     }
 }

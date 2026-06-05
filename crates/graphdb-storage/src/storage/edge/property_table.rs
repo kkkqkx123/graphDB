@@ -471,7 +471,8 @@ impl PropertyTable {
             self.overflow_store.remove(index, row_idx);
         }
 
-        let mut remapped_locations = HashMap::with_capacity(self.overflow_store.location_index.len());
+        let mut remapped_locations =
+            HashMap::with_capacity(self.overflow_store.location_index.len());
         for (key, overflow_id) in self.overflow_store.location_index.drain() {
             if key.col_idx == index {
                 continue;

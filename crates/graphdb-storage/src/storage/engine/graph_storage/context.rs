@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use parking_lot::{Mutex, RwLock};
+use serde::Serialize;
 
 use crate::core::metadata::{IndexManager, SchemaManager};
 use crate::core::mvcc::VersionManager;
@@ -21,7 +22,6 @@ use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
 use crate::storage::engine::params::CreateEdgeTypeParams;
 use crate::storage::engine::paths::StoragePaths;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
-use crate::storage::engine::wal_manager::WalManager;
 use crate::storage::engine::{
     EdgeOperationParams, InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams,
 };
@@ -30,6 +30,7 @@ use crate::storage::index::{
 };
 use crate::storage::types::{EdgeOffset, StoragePropertyDef};
 use crate::storage::vertex::{IdKey, VertexRecord};
+use crate::transaction::wal::types::WalOpType;
 
 #[derive(Clone)]
 struct GraphStorageLayout {
@@ -69,7 +70,6 @@ impl GraphStorageLayout {
 struct GraphStoragePersistent {
     data_store: Arc<GraphDataStore>,
     cache_manager: Arc<CacheManager>,
-    wal_manager: Arc<Mutex<WalManager>>,
     table_tracker: Arc<TableTracker>,
     config: PropertyGraphConfig,
     is_open: Arc<AtomicBool>,
@@ -87,7 +87,6 @@ impl GraphStoragePersistent {
     fn build_core_components() -> (
         Arc<GraphDataStore>,
         Arc<CacheManager>,
-        Arc<Mutex<WalManager>>,
         Arc<TableTracker>,
         Arc<AtomicBool>,
         Arc<Mutex<Vec<(LabelId, Vec<IdKey>)>>>,
@@ -107,7 +106,6 @@ impl GraphStoragePersistent {
         (
             Arc::new(GraphDataStore::new()),
             cache_manager,
-            Arc::new(Mutex::new(WalManager::new())),
             table_tracker,
             Arc::new(AtomicBool::new(true)),
             Arc::new(Mutex::new(Vec::new())),
@@ -129,7 +127,6 @@ impl GraphStoragePersistent {
         Self {
             data_store: Arc::new(GraphDataStore::new()),
             cache_manager: Arc::new(cache_manager),
-            wal_manager: Arc::new(Mutex::new(WalManager::new())),
             table_tracker,
             config,
             is_open: Arc::new(AtomicBool::new(true)),
@@ -155,7 +152,6 @@ impl GraphStoragePersistent {
         let (
             data_store,
             cache_manager,
-            wal_manager,
             table_tracker,
             is_open,
             last_compacted_vertices,
@@ -171,7 +167,6 @@ impl GraphStoragePersistent {
         Ok(Self {
             data_store,
             cache_manager,
-            wal_manager,
             table_tracker,
             config: PropertyGraphConfig::default(),
             is_open,
@@ -194,10 +189,6 @@ impl GraphStoragePersistent {
 
     fn cache_manager(&self) -> &CacheManager {
         &self.cache_manager
-    }
-
-    fn wal_manager(&self) -> &Mutex<WalManager> {
-        &self.wal_manager
     }
 
     fn table_tracker(&self) -> &Arc<TableTracker> {
@@ -334,8 +325,21 @@ impl GraphStorageContext {
         self.persistent.cache_manager()
     }
 
-    pub(crate) fn wal_manager(&self) -> &Mutex<WalManager> {
-        self.persistent.wal_manager()
+    pub(crate) fn append_wal_redo<T: Serialize>(
+        &self,
+        op_type: WalOpType,
+        timestamp: Timestamp,
+        redo: &T,
+    ) -> StorageResult<()> {
+        if let Some(persistence) = self.persistent.persistence.as_ref() {
+            let wal_manager = {
+                let coordinator = persistence.read();
+                coordinator.wal_manager()
+            };
+            return wal_manager.read().append_redo(op_type, timestamp, redo);
+        }
+
+        Ok(())
     }
 
     pub(crate) fn table_tracker(&self) -> &Arc<TableTracker> {
@@ -433,11 +437,11 @@ impl GraphStorageContext {
     // ── PropertyGraph-compatible API ──
 
     pub fn wal_enabled(&self) -> bool {
-        if let Some(persistence) = self.persistent.persistence.as_ref() {
-            persistence.read().wal_manager().read().is_enabled()
-        } else {
-            self.persistent.wal_manager.lock().is_enabled()
-        }
+        self.persistent
+            .persistence
+            .as_ref()
+            .map(|persistence| persistence.read().wal_manager().read().is_enabled())
+            .unwrap_or(false)
     }
 
     pub fn should_flush(&self) -> bool {
@@ -1431,8 +1435,6 @@ impl GraphStorageContext {
 
         if let Some(persistence) = self.persistent.persistence.as_ref() {
             persistence.read().wal_manager().read().sync()?;
-        } else {
-            self.persistent.wal_manager.lock().sync()?;
         }
 
         Ok(())

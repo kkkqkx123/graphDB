@@ -371,7 +371,12 @@ impl VertexTable {
             return Err(StorageError::storage_not_open());
         }
 
-        if self.schema.properties.iter().any(|prop| prop.name == new_name) {
+        if self
+            .schema
+            .properties
+            .iter()
+            .any(|prop| prop.name == new_name)
+        {
             return Err(StorageError::column_already_exists(new_name.to_string()));
         }
 
@@ -383,8 +388,7 @@ impl VertexTable {
             .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?;
 
         self.schema.properties[index].name = new_name.to_string();
-        self.columns
-            .rename_column(old_name, new_name.to_string())?;
+        self.columns.rename_column(old_name, new_name.to_string())?;
         Ok(())
     }
 
@@ -1033,7 +1037,10 @@ mod tests {
         let mut table = VertexTable::new(0, "person".to_string(), schema);
 
         table
-            .add_property(StoragePropertyDef::new("city".to_string(), DataType::String))
+            .add_property(StoragePropertyDef::new(
+                "city".to_string(),
+                DataType::String,
+            ))
             .expect("add property should succeed");
 
         let internal_id = table

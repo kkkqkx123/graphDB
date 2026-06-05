@@ -106,7 +106,7 @@ pub(crate) fn save_data_to_dir(ctx: &GraphStorageContext, dir: &Path) -> Storage
             let coordinator = persistence.read();
             coordinator.wal_manager().read().current_lsn()
         };
-        persistence.write().mark_flushed(wal_lsn);
+        persistence.read().mark_flushed(wal_lsn);
     }
 
     log::info!("Data saved to {:?}", data_dir);
@@ -129,7 +129,7 @@ pub(crate) fn create_checkpoint(
     let graph = ctx.clone();
     let user_storage = ctx.user_storage().clone();
 
-    let stats = persistence.write().create_checkpoint(
+    let stats = persistence.read().create_checkpoint(
         |checkpoint_dir, _timestamp| {
             let data_dir = StoragePaths::new(checkpoint_dir).data_dir();
             std::fs::create_dir_all(&data_dir)?;
@@ -191,14 +191,14 @@ pub(crate) fn load_latest_checkpoint(
     let user_storage = ctx.user_storage().clone();
 
     persistence
-        .write()
+        .read()
         .load_latest_checkpoint(|checkpoint_dir| {
             graph.restore_from_checkpoint(checkpoint_dir)?;
             user_storage.load_from_dir(StoragePaths::new(checkpoint_dir).data_dir())
         })
         .map(|result| {
             if let Some(ref info) = result {
-                persistence.write().mark_checkpointed(info.lsn);
+                persistence.read().mark_checkpointed(info.lsn);
             }
             result
         })
@@ -339,9 +339,9 @@ pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<Recov
 
     let stats = manager.recover_with_applier(ctx)?;
 
-    if let Some(persistence) = ctx.persistence().as_ref() {
-        persistence.write().mark_checkpointed(stats.last_lsn);
-    }
+    // Persist the recovered state as a new checkpoint baseline so the next
+    // startup does not replay the same WAL range again.
+    let _ = create_checkpoint(ctx)?;
 
     Ok(stats)
 }
@@ -360,9 +360,9 @@ pub(crate) fn recover_from_wal_with_config(
 
     let stats = manager.recover_with_applier(ctx)?;
 
-    if let Some(persistence) = ctx.persistence().as_ref() {
-        persistence.write().mark_checkpointed(stats.last_lsn);
-    }
+    // Persist the recovered state as a new checkpoint baseline so the next
+    // startup does not replay the same WAL range again.
+    let _ = create_checkpoint(ctx)?;
 
     Ok(stats)
 }
@@ -475,7 +475,9 @@ fn read_checkpoint_metadata(dir: &Path) -> StorageResult<CheckpointInfo> {
 mod tests {
     use super::*;
     use crate::core::types::VertexId;
+    use crate::core::DataType;
     use crate::storage::engine::PersistenceConfig;
+    use crate::storage::types::StoragePropertyDef;
     use crate::transaction::wal::writer::WalWriter;
     use crate::transaction::wal::{InsertVertexRedo, LocalWalWriter, WalOpType};
     use postcard::to_allocvec;
@@ -604,5 +606,40 @@ mod tests {
             .expect("Failed to write checkpoint metadata");
 
         assert!(needs_recovery(&ctx));
+    }
+
+    #[test]
+    fn test_recover_from_wal_persists_checkpoint_baseline() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let ctx = create_context(&temp_dir).expect("Failed to create storage context");
+
+        let (wal_dir, checkpoint_dir) = {
+            let persistence = ctx
+                .persistence()
+                .as_ref()
+                .expect("Persistence should exist");
+            let coordinator = persistence.read();
+            (coordinator.wal_dir(), coordinator.checkpoint_dir())
+        };
+
+        ctx.create_vertex_type_with_id(
+            "person",
+            1,
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
+            "name",
+        )
+        .expect("Failed to create vertex type");
+
+        let _wal_lsn =
+            write_insert_vertex_wal(&wal_dir, 1, 1, 1001, "Alice").expect("Failed to write WAL");
+        write_checkpoint_metadata(&checkpoint_dir, 1, Lsn::ZERO)
+            .expect("Failed to write checkpoint metadata");
+
+        let stats = recover_from_wal(&ctx).expect("Recovery should succeed");
+        assert_eq!(stats.wal_entries_replayed, 1);
+        assert!(!needs_recovery(&ctx));
     }
 }

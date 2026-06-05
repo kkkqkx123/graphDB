@@ -59,14 +59,14 @@ pub use parser::{
 pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};
 pub use types::{
     align_to_block, block_padding_needed, blocks_needed, is_block_aligned, AddEdgePropRedo,
-    AddVertexPropRedo, ArchiveMode, CompactRedo, CompressionLevel, CreateEdgeTypeRedo,
-    CreateVertexTypeRedo, DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo,
-    DeleteVertexPropRedo, DeleteVertexRedo, DeleteVertexTypeRedo, InsertEdgeRedo, InsertVertexRedo,
-    Lsn, RecordType, RenameEdgePropRedo, RenameVertexPropRedo, SyncPolicy, TransactionId,
-    UpdateEdgePropRedo, UpdateVertexPropRedo, UpdateWalUnit, WalCompression, WalConfig,
-    WalContentUnit, WalError, WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult,
-    WalStats, WAL_BLOCK_SIZE, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAGIC,
-    WAL_MAX_RECORD_SIZE, WAL_VERSION,
+    AddVertexPropRedo, AlterSpaceCommentRedo, ArchiveMode, ClearSpaceRedo, CompactRedo,
+    CompressionLevel, CreateEdgeTypeRedo, CreateSpaceRedo, CreateVertexTypeRedo,
+    DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo, DeleteVertexPropRedo, DeleteVertexRedo,
+    DeleteVertexTypeRedo, DropSpaceRedo, InsertEdgeRedo, InsertVertexRedo, Lsn, RecordType,
+    RenameEdgePropRedo, RenameVertexPropRedo, SyncPolicy, TransactionId, UpdateEdgePropRedo,
+    UpdateVertexPropRedo, UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError,
+    WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult, WalStats, WAL_BLOCK_SIZE,
+    WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAGIC, WAL_MAX_RECORD_SIZE, WAL_VERSION,
 };
 
 // Re-export fundamental types from core for backward compatibility

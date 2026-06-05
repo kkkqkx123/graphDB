@@ -84,12 +84,24 @@ impl SchemaManager {
         self.space_id_counter.fetch_add(1, Ordering::SeqCst) + 1
     }
 
+    pub fn peek_next_space_id(&self) -> u64 {
+        self.space_id_counter.load(Ordering::SeqCst) + 1
+    }
+
     fn get_next_tag_id(&self, _space_id: u64) -> u32 {
         let entry = self
             .tag_id_counter
             .entry(0)
             .or_insert_with(|| AtomicU32::new(0));
         entry.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    pub fn peek_next_tag_id(&self) -> u32 {
+        let entry = self
+            .tag_id_counter
+            .entry(0)
+            .or_insert_with(|| AtomicU32::new(0));
+        entry.load(Ordering::SeqCst) + 1
     }
 
     fn get_next_edge_type_id(&self, _space_id: u64) -> u32 {
@@ -100,13 +112,38 @@ impl SchemaManager {
         entry.fetch_add(1, Ordering::SeqCst) + 1
     }
 
+    pub fn peek_next_edge_type_id(&self) -> u32 {
+        let entry = self
+            .edge_type_id_counter
+            .entry(0)
+            .or_insert_with(|| AtomicU32::new(0));
+        entry.load(Ordering::SeqCst) + 1
+    }
+
     pub fn create_space(&self, space: &mut SpaceInfo) -> Result<bool, StorageError> {
         let mut name_index = self.space_name_index.write();
         if name_index.contains_key(&space.space_name) {
             return Ok(false);
         }
 
-        let space_id = self.get_next_space_id();
+        let space_id = if space.space_id == 0 {
+            self.get_next_space_id()
+        } else {
+            let current = self.space_id_counter.load(Ordering::SeqCst);
+            if space.space_id > current {
+                self.space_id_counter
+                    .store(space.space_id, Ordering::SeqCst);
+            }
+
+            let spaces = self.spaces.read();
+            if spaces.contains_key(&space.space_id) {
+                return Err(StorageError::label_already_exists(format!(
+                    "space_id {}",
+                    space.space_id
+                )));
+            }
+            space.space_id
+        };
         space.space_id = space_id;
 
         name_index.insert(space.space_name.clone(), space_id);
@@ -260,10 +297,7 @@ impl SchemaManager {
         tag_with_id.tag_id = tag_id;
 
         let mut tags = self.tags.write();
-        tags.insert(
-            (space_info.space_id, tag_id),
-            TagData { info: tag_with_id },
-        );
+        tags.insert((space_info.space_id, tag_id), TagData { info: tag_with_id });
 
         let entry = self
             .tag_id_counter

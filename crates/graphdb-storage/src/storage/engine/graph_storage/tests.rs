@@ -312,6 +312,230 @@ mod tests {
     }
 
     #[test]
+    fn test_schema_wal_replays_create_and_alter_after_restart() {
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+        let work_dir = temp_dir.path().to_path_buf();
+
+        {
+            let mut storage = GraphStorage::new_with_path(work_dir.clone())
+                .expect("Failed to create persistent GraphStorage");
+            setup_space(&mut storage);
+            storage
+                .save_to_disk()
+                .expect("Failed to persist base schema");
+
+            let tag = crate::core::types::TagInfo::new("Person".to_string()).with_properties(vec![
+                PropertyDef::new("name".to_string(), DataType::String),
+                PropertyDef::new("age".to_string(), DataType::BigInt),
+            ]);
+            storage
+                .create_tag("test_space", &tag)
+                .expect("Failed to create tag");
+
+            let edge = EdgeTypeInfo::new("KNOWS".to_string())
+                .with_src_tag("Person".to_string())
+                .with_dst_tag("Person".to_string())
+                .with_properties(vec![PropertyDef::new("since".to_string(), DataType::Int)]);
+            storage
+                .create_edge_type("test_space", &edge)
+                .expect("Failed to create edge type");
+
+            storage
+                .alter_tag(
+                    "test_space",
+                    "Person",
+                    vec![PropertyDef::new("email".to_string(), DataType::String)],
+                    vec!["age".to_string()],
+                )
+                .expect("Failed to alter tag");
+            storage
+                .alter_edge_type(
+                    "test_space",
+                    "KNOWS",
+                    vec![PropertyDef::new("weight".to_string(), DataType::Double)],
+                    vec!["since".to_string()],
+                )
+                .expect("Failed to alter edge type");
+
+            storage.flush().expect("Failed to sync WAL");
+        }
+
+        let storage =
+            GraphStorage::open(work_dir).expect("Failed to reopen persistent GraphStorage");
+
+        let tag = storage
+            .get_tag("test_space", "Person")
+            .expect("Failed to load tag")
+            .expect("Tag should exist after recovery");
+        let tag_props: Vec<String> = tag
+            .properties
+            .iter()
+            .map(|prop| prop.name.clone())
+            .collect();
+        assert!(tag_props.contains(&"name".to_string()));
+        assert!(tag_props.contains(&"email".to_string()));
+        assert!(!tag_props.contains(&"age".to_string()));
+
+        let edge = storage
+            .get_edge_type("test_space", "KNOWS")
+            .expect("Failed to load edge type")
+            .expect("Edge type should exist after recovery");
+        let edge_props: Vec<String> = edge
+            .properties
+            .iter()
+            .map(|prop| prop.name.clone())
+            .collect();
+        assert!(edge_props.contains(&"weight".to_string()));
+        assert!(!edge_props.contains(&"since".to_string()));
+    }
+
+    #[test]
+    fn test_schema_wal_replays_drop_after_restart() {
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+        let work_dir = temp_dir.path().to_path_buf();
+
+        {
+            let mut storage = GraphStorage::new_with_path(work_dir.clone())
+                .expect("Failed to create persistent GraphStorage");
+            setup_space(&mut storage);
+            storage
+                .save_to_disk()
+                .expect("Failed to persist base schema");
+
+            setup_person_tag(&mut storage);
+            let edge = EdgeTypeInfo::new("KNOWS".to_string())
+                .with_src_tag("Person".to_string())
+                .with_dst_tag("Person".to_string())
+                .with_properties(vec![PropertyDef::new("since".to_string(), DataType::Int)]);
+            storage
+                .create_edge_type("test_space", &edge)
+                .expect("Failed to create edge type");
+
+            storage
+                .drop_edge_type("test_space", "KNOWS")
+                .expect("Failed to drop edge type");
+            storage
+                .drop_tag("test_space", "Person")
+                .expect("Failed to drop tag");
+
+            storage.flush().expect("Failed to sync WAL");
+        }
+
+        let storage =
+            GraphStorage::open(work_dir).expect("Failed to reopen persistent GraphStorage");
+
+        assert!(storage
+            .get_tag("test_space", "Person")
+            .expect("Failed to load tag")
+            .is_none());
+        assert!(storage
+            .get_edge_type("test_space", "KNOWS")
+            .expect("Failed to load edge type")
+            .is_none());
+    }
+
+    #[test]
+    fn test_space_wal_replays_create_alter_and_clear_after_restart() {
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+        let work_dir = temp_dir.path().to_path_buf();
+
+        {
+            let mut storage = GraphStorage::new_with_path(work_dir.clone())
+                .expect("Failed to create persistent GraphStorage");
+            setup_space(&mut storage);
+            setup_person_tag(&mut storage);
+            setup_knows_edge(&mut storage);
+            storage.flush().expect("Failed to sync WAL");
+        }
+
+        {
+            let mut storage =
+                GraphStorage::open(work_dir.clone()).expect("Failed to reopen storage");
+            let space_id = storage
+                .get_space_id("test_space")
+                .expect("space id should exist");
+
+            assert!(storage.space_exists("test_space"));
+            assert_eq!(
+                storage
+                    .list_tags("test_space")
+                    .expect("Failed to list tags")
+                    .len(),
+                1
+            );
+            assert_eq!(
+                storage
+                    .list_edge_types("test_space")
+                    .expect("Failed to list edge types")
+                    .len(),
+                1
+            );
+
+            storage
+                .save_to_disk()
+                .expect("Failed to persist recovered schema");
+
+            storage
+                .alter_space_comment(space_id, "updated comment".to_string())
+                .expect("Failed to alter space comment");
+            storage
+                .clear_space("test_space")
+                .expect("Failed to clear space");
+            storage.flush().expect("Failed to sync WAL");
+        }
+
+        let storage =
+            GraphStorage::open(work_dir).expect("Failed to reopen persistent GraphStorage");
+
+        let space = storage
+            .get_space("test_space")
+            .expect("Failed to load space")
+            .expect("Space should still exist after clear");
+        assert_eq!(space.comment, Some("updated comment".to_string()));
+        assert_eq!(
+            storage
+                .list_tags("test_space")
+                .expect("Failed to list tags")
+                .len(),
+            0
+        );
+        assert_eq!(
+            storage
+                .list_edge_types("test_space")
+                .expect("Failed to list edge types")
+                .len(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_space_wal_replays_drop_after_restart() {
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+        let work_dir = temp_dir.path().to_path_buf();
+
+        {
+            let mut storage = GraphStorage::new_with_path(work_dir.clone())
+                .expect("Failed to create persistent GraphStorage");
+            setup_space(&mut storage);
+            setup_person_tag(&mut storage);
+            setup_knows_edge(&mut storage);
+            storage
+                .drop_space("test_space")
+                .expect("Failed to drop space");
+            storage.flush().expect("Failed to sync WAL");
+        }
+
+        let storage =
+            GraphStorage::open(work_dir).expect("Failed to reopen persistent GraphStorage");
+
+        assert!(!storage.space_exists("test_space"));
+        assert!(storage
+            .list_spaces()
+            .expect("Failed to list spaces")
+            .is_empty());
+    }
+
+    #[test]
     fn test_create_and_drop_tag_index() {
         let mut storage = create_test_storage();
         setup_space(&mut storage);

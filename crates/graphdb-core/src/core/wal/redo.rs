@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::types::{LabelId, VertexId};
+use crate::core::types::{LabelId, SpaceInfo, VertexId};
 
 // ============================================================================
 // Data Operations
@@ -70,13 +70,36 @@ pub struct DeleteEdgeRedo {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateSpaceRedo {
+    pub space: SpaceInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DropSpaceRedo {
+    pub space_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClearSpaceRedo {
+    pub space_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlterSpaceCommentRedo {
+    pub space_id: u64,
+    pub comment: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateVertexTypeRedo {
+    pub label_id: Option<LabelId>,
     pub label_name: String,
     pub schema: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateEdgeTypeRedo {
+    pub label_id: Option<LabelId>,
     pub src_label: String,
     pub dst_label: String,
     pub edge_label: String,
@@ -85,11 +108,13 @@ pub struct CreateEdgeTypeRedo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteVertexTypeRedo {
+    pub space_name: Option<String>,
     pub label_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteEdgeTypeRedo {
+    pub space_name: Option<String>,
     pub src_label: String,
     pub dst_label: String,
     pub edge_label: String,
