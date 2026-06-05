@@ -6,9 +6,20 @@ use axum::{
 use crate::api::server::http::handlers::query_types::*;
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::query::executor::ExecutionResult;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
-pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn execute<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Json(request): Json<QueryRequest>,
 ) -> Result<JsonResponse<QueryResponse>, HttpError> {
@@ -33,7 +44,14 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-pub async fn validate<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn validate<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(_state): State<AppState<S>>,
     Json(request): Json<QueryRequest>,
 ) -> Result<JsonResponse<ValidateResponse>, HttpError> {

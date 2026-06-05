@@ -8,7 +8,9 @@ use tonic::{transport::Server, Request, Response, Status};
 
 use crate::api::server::http::AppState;
 use crate::config::Config;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 // Import generated proto types
 use super::proto::graph_db_service_server::{
@@ -22,13 +24,27 @@ type ExecuteQueryStreamStream = std::pin::Pin<
 >;
 
 /// GraphDB gRPC service implementation
-pub struct GraphDBService<S: StorageClient + Clone + 'static> {
+pub struct GraphDBService<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + 'static,
+> {
     app_state: AppState<S>,
     config: Config,
     start_time: Instant,
 }
 
-impl<S: StorageClient + Clone + 'static> GraphDBService<S> {
+impl<
+        S: StorageClient
+            + StorageSchemaContextOps
+            + StorageSyncContextOps
+            + StorageTransactionContextOps
+            + Clone
+            + 'static,
+    > GraphDBService<S> {
     /// Create a new gRPC service instance
     pub fn new(app_state: AppState<S>, config: Config) -> Self {
         Self {
@@ -50,7 +66,16 @@ impl<S: StorageClient + Clone + 'static> GraphDBService<S> {
 }
 
 #[tonic::async_trait]
-impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for GraphDBService<S> {
+impl<
+        S: StorageClient
+            + StorageSchemaContextOps
+            + StorageSyncContextOps
+            + StorageTransactionContextOps
+            + Clone
+            + Send
+            + Sync
+            + 'static,
+    > GraphDBServiceTrait for GraphDBService<S> {
     type ExecuteQueryStreamStream = ExecuteQueryStreamStream;
 
     async fn health_check(
@@ -450,7 +475,16 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> GraphDBServiceTrait for G
 }
 
 /// Run the gRPC server
-pub async fn run_server<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn run_server<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     app_state: AppState<S>,
     config: Config,
     addr: SocketAddr,
@@ -468,7 +502,16 @@ pub async fn run_server<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Run the gRPC server with custom service instance
-pub async fn run_server_with_grpc_service<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn run_server_with_grpc_service<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     service: GraphDBService<S>,
     addr: SocketAddr,
 ) -> Result<(), Box<dyn std::error::Error>> {

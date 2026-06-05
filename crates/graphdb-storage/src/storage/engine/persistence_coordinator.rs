@@ -38,7 +38,7 @@ use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::snapshot_manager::{SnapshotManager, SnapshotOptions};
 use crate::storage::engine::WalManager;
-use crate::transaction::wal::{CheckpointManager, Lsn};
+use crate::transaction::wal::{CheckpointManager, Lsn, SyncPolicy, WalConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistenceState {
@@ -74,6 +74,10 @@ pub struct PersistenceConfig {
     pub max_wal_size: u64,
     pub enable_snapshots: bool,
     pub snapshot_interval: Duration,
+    /// Should WAL be enabled
+    pub enable_wal: bool,
+    /// Synchronization policy for WAL write-ahead logging
+    pub sync_policy: Option<SyncPolicy>,
 }
 
 impl Default for PersistenceConfig {
@@ -89,6 +93,8 @@ impl Default for PersistenceConfig {
             max_wal_size: 100 * 1024 * 1024,
             enable_snapshots: true,
             snapshot_interval: Duration::from_secs(3600),
+            enable_wal: true,
+            sync_policy: Some(SyncPolicy::EveryWrite),
         }
     }
 }
@@ -101,6 +107,8 @@ impl PersistenceConfig {
             wal_dir: path.join("wal"),
             checkpoint_dir: path.join("checkpoint"),
             snapshot_dir: path.join("snapshots"),
+            enable_wal: true,
+            sync_policy: Some(SyncPolicy::EveryWrite),
             ..Default::default()
         }
     }
@@ -108,7 +116,7 @@ impl PersistenceConfig {
 
 pub struct PersistenceCoordinator {
     config: PersistenceConfig,
-    wal_manager: Arc<RwLock<WalManager>>,
+    wal_manager: Option<Arc<RwLock<WalManager>>>,
     checkpoint_manager: RwLock<CheckpointManager>,
     snapshot_manager: Option<Arc<SnapshotManager>>,
     last_checkpoint_time: RwLock<Instant>,
@@ -122,11 +130,20 @@ pub struct PersistenceCoordinator {
 impl PersistenceCoordinator {
     pub fn new(config: PersistenceConfig) -> StorageResult<Self> {
         std::fs::create_dir_all(&config.data_dir)?;
-        std::fs::create_dir_all(&config.wal_dir)?;
         std::fs::create_dir_all(&config.checkpoint_dir)?;
 
-        let mut wal_manager = WalManager::new();
-        wal_manager.open(&config.wal_dir, 0)?;
+        let wal_manager = if config.enable_wal {
+            std::fs::create_dir_all(&config.wal_dir)?;
+            let mut wal_cfg = WalConfig::default();
+            if let Some(ref sp) = config.sync_policy {
+                wal_cfg.sync_policy = *sp;
+            }
+            let mut wal_manager = WalManager::with_config(wal_cfg);
+            wal_manager.open(&config.wal_dir, 0)?;
+            Some(Arc::new(RwLock::new(wal_manager)))
+        } else {
+            None
+        };
 
         let mut checkpoint_manager =
             CheckpointManager::new(&config.wal_dir, &config.checkpoint_dir, None);
@@ -134,7 +151,9 @@ impl PersistenceCoordinator {
             crate::core::StorageError::db_error(format!("Failed to init checkpoint manager: {}", e))
         })?;
 
-        wal_manager.set_checkpoint_seq(checkpoint_manager.current_seq())?;
+        if let Some(ref wal) = wal_manager {
+            wal.read().set_checkpoint_seq(checkpoint_manager.current_seq())?;
+        }
 
         let snapshot_manager = if config.enable_snapshots {
             std::fs::create_dir_all(&config.snapshot_dir)?;
@@ -148,7 +167,7 @@ impl PersistenceCoordinator {
 
         Ok(Self {
             config,
-            wal_manager: Arc::new(RwLock::new(wal_manager)),
+            wal_manager,
             checkpoint_manager: RwLock::new(checkpoint_manager),
             snapshot_manager,
             last_checkpoint_time: RwLock::new(Instant::now()),
@@ -160,7 +179,7 @@ impl PersistenceCoordinator {
         })
     }
 
-    pub fn wal_manager(&self) -> Arc<RwLock<WalManager>> {
+    pub fn wal_manager(&self) -> Option<Arc<RwLock<WalManager>>> {
         self.wal_manager.clone()
     }
 
@@ -181,7 +200,10 @@ impl PersistenceCoordinator {
     }
 
     fn current_lsn(&self) -> Lsn {
-        self.wal_manager.read().current_lsn()
+        match &self.wal_manager {
+            Some(wal) => wal.read().current_lsn(),
+            None => Lsn::ZERO,
+        }
     }
 
     fn wal_bytes_since(&self, base_lsn: Lsn) -> u64 {
@@ -230,8 +252,10 @@ impl PersistenceCoordinator {
         self.set_state(PersistenceState::Checkpointing);
 
         let wal_lsn = {
-            let wal = self.wal_manager.read();
-            wal.current_lsn()
+            match &self.wal_manager {
+                Some(wal) => wal.read().current_lsn(),
+                None => Lsn::ZERO,
+            }
         };
 
         log::info!(
@@ -247,9 +271,8 @@ impl PersistenceCoordinator {
             })?
         };
 
-        {
-            let wal = self.wal_manager.read();
-            wal.set_checkpoint_seq(checkpoint.seq)?;
+        if let Some(ref wal) = self.wal_manager {
+            wal.read().set_checkpoint_seq(checkpoint.seq)?;
         }
 
         let checkpoint_dir = self
@@ -262,9 +285,8 @@ impl PersistenceCoordinator {
 
         self.save_checkpoint_metadata(&checkpoint_dir, &checkpoint, &data)?;
 
-        {
-            let wal = self.wal_manager.read();
-            wal.truncate(wal_lsn)?;
+        if let Some(ref wal) = self.wal_manager {
+            wal.read().truncate(wal_lsn)?;
         }
 
         self.mark_checkpointed(wal_lsn);
@@ -333,7 +355,7 @@ impl PersistenceCoordinator {
 
         writeln!(file, "checkpoint_id={}", checkpoint.seq)?;
         writeln!(file, "timestamp={}", checkpoint.timestamp)?;
-        writeln!(file, "wal_lsn={}", checkpoint.lsn)?;
+        writeln!(file, "wal_lsn={}", checkpoint.lsn.0)?;
         writeln!(file, "vertex_count={}", data.vertex_count)?;
         writeln!(file, "edge_count={}", data.edge_count)?;
         writeln!(file, "data_size={}", data.data_size)?;
@@ -377,10 +399,9 @@ impl PersistenceCoordinator {
 
             load_data(checkpoint_path)?;
 
-            {
-                let wal = self.wal_manager.read();
-                wal.set_checkpoint_seq(info.checkpoint_id)?;
-                wal.truncate(info.lsn)?;
+            if let Some(ref wal) = self.wal_manager {
+                wal.read().set_checkpoint_seq(info.checkpoint_id)?;
+                wal.read().truncate(info.lsn)?;
             }
 
             return Ok(Some(info));
@@ -397,20 +418,48 @@ impl PersistenceCoordinator {
         let file = File::open(metadata_path)?;
         let reader = BufReader::new(file);
 
-        let mut checkpoint_id = 0u64;
-        let mut lsn = 0u64;
+        let mut checkpoint_id: Option<u64> = None;
+        let mut lsn: Option<u64> = None;
 
         for line in reader.lines() {
             let line = line?;
             let parts: Vec<&str> = line.splitn(2, '=').collect();
-            if parts.len() == 2 {
-                if parts[0] == "checkpoint_id" {
-                    checkpoint_id = parts[1].parse().unwrap_or(0);
-                } else if parts[0] == "wal_lsn" {
-                    lsn = parts[1].parse().unwrap_or(0);
+            if parts.len() != 2 {
+                return Err(StorageError::deserialize_error(format!(
+                    "Invalid checkpoint metadata line: {}",
+                    line
+                )));
+            }
+
+            match parts[0] {
+                "checkpoint_id" => {
+                    checkpoint_id = Some(parts[1].parse().map_err(|e| {
+                        StorageError::deserialize_error(format!(
+                            "Invalid checkpoint_id in checkpoint metadata: {}",
+                            e
+                        ))
+                    })?);
                 }
+                "wal_lsn" => {
+                    lsn = Some(parts[1].parse().map_err(|e| {
+                        StorageError::deserialize_error(format!(
+                            "Invalid wal_lsn in checkpoint metadata: {}",
+                            e
+                        ))
+                    })?);
+                }
+                _ => {}
             }
         }
+
+        let checkpoint_id = checkpoint_id.ok_or_else(|| {
+            StorageError::deserialize_error(
+                "Missing checkpoint_id in checkpoint metadata".to_string(),
+            )
+        })?;
+        let lsn = lsn.ok_or_else(|| {
+            StorageError::deserialize_error("Missing wal_lsn in checkpoint metadata".to_string())
+        })?;
 
         Ok(CheckpointInfo {
             checkpoint_id,
@@ -454,7 +503,9 @@ impl PersistenceCoordinator {
     }
 
     pub fn mark_checkpointed(&self, lsn: Lsn) {
-        let _ = self.wal_manager.read().set_current_lsn(lsn);
+        if let Some(ref wal) = self.wal_manager {
+            let _ = wal.read().set_current_lsn(lsn);
+        }
         *self.last_checkpoint_lsn.write() = lsn;
         *self.last_checkpoint_time.write() = Instant::now();
         *self.last_flush_lsn.write() = lsn;
@@ -502,6 +553,8 @@ mod tests {
             max_wal_size: 16,
             enable_snapshots: false,
             snapshot_interval: Duration::from_secs(3600),
+            enable_wal: true,
+            sync_policy: Some(SyncPolicy::EveryWrite),
         };
 
         let coordinator =
@@ -510,7 +563,7 @@ mod tests {
         assert!(!coordinator.should_checkpoint());
 
         {
-            let wal = coordinator.wal_manager();
+            let wal = coordinator.wal_manager().expect("WAL should be enabled");
             wal.write()
                 .truncate(Lsn::new(12))
                 .expect("Failed to update LSN");
@@ -538,13 +591,15 @@ mod tests {
             max_wal_size: 16,
             enable_snapshots: false,
             snapshot_interval: Duration::from_secs(3600),
+            enable_wal: true,
+            sync_policy: Some(SyncPolicy::EveryWrite),
         };
 
         let coordinator =
             PersistenceCoordinator::new(config).expect("Failed to create coordinator");
 
         {
-            let wal = coordinator.wal_manager();
+            let wal = coordinator.wal_manager().expect("WAL should be enabled");
             wal.write()
                 .truncate(Lsn::new(12))
                 .expect("Failed to update LSN");
@@ -552,6 +607,13 @@ mod tests {
 
         coordinator.mark_checkpointed(Lsn::new(24));
 
-        assert_eq!(coordinator.wal_manager().read().current_lsn(), Lsn::new(24));
+        assert_eq!(
+            coordinator
+                .wal_manager()
+                .expect("WAL should be enabled")
+                .read()
+                .current_lsn(),
+            Lsn::new(24)
+        );
     }
 }

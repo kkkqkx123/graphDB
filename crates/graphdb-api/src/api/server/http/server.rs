@@ -9,7 +9,9 @@ use crate::api::server::graph_service::GraphService;
 use crate::api::server::session::GraphSessionManager;
 use crate::config::Config;
 use crate::query::executor::expression::functions::FunctionRegistry;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 use crate::transaction::TransactionManager;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -18,7 +20,14 @@ use std::sync::Arc;
 ///
 /// Note: HttpServer relies on GraphService for the Rights Manager and Statistics Manager.
 /// The session manager is accessed through the GraphService
-pub struct HttpServer<S: StorageClient + Clone + 'static> {
+pub struct HttpServer<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + 'static,
+> {
     graph_service: Arc<GraphService<S>>,
     query_api: QueryApi<S>,
     txn_manager: Arc<TransactionManager>,
@@ -31,7 +40,14 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
     function_registry: Arc<RwLock<FunctionRegistry>>,
 }
 
-impl<S: StorageClient + Clone + 'static> HttpServer<S> {
+impl<
+        S: StorageClient
+            + StorageSchemaContextOps
+            + StorageSyncContextOps
+            + StorageTransactionContextOps
+            + Clone
+            + 'static,
+    > HttpServer<S> {
     /// Create a new HTTP server
     pub fn new(
         graph_service: Arc<GraphService<S>>,

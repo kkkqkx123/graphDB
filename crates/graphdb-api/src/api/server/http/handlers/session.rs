@@ -6,7 +6,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::api::server::http::{error::HttpError, state::AppState};
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateSessionRequest {
@@ -21,7 +23,14 @@ pub struct SessionResponse {
     pub created_at: u64,
 }
 
-pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn create<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateSessionRequest>,
 ) -> Result<JsonResponse<SessionResponse>, HttpError> {
@@ -41,7 +50,14 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
     }))
 }
 
-pub async fn get_session<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn get_session<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(session_id): Path<i64>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -59,7 +75,14 @@ pub async fn get_session<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-pub async fn delete_session<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn delete_session<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(session_id): Path<i64>,
 ) -> Result<StatusCode, HttpError> {

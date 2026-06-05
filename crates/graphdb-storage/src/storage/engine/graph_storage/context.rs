@@ -336,7 +336,9 @@ impl GraphStorageContext {
                 let coordinator = persistence.read();
                 coordinator.wal_manager()
             };
-            return wal_manager.read().append_redo(op_type, timestamp, redo);
+            if let Some(wal) = wal_manager {
+                return wal.read().append_redo(op_type, timestamp, redo);
+            }
         }
 
         Ok(())
@@ -437,11 +439,11 @@ impl GraphStorageContext {
     // ── PropertyGraph-compatible API ──
 
     pub fn wal_enabled(&self) -> bool {
-        self.persistent
-            .persistence
-            .as_ref()
-            .map(|persistence| persistence.read().wal_manager().read().is_enabled())
-            .unwrap_or(false)
+        self.persistent.persistence.as_ref().is_some_and(|p| {
+            p.read()
+                .wal_manager()
+                .is_some_and(|w| w.read().is_enabled())
+        })
     }
 
     pub fn should_flush(&self) -> bool {
@@ -1433,9 +1435,12 @@ impl GraphStorageContext {
             .read()
             .flush(&index_dir)?;
 
-        if let Some(persistence) = self.persistent.persistence.as_ref() {
-            persistence.read().wal_manager().read().sync()?;
-        }
+if let Some(persistence) = self.persistent.persistence.as_ref() {
+    persistence
+        .read()
+        .wal_manager()
+        .and_then(|w| w.read().sync().ok());
+}
 
         Ok(())
     }

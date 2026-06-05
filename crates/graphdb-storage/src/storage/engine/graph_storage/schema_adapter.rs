@@ -175,6 +175,7 @@ pub(crate) fn create_tag(
         ctx,
         WalOpType::CreateVertexType,
         &CreateVertexTypeRedo {
+            space_name: space.to_string(),
             label_id: Some(tag_id),
             label_name: tag.tag_name.clone(),
             schema: schema_properties(&tag.properties),
@@ -329,6 +330,7 @@ pub(crate) fn create_edge_type(
         ctx,
         WalOpType::CreateEdgeType,
         &CreateEdgeTypeRedo {
+            space_name: space.to_string(),
             label_id: Some(edge_type_id),
             src_label: edge_type.src_tag_name.clone(),
             dst_label: edge_type.dst_tag_name.clone(),

@@ -104,7 +104,10 @@ pub(crate) fn save_data_to_dir(ctx: &GraphStorageContext, dir: &Path) -> Storage
     if let Some(persistence) = ctx.persistence().as_ref() {
         let wal_lsn = {
             let coordinator = persistence.read();
-            coordinator.wal_manager().read().current_lsn()
+            coordinator
+                .wal_manager()
+                .map(|w| w.read().current_lsn())
+                .unwrap_or(Lsn::ZERO)
         };
         persistence.read().mark_flushed(wal_lsn);
     }
@@ -250,7 +253,10 @@ pub(crate) fn compact_transactional(
     let wal_writer = {
         let coordinator = persistence.read();
         let wal_mgr = coordinator.wal_manager();
-        let wal_reader = wal_mgr.read();
+        let wal_reader = wal_mgr
+            .as_ref()
+            .ok_or_else(|| StorageError::db_error("WAL not enabled".to_string()))?
+            .read();
         wal_reader
             .writer()
             .ok_or_else(|| StorageError::db_error("WAL writer not initialized".to_string()))?
@@ -399,7 +405,7 @@ fn latest_checkpoint_info_from_dir(
         return Ok(None);
     }
 
-    let mut checkpoints: Vec<(u64, std::path::PathBuf)> = std::fs::read_dir(&checkpoints_dir)?
+    let mut checkpoints: Vec<(u64, std::path::PathBuf)> = std::fs::read_dir(checkpoints_dir)?
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| {
             let path = entry.path();
@@ -450,20 +456,46 @@ fn read_checkpoint_metadata(dir: &Path) -> StorageResult<CheckpointInfo> {
     let file = File::open(metadata_path)?;
     let reader = BufReader::new(file);
 
-    let mut checkpoint_id = 0u64;
-    let mut lsn = 0u64;
+    let mut checkpoint_id: Option<u64> = None;
+    let mut lsn: Option<u64> = None;
 
     for line in reader.lines() {
         let line = line?;
         let parts: Vec<&str> = line.splitn(2, '=').collect();
-        if parts.len() == 2 {
-            if parts[0] == "checkpoint_id" {
-                checkpoint_id = parts[1].parse().unwrap_or(0);
-            } else if parts[0] == "wal_lsn" {
-                lsn = parts[1].parse().unwrap_or(0);
+        if parts.len() != 2 {
+            return Err(StorageError::deserialize_error(format!(
+                "Invalid checkpoint metadata line: {}",
+                line
+            )));
+        }
+
+        match parts[0] {
+            "checkpoint_id" => {
+                checkpoint_id = Some(parts[1].parse().map_err(|e| {
+                    StorageError::deserialize_error(format!(
+                        "Invalid checkpoint_id in checkpoint metadata: {}",
+                        e
+                    ))
+                })?);
             }
+            "wal_lsn" => {
+                lsn = Some(parts[1].parse().map_err(|e| {
+                    StorageError::deserialize_error(format!(
+                        "Invalid wal_lsn in checkpoint metadata: {}",
+                        e
+                    ))
+                })?);
+            }
+            _ => {}
         }
     }
+
+    let checkpoint_id = checkpoint_id.ok_or_else(|| {
+        StorageError::deserialize_error("Missing checkpoint_id in checkpoint metadata".to_string())
+    })?;
+    let lsn = lsn.ok_or_else(|| {
+        StorageError::deserialize_error("Missing wal_lsn in checkpoint metadata".to_string())
+    })?;
 
     Ok(CheckpointInfo {
         checkpoint_id,
@@ -641,5 +673,21 @@ mod tests {
         let stats = recover_from_wal(&ctx).expect("Recovery should succeed");
         assert_eq!(stats.wal_entries_replayed, 1);
         assert!(!needs_recovery(&ctx));
+    }
+
+    #[test]
+    fn test_read_checkpoint_metadata_rejects_malformed_fields() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let checkpoint_dir = temp_dir.path().join("checkpoint");
+        let checkpoint_path = checkpoint_dir.join("checkpoint_1");
+        fs::create_dir_all(&checkpoint_path).expect("Failed to create checkpoint dir");
+
+        let metadata_path = checkpoint_path.join("checkpoint.meta");
+        let mut file = fs::File::create(&metadata_path).expect("Failed to create metadata file");
+        writeln!(file, "checkpoint_id=1").expect("Failed to write checkpoint id");
+        writeln!(file, "wal_lsn=not-a-number").expect("Failed to write wal lsn");
+
+        let result = read_checkpoint_metadata(&checkpoint_path);
+        assert!(result.is_err());
     }
 }

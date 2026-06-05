@@ -5,7 +5,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::api::server::http::{error::HttpError, state::AppState};
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 use crate::sync::vector_sync::SearchOptions;
 use vector_client::{DistanceMetric, VectorFilter};
 
@@ -89,7 +91,16 @@ pub struct VectorIndexDetailsResponse {
 }
 
 /// Create a vector index
-pub async fn create_index<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn create_index<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateVectorIndexRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -121,7 +132,16 @@ pub async fn create_index<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Drop a vector index
-pub async fn drop_index<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn drop_index<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path((space_id, tag_name, field_name)): Path<(u64, String, String)>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -146,7 +166,16 @@ pub async fn drop_index<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Get vector index info
-pub async fn get_index_info<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn get_index_info<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path((space_id, tag_name, field_name)): Path<(u64, String, String)>,
 ) -> Result<JsonResponse<VectorIndexDetailsResponse>, HttpError> {
@@ -175,7 +204,16 @@ pub async fn get_index_info<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List all vector indexes
-pub async fn list_indexes<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn list_indexes<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<ListVectorIndexesResponse>, HttpError> {
     let graph_service = state.server.get_graph_service();
@@ -193,7 +231,16 @@ pub async fn list_indexes<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Search vectors
-pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn search<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Json(request): Json<VectorSearchRequest>,
 ) -> Result<JsonResponse<VectorSearchResponse>, HttpError> {
@@ -245,7 +292,16 @@ pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Get vector point by ID
-pub async fn get_vector<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn get_vector<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path((space_id, tag_name, field_name, point_id)): Path<(u64, String, String, String)>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -282,7 +338,16 @@ pub async fn get_vector<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Get vector index count
-pub async fn count<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn count<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path((space_id, tag_name, field_name)): Path<(u64, String, String)>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {

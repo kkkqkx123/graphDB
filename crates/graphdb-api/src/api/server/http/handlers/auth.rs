@@ -7,7 +7,9 @@ use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::api::server::http::{error::HttpError, state::AppState};
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct LoginRequest {
@@ -22,7 +24,14 @@ pub struct LoginResponse {
     pub expires_at: Option<u64>,
 }
 
-pub async fn login<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn login<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<LoginRequest>,
 ) -> Result<JsonResponse<LoginResponse>, HttpError> {
@@ -55,7 +64,14 @@ pub struct LogoutRequest {
     pub session_id: i64,
 }
 
-pub async fn logout<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn logout<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<LogoutRequest>,
 ) -> Result<StatusCode, HttpError> {

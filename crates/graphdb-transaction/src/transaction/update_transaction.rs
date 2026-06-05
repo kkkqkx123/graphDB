@@ -84,6 +84,7 @@ pub struct PropertyDefinition {
 /// Create vertex type parameter
 #[derive(Debug, Clone)]
 pub struct CreateVertexTypeParam {
+    pub space_name: String,
     pub label_name: String,
     pub properties: Vec<PropertyDefinition>,
     pub primary_keys: Vec<String>,
@@ -92,6 +93,7 @@ pub struct CreateVertexTypeParam {
 /// Create edge type parameter
 #[derive(Debug, Clone)]
 pub struct CreateEdgeTypeParam {
+    pub space_name: String,
     pub src_label: String,
     pub dst_label: String,
     pub edge_label: String,
@@ -327,6 +329,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.serialize_redo(
             WalOpType::CreateVertexType,
             &CreateVertexTypeRedo {
+                space_name: param.space_name.clone(),
                 label_id: None,
                 label_name: param.label_name.clone(),
                 schema: param
@@ -366,6 +369,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         self.serialize_redo(
             WalOpType::CreateEdgeType,
             &CreateEdgeTypeRedo {
+                space_name: param.space_name.clone(),
                 label_id: None,
                 src_label: param.src_label.clone(),
                 dst_label: param.dst_label.clone(),

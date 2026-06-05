@@ -7,12 +7,23 @@ use log::info;
 use crate::api::server::HttpServer;
 use crate::config::Config;
 use crate::core::error::DBResult;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 use super::shutdown::async_shutdown_signal;
 
 /// Start an HTTP server using an asynchronous runtime.
-pub async fn start_http_server<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn start_http_server<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     server: Arc<HttpServer<S>>,
     config: &Config,
 ) -> DBResult<()> {
@@ -51,7 +62,16 @@ pub async fn start_http_server<S: StorageClient + Clone + Send + Sync + 'static>
 
 /// Start both HTTP and gRPC servers concurrently.
 #[cfg(all(feature = "server", feature = "grpc"))]
-pub async fn start_http_and_grpc_servers<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn start_http_and_grpc_servers<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     http_server: Arc<HttpServer<S>>,
     config: &Config,
 ) -> DBResult<()> {

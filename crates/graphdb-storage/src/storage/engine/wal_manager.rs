@@ -30,6 +30,13 @@ impl WalManager {
         }
     }
 
+    pub fn with_config(config: WalConfig) -> Self {
+        Self {
+            local_writer: None,
+            config,
+        }
+    }
+
     pub fn open(&mut self, wal_dir: &Path, thread_id: u32) -> StorageResult<()> {
         let wal_uri = wal_dir.to_string_lossy().to_string();
         let mut writer = LocalWalWriter::with_config(&wal_uri, thread_id, self.config.clone());

@@ -11,6 +11,7 @@ use crate::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
 use crate::storage::{GraphStorage, StorageClient};
 use crate::sync::{SyncConfig, SyncManager};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
+use crate::transaction::wal::SyncPolicy;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::Path;
@@ -158,17 +159,26 @@ impl GraphDatabase<GraphStorage> {
     /// - Returns GraphDatabase instance on success
     /// - Return error on failure
     pub fn open_with_config(config: DatabaseConfig) -> CoreResult<Self> {
-        let storage = if config.is_memory() {
-            GraphStorage::new().map_err(|e| {
+        let (storage, _enable_wal, _sync_policy) = if config.is_memory() {
+            let storage = GraphStorage::new().map_err(|e| {
                 CoreError::StorageError(format!("Failed to initialize memory store: {}", e))
-            })?
+            })?;
+            (storage, true, Some(SyncPolicy::EveryWrite))
         } else {
             let path = config
                 .path()
                 .ok_or_else(|| CoreError::StorageError("Database path is empty".to_string()))?;
-            GraphStorage::open(path.to_path_buf()).map_err(|e| {
+            let enable_wal = config.enable_wal;
+            let sync_policy = sync_mode_to_policy(config.sync_mode);
+            let storage = GraphStorage::open_with_persistence(
+                path.to_path_buf(),
+                enable_wal,
+                sync_policy,
+            )
+            .map_err(|e| {
                 CoreError::StorageError(format!("Failed to initialize storage: {}", e))
-            })?
+            })?;
+            (storage, enable_wal, sync_policy)
         };
 
         let storage = Arc::new(RwLock::new(storage));
@@ -357,6 +367,14 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 // GraphDatabase can therefore securely implement Send and Sync.
 unsafe impl<S: StorageClient + Clone + 'static> Send for GraphDatabase<S> {}
 unsafe impl<S: StorageClient + Clone + 'static> Sync for GraphDatabase<S> {}
+
+fn sync_mode_to_policy(mode: crate::api::embedded::config::SyncMode) -> Option<SyncPolicy> {
+    match mode {
+        crate::api::embedded::config::SyncMode::Full => Some(SyncPolicy::EveryWrite),
+        crate::api::embedded::config::SyncMode::Normal => Some(SyncPolicy::EveryWrite),
+        crate::api::embedded::config::SyncMode::Off => Some(SyncPolicy::Never),
+    }
+}
 
 #[cfg(test)]
 impl GraphDatabase<MockStorage> {

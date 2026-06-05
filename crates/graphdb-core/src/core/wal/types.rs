@@ -586,18 +586,33 @@ pub enum SyncPolicy {
     Batch {
         batch_size: usize,
     },
-    GroupCommit,
 }
 
 impl SyncPolicy {
     pub fn periodic(interval: Duration) -> Self {
-        SyncPolicy::Periodic {
+        Self::Periodic {
             interval_ms: interval.as_millis() as u64,
         }
     }
 
     pub fn batch(batch_size: usize) -> Self {
-        SyncPolicy::Batch { batch_size }
+        Self::Batch { batch_size }
+    }
+
+    pub fn is_never(&self) -> bool {
+        matches!(self, Self::Never)
+    }
+
+    pub fn is_every_write(&self) -> bool {
+        matches!(self, Self::EveryWrite)
+    }
+
+    pub fn is_periodic(&self) -> bool {
+        matches!(self, Self::Periodic { .. })
+    }
+
+    pub fn is_batch(&self) -> bool {
+        matches!(self, Self::Batch { .. })
     }
 
     pub fn requires_sync(&self, write_count: usize, last_sync_time: Duration) -> bool {
@@ -608,7 +623,6 @@ impl SyncPolicy {
                 last_sync_time.as_millis() as u64 >= *interval_ms
             }
             SyncPolicy::Batch { batch_size } => write_count >= *batch_size,
-            SyncPolicy::GroupCommit => false,
         }
     }
 }
@@ -624,9 +638,6 @@ pub struct WalConfig {
     pub archive_dir: Option<String>,
     pub archive_mode: ArchiveMode,
     pub sync_policy: SyncPolicy,
-    pub group_commit_enabled: bool,
-    pub group_commit_delay_us: u64,
-    pub group_commit_batch_size: usize,
     pub recovery_mode: WalRecoveryMode,
     pub compression: WalCompression,
     pub compression_level: CompressionLevel,
@@ -647,12 +658,9 @@ impl Default for WalConfig {
             auto_checkpoint: true,
             archive_dir: None,
             archive_mode: ArchiveMode::None,
-            sync_policy: SyncPolicy::default(),
-            group_commit_enabled: true,
-            group_commit_delay_us: 500,
-            group_commit_batch_size: 256,
+            sync_policy: SyncPolicy::EveryWrite,
             recovery_mode: WalRecoveryMode::default(),
-            compression: WalCompression::default(),
+            compression: WalCompression::None,
             compression_level: CompressionLevel::default(),
             checksum_enabled: true,
             max_parallel_recovery_threads: 4,
@@ -688,13 +696,6 @@ impl WalConfig {
         } else {
             SyncPolicy::Never
         };
-        self
-    }
-
-    pub fn with_group_commit(mut self, enabled: bool, delay_us: u64, batch_size: usize) -> Self {
-        self.group_commit_enabled = enabled;
-        self.group_commit_delay_us = delay_us;
-        self.group_commit_batch_size = batch_size;
         self
     }
 
@@ -955,15 +956,11 @@ mod tests {
     fn test_wal_config() {
         let config = WalConfig::new()
             .with_checksum(true)
-            .with_group_commit(true, 200, 512)
             .with_recovery_mode(WalRecoveryMode::AbortOnCorruption)
             .with_sync_policy(SyncPolicy::Batch { batch_size: 100 })
             .with_parallel_recovery(8);
 
         assert!(config.checksum_enabled);
-        assert!(config.group_commit_enabled);
-        assert_eq!(config.group_commit_delay_us, 200);
-        assert_eq!(config.group_commit_batch_size, 512);
         assert_eq!(config.recovery_mode, WalRecoveryMode::AbortOnCorruption);
         assert_eq!(config.max_parallel_recovery_threads, 8);
     }

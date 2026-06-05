@@ -4,17 +4,12 @@ use super::property::PropertyDef;
 use super::schema_trait::SchemaInfo;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EdgeStrategy {
     None,
     Single,
+    #[default]
     Multiple,
-}
-
-impl Default for EdgeStrategy {
-    fn default() -> Self {
-        Self::Multiple
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

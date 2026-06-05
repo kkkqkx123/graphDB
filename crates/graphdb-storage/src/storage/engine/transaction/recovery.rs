@@ -320,6 +320,8 @@ impl RecoveryApplier for GraphStorageContext {
             .map(|prop| prop.name.clone())
             .unwrap_or_else(|| redo.label_name.clone());
 
+        self.ensure_recovery_space(&redo.space_name)?;
+
         let label_id = if let Some(label_id) = redo.label_id {
             self.create_vertex_type_with_id(
                 &redo.label_name,
@@ -330,7 +332,6 @@ impl RecoveryApplier for GraphStorageContext {
         } else {
             self.create_vertex_type(&redo.label_name, properties.clone(), &primary_key)?
         };
-        let space_name = recovery_space_name(self)?;
         let tag = TagInfo::new(redo.label_name.clone()).with_properties(
             redo.schema
                 .iter()
@@ -342,7 +343,7 @@ impl RecoveryApplier for GraphStorageContext {
                 .collect::<StorageResult<Vec<_>>>()?,
         );
         self.schema_manager()
-            .create_tag_with_id(&space_name, &tag, label_id)?;
+            .create_tag_with_id(&redo.space_name, &tag, label_id)?;
         Ok(())
     }
 
@@ -380,6 +381,8 @@ impl RecoveryApplier for GraphStorageContext {
             ));
         }
 
+        self.ensure_recovery_space(&redo.space_name)?;
+
         let label_id = if let Some(label_id) = redo.label_id {
             self.create_edge_type_with_id(
                 CreateEdgeTypeParams {
@@ -402,7 +405,6 @@ impl RecoveryApplier for GraphStorageContext {
                 EdgeStrategy::Multiple,
             )?
         };
-        let space_name = recovery_space_name(self)?;
         let edge_type = EdgeTypeInfo::new(redo.edge_label.clone())
             .with_src_tag(redo.src_label.clone())
             .with_dst_tag(redo.dst_label.clone())
@@ -417,7 +419,7 @@ impl RecoveryApplier for GraphStorageContext {
                     .collect::<StorageResult<Vec<_>>>()?,
             );
         self.schema_manager()
-            .create_edge_type_with_id(&space_name, &edge_type, label_id)?;
+            .create_edge_type_with_id(&redo.space_name, &edge_type, label_id)?;
         Ok(())
     }
 
@@ -606,14 +608,16 @@ impl RecoveryApplier for GraphStorageContext {
     }
 }
 
-fn recovery_space_name(ctx: &GraphStorageContext) -> StorageResult<String> {
-    if let Some(space) = ctx.schema_manager().list_spaces()?.into_iter().next() {
-        return Ok(space.space_name);
-    }
+impl GraphStorageContext {
+    fn ensure_recovery_space(&self, space_name: &str) -> StorageResult<()> {
+        if self.schema_manager().get_space(space_name)?.is_some() {
+            return Ok(());
+        }
 
-    let mut space = SpaceInfo::new("__graphdb_recovery__".to_string());
-    ctx.schema_manager().create_space(&mut space)?;
-    Ok(space.space_name)
+        let mut space = SpaceInfo::new(space_name.to_string());
+        self.schema_manager().create_space(&mut space)?;
+        Ok(())
+    }
 }
 
 fn vertex_type_storage_name(space_id: u64, tag_name: &str) -> String {
@@ -711,6 +715,7 @@ mod tests {
 
         ctx.replay_create_vertex_type(
             &CreateVertexTypeRedo {
+                space_name: "test_space".to_string(),
                 label_id: Some(1),
                 label_name: "Person".to_string(),
                 schema: vec![
@@ -724,6 +729,7 @@ mod tests {
 
         ctx.replay_create_vertex_type(
             &CreateVertexTypeRedo {
+                space_name: "test_space".to_string(),
                 label_id: Some(2),
                 label_name: "City".to_string(),
                 schema: vec![
@@ -772,6 +778,7 @@ mod tests {
 
         ctx.replay_create_edge_type(
             &CreateEdgeTypeRedo {
+                space_name: "test_space".to_string(),
                 label_id: Some(3),
                 src_label: "Person".to_string(),
                 dst_label: "City".to_string(),

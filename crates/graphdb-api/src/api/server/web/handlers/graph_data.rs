@@ -18,10 +18,21 @@ use crate::api::server::web::{
     models::ApiResponse,
     WebState,
 };
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 /// Create graph data routes (without state)
-pub fn create_routes<S: StorageClient + Clone + Send + Sync + 'static>() -> Router<WebState<S>> {
+pub fn create_routes<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>() -> Router<WebState<S>> {
     Router::new()
         .route("/vertices/{vid}", get(get_vertex))
         .route("/edges", get(get_edge))
@@ -34,7 +45,16 @@ pub struct GetVertexParams {
     pub space: String,
 }
 
-async fn get_vertex<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn get_vertex<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path(vid): Path<String>,
     Query(params): Query<GetVertexParams>,
@@ -88,7 +108,16 @@ pub struct GetEdgeParams {
     pub rank: i64,
 }
 
-async fn get_edge<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn get_edge<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Query(params): Query<GetEdgeParams>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
@@ -145,7 +174,16 @@ fn default_direction() -> String {
     "BOTH".to_string()
 }
 
-async fn get_neighbors<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn get_neighbors<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path(vid): Path<String>,
     Query(params): Query<GetNeighborsParams>,

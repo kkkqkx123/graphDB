@@ -18,20 +18,41 @@ use axum::{middleware as axum_middleware, Router};
 use std::sync::Arc;
 
 use crate::api::server::http::state::AppState;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 use self::storage::SqliteStorage;
 
 /// Web module state
 #[derive(Clone)]
-pub struct WebState<S: StorageClient + Clone + Send + Sync + 'static> {
+pub struct WebState<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+> {
     /// Metadata storage
     pub metadata_storage: Arc<SqliteStorage>,
     /// Core application state
     pub core_state: AppState<S>,
 }
 
-impl<S: StorageClient + Clone + Send + Sync + 'static> WebState<S> {
+impl<
+        S: StorageClient
+            + StorageSchemaContextOps
+            + StorageSyncContextOps
+            + StorageTransactionContextOps
+            + Clone
+            + Send
+            + Sync
+            + 'static,
+    > WebState<S>
+{
     pub async fn new(storage_path: &str, core_state: AppState<S>) -> Result<Self, error::WebError> {
         let metadata_storage = Arc::new(SqliteStorage::new(storage_path).await?);
 
@@ -43,7 +64,16 @@ impl<S: StorageClient + Clone + Send + Sync + 'static> WebState<S> {
 }
 
 /// Create Web management router
-pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
+pub fn create_router<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     web_state: WebState<S>,
 ) -> Router {
     // Build routes with shared state

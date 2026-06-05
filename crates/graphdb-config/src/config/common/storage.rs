@@ -60,10 +60,6 @@ pub struct StorageConfig {
     #[serde(default = "default_compression_level")]
     pub compression_level: u32,
 
-    /// WAL flush interval (milliseconds, 0 = immediate)
-    #[serde(default)]
-    pub wal_flush_interval_ms: u64,
-
     /// Checkpoint interval (seconds, 0 = disabled)
     #[serde(default = "default_checkpoint_interval")]
     pub checkpoint_interval_secs: u64,
@@ -103,7 +99,6 @@ impl Default for StorageConfig {
             engine: StorageEngine::default(),
             compression: CompressionAlgorithm::default(),
             compression_level: default_compression_level(),
-            wal_flush_interval_ms: 0, // Immediate flush for safety
             checkpoint_interval_secs: default_checkpoint_interval(),
             max_db_size: 0, // Unlimited
             auto_statistics: true,

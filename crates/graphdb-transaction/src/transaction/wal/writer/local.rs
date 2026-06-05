@@ -4,11 +4,10 @@ use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use super::compression::{self as compression_mod, create_compressor, Compressor};
-use super::group_commit::GroupCommitManager;
 use super::sync::{elapsed_since, should_sync};
 use super::traits::WalWriter;
 use crate::transaction::wal::types::{
@@ -37,7 +36,6 @@ pub struct LocalWalWriter {
     is_open: AtomicBool,
     file_header: Option<WalFileHeader>,
     compressor: Box<dyn Compressor>,
-    group_commit: Option<Arc<GroupCommitManager>>,
     write_count: AtomicU64,
     last_sync_time: Mutex<Option<Instant>>,
 }
@@ -67,7 +65,6 @@ impl LocalWalWriter {
             is_open: AtomicBool::new(false),
             file_header: None,
             compressor,
-            group_commit: None,
             write_count: AtomicU64::new(0),
             last_sync_time: Mutex::new(None),
         }
@@ -76,14 +73,6 @@ impl LocalWalWriter {
     /// Create with custom configuration
     pub fn with_config(wal_uri: &str, thread_id: u32, config: WalConfig) -> Self {
         let compressor = create_compressor(&config);
-        let group_commit = if config.group_commit_enabled {
-            Some(Arc::new(GroupCommitManager::new(
-                config.group_commit_batch_size,
-                config.group_commit_delay_us,
-            )))
-        } else {
-            None
-        };
 
         Self {
             wal_uri: wal_uri.to_string(),
@@ -105,7 +94,6 @@ impl LocalWalWriter {
             is_open: AtomicBool::new(false),
             file_header: None,
             compressor,
-            group_commit,
             write_count: AtomicU64::new(0),
             last_sync_time: Mutex::new(None),
         }
@@ -809,20 +797,8 @@ impl LocalWalWriter {
         &self.stats
     }
 
-    pub fn reset_stats(&mut self) {
+pub fn reset_stats(&mut self) {
         self.stats = WalStats::new();
-    }
-
-    pub fn group_commit_manager(&self) -> Option<&Arc<GroupCommitManager>> {
-        self.group_commit.as_ref()
-    }
-
-    /// Process pending group commit batch
-    pub fn process_group_commit(&mut self) -> WalResult<()> {
-        if let Some(manager) = self.group_commit.clone() {
-            manager.process_batch(|entries| self.append_batch(entries))?;
-        }
-        Ok(())
     }
 }
 

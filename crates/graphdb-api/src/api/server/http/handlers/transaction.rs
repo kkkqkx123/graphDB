@@ -7,7 +7,9 @@ use tokio::task;
 
 use crate::api::core::TransactionHandle;
 use crate::api::server::http::{error::HttpError, state::AppState};
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 use crate::transaction::{DurabilityLevel, IsolationLevel, TransactionOptions};
 
 #[derive(Debug, Deserialize)]
@@ -32,7 +34,14 @@ pub struct TransactionResponse {
 }
 
 /// Start a transaction
-pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn begin<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<BeginTransactionRequest>,
 ) -> Result<JsonResponse<TransactionResponse>, HttpError> {
@@ -79,7 +88,14 @@ pub struct TransactionActionRequest {
 }
 
 /// Submit the transaction
-pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn commit<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(txn_id): Path<u64>,
     Json(_request): Json<TransactionActionRequest>,
@@ -100,7 +116,14 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Roll back a transaction
-pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn rollback<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(txn_id): Path<u64>,
     Json(_request): Json<TransactionActionRequest>,

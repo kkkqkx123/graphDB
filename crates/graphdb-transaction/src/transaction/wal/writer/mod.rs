@@ -11,7 +11,6 @@
 mod compression;
 mod dummy;
 mod factory;
-mod group_commit;
 mod local;
 mod sync;
 mod traits;

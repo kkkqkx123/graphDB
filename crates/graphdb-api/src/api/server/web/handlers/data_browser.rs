@@ -19,11 +19,22 @@ use crate::api::server::web::{
     WebState,
 };
 use crate::core::Value;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 /// Get or create a session for the current request
 /// Returns a session ID that can be used with graph_service.execute()
-async fn get_or_create_session_id<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn get_or_create_session_id<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     web_state: &WebState<S>,
 ) -> Result<i64, WebError> {
     let session_manager = web_state.core_state.server.get_session_manager();
@@ -39,7 +50,16 @@ async fn get_or_create_session_id<S: StorageClient + Clone + Send + Sync + 'stat
 }
 
 /// Create data browser routes (without state)
-pub fn create_routes<S: StorageClient + Clone + Send + Sync + 'static>() -> Router<WebState<S>> {
+pub fn create_routes<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>() -> Router<WebState<S>> {
     Router::new()
         .route(
             "/spaces/{name}/tags/{tag_name}/vertices",
@@ -65,7 +85,16 @@ pub struct DataFilterParams {
 }
 
 /// List vertices by tag
-async fn list_vertices_by_tag<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn list_vertices_by_tag<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path((space_name, tag_name)): Path<(String, String)>,
     Query(params): Query<DataFilterParams>,
@@ -150,7 +179,16 @@ async fn list_vertices_by_tag<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List edges by type
-async fn list_edges_by_type<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn list_edges_by_type<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path((space_name, edge_name)): Path<(String, String)>,
     Query(params): Query<DataFilterParams>,

@@ -92,6 +92,7 @@ pub struct AlterSpaceCommentRedo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateVertexTypeRedo {
+    pub space_name: String,
     pub label_id: Option<LabelId>,
     pub label_name: String,
     pub schema: Vec<(String, String)>,
@@ -99,6 +100,7 @@ pub struct CreateVertexTypeRedo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateEdgeTypeRedo {
+    pub space_name: String,
     pub label_id: Option<LabelId>,
     pub src_label: String,
     pub dst_label: String,

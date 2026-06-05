@@ -20,10 +20,21 @@ use crate::api::server::web::{
     services::metadata_service::MetadataService,
     WebState,
 };
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 /// Create metadata routes (without state)
-pub fn create_routes<S: StorageClient + Clone + Send + Sync + 'static>() -> Router<WebState<S>> {
+pub fn create_routes<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>() -> Router<WebState<S>> {
     Router::new()
         .route("/history", get(list_history).post(add_history))
         .route("/history/{id}", delete(delete_history))
@@ -39,7 +50,14 @@ pub fn create_routes<S: StorageClient + Clone + Send + Sync + 'static>() -> Rout
 }
 
 /// Add a query history item
-async fn add_history<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn add_history<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Json(request): Json<AddHistoryRequest>,
@@ -63,7 +81,14 @@ async fn add_history<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List query history
-async fn list_history<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn list_history<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Query(params): Query<PaginationParams>,
@@ -82,7 +107,14 @@ async fn list_history<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Delete a history item
-async fn delete_history<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn delete_history<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -99,7 +131,14 @@ async fn delete_history<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Clear all history
-async fn clear_history<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn clear_history<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
@@ -115,7 +154,14 @@ async fn clear_history<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Add a favorite
-async fn add_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn add_favorite<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Json(request): Json<AddFavoriteRequest>,
@@ -138,7 +184,14 @@ async fn add_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List all favorites
-async fn list_favorites<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn list_favorites<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<Json<ApiResponse<FavoriteListResponse>>> {
@@ -151,7 +204,14 @@ async fn list_favorites<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Get a favorite by ID
-async fn get_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn get_favorite<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -171,7 +231,14 @@ async fn get_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Update a favorite
-async fn update_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn update_favorite<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -194,7 +261,14 @@ async fn update_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Delete a favorite
-async fn delete_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn delete_favorite<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -211,7 +285,14 @@ async fn delete_favorite<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Clear all favorites
-async fn clear_favorites<S: StorageClient + Clone + Send + Sync + 'static>(
+async fn clear_favorites<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {

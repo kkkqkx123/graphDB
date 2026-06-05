@@ -8,7 +8,9 @@ use tokio::task;
 use crate::api::core::{PropertyDef, SpaceConfig};
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::core::DataType;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 // ==================== Space related ====================
 
@@ -22,7 +24,14 @@ pub struct CreateSpaceRequest {
 }
 
 /// Creating a graph space
-pub async fn create_space<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn create_space<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateSpaceRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -50,7 +59,14 @@ pub async fn create_space<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Getting the graph space
-pub async fn get_space<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn get_space<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -73,7 +89,14 @@ pub async fn get_space<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Deletion of map space
-pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn drop_space<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -94,7 +117,14 @@ pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List all graph spaces
-pub async fn list_spaces<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn list_spaces<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let result = task::spawn_blocking(move || {
@@ -141,7 +171,14 @@ pub struct PropertyDefInput {
 }
 
 /// Creating Tags
-pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn create_tag<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(space_name): Path<String>,
     Json(request): Json<CreateTagRequest>,
@@ -180,7 +217,14 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List all tags
-pub async fn list_tags<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn list_tags<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(_state): State<AppState<S>>,
     Path(space_name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -201,7 +245,14 @@ pub struct CreateEdgeTypeRequest {
 }
 
 /// Creating Edge Types
-pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn create_edge_type<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(space_name): Path<String>,
     Json(request): Json<CreateEdgeTypeRequest>,
@@ -240,7 +291,14 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List all edge types
-pub async fn list_edge_types<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn list_edge_types<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(_state): State<AppState<S>>,
     Path(space_name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {

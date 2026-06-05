@@ -12,7 +12,9 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 #[cfg(feature = "qdrant")]
 use super::handlers::vector;
@@ -46,7 +48,16 @@ use super::{
 /// /v1/transactions/* – Transaction management (authentication required)
 /// – /v1/schema/* – Schema management (requires authentication)
 /// – /api/* – Web management APIs (authentication required)
-pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
+pub fn create_router<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     state: AppState<S>,
     web_router: Option<Router>,
 ) -> Router {
@@ -88,8 +99,6 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/functions/{name}", get(function_info).delete(unregister))
         // Streaming Query Routing
         .route("/query/stream", post(execute_stream))
-        // Sync Management Routes
-        .route("/sync/status", get(sync::status))
         // Sync Management Routes
         .route("/sync/status", get(sync::status))
         // Schema Routes
@@ -139,7 +148,16 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
 
 /// Conditionally add vector search routes
 #[cfg(feature = "qdrant")]
-fn add_vector_routes<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
+fn add_vector_routes<
+    S: crate::storage::StorageClient
+        + crate::storage::StorageSchemaContextOps
+        + crate::storage::StorageSyncContextOps
+        + crate::storage::StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     router: Router<super::state::AppState<S>>,
 ) -> Router<super::state::AppState<S>> {
     router
@@ -163,7 +181,16 @@ fn add_vector_routes<S: crate::storage::StorageClient + Clone + Send + Sync + 's
 }
 
 #[cfg(not(feature = "qdrant"))]
-fn add_vector_routes<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
+fn add_vector_routes<
+    S: crate::storage::StorageClient
+        + crate::storage::StorageSchemaContextOps
+        + crate::storage::StorageSyncContextOps
+        + crate::storage::StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     router: Router<super::state::AppState<S>>,
 ) -> Router<super::state::AppState<S>> {
     router

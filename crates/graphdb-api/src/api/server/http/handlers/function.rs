@@ -8,10 +8,19 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 
 use crate::api::server::http::{error::HttpError, state::AppState};
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 /// Register a custom function
-pub async fn register<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn register<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<RegisterFunctionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -46,7 +55,14 @@ pub async fn register<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// List all functions
-pub async fn list<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn list<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let registry = state.server.get_function_registry();
@@ -69,7 +85,14 @@ pub async fn list<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Obtain function details
-pub async fn info<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn info<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -106,7 +129,14 @@ pub async fn info<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Logout function
-pub async fn unregister<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn unregister<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {

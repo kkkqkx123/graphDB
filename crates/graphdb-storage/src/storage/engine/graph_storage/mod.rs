@@ -78,6 +78,19 @@ impl GraphStorage {
             .map(|ctx| Self { ctx: Arc::new(ctx) })
     }
 
+    pub fn open_with_persistence(
+        path: PathBuf,
+        enable_wal: bool,
+        sync_policy: Option<crate::transaction::wal::SyncPolicy>,
+    ) -> StorageResult<Self> {
+        let mut config = PersistenceConfig::for_work_dir(&path);
+        config.enable_wal = enable_wal;
+        config.sync_policy = sync_policy;
+        let storage = Self::new_with_persistence(path, config)?;
+        let _ = persistence::initialize_with_recovery(&storage.ctx)?;
+        Ok(storage)
+    }
+
     pub fn with_index_gc(mut self, config: IndexGcConfig) -> Self {
         let new_ctx = Arc::new((*self.ctx).clone().with_index_gc(config));
         self.ctx = new_ctx;

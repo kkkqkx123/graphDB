@@ -9,10 +9,19 @@ use serde_json;
 
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::core::stats::MetricType;
-use crate::storage::StorageClient;
+use crate::storage::{
+    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+};
 
 /// Obtaining session statistics
-pub async fn session<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn session<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Path(session_id): Path<i64>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -59,7 +68,14 @@ pub async fn session<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Obtain query statistics
-pub async fn queries<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn queries<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
     Query(params): Query<QueryStatsParams>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -135,7 +151,14 @@ pub async fn queries<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Obtain database statistics
-pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn database<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let stats_manager = state.server.get_stats_manager();
@@ -262,7 +285,14 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Obtaining information about the use of system resources
-pub async fn system<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn system<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let session_manager = state.server.get_session_manager();
@@ -290,7 +320,14 @@ pub async fn system<S: StorageClient + Clone + Send + Sync + 'static>(
 }
 
 /// Obtain search statistics
-pub async fn search<S: StorageClient + Clone + Send + Sync + 'static>(
+pub async fn search<S: StorageClient
+    + StorageSchemaContextOps
+    + StorageSyncContextOps
+    + StorageTransactionContextOps
+    + Clone
+    + Send
+    + Sync
+    + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let stats_manager = state.server.get_stats_manager();

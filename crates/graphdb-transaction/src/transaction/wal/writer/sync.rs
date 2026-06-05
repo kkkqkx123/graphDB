@@ -20,7 +20,6 @@ pub(crate) fn should_sync(
             elapsed_ms >= *interval_ms
         }
         SyncPolicy::Batch { batch_size } => write_count >= *batch_size as u64,
-        SyncPolicy::GroupCommit => false,
     }
 }
 
