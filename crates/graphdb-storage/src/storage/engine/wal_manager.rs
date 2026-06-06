@@ -51,10 +51,6 @@ impl WalManager {
         self.local_writer.clone()
     }
 
-    pub fn is_enabled(&self) -> bool {
-        self.local_writer.is_some()
-    }
-
     pub fn current_lsn(&self) -> Lsn {
         if let Some(ref writer) = self.local_writer {
             writer.read().current_lsn()
@@ -144,6 +140,6 @@ mod tests {
             .open(temp_dir.path(), 0)
             .expect("Failed to open WAL");
 
-        assert!(manager.is_enabled());
+        assert!(manager.writer().is_some());
     }
 }

@@ -303,28 +303,6 @@ impl TransactionOps {
         Ok(())
     }
 
-    pub fn update_vertex_property(
-        vertex_tables: &mut HashMap<LabelId, VertexTable>,
-        label: LabelId,
-        external_id: &str,
-        prop_name: &str,
-        value: &Value,
-        ts: Timestamp,
-    ) -> UndoLogResult<()> {
-        let table = vertex_tables
-            .get_mut(&label)
-            .ok_or(UndoLogError::LabelNotFound(label))?;
-
-        let internal_id = table
-            .get_internal_id(external_id, ts)
-            .ok_or(UndoLogError::LabelNotFound(0))?;
-
-        table
-            .update_property(internal_id, prop_name, value, ts)
-            .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
-        Ok(())
-    }
-
     pub fn update_vertex_property_by_vid(
         vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,

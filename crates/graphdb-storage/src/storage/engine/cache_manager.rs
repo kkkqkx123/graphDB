@@ -3,10 +3,7 @@
 //! Manages record cache and memory tracking for the storage engine.
 
 use crate::core::types::{LabelId, Timestamp};
-use crate::storage::cache::{
-    CachedVertex, RecordCache, RecordCacheConfig, RecordCacheStats, SharedRecordCache,
-    VertexCacheKey,
-};
+use crate::storage::cache::{CachedVertex, RecordCache, RecordCacheConfig, SharedRecordCache, VertexCacheKey};
 
 /// Manager for storage caches
 pub struct CacheManager {
@@ -26,16 +23,6 @@ impl CacheManager {
         };
 
         Self { record_cache }
-    }
-
-    pub fn record_cache(&self) -> Option<&SharedRecordCache> {
-        self.record_cache.as_ref()
-    }
-
-    pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
-        self.record_cache
-            .as_ref()
-            .map(|c: &SharedRecordCache| c.stats())
     }
 
     pub fn clear_cache(&self) {

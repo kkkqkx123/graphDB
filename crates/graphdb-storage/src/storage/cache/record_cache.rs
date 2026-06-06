@@ -1,15 +1,12 @@
 use std::sync::Arc;
-use std::time::Instant;
 
 use moka::sync::Cache;
 use parking_lot::Mutex;
 
 use crate::core::stats::CacheStats;
-use crate::core::stats::StatsManager;
 use crate::core::types::Timestamp;
 
 use super::config::*;
-use super::stats::*;
 use super::types::*;
 
 /// Record cache for vertex data and ID index mappings.
@@ -28,8 +25,6 @@ pub struct RecordCache {
     vertex_stats: Arc<CacheStats>,
     id_index_stats: Arc<CacheStats>,
     eviction_callback: Arc<Mutex<Option<EvictionCallback>>>,
-    stats_manager: Option<Arc<StatsManager>>,
-    created_at: Instant,
 }
 
 impl std::fmt::Debug for RecordCache {
@@ -93,8 +88,6 @@ impl RecordCache {
             vertex_stats,
             id_index_stats,
             eviction_callback,
-            stats_manager: None,
-            created_at: Instant::now(),
         }
     }
 
@@ -169,20 +162,6 @@ impl RecordCache {
         builder.build()
     }
 
-    pub fn with_eviction_callback(self, callback: EvictionCallback) -> Self {
-        *self.eviction_callback.lock() = Some(callback);
-        self
-    }
-
-    pub fn set_eviction_callback(&self, callback: EvictionCallback) {
-        *self.eviction_callback.lock() = Some(callback);
-    }
-
-    pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
-        self.stats_manager = Some(stats_manager);
-        self
-    }
-
     fn notify_eviction(&self, cache_type: &str, cause: EvictionCause) {
         if let Some(ref callback) = *self.eviction_callback.lock() {
             callback(cache_type, cause);
@@ -198,7 +177,7 @@ impl RecordCache {
         query_ts: Timestamp,
     ) -> Option<u32> {
         let key = IdIndexCacheKey::new(label_id, external_id.to_string());
-        let result = match self.id_index_cache.get(&key) {
+        match self.id_index_cache.get(&key) {
             Some(cached) if cached.cached_at_ts <= query_ts => {
                 self.id_index_stats.record_hit();
                 Some(cached.internal_id)
@@ -211,11 +190,7 @@ impl RecordCache {
                 self.id_index_stats.record_miss();
                 None
             }
-        };
-        if let Some(ref sm) = self.stats_manager {
-            sm.record_storage_cache_hit(result.is_some());
         }
-        result
     }
 
     pub fn insert_id_index(
@@ -245,7 +220,7 @@ impl RecordCache {
     // ==================== Vertex Operations ====================
 
     pub fn get_vertex(&self, key: &VertexCacheKey, query_ts: Timestamp) -> Option<CachedVertex> {
-        let result = match self.vertex_cache.get(key) {
+        match self.vertex_cache.get(key) {
             Some(vertex) if vertex.cached_at_ts <= query_ts => {
                 self.vertex_stats.record_hit();
                 Some(vertex)
@@ -258,11 +233,7 @@ impl RecordCache {
                 self.vertex_stats.record_miss();
                 None
             }
-        };
-        if let Some(ref sm) = self.stats_manager {
-            sm.record_storage_cache_hit(result.is_some());
         }
-        result
     }
 
     pub fn insert_vertex(&self, key: VertexCacheKey, vertex: CachedVertex) {
@@ -270,7 +241,7 @@ impl RecordCache {
     }
 
     pub fn remove_vertex(&self, key: &VertexCacheKey) {
-        if let Some(_vertex) = self.vertex_cache.remove(key) {
+        if self.vertex_cache.remove(key).is_some() {
             self.notify_eviction("vertex", EvictionCause::Explicit);
         }
     }
@@ -301,154 +272,6 @@ impl RecordCache {
         self.id_index_cache.invalidate_all();
         self.vertex_cache.run_pending_tasks();
         self.id_index_cache.run_pending_tasks();
-    }
-
-    pub fn run_pending_tasks(&self) {
-        self.vertex_cache.run_pending_tasks();
-        self.id_index_cache.run_pending_tasks();
-    }
-
-    // ==================== Statistics ====================
-
-    fn effective_capacity(&self) -> usize {
-        let max_memory = self.config.max_memory as u64;
-        let total_ratio = self.config.memory_ratio.0 + self.config.memory_ratio.1;
-        let base_vertex = max_memory * self.config.memory_ratio.0 as u64 / total_ratio as u64;
-        let base_id_index = max_memory * self.config.memory_ratio.1 as u64 / total_ratio as u64;
-        let high_priority_extra = if self.config.high_priority_ratio > 0.0 {
-            (max_memory as f64 * self.config.high_priority_ratio as f64) as u64
-        } else {
-            0
-        };
-        (base_vertex + base_id_index + high_priority_extra) as usize
-    }
-
-    pub fn memory_usage(&self) -> usize {
-        (self.vertex_cache.weighted_size() + self.id_index_cache.weighted_size()) as usize
-    }
-
-    pub fn max_memory(&self) -> usize {
-        self.effective_capacity()
-    }
-
-    pub fn stats(&self) -> RecordCacheStats {
-        let vertex_weighted = self.vertex_cache.weighted_size();
-        let id_index_weighted = self.id_index_cache.weighted_size();
-
-        let vertex_snapshot = CacheTypeStatsSnapshot::from_stats(
-            &self.vertex_stats,
-            self.vertex_cache.entry_count(),
-            vertex_weighted,
-        );
-        let id_index_snapshot = CacheTypeStatsSnapshot::from_stats(
-            &self.id_index_stats,
-            self.id_index_cache.entry_count(),
-            id_index_weighted,
-        );
-
-        let total_hits = vertex_snapshot.hits + id_index_snapshot.hits;
-        let total_misses = vertex_snapshot.misses + id_index_snapshot.misses;
-        let total_evictions = vertex_snapshot.evictions + id_index_snapshot.evictions;
-        let total_operations = total_hits + total_misses + total_evictions;
-
-        let memory_usage = (vertex_weighted + id_index_weighted) as usize;
-        let max_memory = self.effective_capacity();
-
-        RecordCacheStats {
-            vertex: vertex_snapshot,
-            id_index: id_index_snapshot,
-            total_hits,
-            total_misses,
-            total_evictions,
-            hit_rate: if total_hits + total_misses > 0 {
-                total_hits as f64 / (total_hits + total_misses) as f64
-            } else {
-                0.0
-            },
-            eviction_rate: if total_operations > 0 {
-                total_evictions as f64 / total_operations as f64
-            } else {
-                0.0
-            },
-            memory_usage,
-            max_memory,
-            uptime_seconds: self.created_at.elapsed().as_secs(),
-            vertex_memory_bytes: vertex_weighted,
-            id_index_memory_bytes: id_index_weighted,
-        }
-    }
-
-    pub fn utilization(&self) -> f32 {
-        let max_memory = self.effective_capacity();
-        if max_memory == 0 {
-            return 0.0;
-        }
-        self.memory_usage() as f32 / max_memory as f32
-    }
-
-    pub fn vertex_stats(&self) -> &CacheStats {
-        &self.vertex_stats
-    }
-
-    pub fn id_index_stats(&self) -> &CacheStats {
-        &self.id_index_stats
-    }
-
-    pub fn config(&self) -> &RecordCacheConfig {
-        &self.config
-    }
-
-    // ==================== Batch Operations ====================
-
-    pub fn get_vertices_batch(
-        &self,
-        keys: &[VertexCacheKey],
-        query_ts: Timestamp,
-    ) -> BatchGetResult<CachedVertex> {
-        let mut results = Vec::with_capacity(keys.len());
-        let mut hits = 0usize;
-        let mut misses = 0usize;
-
-        for key in keys {
-            match self.vertex_cache.get(key) {
-                Some(vertex) if vertex.cached_at_ts <= query_ts => {
-                    self.vertex_stats.record_hit();
-                    hits += 1;
-                    results.push(Some(vertex));
-                }
-                _ => {
-                    self.vertex_stats.record_miss();
-                    misses += 1;
-                    results.push(None);
-                }
-            }
-        }
-
-        BatchGetResult {
-            results,
-            hits,
-            misses,
-        }
-    }
-
-    pub fn insert_vertices_batch(
-        &self,
-        entries: Vec<(VertexCacheKey, CachedVertex)>,
-    ) -> BatchInsertResult {
-        let mut total_size = 0usize;
-        let mut inserted = 0usize;
-
-        for (key, vertex) in entries {
-            total_size += vertex.estimated_size() as usize;
-            self.vertex_cache.insert(key, vertex);
-            inserted += 1;
-        }
-        self.vertex_cache.run_pending_tasks();
-
-        BatchInsertResult {
-            inserted,
-            total_size,
-        }
     }
 }
 

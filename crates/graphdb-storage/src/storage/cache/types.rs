@@ -102,15 +102,4 @@ impl CachedVertex {
     }
 }
 
-/// Result of batch insert operation
-pub struct BatchInsertResult {
-    pub inserted: usize,
-    pub total_size: usize,
-}
 
-/// Result of batch get operation
-pub struct BatchGetResult<T> {
-    pub results: Vec<Option<T>>,
-    pub hits: usize,
-    pub misses: usize,
-}

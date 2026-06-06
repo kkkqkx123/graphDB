@@ -67,10 +67,6 @@ impl VertexTable {
         }
     }
 
-    pub fn close(&mut self) {
-        self.is_open = false;
-    }
-
     pub fn insert(
         &mut self,
         external_id: &str,
@@ -309,10 +305,6 @@ impl VertexTable {
             return None;
         }
         self.id_indexer.get_key(internal_id).cloned()
-    }
-
-    pub fn vertex_count(&self, ts: Timestamp) -> usize {
-        self.timestamps.valid_count(ts)
     }
 
     pub fn total_count(&self) -> usize {
@@ -951,7 +943,7 @@ mod tests {
             label_name: "person".to_string(),
             properties: vec![
                 StoragePropertyDef::new("name".to_string(), DataType::String),
-                StoragePropertyDef::new("age".to_string(), DataType::Int).nullable(true),
+                StoragePropertyDef { name: "age".to_string(), data_type: DataType::Int, nullable: true, default_value: None },
             ],
             primary_key_index: 0,
         }

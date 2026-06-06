@@ -26,23 +26,6 @@ pub enum IdKey {
 }
 
 impl IdKey {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        match self {
-            IdKey::Int(val) => {
-                let mut bytes = Vec::with_capacity(9);
-                bytes.push(ID_KEY_TYPE_INT);
-                bytes.extend_from_slice(&val.to_be_bytes());
-                bytes
-            }
-            IdKey::Text(val) => {
-                let mut bytes = Vec::with_capacity(1 + val.len());
-                bytes.push(ID_KEY_TYPE_TEXT);
-                bytes.extend_from_slice(val.as_bytes());
-                bytes
-            }
-        }
-    }
-
     /// Write the key bytes into an existing buffer to avoid extra allocations.
     /// The buffer is cleared before writing.
     pub fn write_to(&self, buf: &mut Vec<u8>) {
@@ -446,34 +429,4 @@ mod tests {
         assert!(indexer.insert(IdKey::Text("v4".to_string())).is_err());
     }
 
-    #[test]
-    fn test_id_key_serialization() {
-        let int_key = IdKey::Int(12345);
-        let bytes = int_key.to_bytes();
-        let restored = IdKey::from_bytes(&bytes).unwrap();
-        assert_eq!(int_key, restored);
-
-        let text_key = IdKey::Text("test_vertex".to_string());
-        let bytes = text_key.to_bytes();
-        let restored = IdKey::from_bytes(&bytes).unwrap();
-        assert_eq!(text_key, restored);
-    }
-
-    #[test]
-    fn test_id_key_serialization_edge_cases() {
-        let zero_key = IdKey::Int(0);
-        let bytes = zero_key.to_bytes();
-        let restored = IdKey::from_bytes(&bytes).unwrap();
-        assert_eq!(zero_key, restored);
-
-        let neg_key = IdKey::Int(-12345);
-        let bytes = neg_key.to_bytes();
-        let restored = IdKey::from_bytes(&bytes).unwrap();
-        assert_eq!(neg_key, restored);
-
-        let empty_text = IdKey::Text("".to_string());
-        let bytes = empty_text.to_bytes();
-        let restored = IdKey::from_bytes(&bytes).unwrap();
-        assert_eq!(empty_text, restored);
-    }
 }

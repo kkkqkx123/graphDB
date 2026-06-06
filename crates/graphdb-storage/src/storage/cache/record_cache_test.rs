@@ -1,8 +1,6 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use crate::core::Value;
-use crate::storage::cache::types::EvictionCause;
 
 use super::*;
 
@@ -23,30 +21,6 @@ fn test_vertex_cache_basic() {
     let cached = cache.get_vertex(&VertexCacheKey::new(1, 100), 0);
     assert!(cached.is_some());
     assert_eq!(cached.unwrap().external_id, "test_vertex");
-}
-
-#[test]
-fn test_cache_stats() {
-    let cache = RecordCache::new();
-
-    let key = VertexCacheKey::new(1, 100);
-    let vertex = CachedVertex {
-        internal_id: 100,
-        external_id: "test".to_string(),
-        properties: vec![],
-        cached_at_ts: 0,
-    };
-
-    cache.insert_vertex(key, vertex);
-
-    cache.get_vertex(&VertexCacheKey::new(1, 100), 0);
-    cache.get_vertex(&VertexCacheKey::new(1, 999), 0);
-
-    let stats = cache.stats();
-    assert_eq!(stats.vertex.hits, 1);
-    assert_eq!(stats.vertex.misses, 1);
-    assert_eq!(stats.total_hits, 1);
-    assert_eq!(stats.total_misses, 1);
 }
 
 #[test]
@@ -85,34 +59,8 @@ fn test_cache_clear() {
 
     cache.clear();
 
-    let stats = cache.stats();
-    assert_eq!(stats.vertex.count, 0);
-}
-
-#[test]
-fn test_memory_weighted_eviction() {
-    let config = RecordCacheConfig {
-        max_memory: 1024,
-        ..Default::default()
-    };
-    let cache = RecordCache::with_config(config);
-
-    for i in 0..100u32 {
-        let key = VertexCacheKey::new(1, i);
-        let vertex = CachedVertex {
-            internal_id: i,
-            external_id: format!("vertex_{}", i),
-            properties: vec![("data".to_string(), Value::String("x".repeat(50)))],
-            cached_at_ts: 0,
-        };
-        cache.insert_vertex(key, vertex);
-    }
-
-    let stats = cache.stats();
-    assert!(
-        stats.vertex.count < 100,
-        "Cache should have evicted entries"
-    );
+    assert!(cache.get_vertex(&VertexCacheKey::new(1, 0), 0).is_none());
+    assert!(cache.get_vertex(&VertexCacheKey::new(1, 9), 0).is_none());
 }
 
 #[test]
@@ -159,40 +107,6 @@ fn test_cache_config_with_ttl() {
 }
 
 #[test]
-fn test_fine_grained_stats() {
-    let cache = RecordCache::new();
-
-    cache.insert_vertex(
-        VertexCacheKey::new(1, 100),
-        CachedVertex {
-            internal_id: 100,
-            external_id: "v1".to_string(),
-            properties: vec![],
-            cached_at_ts: 0,
-        },
-    );
-
-    cache.insert_id_index(1, "user_001", 100, 0);
-
-    cache.get_vertex(&VertexCacheKey::new(1, 100), 0);
-    cache.get_vertex(&VertexCacheKey::new(1, 999), 0);
-
-    cache.get_id_index(1, "user_001", 0);
-    cache.get_id_index(1, "nonexistent", 0);
-
-    let stats = cache.stats();
-
-    assert_eq!(stats.vertex.hits, 1);
-    assert_eq!(stats.vertex.misses, 1);
-
-    assert_eq!(stats.id_index.hits, 1);
-    assert_eq!(stats.id_index.misses, 1);
-
-    assert_eq!(stats.total_hits, 2);
-    assert_eq!(stats.total_misses, 2);
-}
-
-#[test]
 fn test_high_priority_pool() {
     let config = RecordCacheConfig {
         max_memory: 1024 * 1024,
@@ -207,147 +121,6 @@ fn test_high_priority_pool() {
     }
 
     assert!(cache.get_id_index(1, "id_50", 0).is_some());
-}
-
-#[test]
-fn test_eviction_callback() {
-    let eviction_count = Arc::new(AtomicUsize::new(0));
-    let eviction_count_clone = eviction_count.clone();
-
-    let callback = Arc::new(move |_cache_type: &str, _cause: EvictionCause| {
-        eviction_count_clone.fetch_add(1, Ordering::Relaxed);
-    });
-
-    let config = RecordCacheConfig {
-        max_memory: 1024,
-        ..Default::default()
-    };
-    let cache = RecordCache::with_config(config).with_eviction_callback(callback);
-
-    for i in 0..100u32 {
-        let key = VertexCacheKey::new(1, i);
-        let vertex = CachedVertex {
-            internal_id: i,
-            external_id: format!("vertex_{}", i),
-            properties: vec![("data".to_string(), Value::String("x".repeat(50)))],
-            cached_at_ts: 0,
-        };
-        cache.insert_vertex(key, vertex);
-    }
-
-    cache.clear();
-
-    let _stats = cache.stats();
-    assert!(
-        eviction_count.load(Ordering::Relaxed) > 0,
-        "Eviction callback should have been called"
-    );
-}
-
-#[test]
-fn test_cache_type_stats() {
-    let stats = crate::core::stats::CacheStats::new();
-
-    stats.record_hit();
-    stats.record_hit();
-    stats.record_miss();
-    stats.record_eviction();
-
-    assert_eq!(stats.hits(), 2);
-    assert_eq!(stats.misses(), 1);
-    assert_eq!(stats.evictions(), 1);
-
-    let hit_rate = stats.hit_rate();
-    assert!((hit_rate - 0.666).abs() < 0.01);
-
-    stats.reset();
-    assert_eq!(stats.hits(), 0);
-    assert_eq!(stats.misses(), 0);
-    assert_eq!(stats.evictions(), 0);
-}
-
-#[test]
-fn test_batch_get_vertices() {
-    let cache = RecordCache::new();
-
-    for i in 0..10u32 {
-        let key = VertexCacheKey::new(1, i);
-        let vertex = CachedVertex {
-            internal_id: i,
-            external_id: format!("v{}", i),
-            properties: vec![],
-            cached_at_ts: 0,
-        };
-        cache.insert_vertex(key, vertex);
-    }
-
-    let keys: Vec<VertexCacheKey> = (0..15u32).map(|i| VertexCacheKey::new(1, i)).collect();
-    let result = cache.get_vertices_batch(&keys, 0);
-
-    assert_eq!(result.results.len(), 15);
-    assert_eq!(result.hits, 10);
-    assert_eq!(result.misses, 5);
-
-    for i in 0..10 {
-        assert!(result.results[i].is_some());
-        assert_eq!(result.results[i].as_ref().unwrap().internal_id, i as u32);
-    }
-    for i in 10..15 {
-        assert!(result.results[i].is_none());
-    }
-}
-
-#[test]
-fn test_batch_get_vertices_timestamp() {
-    let cache = RecordCache::new();
-
-    let key = VertexCacheKey::new(1, 1);
-    cache.insert_vertex(
-        key,
-        CachedVertex {
-            internal_id: 1,
-            external_id: "v1".to_string(),
-            properties: vec![],
-            cached_at_ts: 10,
-        },
-    );
-
-    // query at ts=5 should NOT see entry cached at ts=10
-    let result = cache.get_vertices_batch(&[VertexCacheKey::new(1, 1)], 5);
-    assert!(result.results[0].is_none());
-    assert_eq!(result.misses, 1);
-
-    // query at ts=10 SHOULD see it
-    let result = cache.get_vertices_batch(&[VertexCacheKey::new(1, 1)], 10);
-    assert!(result.results[0].is_some());
-    assert_eq!(result.hits, 1);
-}
-
-#[test]
-fn test_batch_insert_vertices() {
-    let cache = RecordCache::new();
-
-    let entries: Vec<(VertexCacheKey, CachedVertex)> = (0..100u32)
-        .map(|i| {
-            (
-                VertexCacheKey::new(1, i),
-                CachedVertex {
-                    internal_id: i,
-                    external_id: format!("v{}", i),
-                    properties: vec![],
-                    cached_at_ts: 0,
-                },
-            )
-        })
-        .collect();
-
-    let result = cache.insert_vertices_batch(entries);
-    assert_eq!(result.inserted, 100);
-    assert!(result.total_size > 0);
-
-    let stats = cache.stats();
-    assert!(stats.vertex.count > 0);
-    assert!(stats.vertex.count <= 100);
 }
 
 #[test]
@@ -449,29 +222,6 @@ fn test_invalidate_by_label() {
 }
 
 #[test]
-fn test_memory_overflow_eviction() {
-    let config = RecordCacheConfig {
-        max_memory: 512,
-        ..Default::default()
-    };
-    let cache = RecordCache::with_config(config);
-
-    for i in 0..200u32 {
-        let key = VertexCacheKey::new(1, i);
-        let vertex = CachedVertex {
-            internal_id: i,
-            external_id: format!("v{}", i),
-            properties: vec![("data".to_string(), Value::String("x".repeat(100)))],
-            cached_at_ts: 0,
-        };
-        cache.insert_vertex(key, vertex);
-    }
-
-    let stats = cache.stats();
-    assert!(stats.vertex.evictions > 0, "Evictions should have occurred");
-}
-
-#[test]
 fn test_timestamp_staleness() {
     let cache = RecordCache::new();
 
@@ -538,9 +288,6 @@ fn test_concurrent_cache_access() {
     for handle in handles {
         handle.join().expect("Thread should not panic");
     }
-
-    let stats = cache.stats();
-    assert!(stats.total_hits + stats.total_misses > 0);
 }
 
 #[test]
@@ -573,8 +320,59 @@ fn test_estimated_size_accuracy() {
 }
 
 #[test]
-fn test_config_readonly() {
-    let cache = RecordCache::new();
-    let cfg = cache.config();
-    assert_eq!(cfg.max_memory, 128 * 1024 * 1024);
+fn test_memory_weighted_eviction() {
+    let config = RecordCacheConfig {
+        max_memory: 1024,
+        ..Default::default()
+    };
+    let cache = RecordCache::with_config(config);
+
+    for i in 0..100u32 {
+        let key = VertexCacheKey::new(1, i);
+        let vertex = CachedVertex {
+            internal_id: i,
+            external_id: format!("vertex_{}", i),
+            properties: vec![("data".to_string(), Value::String("x".repeat(50)))],
+            cached_at_ts: 0,
+        };
+        cache.insert_vertex(key, vertex);
+    }
+
+    // verify eviction happened (not all 100 entries are present)
+    let mut found = 0;
+    for i in 0..100u32 {
+        if cache.get_vertex(&VertexCacheKey::new(1, i), 0).is_some() {
+            found += 1;
+        }
+    }
+    assert!(found < 100, "Cache should have evicted entries");
+}
+
+#[test]
+fn test_memory_overflow_eviction() {
+    let config = RecordCacheConfig {
+        max_memory: 512,
+        ..Default::default()
+    };
+    let cache = RecordCache::with_config(config);
+
+    for i in 0..200u32 {
+        let key = VertexCacheKey::new(1, i);
+        let vertex = CachedVertex {
+            internal_id: i,
+            external_id: format!("v{}", i),
+            properties: vec![("data".to_string(), Value::String("x".repeat(100)))],
+            cached_at_ts: 0,
+        };
+        cache.insert_vertex(key, vertex);
+    }
+
+    // verify eviction happened (test would OOM if no eviction)
+    let mut found = 0;
+    for i in 0..200u32 {
+        if cache.get_vertex(&VertexCacheKey::new(1, i), 0).is_some() {
+            found += 1;
+        }
+    }
+    assert!(found < 200, "Evictions should have occurred");
 }

@@ -124,16 +124,6 @@ impl StoragePropertyDef {
         }
     }
 
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
-        self
-    }
-
-    pub fn default_value(mut self, value: Value) -> Self {
-        self.default_value = Some(value);
-        self
-    }
-
     pub fn from_core(prop: &CorePropertyDef) -> Self {
         Self {
             name: prop.name.clone(),

@@ -269,10 +269,6 @@ impl EdgeTable {
 }
 
 impl EdgeTable {
-    pub fn close(&mut self) {
-        self.is_open = false;
-    }
-
     pub fn insert_edge(
         &mut self,
         src: VertexId,
@@ -1454,7 +1450,7 @@ mod tests {
         table
             .flush(
                 &temp_dir,
-                crate::storage::compression::CompressionType::None,
+                crate::storage::compression::CompressionType::Zstd { level: 3 },
             )
             .expect("flush should succeed");
 
@@ -1465,6 +1461,16 @@ mod tests {
             loaded_table.out_edges(VertexId::from_int64(1), ts).len(),
             2,
             "scan should work after load"
+        );
+
+        loaded_table
+            .load(&temp_dir)
+            .expect("second load should succeed");
+
+        assert_eq!(
+            loaded_table.out_edges(VertexId::from_int64(1), ts).len(),
+            2,
+            "scan should still work after second load"
         );
         assert_eq!(
             loaded_table.out_edges(VertexId::from_int64(2), ts).len(),
@@ -1526,7 +1532,7 @@ mod tests {
         table
             .flush(
                 &temp_dir,
-                crate::storage::compression::CompressionType::None,
+                crate::storage::compression::CompressionType::Zstd { level: 3 },
             )
             .expect("flush should succeed");
 

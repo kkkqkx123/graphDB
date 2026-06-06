@@ -4,7 +4,6 @@ mod tests {
 
     use crate::core::{DataType, Value};
     use crate::storage::edge::EdgeStrategy;
-    use crate::storage::engine::config::PropertyGraphConfig;
     use crate::storage::engine::graph_storage::GraphStorageContext;
     use crate::storage::engine::params::{
         CreateEdgeTypeParams, EdgeOperationParams, InsertEdgeParams,
@@ -25,10 +24,7 @@ mod tests {
         let dir = temp_dir("flush_custom");
         let data_dir = dir.join("custom_data");
 
-        let config = PropertyGraphConfig::default()
-            .with_work_dir(dir.clone())
-            .with_cache(true, 1024 * 1024);
-        let graph = GraphStorageContext::with_config(config);
+        let graph = GraphStorageContext::new();
 
         let person_label = graph
             .create_vertex_type(

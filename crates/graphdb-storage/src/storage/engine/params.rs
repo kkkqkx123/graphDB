@@ -35,15 +35,4 @@ pub struct InsertEdgeParams<'a> {
     pub ts: Timestamp,
 }
 
-/// Parameters for update_edge_property operation in PropertyGraph.
-pub struct PropertyGraphUpdateEdgePropertyParams<'a> {
-    pub edge_label: LabelId,
-    pub src_label: LabelId,
-    pub src_id: VertexId,
-    pub dst_label: LabelId,
-    pub dst_id: VertexId,
-    pub rank: i64,
-    pub prop_name: &'a str,
-    pub value: &'a Value,
-    pub ts: Timestamp,
-}
+

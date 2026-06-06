@@ -249,6 +249,8 @@ pub fn drop_vertex_type(ctx: &GraphStorageContext, name: &str) -> StorageResult<
         .write()
         .retain(|key, _table| key.src_label != label_id && key.dst_label != label_id);
 
+    ctx.invalidate_vertex_cache(label_id);
+
     Ok(())
 }
 

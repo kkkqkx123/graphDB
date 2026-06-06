@@ -9,12 +9,11 @@ use serde::Serialize;
 use crate::core::metadata::{IndexManager, SchemaManager};
 use crate::core::mvcc::VersionManager;
 use crate::core::types::{
-    CompactConfig, LabelId, TableId, TableTracker, TableTrackerConfig, TableType, Timestamp,
+    CompactConfig, LabelId, TableId, TableTracker, TableTrackerConfig, Timestamp,
     TransactionContextInfo, VertexId,
 };
 use crate::core::UserStorage;
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::cache::{RecordCacheStats, SharedRecordCache};
 use crate::storage::edge::{EdgeRecord, EdgeStrategy};
 use crate::storage::engine::cache_manager::CacheManager;
 use crate::storage::engine::config::PropertyGraphConfig;
@@ -22,14 +21,26 @@ use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
 use crate::storage::engine::params::CreateEdgeTypeParams;
 use crate::storage::engine::paths::StoragePaths;
 use crate::storage::engine::persistence_coordinator::PersistenceCoordinator;
-use crate::storage::engine::{
-    EdgeOperationParams, InsertEdgeParams, PropertyGraphUpdateEdgePropertyParams,
-};
+use crate::storage::engine::{EdgeOperationParams, InsertEdgeParams};
 use crate::storage::index::{
     GcStats, IndexDataManagerImpl, IndexGcConfig, IndexGcManager, IndexGcOps,
 };
 use crate::storage::types::{EdgeOffset, StoragePropertyDef};
 use crate::storage::vertex::{IdKey, VertexRecord};
+
+type LastCompactedVertices = Arc<Mutex<Vec<(LabelId, Vec<IdKey>)>>>;
+type CoreComponents = (
+    Arc<GraphDataStore>,
+    Arc<CacheManager>,
+    Arc<TableTracker>,
+    Arc<AtomicBool>,
+    LastCompactedVertices,
+    Arc<RwLock<IndexDataManagerImpl>>,
+    Arc<SchemaManager>,
+    Arc<IndexManager>,
+    Arc<VersionManager>,
+    Arc<UserStorage>,
+);
 use crate::transaction::wal::types::WalOpType;
 
 #[derive(Clone)]
@@ -73,7 +84,7 @@ struct GraphStoragePersistent {
     table_tracker: Arc<TableTracker>,
     config: PropertyGraphConfig,
     is_open: Arc<AtomicBool>,
-    last_compacted_vertices: Arc<Mutex<Vec<(LabelId, Vec<IdKey>)>>>,
+    last_compacted_vertices: LastCompactedVertices,
     index_data_manager: Arc<RwLock<IndexDataManagerImpl>>,
     schema_manager: Arc<SchemaManager>,
     index_metadata_manager: Arc<IndexManager>,
@@ -84,18 +95,7 @@ struct GraphStoragePersistent {
 }
 
 impl GraphStoragePersistent {
-    fn build_core_components() -> (
-        Arc<GraphDataStore>,
-        Arc<CacheManager>,
-        Arc<TableTracker>,
-        Arc<AtomicBool>,
-        Arc<Mutex<Vec<(LabelId, Vec<IdKey>)>>>,
-        Arc<RwLock<IndexDataManagerImpl>>,
-        Arc<SchemaManager>,
-        Arc<IndexManager>,
-        Arc<VersionManager>,
-        Arc<UserStorage>,
-    ) {
+    fn build_core_components() -> CoreComponents {
         let config = PropertyGraphConfig::default();
         let cache_manager = Arc::new(CacheManager::new(config.enable_cache, config.cache_memory));
         let table_tracker = Arc::new(TableTracker::with_config(TableTrackerConfig {
@@ -182,36 +182,6 @@ impl GraphStoragePersistent {
     }
 }
 
-impl GraphStoragePersistent {
-    fn data_store(&self) -> &GraphDataStore {
-        &self.data_store
-    }
-
-    fn cache_manager(&self) -> &CacheManager {
-        &self.cache_manager
-    }
-
-    fn table_tracker(&self) -> &Arc<TableTracker> {
-        &self.table_tracker
-    }
-
-    fn config(&self) -> &PropertyGraphConfig {
-        &self.config
-    }
-
-    fn is_open(&self) -> &AtomicBool {
-        &self.is_open
-    }
-
-    fn last_compacted_vertices(&self) -> &Mutex<Vec<(LabelId, Vec<IdKey>)>> {
-        &self.last_compacted_vertices
-    }
-
-    fn index_data_manager(&self) -> &RwLock<IndexDataManagerImpl> {
-        &self.index_data_manager
-    }
-}
-
 #[derive(Clone, Default)]
 struct GraphStorageRuntime {
     current_txn_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
@@ -283,13 +253,6 @@ impl GraphStorageContext {
         }
     }
 
-    pub fn with_config(config: PropertyGraphConfig) -> Self {
-        Self {
-            persistent: GraphStoragePersistent::new_with_config(config),
-            runtime: GraphStorageRuntime::new(),
-        }
-    }
-
     pub fn new_with_path(path: PathBuf) -> crate::core::StorageResult<Self> {
         let config = crate::storage::engine::PersistenceConfig::for_work_dir(&path);
         Self::new_with_persistence(path, config)
@@ -318,11 +281,7 @@ impl GraphStorageContext {
     // ── Internal accessors for sub-modules ──
 
     pub(crate) fn data_store(&self) -> &GraphDataStore {
-        self.persistent.data_store()
-    }
-
-    pub(crate) fn cache_manager(&self) -> &CacheManager {
-        self.persistent.cache_manager()
+        &self.persistent.data_store
     }
 
     pub(crate) fn append_wal_redo<T: Serialize>(
@@ -344,24 +303,12 @@ impl GraphStorageContext {
         Ok(())
     }
 
-    pub(crate) fn table_tracker(&self) -> &Arc<TableTracker> {
-        self.persistent.table_tracker()
-    }
-
-    pub(crate) fn config(&self) -> &PropertyGraphConfig {
-        self.persistent.config()
-    }
-
     pub(crate) fn is_open_flag(&self) -> &AtomicBool {
-        self.persistent.is_open()
-    }
-
-    pub(crate) fn last_compacted_vertices(&self) -> &Mutex<Vec<(LabelId, Vec<IdKey>)>> {
-        self.persistent.last_compacted_vertices()
+        &self.persistent.is_open
     }
 
     pub(crate) fn index_data_manager(&self) -> &RwLock<IndexDataManagerImpl> {
-        self.persistent.index_data_manager()
+        &self.persistent.index_data_manager
     }
 
     pub(crate) fn schema_manager(&self) -> &Arc<SchemaManager> {
@@ -438,27 +385,6 @@ impl GraphStorageContext {
 
     // ── PropertyGraph-compatible API ──
 
-    pub fn wal_enabled(&self) -> bool {
-        self.persistent.persistence.as_ref().is_some_and(|p| {
-            p.read()
-                .wal_manager()
-                .is_some_and(|w| w.read().is_enabled())
-        })
-    }
-
-    pub fn should_flush(&self) -> bool {
-        self.persistent.table_tracker.should_flush()
-    }
-
-    pub fn get_modified_table_count(&self) -> usize {
-        self.persistent.table_tracker.get_modified_count()
-    }
-
-    pub fn mark_table_modified(&self, table_type: TableType, label_id: u32) {
-        let table_id = TableId::new(table_type, label_id);
-        self.persistent.table_tracker.mark_modified(table_id);
-    }
-
     pub fn mark_vertex_modified(&self, label: LabelId) {
         self.persistent
             .table_tracker
@@ -469,50 +395,6 @@ impl GraphStorageContext {
         self.persistent
             .table_tracker
             .mark_modified(TableId::edge(label));
-    }
-
-    pub fn mark_vertex_modified_since_checkpoint(&self, label: LabelId) {
-        self.persistent
-            .table_tracker
-            .mark_modified_since_checkpoint(TableId::vertex(label));
-    }
-
-    pub fn mark_edge_modified_since_checkpoint(&self, label: LabelId) {
-        self.persistent
-            .table_tracker
-            .mark_modified_since_checkpoint(TableId::edge(label));
-    }
-
-    pub fn take_last_compacted_vertices(&self) -> Vec<(LabelId, Vec<IdKey>)> {
-        std::mem::take(&mut *self.persistent.last_compacted_vertices.lock())
-    }
-
-    pub fn record_cache(&self) -> Option<&SharedRecordCache> {
-        self.persistent.cache_manager.record_cache()
-    }
-
-    pub fn record_cache_stats(&self) -> Option<RecordCacheStats> {
-        self.persistent.cache_manager.record_cache_stats()
-    }
-
-    pub fn clear_cache(&self) {
-        self.persistent.cache_manager.clear_cache();
-    }
-
-    pub fn close(&self) {
-        self.persistent.is_open.store(false, Ordering::Release);
-        {
-            let mut vertex_tables = self.persistent.data_store.vertex_tables().write();
-            for table in vertex_tables.values_mut() {
-                table.close();
-            }
-        }
-        {
-            let mut edge_tables = self.persistent.data_store.edge_tables().write();
-            for table in edge_tables.values_mut() {
-                table.close();
-            }
-        }
     }
 
     pub(crate) fn storage_size(&self) -> usize {
@@ -1039,16 +921,6 @@ impl GraphStorageContext {
         Ok(())
     }
 
-    pub fn vertex_label_ids(&self) -> Vec<LabelId> {
-        self.persistent
-            .data_store
-            .vertex_tables()
-            .read()
-            .keys()
-            .copied()
-            .collect()
-    }
-
     // ── Edge Operations ──
 
     pub fn insert_edge(&self, params: InsertEdgeParams) -> StorageResult<EdgeOffset> {
@@ -1147,47 +1019,6 @@ impl GraphStorageContext {
         Ok(deleted)
     }
 
-    pub fn update_edge_property(
-        &self,
-        params: PropertyGraphUpdateEdgePropertyParams,
-    ) -> StorageResult<bool> {
-        if !self.persistent.is_open.load(Ordering::Acquire) {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let vertex_tables = self.persistent.data_store.vertex_tables().read();
-
-        let src_internal = self
-            .resolve_internal_id(&vertex_tables, params.src_label, params.src_id, params.ts)
-            .ok_or(StorageError::vertex_not_found())?;
-
-        let dst_internal = self
-            .resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, params.ts)
-            .ok_or(StorageError::vertex_not_found())?;
-
-        drop(vertex_tables);
-
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
-        let mut edge_tables = self.persistent.data_store.edge_tables().write();
-        let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
-            StorageError::label_not_found(format!("edge label {}", params.edge_label))
-        })?;
-
-        let updated = edge_table.update_edge_property(
-            VertexId::from_int64(src_internal as i64),
-            VertexId::from_int64(dst_internal as i64),
-            params.rank,
-            params.prop_name,
-            params.value,
-            params.ts,
-        )?;
-        if updated {
-            self.mark_edge_modified(params.edge_label);
-        }
-
-        Ok(updated)
-    }
-
     pub fn out_edges(
         &self,
         edge_label: LabelId,
@@ -1244,54 +1075,7 @@ impl GraphStorageContext {
         vertex_tables.get(&label).map(|t| t.scan(ts).collect())
     }
 
-    pub fn vertex_count(&self, label: LabelId, ts: Timestamp) -> usize {
-        if !self.persistent.is_open.load(Ordering::Acquire) {
-            return 0;
-        }
-        let vertex_tables = self.persistent.data_store.vertex_tables().read();
-        vertex_tables
-            .get(&label)
-            .map(|t| t.vertex_count(ts))
-            .unwrap_or(0)
-    }
-
-    pub fn edge_count(&self, edge_label: LabelId) -> u64 {
-        self.persistent
-            .data_store
-            .edge_tables()
-            .read()
-            .values()
-            .filter_map(|t| {
-                if t.label() == edge_label {
-                    Some(t.edge_count())
-                } else {
-                    None
-                }
-            })
-            .sum()
-    }
-
     // ── Label Access ──
-
-    pub fn vertex_label_names(&self) -> Vec<String> {
-        self.persistent
-            .data_store
-            .vertex_label_names()
-            .read()
-            .keys()
-            .map(|s| s.to_string())
-            .collect()
-    }
-
-    pub fn edge_label_names(&self) -> Vec<String> {
-        self.persistent
-            .data_store
-            .edge_label_names()
-            .read()
-            .keys()
-            .map(|s| s.to_string())
-            .collect()
-    }
 
     pub fn get_vertex_label_id(&self, name: &str) -> Option<LabelId> {
         self.persistent
@@ -1300,26 +1084,6 @@ impl GraphStorageContext {
             .read()
             .get(name)
             .copied()
-    }
-
-    pub fn get_edge_label_id(&self, name: &str) -> Option<LabelId> {
-        self.persistent
-            .data_store
-            .edge_label_names()
-            .read()
-            .get(name)
-            .copied()
-    }
-
-    // ── Table Access ──
-
-    pub fn get_vertex_table_opt(&self, label: LabelId) -> Option<String> {
-        self.persistent
-            .data_store
-            .vertex_tables()
-            .read()
-            .get(&label)
-            .map(|t| t.label_name().to_string())
     }
 
     pub fn scan_edges(
@@ -1396,7 +1160,7 @@ impl GraphStorageContext {
     pub(crate) fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
         use std::fs;
 
-        let compression = self.persistent.config().flush_config.compression;
+        let compression = self.persistent.config.flush_config.compression;
         let vertex_dir = data_dir.join("vertices");
         fs::create_dir_all(&vertex_dir)?;
 
@@ -1605,6 +1369,12 @@ if let Some(persistence) = self.persistent.persistence.as_ref() {
         );
 
         Ok(())
+    }
+
+    // ── Cache Operations ──
+
+    pub(crate) fn invalidate_vertex_cache(&self, label: LabelId) {
+        self.persistent.cache_manager.invalidate_vertices_by_label(label);
     }
 
     // ── Index Operations ──

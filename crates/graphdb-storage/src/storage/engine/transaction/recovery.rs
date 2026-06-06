@@ -789,9 +789,8 @@ mod tests {
         )
         .expect("Edge type replay should succeed");
 
-        let lives_in_label = ctx
-            .get_edge_label_id("LIVES_IN")
-            .expect("Edge label should exist");
+        // label_id=3 was specified in replay_create_edge_type above
+        let lives_in_label = 3;
 
         ctx.replay_add_edge_prop(
             &AddEdgePropRedo {

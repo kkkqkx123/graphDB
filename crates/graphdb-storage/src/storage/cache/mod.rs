@@ -10,7 +10,6 @@
 
 mod config;
 mod record_cache;
-mod stats;
 mod types;
 
 #[cfg(test)]
@@ -18,5 +17,4 @@ mod record_cache_test;
 
 pub use config::RecordCacheConfig;
 pub use record_cache::{RecordCache, SharedRecordCache};
-pub use stats::RecordCacheStats;
 pub use types::{CachedVertex, VertexCacheKey};
