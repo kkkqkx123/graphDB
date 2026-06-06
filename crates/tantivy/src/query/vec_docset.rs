@@ -1,62 +1,63 @@
-#![allow(dead_code)]
+#[cfg(test)]
+pub use self::vec_docset_impl::VecDocSet;
 
-use common::HasLen;
+#[cfg(test)]
+mod vec_docset_impl {
+    use common::HasLen;
 
-use crate::docset::{DocSet, TERMINATED};
-use crate::DocId;
+    use crate::docset::{DocSet, TERMINATED};
+    use crate::DocId;
 
-/// Simulate a `Postings` objects from a `VecPostings`.
-/// `VecPostings` only exist for testing purposes.
-///
-/// Term frequencies always return 1.
-/// No positions are returned.
-pub struct VecDocSet {
-    doc_ids: Vec<DocId>,
-    cursor: usize,
-}
-
-impl From<Vec<DocId>> for VecDocSet {
-    fn from(doc_ids: Vec<DocId>) -> VecDocSet {
-        // We do not use `slice::is_sorted`, as we want to check for doc ids to be strictly
-        // sorted.
-        assert!(doc_ids.windows(2).all(|w| w[0] < w[1]));
-        VecDocSet { doc_ids, cursor: 0 }
+    /// A [`DocSet`] backed by a `Vec<DocId>`.
+    ///
+    /// The vector must contain sorted, strictly increasing doc IDs.
+    /// This is used in tests to create doc sets from a list of doc IDs.
+    pub struct VecDocSet {
+        doc_ids: Vec<DocId>,
+        cursor: usize,
     }
-}
 
-impl DocSet for VecDocSet {
-    fn advance(&mut self) -> DocId {
-        self.cursor += 1;
-        if self.cursor >= self.doc_ids.len() {
-            self.cursor = self.doc_ids.len();
-            return TERMINATED;
+    impl From<Vec<DocId>> for VecDocSet {
+        fn from(doc_ids: Vec<DocId>) -> VecDocSet {
+            assert!(doc_ids.windows(2).all(|w| w[0] < w[1]));
+            VecDocSet { doc_ids, cursor: 0 }
         }
-        self.doc()
     }
 
-    fn doc(&self) -> DocId {
-        if self.cursor == self.doc_ids.len() {
-            return TERMINATED;
+    impl DocSet for VecDocSet {
+        fn advance(&mut self) -> DocId {
+            self.cursor += 1;
+            if self.cursor >= self.doc_ids.len() {
+                self.cursor = self.doc_ids.len();
+                return TERMINATED;
+            }
+            self.doc()
         }
-        self.doc_ids[self.cursor]
+
+        fn doc(&self) -> DocId {
+            if self.cursor == self.doc_ids.len() {
+                return TERMINATED;
+            }
+            self.doc_ids[self.cursor]
+        }
+
+        fn size_hint(&self) -> u32 {
+            self.len() as u32
+        }
     }
 
-    fn size_hint(&self) -> u32 {
-        self.len() as u32
-    }
-}
-
-impl HasLen for VecDocSet {
-    fn len(&self) -> usize {
-        self.doc_ids.len()
+    impl HasLen for VecDocSet {
+        fn len(&self) -> usize {
+            self.doc_ids.len()
+        }
     }
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
-
-    use super::*;
-    use crate::docset::COLLECT_BLOCK_BUFFER_LEN;
+mod tests {
+    use crate::docset::{DocSet, COLLECT_BLOCK_BUFFER_LEN, TERMINATED};
+    use crate::query::vec_docset::VecDocSet;
+    use crate::DocId;
 
     #[test]
     pub fn test_vec_postings() {

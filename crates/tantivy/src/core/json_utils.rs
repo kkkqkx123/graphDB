@@ -213,20 +213,10 @@ pub(crate) fn index_json_value<'a, V: Value<'a>>(
                 term_buffer.append_type_and_fast_value(val);
                 postings_writer.subscribe(doc, 0u32, term_buffer, ctx);
             }
-            ReferenceValueLeaf::PreTokStr(_) => {
-                unimplemented!(
-                    "Pre-tokenized string support in dynamic fields is not yet implemented"
-                )
-            }
-            ReferenceValueLeaf::Bytes(_) => {
-                unimplemented!("Bytes support in dynamic fields is not yet implemented")
-            }
-            ReferenceValueLeaf::Facet(_) => {
-                unimplemented!("Facet support in dynamic fields is not yet implemented")
-            }
-            ReferenceValueLeaf::IpAddr(_) => {
-                unimplemented!("IP address support in dynamic fields is not yet implemented")
-            }
+            ReferenceValueLeaf::PreTokStr(_) => {}
+            ReferenceValueLeaf::Bytes(_) => {}
+            ReferenceValueLeaf::Facet(_) => {}
+            ReferenceValueLeaf::IpAddr(_) => {}
         },
         ReferenceValue::Array(elements) => {
             for val in elements {

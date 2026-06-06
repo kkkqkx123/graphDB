@@ -1,4 +1,6 @@
-use crate::core::metadata::index_manager::IndexMetadataManager;
+use std::collections::HashMap;
+
+use crate::core::metadata::IndexMetadataManager;
 use crate::core::types::{
     EdgeTypeInfo, InsertEdgeInfo, InsertVertexInfo, LabelId, Timestamp, UpdateInfo, UpdateOp,
     UpdateTarget, VertexId,
@@ -151,6 +153,21 @@ pub(crate) fn update_vertex(
 
     for tag in &vertex.tags {
         if let Some(label_id) = tag_label_id(ctx, space, &tag.name)? {
+            let current_record = if let Some(id_int) = vid_int {
+                ctx.get_vertex_by_i64(label_id, id_int, ts)
+            } else {
+                let id_str = vertex.vid.to_string();
+                ctx.get_vertex(label_id, &id_str, ts)
+            };
+
+            let mut merged_props: HashMap<String, Value> = current_record
+                .as_ref()
+                .map(|record| record.properties.iter().cloned().collect())
+                .unwrap_or_default();
+            for (prop_name, value) in &tag.properties {
+                merged_props.insert(prop_name.clone(), value.clone());
+            }
+
             for (prop_name, value) in &tag.properties {
                 let redo = UpdateVertexPropRedo {
                     label: label_id,
@@ -168,13 +185,9 @@ pub(crate) fn update_vertex(
                 }
             }
 
-            let props: Vec<(String, Value)> = tag
-                .properties
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+            let props: Vec<(String, Value)> = merged_props.into_iter().collect();
             let vid_value = Value::from(vertex.vid);
-            update_vertex_indexes(
+            refresh_vertex_indexes(
                 ctx,
                 ctx.index_metadata_manager(),
                 space_info.space_id,
@@ -853,10 +866,15 @@ pub(crate) fn update_data(
     if let Some(label_id) = tag_label_id(ctx, space, label)? {
         let vid = VertexId::try_from(id).map_err(|e| StorageError::invalid_input(e.to_string()))?;
         let id_str = vid.to_string();
+        let current_record = if let Some(id_int) = vid.as_int64() {
+            ctx.get_vertex_by_i64(label_id, id_int, ts)
+        } else {
+            ctx.get_vertex(label_id, &id_str, ts)
+        };
         let value = match &info.update_op {
             UpdateOp::Set => info.value.clone(),
             UpdateOp::Add => {
-                if let Some(current) = ctx.get_vertex(label_id, &id_str, ts) {
+                if let Some(current) = current_record.as_ref() {
                     let current_val = current
                         .properties
                         .iter()
@@ -874,7 +892,7 @@ pub(crate) fn update_data(
                 }
             }
             UpdateOp::Subtract => {
-                if let Some(current) = ctx.get_vertex(label_id, &id_str, ts) {
+                if let Some(current) = current_record.as_ref() {
                     let current_val = current
                         .properties
                         .iter()
@@ -896,14 +914,19 @@ pub(crate) fn update_data(
 
         ctx.update_vertex_property(label_id, &id_str, prop, &value, ts)?;
 
-        let props = vec![(prop.clone(), value)];
-        update_vertex_indexes(
+        let mut merged_props: HashMap<String, Value> = current_record
+            .as_ref()
+            .map(|record| record.properties.iter().cloned().collect())
+            .unwrap_or_default();
+        merged_props.insert(prop.clone(), value);
+
+        refresh_vertex_indexes(
             ctx,
             ctx.index_metadata_manager(),
             space_info.space_id,
             id,
             label,
-            &props,
+            &merged_props.into_iter().collect::<Vec<_>>(),
             ts,
         )?;
         Ok(true)
@@ -913,6 +936,19 @@ pub(crate) fn update_data(
             label
         )))
     }
+}
+
+fn tag_index_names(
+    index_metadata_manager: &crate::core::metadata::IndexManager,
+    space_id: u64,
+    tag_name: &str,
+) -> StorageResult<Vec<String>> {
+    Ok(index_metadata_manager
+        .list_tag_indexes(space_id)?
+        .into_iter()
+        .filter(|index| index.schema_name == tag_name)
+        .map(|index| index.name)
+        .collect())
 }
 
 fn update_vertex_indexes(
@@ -931,6 +967,32 @@ fn update_vertex_indexes(
         }
     }
     Ok(())
+}
+
+fn refresh_vertex_indexes(
+    ctx: &GraphStorageContext,
+    index_metadata_manager: &crate::core::metadata::IndexManager,
+    space_id: u64,
+    vertex_id: &Value,
+    tag_name: &str,
+    props: &[(String, Value)],
+    ts: u32,
+) -> StorageResult<()> {
+    let index_names = tag_index_names(index_metadata_manager, space_id, tag_name)?;
+    if index_names.is_empty() {
+        return Ok(());
+    }
+
+    ctx.delete_vertex_indexes_mvcc(space_id, vertex_id, &index_names, ts)?;
+    update_vertex_indexes(
+        ctx,
+        index_metadata_manager,
+        space_id,
+        vertex_id,
+        tag_name,
+        props,
+        ts,
+    )
 }
 
 struct EdgeIndexUpdateParams<'a> {
@@ -971,11 +1033,9 @@ fn delete_vertex_indexes(
     tag_name: &str,
     ts: u32,
 ) -> StorageResult<()> {
-    let indexes = index_metadata_manager.list_tag_indexes(space_id)?;
-    for index in indexes {
-        if index.schema_name == tag_name {
-            ctx.delete_vertex_indexes_mvcc(space_id, vertex_id, ts)?;
-        }
+    let index_names = tag_index_names(index_metadata_manager, space_id, tag_name)?;
+    if !index_names.is_empty() {
+        ctx.delete_vertex_indexes_mvcc(space_id, vertex_id, &index_names, ts)?;
     }
     Ok(())
 }

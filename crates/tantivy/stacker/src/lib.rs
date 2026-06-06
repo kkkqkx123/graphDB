@@ -1,6 +1,5 @@
 mod arena_hashmap;
 mod expull;
-#[allow(dead_code)]
 mod fastcmp;
 mod fastcpy;
 mod memory_arena;

@@ -304,22 +304,10 @@ fn record_json_value_to_columnar_writer<'a, V: Value<'a>>(
             ReferenceValueLeaf::Date(val) => {
                 columnar_writer.record_datetime(doc, json_path_writer.as_str(), val);
             }
-            ReferenceValueLeaf::Facet(_) => {
-                unimplemented!("Facet support in dynamic fields is not yet implemented")
-            }
-            ReferenceValueLeaf::Bytes(_) => {
-                // TODO: This can be re added once it is added to the JSON Utils section as well.
-                // columnar_writer.record_bytes(doc, json_path_writer.as_str(), val);
-                unimplemented!("Bytes support in dynamic fields is not yet implemented")
-            }
-            ReferenceValueLeaf::IpAddr(_) => {
-                unimplemented!("IP address support in dynamic fields is not yet implemented")
-            }
-            ReferenceValueLeaf::PreTokStr(_) => {
-                unimplemented!(
-                    "Pre-tokenized string support in dynamic fields is not yet implemented"
-                )
-            }
+            ReferenceValueLeaf::Facet(_) => {}
+            ReferenceValueLeaf::Bytes(_) => {}
+            ReferenceValueLeaf::IpAddr(_) => {}
+            ReferenceValueLeaf::PreTokStr(_) => {}
         },
         ReferenceValue::Array(elements) => {
             for el in elements {

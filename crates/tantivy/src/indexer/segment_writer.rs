@@ -369,16 +369,6 @@ impl SegmentWriter {
     pub fn max_doc(&self) -> u32 {
         self.max_doc
     }
-
-    /// Number of documents in the index.
-    /// Deleted documents are not counted.
-    ///
-    /// Currently, **tantivy** does not handle deletes anyway,
-    /// so `max_doc == num_docs`
-    #[allow(dead_code)]
-    pub fn num_docs(&self) -> u32 {
-        self.max_doc
-    }
 }
 
 /// This method is used as a trick to workaround the borrow checker

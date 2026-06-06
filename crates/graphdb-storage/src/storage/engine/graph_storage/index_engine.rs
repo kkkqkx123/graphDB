@@ -21,11 +21,15 @@ pub fn delete_vertex_indexes_mvcc(
     ctx: &GraphStorageContext,
     space_id: u64,
     vertex_id: &Value,
+    index_names: &[String],
     ts: Timestamp,
 ) -> StorageResult<()> {
-    ctx.index_data_manager()
-        .write()
-        .delete_vertex_indexes_mvcc(space_id, vertex_id, ts)
+    ctx.index_data_manager().write().delete_vertex_indexes_mvcc(
+        space_id,
+        vertex_id,
+        index_names,
+        ts,
+    )
 }
 
 pub fn update_edge_indexes_mvcc(

@@ -11,7 +11,10 @@ use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 
 /// Generic index manager
 ///
@@ -22,6 +25,7 @@ use std::sync::Arc;
 pub struct GenericIndexManager<K: IndexKeyGenerator> {
     forward_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
     reverse_index: Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>>,
+    version_counter: Arc<AtomicU64>,
     _marker: PhantomData<K>,
 }
 
@@ -30,6 +34,7 @@ impl<K: IndexKeyGenerator> Clone for GenericIndexManager<K> {
         Self {
             forward_index: Arc::clone(&self.forward_index),
             reverse_index: Arc::clone(&self.reverse_index),
+            version_counter: Arc::clone(&self.version_counter),
             _marker: PhantomData,
         }
     }
@@ -40,8 +45,17 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
         Self {
             forward_index: Arc::new(RwLock::new(BTreeMap::new())),
             reverse_index: Arc::new(RwLock::new(BTreeMap::new())),
+            version_counter: Arc::new(AtomicU64::new(1)),
             _marker: PhantomData,
         }
+    }
+
+    pub(crate) fn physical_key(&self, logical_key: &[u8]) -> SecondaryIndexKey {
+        let version = self.version_counter.fetch_add(1, Ordering::Relaxed);
+        let mut physical_key = Vec::with_capacity(logical_key.len() + std::mem::size_of::<u64>());
+        physical_key.extend_from_slice(logical_key);
+        physical_key.extend_from_slice(&version.to_le_bytes());
+        physical_key
     }
 
     #[cfg(test)]
@@ -236,18 +250,30 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
         let path = path.as_ref();
 
-        self.load_forward_index(&path.join("forward_index.bin"))?;
-        self.load_reverse_index(&path.join("reverse_index.bin"))?;
+        let (forward_index, forward_max_version) =
+            self.load_index_file(&path.join("forward_index.bin"))?;
+        let (reverse_index, reverse_max_version) =
+            self.load_index_file(&path.join("reverse_index.bin"))?;
+
+        let max_version = forward_max_version.max(reverse_max_version);
+
+        *self.forward_index.write() = forward_index;
+        *self.reverse_index.write() = reverse_index;
+        self.version_counter
+            .store(max_version.saturating_add(1), Ordering::Release);
 
         Ok(())
     }
 
-    fn load_forward_index(&mut self, path: &Path) -> StorageResult<()> {
+    fn load_index_file(
+        &self,
+        path: &Path,
+    ) -> StorageResult<(BTreeMap<SecondaryIndexKey, IndexEntry>, u64)> {
         use std::fs::File;
         use std::io::Read;
 
         if !path.exists() {
-            return Ok(());
+            return Ok((BTreeMap::new(), 0));
         }
 
         let mut file = File::open(path)?;
@@ -256,8 +282,8 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
         file.read_exact(&mut count_bytes)?;
         let count = u64::from_le_bytes(count_bytes);
 
-        let mut forward_index = self.forward_index.write();
-        forward_index.clear();
+        let mut index = BTreeMap::new();
+        let mut max_version = 0u64;
 
         for _ in 0..count {
             let mut key_len_bytes = [0u8; 4];
@@ -285,59 +311,11 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
                 created_ts,
                 deleted_ts,
             };
-            forward_index.insert(key, entry);
+            max_version = max_version.max(Self::extract_version_from_key(&key));
+            index.insert(key, entry);
         }
 
-        Ok(())
-    }
-
-    fn load_reverse_index(&mut self, path: &Path) -> StorageResult<()> {
-        use std::fs::File;
-        use std::io::Read;
-
-        if !path.exists() {
-            return Ok(());
-        }
-
-        let mut file = File::open(path)?;
-
-        let mut count_bytes = [0u8; 8];
-        file.read_exact(&mut count_bytes)?;
-        let count = u64::from_le_bytes(count_bytes);
-
-        let mut reverse_index = self.reverse_index.write();
-        reverse_index.clear();
-
-        for _ in 0..count {
-            let mut key_len_bytes = [0u8; 4];
-            file.read_exact(&mut key_len_bytes)?;
-            let key_len = u32::from_le_bytes(key_len_bytes) as usize;
-
-            let mut key = vec![0u8; key_len];
-            file.read_exact(&mut key)?;
-
-            let mut created_ts_bytes = [0u8; 4];
-            file.read_exact(&mut created_ts_bytes)?;
-            let created_ts = u32::from_le_bytes(created_ts_bytes);
-
-            let mut has_deleted = [0u8; 1];
-            file.read_exact(&mut has_deleted)?;
-            let deleted_ts = if has_deleted[0] == 1 {
-                let mut deleted_ts_bytes = [0u8; 4];
-                file.read_exact(&mut deleted_ts_bytes)?;
-                Some(u32::from_le_bytes(deleted_ts_bytes))
-            } else {
-                None
-            };
-
-            let entry = IndexEntry {
-                created_ts,
-                deleted_ts,
-            };
-            reverse_index.insert(key, entry);
-        }
-
-        Ok(())
+        Ok((index, max_version))
     }
 
     pub fn forward_index(&self) -> &Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>> {
@@ -346,6 +324,17 @@ impl<K: IndexKeyGenerator> GenericIndexManager<K> {
 
     pub fn reverse_index(&self) -> &Arc<RwLock<BTreeMap<SecondaryIndexKey, IndexEntry>>> {
         &self.reverse_index
+    }
+
+    fn extract_version_from_key(key: &[u8]) -> u64 {
+        if key.len() < std::mem::size_of::<u64>() {
+            return 0;
+        }
+
+        let start = key.len() - std::mem::size_of::<u64>();
+        let mut bytes = [0u8; std::mem::size_of::<u64>()];
+        bytes.copy_from_slice(&key[start..]);
+        u64::from_le_bytes(bytes)
     }
 }
 

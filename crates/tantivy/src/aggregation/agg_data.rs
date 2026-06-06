@@ -340,7 +340,7 @@ impl PerRequestAggSegCtx {
 
     /// Convert the aggregation tree into a serializable struct representation.
     /// Each node contains: { name, kind, children }.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn get_view_tree(&self) -> Vec<AggTreeViewNode> {
         fn node_to_view(node: &AggRefNode, pr: &PerRequestAggSegCtx) -> AggTreeViewNode {
             let mut children: Vec<AggTreeViewNode> =
@@ -526,7 +526,7 @@ pub enum AggKind {
 }
 
 impl AggKind {
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     fn as_str(&self) -> &'static str {
         match self {
             AggKind::Terms => "Terms",
@@ -1129,6 +1129,7 @@ fn for_each_matching_term_ord(
 }
 
 /// Convert the aggregation tree to something serializable and easy to read.
+#[cfg(test)]
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct AggTreeViewNode {
     pub name: String,

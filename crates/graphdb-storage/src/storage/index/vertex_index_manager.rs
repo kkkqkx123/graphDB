@@ -12,6 +12,7 @@ use crate::storage::index::index_data_manager::IndexEntry;
 use crate::storage::index::key_codec::{
     serialize_value, KeyBuilder, KeyParser, SecondaryIndexKey, VertexIndexKeyGen,
 };
+use std::collections::HashSet;
 use std::path::Path;
 
 #[derive(Clone)]
@@ -24,10 +25,6 @@ impl VertexIndexManager {
         Self {
             base: GenericIndexManager::new(),
         }
-    }
-
-    fn compress_key(&self, key: &[u8]) -> Vec<u8> {
-        key.to_vec()
     }
 
     fn decompress_key(&self, compressed: &[u8]) -> StorageResult<Vec<u8>> {
@@ -52,35 +49,69 @@ impl VertexIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
-            Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
-            Vec::with_capacity(props.len());
-
         for (_prop_name, prop_value) in props {
-            let index_key =
+            let logical_forward_key =
                 KeyBuilder::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)?;
-
-            let reverse_key =
+            let logical_reverse_key =
                 KeyBuilder::build_vertex_reverse_key_v2(space_id, vertex_id, index_name)?;
 
-            let entry = IndexEntry::new(write_ts);
-            let compressed_forward = self.compress_key(&index_key.0);
-            let compressed_reverse = self.compress_key(&reverse_key.0);
-            forward_entries.push((compressed_forward, entry.clone()));
-            reverse_entries.push((compressed_reverse, entry));
-        }
+            let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+            let mut reverse_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
 
-        {
-            let mut forward_index = self.base.forward_index().write();
-            for (key, entry) in forward_entries {
-                forward_index.insert(key, entry);
+            {
+                let forward_index = self.base.forward_index().read();
+                let forward_end = KeyBuilder::build_range_end(&logical_forward_key);
+                for (key, entry) in
+                    forward_index.range(logical_forward_key.0.clone()..forward_end.0)
+                {
+                    if entry.is_visible_at(write_ts) {
+                        forward_keys_to_delete.push(key.clone());
+                    }
+                }
             }
-        }
-        {
-            let mut reverse_index = self.base.reverse_index().write();
-            for (key, entry) in reverse_entries {
-                reverse_index.insert(key, entry);
+
+            {
+                let reverse_index = self.base.reverse_index().read();
+                let reverse_end = KeyBuilder::build_range_end(&logical_reverse_key);
+                for (key, entry) in
+                    reverse_index.range(logical_reverse_key.0.clone()..reverse_end.0)
+                {
+                    if entry.is_visible_at(write_ts) {
+                        reverse_keys_to_delete.push(key.clone());
+                    }
+                }
+            }
+
+            {
+                let mut forward_index = self.base.forward_index().write();
+                for key in &forward_keys_to_delete {
+                    if let Some(entry) = forward_index.get_mut(key) {
+                        entry.mark_deleted(write_ts);
+                    }
+                }
+            }
+
+            {
+                let mut reverse_index = self.base.reverse_index().write();
+                for key in &reverse_keys_to_delete {
+                    if let Some(entry) = reverse_index.get_mut(key) {
+                        entry.mark_deleted(write_ts);
+                    }
+                }
+            }
+
+            let index_key = logical_forward_key;
+            let reverse_key = logical_reverse_key;
+            let entry = IndexEntry::new(write_ts);
+            let compressed_forward = self.base.physical_key(&index_key.0);
+            let compressed_reverse = self.base.physical_key(&reverse_key.0);
+            {
+                let mut forward_index = self.base.forward_index().write();
+                forward_index.insert(compressed_forward, entry.clone());
+            }
+            {
+                let mut reverse_index = self.base.reverse_index().write();
+                reverse_index.insert(compressed_reverse, entry);
             }
         }
 
@@ -91,16 +122,22 @@ impl VertexIndexManager {
         &self,
         space_id: u64,
         vertex_id: &Value,
+        index_names: &[String],
     ) -> Result<(), StorageError> {
-        self.delete_vertex_indexes_mvcc(space_id, vertex_id, MAX_TIMESTAMP)
+        self.delete_vertex_indexes_mvcc(space_id, vertex_id, index_names, MAX_TIMESTAMP)
     }
 
     pub fn delete_vertex_indexes_mvcc(
         &self,
         space_id: u64,
         vertex_id: &Value,
+        index_names: &[String],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
+        if index_names.is_empty() {
+            return Ok(());
+        }
+
         let reverse_prefix = KeyBuilder::build_vertex_reverse_prefix_v2(space_id, vertex_id)?;
         let reverse_end = KeyBuilder::build_range_end(&reverse_prefix);
 
@@ -119,22 +156,21 @@ impl VertexIndexManager {
                     if let Ok((_vertex_id_bytes, index_name)) =
                         KeyParser::parse_vertex_reverse_key_v2(&key_bytes)
                     {
-                        let forward_key_start =
-                            KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
-                        let forward_key_end = KeyBuilder::build_range_end(&forward_key_start);
+                        if index_names.contains(&index_name) {
+                            let forward_key_start =
+                                KeyBuilder::build_vertex_index_prefix(space_id, &index_name);
+                            let forward_key_end = KeyBuilder::build_range_end(&forward_key_start);
 
-                        let vertex_bytes = serialize_value(vertex_id)?;
-                        let forward_index = self.base.forward_index().read();
-                        for (fwd_compressed_key, fwd_entry) in
-                            forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
-                        {
-                            if fwd_entry.is_visible_at(write_ts) {
-                                let fwd_key_bytes = self.decompress_key(fwd_compressed_key)?;
-                                if let Ok(vid) = KeyParser::parse_vertex_id_from_key(&fwd_key_bytes)
-                                {
-                                    if vid == *vertex_id {
-                                        let vid_start = fwd_key_bytes.len() - vertex_bytes.len();
-                                        if fwd_key_bytes[vid_start..] == vertex_bytes {
+                            let forward_index = self.base.forward_index().read();
+                            for (fwd_compressed_key, fwd_entry) in
+                                forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
+                            {
+                                if fwd_entry.is_visible_at(write_ts) {
+                                    let fwd_key_bytes = self.decompress_key(fwd_compressed_key)?;
+                                    if let Ok(vid) =
+                                        KeyParser::parse_vertex_id_from_key(&fwd_key_bytes)
+                                    {
+                                        if vid == *vertex_id {
                                             forward_keys_to_delete.push(fwd_compressed_key.clone());
                                         }
                                     }
@@ -171,19 +207,44 @@ impl VertexIndexManager {
         let prefix = KeyBuilder::build_vertex_index_prefix(space_id, index_name);
         let end = KeyBuilder::build_range_end(&prefix);
 
-        let mut keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+        let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+        let mut reverse_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
 
         {
             let forward_index = self.base.forward_index().read();
             for (key_bytes, _) in forward_index.range(prefix.0.clone()..end.0) {
-                keys_to_delete.push(key_bytes.clone());
+                forward_keys_to_delete.push(key_bytes.clone());
+            }
+        }
+
+        {
+            let reverse_index = self.base.reverse_index().read();
+            for (key_bytes, _) in reverse_index.iter() {
+                if key_bytes.len() < 9 || key_bytes[0..8] != space_id.to_le_bytes() {
+                    continue;
+                }
+
+                if let Ok((_vertex_id_bytes, parsed_index_name)) =
+                    KeyParser::parse_vertex_reverse_key_v2(key_bytes)
+                {
+                    if parsed_index_name == index_name {
+                        reverse_keys_to_delete.push(key_bytes.clone());
+                    }
+                }
             }
         }
 
         {
             let mut forward_index = self.base.forward_index().write();
-            for key in &keys_to_delete {
+            for key in &forward_keys_to_delete {
                 forward_index.remove(key);
+            }
+        }
+
+        {
+            let mut reverse_index = self.base.reverse_index().write();
+            for key in &reverse_keys_to_delete {
+                reverse_index.remove(key);
             }
         }
 
@@ -210,6 +271,7 @@ impl VertexIndexManager {
         let end = KeyBuilder::build_range_end(&prefix);
 
         let mut results = Vec::new();
+        let mut seen = HashSet::new();
         let value_bytes = serialize_value(value)?;
 
         let forward_index = self.base.forward_index().read();
@@ -233,7 +295,9 @@ impl VertexIndexManager {
                         let stored_prop_value =
                             &key_bytes[prop_value_start..prop_value_start + prop_value_len];
 
-                        if stored_prop_value == value_bytes.as_slice() {
+                        if stored_prop_value == value_bytes.as_slice()
+                            && seen.insert(vertex_id.clone())
+                        {
                             results.push(vertex_id);
                         }
                     }
@@ -348,7 +412,7 @@ mod tests {
         assert_eq!(results.len(), 1);
 
         manager
-            .delete_vertex_indexes(space_id, &vertex_id)
+            .delete_vertex_indexes(space_id, &vertex_id, &[index_name.to_string()])
             .expect("Failed to delete vertex indexes");
 
         let results_after = manager
@@ -384,5 +448,83 @@ mod tests {
             .lookup_tag_index(space_id, &index, &Value::String("Alice".to_string()))
             .expect("Failed to lookup tag index");
         assert!(results_after.is_empty());
+
+        assert_eq!(manager.base.entry_count(), (0, 0));
+    }
+
+    #[test]
+    fn test_lookup_deduplicates_versions() {
+        let manager = VertexIndexManager::new();
+
+        let space_id = 1u64;
+        let vertex_id = Value::Int(123);
+        let index_name = "idx_name";
+        let props = vec![("name".to_string(), Value::String("Alice".to_string()))];
+
+        manager
+            .update_vertex_indexes_mvcc(space_id, &vertex_id, index_name, &props, 10)
+            .expect("Failed to update vertex indexes");
+        manager
+            .update_vertex_indexes_mvcc(space_id, &vertex_id, index_name, &props, 20)
+            .expect("Failed to update vertex indexes");
+
+        assert_eq!(manager.base.entry_count(), (2, 2));
+
+        let index = create_test_index(index_name, "person");
+        let results = manager
+            .lookup_tag_index_mvcc(space_id, &index, &Value::String("Alice".to_string()), 20)
+            .expect("Failed to lookup tag index");
+        assert_eq!(results, vec![vertex_id.clone()]);
+
+        manager
+            .delete_vertex_indexes_mvcc(space_id, &vertex_id, &[index_name.to_string()], 30)
+            .expect("Failed to delete vertex indexes");
+
+        let results_after = manager
+            .lookup_tag_index_mvcc(space_id, &index, &Value::String("Alice".to_string()), 30)
+            .expect("Failed to lookup tag index");
+        assert!(results_after.is_empty());
+    }
+
+    #[test]
+    fn test_clear_tag_index_is_space_scoped() {
+        let manager = VertexIndexManager::new();
+
+        let vertex_id_one = Value::Int(1);
+        let vertex_id_two = Value::Int(2);
+        let index_name = "idx_shared";
+        let index_one = create_test_index(index_name, "person");
+        let index_two = create_test_index(index_name, "person");
+
+        manager
+            .update_vertex_indexes(
+                1,
+                &vertex_id_one,
+                index_name,
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+            )
+            .expect("Failed to insert space one index");
+        manager
+            .update_vertex_indexes(
+                2,
+                &vertex_id_two,
+                index_name,
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+            )
+            .expect("Failed to insert space two index");
+
+        manager
+            .clear_tag_index(1, index_name)
+            .expect("Failed to clear space one index");
+
+        let space_one_results = manager
+            .lookup_tag_index(1, &index_one, &Value::String("Alice".to_string()))
+            .expect("Failed to lookup cleared space");
+        assert!(space_one_results.is_empty());
+
+        let space_two_results = manager
+            .lookup_tag_index(2, &index_two, &Value::String("Alice".to_string()))
+            .expect("Failed to lookup retained space");
+        assert_eq!(space_two_results, vec![vertex_id_two]);
     }
 }

@@ -60,6 +60,7 @@ pub trait VertexIndexOps: Send + Sync {
         &self,
         space_id: u64,
         vertex_id: &Value,
+        index_names: &[String],
         write_ts: Timestamp,
     ) -> Result<(), StorageError>;
 
@@ -192,14 +193,19 @@ impl VertexIndexOps for IndexDataManagerImpl {
         &self,
         space_id: u64,
         vertex_id: &Value,
+        index_names: &[String],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
         if write_ts == MAX_TIMESTAMP {
             self.vertex_manager
-                .delete_vertex_indexes(space_id, vertex_id)
+                .delete_vertex_indexes(space_id, vertex_id, index_names)
         } else {
-            self.vertex_manager
-                .delete_vertex_indexes_mvcc(space_id, vertex_id, write_ts)
+            self.vertex_manager.delete_vertex_indexes_mvcc(
+                space_id,
+                vertex_id,
+                index_names,
+                write_ts,
+            )
         }
     }
 

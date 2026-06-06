@@ -26,10 +26,6 @@ impl EdgeIndexManager {
         }
     }
 
-    fn compress_key(&self, key: &[u8]) -> Vec<u8> {
-        key.to_vec()
-    }
-
     fn decompress_key(&self, compressed: &[u8]) -> StorageResult<Vec<u8>> {
         Ok(compressed.to_vec())
     }
@@ -54,35 +50,69 @@ impl EdgeIndexManager {
         props: &[(String, Value)],
         write_ts: Timestamp,
     ) -> Result<(), StorageError> {
-        let mut forward_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
-            Vec::with_capacity(props.len());
-        let mut reverse_entries: Vec<(SecondaryIndexKey, IndexEntry)> =
-            Vec::with_capacity(props.len());
-
         for (_prop_name, prop_value) in props {
-            let index_key =
+            let logical_forward_key =
                 KeyBuilder::build_edge_index_key(space_id, index_name, prop_value, src, dst)?;
-
-            let reverse_key =
+            let logical_reverse_key =
                 KeyBuilder::build_edge_reverse_key_v2(space_id, src, dst, index_name)?;
 
-            let entry = IndexEntry::new(write_ts);
-            let compressed_forward = self.compress_key(&index_key.0);
-            let compressed_reverse = self.compress_key(&reverse_key.0);
-            forward_entries.push((compressed_forward, entry.clone()));
-            reverse_entries.push((compressed_reverse, entry));
-        }
+            let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+            let mut reverse_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
 
-        {
-            let mut forward_index = self.base.forward_index().write();
-            for (key, entry) in forward_entries {
-                forward_index.insert(key, entry);
+            {
+                let forward_index = self.base.forward_index().read();
+                let forward_end = KeyBuilder::build_range_end(&logical_forward_key);
+                for (key, entry) in
+                    forward_index.range(logical_forward_key.0.clone()..forward_end.0)
+                {
+                    if entry.is_visible_at(write_ts) {
+                        forward_keys_to_delete.push(key.clone());
+                    }
+                }
             }
-        }
-        {
-            let mut reverse_index = self.base.reverse_index().write();
-            for (key, entry) in reverse_entries {
-                reverse_index.insert(key, entry);
+
+            {
+                let reverse_index = self.base.reverse_index().read();
+                let reverse_end = KeyBuilder::build_range_end(&logical_reverse_key);
+                for (key, entry) in
+                    reverse_index.range(logical_reverse_key.0.clone()..reverse_end.0)
+                {
+                    if entry.is_visible_at(write_ts) {
+                        reverse_keys_to_delete.push(key.clone());
+                    }
+                }
+            }
+
+            {
+                let mut forward_index = self.base.forward_index().write();
+                for key in &forward_keys_to_delete {
+                    if let Some(entry) = forward_index.get_mut(key) {
+                        entry.mark_deleted(write_ts);
+                    }
+                }
+            }
+
+            {
+                let mut reverse_index = self.base.reverse_index().write();
+                for key in &reverse_keys_to_delete {
+                    if let Some(entry) = reverse_index.get_mut(key) {
+                        entry.mark_deleted(write_ts);
+                    }
+                }
+            }
+
+            let index_key = logical_forward_key;
+            let reverse_key = logical_reverse_key;
+            let entry = IndexEntry::new(write_ts);
+            let compressed_forward = self.base.physical_key(&index_key.0);
+            let compressed_reverse = self.base.physical_key(&reverse_key.0);
+            {
+                let mut forward_index = self.base.forward_index().write();
+                forward_index.insert(compressed_forward, entry.clone());
+            }
+            {
+                let mut reverse_index = self.base.reverse_index().write();
+                reverse_index.insert(compressed_reverse, entry);
             }
         }
 
@@ -212,19 +242,44 @@ impl EdgeIndexManager {
         let prefix = KeyBuilder::build_edge_index_prefix(space_id, index_name);
         let end = KeyBuilder::build_range_end(&prefix);
 
-        let mut keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+        let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+        let mut reverse_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
 
         {
             let forward_index = self.base.forward_index().read();
             for (key_bytes, _) in forward_index.range(prefix.0.clone()..end.0) {
-                keys_to_delete.push(key_bytes.clone());
+                forward_keys_to_delete.push(key_bytes.clone());
+            }
+        }
+
+        {
+            let reverse_index = self.base.reverse_index().read();
+            for (key_bytes, _) in reverse_index.iter() {
+                if key_bytes.len() < 9 || key_bytes[0..8] != space_id.to_le_bytes() {
+                    continue;
+                }
+
+                if let Ok((_src_bytes, _dst_bytes, parsed_index_name)) =
+                    KeyParser::parse_edge_reverse_key_v2(key_bytes)
+                {
+                    if parsed_index_name == index_name {
+                        reverse_keys_to_delete.push(key_bytes.clone());
+                    }
+                }
             }
         }
 
         {
             let mut forward_index = self.base.forward_index().write();
-            for key in &keys_to_delete {
+            for key in &forward_keys_to_delete {
                 forward_index.remove(key);
+            }
+        }
+
+        {
+            let mut reverse_index = self.base.reverse_index().write();
+            for key in &reverse_keys_to_delete {
+                reverse_index.remove(key);
             }
         }
 
@@ -335,6 +390,86 @@ mod tests {
             .clear_edge_index(space_id, index_name)
             .expect("Failed to clear edge index");
 
-        assert_eq!(manager.base.entry_count(), (0, 1));
+        assert_eq!(manager.base.entry_count(), (0, 0));
+    }
+
+    #[test]
+    fn test_update_hides_previous_value_at_new_timestamp() {
+        let manager = EdgeIndexManager::new();
+
+        let space_id = 1u64;
+        let src = Value::Int(1);
+        let dst = Value::Int(2);
+        let index_name = "idx_edge_weight";
+
+        manager
+            .update_edge_indexes_mvcc(
+                space_id,
+                &src,
+                &dst,
+                index_name,
+                &[("weight".to_string(), Value::Float(10.5))],
+                10,
+            )
+            .expect("Failed to insert initial edge index");
+
+        manager
+            .update_edge_indexes_mvcc(
+                space_id,
+                &src,
+                &dst,
+                index_name,
+                &[("weight".to_string(), Value::Float(20.5))],
+                20,
+            )
+            .expect("Failed to update edge index");
+
+        assert_eq!(manager.base.entry_count(), (2, 2));
+
+        manager
+            .delete_edge_indexes_mvcc(space_id, &src, &dst, &[index_name.to_string()], 30)
+            .expect("Failed to delete edge index");
+
+        manager
+            .gc_tombstones(u32::MAX)
+            .expect("Failed to gc tombstones");
+
+        assert_eq!(manager.base.entry_count(), (0, 0));
+    }
+
+    #[test]
+    fn test_clear_edge_index_is_space_scoped() {
+        let manager = EdgeIndexManager::new();
+
+        let src_one = Value::Int(1);
+        let dst_one = Value::Int(2);
+        let src_two = Value::Int(3);
+        let dst_two = Value::Int(4);
+        let index_name = "idx_shared";
+
+        manager
+            .update_edge_indexes(
+                1,
+                &src_one,
+                &dst_one,
+                index_name,
+                &[("weight".to_string(), Value::Float(10.5))],
+            )
+            .expect("Failed to insert space one edge index");
+        manager
+            .update_edge_indexes(
+                2,
+                &src_two,
+                &dst_two,
+                index_name,
+                &[("weight".to_string(), Value::Float(20.5))],
+            )
+            .expect("Failed to insert space two edge index");
+
+        manager
+            .clear_edge_index(1, index_name)
+            .expect("Failed to clear space one edge index");
+
+        assert_eq!(manager.base.entry_count(), (1, 1));
     }
 }

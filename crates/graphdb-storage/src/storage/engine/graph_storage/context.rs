@@ -1398,9 +1398,10 @@ impl GraphStorageContext {
         &self,
         space_id: u64,
         vertex_id: &Value,
+        index_names: &[String],
         ts: Timestamp,
     ) -> StorageResult<()> {
-        super::index_engine::delete_vertex_indexes_mvcc(self, space_id, vertex_id, ts)
+        super::index_engine::delete_vertex_indexes_mvcc(self, space_id, vertex_id, index_names, ts)
     }
 
     pub(crate) fn update_edge_indexes_mvcc(

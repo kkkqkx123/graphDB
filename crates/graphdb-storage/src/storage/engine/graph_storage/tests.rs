@@ -608,6 +608,23 @@ mod tests {
         setup_space(&mut storage);
         setup_person_tag(&mut storage);
 
+        let index = Index::new(IndexConfig {
+            id: 1,
+            name: "person_name_idx".to_string(),
+            space_id: 0,
+            schema_name: "Person".to_string(),
+            fields: vec![IndexField::new(
+                "name".to_string(),
+                Value::String(String::new()),
+                false,
+            )],
+            properties: vec![],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+            partial_condition: None,
+        });
+        storage.create_tag_index("test_space", &index).unwrap();
+
         let vertex = Vertex::new(
             VertexId::from_int64(101),
             vec![crate::core::vertex_edge_path::Tag::new(
@@ -621,6 +638,15 @@ mod tests {
             )],
         );
         storage.insert_vertex("test_space", vertex).unwrap();
+
+        let before_update = storage
+            .lookup_index(
+                "test_space",
+                "person_name_idx",
+                &Value::String("Alice".to_string()),
+            )
+            .unwrap();
+        assert_eq!(before_update, vec![Value::from(VertexId::from_int64(101))]);
 
         let updated = Vertex::new(
             VertexId::from_int64(101),
@@ -648,6 +674,24 @@ mod tests {
             Some(&Value::String("AliceUpdated".to_string()))
         );
         assert_eq!(v.properties.get("age"), Some(&Value::BigInt(31)));
+
+        let old_lookup = storage
+            .lookup_index(
+                "test_space",
+                "person_name_idx",
+                &Value::String("Alice".to_string()),
+            )
+            .unwrap();
+        assert!(old_lookup.is_empty());
+
+        let new_lookup = storage
+            .lookup_index(
+                "test_space",
+                "person_name_idx",
+                &Value::String("AliceUpdated".to_string()),
+            )
+            .unwrap();
+        assert_eq!(new_lookup, vec![Value::from(VertexId::from_int64(101))]);
     }
 
     #[test]
