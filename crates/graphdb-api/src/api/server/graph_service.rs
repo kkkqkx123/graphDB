@@ -192,8 +192,7 @@ impl<
             .get_sync_manager()
             .map(|sync_manager| Arc::new(SyncApi::new(sync_manager)));
 
-        #[allow(unused_mut)]
-        let mut service = Self {
+        let service = Self {
             session_manager,
             query_api,
             authenticator,

@@ -335,9 +335,9 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_value() {
         let value = Value::String("test".to_string());
-        let bytes = crate::storage::index::key_codec::serialize_value(&value)
+        let bytes = crate::storage::index::key_codec::key_types::serialize_value(&value)
             .expect("serialize should succeed");
-        let decoded = crate::storage::index::key_codec::deserialize_value(&bytes)
+        let decoded = crate::storage::index::key_codec::key_types::deserialize_value(&bytes)
             .expect("deserialize should succeed");
         assert_eq!(value, decoded);
     }

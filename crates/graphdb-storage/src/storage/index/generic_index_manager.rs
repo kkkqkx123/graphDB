@@ -6,7 +6,8 @@
 use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::storage::index::index_data_manager::IndexEntry;
-use crate::storage::index::key_codec::{IndexKeyGenerator, SecondaryIndexKey};
+use crate::storage::index::key_codec::key_types::SecondaryIndexKey;
+use crate::storage::index::key_codec::IndexKeyGenerator;
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;

@@ -9,9 +9,7 @@ use super::error::EmbeddingError;
 pub enum ProviderType {
     /// HTTP-based provider (OpenAI compatible)
     Http,
-    /// llama.cpp local library
-    LlamaCpp,
-    /// Other local library (candle, ort, etc.)
+    /// Other local or in-memory provider
     LocalLibrary,
 }
 

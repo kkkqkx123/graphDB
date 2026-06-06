@@ -13,7 +13,6 @@ default = ["qdrant"]
 qdrant = ["qdrant-http"]
 qdrant-http = []
 qdrant-grpc = ["dep:tonic", "dep:prost", "dep:prost-types"]
-llama_cpp = ["llama-cpp-2"]
 
 [dependencies]
 async-trait.workspace = true
@@ -27,7 +26,6 @@ reqwest.workspace = true
 url.workspace = true
 chrono.workspace = true
 dashmap.workspace = true
-llama-cpp-2 = { version = "0.1", optional = true }
 tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
@@ -40,5 +38,4 @@ tokio-test = "0.4"
 tempfile.workspace = true
 criterion = { version = "0.5", features = ["async_tokio"] }
 futures.workspace = true
-
 

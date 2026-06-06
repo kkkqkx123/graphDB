@@ -9,9 +9,8 @@ use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::index::generic_index_manager::GenericIndexManager;
 use crate::storage::index::index_data_manager::IndexEntry;
-use crate::storage::index::key_codec::{
-    serialize_value, KeyBuilder, KeyParser, SecondaryIndexKey, VertexIndexKeyGen,
-};
+use crate::storage::index::key_codec::key_types::{serialize_value, SecondaryIndexKey};
+use crate::storage::index::key_codec::{KeyBuilder, KeyParser, VertexIndexKeyGen};
 use std::collections::HashSet;
 use std::path::Path;
 

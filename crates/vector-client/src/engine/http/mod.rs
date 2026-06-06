@@ -26,6 +26,24 @@ use utils::{parse_payload, PointIdValue, QdrantSearchResult, QdrantUpsertResult,
 
 const QDRANT_VERSION: &str = "1.12.x (HTTP REST)";
 
+fn parse_collection_status(status: Option<&str>) -> CollectionStatus {
+    match status.map(|value| value.to_ascii_lowercase()).as_deref() {
+        Some("green") => CollectionStatus::Green,
+        Some("yellow") => CollectionStatus::Yellow,
+        Some("red") => CollectionStatus::Red,
+        Some("grey") | Some("gray") => CollectionStatus::Grey,
+        _ => CollectionStatus::Grey,
+    }
+}
+
+fn parse_upsert_status(status: Option<&str>) -> UpsertStatus {
+    match status.map(|value| value.to_ascii_lowercase()).as_deref() {
+        Some("acknowledged") => UpsertStatus::Acknowledged,
+        Some("completed") => UpsertStatus::Completed,
+        _ => UpsertStatus::Completed,
+    }
+}
+
 pub struct QdrantEngine {
     client: reqwest::Client,
     base_url: String,
@@ -275,7 +293,6 @@ impl VectorEngine for QdrantEngine {
             .await?;
 
         #[derive(serde::Deserialize)]
-        #[allow(dead_code)]
         struct RawCollectionInfo {
             status: Option<String>,
             points_count: Option<u64>,
@@ -301,7 +318,7 @@ impl VectorEngine for QdrantEngine {
             points_count: raw.points_count.unwrap_or(0),
             segments_count: raw.segments_count.unwrap_or(0),
             config,
-            status: CollectionStatus::Green,
+            status: parse_collection_status(raw.status.as_deref()),
         })
     }
 
@@ -337,7 +354,7 @@ impl VectorEngine for QdrantEngine {
 
         Ok(UpsertResult {
             operation_id: result.operation_id,
-            status: UpsertStatus::Completed,
+            status: parse_upsert_status(result.status.as_deref()),
         })
     }
 
@@ -383,7 +400,7 @@ impl VectorEngine for QdrantEngine {
 
         Ok(UpsertResult {
             operation_id: result.operation_id,
-            status: UpsertStatus::Completed,
+            status: parse_upsert_status(result.status.as_deref()),
         })
     }
 
@@ -851,8 +868,6 @@ impl VectorEngine for QdrantEngine {
         #[derive(serde::Deserialize)]
         struct PayloadSchemaInfo {
             data_type: String,
-            #[allow(dead_code)]
-            points: Option<u64>,
         }
 
         let response = self

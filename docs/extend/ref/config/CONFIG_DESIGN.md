@@ -57,7 +57,7 @@ vector.enabled
 vector.engine
 vector.connection.host
 vector.connection.port
-vector.timeout.request_secs
+vector.timeout.request_timeout_secs
 vector.retry.max_retries
 
 # 全文检索（本地存储）
@@ -125,7 +125,7 @@ storage_path = "data/graphdb"
 # 向量检索配置
 [vector]
 enabled = true
-engine = "qdrant"
+engine = "Qdrant"
 
 [vector.connection]
 host = "localhost"
@@ -133,8 +133,9 @@ port = 6333
 use_tls = false
 
 [vector.timeout]
-request_secs = 30
-search_secs = 60
+request_timeout_secs = 30
+search_timeout_secs = 60
+upsert_timeout_secs = 30
 
 [vector.retry]
 max_retries = 3

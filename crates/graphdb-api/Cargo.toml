@@ -44,9 +44,22 @@ async-trait = { workspace = true, optional = true }
 vector-client = { path = "../vector-client", features = ["qdrant-http"], optional = true }
 
 [features]
-server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:sqlx", "dep:async-trait"]
+server = [
+    "dep:axum",
+    "dep:tower",
+    "dep:tower-http",
+    "dep:http",
+    "dep:sqlx",
+    "dep:async-trait",
+    "graphdb-config/server",
+]
 grpc = ["server", "dep:tonic", "dep:prost", "dep:tonic-build", "dep:prost-build"]
-qdrant = ["dep:vector-client", "graphdb-sync/qdrant", "graphdb-query/qdrant"]
+qdrant = [
+    "dep:vector-client",
+    "graphdb-config/qdrant",
+    "graphdb-sync/qdrant",
+    "graphdb-query/qdrant",
+]
 embedded = []
 
 [dev-dependencies]

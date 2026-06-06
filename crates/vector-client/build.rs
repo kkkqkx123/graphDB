@@ -1,10 +1,4 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(feature = "llama_cpp")]
-    {
-        println!("cargo:rustc-env=CMAKE_ARGS=-DGGML_VULKAN=on");
-        println!("cargo:rerun-if-changed=build.rs");
-    }
-
     #[cfg(feature = "qdrant-grpc")]
     {
         println!("cargo:rerun-if-changed=proto/");

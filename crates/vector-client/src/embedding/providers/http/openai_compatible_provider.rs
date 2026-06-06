@@ -1,6 +1,6 @@
 //! OpenAI-compatible HTTP provider for embeddings
 //!
-//! Supports OpenAI, Gemini, Azure, Ollama, llama.cpp server, and any OpenAI-compatible endpoint.
+//! Supports OpenAI, Gemini, Azure, Ollama, and any OpenAI-compatible endpoint.
 //!
 //! This provider uses reqwest directly for HTTP operations without external LLM client dependencies.
 
@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 use crate::embedding::config::EmbeddingConfig;
 use crate::embedding::error::{EmbeddingError, Result};
@@ -24,7 +25,6 @@ use crate::embedding::provider::{EmbeddingProvider, ProviderType};
 /// - Google Gemini (via OpenAI compatibility layer)
 /// - Azure OpenAI
 /// - Ollama
-/// - llama.cpp server
 /// - Self-hosted embedding services
 pub struct OpenAICompatibleProvider {
     client: Client,
@@ -54,7 +54,6 @@ struct EmbeddingRequest {
 #[derive(Debug, Deserialize)]
 struct EmbeddingResponse {
     data: Vec<EmbeddingData>,
-    #[allow(dead_code)]
     #[serde(default)]
     usage: Option<Usage>,
 }
@@ -66,10 +65,25 @@ struct EmbeddingData {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct Usage {
     prompt_tokens: usize,
     total_tokens: usize,
+}
+
+impl EmbeddingResponse {
+    fn usage(&self) -> Option<&Usage> {
+        self.usage.as_ref()
+    }
+}
+
+impl Usage {
+    fn prompt_tokens(&self) -> usize {
+        self.prompt_tokens
+    }
+
+    fn total_tokens(&self) -> usize {
+        self.total_tokens
+    }
 }
 
 impl OpenAICompatibleProvider {
@@ -208,6 +222,14 @@ impl OpenAICompatibleProvider {
         let embedding_response: EmbeddingResponse = response.json().await.map_err(|e| {
             EmbeddingError::InvalidResponse(format!("Failed to parse response: {}", e))
         })?;
+
+        if let Some(usage) = embedding_response.usage() {
+            debug!(
+                "Embedding usage: prompt_tokens={}, total_tokens={}",
+                usage.prompt_tokens(),
+                usage.total_tokens()
+            );
+        }
 
         self.parse_response(embedding_response)
     }

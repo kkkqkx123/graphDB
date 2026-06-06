@@ -26,7 +26,7 @@ impl VectorClient {
                         let e = crate::engine::QdrantGrpcEngine::new(config.clone()).await?;
                         Arc::new(e)
                     }
-                    #[cfg(feature = "qdrant-http")]
+                    #[cfg(all(not(feature = "qdrant-grpc"), feature = "qdrant-http"))]
                     {
                         let e = crate::engine::QdrantEngine::new(config.clone()).await?;
                         Arc::new(e)

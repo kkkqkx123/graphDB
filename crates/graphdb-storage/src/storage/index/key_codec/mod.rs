@@ -35,16 +35,14 @@ pub mod key_types;
 pub use key_builder::KeyBuilder;
 pub use key_generator::{EdgeIndexKeyGen, IndexKeyGenerator, VertexIndexKeyGen};
 pub use key_parser::KeyParser;
-#[allow(unused_imports)]
-pub use key_types::{deserialize_value, serialize_value, SecondaryIndexKey};
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::Value;
     use crate::storage::index::key_codec::key_types::{
-        ByteKey, KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD,
-        KEY_TYPE_VERTEX_REVERSE,
+        deserialize_value, serialize_value, ByteKey, KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE,
+        KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
     };
 
     #[test]

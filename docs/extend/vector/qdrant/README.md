@@ -1,8 +1,8 @@
 # Qdrant 集成文档
 
-> 分析日期: 2026-04-06
+> 最近更新: 2026-06-06
 
-本目录包含Qdrant向量数据库集成的完整分析文档。
+本目录汇总 GraphDB 当前的 Qdrant 集成资料，配合 `vector-client` 的现有实现使用。
 
 ---
 
@@ -58,9 +58,9 @@ let results = client.search_points(
 
 ---
 
-## 客户端Crate架构建议
+## 客户端 Crate
 
-**推荐创建独立的 `vector-client` crate**，遵循现有BM25、Inversearch的架构模式：
+GraphDB 当前已经使用独立的 `vector-client` crate 作为向量客户端实现，遵循与 BM25、全文检索类似的模块化拆分：
 
 ```
 crates/vector-client/
@@ -76,12 +76,12 @@ crates/vector-client/
 核心优势：
 - 架构一致性
 - 独立测试能力
-- 可扩展性（支持其他向量引擎）
 - 清晰的模块边界
+- 便于后续扩展其他向量后端
 
 ---
 
-## 与GraphDB集成要点
+## 与 GraphDB 集成要点
 
 1. **集合命名**: `space_{space_id}_{tag}_{field}`
 2. **Payload设计**: 存储vertex_id、tag_name、关键属性

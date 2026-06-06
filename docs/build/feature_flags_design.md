@@ -17,47 +17,63 @@
 
 ```toml
 [features]
-default = ["server", "redb"]
-
-# Storage backend
-redb = ["dep:redb"]
-
-# Embedded API for standalone/embedded usage (Rust API only)
-embedded = []
-
-# C API bindings (requires embedded, enables cdylib generation and cbindgen)
-c-api = ["embedded", "dep:cbindgen"]
+default = ["server"]
 
 # Server API (HTTP/Web interface)
-server = [
-    "dep:axum",
-    "dep:tower",
-    "dep:tower-http",
-    "dep:http",
-    "dep:sqlx",
-    "dep:async-trait",
+server = ["graphdb-api/server", "graphdb-config/server"]
+
+# Full-text search support
+fulltext-search = ["graphdb-search/fulltext-search", "graphdb-sync/fulltext-search"]
+
+# Optional Chinese tokenizer support for full-text search
+jieba = ["graphdb-search/jieba"]
+
+# Vector search support
+qdrant = [
+    "graphdb-api/qdrant",
+    "graphdb-config/qdrant",
+    "graphdb-sync/qdrant",
+    "graphdb-query/qdrant",
 ]
+
+# Embedded API for standalone/embedded usage (Rust API only)
+embedded = ["graphdb-api/embedded", "graphdb-config/embedded"]
+
+# gRPC API
+grpc = ["graphdb-api/grpc"]
 ```
 
 ### Feature 依赖关系图
 
 ```
-default (server + redb)
+default (server)
 ├── server
-│   ├── axum
-│   ├── tower
-│   ├── tower-http
-│   ├── http
-│   ├── sqlx
-│   └── async-trait
-└── redb
+│   ├── graphdb-api/server
+│   │   ├── axum
+│   │   ├── tower
+│   │   ├── tower-http
+│   │   ├── http
+│   │   ├── sqlx
+│   │   └── async-trait
+│   └── graphdb-config/server
+├── fulltext-search
+│   ├── graphdb-search/fulltext-search
+│   └── graphdb-sync/fulltext-search
+├── jieba
+│   └── graphdb-search/jieba
+├── qdrant
+│   ├── graphdb-api/qdrant
+│   ├── graphdb-config/qdrant
+│   ├── graphdb-sync/qdrant
+│   └── graphdb-query/qdrant
+├── embedded
+│   ├── graphdb-api/embedded
+│   └── graphdb-config/embedded
+└── grpc
+    └── graphdb-api/grpc
 
 embedded (standalone)
 └── (no additional dependencies)
-
-c-api
-├── embedded (required)
-└── cbindgen (build dependency)
 ```
 
 ## 使用场景
@@ -70,7 +86,7 @@ c-api
 ```bash
 cargo build --release
 # 或显式指定
-cargo build --release --features server,redb
+cargo build --release --features server
 ```
 
 **包含组件**：
@@ -79,7 +95,7 @@ cargo build --release --features server,redb
 - ✅ 用户认证与权限管理
 - ✅ 批处理接口
 - ✅ 全文搜索（BM25 + Inverted Index）
-- ✅ Redb 存储引擎
+- ✅ 可选的向量搜索集成（启用 `qdrant` 时）
 - ❌ C API（不包含）
 
 **适用场景**：
@@ -95,12 +111,11 @@ cargo build --release --features server,redb
 
 **编译命令**：
 ```bash
-cargo build --release --no-default-features --features embedded,redb
+cargo build --release --no-default-features --features embedded
 ```
 
 **包含组件**：
 - ✅ Embedded Rust API（类似 SQLite 的使用方式）
-- ✅ Redb 存储引擎
 - ❌ HTTP 服务器
 - ❌ C API
 - ❌ 网络相关依赖
@@ -134,70 +149,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ---
 
-### 场景 3：C API 库（FFI）
+### 场景 3：向量检索模式（Qdrant）
 
-**用途**：提供 C 语言接口，用于与其他语言绑定
+**用途**：启用 GraphDB 的向量索引与相似度搜索。
 
 **编译命令**：
 ```bash
-cargo build --release --features c-api
+cargo build --release --features qdrant
 ```
 
 **包含组件**：
-- ✅ Embedded Rust API
-- ✅ C API 绑定（`src/api/embedded/c_api/`）
-- ✅ cbindgen（构建时生成 C 头文件）
-- ✅ 生成 `libgraphdb.so` / `graphdb.dll` 动态库
-- ✅ 生成 `include/graphdb.h` 头文件
-- ❌ HTTP 服务器（除非同时启用 server feature）
-
-**代码示例（C 语言）**：
-```c
-#include <graphdb.h>
-
-int main() {
-    graphdb_t* db = graphdb_open("my_database");
-    if (!db) return 1;
-    
-    graphdb_session_t* session = graphdb_create_session(db);
-    graphdb_use_space(session, "test_space");
-    
-    graphdb_result_t* result = graphdb_execute(session, "MATCH (n) RETURN n");
-    // 处理结果...
-    
-    graphdb_result_free(result);
-    graphdb_session_free(session);
-    graphdb_close(db);
-    
-    return 0;
-}
-```
+- ✅ 向量客户端配置与管理
+- ✅ Qdrant HTTP / gRPC 适配
+- ✅ 向量索引同步协调器
+- ❌ 本地 llama.cpp embedding provider
 
 **适用场景**：
-- Python/Node.js/Ruby 等语言绑定
-- 与 C/C++ 项目集成
-- 跨语言调用
+- 需要向量索引、相似度搜索和外部向量库集成
+- 需要与 Qdrant 服务端协同工作
+- 需要通过 `vector-client` 统一管理向量集合
+
+**说明**：
+- 当前 `vector-client` 仅保留 Qdrant 相关引擎实现
+- embedding 侧只保留 OpenAI-compatible HTTP provider
 
 ---
 
-### 场景 4：混合模式（Embedded + Server）
+### 场景 4：混合模式（Embedded + Server + Qdrant）
 
 **用途**：同时提供嵌入式 API 和 HTTP 服务
 
 **编译命令**：
 ```bash
-cargo build --release --features embedded,server,redb
+cargo build --release --features embedded,server,qdrant
 ```
 
 **包含组件**：
 - ✅ 所有 Embedded API 功能
 - ✅ 所有 Server API 功能
-- ✅ Redb 存储引擎
-- ❌ C API（除非启用 c-api）
+- ✅ 向量索引和外部向量库集成
+- ❌ 不包含任何 C API 绑定
 
 **适用场景**：
 - 需要本地嵌入 + 远程访问双重模式
 - 开发调试工具
+- 需要同时使用文本检索和向量检索
 
 ---
 
@@ -215,11 +211,8 @@ pub mod server;
 #[cfg(feature = "embedded")]
 pub mod embedded;
 
-#[cfg(feature = "server")]
-pub use server::{session, HttpServer};
-
-#[cfg(feature = "embedded")]
-pub use embedded::GraphDatabase;
+#[cfg(feature = "qdrant")]
+pub mod vector;
 ```
 
 ```rust
@@ -229,36 +222,8 @@ pub mod core;
 pub mod storage;
 // ... 其他模块
 
-#[cfg(feature = "c-api")]
-pub mod c_api;
-```
-
-### 子模块条件编译
-
-```rust
-// src/api/embedded/mod.rs
-pub mod database;
-pub mod session;
-pub mod transaction;
-
-// C API 模块（仅在启用 c-api feature 时编译）
-#[cfg(feature = "c-api")]
-pub mod c_api;
-```
-
-### 函数级别条件编译
-
-```rust
-// src/query/executor/expression/functions/mod.rs
-#[cfg(feature = "c-api")]
-pub fn c_api_function_example() {
-    // C API 特定函数
-}
-
-#[cfg(not(feature = "c-api"))]
-pub fn c_api_function_example() {
-    // 空实现或返回错误
-}
+#[cfg(feature = "server")]
+pub use api::server::{session, HttpServer};
 ```
 
 ### 测试文件条件编译
@@ -274,12 +239,12 @@ fn test_embedded_database() {
 ```
 
 ```rust
-// tests/integration_c_api.rs
-#![cfg(feature = "c-api")]
+// tests/integration_vector.rs
+#![cfg(feature = "qdrant")]
 
 #[test]
-fn test_c_api_binding() {
-    // C API 测试
+fn test_vector_support() {
+    // 向量相关测试
 }
 ```
 
@@ -287,14 +252,14 @@ fn test_c_api_binding() {
 
 ## 构建产物对比
 
-| Feature 组合 | 库类型 | 二进制 | 头文件 | 主要依赖 |
-|-------------|--------|--------|--------|----------|
-| `default` | rlib | graphdb-server | 无 | axum, tower, sqlx |
-| `embedded` | rlib | 无 | 无 | 基础依赖 |
-| `c-api` | cdylib + rlib | 无 | graphdb.h | cbindgen |
-| `server` | rlib | graphdb-server | 无 | axum, tower, sqlx |
-| `embedded,server` | rlib | graphdb-server | 无 | axum, tower, sqlx |
-| `c-api,server` | cdylib + rlib | graphdb-server | graphdb.h | 全部 |
+| Feature 组合 | 库类型 | 二进制 | 主要能力 |
+|-------------|--------|--------|----------|
+| `default` | rlib | graphdb-server | HTTP 服务器 |
+| `embedded` | rlib | 无 | Embedded Rust API |
+| `server` | rlib | graphdb-server | HTTP 服务器 |
+| `server,qdrant` | rlib | graphdb-server | HTTP 服务器 + 向量检索 |
+| `embedded,server,qdrant` | rlib | graphdb-server | Embedded + Server + 向量检索 |
+| `server,grpc` | rlib | graphdb-server | HTTP 服务器 + gRPC |
 
 ---
 
@@ -306,14 +271,15 @@ fn test_c_api_binding() {
 
 | 依赖 | Feature | 用途 |
 |------|---------|------|
-| `redb` | `redb` | 存储引擎 |
 | `axum` | `server` | HTTP 框架 |
 | `tower` | `server` | 服务抽象层 |
 | `tower-http` | `server` | HTTP 中间件 |
 | `http` | `server` | HTTP 类型定义 |
 | `sqlx` | `server` | SQLite 客户端（Web 元数据存储） |
 | `async-trait` | `server` | 异步 trait 支持 |
-| `cbindgen` | `c-api` | C 头文件生成（build-dependency） |
+| `vector-client` | `qdrant` | 向量索引客户端 |
+| `tonic` | `grpc` / `qdrant-grpc` | gRPC 客户端 |
+| `prost` / `prost-types` | `grpc` / `qdrant-grpc` | protobuf 支持 |
 
 ### 平台特定依赖
 
@@ -331,24 +297,24 @@ winapi = { version = "0.3", features = ["..."] }
 
 ## Build Script 行为
 
-`build.rs` 根据 feature flags 执行不同的构建逻辑：
+`crates/vector-client/build.rs` 会根据 feature flags 决定是否生成 Qdrant gRPC 的 protobuf 代码：
 
 ```rust
-// build.rs
 fn main() {
-    // 仅在启用 c-api feature 时生成 C 头文件
-    if env::var("CARGO_FEATURE_C_API").is_ok() {
-        generate_c_header();
+    if env::var("CARGO_FEATURE_QDRANT_GRPC").is_ok() {
+        compile_qdrant_protos();
     }
     
     // 设置重新编译触发条件
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src/api/embedded/c_api/");
+    println!("cargo:rerun-if-changed=proto/");
 }
 ```
 
 **环境变量检测**：
-- `CARGO_FEATURE_C_API`：当启用 `c-api` feature 时设置
+- `CARGO_FEATURE_QDRANT`：当启用 `qdrant` feature 时设置
+- `CARGO_FEATURE_GRPC`：当启用 `grpc` feature 时设置
+- `CARGO_FEATURE_QDRANT_GRPC`：当启用 `qdrant-grpc` feature 时设置
 - `CARGO_FEATURE_EMBEDDED`：当启用 `embedded` feature 时设置
 - `CARGO_FEATURE_SERVER`：当启用 `server` feature 时设置
 
@@ -367,7 +333,7 @@ graphdb = "0.1.0"  # 默认启用 server
 
 # ✅ 推荐：明确指定需要的功能
 [dependencies]
-graphdb = { version = "0.1.0", default-features = false, features = ["embedded", "redb"] }
+graphdb = { version = "0.1.0", default-features = false, features = ["embedded"] }
 ```
 
 ### 2. 条件编译代码组织
@@ -387,8 +353,8 @@ graphdb = { version = "0.1.0", default-features = false, features = ["embedded",
 // tests/integration_server_api.rs
 #![cfg(feature = "server")]
 
-// tests/integration_c_api.rs
-#![cfg(feature = "c-api")]
+// tests/integration_vector_api.rs
+#![cfg(feature = "qdrant")]
 ```
 
 ### 4. 文档示例
@@ -406,26 +372,21 @@ graphdb = { version = "0.1.0", default-features = false, features = ["embedded",
 
 ## 常见问题
 
-### Q1: 为什么 `embedded` feature 是空的？
+### Q1: 可以同时启用 `server` 和 `qdrant` 吗？
 
-`embedded` feature 本身不引入额外依赖，它作为标记用于：
-- 控制 `src/api/embedded/` 模块的编译
-- 作为 `c-api` feature 的基础依赖
-- 提供清晰的 API 边界
+可以。这是当前最常见的生产组合之一，HTTP API 和向量检索会一起编译。
 
-### Q2: 可以同时启用 `server` 和 `c-api` 吗？
-
-可以。这会同时编译 HTTP 服务器和 C API 绑定，生成动态库和可执行文件。
-
-### Q3: 如何只编译库而不生成二进制文件？
+### Q2: 如何只编译库而不生成二进制文件？
 
 ```bash
-cargo build --lib --no-default-features --features embedded,redb
+cargo build --lib --no-default-features --features embedded
 ```
 
-### Q4: `crate-type = ["cdylib", "rlib"]` 会影响性能吗？
+### Q3: 如何启用 gRPC？
 
-不会。这仅影响编译输出的格式，不影响运行时性能。但在仅需要 rlib 的场景下，会额外编译 cdylib 版本。
+```bash
+cargo build --release --features server,grpc
+```
 
 ---
 

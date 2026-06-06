@@ -1,8 +1,7 @@
 //! Embedding Service for vector search
 //!
 //! Provides text-to-vector embedding capabilities using various providers:
-//! - HTTP-based: OpenAI, Gemini, Azure, Ollama, llama.cpp server
-//! - Local libraries: llama.cpp, candle, ort, etc.
+//! - HTTP-based: OpenAI, Gemini, Azure, Ollama, and compatible endpoints
 
 mod config;
 mod error;
