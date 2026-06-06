@@ -44,14 +44,16 @@ pub async fn execute<
     Ok(JsonResponse(result?))
 }
 
-pub async fn validate<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn validate<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(_state): State<AppState<S>>,
     Json(request): Json<QueryRequest>,
 ) -> Result<JsonResponse<ValidateResponse>, HttpError> {

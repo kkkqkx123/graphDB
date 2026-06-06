@@ -9,14 +9,16 @@ use axum::{
 };
 use http::StatusCode;
 
-pub async fn auth_middleware<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn auth_middleware<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     mut request: Request,
     next: Next,

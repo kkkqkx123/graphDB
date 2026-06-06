@@ -1,13 +1,11 @@
-//! Encoding Module
+//! Column Encoding Module
 //!
-//! Provides compression encodings for columnar storage:
+//! Provides storage-level compression encodings:
 //! - Dictionary encoding for low-cardinality strings
 //! - RLE (Run-Length Encoding) for repeated values
 //! - BitPacking for small-range integers
-//! - Varint for variable-length integer encoding
 //! - FSST for long string compression
 //! - ALP for floating-point compression
-//! - Lazy decompression for compressed queries
 //! - Tiered compression strategy selector
 
 pub mod alp;

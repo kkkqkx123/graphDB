@@ -10,10 +10,9 @@ use super::{
     VertexTimestamp,
 };
 use crate::core::{StorageError, StorageResult, Value};
+use crate::storage::encoding::EncodingType;
+use crate::storage::persistence::{read_header, section, write_header_to, HEADER_SIZE};
 use crate::storage::types::StoragePropertyDef;
-use crate::storage::utils::persistence_format::{
-    read_header, section, write_header_to, HEADER_SIZE,
-};
 
 #[derive(Debug, Clone)]
 pub struct VertexTableConfig {
@@ -804,9 +803,8 @@ impl VertexTable {
 
             let mut encoding_byte_bytes = [0u8; 1];
             cursor.read_exact(&mut encoding_byte_bytes)?;
-            let encoding_type =
-                crate::storage::vertex::encoding::EncodingType::from_u8(encoding_byte_bytes[0]);
-            if encoding_type != crate::storage::vertex::encoding::EncodingType::None {
+            let encoding_type = EncodingType::from_u8(encoding_byte_bytes[0]);
+            if encoding_type != EncodingType::None {
                 self.columns
                     .apply_encoding_to_column(&name, encoding_type)?;
             }
@@ -943,7 +941,12 @@ mod tests {
             label_name: "person".to_string(),
             properties: vec![
                 StoragePropertyDef::new("name".to_string(), DataType::String),
-                StoragePropertyDef { name: "age".to_string(), data_type: DataType::Int, nullable: true, default_value: None },
+                StoragePropertyDef {
+                    name: "age".to_string(),
+                    data_type: DataType::Int,
+                    nullable: true,
+                    default_value: None,
+                },
             ],
             primary_key_index: 0,
         }

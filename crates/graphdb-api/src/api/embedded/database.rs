@@ -10,8 +10,8 @@ use crate::core::{StatsManager, Value};
 use crate::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
 use crate::storage::{GraphStorage, StorageClient};
 use crate::sync::{SyncConfig, SyncManager};
-use crate::transaction::{TransactionManager, TransactionManagerConfig};
 use crate::transaction::wal::SyncPolicy;
+use crate::transaction::{TransactionManager, TransactionManagerConfig};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::Path;
@@ -170,14 +170,11 @@ impl GraphDatabase<GraphStorage> {
                 .ok_or_else(|| CoreError::StorageError("Database path is empty".to_string()))?;
             let enable_wal = config.enable_wal;
             let sync_policy = sync_mode_to_policy(config.sync_mode);
-            let storage = GraphStorage::open_with_persistence(
-                path.to_path_buf(),
-                enable_wal,
-                sync_policy,
-            )
-            .map_err(|e| {
-                CoreError::StorageError(format!("Failed to initialize storage: {}", e))
-            })?;
+            let storage =
+                GraphStorage::open_with_persistence(path.to_path_buf(), enable_wal, sync_policy)
+                    .map_err(|e| {
+                        CoreError::StorageError(format!("Failed to initialize storage: {}", e))
+                    })?;
             (storage, enable_wal, sync_policy)
         };
 

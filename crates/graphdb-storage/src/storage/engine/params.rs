@@ -34,5 +34,3 @@ pub struct InsertEdgeParams<'a> {
     pub properties: &'a [(String, Value)],
     pub ts: Timestamp,
 }
-
-

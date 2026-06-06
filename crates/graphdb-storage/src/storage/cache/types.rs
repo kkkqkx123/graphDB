@@ -101,5 +101,3 @@ impl CachedVertex {
         size as u32
     }
 }
-
-

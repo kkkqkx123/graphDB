@@ -44,7 +44,8 @@ impl<
             + StorageTransactionContextOps
             + Clone
             + 'static,
-    > GraphDBService<S> {
+    > GraphDBService<S>
+{
     /// Create a new gRPC service instance
     pub fn new(app_state: AppState<S>, config: Config) -> Self {
         Self {
@@ -75,7 +76,8 @@ impl<
             + Send
             + Sync
             + 'static,
-    > GraphDBServiceTrait for GraphDBService<S> {
+    > GraphDBServiceTrait for GraphDBService<S>
+{
     type ExecuteQueryStreamStream = ExecuteQueryStreamStream;
 
     async fn health_check(

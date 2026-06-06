@@ -1199,12 +1199,12 @@ impl GraphStorageContext {
             .read()
             .flush(&index_dir)?;
 
-if let Some(persistence) = self.persistent.persistence.as_ref() {
-    persistence
-        .read()
-        .wal_manager()
-        .and_then(|w| w.read().sync().ok());
-}
+        if let Some(persistence) = self.persistent.persistence.as_ref() {
+            persistence
+                .read()
+                .wal_manager()
+                .and_then(|w| w.read().sync().ok());
+        }
 
         Ok(())
     }
@@ -1374,7 +1374,9 @@ if let Some(persistence) = self.persistent.persistence.as_ref() {
     // ── Cache Operations ──
 
     pub(crate) fn invalidate_vertex_cache(&self, label: LabelId) {
-        self.persistent.cache_manager.invalidate_vertices_by_label(label);
+        self.persistent
+            .cache_manager
+            .invalidate_vertices_by_label(label);
     }
 
     // ── Index Operations ──

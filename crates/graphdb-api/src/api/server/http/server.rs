@@ -47,7 +47,8 @@ impl<
             + StorageTransactionContextOps
             + Clone
             + 'static,
-    > HttpServer<S> {
+    > HttpServer<S>
+{
     /// Create a new HTTP server
     pub fn new(
         graph_service: Arc<GraphService<S>>,

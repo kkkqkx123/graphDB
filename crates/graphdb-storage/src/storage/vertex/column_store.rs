@@ -8,9 +8,12 @@
 //! - `VariableWidthColumn`: For variable-length types (String)
 //! - `Column`: Public wrapper that selects the appropriate variant at construction time
 
-use super::encoding::{ColumnEncoding, ColumnStats, EncodingType, FsstColumn, FsstEncoder};
 use crate::core::value::{DateTimeValue, DateValue, TimeValue};
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::storage::encoding::{
+    ColumnEncoding, ColumnStats, CompressionConfig, CompressionSelector, EncodingType, FsstColumn,
+    FsstEncoder,
+};
 use crate::utils::NullBitmap;
 use bitvec::prelude::*;
 
@@ -1049,7 +1052,7 @@ impl Column {
             ));
         }
 
-        use super::encoding::DictionaryColumn;
+        use crate::storage::encoding::DictionaryColumn;
 
         let mut dict_col = DictionaryColumn::new();
         for i in 0..self.len() {
@@ -1063,7 +1066,7 @@ impl Column {
     }
 
     pub fn apply_rle_encoding(&mut self) -> StorageResult<()> {
-        use super::encoding::{RleBoolColumn, RleIntColumn};
+        use crate::storage::encoding::{RleBoolColumn, RleIntColumn};
 
         match self.data_type {
             DataType::Bool => {
@@ -1094,7 +1097,7 @@ impl Column {
     }
 
     pub fn apply_bitpacking_encoding(&mut self) -> StorageResult<()> {
-        use super::encoding::BitPackedIntColumn;
+        use crate::storage::encoding::BitPackedIntColumn;
 
         match self.data_type {
             DataType::SmallInt | DataType::Int | DataType::BigInt => {
@@ -1117,7 +1120,7 @@ impl Column {
     }
 
     pub fn apply_alp_encoding(&mut self) -> StorageResult<()> {
-        use super::encoding::AlpColumn;
+        use crate::storage::encoding::AlpColumn;
 
         match self.data_type {
             DataType::Float | DataType::Double => {
@@ -1342,13 +1345,10 @@ impl ColumnStore {
         Ok(())
     }
 
-    pub fn auto_apply_encodings(
-        &mut self,
-        config: Option<super::encoding::CompressionConfig>,
-    ) -> StorageResult<()> {
+    pub fn auto_apply_encodings(&mut self, config: Option<CompressionConfig>) -> StorageResult<()> {
         let selector = match config {
-            Some(c) => super::encoding::CompressionSelector::with_config(c),
-            None => super::encoding::CompressionSelector::new(),
+            Some(c) => CompressionSelector::with_config(c),
+            None => CompressionSelector::new(),
         };
 
         for col in &mut self.columns {

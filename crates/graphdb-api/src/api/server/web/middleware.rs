@@ -18,14 +18,16 @@ use crate::storage::{
 ///
 /// Validates the session ID from the X-Session-ID header
 /// and ensures the session is active in the session manager.
-pub async fn web_auth_middleware<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn web_auth_middleware<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     mut request: Request,
     next: Next,

@@ -100,14 +100,16 @@ pub fn create_routes<
 // ==================== Space Handlers ====================
 
 /// List all spaces
-async fn list_spaces<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn list_spaces<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
     // Get storage reference before spawn_blocking
@@ -142,14 +144,16 @@ async fn list_spaces<S: StorageClient
 }
 
 /// Get space details
-async fn get_space_details<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn get_space_details<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path(name): Path<String>,
 ) -> WebResult<Json<ApiResponse<SpaceDetail>>> {
@@ -200,14 +204,16 @@ async fn get_space_details<S: StorageClient
 }
 
 /// Get space statistics
-async fn get_space_statistics<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn get_space_statistics<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path(name): Path<String>,
 ) -> WebResult<Json<ApiResponse<SpaceStatistics>>> {
@@ -251,14 +257,16 @@ async fn get_space_statistics<S: StorageClient
 // ==================== Tag Handlers ====================
 
 /// List all tags in a space
-async fn list_tags<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn list_tags<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path(space_name): Path<String>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
@@ -300,14 +308,16 @@ async fn list_tags<S: StorageClient
 }
 
 /// Create a new tag
-async fn create_tag<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn create_tag<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(space_name): Path<String>,
@@ -369,14 +379,16 @@ async fn create_tag<S: StorageClient
 }
 
 /// Get tag details
-async fn get_tag<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn get_tag<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path((space_name, tag_name)): Path<(String, String)>,
 ) -> WebResult<Json<ApiResponse<TagDetail>>> {
@@ -420,14 +432,16 @@ async fn get_tag<S: StorageClient
 }
 
 /// Update tag
-async fn update_tag<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn update_tag<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path((space_name, tag_name)): Path<(String, String)>,
@@ -478,14 +492,16 @@ async fn update_tag<S: StorageClient
 }
 
 /// Delete tag
-async fn delete_tag<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn delete_tag<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path((space_name, tag_name)): Path<(String, String)>,
@@ -515,14 +531,16 @@ async fn delete_tag<S: StorageClient
 // ==================== Edge Type Handlers ====================
 
 /// List all edge types in a space
-async fn list_edge_types<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn list_edge_types<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path(space_name): Path<String>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
@@ -564,14 +582,16 @@ async fn list_edge_types<S: StorageClient
 }
 
 /// Create a new edge type
-async fn create_edge_type<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn create_edge_type<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(space_name): Path<String>,
@@ -632,14 +652,16 @@ async fn create_edge_type<S: StorageClient
 }
 
 /// Get edge type details
-async fn get_edge_type<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn get_edge_type<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path((space_name, edge_name)): Path<(String, String)>,
 ) -> WebResult<Json<ApiResponse<EdgeTypeDetail>>> {
@@ -683,14 +705,16 @@ async fn get_edge_type<S: StorageClient
 }
 
 /// Update edge type
-async fn update_edge_type<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn update_edge_type<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path((space_name, edge_name)): Path<(String, String)>,
@@ -741,14 +765,16 @@ async fn update_edge_type<S: StorageClient
 }
 
 /// Delete edge type
-async fn delete_edge_type<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn delete_edge_type<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path((space_name, edge_name)): Path<(String, String)>,
@@ -778,14 +804,16 @@ async fn delete_edge_type<S: StorageClient
 // ==================== Index Handlers ====================
 
 /// List all indexes in a space
-async fn list_indexes<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn list_indexes<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path(space_name): Path<String>,
 ) -> WebResult<Json<ApiResponse<serde_json::Value>>> {
@@ -845,14 +873,16 @@ async fn list_indexes<S: StorageClient
 }
 
 /// Create a new index
-async fn create_index<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn create_index<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(space_name): Path<String>,
@@ -899,14 +929,16 @@ async fn create_index<S: StorageClient
 }
 
 /// Get index details
-async fn get_index<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn get_index<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(web_state): State<WebState<S>>,
     Path((space_name, index_name)): Path<(String, String)>,
 ) -> WebResult<Json<ApiResponse<IndexInfo>>> {
@@ -958,14 +990,16 @@ async fn get_index<S: StorageClient
 }
 
 /// Delete index
-async fn delete_index<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn delete_index<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path((space_name, index_name)): Path<(String, String)>,
@@ -993,14 +1027,16 @@ async fn delete_index<S: StorageClient
 }
 
 /// Rebuild index
-async fn rebuild_index<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn rebuild_index<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(_session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path((space_name, index_name)): Path<(String, String)>,

@@ -8,10 +8,8 @@
 //! - `IdIndexer`: External ID to internal ID mapping
 //! - `ColumnStore`: Columnar property storage
 //! - `VertexTimestamp`: MVCC timestamp tracking for vertices
-//! - `encoding`: Compression encodings (Dictionary, RLE)
 
 pub mod column_store;
-pub mod encoding;
 pub mod id_indexer;
 pub mod vertex_table;
 pub mod vertex_timestamp;
@@ -25,7 +23,6 @@ pub use vertex_timestamp::VertexTimestamp;
 
 use crate::core::vertex_edge_path::Tag;
 use crate::core::Value;
-use crate::storage::utils::props_to_map;
 
 pub use crate::core::types::{LabelId, Timestamp, VertexId, INVALID_TIMESTAMP, MAX_TIMESTAMP};
 
@@ -38,7 +35,8 @@ pub struct VertexRecord {
 
 impl From<&VertexRecord> for crate::core::Vertex {
     fn from(record: &VertexRecord) -> Self {
-        let properties = props_to_map(&record.properties);
+        let properties: std::collections::HashMap<String, Value> =
+            record.properties.iter().cloned().collect();
 
         crate::core::Vertex {
             vid: record.vid,

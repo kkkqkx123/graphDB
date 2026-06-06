@@ -10,7 +10,7 @@ use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::core::{StorageError, StorageResult};
-use crate::storage::utils::{read_u32_le, read_u64_le};
+use crate::storage::persistence::{read_u32_le, read_u64_le};
 
 use super::{CsrBase, EdgeId, MutableCsrTrait, Nbr, Timestamp, VertexId, INVALID_TIMESTAMP};
 

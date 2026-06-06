@@ -50,14 +50,16 @@ pub fn create_routes<
 }
 
 /// Add a query history item
-async fn add_history<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn add_history<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Json(request): Json<AddHistoryRequest>,
@@ -81,14 +83,16 @@ async fn add_history<S: StorageClient
 }
 
 /// List query history
-async fn list_history<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn list_history<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Query(params): Query<PaginationParams>,
@@ -107,14 +111,16 @@ async fn list_history<S: StorageClient
 }
 
 /// Delete a history item
-async fn delete_history<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn delete_history<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -131,14 +137,16 @@ async fn delete_history<S: StorageClient
 }
 
 /// Clear all history
-async fn clear_history<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn clear_history<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {
@@ -154,14 +162,16 @@ async fn clear_history<S: StorageClient
 }
 
 /// Add a favorite
-async fn add_favorite<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn add_favorite<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Json(request): Json<AddFavoriteRequest>,
@@ -184,14 +194,16 @@ async fn add_favorite<S: StorageClient
 }
 
 /// List all favorites
-async fn list_favorites<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn list_favorites<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<Json<ApiResponse<FavoriteListResponse>>> {
@@ -204,14 +216,16 @@ async fn list_favorites<S: StorageClient
 }
 
 /// Get a favorite by ID
-async fn get_favorite<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn get_favorite<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -231,14 +245,16 @@ async fn get_favorite<S: StorageClient
 }
 
 /// Update a favorite
-async fn update_favorite<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn update_favorite<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -261,14 +277,16 @@ async fn update_favorite<S: StorageClient
 }
 
 /// Delete a favorite
-async fn delete_favorite<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn delete_favorite<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
     Path(id): Path<String>,
@@ -285,14 +303,16 @@ async fn delete_favorite<S: StorageClient
 }
 
 /// Clear all favorites
-async fn clear_favorites<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+async fn clear_favorites<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     Extension(session_id): Extension<i64>,
     State(web_state): State<WebState<S>>,
 ) -> WebResult<(StatusCode, Json<ApiResponse<serde_json::Value>>)> {

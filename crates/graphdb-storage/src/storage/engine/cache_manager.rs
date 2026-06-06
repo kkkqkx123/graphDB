@@ -3,7 +3,9 @@
 //! Manages record cache and memory tracking for the storage engine.
 
 use crate::core::types::{LabelId, Timestamp};
-use crate::storage::cache::{CachedVertex, RecordCache, RecordCacheConfig, SharedRecordCache, VertexCacheKey};
+use crate::storage::cache::{
+    CachedVertex, RecordCache, RecordCacheConfig, SharedRecordCache, VertexCacheKey,
+};
 
 /// Manager for storage caches
 pub struct CacheManager {

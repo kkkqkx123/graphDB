@@ -23,14 +23,16 @@ pub struct SessionResponse {
     pub created_at: u64,
 }
 
-pub async fn create<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn create<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateSessionRequest>,
 ) -> Result<JsonResponse<SessionResponse>, HttpError> {
@@ -50,14 +52,16 @@ pub async fn create<S: StorageClient
     }))
 }
 
-pub async fn get_session<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn get_session<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(session_id): Path<i64>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -75,14 +79,16 @@ pub async fn get_session<S: StorageClient
     })))
 }
 
-pub async fn delete_session<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn delete_session<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(session_id): Path<i64>,
 ) -> Result<StatusCode, HttpError> {

@@ -152,7 +152,8 @@ impl PersistenceCoordinator {
         })?;
 
         if let Some(ref wal) = wal_manager {
-            wal.read().set_checkpoint_seq(checkpoint_manager.current_seq())?;
+            wal.read()
+                .set_checkpoint_seq(checkpoint_manager.current_seq())?;
         }
 
         let snapshot_manager = if config.enable_snapshots {

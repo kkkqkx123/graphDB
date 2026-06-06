@@ -428,5 +428,4 @@ mod tests {
         assert!(indexer.insert(IdKey::Text("v3".to_string())).is_ok());
         assert!(indexer.insert(IdKey::Text("v4".to_string())).is_err());
     }
-
 }

@@ -13,14 +13,16 @@ use crate::storage::{
 };
 
 /// Register a custom function
-pub async fn register<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn register<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Json(request): Json<RegisterFunctionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -55,14 +57,16 @@ pub async fn register<S: StorageClient
 }
 
 /// List all functions
-pub async fn list<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn list<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let registry = state.server.get_function_registry();
@@ -85,14 +89,16 @@ pub async fn list<S: StorageClient
 }
 
 /// Obtain function details
-pub async fn info<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn info<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -129,14 +135,16 @@ pub async fn info<S: StorageClient
 }
 
 /// Logout function
-pub async fn unregister<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn unregister<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {

@@ -797,7 +797,7 @@ impl LocalWalWriter {
         &self.stats
     }
 
-pub fn reset_stats(&mut self) {
+    pub fn reset_stats(&mut self) {
         self.stats = WalStats::new();
     }
 }

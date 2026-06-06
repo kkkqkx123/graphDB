@@ -13,14 +13,16 @@ use crate::storage::{
 };
 
 /// Get current configuration
-pub async fn get<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn get<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let config = state.server.get_config();
@@ -74,14 +76,16 @@ pub async fn get<S: StorageClient
 }
 
 /// Update configuration (hot update)
-pub async fn update<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn update<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(_state): State<AppState<S>>,
     Json(request): Json<serde_json::Value>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -112,14 +116,16 @@ pub async fn update<S: StorageClient
 }
 
 /// Getting Configuration Items
-pub async fn get_key<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn get_key<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path((section, key)): Path<(String, String)>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -134,14 +140,16 @@ pub async fn get_key<S: StorageClient
 }
 
 /// Updating Configuration Items
-pub async fn update_key<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn update_key<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(_state): State<AppState<S>>,
     Path((section, key)): Path<(String, String)>,
     Json(request): Json<UpdateConfigRequest>,
@@ -162,14 +170,16 @@ pub async fn update_key<S: StorageClient
 }
 
 /// Reset configuration items to default values
-pub async fn reset_key<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn reset_key<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(_state): State<AppState<S>>,
     Path((section, key)): Path<(String, String)>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {

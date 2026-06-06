@@ -8,11 +8,11 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::core::{DataType, DateValue, NullType, StorageError, StorageResult, Value};
+use crate::storage::encoding::{CompressionConfig, CompressionSelector, EncodingType};
+use crate::storage::naming::NameIndexer;
+use crate::storage::persistence::{read_header, read_u32_le, read_u64_le, section, write_header};
 use crate::storage::types::PropertyId;
-use crate::storage::utils::persistence_format::{read_header, section, write_header};
-use crate::storage::utils::{read_u32_le, read_u64_le, NameIndexer};
 use crate::storage::vertex::column_store::Column;
-use crate::storage::vertex::encoding::{CompressionConfig, CompressionSelector, EncodingType};
 
 /// Check that at least `needed` bytes remain in data starting at offset
 fn check_remaining(data: &[u8], offset: usize, needed: usize) -> StorageResult<()> {

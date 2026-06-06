@@ -8,10 +8,8 @@ use super::{
     MutableCsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::storage::persistence::{read_header, section, write_header_to, HEADER_SIZE};
 use crate::storage::types::{EdgeOffset, PropertyId, StoragePropertyDef};
-use crate::storage::utils::persistence_format::{
-    read_header, section, write_header_to, HEADER_SIZE,
-};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 

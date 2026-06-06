@@ -10,12 +10,14 @@ pub(crate) mod cache;
 pub(crate) mod client;
 pub(crate) mod compression;
 pub(crate) mod edge;
+pub(crate) mod encoding;
 pub(crate) mod engine;
 pub(crate) mod index;
+pub(crate) mod naming;
 
 mod metrics;
+pub(crate) mod persistence;
 pub(crate) mod types;
-pub(crate) mod utils;
 pub(crate) mod vertex;
 
 #[cfg(any(test, feature = "test-support"))]

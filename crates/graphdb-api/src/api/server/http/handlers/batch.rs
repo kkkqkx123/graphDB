@@ -16,14 +16,16 @@ use crate::storage::{
 };
 
 /// Create batch tasks
-pub async fn create<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn create<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateBatchRequest>,
 ) -> Result<JsonResponse<CreateBatchResponse>, HttpError> {
@@ -43,14 +45,16 @@ pub async fn create<S: StorageClient
 }
 
 /// Obtaining the status of batch tasks
-pub async fn status<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn status<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
 ) -> Result<JsonResponse<BatchStatusResponse>, HttpError> {
@@ -72,14 +76,16 @@ pub async fn status<S: StorageClient
 }
 
 /// Add multiple items in batches
-pub async fn add_items<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn add_items<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
     Json(request): Json<AddBatchItemsRequest>,
@@ -106,14 +112,16 @@ pub async fn add_items<S: StorageClient
 }
 
 /// Perform batch tasks
-pub async fn execute<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn execute<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
 ) -> Result<JsonResponse<ExecuteBatchResponse>, HttpError> {
@@ -166,14 +174,16 @@ pub async fn execute<S: StorageClient
 }
 
 /// Cancel the batch task.
-pub async fn cancel<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn cancel<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -192,14 +202,16 @@ pub async fn cancel<S: StorageClient
 }
 
 /// Delete batch tasks.
-pub async fn delete<S: StorageClient
-    + StorageSchemaContextOps
-    + StorageSyncContextOps
-    + StorageTransactionContextOps
-    + Clone
-    + Send
-    + Sync
-    + 'static>(
+pub async fn delete<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {

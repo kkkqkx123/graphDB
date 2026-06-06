@@ -36,7 +36,6 @@ pub mod single_mutable_csr;
 use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP};
 use crate::core::{Edge, Value};
 use crate::storage::types::StoragePropertyDef;
-use crate::storage::utils::props_to_map;
 
 pub use crate::core::types::EdgeStrategy;
 pub use csr::Csr;
@@ -60,7 +59,8 @@ pub struct EdgeRecord {
 
 impl From<&EdgeRecord> for Edge {
     fn from(record: &EdgeRecord) -> Self {
-        let props = props_to_map(&record.properties);
+        let props: std::collections::HashMap<String, Value> =
+            record.properties.iter().cloned().collect();
 
         Edge {
             src: record.src_vid,
