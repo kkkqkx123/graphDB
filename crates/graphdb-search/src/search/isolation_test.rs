@@ -33,6 +33,7 @@ mod tests {
     }
 
     /// Test vector index naming format: space_vec_{space_id}_{tag}_{field}
+    #[cfg(feature = "qdrant")]
     #[test]
     fn test_vector_index_naming_format() {
         use graphdb_sync::sync::vector_sync::VectorIndexLocation;
@@ -54,6 +55,7 @@ mod tests {
     }
 
     /// Test index naming consistency between vector and fulltext
+    #[cfg(feature = "qdrant")]
     #[test]
     fn test_index_naming_consistency() {
         use graphdb_sync::sync::vector_sync::VectorIndexLocation;

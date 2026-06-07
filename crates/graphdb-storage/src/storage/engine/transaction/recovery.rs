@@ -1,6 +1,7 @@
 use crate::core::types::{
     DataType, EdgeTypeInfo, LabelId, PropertyDef, SpaceInfo, TagInfo, Timestamp, VertexId,
 };
+use crate::core::error::storage::StorageErrorKind;
 use crate::core::wal::traits::RecoveryApplier;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeStrategy;
@@ -333,12 +334,18 @@ impl RecoveryApplier for GraphStorageContext {
         self.ensure_recovery_space(&redo.space_name)?;
 
         let label_id = if let Some(label_id) = redo.label_id {
-            self.create_vertex_type_with_id(
+            match self.create_vertex_type_with_id(
                 &redo.label_name,
                 label_id,
                 properties.clone(),
                 &primary_key,
-            )?
+            ) {
+                Ok(id) => id,
+                Err(e) if e.kind() == StorageErrorKind::LabelAlreadyExists => {
+                    label_id
+                }
+                Err(e) => return Err(e),
+            }
         } else {
             self.create_vertex_type(&redo.label_name, properties.clone(), &primary_key)?
         };
@@ -394,7 +401,7 @@ impl RecoveryApplier for GraphStorageContext {
         self.ensure_recovery_space(&redo.space_name)?;
 
         let label_id = if let Some(label_id) = redo.label_id {
-            self.create_edge_type_with_id(
+            match self.create_edge_type_with_id(
                 CreateEdgeTypeParams {
                     name: &redo.edge_label,
                     src_label,
@@ -404,7 +411,13 @@ impl RecoveryApplier for GraphStorageContext {
                     ie_strategy: EdgeStrategy::Multiple,
                 },
                 label_id,
-            )?
+            ) {
+                Ok(id) => id,
+                Err(e) if e.kind() == StorageErrorKind::LabelAlreadyExists => {
+                    label_id
+                }
+                Err(e) => return Err(e),
+            }
         } else {
             self.create_edge_type(
                 &redo.edge_label,

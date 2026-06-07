@@ -617,3 +617,251 @@ fn test_multi_cycle_flush_and_load() {
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ── Scenario 8: Clear Space ──
+
+/// Business scenario: User clears all data from a space while preserving
+/// the space and its schema.
+#[test]
+fn test_clear_space_preserves_schema() {
+    let mut storage = common::create_in_memory_storage();
+    let _space_id = common::setup_basic_schema(&mut storage);
+    common::insert_test_data(&mut storage, "test_space");
+
+    // Clear the space
+    storage.clear_space("test_space").unwrap();
+
+    // Space still exists
+    assert!(storage.space_exists("test_space"));
+
+    // Data is gone
+    assert_eq!(storage.scan_vertices("test_space").unwrap().len(), 0);
+    assert_eq!(storage.scan_all_edges("test_space").unwrap().len(), 0);
+
+    // Schema is cleared; must recreate tags/edge types before inserting new data
+    // (clear_space drops all vertex types and edge types in the space)
+    common::create_person_tag(&mut storage, "test_space");
+    common::create_knows_edge_type(&mut storage, "test_space");
+
+    // Can insert new data after clear
+    let alice = common::create_person_vertex(1, "Alice", 30);
+    storage.insert_vertex("test_space", alice).unwrap();
+    assert_eq!(storage.scan_vertices("test_space").unwrap().len(), 1);
+}
+
+// ── Scenario 9: Delete Vertex With Edges (Cascade) ──
+
+/// Business scenario: User deletes a vertex and all its edges should
+/// also be deleted (cascade).
+#[test]
+fn test_delete_vertex_with_edges_cascade() {
+    let mut storage = common::create_in_memory_storage();
+    common::setup_basic_schema(&mut storage);
+
+    let alice = common::create_person_vertex(1, "Alice", 30);
+    let bob = common::create_person_vertex(2, "Bob", 25);
+    storage.insert_vertex("test_space", alice).unwrap();
+    storage.insert_vertex("test_space", bob).unwrap();
+
+    let edge = common::create_knows_edge(1, 2, 2020);
+    storage.insert_edge("test_space", edge).unwrap();
+
+    // Delete Alice with edges
+    storage
+        .delete_vertex_with_edges("test_space", &VertexId::from_int64(1))
+        .unwrap();
+
+    // Alice is gone
+    assert!(storage
+        .get_vertex("test_space", &VertexId::from_int64(1))
+        .unwrap()
+        .is_none());
+
+    // Edge is gone (cascaded)
+    let remaining_edges = storage
+        .scan_edges_by_type("test_space", "KNOWS")
+        .unwrap();
+    assert_eq!(remaining_edges.len(), 0);
+}
+
+// ── Scenario 10: Unique Index Constraint ──
+
+/// Business scenario: User creates a unique index and attempts to
+/// insert a duplicate value, which should be rejected.
+#[test]
+fn test_unique_index_rejects_duplicate() {
+    let mut storage = common::create_in_memory_storage();
+    common::setup_basic_schema(&mut storage);
+
+    use graphdb_storage::core::types::{Index, IndexConfig, IndexField, IndexType};
+    let unique_index = Index::new(IndexConfig {
+        id: 1,
+        name: "person_name_unique_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
+            "name".to_string(),
+            Value::String(String::new()),
+            false,
+        )],
+        properties: vec![],
+        index_type: IndexType::TagIndex,
+        is_unique: true,
+        partial_condition: None,
+    });
+
+    storage
+        .create_tag_index("test_space", &unique_index)
+        .unwrap();
+    storage
+        .rebuild_tag_index("test_space", "person_name_unique_idx")
+        .unwrap();
+
+    let alice = common::create_person_vertex(1, "Alice", 30);
+    storage.insert_vertex("test_space", alice).unwrap();
+
+    // Insert another vertex with the same name — should fail due to unique constraint
+    let duplicate = common::create_person_vertex(2, "Alice", 25);
+    let result = storage.insert_vertex("test_space", duplicate);
+    assert!(result.is_err(), "Unique index should reject duplicate name");
+}
+
+// ── Scenario 11: String VertexId ──
+
+/// Business scenario: User uses string-based vertex IDs instead of integers.
+#[test]
+fn test_string_vertex_id_operations() {
+    use graphdb_storage::core::types::SpaceInfo;
+
+    let mut storage = common::create_in_memory_storage();
+
+    // Create space with String vid type
+    let mut space = SpaceInfo::new("str_space".to_string())
+        .with_vid_type(graphdb_storage::core::DataType::String)
+        .with_comment(Some("string ID space".to_string()));
+    storage.create_space(&mut space).unwrap();
+
+    // Create a tag
+    let person_tag = graphdb_storage::core::types::TagInfo::new("Person".to_string())
+        .with_properties(vec![
+            graphdb_storage::core::types::PropertyDef::new(
+                "name".to_string(),
+                graphdb_storage::core::DataType::String,
+            ),
+            graphdb_storage::core::types::PropertyDef::new(
+                "age".to_string(),
+                graphdb_storage::core::DataType::BigInt,
+            ),
+        ]);
+    storage.create_tag("str_space", &person_tag).unwrap();
+
+    // Insert vertices with string IDs
+    let alice = Vertex::new(
+        VertexId::from_string("user-alice"),
+        vec![Tag::new(
+            "Person".to_string(),
+            vec![
+                ("name".to_string(), Value::String("Alice".to_string())),
+                ("age".to_string(), Value::BigInt(30)),
+            ]
+            .into_iter()
+            .collect(),
+        )],
+    );
+    let bob = Vertex::new(
+        VertexId::from_string("user-bob"),
+        vec![Tag::new(
+            "Person".to_string(),
+            vec![
+                ("name".to_string(), Value::String("Bob".to_string())),
+                ("age".to_string(), Value::BigInt(25)),
+            ]
+            .into_iter()
+            .collect(),
+        )],
+    );
+    storage.insert_vertex("str_space", alice).unwrap();
+    storage.insert_vertex("str_space", bob).unwrap();
+
+    // Verify retrieval
+    let alice_retrieved = storage
+        .get_vertex("str_space", &VertexId::from_string("user-alice"))
+        .unwrap()
+        .expect("Alice should exist with string ID");
+    assert_eq!(
+        alice_retrieved.properties.get("name"),
+        Some(&Value::String("Alice".to_string()))
+    );
+
+    // Scan all
+    let all = storage.scan_vertices("str_space").unwrap();
+    assert_eq!(all.len(), 2);
+}
+
+// ── Scenario 12: Edge Both Direction Traversal ──
+
+/// Business scenario: User queries edges in both directions.
+#[test]
+fn test_edge_both_direction_traversal() {
+    let mut storage = common::create_in_memory_storage();
+    common::setup_basic_schema(&mut storage);
+
+    let alice = common::create_person_vertex(1, "Alice", 30);
+    let bob = common::create_person_vertex(2, "Bob", 25);
+    storage.insert_vertex("test_space", alice).unwrap();
+    storage.insert_vertex("test_space", bob).unwrap();
+
+    // Alice -> Bob
+    let edge = common::create_knows_edge(1, 2, 2020);
+    storage.insert_edge("test_space", edge).unwrap();
+
+    // Both direction from Alice: should find 1 edge (Alice -> Bob)
+    let both = storage
+        .get_node_edges("test_space", &VertexId::from_int64(1), EdgeDirection::Both)
+        .unwrap();
+    assert_eq!(both.len(), 1, "Both traversal should find 1 edge for Alice");
+
+    // Both direction from Bob: should find 1 edge (Alice -> Bob, incoming)
+    let bob_both = storage
+        .get_node_edges("test_space", &VertexId::from_int64(2), EdgeDirection::Both)
+        .unwrap();
+    assert_eq!(bob_both.len(), 1, "Both traversal should find 1 incoming edge for Bob");
+}
+
+// ── Scenario 13: Update Vertex ──
+
+/// Business scenario: User updates an existing vertex's properties.
+#[test]
+fn test_update_vertex_properties() {
+    let mut storage = common::create_in_memory_storage();
+    common::setup_basic_schema(&mut storage);
+
+    let vertex = common::create_person_vertex(1, "Alice", 30);
+    storage.insert_vertex("test_space", vertex).unwrap();
+
+    // Update properties
+    let updated = Vertex::new(
+        VertexId::from_int64(1),
+        vec![Tag::new(
+            "Person".to_string(),
+            vec![
+                ("name".to_string(), Value::String("AliceUpdated".to_string())),
+                ("age".to_string(), Value::BigInt(31)),
+            ]
+            .into_iter()
+            .collect(),
+        )],
+    );
+    storage.update_vertex("test_space", updated).unwrap();
+
+    // Verify update
+    let retrieved = storage
+        .get_vertex("test_space", &VertexId::from_int64(1))
+        .unwrap()
+        .expect("Vertex should exist after update");
+    assert_eq!(
+        retrieved.properties.get("name"),
+        Some(&Value::String("AliceUpdated".to_string()))
+    );
+    assert_eq!(retrieved.properties.get("age"), Some(&Value::BigInt(31)));
+}

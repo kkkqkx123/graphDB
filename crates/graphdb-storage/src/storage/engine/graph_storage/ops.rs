@@ -322,3 +322,163 @@ pub(crate) fn repair_dangling_edges(
 
     Ok(repaired_count)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::core::types::VertexId;
+    use crate::core::Value;
+    use crate::storage::edge::EdgeRecord;
+    use crate::storage::vertex::VertexRecord;
+
+    use super::{
+        edge_record_to_edge, edge_type_storage_name, serialize_properties,
+        value_to_string, vertex_record_to_vertex, vertex_type_storage_name,
+    };
+
+    #[test]
+    fn test_value_to_string() {
+        assert_eq!(value_to_string(&Value::SmallInt(42)), "42");
+        assert_eq!(value_to_string(&Value::Int(100)), "100");
+        assert_eq!(value_to_string(&Value::BigInt(9999999999)), "9999999999");
+        assert_eq!(value_to_string(&Value::String("hello".to_string())), "hello");
+        assert_eq!(value_to_string(&Value::Float(3.14)), "3.14");
+        assert_eq!(value_to_string(&Value::Double(2.71828)), "2.71828");
+        assert_eq!(value_to_string(&Value::Bool(true)), "true");
+        assert_eq!(value_to_string(&Value::Bool(false)), "false");
+    }
+
+    #[test]
+    fn test_vertex_type_storage_name() {
+        assert_eq!(
+            vertex_type_storage_name(1, "Person"),
+            "space_1:tag:Person"
+        );
+        assert_eq!(
+            vertex_type_storage_name(0, "Employee"),
+            "space_0:tag:Employee"
+        );
+    }
+
+    #[test]
+    fn test_edge_type_storage_name() {
+        assert_eq!(
+            edge_type_storage_name(1, "KNOWS"),
+            "space_1:edge:KNOWS"
+        );
+        assert_eq!(
+            edge_type_storage_name(0, "WORKS_AT"),
+            "space_0:edge:WORKS_AT"
+        );
+    }
+
+    #[test]
+    fn test_vertex_record_to_vertex() {
+        let record = VertexRecord {
+            vid: VertexId::from_int64(42),
+            internal_id: 5,
+            properties: vec![
+                ("name".to_string(), Value::String("Alice".to_string())),
+                ("age".to_string(), Value::BigInt(30)),
+            ],
+        };
+
+        let vertex = vertex_record_to_vertex(&record, "Person");
+
+        assert_eq!(vertex.vid, VertexId::from_int64(42));
+        assert_eq!(vertex.id, 5);
+        assert_eq!(vertex.tags.len(), 1);
+        assert_eq!(vertex.tags[0].name, "Person");
+        assert_eq!(
+            vertex.properties.get("name"),
+            Some(&Value::String("Alice".to_string()))
+        );
+        assert_eq!(vertex.properties.get("age"), Some(&Value::BigInt(30)));
+    }
+
+    #[test]
+    fn test_edge_record_to_edge_int_ids() {
+        let record = EdgeRecord {
+            edge_id: 100,
+            src_vid: VertexId::from_int64(1),
+            dst_vid: VertexId::from_int64(2),
+            rank: 0,
+            properties: vec![
+                ("since".to_string(), Value::Int(2020)),
+            ],
+        };
+
+        let edge = edge_record_to_edge(&record, "KNOWS", "1", "2");
+
+        assert_eq!(edge.src, VertexId::from_int64(1));
+        assert_eq!(edge.dst, VertexId::from_int64(2));
+        assert_eq!(edge.edge_type, "KNOWS");
+        assert_eq!(edge.ranking, 0);
+        assert_eq!(edge.id, 100);
+        assert_eq!(edge.props.get("since"), Some(&Value::Int(2020)));
+    }
+
+    #[test]
+    fn test_edge_record_to_edge_string_ids() {
+        let record = EdgeRecord {
+            edge_id: 200,
+            src_vid: VertexId::from_string("user-a"),
+            dst_vid: VertexId::from_string("user-b"),
+            rank: 1,
+            properties: vec![],
+        };
+
+        let edge = edge_record_to_edge(&record, "FRIEND_OF", "user-a", "user-b");
+
+        assert_eq!(edge.src, VertexId::from_string("user-a"));
+        assert_eq!(edge.dst, VertexId::from_string("user-b"));
+        assert_eq!(edge.edge_type, "FRIEND_OF");
+        assert_eq!(edge.ranking, 1);
+    }
+
+    #[test]
+    fn test_serialize_properties_string() {
+        let props = vec![("name".to_string(), Value::String("Alice".to_string()))];
+        let data = serialize_properties(&props);
+        assert!(!data.is_empty());
+        assert!(data.contains(&b'n'));
+        assert!(data.contains(&b'A'));
+    }
+
+    #[test]
+    fn test_serialize_properties_int() {
+        let props = vec![("age".to_string(), Value::Int(30))];
+        let data = serialize_properties(&props);
+        assert!(!data.is_empty());
+    }
+
+    #[test]
+    fn test_serialize_properties_bool() {
+        let props = vec![("active".to_string(), Value::Bool(true))];
+        let data = serialize_properties(&props);
+        assert!(!data.is_empty());
+    }
+
+    #[test]
+    fn test_serialize_properties_float() {
+        let props = vec![("score".to_string(), Value::Float(9.5))];
+        let data = serialize_properties(&props);
+        assert!(!data.is_empty());
+    }
+
+    #[test]
+    fn test_serialize_properties_empty() {
+        let data = serialize_properties(&[]);
+        assert!(data.is_empty());
+    }
+
+    #[test]
+    fn test_serialize_properties_multiple() {
+        let props = vec![
+            ("name".to_string(), Value::String("Bob".to_string())),
+            ("age".to_string(), Value::Int(25)),
+            ("active".to_string(), Value::Bool(true)),
+        ];
+        let data = serialize_properties(&props);
+        assert!(!data.is_empty());
+    }
+}

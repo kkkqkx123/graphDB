@@ -779,7 +779,7 @@ mod tests {
     #[test]
     fn test_completer_set_schema_cache() {
         let mut completer = GraphDBCompleter::new();
-        let new_cache = Arc::new(Mutex::new(SchemaCache::new()));
+        let new_cache = Arc::new(Mutex::new(crate::completion::context::SchemaCache::new()));
         completer.set_schema_cache(new_cache.clone());
 
         let locked = completer.schema_cache.lock().expect("Failed to lock");

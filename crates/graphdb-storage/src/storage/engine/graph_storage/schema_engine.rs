@@ -415,3 +415,190 @@ pub fn rename_edge_property(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::core::DataType;
+    use crate::storage::edge::EdgeStrategy;
+    use crate::storage::types::StoragePropertyDef;
+
+    use super::super::GraphStorageContext;
+
+    #[test]
+    fn test_create_vertex_type() {
+        let ctx = GraphStorageContext::new();
+        let props = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        let label_id = ctx
+            .create_vertex_type("Person", props, "name")
+            .expect("create_vertex_type should succeed");
+        assert_eq!(label_id, 0);
+    }
+
+    #[test]
+    fn test_create_duplicate_vertex_type() {
+        let ctx = GraphStorageContext::new();
+        let props = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        ctx.create_vertex_type("Person", props, "name")
+            .expect("create_vertex_type should succeed");
+        let props2 = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        let result = ctx.create_vertex_type("Person", props2, "name");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_vertex_type_missing_primary_key() {
+        let ctx = GraphStorageContext::new();
+        let result = ctx.create_vertex_type(
+            "Person",
+            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            "nonexistent",
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_edge_type() {
+        let ctx = GraphStorageContext::new();
+        let props = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        ctx.create_vertex_type("Person", props, "name")
+            .expect("create_vertex_type should succeed");
+
+        let edge_label_id = ctx
+            .create_edge_type(
+                "KNOWS",
+                0,
+                0,
+                vec![StoragePropertyDef::new("since".to_string(), DataType::Int)],
+                EdgeStrategy::Multiple,
+                EdgeStrategy::Multiple,
+            )
+            .expect("create_edge_type should succeed");
+        assert_eq!(edge_label_id, 0);
+    }
+
+    #[test]
+    fn test_create_edge_type_missing_src_label() {
+        let ctx = GraphStorageContext::new();
+        let result = ctx.create_edge_type(
+            "KNOWS", 0, 0, vec![], EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+        );
+        assert!(result.is_err());
+    }
+
+    fn name_prop() -> Vec<StoragePropertyDef> {
+        vec![StoragePropertyDef::new("name".to_string(), DataType::String)]
+    }
+
+    #[test]
+    fn test_drop_vertex_type() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        assert!(ctx.get_vertex_label_id("Person").is_some());
+        ctx.drop_vertex_type("Person").expect("drop should succeed");
+        assert!(ctx.get_vertex_label_id("Person").is_none());
+    }
+
+    #[test]
+    fn test_drop_nonexistent_vertex_type() {
+        let ctx = GraphStorageContext::new();
+        let result = ctx.drop_vertex_type("NonExistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_drop_edge_type() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.create_edge_type(
+            "KNOWS", 0, 0, vec![], EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+        )
+        .expect("create_edge_type should succeed");
+        ctx.drop_edge_type("KNOWS").expect("drop should succeed");
+    }
+
+    #[test]
+    fn test_add_vertex_property() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.add_vertex_property(
+            0,
+            StoragePropertyDef::new("email".to_string(), DataType::String),
+        )
+        .expect("add_vertex_property should succeed");
+    }
+
+    #[test]
+    fn test_add_edge_property() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.create_edge_type(
+            "KNOWS", 0, 0, vec![], EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+        )
+        .expect("create_edge_type should succeed");
+        ctx.add_edge_property(
+            0,
+            StoragePropertyDef::new("weight".to_string(), DataType::Double),
+        )
+        .expect("add_edge_property should succeed");
+    }
+
+    #[test]
+    fn test_delete_vertex_property() {
+        let ctx = GraphStorageContext::new();
+        let props = vec![
+            StoragePropertyDef::new("name".to_string(), DataType::String),
+            StoragePropertyDef::new("age".to_string(), DataType::BigInt),
+        ];
+        ctx.create_vertex_type("Person", props, "name")
+            .expect("create_vertex_type should succeed");
+        ctx.delete_vertex_property(0, "age")
+            .expect("delete_vertex_property should succeed");
+    }
+
+    #[test]
+    fn test_rename_vertex_property() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.rename_vertex_property(0, "name", "full_name")
+            .expect("rename_vertex_property should succeed");
+    }
+
+    #[test]
+    fn test_delete_edge_property() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.create_edge_type(
+            "KNOWS", 0, 0,
+            vec![StoragePropertyDef::new("since".to_string(), DataType::Int)],
+            EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+        )
+        .expect("create_edge_type should succeed");
+        ctx.delete_edge_property(0, "since")
+            .expect("delete_edge_property should succeed");
+    }
+
+    #[test]
+    fn test_create_vertex_type_with_id() {
+        let ctx = GraphStorageContext::new();
+        let label_id = ctx
+            .create_vertex_type_with_id("Person", 42, name_prop(), "name")
+            .expect("create_vertex_type_with_id should succeed");
+        assert_eq!(label_id, 42);
+    }
+
+    #[test]
+    fn test_add_vertex_property_label_not_found() {
+        let ctx = GraphStorageContext::new();
+        let result = ctx.add_vertex_property(
+            999,
+            StoragePropertyDef::new("email".to_string(), DataType::String),
+        );
+        assert!(result.is_err());
+    }
+}

@@ -450,7 +450,7 @@ impl FunctionEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::client::http::FieldInfo;
+    use crate::client::FieldInfo;
 
     #[test]
     fn test_schema_cache_default() {

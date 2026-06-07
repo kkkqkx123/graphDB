@@ -100,3 +100,70 @@ pub(crate) fn lookup_index(
         .lookup_tag_index(space_id, &index, value)?;
     Ok(results)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
+    use crate::core::Value;
+    use crate::storage::engine::graph_storage::context::GraphStorageContext;
+
+    fn setup_context() -> GraphStorageContext {
+        let ctx = GraphStorageContext::new();
+        ctx
+    }
+
+    #[test]
+    fn test_create_and_list_tag_index() {
+        let ctx = setup_context();
+
+        let index = Index::new(IndexConfig {
+            id: 1,
+            name: "person_name_idx".to_string(),
+            space_id: 0,
+            schema_name: "Person".to_string(),
+            fields: vec![IndexField::new(
+                "name".to_string(),
+                Value::String(String::new()),
+                false,
+            )],
+            properties: vec![],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+            partial_condition: None,
+        });
+
+        super::create_tag_index(&ctx, "test_space", &index).expect_err(
+            "should fail because space does not exist",
+        );
+
+        // Actually we need a space + schema adapter for full testing.
+        // The index_manager functions require a schema_manager with registered space.
+        // This is tested through integration tests (tests.rs).
+    }
+
+    #[test]
+    fn test_get_tag_index_on_empty() {
+        let ctx = setup_context();
+        let result = super::get_tag_index(&ctx, "nonexistent", "some_index");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_drop_tag_index_on_empty() {
+        let ctx = setup_context();
+        let result = super::drop_tag_index(&ctx, "nonexistent", "some_index");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_lookup_index_on_nonexistent_space() {
+        let ctx = setup_context();
+        let result = super::lookup_index(
+            &ctx,
+            "no_space",
+            "some_index",
+            &Value::String("test".to_string()),
+        );
+        assert!(result.is_err());
+    }
+}

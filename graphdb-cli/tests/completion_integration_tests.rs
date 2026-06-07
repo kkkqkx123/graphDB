@@ -284,7 +284,7 @@ fn test_function_category_variants() {
 
 #[test]
 fn test_schema_cache_with_data_integration() {
-    use graphdb_cli::client::http::{EdgeTypeInfo, FieldInfo, SpaceInfo, TagInfo};
+    use graphdb_cli::client::{EdgeTypeInfo, FieldInfo, SpaceInfo, TagInfo};
 
     let mut cache = SchemaCache::new();
 
