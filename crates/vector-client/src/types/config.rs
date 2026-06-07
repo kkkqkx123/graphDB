@@ -297,3 +297,195 @@ impl HealthStatus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_distance_metric_supported() {
+        assert!(DistanceMetric::Cosine.is_supported_by_qdrant());
+        assert!(DistanceMetric::Euclid.is_supported_by_qdrant());
+        assert!(DistanceMetric::Dot.is_supported_by_qdrant());
+        assert!(!DistanceMetric::Manhattan.is_supported_by_qdrant());
+    }
+
+    #[test]
+    fn test_distance_metric_custom_implementation() {
+        assert!(!DistanceMetric::Cosine.requires_custom_implementation());
+        assert!(!DistanceMetric::Euclid.requires_custom_implementation());
+        assert!(!DistanceMetric::Dot.requires_custom_implementation());
+        assert!(DistanceMetric::Manhattan.requires_custom_implementation());
+    }
+
+    #[test]
+    fn test_hnsw_config_default() {
+        let cfg = HnswConfig::default();
+        assert_eq!(cfg.m, 16);
+        assert_eq!(cfg.ef_construct, 100);
+        assert!(cfg.full_scan_threshold.is_none());
+    }
+
+    #[test]
+    fn test_hnsw_config_new() {
+        let cfg = HnswConfig::new(32, 200);
+        assert_eq!(cfg.m, 32);
+        assert_eq!(cfg.ef_construct, 200);
+    }
+
+    #[test]
+    fn test_hnsw_config_builder() {
+        let cfg = HnswConfig::new(16, 100)
+            .with_full_scan_threshold(10000)
+            .with_max_indexing_threads(4)
+            .with_on_disk(true)
+            .with_payload_m(8);
+        assert_eq!(cfg.full_scan_threshold, Some(10000));
+        assert_eq!(cfg.max_indexing_threads, Some(4));
+        assert_eq!(cfg.on_disk, Some(true));
+        assert_eq!(cfg.payload_m, Some(8));
+    }
+
+    #[test]
+    fn test_quantization_config_disabled() {
+        let cfg = QuantizationConfig::disabled();
+        assert!(!cfg.enabled);
+        assert!(cfg.quant_type.is_none());
+    }
+
+    #[test]
+    fn test_quantization_config_scalar() {
+        let cfg = QuantizationConfig::scalar(0.99);
+        assert!(cfg.enabled);
+        match cfg.quant_type {
+            Some(QuantizationType::Scalar { .. }) => {}
+            _ => panic!("expected Scalar"),
+        }
+    }
+
+    #[test]
+    fn test_quantization_config_product() {
+        let cfg = QuantizationConfig::product(CompressionRatio::X8);
+        assert!(cfg.enabled);
+        match cfg.quant_type {
+            Some(QuantizationType::Product { compression, .. }) => {
+                assert!(matches!(compression, CompressionRatio::X8));
+            }
+            _ => panic!("expected Product"),
+        }
+    }
+
+    #[test]
+    fn test_quantization_config_binary() {
+        let cfg = QuantizationConfig::binary();
+        assert!(cfg.enabled);
+        match cfg.quant_type {
+            Some(QuantizationType::Binary { .. }) => {}
+            _ => panic!("expected Binary"),
+        }
+    }
+
+    #[test]
+    fn test_quantization_config_with_always_ram() {
+        let cfg = QuantizationConfig::scalar(0.5).with_always_ram(false);
+        match cfg.quant_type {
+            Some(QuantizationType::Scalar { always_ram, .. }) => {
+                assert_eq!(always_ram, Some(false));
+            }
+            _ => panic!("expected Scalar"),
+        }
+    }
+
+    #[test]
+    fn test_collection_config_new() {
+        let cfg = CollectionConfig::new(768, DistanceMetric::Cosine);
+        assert_eq!(cfg.vector_size, 768);
+        assert_eq!(cfg.distance, DistanceMetric::Cosine);
+    }
+
+    #[test]
+    fn test_collection_config_with_index_type() {
+        let cfg = CollectionConfig::new(384, DistanceMetric::Euclid)
+            .with_index_type(IndexType::FLAT);
+        assert_eq!(cfg.index_type, Some(IndexType::FLAT));
+    }
+
+    #[test]
+    fn test_collection_config_with_hnsw() {
+        let hnsw = HnswConfig::new(32, 200);
+        let cfg = CollectionConfig::new(128, DistanceMetric::Dot).with_hnsw(hnsw);
+        assert_eq!(cfg.index_type, Some(IndexType::HNSW));
+        assert!(cfg.hnsw_config.is_some());
+    }
+
+    #[test]
+    fn test_collection_config_with_quantization() {
+        let q = QuantizationConfig::scalar(0.99);
+        let cfg = CollectionConfig::new(1536, DistanceMetric::Cosine).with_quantization(q);
+        assert!(cfg.quantization_config.is_some());
+    }
+
+    #[test]
+    fn test_collection_config_with_shard_number() {
+        let cfg = CollectionConfig::new(768, DistanceMetric::Cosine).with_shard_number(2);
+        assert_eq!(cfg.shard_number, Some(2));
+    }
+
+    #[test]
+    fn test_collection_config_with_on_disk_payload() {
+        let cfg = CollectionConfig::new(768, DistanceMetric::Cosine).with_on_disk_payload(true);
+        assert_eq!(cfg.on_disk_payload, Some(true));
+    }
+
+    #[test]
+    fn test_collection_config_default() {
+        let cfg = CollectionConfig::default();
+        assert_eq!(cfg.vector_size, 1536);
+        assert_eq!(cfg.distance, DistanceMetric::Cosine);
+    }
+
+    #[test]
+    fn test_payload_schema_type_as_str() {
+        assert_eq!(PayloadSchemaType::Keyword.as_str(), "keyword");
+        assert_eq!(PayloadSchemaType::Integer.as_str(), "integer");
+        assert_eq!(PayloadSchemaType::Float.as_str(), "float");
+        assert_eq!(PayloadSchemaType::Text.as_str(), "text");
+        assert_eq!(PayloadSchemaType::Bool.as_str(), "bool");
+        assert_eq!(PayloadSchemaType::Geo.as_str(), "geo");
+        assert_eq!(PayloadSchemaType::Datetime.as_str(), "datetime");
+    }
+
+    #[test]
+    fn test_health_status_healthy() {
+        let h = HealthStatus::healthy("test-engine", "1.0");
+        assert!(h.is_healthy);
+        assert_eq!(h.engine_name, "test-engine");
+        assert_eq!(h.engine_version, "1.0");
+        assert!(h.message.is_none());
+    }
+
+    #[test]
+    fn test_health_status_unhealthy() {
+        let h = HealthStatus::unhealthy("test-engine", "1.0", "not ready");
+        assert!(!h.is_healthy);
+        assert_eq!(h.message, Some("not ready".to_string()));
+    }
+
+    #[test]
+    fn test_index_type_default() {
+        assert_eq!(IndexType::default(), IndexType::HNSW);
+    }
+
+    #[test]
+    fn test_distance_metric_default() {
+        assert_eq!(DistanceMetric::default(), DistanceMetric::Cosine);
+    }
+
+    #[test]
+    fn test_collection_status_debug() {
+        assert_eq!(format!("{:?}", CollectionStatus::Green), "Green");
+        assert_eq!(format!("{:?}", CollectionStatus::Yellow), "Yellow");
+        assert_eq!(format!("{:?}", CollectionStatus::Red), "Red");
+        assert_eq!(format!("{:?}", CollectionStatus::Grey), "Grey");
+    }
+}

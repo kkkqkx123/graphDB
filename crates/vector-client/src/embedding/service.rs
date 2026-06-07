@@ -92,3 +92,60 @@ impl std::fmt::Debug for EmbeddingService {
             .finish()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::embedding::provider::ProviderType;
+
+    struct TestProvider {
+        dim: usize,
+    }
+
+    #[async_trait::async_trait]
+    impl EmbeddingProvider for TestProvider {
+        async fn embed(&self, texts: &[&str]) -> std::result::Result<Vec<Vec<f32>>, EmbeddingError> {
+            Ok(texts.iter().map(|_| vec![0.0; self.dim]).collect())
+        }
+
+        fn dimension(&self) -> usize {
+            self.dim
+        }
+
+        fn model_name(&self) -> &str {
+            "test-model"
+        }
+
+        fn provider_type(&self) -> ProviderType {
+            ProviderType::LocalLibrary
+        }
+    }
+
+    #[test]
+    fn test_service_creation() {
+        let provider = Box::new(TestProvider { dim: 384 });
+        let config = EmbeddingConfig::new("http://example.com", "test-model");
+        let service = EmbeddingService::new(provider, config);
+        assert_eq!(service.dimension(), 384);
+        assert_eq!(service.model_name(), "test-model");
+        assert_eq!(service.provider_type(), ProviderType::LocalLibrary);
+    }
+
+    #[test]
+    fn test_from_config_fails_without_dimension() {
+        let config = EmbeddingConfig::new("http://localhost:11434/api/embeddings", "model");
+        let result = EmbeddingService::from_config(config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_service_debug() {
+        let provider = Box::new(TestProvider { dim: 768 });
+        let config = EmbeddingConfig::new("http://example.com", "my-model")
+            .with_dimension(768);
+        let service = EmbeddingService::new(provider, config);
+        let debug_str = format!("{:?}", service);
+        assert!(debug_str.contains("my-model"));
+        assert!(debug_str.contains("768"));
+    }
+}

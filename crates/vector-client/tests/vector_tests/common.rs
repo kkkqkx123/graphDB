@@ -29,6 +29,7 @@ pub struct MockVectorEngine {
 struct MockCollection {
     config: CollectionConfig,
     points: HashMap<String, VectorPoint>,
+    payload_indexes: Vec<(String, PayloadSchemaType)>,
 }
 
 impl std::fmt::Debug for MockVectorEngine {
@@ -76,6 +77,7 @@ impl VectorEngine for MockVectorEngine {
             MockCollection {
                 config,
                 points: HashMap::new(),
+                payload_indexes: Vec::new(),
             },
         );
         Ok(())
@@ -192,18 +194,26 @@ impl VectorEngine for MockVectorEngine {
     async fn delete_by_filter(
         &self,
         collection: &str,
-        _filter: VectorFilter,
+        filter: VectorFilter,
     ) -> Result<DeleteResult> {
         let mut collections = self.collections.write().unwrap();
         let col = collections
             .get_mut(collection)
             .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
 
-        let count = col.points.len() as u64;
-        col.points.clear();
+        let to_delete: Vec<String> = col
+            .points
+            .values()
+            .filter(|point| matches_filter(&Some(filter.clone()), point))
+            .map(|point| point.id.to_string())
+            .collect();
+        let deleted_count = to_delete.len() as u64;
+        for id in &to_delete {
+            col.points.remove(id);
+        }
         Ok(DeleteResult {
             operation_id: None,
-            deleted_count: count,
+            deleted_count,
         })
     }
 
@@ -249,6 +259,19 @@ impl VectorEngine for MockVectorEngine {
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+
+        match &query.search_mode {
+            Some(SearchMode::Range { radius, max_results }) => {
+                results.retain(|r| r.score >= *radius);
+                if let Some(max) = max_results {
+                    results.truncate(*max);
+                }
+            }
+            Some(SearchMode::KNN { k, .. }) => {
+                results.truncate(*k);
+            }
+            _ => {}
+        }
 
         let offset = query.offset.unwrap_or(0);
         let limit = query.limit;
@@ -397,22 +420,38 @@ impl VectorEngine for MockVectorEngine {
 
     async fn create_payload_index(
         &self,
-        _collection: &str,
-        _field: &str,
-        _schema: PayloadSchemaType,
+        collection: &str,
+        field: &str,
+        schema: PayloadSchemaType,
     ) -> Result<()> {
+        let mut collections = self.collections.write().unwrap();
+        let col = collections
+            .get_mut(collection)
+            .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
+        if !col.payload_indexes.iter().any(|(f, _)| f == field) {
+            col.payload_indexes.push((field.to_string(), schema));
+        }
         Ok(())
     }
 
-    async fn delete_payload_index(&self, _collection: &str, _field: &str) -> Result<()> {
+    async fn delete_payload_index(&self, collection: &str, field: &str) -> Result<()> {
+        let mut collections = self.collections.write().unwrap();
+        let col = collections
+            .get_mut(collection)
+            .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
+        col.payload_indexes.retain(|(f, _)| f != field);
         Ok(())
     }
 
     async fn list_payload_indexes(
         &self,
-        _collection: &str,
+        collection: &str,
     ) -> Result<Vec<(String, PayloadSchemaType)>> {
-        Ok(Vec::new())
+        let collections = self.collections.read().unwrap();
+        let col = collections
+            .get(collection)
+            .ok_or_else(|| VectorClientError::CollectionNotFound(collection.to_string()))?;
+        Ok(col.payload_indexes.clone())
     }
 }
 
@@ -493,7 +532,37 @@ fn matches_filter(filter: &Option<VectorFilter>, point: &VectorPoint) -> bool {
     true
 }
 
+fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let d_lat = (lat2 - lat1).to_radians();
+    let d_lon = (lon2 - lon1).to_radians();
+    let lat1 = lat1.to_radians();
+    let lat2 = lat2.to_radians();
+    let a = (d_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().asin();
+    const R: f64 = 6371.0;
+    R * c
+}
+
 fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
+    if let ConditionType::HasId { ids } = &condition.condition {
+        return ids.contains(&point.id.to_string());
+    }
+    if let ConditionType::IsEmpty = &condition.condition {
+        return match &point.payload {
+            None => true,
+            Some(payload) => match payload.get(&condition.field) {
+                None => true,
+                Some(v) => v.is_null(),
+            },
+        };
+    }
+    if let ConditionType::IsNull = &condition.condition {
+        return match &point.payload {
+            None => true,
+            Some(payload) => payload.get(&condition.field).is_none(),
+        };
+    }
+
     let Some(ref payload) = point.payload else {
         return false;
     };
@@ -542,12 +611,8 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
             }
             false
         }
-        ConditionType::IsEmpty => match payload.get(&condition.field) {
-            None => true,
-            Some(v) => v.is_null(),
-        },
-        ConditionType::IsNull => payload.get(&condition.field).is_none(),
-        ConditionType::HasId { ids } => ids.contains(&point.id.to_string()),
+        ConditionType::IsEmpty | ConditionType::IsNull => unreachable!(),
+        ConditionType::HasId { .. } => unreachable!(),
         ConditionType::Contains { value } => {
             if let Some(field_value) = payload.get(&condition.field) {
                 if let Some(arr) = field_value.as_array() {
@@ -558,9 +623,62 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
             }
             false
         }
-        ConditionType::Nested { filter } => matches_filter(&Some(*filter.clone()), point),
-        ConditionType::GeoRadius(_) | ConditionType::GeoBoundingBox(_) => true,
-        ConditionType::ValuesCount(_) => true,
+        ConditionType::Nested { filter } => {
+            if let Some(field_value) = payload.get(&condition.field) {
+                if let Some(obj) = field_value.as_object() {
+                    let nested_payload: Payload = obj
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
+                    let nested_point = VectorPoint {
+                        id: point.id.clone(),
+                        vector: point.vector.clone(),
+                        payload: Some(nested_payload),
+                    };
+                    return matches_filter(&Some(*filter.clone()), &nested_point);
+                }
+            }
+            false
+        }
+        ConditionType::GeoRadius(geo) => {
+            if let Some(field_value) = payload.get(&condition.field) {
+                if let (Some(lat), Some(lon)) = (
+                    field_value.get("lat").and_then(|v| v.as_f64()),
+                    field_value.get("lon").and_then(|v| v.as_f64()),
+                ) {
+                    let distance = haversine_distance(geo.center.lat, geo.center.lon, lat, lon);
+                    return distance <= geo.radius;
+                }
+            }
+            false
+        }
+        ConditionType::GeoBoundingBox(geo) => {
+            if let Some(field_value) = payload.get(&condition.field) {
+                if let (Some(lat), Some(lon)) = (
+                    field_value.get("lat").and_then(|v| v.as_f64()),
+                    field_value.get("lon").and_then(|v| v.as_f64()),
+                ) {
+                    return lat >= geo.bottom_right.lat
+                        && lat <= geo.top_left.lat
+                        && lon >= geo.top_left.lon
+                        && lon <= geo.bottom_right.lon;
+                }
+            }
+            false
+        }
+        ConditionType::ValuesCount(vc) => {
+            if let Some(field_value) = payload.get(&condition.field) {
+                if let Some(arr) = field_value.as_array() {
+                    let count = arr.len() as u64;
+                    if let Some(gt) = vc.gt { if count <= gt { return false; } }
+                    if let Some(gte) = vc.gte { if count < gte { return false; } }
+                    if let Some(lt) = vc.lt { if count >= lt { return false; } }
+                    if let Some(lte) = vc.lte { if count > lte { return false; } }
+                    return true;
+                }
+            }
+            false
+        }
     }
 }
 

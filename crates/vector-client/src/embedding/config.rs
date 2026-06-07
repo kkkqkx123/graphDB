@@ -97,3 +97,82 @@ impl Default for EmbeddingConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_config() {
+        let cfg = EmbeddingConfig::new("http://example.com", "test-model");
+        assert_eq!(cfg.base_url, "http://example.com");
+        assert_eq!(cfg.model, "test-model");
+        assert!(cfg.api_key.is_none());
+        assert_eq!(cfg.timeout_secs, 30);
+    }
+
+    #[test]
+    fn test_with_api_key() {
+        let cfg = EmbeddingConfig::new("http://example.com", "model")
+            .with_api_key("sk-test");
+        assert_eq!(cfg.api_key, Some("sk-test".into()));
+    }
+
+    #[test]
+    fn test_with_timeout() {
+        let cfg = EmbeddingConfig::new("http://example.com", "model")
+            .with_timeout(60);
+        assert_eq!(cfg.timeout_secs, 60);
+    }
+
+    #[test]
+    fn test_with_dimension() {
+        let cfg = EmbeddingConfig::new("http://example.com", "model")
+            .with_dimension(768);
+        assert_eq!(cfg.dimension, Some(768));
+    }
+
+    #[test]
+    fn test_with_preprocessor() {
+        let cfg = EmbeddingConfig::new("http://example.com", "model")
+            .with_preprocessor(PreprocessorConfig::Prefix { prefix: "query: ".into() });
+        match cfg.preprocessor {
+            PreprocessorConfig::Prefix { ref prefix } => assert_eq!(prefix, "query: "),
+            _ => panic!("expected Prefix preprocessor"),
+        }
+    }
+
+    #[test]
+    fn test_validate_valid() {
+        let cfg = EmbeddingConfig::new("http://localhost:11434/api/embeddings", "model");
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_empty_base_url() {
+        let cfg = EmbeddingConfig::new("", "model");
+        let err = cfg.validate().unwrap_err();
+        assert!(err.to_string().contains("base_url"));
+    }
+
+    #[test]
+    fn test_validate_empty_model() {
+        let cfg = EmbeddingConfig::new("http://example.com", "");
+        let err = cfg.validate().unwrap_err();
+        assert!(err.to_string().contains("model"));
+    }
+
+    #[test]
+    fn test_validate_invalid_url() {
+        let cfg = EmbeddingConfig::new("not-a-url", "model");
+        let err = cfg.validate().unwrap_err();
+        assert!(err.to_string().contains("Invalid base_url"));
+    }
+
+    #[test]
+    fn test_default_config() {
+        let cfg = EmbeddingConfig::default();
+        assert_eq!(cfg.model, "all-minilm");
+        assert!(cfg.api_key.is_none());
+    }
+}

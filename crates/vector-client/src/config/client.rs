@@ -250,4 +250,92 @@ mod validation_tests {
         assert!(config.validate().is_err());
     }
 
+    #[test]
+    fn test_connection_config_tls() {
+        let config = ConnectionConfig::localhost(6333).with_tls();
+        assert!(config.use_tls);
+        assert_eq!(config.to_url(), "https://localhost:6333");
+    }
+
+    #[test]
+    fn test_connection_config_api_key() {
+        let config = ConnectionConfig::localhost(6333).with_api_key("my-key");
+        assert_eq!(config.api_key.as_deref(), Some("my-key"));
+    }
+
+    #[test]
+    fn test_connection_config_to_grpc_url() {
+        let config = ConnectionConfig::new("qdrant.example.com", 6334);
+        assert_eq!(config.to_grpc_url(), "http://qdrant.example.com:6334");
+    }
+
+    #[test]
+    fn test_timeout_config_durations() {
+        let config = TimeoutConfig::new(10, 20, 30);
+        assert_eq!(config.request_duration(), std::time::Duration::from_secs(10));
+        assert_eq!(config.search_duration(), std::time::Duration::from_secs(20));
+        assert_eq!(config.upsert_duration(), std::time::Duration::from_secs(30));
+    }
+
+    #[test]
+    fn test_vector_client_config_new() {
+        let config = VectorClientConfig::new(EngineType::Qdrant);
+        assert!(config.enabled);
+        assert_eq!(config.engine, EngineType::Qdrant);
+    }
+
+    #[test]
+    fn test_vector_client_config_qdrant_local() {
+        let config = VectorClientConfig::qdrant_local("localhost", 6334, 6333);
+        assert!(config.enabled);
+        assert_eq!(config.connection.port, 6334);
+        assert_eq!(config.connection.http_port, Some(6333));
+    }
+
+    #[test]
+    fn test_vector_client_config_disabled() {
+        let config = VectorClientConfig::disabled();
+        assert!(!config.enabled);
+    }
+
+    #[test]
+    fn test_vector_client_config_validate_ok() {
+        let config = VectorClientConfig::qdrant();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_vector_client_config_with_connection() {
+        let conn = ConnectionConfig::new("other-host", 9999);
+        let config = VectorClientConfig::qdrant().with_connection(conn);
+        assert_eq!(config.connection.host, "other-host");
+    }
+
+    #[test]
+    fn test_vector_client_config_with_timeout() {
+        let to = TimeoutConfig::new(15, 30, 15);
+        let config = VectorClientConfig::qdrant().with_timeout(to);
+        assert_eq!(config.timeout.request_timeout_secs, 15);
+    }
+
+    #[test]
+    fn test_connection_config_qdrant_local() {
+        let config = ConnectionConfig::qdrant_local(6334, 6333);
+        assert_eq!(config.port, 6334);
+        assert_eq!(config.http_port, Some(6333));
+    }
+
+    #[test]
+    fn test_connection_config_http_port_zero_invalid() {
+        let config = ConnectionConfig {
+            port: 6333,
+            ..ConnectionConfig::localhost(6333)
+        };
+        // Manually set http_port = 0 to test validation
+        let invalid = ConnectionConfig {
+            http_port: Some(0),
+            ..config
+        };
+        assert!(invalid.validate().is_err());
+    }
 }

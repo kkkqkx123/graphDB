@@ -252,6 +252,8 @@ impl VectorEngine for QdrantEngine {
             &cfg.quantization_config,
             cfg.on_disk_payload,
             cfg.shard_number,
+            cfg.replication_factor,
+            cfg.write_consistency_factor,
         );
 
         let response = self
@@ -906,5 +908,106 @@ impl VectorEngine for QdrantEngine {
         }
 
         Ok(indexes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_collection_status_green() {
+        assert_eq!(parse_collection_status(Some("green")), CollectionStatus::Green);
+    }
+
+    #[test]
+    fn test_parse_collection_status_yellow() {
+        assert_eq!(parse_collection_status(Some("yellow")), CollectionStatus::Yellow);
+    }
+
+    #[test]
+    fn test_parse_collection_status_red() {
+        assert_eq!(parse_collection_status(Some("red")), CollectionStatus::Red);
+    }
+
+    #[test]
+    fn test_parse_collection_status_grey() {
+        assert_eq!(parse_collection_status(Some("grey")), CollectionStatus::Grey);
+    }
+
+    #[test]
+    fn test_parse_collection_status_gray() {
+        assert_eq!(parse_collection_status(Some("gray")), CollectionStatus::Grey);
+    }
+
+    #[test]
+    fn test_parse_collection_status_case_insensitive() {
+        assert_eq!(parse_collection_status(Some("GREEN")), CollectionStatus::Green);
+        assert_eq!(parse_collection_status(Some("Yellow")), CollectionStatus::Yellow);
+    }
+
+    #[test]
+    fn test_parse_collection_status_unknown() {
+        assert_eq!(parse_collection_status(Some("unknown")), CollectionStatus::Grey);
+    }
+
+    #[test]
+    fn test_parse_collection_status_none() {
+        assert_eq!(parse_collection_status(None), CollectionStatus::Grey);
+    }
+
+    #[test]
+    fn test_parse_upsert_status_acknowledged() {
+        assert_eq!(
+            parse_upsert_status(Some("acknowledged")),
+            UpsertStatus::Acknowledged
+        );
+    }
+
+    #[test]
+    fn test_parse_upsert_status_completed() {
+        assert_eq!(
+            parse_upsert_status(Some("completed")),
+            UpsertStatus::Completed
+        );
+    }
+
+    #[test]
+    fn test_parse_upsert_status_unknown() {
+        assert_eq!(
+            parse_upsert_status(Some("unknown_status")),
+            UpsertStatus::Completed
+        );
+    }
+
+    #[test]
+    fn test_parse_upsert_status_none() {
+        assert_eq!(parse_upsert_status(None), UpsertStatus::Completed);
+    }
+
+    #[test]
+    fn test_parse_upsert_status_case_insensitive() {
+        assert_eq!(
+            parse_upsert_status(Some("COMPLETED")),
+            UpsertStatus::Completed
+        );
+        assert_eq!(
+            parse_upsert_status(Some("Acknowledged")),
+            UpsertStatus::Acknowledged
+        );
+    }
+
+    #[test]
+    fn test_name_and_version() {
+        let config = crate::config::VectorClientConfig::disabled();
+        let engine = QdrantEngine {
+            client: reqwest::Client::new(),
+            base_url: "http://localhost:6333".into(),
+            api_key: None,
+            config,
+            collections: RwLock::new(HashMap::new()),
+        };
+        assert_eq!(engine.name(), "qdrant-http");
+        assert!(engine.version().contains("HTTP REST"));
     }
 }

@@ -101,3 +101,83 @@ impl From<EmbeddingError> for VectorClientError {
         VectorClientError::InternalError(err.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_not_found_collection_not_found() {
+        let err = VectorClientError::CollectionNotFound("test".into());
+        assert!(err.is_not_found());
+    }
+
+    #[test]
+    fn test_is_not_found_point_not_found() {
+        let err = VectorClientError::PointNotFound("p1".into(), "c1".into());
+        assert!(err.is_not_found());
+    }
+
+    #[test]
+    fn test_is_not_found_other() {
+        let err = VectorClientError::ConnectionFailed("timeout".into());
+        assert!(!err.is_not_found());
+    }
+
+    #[test]
+    fn test_is_connection_error_connection_failed() {
+        let err = VectorClientError::ConnectionFailed("refused".into());
+        assert!(err.is_connection_error());
+    }
+
+    #[test]
+    fn test_is_connection_error_timeout() {
+        let err = VectorClientError::Timeout("slow".into());
+        assert!(err.is_connection_error());
+    }
+
+    #[test]
+    fn test_is_connection_error_health_check() {
+        let err = VectorClientError::HealthCheckFailed("down".into());
+        assert!(err.is_connection_error());
+    }
+
+    #[test]
+    fn test_is_connection_error_other() {
+        let err = VectorClientError::SearchError("bad query".into());
+        assert!(!err.is_connection_error());
+    }
+
+    #[test]
+    fn test_display_collection_not_found() {
+        let err = VectorClientError::CollectionNotFound("my_coll".into());
+        assert_eq!(err.to_string(), "Collection 'my_coll' not found");
+    }
+
+    #[test]
+    fn test_display_invalid_vector_dimension() {
+        let err = VectorClientError::InvalidVectorDimension {
+            expected: 384,
+            actual: 128,
+        };
+        assert!(err.to_string().contains("384"));
+        assert!(err.to_string().contains("128"));
+    }
+
+    #[test]
+    fn test_display_qdrant_http_error() {
+        let err = VectorClientError::QdrantHttpError {
+            status: 400,
+            message: "bad request".into(),
+        };
+        let s = err.to_string();
+        assert!(s.contains("400"));
+        assert!(s.contains("bad request"));
+    }
+
+    #[test]
+    fn test_display_engine_not_available() {
+        let err = VectorClientError::EngineNotAvailable("feature disabled".into());
+        assert!(err.to_string().contains("feature disabled"));
+    }
+}

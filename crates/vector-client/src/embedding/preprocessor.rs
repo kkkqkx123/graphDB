@@ -180,3 +180,117 @@ impl Preprocessor for ChainedPreprocessor {
             .fold(text.to_string(), |acc, p| p.preprocess(&acc))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_noop_preprocessor() {
+        let p = NoopPreprocessor;
+        assert_eq!(p.preprocess("hello world"), "hello world");
+    }
+
+    #[test]
+    fn test_noop_preprocessor_empty() {
+        let p = NoopPreprocessor;
+        assert_eq!(p.preprocess(""), "");
+    }
+
+    #[test]
+    fn test_prefix_preprocessor() {
+        let p = PrefixPreprocessor::new("query: ");
+        assert_eq!(p.preprocess("rust"), "query: rust");
+    }
+
+    #[test]
+    fn test_prefix_preprocessor_no_space() {
+        let p = PrefixPreprocessor::new("cls:");
+        assert_eq!(p.preprocess("text"), "cls:text");
+    }
+
+    #[test]
+    fn test_template_preprocessor() {
+        let p = TemplatePreprocessor::new("classify: {{text}}");
+        assert_eq!(p.preprocess("hello"), "classify: hello");
+    }
+
+    #[test]
+    fn test_template_preprocessor_multiple_placeholders() {
+        let p = TemplatePreprocessor::new("{{text}} and {{text}}");
+        assert_eq!(p.preprocess("x"), "x and x");
+    }
+
+    #[test]
+    fn test_nomic_preprocessor_search_query() {
+        let p = NomicPreprocessor::new(NomicTaskType::SearchQuery);
+        assert_eq!(p.preprocess("rust"), "search_query: rust");
+    }
+
+    #[test]
+    fn test_nomic_preprocessor_search_document() {
+        let p = NomicPreprocessor::new(NomicTaskType::SearchDocument);
+        assert_eq!(p.preprocess("doc"), "search_document: doc");
+    }
+
+    #[test]
+    fn test_nomic_preprocessor_classification() {
+        let p = NomicPreprocessor::new(NomicTaskType::Classification);
+        assert_eq!(p.preprocess("text"), "classification: text");
+    }
+
+    #[test]
+    fn test_nomic_preprocessor_clustering() {
+        let p = NomicPreprocessor::new(NomicTaskType::Clustering);
+        assert_eq!(p.preprocess("data"), "clustering: data");
+    }
+
+    #[test]
+    fn test_stella_preprocessor_s2p_query() {
+        let p = StellaPreprocessor::new(StellaTaskType::S2PQuery);
+        assert!(p.preprocess("test").contains("web search query"));
+        assert!(p.preprocess("test").contains("test"));
+    }
+
+    #[test]
+    fn test_stella_preprocessor_s2s_document() {
+        let p = StellaPreprocessor::new(StellaTaskType::S2SDocument);
+        assert!(p.preprocess("doc").contains("Document:"));
+    }
+
+    #[test]
+    fn test_stella_preprocessor_p2p_query() {
+        let p = StellaPreprocessor::new(StellaTaskType::P2PQuery);
+        assert!(p.preprocess("q").contains("passage"));
+        assert!(p.preprocess("q").contains("q"));
+    }
+
+    #[test]
+    fn test_stella_preprocessor_p2p_document() {
+        let p = StellaPreprocessor::new(StellaTaskType::P2PDocument);
+        assert!(p.preprocess("d").contains("Document:"));
+    }
+
+    #[test]
+    fn test_chained_preprocessor() {
+        let chain = ChainedPreprocessor::new(vec![
+            Box::new(PrefixPreprocessor::new("Q: ")),
+            Box::new(TemplatePreprocessor::new("{{text}} [END]")),
+        ]);
+        assert_eq!(chain.preprocess("hello"), "Q: hello [END]");
+    }
+
+    #[test]
+    fn test_chained_preprocessor_empty_chain() {
+        let chain = ChainedPreprocessor::new(vec![]);
+        assert_eq!(chain.preprocess("text"), "text");
+    }
+
+    #[test]
+    fn test_batch_processing() {
+        let p = PrefixPreprocessor::new("> ");
+        let texts = vec!["a", "b", "c"];
+        let result = p.process_batch(&texts);
+        assert_eq!(result, vec!["> a", "> b", "> c"]);
+    }
+}

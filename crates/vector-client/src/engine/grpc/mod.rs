@@ -643,3 +643,32 @@ fn point_id_to_string(id: &proto::PointId) -> String {
         None => String::new(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_point_id_to_string_num() {
+        let id = proto::PointId {
+            point_id_options: Some(proto::point_id::PointIdOptions::Num(42)),
+        };
+        assert_eq!(point_id_to_string(&id), "42");
+    }
+
+    #[test]
+    fn test_point_id_to_string_uuid() {
+        let id = proto::PointId {
+            point_id_options: Some(proto::point_id::PointIdOptions::Uuid("abc-def".into())),
+        };
+        assert_eq!(point_id_to_string(&id), "abc-def");
+    }
+
+    #[test]
+    fn test_point_id_to_string_none() {
+        let id = proto::PointId {
+            point_id_options: None,
+        };
+        assert_eq!(point_id_to_string(&id), "");
+    }
+}

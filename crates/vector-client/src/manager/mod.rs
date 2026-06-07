@@ -324,3 +324,134 @@ mod disabled {
 }
 
 use disabled::DisabledEngine;
+
+#[cfg(test)]
+mod tests {
+    use super::disabled::DisabledEngine;
+    use crate::engine::VectorEngine;
+    use crate::types::*;
+
+    #[tokio::test]
+    async fn test_disabled_engine_health_check() {
+        let engine = DisabledEngine;
+        let h = engine.health_check().await.unwrap();
+        assert!(!h.is_healthy);
+        assert_eq!(h.engine_name, "disabled");
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_create_collection() {
+        let engine = DisabledEngine;
+        let result = engine
+            .create_collection("test", CollectionConfig::default())
+            .await;
+        assert!(matches!(result, Err(crate::error::VectorClientError::EngineNotAvailable(_))));
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_delete_collection() {
+        let engine = DisabledEngine;
+        assert!(engine.delete_collection("test").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_upsert() {
+        let engine = DisabledEngine;
+        assert!(engine.upsert("c", VectorPoint::new(1u64, vec![1.0])).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_upsert_batch() {
+        let engine = DisabledEngine;
+        assert!(engine.upsert_batch("c", vec![]).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_delete() {
+        let engine = DisabledEngine;
+        assert!(engine.delete("c", "1").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_delete_batch() {
+        let engine = DisabledEngine;
+        assert!(engine.delete_batch("c", vec!["1"]).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_delete_by_filter() {
+        let engine = DisabledEngine;
+        assert!(engine.delete_by_filter("c", VectorFilter::new()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_search() {
+        let engine = DisabledEngine;
+        assert!(engine.search("c", SearchQuery::new(vec![1.0], 10)).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_get() {
+        let engine = DisabledEngine;
+        assert!(engine.get("c", "1").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_count() {
+        let engine = DisabledEngine;
+        assert!(engine.count("c").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_collection_exists() {
+        let engine = DisabledEngine;
+        assert!(engine.collection_exists("c").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_collection_info() {
+        let engine = DisabledEngine;
+        assert!(engine.collection_info("c").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_scroll() {
+        let engine = DisabledEngine;
+        assert!(engine.scroll("c", 10, None, None, None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_set_payload() {
+        let engine = DisabledEngine;
+        let mut payload = std::collections::HashMap::new();
+        payload.insert("k".into(), serde_json::json!("v"));
+        assert!(engine.set_payload("c", vec!["1"], payload).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_delete_payload() {
+        let engine = DisabledEngine;
+        assert!(engine.delete_payload("c", vec!["1"], vec!["k"]).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_create_payload_index() {
+        let engine = DisabledEngine;
+        assert!(engine
+            .create_payload_index("c", "f", PayloadSchemaType::Keyword)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_delete_payload_index() {
+        let engine = DisabledEngine;
+        assert!(engine.delete_payload_index("c", "f").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_engine_list_payload_indexes() {
+        let engine = DisabledEngine;
+        assert!(engine.list_payload_indexes("c").await.is_err());
+    }
+}

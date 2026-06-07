@@ -38,4 +38,5 @@ tokio-test = "0.4"
 tempfile.workspace = true
 criterion = { version = "0.5", features = ["async_tokio"] }
 futures.workspace = true
+reqwest = { workspace = true, features = ["default-tls", "blocking"] }
 

@@ -330,4 +330,170 @@ mod tests {
         let provider = OpenAICompatibleProvider::new(config).expect("create failed");
         assert_eq!(provider.dimension(), 512);
     }
+
+    #[test]
+    fn test_build_request_single_text() {
+        let config = EmbeddingConfig::new("http://example.com/embeddings", "test-model")
+            .with_dimension(128);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let req = provider.build_request(&["hello world"]);
+        assert_eq!(req.model, "test-model");
+        assert_eq!(req.input, vec!["hello world".to_string()]);
+        assert_eq!(req.encoding_format, Some("float".to_string()));
+    }
+
+    #[test]
+    fn test_build_request_multiple_texts() {
+        let config = EmbeddingConfig::new("http://example.com/embeddings", "test-model")
+            .with_dimension(128);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let req = provider.build_request(&["a", "b", "c"]);
+        assert_eq!(req.input.len(), 3);
+        assert_eq!(req.input[0], "a");
+        assert_eq!(req.input[2], "c");
+    }
+
+    #[test]
+    fn test_build_request_with_preprocessor() {
+        let config = EmbeddingConfig::new("http://example.com/embeddings", "nomic-embed")
+            .with_dimension(768)
+            .with_preprocessor(PreprocessorConfig::Nomic {
+                task_type: NomicTaskType::SearchQuery,
+            });
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let req = provider.build_request(&["rust"]);
+        assert_eq!(req.input[0], "search_query: rust");
+    }
+
+    #[test]
+    fn test_parse_response_ordered() {
+        let response = EmbeddingResponse {
+            data: vec![
+                EmbeddingData {
+                    index: 0,
+                    embedding: vec![1.0, 2.0],
+                },
+                EmbeddingData {
+                    index: 1,
+                    embedding: vec![3.0, 4.0],
+                },
+            ],
+            usage: None,
+        };
+        let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(2);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let result = provider.parse_response(response).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], vec![1.0, 2.0]);
+        assert_eq!(result[1], vec![3.0, 4.0]);
+    }
+
+    #[test]
+    fn test_parse_response_unordered() {
+        let response = EmbeddingResponse {
+            data: vec![
+                EmbeddingData {
+                    index: 1,
+                    embedding: vec![3.0],
+                },
+                EmbeddingData {
+                    index: 0,
+                    embedding: vec![1.0],
+                },
+            ],
+            usage: None,
+        };
+        let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(1);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let result = provider.parse_response(response).unwrap();
+        assert_eq!(result[0], vec![1.0]);
+        assert_eq!(result[1], vec![3.0]);
+    }
+
+    #[test]
+    fn test_parse_response_invalid_index() {
+        let response = EmbeddingResponse {
+            data: vec![EmbeddingData {
+                index: 5,
+                embedding: vec![1.0],
+            }],
+            usage: None,
+        };
+        let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(1);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let result = provider.parse_response(response);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid index"));
+    }
+
+    #[test]
+    fn test_create_preprocessor_none() {
+        let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(128);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let result = provider.preprocessor().preprocess("text");
+        // Noop preprocessor
+        assert_eq!(result, "text");
+    }
+
+    #[test]
+    fn test_create_preprocessor_prefix() {
+        let config = EmbeddingConfig::new("http://example.com", "model")
+            .with_dimension(128)
+            .with_preprocessor(PreprocessorConfig::Prefix {
+                prefix: ">> ".into(),
+            });
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let result = provider.preprocessor().preprocess("text");
+        assert_eq!(result, ">> text");
+    }
+
+    #[test]
+    fn test_create_preprocessor_template() {
+        let config = EmbeddingConfig::new("http://example.com", "model")
+            .with_dimension(128)
+            .with_preprocessor(PreprocessorConfig::Template {
+                template: "[{{text}}]".into(),
+            });
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let result = provider.preprocessor().preprocess("hello");
+        assert_eq!(result, "[hello]");
+    }
+
+    #[test]
+    fn test_provider_type() {
+        let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(128);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        assert_eq!(provider.provider_type(), crate::embedding::ProviderType::Http);
+    }
+
+    #[test]
+    fn test_model_name() {
+        let config = EmbeddingConfig::new("http://example.com", "my-special-model")
+            .with_dimension(128);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        assert_eq!(provider.model_name(), "my-special-model");
+    }
+
+    #[test]
+    fn test_provider_debug() {
+        let config = EmbeddingConfig::new("http://example.com", "debug-model")
+            .with_dimension(256);
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let debug_str = format!("{:?}", provider);
+        assert!(debug_str.contains("debug-model"));
+        assert!(debug_str.contains("example.com"));
+    }
+
+    #[test]
+    fn test_stella_preprocessor() {
+        let config = EmbeddingConfig::new("http://example.com", "stella")
+            .with_dimension(768)
+            .with_preprocessor(PreprocessorConfig::Stella {
+                task_type: crate::embedding::StellaTaskType::S2PQuery,
+            });
+        let provider = OpenAICompatibleProvider::new(config).unwrap();
+        let result = provider.preprocessor().preprocess("test");
+        assert!(result.contains("Instruct"));
+        assert!(result.contains("test"));
+    }
 }

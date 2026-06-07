@@ -372,8 +372,8 @@ fn distance_from_proto(d: i32) -> DistanceMetric {
 
 fn extract_vector_config(cfg: &proto::CollectionConfig) -> (usize, DistanceMetric) {
     cfg.params
-        .vectors_config
         .as_ref()
+        .and_then(|params| params.vectors_config.as_ref())
         .and_then(|vc| vc.config.as_ref())
         .and_then(|c| match c {
             proto::vectors_config::Config::Params(params) => {
@@ -395,18 +395,22 @@ pub fn collection_info_from_proto(
         _ => CollectionStatus::Grey,
     };
 
-    let (vector_size, distance) = extract_vector_config(&info.config);
+    let (vector_size, distance) = info.config
+        .as_ref()
+        .map(|cfg| extract_vector_config(cfg))
+        .unwrap_or((1536, DistanceMetric::Cosine));
 
+    let params = info.config.as_ref().and_then(|c| c.params.as_ref());
     let config = CollectionConfig {
         vector_size,
         distance,
         index_type: None,
         hnsw_config: None,
         quantization_config: None,
-        replication_factor: info.config.params.replication_factor.map(|v| v as usize),
-        write_consistency_factor: info.config.params.write_consistency_factor.map(|v| v as usize),
-        on_disk_payload: Some(info.config.params.on_disk_payload),
-        shard_number: Some(info.config.params.shard_number as usize),
+        replication_factor: params.and_then(|p| p.replication_factor.map(|v| v as usize)),
+        write_consistency_factor: params.and_then(|p| p.write_consistency_factor.map(|v| v as usize)),
+        on_disk_payload: params.map(|p| p.on_disk_payload),
+        shard_number: params.map(|p| p.shard_number as usize),
     };
 
     Ok(CollectionInfo {
