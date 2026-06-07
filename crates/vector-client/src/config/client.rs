@@ -12,7 +12,6 @@ pub struct VectorClientConfig {
     pub engine: EngineType,
     pub connection: ConnectionConfig,
     pub timeout: TimeoutConfig,
-    pub retry: RetryConfig,
 }
 
 impl VectorClientConfig {
@@ -22,7 +21,6 @@ impl VectorClientConfig {
             engine,
             connection: ConnectionConfig::default(),
             timeout: TimeoutConfig::default(),
-            retry: RetryConfig::default(),
         }
     }
 
@@ -43,7 +41,6 @@ impl VectorClientConfig {
                 http_port: Some(http_port),
             },
             timeout: TimeoutConfig::default(),
-            retry: RetryConfig::default(),
         }
     }
 
@@ -53,7 +50,6 @@ impl VectorClientConfig {
             engine: EngineType::Qdrant,
             connection: ConnectionConfig::default(),
             timeout: TimeoutConfig::default(),
-            retry: RetryConfig::default(),
         }
     }
 
@@ -64,11 +60,6 @@ impl VectorClientConfig {
 
     pub fn with_timeout(mut self, timeout: TimeoutConfig) -> Self {
         self.timeout = timeout;
-        self
-    }
-
-    pub fn with_retry(mut self, retry: RetryConfig) -> Self {
-        self.retry = retry;
         self
     }
 }
@@ -177,54 +168,6 @@ impl Default for TimeoutConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RetryConfig {
-    pub max_retries: usize,
-    pub initial_delay_ms: u64,
-    pub max_delay_ms: u64,
-    pub multiplier: f64,
-}
-
-impl RetryConfig {
-    pub fn new(
-        max_retries: usize,
-        initial_delay_ms: u64,
-        max_delay_ms: u64,
-        multiplier: f64,
-    ) -> Self {
-        Self {
-            max_retries,
-            initial_delay_ms,
-            max_delay_ms,
-            multiplier,
-        }
-    }
-
-    pub fn no_retry() -> Self {
-        Self {
-            max_retries: 0,
-            initial_delay_ms: 0,
-            max_delay_ms: 0,
-            multiplier: 1.0,
-        }
-    }
-
-    pub fn calculate_delay(&self, attempt: usize) -> Duration {
-        if attempt == 0 {
-            return Duration::from_millis(0);
-        }
-        let delay = self.initial_delay_ms as f64 * self.multiplier.powi(attempt as i32 - 1);
-        let delay = delay.min(self.max_delay_ms as f64) as u64;
-        Duration::from_millis(delay)
-    }
-}
-
-impl Default for RetryConfig {
-    fn default() -> Self {
-        Self::new(3, 100, 5000, 2.0)
-    }
-}
-
 // Simple validation methods
 impl VectorClientConfig {
     /// Validate configuration
@@ -233,7 +176,6 @@ impl VectorClientConfig {
     pub fn validate(&self) -> Result<(), String> {
         self.connection.validate()?;
         self.timeout.validate()?;
-        self.retry.validate()?;
         Ok(())
     }
 }
@@ -274,19 +216,6 @@ impl TimeoutConfig {
     }
 }
 
-impl RetryConfig {
-    /// Validate retry configuration
-    pub fn validate(&self) -> Result<(), String> {
-        if self.max_retries > 10 {
-            return Err("retry.max_retries must not exceed 10".to_string());
-        }
-        if self.multiplier < 1.0 || self.multiplier > 10.0 {
-            return Err("retry.multiplier must be in range [1.0, 10.0]".to_string());
-        }
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod validation_tests {
     use super::*;
@@ -321,18 +250,4 @@ mod validation_tests {
         assert!(config.validate().is_err());
     }
 
-    #[test]
-    fn test_retry_config_valid() {
-        let config = RetryConfig::new(3, 100, 5000, 2.0);
-        assert!(config.validate().is_ok());
-    }
-
-    #[test]
-    fn test_retry_config_invalid_multiplier() {
-        let config = RetryConfig::new(3, 100, 5000, 0.5);
-        assert!(config.validate().is_err());
-
-        let config = RetryConfig::new(3, 100, 5000, 15.0);
-        assert!(config.validate().is_err());
-    }
 }

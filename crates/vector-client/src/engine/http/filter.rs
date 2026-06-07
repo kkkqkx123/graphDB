@@ -23,7 +23,7 @@ impl ConditionHandler for JsonConditionHandler {
         })
     }
 
-    fn handle_match_any(&self, field: &str, values: &[String]) -> Value {
+    fn handle_match_any(&self, field: &str, values: &[serde_json::Value]) -> Value {
         json!({
             "key": field,
             "match_any": { "any": values }
@@ -119,14 +119,6 @@ impl ConditionHandler for JsonConditionHandler {
                 "key": field,
                 "filter": filter
             }
-        })
-    }
-
-    fn handle_payload(&self, field: &str, key: &str, value: &Value) -> Value {
-        let field_path = format!("{}.{}", field, key);
-        json!({
-            "key": field_path,
-            "match": { "value": value }
         })
     }
 

@@ -1,3 +1,4 @@
+use crate::embedding::EmbeddingError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, VectorClientError>;
@@ -92,5 +93,11 @@ impl VectorClientError {
                 | VectorClientError::Timeout(_)
                 | VectorClientError::HealthCheckFailed(_)
         )
+    }
+}
+
+impl From<EmbeddingError> for VectorClientError {
+    fn from(err: EmbeddingError) -> Self {
+        VectorClientError::InternalError(err.to_string())
     }
 }

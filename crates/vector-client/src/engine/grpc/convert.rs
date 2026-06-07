@@ -45,7 +45,7 @@ pub fn point_id_to_proto(id: &str) -> proto::PointId {
 }
 
 pub fn point_struct_to_proto(point: &VectorPoint) -> proto::PointStruct {
-    let id = point_id_to_proto(&point.id);
+    let id = point_id_to_proto(&point.id.to_string());
 
     let vectors = proto::Vectors {
         vectors_options: Some(proto::vectors::VectorsOptions::Vector(proto::Vector {
@@ -294,7 +294,7 @@ fn extract_point_core(
 pub fn scored_point_from_proto(point: proto::ScoredPoint) -> SearchResult {
     let (id, payload, vector) = extract_point_core(&point.id, &point.payload, &point.vectors);
     SearchResult {
-        id,
+        id: id.into(),
         score: point.score,
         payload,
         vector,
@@ -304,7 +304,7 @@ pub fn scored_point_from_proto(point: proto::ScoredPoint) -> SearchResult {
 pub fn retrieved_point_from_proto(point: proto::RetrievedPoint) -> VectorPoint {
     let (id, payload, vector) = extract_point_core(&point.id, &point.payload, &point.vectors);
     VectorPoint {
-        id,
+        id: id.into(),
         vector: vector.unwrap_or_default(),
         payload,
     }
@@ -360,6 +360,30 @@ pub fn search_query_to_proto(collection: &str, query: &SearchQuery) -> proto::Se
     }
 }
 
+fn distance_from_proto(d: i32) -> DistanceMetric {
+    match d {
+        1 => DistanceMetric::Cosine,
+        2 => DistanceMetric::Euclid,
+        3 => DistanceMetric::Dot,
+        4 => DistanceMetric::Manhattan,
+        _ => DistanceMetric::Cosine,
+    }
+}
+
+fn extract_vector_config(cfg: &proto::CollectionConfig) -> (usize, DistanceMetric) {
+    cfg.params
+        .vectors_config
+        .as_ref()
+        .and_then(|vc| vc.config.as_ref())
+        .and_then(|c| match c {
+            proto::vectors_config::Config::Params(params) => {
+                Some((params.size as usize, distance_from_proto(params.distance)))
+            }
+            _ => None,
+        })
+        .unwrap_or((1536, DistanceMetric::Cosine))
+}
+
 pub fn collection_info_from_proto(
     info: proto::CollectionInfo,
     name: &str,
@@ -371,13 +395,27 @@ pub fn collection_info_from_proto(
         _ => CollectionStatus::Grey,
     };
 
+    let (vector_size, distance) = extract_vector_config(&info.config);
+
+    let config = CollectionConfig {
+        vector_size,
+        distance,
+        index_type: None,
+        hnsw_config: None,
+        quantization_config: None,
+        replication_factor: info.config.params.replication_factor.map(|v| v as usize),
+        write_consistency_factor: info.config.params.write_consistency_factor.map(|v| v as usize),
+        on_disk_payload: Some(info.config.params.on_disk_payload),
+        shard_number: Some(info.config.params.shard_number as usize),
+    };
+
     Ok(CollectionInfo {
         name: name.to_string(),
         vector_count: info.vectors_count.unwrap_or(0),
         indexed_vector_count: info.indexed_vectors_count.unwrap_or(0),
         points_count: info.points_count.unwrap_or(0),
         segments_count: info.segments_count,
-        config: CollectionConfig::default(),
+        config,
         status,
     })
 }

@@ -246,7 +246,7 @@ async fn test_very_long_vector_id() {
         .expect("Failed to get vector")
         .expect("Vector should exist");
 
-    assert_eq!(point.id, long_id);
+    assert_eq!(point.id.to_string(), long_id);
 }
 
 /// TC-VEC-EDGE-009: Zero Vector

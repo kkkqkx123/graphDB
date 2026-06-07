@@ -13,6 +13,7 @@ use tracing::{debug, warn};
 
 use super::error::{ExternalIndexError, IndexResult};
 use super::trait_def::{ExternalIndexClient, IndexData, IndexKey, IndexOperation, IndexStats};
+use crate::sync::circuit_breaker::CircuitBreaker;
 use crate::sync::dead_letter_queue::DeadLetterQueue;
 use crate::sync::retry::{with_retry, RetryConfig};
 
@@ -77,6 +78,7 @@ pub struct VectorClient {
     vector_manager: Arc<vector_client::VectorManager>,
     config: VectorClientConfig,
     dead_letter_queue: Option<Arc<DeadLetterQueue>>,
+    circuit_breaker: Option<CircuitBreaker>,
 }
 
 impl std::fmt::Debug for VectorClient {
@@ -104,6 +106,7 @@ impl VectorClient {
             vector_manager,
             config: VectorClientConfig::default(),
             dead_letter_queue: None,
+            circuit_breaker: None,
         }
     }
 
@@ -121,11 +124,17 @@ impl VectorClient {
             vector_manager,
             config,
             dead_letter_queue: None,
+            circuit_breaker: None,
         }
     }
 
     pub fn with_dead_letter_queue(mut self, dlq: Arc<DeadLetterQueue>) -> Self {
         self.dead_letter_queue = Some(dlq);
+        self
+    }
+
+    pub fn with_circuit_breaker(mut self, cb: CircuitBreaker) -> Self {
+        self.circuit_breaker = Some(cb);
         self
     }
 
@@ -157,6 +166,27 @@ impl VectorClient {
             }
         }
     }
+
+    fn check_circuit(&self) -> Result<(), ExternalIndexError> {
+        if let Some(ref cb) = self.circuit_breaker {
+            if !cb.is_allowed() {
+                return Err(ExternalIndexError::Internal(
+                    "Circuit breaker is open, request rejected".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn record_circuit(&self, success: bool) {
+        if let Some(ref cb) = self.circuit_breaker {
+            if success {
+                cb.record_success();
+            } else {
+                cb.record_failure();
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -175,6 +205,8 @@ impl ExternalIndexClient for VectorClient {
 
     async fn insert(&self, id: &str, data: &IndexData) -> IndexResult<()> {
         if let IndexData::Vector(vector) = data {
+            self.check_circuit()?;
+
             let point = vector_client::types::VectorPoint::new(id.to_string(), vector.clone());
             let collection_name = self.collection_name();
             let vector_manager = self.vector_manager.clone();
@@ -190,7 +222,8 @@ impl ExternalIndexClient for VectorClient {
             )
             .await;
 
-            match result {
+            let success = result.is_ok();
+            let output = match result {
                 Ok(_) => Ok(()),
                 Err(e) => {
                     let error_msg = e.to_string();
@@ -209,7 +242,9 @@ impl ExternalIndexClient for VectorClient {
                     );
                     Err(ExternalIndexError::InsertError(error_msg))
                 }
-            }
+            };
+            self.record_circuit(success);
+            output
         } else {
             Err(ExternalIndexError::InvalidData(
                 "Expected vector data".to_string(),
@@ -236,6 +271,8 @@ impl ExternalIndexClient for VectorClient {
             return Ok(());
         }
 
+        self.check_circuit()?;
+
         let collection_name = self.collection_name();
         let vector_manager = self.vector_manager.clone();
         let points_clone = points.clone();
@@ -251,7 +288,8 @@ impl ExternalIndexClient for VectorClient {
         )
         .await;
 
-        match result {
+        let success = result.is_ok();
+        let output = match result {
             Ok(_) => Ok(()),
             Err(e) => {
                 let error_msg = e.to_string();
@@ -272,10 +310,14 @@ impl ExternalIndexClient for VectorClient {
                 }
                 Err(ExternalIndexError::InsertError(error_msg))
             }
-        }
+        };
+        self.record_circuit(success);
+        output
     }
 
     async fn delete(&self, id: &str) -> IndexResult<()> {
+        self.check_circuit()?;
+
         let collection_name = self.collection_name();
         let vector_manager = self.vector_manager.clone();
         let id_owned = id.to_string();
@@ -291,7 +333,8 @@ impl ExternalIndexClient for VectorClient {
         )
         .await;
 
-        match result {
+        let success = result.is_ok();
+        let output = match result {
             Ok(_) => Ok(()),
             Err(e) => {
                 let error_msg = e.to_string();
@@ -308,10 +351,14 @@ impl ExternalIndexClient for VectorClient {
                 );
                 Err(ExternalIndexError::DeleteError(error_msg))
             }
-        }
+        };
+        self.record_circuit(success);
+        output
     }
 
     async fn delete_batch(&self, ids: &[&str]) -> IndexResult<()> {
+        self.check_circuit()?;
+
         let collection_name = self.collection_name();
         let vector_manager = self.vector_manager.clone();
         let ids_vec: Vec<String> = ids.iter().map(|s| s.to_string()).collect();
@@ -327,7 +374,8 @@ impl ExternalIndexClient for VectorClient {
         )
         .await;
 
-        match result {
+        let success = result.is_ok();
+        let output = match result {
             Ok(_) => Ok(()),
             Err(e) => {
                 let error_msg = e.to_string();
@@ -346,7 +394,9 @@ impl ExternalIndexClient for VectorClient {
                 }
                 Err(ExternalIndexError::DeleteError(error_msg))
             }
-        }
+        };
+        self.record_circuit(success);
+        output
     }
 
     async fn commit(&self) -> IndexResult<()> {
@@ -362,6 +412,8 @@ impl ExternalIndexClient for VectorClient {
     }
 
     async fn stats(&self) -> IndexResult<IndexStats> {
+        self.check_circuit()?;
+
         let collection_name = self.collection_name();
         let vector_manager = self.vector_manager.clone();
 
@@ -375,7 +427,8 @@ impl ExternalIndexClient for VectorClient {
         )
         .await;
 
-        match result {
+        let success = result.is_ok();
+        let output = match result {
             Ok(count) => Ok(IndexStats {
                 doc_count: count as usize,
                 index_size_bytes: 0,
@@ -386,7 +439,9 @@ impl ExternalIndexClient for VectorClient {
                 warn!("Vector stats failed: {}", error_msg);
                 Err(ExternalIndexError::StatsError(error_msg))
             }
-        }
+        };
+        self.record_circuit(success);
+        output
     }
 }
 

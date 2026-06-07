@@ -1,3 +1,3 @@
-mod embedded;
+mod client;
 
-pub use embedded::*;
+pub use client::*;

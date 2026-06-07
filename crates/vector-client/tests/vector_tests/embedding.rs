@@ -153,7 +153,7 @@ async fn test_embedding_and_search_integration() {
 
     assert!(!results.is_empty(), "Should have search results");
     assert!(
-        results[0].id.starts_with("doc_"),
+        results[0].id.to_string().starts_with("doc_"),
         "Result ID should be a document ID"
     );
 }

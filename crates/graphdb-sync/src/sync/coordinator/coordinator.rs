@@ -17,8 +17,6 @@ use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLette
 use crate::sync::external_index::{FulltextClient, IndexData, IndexKey, IndexOperation};
 #[cfg(feature = "qdrant")]
 use crate::sync::external_index::{VectorClient, VectorClientConfig};
-#[cfg(feature = "qdrant")]
-use crate::sync::retry::default_remote_retry_config;
 use crate::sync::retry::{default_local_retry_config, with_retry};
 
 type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
@@ -423,51 +421,27 @@ impl SyncCoordinator {
             #[cfg(not(feature = "qdrant"))]
             let _vector_batch_count = 0usize;
 
-            // Phase 1: Apply vector operations (with retry)
-            // Vector index is remote, so we keep full retry+commit per batch
+            // Phase 1: Apply vector operations.
+            // Retry is handled internally by VectorClient; coordinator only checks final result.
             #[cfg(feature = "qdrant")]
             {
                 let mut vector_failed = false;
                 for (key, operations) in vector_batches {
-                    let retry_config = default_remote_retry_config();
-
                     if let Some(processor) = self.get_or_create_vector_processor(
                         key.space_id,
                         &key.tag_name,
                         &key.field_name,
                     ) {
-                        let ops_clone = operations.clone();
-                        let retry_config_clone = retry_config.clone();
-                        let dlq_clone = self.dead_letter_queue.clone();
-
-                        match with_retry(
-                            || async { processor.execute_now(ops_clone.clone()).await },
-                            &retry_config_clone,
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                debug!("Vector batch committed successfully");
-                            }
-                            Err(e) => {
-                                warn!("Vector batch failed after retries: {:?}", e);
-                                for op in operations {
-                                    let entry = DeadLetterEntry::new(
-                                        op,
-                                        format!("Remote index sync failed after retries: {:?}", e),
-                                        retry_config_clone.max_retries,
-                                    );
-                                    dlq_clone.add(entry);
-                                }
-                                vector_failed = true;
-                            }
+                        if let Err(e) = processor.execute_now(operations).await {
+                            warn!("Vector batch commit failed: {:?}", e);
+                            vector_failed = true;
                         }
                     }
                 }
                 if vector_failed {
                     return Err(SyncCoordinatorError::BatchError(
                         crate::sync::batch::BatchError::InvalidOperation(
-                            "Vector batch commit failed after retries".to_string(),
+                            "Vector batch commit failed".to_string(),
                         ),
                     ));
                 }

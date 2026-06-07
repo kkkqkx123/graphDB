@@ -58,7 +58,7 @@ async fn test_cosine_similarity_search() {
 
     assert!(!results.is_empty(), "Should have results");
     assert_eq!(
-        results[0].id, "doc_1",
+        results[0].id.to_string(), "doc_1",
         "First result should be doc_1 with highest similarity"
     );
     assert!(
@@ -97,7 +97,7 @@ async fn test_euclidean_distance_search() {
         .expect("Search should succeed");
 
     assert_results_sorted_by_score(&results).expect("Results should be sorted by score");
-    assert_eq!(results[0].id, "doc_1", "First result should be doc_1");
+    assert_eq!(results[0].id.to_string(), "doc_1", "First result should be doc_1");
 }
 
 /// TC-VEC-SEARCH-003: Dot Product Search

@@ -305,7 +305,11 @@ impl VectorEngine for QdrantGrpcEngine {
 
         Ok(DeleteResult {
             operation_id: result.operation_id,
-            deleted_count: 0,
+            deleted_count: if result.status() == proto::UpdateStatus::Completed {
+                1
+            } else {
+                0
+            },
         })
     }
 

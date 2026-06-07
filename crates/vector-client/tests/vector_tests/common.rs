@@ -122,7 +122,7 @@ impl VectorEngine for MockVectorEngine {
             });
         }
 
-        col.points.insert(point.id.clone(), point);
+        col.points.insert(point.id.to_string(), point);
         Ok(UpsertResult {
             operation_id: None,
             status: UpsertStatus::Completed,
@@ -150,7 +150,7 @@ impl VectorEngine for MockVectorEngine {
         }
 
         for point in points {
-            col.points.insert(point.id.clone(), point);
+            col.points.insert(point.id.to_string(), point);
         }
         Ok(UpsertResult {
             operation_id: None,
@@ -373,12 +373,12 @@ impl VectorEngine for MockVectorEngine {
             })
             .collect();
 
-        points.sort_by(|a, b| a.id.cmp(&b.id));
+        points.sort_by(|a, b| a.id.to_string().cmp(&b.id.to_string()));
 
         let skip = if let Some(offset_id) = offset {
             points
                 .iter()
-                .position(|p| p.id == offset_id)
+                .position(|p| p.id.to_string() == offset_id)
                 .map(|i| i + 1)
                 .unwrap_or(0)
         } else {
@@ -387,7 +387,7 @@ impl VectorEngine for MockVectorEngine {
 
         let result: Vec<VectorPoint> = points.into_iter().skip(skip).take(limit).collect();
         let next_offset = if result.len() == limit {
-            result.last().map(|p| p.id.clone())
+            result.last().map(|p| p.id.to_string())
         } else {
             None
         };
@@ -510,10 +510,7 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
         }
         ConditionType::MatchAny { values } => {
             if let Some(field_value) = payload.get(&condition.field) {
-                if let Some(str_val) = field_value.as_str() {
-                    return values.contains(&str_val.to_string());
-                }
-                return values.contains(&field_value.to_string());
+                return values.iter().any(|v| v == field_value);
             }
             false
         }
@@ -550,7 +547,7 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
             Some(v) => v.is_null(),
         },
         ConditionType::IsNull => payload.get(&condition.field).is_none(),
-        ConditionType::HasId { ids } => ids.contains(&point.id),
+        ConditionType::HasId { ids } => ids.contains(&point.id.to_string()),
         ConditionType::Contains { value } => {
             if let Some(field_value) = payload.get(&condition.field) {
                 if let Some(arr) = field_value.as_array() {
@@ -562,7 +559,6 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
             false
         }
         ConditionType::Nested { filter } => matches_filter(&Some(*filter.clone()), point),
-        ConditionType::Payload { key: _, value: _ } => true,
         ConditionType::GeoRadius(_) | ConditionType::GeoBoundingBox(_) => true,
         ConditionType::ValuesCount(_) => true,
     }
@@ -948,7 +944,7 @@ pub fn assert_search_result_contains(
     results: &[SearchResult],
     expected_id: &str,
 ) -> std::result::Result<(), String> {
-    if results.iter().any(|r| r.id == expected_id) {
+    if results.iter().any(|r| r.id.to_string() == expected_id) {
         Ok(())
     } else {
         Err(format!(
@@ -965,7 +961,7 @@ pub fn assert_search_result_not_contains(
     results: &[SearchResult],
     unexpected_id: &str,
 ) -> std::result::Result<(), String> {
-    if !results.iter().any(|r| r.id == unexpected_id) {
+    if !results.iter().any(|r| r.id.to_string() == unexpected_id) {
         Ok(())
     } else {
         Err(format!(

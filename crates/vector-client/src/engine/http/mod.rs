@@ -22,7 +22,7 @@ use config::{
     build_search_batch_body, build_search_body, build_set_payload_body, build_upsert_body,
 };
 use filter::convert_filter;
-use utils::{parse_payload, PointIdValue, QdrantSearchResult, QdrantUpsertResult, VectorValue};
+use utils::{parse_payload, QdrantSearchResult, QdrantUpsertResult, VectorValue};
 
 const QDRANT_VERSION: &str = "1.12.x (HTTP REST)";
 
@@ -328,7 +328,7 @@ impl VectorEngine for QdrantEngine {
             point.id, collection
         );
 
-        let id = point_id_to_json(&point.id);
+        let id = point_id_to_json(&point.id.to_string());
         let point_json = if let Some(ref payload) = point.payload {
             serde_json::json!({
                 "id": id,
@@ -372,7 +372,7 @@ impl VectorEngine for QdrantEngine {
         let points_json: Vec<Value> = points
             .into_iter()
             .map(|p| {
-                let id = point_id_to_json(&p.id);
+                let id = point_id_to_json(&p.id.to_string());
                 if let Some(ref payload) = p.payload {
                     serde_json::json!({
                         "id": id,
@@ -468,11 +468,15 @@ impl VectorEngine for QdrantEngine {
                 body,
             )
             .await?;
-        self.check_response(response).await?;
+        let result: QdrantUpsertResult = self.parse_result(response).await?;
 
         Ok(DeleteResult {
-            operation_id: None,
-            deleted_count: 0,
+            operation_id: result.operation_id,
+            deleted_count: if result.status.as_deref() == Some("completed") {
+                1
+            } else {
+                0
+            },
         })
     }
 
@@ -514,7 +518,7 @@ impl VectorEngine for QdrantEngine {
         let search_results = results
             .into_iter()
             .map(|r| SearchResult {
-                id: r.id.to_string(),
+                id: r.id,
                 score: r.score,
                 payload: parse_payload(r.payload),
                 vector: r.vector.and_then(|v| v.into_vec()),
@@ -577,7 +581,7 @@ impl VectorEngine for QdrantEngine {
                 results
                     .into_iter()
                     .map(|r| SearchResult {
-                        id: r.id.to_string(),
+                        id: r.id,
                         score: r.score,
                         payload: parse_payload(r.payload),
                         vector: r.vector.and_then(|v| v.into_vec()),
@@ -600,7 +604,7 @@ impl VectorEngine for QdrantEngine {
 
         #[derive(serde::Deserialize)]
         struct RawPoint {
-            id: PointIdValue,
+            id: crate::types::PointId,
             #[serde(default)]
             payload: Option<Value>,
             #[serde(default)]
@@ -628,7 +632,7 @@ impl VectorEngine for QdrantEngine {
                 }
                 let p = points.remove(0);
                 Ok(Some(VectorPoint {
-                    id: p.id.to_string(),
+                    id: p.id,
                     vector: p.vector.and_then(|v| v.into_vec()).unwrap_or_default(),
                     payload: parse_payload(p.payload),
                 }))
@@ -653,7 +657,7 @@ impl VectorEngine for QdrantEngine {
 
         #[derive(serde::Deserialize)]
         struct RawPoint {
-            id: PointIdValue,
+            id: crate::types::PointId,
             #[serde(default)]
             payload: Option<Value>,
             #[serde(default)]
@@ -672,13 +676,13 @@ impl VectorEngine for QdrantEngine {
         let points_map: HashMap<String, VectorPoint> = raw_points
             .into_iter()
             .map(|p| {
-                let id = p.id.to_string();
+                let id_str = p.id.to_string();
                 let vp = VectorPoint {
-                    id: id.clone(),
+                    id: p.id,
                     vector: p.vector.and_then(|v| v.into_vec()).unwrap_or_default(),
                     payload: parse_payload(p.payload),
                 };
-                (id, vp)
+                (id_str, vp)
             })
             .collect();
 
@@ -771,7 +775,7 @@ impl VectorEngine for QdrantEngine {
 
         #[derive(serde::Deserialize)]
         struct RawScrollPoint {
-            id: PointIdValue,
+            id: crate::types::PointId,
             #[serde(default)]
             payload: Option<Value>,
             #[serde(default)]
@@ -781,7 +785,7 @@ impl VectorEngine for QdrantEngine {
         #[derive(serde::Deserialize)]
         struct ScrollResult {
             points: Vec<RawScrollPoint>,
-            next_page_offset: Option<PointIdValue>,
+            next_page_offset: Option<crate::types::PointId>,
         }
 
         let response = self
@@ -798,7 +802,7 @@ impl VectorEngine for QdrantEngine {
             .points
             .into_iter()
             .map(|p| VectorPoint {
-                id: p.id.to_string(),
+                id: p.id,
                 vector: p.vector.and_then(|v| v.into_vec()).unwrap_or_default(),
                 payload: parse_payload(p.payload),
             })

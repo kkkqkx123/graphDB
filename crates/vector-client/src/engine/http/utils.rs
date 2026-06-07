@@ -5,28 +5,12 @@ use serde_json::Value;
 
 #[derive(Deserialize)]
 pub struct QdrantSearchResult {
-    pub id: PointIdValue,
+    pub id: crate::types::PointId,
     pub score: f32,
     #[serde(default)]
     pub payload: Option<Value>,
     #[serde(default)]
     pub vector: Option<VectorValue>,
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub enum PointIdValue {
-    Uuid(String),
-    Num(u64),
-}
-
-impl std::fmt::Display for PointIdValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PointIdValue::Uuid(s) => write!(f, "{}", s),
-            PointIdValue::Num(n) => write!(f, "{}", n),
-        }
-    }
 }
 
 #[derive(Deserialize)]

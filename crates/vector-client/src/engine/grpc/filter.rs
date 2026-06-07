@@ -64,14 +64,16 @@ impl ConditionHandler for ProtoConditionHandler {
         )
     }
 
-    fn handle_match_any(&self, field: &str, values: &[String]) -> proto::Condition {
+    fn handle_match_any(&self, field: &str, values: &[serde_json::Value]) -> proto::Condition {
+        let keywords: Vec<String> = values
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect();
         field_condition(
             field.to_string(),
             Some(proto::Match {
                 match_value: Some(proto::r#match::MatchValue::Keywords(
-                    proto::RepeatedStrings {
-                        strings: values.to_vec(),
-                    },
+                    proto::RepeatedStrings { strings: keywords },
                 )),
             }),
             None,
@@ -201,37 +203,6 @@ impl ConditionHandler for ProtoConditionHandler {
                 },
             )),
         }
-    }
-
-    fn handle_payload(
-        &self,
-        _field: &str,
-        _key: &str,
-        value: &serde_json::Value,
-    ) -> proto::Condition {
-        let match_value = match value {
-            serde_json::Value::String(s) => proto::r#match::MatchValue::Keyword(s.clone()),
-            serde_json::Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    proto::r#match::MatchValue::Integer(i)
-                } else {
-                    proto::r#match::MatchValue::Keyword(n.to_string())
-                }
-            }
-            serde_json::Value::Bool(b) => proto::r#match::MatchValue::Boolean(*b),
-            _ => proto::r#match::MatchValue::Keyword(value.to_string()),
-        };
-
-        field_condition(
-            _field.to_string(),
-            Some(proto::Match {
-                match_value: Some(match_value),
-            }),
-            None,
-            None,
-            None,
-            None,
-        )
     }
 
     fn build_filter(

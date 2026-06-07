@@ -155,7 +155,7 @@ impl FilterCondition {
         )
     }
 
-    pub fn match_any(field: impl Into<String>, values: Vec<String>) -> Self {
+    pub fn match_any(field: impl Into<String>, values: Vec<serde_json::Value>) -> Self {
         Self::new(field, ConditionType::MatchAny { values })
     }
 
@@ -200,13 +200,12 @@ impl FilterCondition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConditionType {
     Match { value: String },
-    MatchAny { values: Vec<String> },
+    MatchAny { values: Vec<PayloadValue> },
     Range(RangeCondition),
     IsEmpty,
     IsNull,
     HasId { ids: Vec<String> },
     Nested { filter: Box<VectorFilter> },
-    Payload { key: String, value: PayloadValue },
     GeoRadius(GeoRadius),
     GeoBoundingBox(GeoBoundingBox),
     ValuesCount(ValuesCountCondition),

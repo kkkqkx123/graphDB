@@ -1,3 +1,5 @@
+use serde_json::Value;
+
 use crate::error::{Result, VectorClientError};
 use crate::types::*;
 
@@ -6,7 +8,7 @@ pub trait ConditionHandler {
     type Filter;
 
     fn handle_match(&self, field: &str, value: &str) -> Self::Condition;
-    fn handle_match_any(&self, field: &str, values: &[String]) -> Self::Condition;
+    fn handle_match_any(&self, field: &str, values: &[Value]) -> Self::Condition;
     fn handle_range(&self, field: &str, range: &RangeCondition) -> Self::Condition;
     fn handle_is_empty(&self, field: &str) -> Self::Condition;
     fn handle_is_null(&self, field: &str) -> Self::Condition;
@@ -16,7 +18,6 @@ pub trait ConditionHandler {
     fn handle_values_count(&self, field: &str, count: &ValuesCountCondition) -> Self::Condition;
     fn handle_contains(&self, field: &str, value: &str) -> Self::Condition;
     fn handle_nested(&self, field: &str, filter: Self::Filter) -> Self::Condition;
-    fn handle_payload(&self, field: &str, key: &str, value: &serde_json::Value) -> Self::Condition;
     fn build_filter(
         &self,
         must: Vec<Self::Condition>,
@@ -82,7 +83,6 @@ fn handle_condition<H: ConditionHandler>(c: &FilterCondition, handler: &H) -> Re
                 .ok_or_else(|| VectorClientError::FilterError("Empty nested filter".to_string()))?;
             Ok(handler.handle_nested(&c.field, nested))
         }
-        ConditionType::Payload { key, value } => Ok(handler.handle_payload(&c.field, key, value)),
         ConditionType::GeoRadius(radius) => Ok(handler.handle_geo_radius(&c.field, radius)),
         ConditionType::GeoBoundingBox(bbox) => Ok(handler.handle_geo_bounding_box(&c.field, bbox)),
         ConditionType::ValuesCount(count) => Ok(handler.handle_values_count(&c.field, count)),
