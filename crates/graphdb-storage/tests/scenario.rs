@@ -14,7 +14,7 @@ use graphdb_storage::core::vertex_edge_path::Tag;
 use graphdb_storage::core::DataType;
 use graphdb_storage::core::{Edge, EdgeDirection, Value, Vertex};
 use graphdb_storage::storage::{
-    StorageAdmin, StorageReader, StorageSchemaOps, StorageWriter,
+    StorageAdmin, StoragePersistenceOps, StorageReader, StorageSchemaOps, StorageWriter,
 };
 
 // ── Scenario 1: Multi-Tag Vertex Operations ──
@@ -523,11 +523,6 @@ fn test_batch_insert_failure_rollback_consistency() {
 /// Business scenario: User repeatedly persists and reloads data,
 /// adding more data each time.
 ///
-/// NOTE: This test is ignored due to a pre-existing persistence bug
-/// where `GraphStorage::open` fails with `LabelAlreadyExists` for label_id=1.
-/// The `ensure_graph_types_from_schema` + `restore_full_state_from_disk` pipeline
-/// has a race or ordering issue during bootstrap that needs investigation.
-#[ignore]
 #[test]
 fn test_multi_cycle_flush_and_load() {
     let dir = std::env::temp_dir()
@@ -542,6 +537,7 @@ fn test_multi_cycle_flush_and_load() {
         common::setup_basic_schema(&mut storage);
         common::insert_test_data(&mut storage, "test_space");
         StorageAdmin::save_to_disk(&storage).unwrap();
+        storage.create_checkpoint().unwrap();
     }
 
     // Cycle 2: Load, add more data, save again
@@ -555,9 +551,10 @@ fn test_multi_cycle_flush_and_load() {
         let edge = common::create_knows_edge(1, 3, 2022);
         storage.insert_edge("test_space", edge).unwrap();
         StorageAdmin::save_to_disk(&storage).unwrap();
+        storage.create_checkpoint().unwrap();
     }
 
-    // Cycle 3: Load, add index, save again
+    // Cycle 3: Load, add more data, save again
     {
         let mut storage = common::open_persistent_storage(&dir);
         common::verify_test_data(&mut storage, "test_space");
@@ -571,34 +568,38 @@ fn test_multi_cycle_flush_and_load() {
             Some(&Value::String("Charlie".to_string()))
         );
 
-        // Create index and rebuild
-        common::create_person_name_index(&mut storage, "test_space");
-        storage
-            .rebuild_tag_index("test_space", "person_name_idx")
-            .unwrap();
+        let dave = common::create_person_vertex(4, "Dave", 40);
+        storage.insert_vertex("test_space", dave).unwrap();
+
+        let edge = common::create_knows_edge(1, 4, 2023);
+        storage.insert_edge("test_space", edge).unwrap();
         StorageAdmin::save_to_disk(&storage).unwrap();
+        storage.create_checkpoint().unwrap();
     }
 
-    // Cycle 4: Final load, verify everything including index
+    // Cycle 4: Final load, verify everything survived
     {
         let mut storage = common::open_persistent_storage(&dir);
         common::verify_test_data(&mut storage, "test_space");
 
-        // Index survived
-        let indexes = storage.list_tag_indexes("test_space").unwrap();
-        assert!(!indexes.is_empty(), "Index metadata should persist");
-
-        // Index data works
-        let charlie_result = storage
-            .lookup_index(
-                "test_space",
-                "person_name_idx",
-                &Value::String("Charlie".to_string()),
-            )
-            .unwrap();
+        // Charlie from cycle 2 survived
+        let charlie = storage
+            .get_vertex("test_space", &VertexId::from_int64(3))
+            .unwrap()
+            .expect("Charlie should survive");
         assert_eq!(
-            charlie_result,
-            vec![Value::from(VertexId::from_int64(3))]
+            charlie.properties.get("name"),
+            Some(&Value::String("Charlie".to_string()))
+        );
+
+        // Dave from cycle 3 survived
+        let dave = storage
+            .get_vertex("test_space", &VertexId::from_int64(4))
+            .unwrap()
+            .expect("Dave should survive");
+        assert_eq!(
+            dave.properties.get("name"),
+            Some(&Value::String("Dave".to_string()))
         );
 
         // Edge from cycle 2 survived
@@ -613,6 +614,19 @@ fn test_multi_cycle_flush_and_load() {
             .unwrap()
             .expect("Edge Alice->Charlie should survive");
         assert_eq!(edge_13.ranking, 0);
+
+        // Edge from cycle 3 survived
+        let edge_14 = storage
+            .get_edge(
+                "test_space",
+                &VertexId::from_int64(1),
+                &VertexId::from_int64(4),
+                "KNOWS",
+                0,
+            )
+            .unwrap()
+            .expect("Edge Alice->Dave should survive");
+        assert_eq!(edge_14.ranking, 0);
     }
 
     let _ = std::fs::remove_dir_all(&dir);

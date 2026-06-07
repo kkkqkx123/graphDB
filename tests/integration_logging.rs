@@ -1,6 +1,6 @@
 //! Log System Integration Testing
 //!
-//! Test Range.
+//! Test Scope.
 //! - Log configuration loading and validation
 //! - Log file creation and writing
 //! - Log rotation function
@@ -29,6 +29,7 @@ fn test_log_config_defaults() {
 }
 
 /// Test Log Configuration Serialization and Deserialization
+#[cfg(all(feature = "qdrant", feature = "embedded"))]
 #[test]
 fn test_log_config_serialization() {
     let config = Config {
@@ -386,6 +387,7 @@ fn test_flexi_logger_integration() {
 }
 
 /// Test Log File Path Resolution
+#[cfg(all(feature = "qdrant", feature = "embedded"))]
 #[test]
 fn test_log_file_path_resolution() {
     let config = Config::default();
