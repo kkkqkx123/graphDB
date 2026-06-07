@@ -257,11 +257,39 @@ pub(crate) fn find_dangling_edges(
             .is_some();
 
         if !src_exists || !dst_exists {
+            let src_external = ctx
+                .get_vertex_by_internal_id(
+                    src_label_id,
+                    record.src_vid.as_int64().unwrap_or(0) as u32,
+                    ts,
+                )
+                .map(|vr| vr.vid)
+                .or_else(|| {
+                    ctx.get_external_id_by_internal_id(
+                        src_label_id,
+                        record.src_vid.as_int64().unwrap_or(0) as u32,
+                    )
+                })
+                .unwrap_or(record.src_vid);
+            let dst_external = ctx
+                .get_vertex_by_internal_id(
+                    dst_label_id,
+                    record.dst_vid.as_int64().unwrap_or(0) as u32,
+                    ts,
+                )
+                .map(|vr| vr.vid)
+                .or_else(|| {
+                    ctx.get_external_id_by_internal_id(
+                        dst_label_id,
+                        record.dst_vid.as_int64().unwrap_or(0) as u32,
+                    )
+                })
+                .unwrap_or(record.dst_vid);
             let edge = edge_record_to_edge(
                 &record,
                 edge_type_name,
-                &format!("{}", record.src_vid),
-                &format!("{}", record.dst_vid),
+                &format!("{}", src_external),
+                &format!("{}", dst_external),
             );
             dangling_edges.push(edge);
         }

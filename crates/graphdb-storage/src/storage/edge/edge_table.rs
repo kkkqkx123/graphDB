@@ -30,8 +30,8 @@ impl Default for EdgeTableConfig {
 
 /// Parameters for update_edge_property_by_offset operation
 pub struct UpdateEdgePropertyByOffsetParams {
-    pub src: VertexId,
-    pub dst: VertexId,
+    pub src: u32,
+    pub dst: u32,
     pub rank: i64,
     pub prop_id: u16,
     pub value: Value,
@@ -111,13 +111,9 @@ impl EdgeTable {
         })
     }
 
-    fn edge_endpoint_key(endpoint: VertexId, rank: i64) -> VertexId {
-        let endpoint_id = endpoint
-            .as_int64()
-            .or_else(|| endpoint.as_u64().map(|id| id as i64))
-            .unwrap_or_default();
+    fn edge_endpoint_key(endpoint: u32, rank: i64) -> VertexId {
         let mut data = Vec::with_capacity(16);
-        data.extend_from_slice(&endpoint_id.to_be_bytes());
+        data.extend_from_slice(&(endpoint as i64).to_be_bytes());
         data.extend_from_slice(&rank.to_be_bytes());
         VertexId::from_bytes(data)
     }
@@ -148,7 +144,7 @@ impl EdgeTable {
     fn base_get_edge(
         &self,
         segments: &[CsrSegment],
-        src: VertexId,
+        src: u32,
         dst: VertexId,
         ts: Timestamp,
     ) -> Option<Nbr> {
@@ -174,7 +170,7 @@ impl EdgeTable {
         None
     }
 
-    fn base_edges_of(&self, segments: &[CsrSegment], src: VertexId, ts: Timestamp) -> Vec<Nbr> {
+    fn base_edges_of(&self, segments: &[CsrSegment], src: u32, ts: Timestamp) -> Vec<Nbr> {
         let mut edges = Vec::new();
         for segment in segments.iter().rev() {
             if segment.min_ts > ts {
@@ -200,7 +196,7 @@ impl EdgeTable {
         &self,
         delta: &MutableCsrVariant,
         segments: &[CsrSegment],
-        src: VertexId,
+        src: u32,
         ts: Timestamp,
     ) -> Vec<Nbr> {
         let mut seen = HashSet::new();
@@ -225,7 +221,7 @@ impl EdgeTable {
         &self,
         delta: &MutableCsrVariant,
         segments: &[CsrSegment],
-        src: VertexId,
+        src: u32,
         dst: VertexId,
         ts: Timestamp,
     ) -> Option<Nbr> {
@@ -238,11 +234,11 @@ impl EdgeTable {
         self.base_get_edge(segments, src, dst, ts)
     }
 
-    fn edge_record_from_nbr(&self, src: VertexId, nbr: Nbr) -> EdgeRecord {
+    fn edge_record_from_nbr(&self, src: u32, nbr: Nbr) -> EdgeRecord {
         let (dst_vid, rank) = Self::decode_edge_endpoint(nbr.neighbor);
         EdgeRecord {
             edge_id: nbr.edge_id,
-            src_vid: src,
+            src_vid: VertexId::from_int64(src as i64),
             dst_vid,
             rank,
             properties: self.properties_for_offset(nbr.prop_offset),
@@ -269,8 +265,8 @@ impl EdgeTable {
 impl EdgeTable {
     pub fn insert_edge(
         &mut self,
-        src: VertexId,
-        dst: VertexId,
+        src: u32,
+        dst: u32,
         rank: i64,
         property_values: &[(String, Value)],
         ts: Timestamp,
@@ -350,8 +346,8 @@ impl EdgeTable {
 
     pub fn delete_edge(
         &mut self,
-        src: VertexId,
-        dst: VertexId,
+        src: u32,
+        dst: u32,
         rank: i64,
         ts: Timestamp,
     ) -> StorageResult<bool> {
@@ -384,8 +380,8 @@ impl EdgeTable {
 
     pub fn delete_edge_by_offset(
         &mut self,
-        src: VertexId,
-        dst: VertexId,
+        src: u32,
+        dst: u32,
         rank: i64,
         oe_offset: i32,
         ie_offset: i32,
@@ -411,9 +407,9 @@ impl EdgeTable {
 
     pub fn revert_delete_edge_by_offset(
         &mut self,
-        src: VertexId,
-        dst: VertexId,
-        rank: i64,
+        src: u32,
+        dst: u32,
+        _rank: i64,
         oe_offset: EdgeOffset,
         ie_offset: EdgeOffset,
         ts: Timestamp,
@@ -422,8 +418,6 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
-        let dst_key = Self::edge_endpoint_key(dst, rank);
-        let _edge_id = self.out_csr.find_deleted_edge(src, dst_key);
         let reverted = self
             .out_csr
             .revert_delete_by_offset(src, oe_offset.as_i32(), ts);
@@ -438,8 +432,8 @@ impl EdgeTable {
 
     pub fn get_edge(
         &self,
-        src: VertexId,
-        dst: VertexId,
+        src: u32,
+        dst: u32,
         rank: i64,
         ts: Timestamp,
     ) -> Option<EdgeRecord> {
@@ -453,14 +447,14 @@ impl EdgeTable {
 
         Some(EdgeRecord {
             edge_id: nbr.edge_id,
-            src_vid: src,
-            dst_vid: dst,
+            src_vid: VertexId::from_int64(src as i64),
+            dst_vid: VertexId::from_int64(dst as i64),
             rank,
             properties,
         })
     }
 
-    pub fn out_edges(&self, src: VertexId, ts: Timestamp) -> Vec<EdgeRecord> {
+    pub fn out_edges(&self, src: u32, ts: Timestamp) -> Vec<EdgeRecord> {
         if !self.is_open {
             return Vec::new();
         }
@@ -473,7 +467,7 @@ impl EdgeTable {
 
                 EdgeRecord {
                     edge_id: nbr.edge_id,
-                    src_vid: src,
+                    src_vid: VertexId::from_int64(src as i64),
                     dst_vid,
                     rank,
                     properties,
@@ -482,7 +476,7 @@ impl EdgeTable {
             .collect()
     }
 
-    pub fn in_edges(&self, dst: VertexId, ts: Timestamp) -> Vec<EdgeRecord> {
+    pub fn in_edges(&self, dst: u32, ts: Timestamp) -> Vec<EdgeRecord> {
         if !self.is_open {
             return Vec::new();
         }
@@ -496,7 +490,7 @@ impl EdgeTable {
                 EdgeRecord {
                     edge_id: nbr.edge_id,
                     src_vid,
-                    dst_vid: dst,
+                    dst_vid: VertexId::from_int64(dst as i64),
                     rank,
                     properties,
                 }
@@ -504,7 +498,7 @@ impl EdgeTable {
             .collect()
     }
 
-    pub fn has_edge(&self, src: VertexId, dst: VertexId, rank: i64, ts: Timestamp) -> bool {
+    pub fn has_edge(&self, src: u32, dst: u32, rank: i64, ts: Timestamp) -> bool {
         if !self.is_open {
             return false;
         }
@@ -603,8 +597,8 @@ impl EdgeTable {
 
     pub fn update_edge_property(
         &mut self,
-        src: VertexId,
-        dst: VertexId,
+        src: u32,
+        dst: u32,
         rank: i64,
         prop_name: &str,
         value: &Value,
@@ -1019,7 +1013,13 @@ impl EdgeTable {
         segments: &mut Vec<CsrSegment>,
         ts: Timestamp,
     ) -> usize {
-        let entries: Vec<_> = delta.iter(ts).collect();
+        let entries: Vec<_> = delta
+            .iter(ts)
+            .map(|(src, nbr)| {
+                let src_u32 = src.as_int64().unwrap_or(0) as u32;
+                (src_u32, nbr)
+            })
+            .collect();
         if entries.is_empty() {
             delta.clear();
             return 0;
@@ -1027,7 +1027,7 @@ impl EdgeTable {
 
         let vertex_capacity = entries
             .iter()
-            .filter_map(|(src, _)| src.as_int64().map(|id| id as usize + 1))
+            .map(|(src, _)| *src as usize + 1)
             .max()
             .unwrap_or_else(|| delta.vertex_capacity())
             .max(delta.vertex_capacity());
@@ -1129,7 +1129,7 @@ impl<'a> EdgeTableScanIterator<'a> {
 
         for (src_vid, nbr) in table.out_csr.iter(ts) {
             if !table.is_tombstoned(nbr.edge_id, ts) && seen.insert(nbr.edge_id) {
-                records.push(table.edge_record_from_nbr(src_vid, nbr));
+                records.push(table.edge_record_from_nbr(src_vid.as_int64().unwrap_or(0) as u32, nbr));
             }
         }
 
@@ -1144,7 +1144,7 @@ impl<'a> EdgeTableScanIterator<'a> {
                     && seen.insert(edge.edge_id)
                 {
                     records.push(table.edge_record_from_nbr(
-                        src_vid,
+                        src_vid.as_int64().unwrap_or(0) as u32,
                         Nbr::new(
                             edge.neighbor,
                             edge.edge_id,
@@ -1197,18 +1197,18 @@ mod tests {
 
         let _edge_offset = table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 0,
                 &[("weight".to_string(), Value::Double(1.5))],
                 100,
             )
             .unwrap();
 
-        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 100));
+        assert!(table.has_edge(0, 1, 0, 100));
 
         let edge = table
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 100)
+            .get_edge(0, 1, 0, 100)
             .unwrap();
         assert_eq!(edge.src_vid, VertexId::from_int64(0));
         assert_eq!(edge.dst_vid, VertexId::from_int64(1));
@@ -1222,8 +1222,8 @@ mod tests {
 
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 10,
                 &[("weight".to_string(), Value::Double(1.0))],
                 100,
@@ -1231,8 +1231,8 @@ mod tests {
             .unwrap();
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 20,
                 &[("weight".to_string(), Value::Double(2.0))],
                 100,
@@ -1240,15 +1240,15 @@ mod tests {
             .unwrap();
 
         let rank_10 = table
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 10, 100)
+            .get_edge(0, 1, 10, 100)
             .unwrap();
         let rank_20 = table
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 20, 100)
+            .get_edge(0, 1, 20, 100)
             .unwrap();
 
         assert_eq!(rank_10.rank, 10);
         assert_eq!(rank_20.rank, 20);
-        assert_eq!(table.out_edges(VertexId::from_int64(0), 100).len(), 2);
+        assert_eq!(table.out_edges(0, 100).len(), 2);
     }
 
     #[test]
@@ -1258,8 +1258,8 @@ mod tests {
 
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 0,
                 &[("weight".to_string(), Value::Double(1.5))],
                 100,
@@ -1267,9 +1267,9 @@ mod tests {
             .unwrap();
 
         assert!(table
-            .delete_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 200)
+            .delete_edge(0, 1, 0, 200)
             .unwrap());
-        assert!(!table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 300));
+        assert!(!table.has_edge(0, 1, 0, 300));
     }
 
     #[test]
@@ -1279,8 +1279,8 @@ mod tests {
 
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 0,
                 &[("weight".to_string(), Value::Double(1.5))],
                 100,
@@ -1288,8 +1288,8 @@ mod tests {
             .unwrap();
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(2),
+                0,
+                2,
                 0,
                 &[("weight".to_string(), Value::Double(2.5))],
                 110,
@@ -1304,8 +1304,8 @@ mod tests {
         assert_eq!(table.out_segments.len(), 1);
         assert_eq!(table.in_segments.len(), 1);
         assert_eq!(before.len(), after.len());
-        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 150));
-        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(2), 0, 150));
+        assert!(table.has_edge(0, 1, 0, 150));
+        assert!(table.has_edge(0, 2, 0, 150));
     }
 
     #[test]
@@ -1315,8 +1315,8 @@ mod tests {
 
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 0,
                 &[],
                 100,
@@ -1325,10 +1325,10 @@ mod tests {
         table.freeze_csr(150);
 
         assert!(table
-            .delete_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 200)
+            .delete_edge(0, 1, 0, 200)
             .unwrap());
-        assert!(table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 150));
-        assert!(!table.has_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 250));
+        assert!(table.has_edge(0, 1, 0, 150));
+        assert!(!table.has_edge(0, 1, 0, 250));
         assert_eq!(table.scan(250).len(), 0);
     }
 
@@ -1339,8 +1339,8 @@ mod tests {
 
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 0,
                 &[],
                 100,
@@ -1348,8 +1348,8 @@ mod tests {
             .unwrap();
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(2),
+                0,
+                2,
                 0,
                 &[],
                 100,
@@ -1357,18 +1357,18 @@ mod tests {
             .unwrap();
         table
             .insert_edge(
-                VertexId::from_int64(1),
-                VertexId::from_int64(0),
+                1,
+                0,
                 0,
                 &[],
                 100,
             )
             .unwrap();
 
-        assert_eq!(table.out_edges(VertexId::from_int64(0), 100).len(), 2);
-        assert_eq!(table.in_edges(VertexId::from_int64(0), 100).len(), 1);
-        assert_eq!(table.out_edges(VertexId::from_int64(1), 100).len(), 1);
-        assert_eq!(table.in_edges(VertexId::from_int64(1), 100).len(), 1);
+        assert_eq!(table.out_edges(0, 100).len(), 2);
+        assert_eq!(table.in_edges(0, 100).len(), 1);
+        assert_eq!(table.out_edges(1, 100).len(), 1);
+        assert_eq!(table.in_edges(1, 100).len(), 1);
     }
 
     #[test]
@@ -1378,8 +1378,8 @@ mod tests {
 
         table
             .insert_edge(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 0,
                 &[("weight".to_string(), Value::Double(1.0))],
                 100,
@@ -1388,8 +1388,8 @@ mod tests {
 
         let updated = table
             .update_edge_property(
-                VertexId::from_int64(0),
-                VertexId::from_int64(1),
+                0,
+                1,
                 0,
                 "weight",
                 &Value::Double(2.0),
@@ -1399,7 +1399,7 @@ mod tests {
         assert!(updated);
 
         let edge = table
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1), 0, 100)
+            .get_edge(0, 1, 0, 100)
             .unwrap();
         assert_eq!(edge.properties.len(), 1);
     }
@@ -1414,8 +1414,8 @@ mod tests {
         let ts = 100u32;
         let _edge_id_1 = table
             .insert_edge(
-                VertexId::from_int64(1),
-                VertexId::from_int64(2),
+                1,
+                2,
                 0,
                 &[("weight".to_string(), Value::Double(1.5))],
                 ts,
@@ -1424,8 +1424,8 @@ mod tests {
 
         let _edge_id_2 = table
             .insert_edge(
-                VertexId::from_int64(1),
-                VertexId::from_int64(3),
+                1,
+                3,
                 0,
                 &[("weight".to_string(), Value::Double(2.5))],
                 ts,
@@ -1434,8 +1434,8 @@ mod tests {
 
         let _edge_id_3 = table
             .insert_edge(
-                VertexId::from_int64(2),
-                VertexId::from_int64(3),
+                2,
+                3,
                 0,
                 &[("weight".to_string(), Value::Double(3.5))],
                 ts,
@@ -1456,7 +1456,7 @@ mod tests {
         loaded_table.load(&temp_dir).expect("load should succeed");
 
         assert_eq!(
-            loaded_table.out_edges(VertexId::from_int64(1), ts).len(),
+            loaded_table.out_edges(1, ts).len(),
             2,
             "scan should work after load"
         );
@@ -1466,28 +1466,28 @@ mod tests {
             .expect("second load should succeed");
 
         assert_eq!(
-            loaded_table.out_edges(VertexId::from_int64(1), ts).len(),
+            loaded_table.out_edges(1, ts).len(),
             2,
             "scan should still work after second load"
         );
         assert_eq!(
-            loaded_table.out_edges(VertexId::from_int64(2), ts).len(),
+            loaded_table.out_edges(2, ts).len(),
             1,
             "scan should work after load"
         );
 
         assert!(
-            loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(2), 0, ts),
+            loaded_table.has_edge(1, 2, 0, ts),
             "get_edge should work after load"
         );
 
         let deleted = loaded_table
-            .delete_edge(VertexId::from_int64(1), VertexId::from_int64(3), 0, ts + 1)
+            .delete_edge(1, 3, 0, ts + 1)
             .expect("delete_edge should work after load");
         assert!(deleted, "delete_edge should find the edge");
 
         assert!(
-            !loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 0, ts + 1),
+            !loaded_table.has_edge(1, 3, 0, ts + 1),
             "deleted edge should not be visible"
         );
 
@@ -1503,8 +1503,8 @@ mod tests {
 
         table
             .insert_edge(
-                VertexId::from_int64(1),
-                VertexId::from_int64(2),
+                1,
+                2,
                 0,
                 &[("weight".to_string(), Value::Double(1.5))],
                 100,
@@ -1512,8 +1512,8 @@ mod tests {
             .unwrap();
         table
             .insert_edge(
-                VertexId::from_int64(1),
-                VertexId::from_int64(3),
+                1,
+                3,
                 0,
                 &[("weight".to_string(), Value::Double(2.5))],
                 110,
@@ -1521,7 +1521,7 @@ mod tests {
             .unwrap();
         table.freeze_csr(150);
         table
-            .delete_edge(VertexId::from_int64(1), VertexId::from_int64(2), 0, 200)
+            .delete_edge(1, 2, 0, 200)
             .unwrap();
 
         let temp_dir = std::env::temp_dir().join("edge_table_test_segments_tombstones");
@@ -1539,9 +1539,9 @@ mod tests {
 
         assert_eq!(loaded_table.out_segments.len(), 1);
         assert_eq!(loaded_table.in_segments.len(), 1);
-        assert!(loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(2), 0, 150));
-        assert!(!loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(2), 0, 250));
-        assert!(loaded_table.has_edge(VertexId::from_int64(1), VertexId::from_int64(3), 0, 250));
+        assert!(loaded_table.has_edge(1, 2, 0, 150));
+        assert!(!loaded_table.has_edge(1, 2, 0, 250));
+        assert!(loaded_table.has_edge(1, 3, 0, 250));
 
         let _ = fs::remove_dir_all(&temp_dir);
     }

@@ -30,9 +30,7 @@ impl From<ByteKey> for Vec<u8> {
 pub type SecondaryIndexKey = Vec<u8>;
 
 pub const KEY_TYPE_VERTEX_REVERSE: u8 = 0x01;
-pub const KEY_TYPE_EDGE_REVERSE: u8 = 0x02;
 pub const KEY_TYPE_VERTEX_FORWARD: u8 = 0x03;
-pub const KEY_TYPE_EDGE_FORWARD: u8 = 0x04;
 
 pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
     to_allocvec(value).map_err(|e| StorageError::serialize_error(e.to_string()))

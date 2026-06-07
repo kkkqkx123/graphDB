@@ -251,13 +251,6 @@ impl StorageReader for GraphStorage {
         index_manager::list_tag_indexes(&self.ctx, space)
     }
 
-    fn get_edge_index(&self, space: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
-        index_manager::get_edge_index(&self.ctx, space, index_name)
-    }
-
-    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
-        index_manager::list_edge_indexes(&self.ctx, space)
-    }
 }
 
 impl StorageWriter for GraphStorage {
@@ -427,18 +420,6 @@ impl StorageSchemaOps for GraphStorage {
         index_manager::rebuild_tag_index(&self.ctx, space, index_name, &vertices)
     }
 
-    fn create_edge_index(&mut self, space: &str, index: &Index) -> Result<bool, StorageError> {
-        index_manager::create_edge_index(&self.ctx, space, index)
-    }
-
-    fn drop_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        index_manager::drop_edge_index(&self.ctx, space, index_name)
-    }
-
-    fn rebuild_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        let edges = reader::scan_all_edges(&self.ctx, space)?;
-        index_manager::rebuild_edge_index(&self.ctx, space, index_name, &edges)
-    }
 }
 
 impl StorageAuthOps for GraphStorage {

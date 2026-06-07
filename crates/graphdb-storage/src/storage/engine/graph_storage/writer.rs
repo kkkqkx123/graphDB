@@ -7,6 +7,7 @@ use crate::core::types::{
 };
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::params::{EdgeOperationParams, InsertEdgeParams};
+use crate::storage::index::index_data_manager::VertexIndexOps;
 use crate::transaction::codec::value_to_bytes;
 use crate::transaction::wal::types::{
     DeleteEdgeRedo, DeleteVertexRedo, InsertEdgeRedo, InsertVertexRedo, UpdateVertexPropRedo,
@@ -33,7 +34,6 @@ struct InsertedEdgeRecord {
     dst_label_id: LabelId,
     src: VertexId,
     dst: VertexId,
-    edge_type: String,
     rank: i64,
 }
 
@@ -334,6 +334,7 @@ pub(crate) fn delete_tags(
     let ts = ctx.get_write_timestamp();
     let mut deleted_count = 0;
 
+    let id_int = vertex_id.as_int64();
     let id_str = vertex_id.to_string();
 
     for tag_name in tag_names {
@@ -344,7 +345,13 @@ pub(crate) fn delete_tags(
             };
             ctx.append_wal_redo(WalOpType::DeleteVertex, ts, &redo)?;
 
-            if ctx.delete_vertex(label_id, &id_str, ts).is_ok() {
+            let result = if let Some(vid_int) = id_int {
+                ctx.delete_vertex_by_i64(label_id, vid_int, ts)
+            } else {
+                ctx.delete_vertex(label_id, &id_str, ts)
+            };
+
+            if result.is_ok() {
                 let vertex_id_value = Value::from(*vertex_id);
                 delete_vertex_indexes(
                     ctx,
@@ -382,7 +389,7 @@ pub(crate) fn insert_edge(ctx: &GraphStorageContext, space: &str, edge: Edge) ->
 fn insert_edge_at_timestamp(
     ctx: &GraphStorageContext,
     space: &str,
-    space_id: u64,
+    _space_id: u64,
     edge: Edge,
     ts: Timestamp,
     rollback: &mut Vec<InsertedEdgeRecord>,
@@ -436,22 +443,8 @@ fn insert_edge_at_timestamp(
         dst_label_id,
         src: edge.src,
         dst: edge.dst,
-        edge_type: edge.edge_type.clone(),
         rank: edge.ranking,
     });
-
-    let src_value = Value::from(edge.src);
-    let dst_value = Value::from(edge.dst);
-    update_edge_indexes(EdgeIndexUpdateParams {
-        ctx,
-        index_metadata_manager: ctx.index_metadata_manager(),
-        space_id,
-        src: &src_value,
-        dst: &dst_value,
-        edge_type: &edge.edge_type,
-        props: &props,
-        ts,
-    })?;
 
     Ok(())
 }
@@ -468,22 +461,11 @@ fn resolve_edge_type(
 
 fn rollback_edges(
     ctx: &GraphStorageContext,
-    space_id: u64,
+    _space_id: u64,
     inserted: &[InsertedEdgeRecord],
     ts: Timestamp,
 ) {
     for item in inserted.iter().rev() {
-        let src_value = Value::from(item.src);
-        let dst_value = Value::from(item.dst);
-        let _ = delete_edge_indexes(
-            ctx,
-            ctx.index_metadata_manager(),
-            space_id,
-            &src_value,
-            &dst_value,
-            &item.edge_type,
-            ts,
-        );
         let _ = ctx.delete_edge(
             &EdgeOperationParams {
                 edge_label: item.edge_label_id,
@@ -506,61 +488,55 @@ pub(crate) fn delete_edge(
     edge_type: &str,
     rank: i64,
 ) -> StorageResult<()> {
-    let space_info = ctx
-        .schema_manager()
-        .get_space(space)?
-        .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
-
     let ts = ctx.get_write_timestamp();
 
-    if let Some(edge_label_id) = edge_label_id(ctx, space, edge_type)? {
-        let edge_types = ctx.schema_manager().list_edge_types(space)?;
-        for et in edge_types {
-            if et.edge_type_name == edge_type {
-                let src_label_id = match endpoint_label_id(ctx, space, &et.src_tag_name)? {
-                    Some(id) => id,
-                    None => break,
-                };
-                let dst_label_id = match endpoint_label_id(ctx, space, &et.dst_tag_name)? {
-                    Some(id) => id,
-                    None => break,
-                };
-                let redo = DeleteEdgeRedo {
-                    src_label: src_label_id,
-                    src_vid: *src,
-                    dst_label: dst_label_id,
-                    dst_vid: *dst,
+    let edge_label_id = edge_label_id(ctx, space, edge_type)?
+        .ok_or_else(|| StorageError::not_found(format!("Edge type {} not found", edge_type)))?;
+
+    let edge_types = ctx.schema_manager().list_edge_types(space)?;
+    let mut deleted = false;
+    for et in edge_types {
+        if et.edge_type_name == edge_type {
+            let src_label_id = match endpoint_label_id(ctx, space, &et.src_tag_name)? {
+                Some(id) => id,
+                None => break,
+            };
+            let dst_label_id = match endpoint_label_id(ctx, space, &et.dst_tag_name)? {
+                Some(id) => id,
+                None => break,
+            };
+            let redo = DeleteEdgeRedo {
+                src_label: src_label_id,
+                src_vid: *src,
+                dst_label: dst_label_id,
+                dst_vid: *dst,
+                edge_label: edge_label_id,
+                rank,
+            };
+            ctx.append_wal_redo(WalOpType::DeleteEdge, ts, &redo)?;
+
+            ctx.delete_edge(
+                &EdgeOperationParams {
                     edge_label: edge_label_id,
+                    src_label: src_label_id,
+                    src_id: *src,
+                    dst_label: dst_label_id,
+                    dst_id: *dst,
                     rank,
-                };
-                ctx.append_wal_redo(WalOpType::DeleteEdge, ts, &redo)?;
+                },
+                ts,
+            )?;
 
-                ctx.delete_edge(
-                    &EdgeOperationParams {
-                        edge_label: edge_label_id,
-                        src_label: src_label_id,
-                        src_id: *src,
-                        dst_label: dst_label_id,
-                        dst_id: *dst,
-                        rank,
-                    },
-                    ts,
-                )?;
-
-                let src_value = Value::from(*src);
-                let dst_value = Value::from(*dst);
-                delete_edge_indexes(
-                    ctx,
-                    ctx.index_metadata_manager(),
-                    space_info.space_id,
-                    &src_value,
-                    &dst_value,
-                    edge_type,
-                    ts,
-                )?;
-                break;
-            }
+            deleted = true;
+            break;
         }
+    }
+
+    if !deleted {
+        return Err(StorageError::not_found(format!(
+            "Edge type {} not found in space {}",
+            edge_type, space
+        )));
     }
 
     Ok(())
@@ -715,19 +691,7 @@ pub(crate) fn insert_edge_data(
     });
 
     match result {
-        Ok(_) => {
-            update_edge_indexes(EdgeIndexUpdateParams {
-                ctx,
-                index_metadata_manager: ctx.index_metadata_manager(),
-                space_id: space_info.space_id,
-                src: &info.src_vertex_id,
-                dst: &info.dst_vertex_id,
-                edge_type: &info.edge_name,
-                props: &info.props,
-                ts,
-            })?;
-            Ok(true)
-        }
+        Ok(_) => Ok(true),
         Err(e) => {
             if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists {
                 return Ok(false);
@@ -776,11 +740,6 @@ pub(crate) fn delete_edge_data(
     dst: &str,
     rank: i64,
 ) -> StorageResult<bool> {
-    let space_info = ctx
-        .schema_manager()
-        .get_space(space)?
-        .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?;
-
     let edge_types = ctx.schema_manager().list_edge_types(space)?;
     let ts = ctx.get_write_timestamp();
     let mut deleted = false;
@@ -817,15 +776,6 @@ pub(crate) fn delete_edge_data(
             )
             .is_ok()
         {
-            delete_edge_indexes(
-                ctx,
-                ctx.index_metadata_manager(),
-                space_info.space_id,
-                &Value::String(src.to_string()),
-                &Value::String(dst.to_string()),
-                &et.edge_type_name,
-                ts,
-            )?;
             deleted = true;
         }
     }
@@ -963,6 +913,23 @@ fn update_vertex_indexes(
     let indexes = index_metadata_manager.list_tag_indexes(space_id)?;
     for index in indexes {
         if index.schema_name == tag_name {
+            // Check unique constraint before inserting.
+            // A unique index must not have an existing entry with the same
+            // property value for a different vertex.
+            if index.is_unique {
+                let index_data = ctx.index_data_manager();
+                for (_prop_name, prop_value) in props {
+                    let existing = index_data
+                        .read()
+                        .lookup_tag_index(space_id, &index, prop_value)?;
+                    if !existing.is_empty() && !existing.contains(vertex_id) {
+                        return Err(StorageError::conflict(format!(
+                            "Unique index '{}' violated: value {:?} already exists",
+                            index.name, prop_value
+                        )));
+                    }
+                }
+            }
             ctx.update_vertex_indexes_mvcc(space_id, vertex_id, &index.name, props, ts)?;
         }
     }
@@ -995,36 +962,6 @@ fn refresh_vertex_indexes(
     )
 }
 
-struct EdgeIndexUpdateParams<'a> {
-    ctx: &'a GraphStorageContext,
-    index_metadata_manager: &'a crate::core::metadata::IndexManager,
-    space_id: u64,
-    src: &'a Value,
-    dst: &'a Value,
-    edge_type: &'a str,
-    props: &'a [(String, Value)],
-    ts: u32,
-}
-
-fn update_edge_indexes(params: EdgeIndexUpdateParams) -> StorageResult<()> {
-    let indexes = params
-        .index_metadata_manager
-        .list_edge_indexes(params.space_id)?;
-    for index in indexes {
-        if index.schema_name == params.edge_type {
-            params.ctx.update_edge_indexes_mvcc(
-                params.space_id,
-                params.src,
-                params.dst,
-                &index.name,
-                params.props,
-                params.ts,
-            )?;
-        }
-    }
-    Ok(())
-}
-
 fn delete_vertex_indexes(
     ctx: &GraphStorageContext,
     index_metadata_manager: &crate::core::metadata::IndexManager,
@@ -1040,24 +977,4 @@ fn delete_vertex_indexes(
     Ok(())
 }
 
-fn delete_edge_indexes(
-    ctx: &GraphStorageContext,
-    index_metadata_manager: &crate::core::metadata::IndexManager,
-    space_id: u64,
-    src: &Value,
-    dst: &Value,
-    edge_type: &str,
-    ts: u32,
-) -> StorageResult<()> {
-    let indexes = index_metadata_manager.list_edge_indexes(space_id)?;
-    let index_names: Vec<String> = indexes
-        .iter()
-        .filter(|index| index.schema_name == edge_type)
-        .map(|index| index.name.clone())
-        .collect();
 
-    if !index_names.is_empty() {
-        ctx.delete_edge_indexes_mvcc(space_id, src, dst, &index_names, ts)?;
-    }
-    Ok(())
-}

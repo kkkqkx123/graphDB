@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::core::error::DBError;
 use crate::core::types::index::IndexConfig;
 use crate::core::types::{Index, IndexField};
 use crate::core::Value;
@@ -129,7 +130,7 @@ impl<S: StorageSchemaOps + Send + Sync + 'static> CreateIndexExecutor<S> {
                 storage.create_tag_index("default", &index)?;
             }
             crate::core::types::IndexType::EdgeIndex => {
-                storage.create_edge_index("default", &index)?;
+                return Err(DBError::storage("edge indexes are not supported"));
             }
         }
 

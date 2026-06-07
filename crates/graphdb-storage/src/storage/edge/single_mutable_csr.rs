@@ -129,13 +129,13 @@ impl SingleMutableCsr {
 
     pub fn insert_edge(
         &mut self,
-        src: VertexId,
+        src: u32,
         dst: VertexId,
         edge_id: EdgeId,
         prop_offset: u32,
         ts: Timestamp,
     ) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
+        let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
             self.ensure_vertex_capacity(src_idx + 1);
@@ -160,8 +160,8 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn delete_edge(&mut self, src: VertexId, ts: Timestamp) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
+    pub fn delete_edge(&mut self, src: u32, ts: Timestamp) -> bool {
+        let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
             return false;
@@ -178,12 +178,12 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn delete_edge_by_id(&mut self, src: VertexId, _edge_id: EdgeId, ts: Timestamp) -> bool {
+    pub fn delete_edge_by_id(&mut self, src: u32, _edge_id: EdgeId, ts: Timestamp) -> bool {
         self.delete_edge(src, ts)
     }
 
-    pub fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
+    pub fn delete_edge_by_dst(&mut self, src: u32, dst: VertexId, ts: Timestamp) -> bool {
+        let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
             return false;
@@ -200,19 +200,19 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn delete_edge_by_offset(&mut self, src: VertexId, _offset: i32, ts: Timestamp) -> bool {
+    pub fn delete_edge_by_offset(&mut self, src: u32, _offset: i32, ts: Timestamp) -> bool {
         if _offset != 0 {
             return false;
         }
         self.delete_edge(src, ts)
     }
 
-    pub fn revert_delete_by_offset(&mut self, src: VertexId, _offset: i32, ts: Timestamp) -> bool {
+    pub fn revert_delete_by_offset(&mut self, src: u32, _offset: i32, ts: Timestamp) -> bool {
         if _offset != 0 {
             return false;
         }
 
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
+        let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
             return false;
@@ -229,8 +229,8 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn get_edge(&self, src: VertexId, ts: Timestamp) -> Option<Nbr> {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
+    pub fn get_edge(&self, src: u32, ts: Timestamp) -> Option<Nbr> {
+        let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
             return None;
@@ -245,7 +245,7 @@ impl SingleMutableCsr {
         Some(*nbr)
     }
 
-    pub fn get_edge_by_dst(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
+    pub fn get_edge_by_dst(&self, src: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
         let edge = self.get_edge(src, ts)?;
         if edge.neighbor == dst {
             Some(edge)
@@ -254,12 +254,12 @@ impl SingleMutableCsr {
         }
     }
 
-    pub fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
+    pub fn edges_of(&self, src: u32, ts: Timestamp) -> Vec<Nbr> {
         self.get_edge(src, ts).map_or(Vec::new(), |nbr| vec![nbr])
     }
 
-    pub fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
-        let src_idx = src.as_int64().unwrap_or(0) as usize;
+    pub fn find_deleted_edge(&self, src: u32, dst: VertexId) -> Option<EdgeId> {
+        let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
             return None;
@@ -373,11 +373,11 @@ impl<'a> Iterator for SingleMutableCsrIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.current_vertex < self.csr.vertex_capacity {
-            let src = VertexId::from_int64(self.current_vertex as i64);
+            let vid = self.current_vertex;
             self.current_vertex += 1;
 
-            if let Some(nbr) = self.csr.get_edge(src, self.ts) {
-                return Some((src, nbr));
+            if let Some(nbr) = self.csr.get_edge(vid as u32, self.ts) {
+                return Some((VertexId::from_int64(vid as i64), nbr));
             }
         }
         None
@@ -405,7 +405,7 @@ impl CsrBase for SingleMutableCsr {
 impl MutableCsrTrait for SingleMutableCsr {
     fn insert_edge(
         &mut self,
-        src: VertexId,
+        src: u32,
         dst: VertexId,
         edge_id: EdgeId,
         prop_offset: u32,
@@ -414,27 +414,27 @@ impl MutableCsrTrait for SingleMutableCsr {
         SingleMutableCsr::insert_edge(self, src, dst, edge_id, prop_offset, ts)
     }
 
-    fn delete_edge(&mut self, src: VertexId, _edge_id: EdgeId, ts: Timestamp) -> bool {
+    fn delete_edge(&mut self, src: u32, _edge_id: EdgeId, ts: Timestamp) -> bool {
         SingleMutableCsr::delete_edge(self, src, ts)
     }
 
-    fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
+    fn delete_edge_by_dst(&mut self, src: u32, dst: VertexId, ts: Timestamp) -> bool {
         SingleMutableCsr::delete_edge_by_dst(self, src, dst, ts)
     }
 
-    fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
+    fn delete_edge_by_offset(&mut self, src: u32, offset: i32, ts: Timestamp) -> bool {
         SingleMutableCsr::delete_edge_by_offset(self, src, offset, ts)
     }
 
-    fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
+    fn revert_delete_by_offset(&mut self, src: u32, offset: i32, ts: Timestamp) -> bool {
         SingleMutableCsr::revert_delete_by_offset(self, src, offset, ts)
     }
 
-    fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
+    fn get_edge(&self, src: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
         SingleMutableCsr::get_edge_by_dst(self, src, dst, ts)
     }
 
-    fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
+    fn edges_of(&self, src: u32, ts: Timestamp) -> Vec<Nbr> {
         SingleMutableCsr::edges_of(self, src, ts)
     }
 
@@ -442,7 +442,7 @@ impl MutableCsrTrait for SingleMutableCsr {
         SingleMutableCsr::compact_with_ts(self, ts, reserve_ratio)
     }
 
-    fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
+    fn find_deleted_edge(&self, src: u32, dst: VertexId) -> Option<EdgeId> {
         SingleMutableCsr::find_deleted_edge(self, src, dst)
     }
 
@@ -460,15 +460,15 @@ mod tests {
         let mut csr = SingleMutableCsr::with_capacity(10);
 
         assert!(csr.insert_edge(
-            VertexId::from_int64(0),
+            0u32,
             VertexId::from_int64(1),
             100,
             0,
             100
         ));
-        assert!(!csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(2), 101, 1, 99));
+        assert!(!csr.insert_edge(0u32, VertexId::from_int64(2), 101, 1, 99));
         assert!(csr.insert_edge(
-            VertexId::from_int64(0),
+            0u32,
             VertexId::from_int64(2),
             102,
             1,
@@ -484,21 +484,21 @@ mod tests {
 
         // Use insert_edge to populate data
         csr1.insert_edge(
-            VertexId::from_int64(0),
+            0u32,
             VertexId::from_int64(10),
             100,
             0,
             100,
         );
         csr1.insert_edge(
-            VertexId::from_int64(1),
+            1u32,
             VertexId::from_int64(20),
             101,
             0,
             100,
         );
         csr1.insert_edge(
-            VertexId::from_int64(2),
+            2u32,
             VertexId::from_int64(30),
             102,
             0,

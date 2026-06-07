@@ -127,8 +127,6 @@ impl<S: StorageClient> StorageReader for MetricsStorage<S> {
     wrap_read!(list_edge_types(self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError>);
     wrap_read!(get_tag_index(self, space: &str, index: &str) -> Result<Option<Index>, StorageError>);
     wrap_read!(list_tag_indexes(self, space: &str) -> Result<Vec<Index>, StorageError>);
-    wrap_read!(get_edge_index(self, space: &str, index: &str) -> Result<Option<Index>, StorageError>);
-    wrap_read!(list_edge_indexes(self, space: &str) -> Result<Vec<Index>, StorageError>);
 }
 
 impl<S: StorageClient> StorageWriter for MetricsStorage<S> {
@@ -162,9 +160,6 @@ impl<S: StorageClient> StorageSchemaOps for MetricsStorage<S> {
     wrap_write!(create_tag_index(self, space: &str, info: &Index) -> Result<bool, StorageError>);
     wrap_write!(drop_tag_index(self, space: &str, index: &str) -> Result<bool, StorageError>);
     wrap_write!(rebuild_tag_index(self, space: &str, index: &str) -> Result<bool, StorageError>);
-    wrap_write!(create_edge_index(self, space: &str, info: &Index) -> Result<bool, StorageError>);
-    wrap_write!(drop_edge_index(self, space: &str, index: &str) -> Result<bool, StorageError>);
-    wrap_write!(rebuild_edge_index(self, space: &str, index: &str) -> Result<bool, StorageError>);
 }
 
 impl<S: StorageClient> StorageAuthOps for MetricsStorage<S> {

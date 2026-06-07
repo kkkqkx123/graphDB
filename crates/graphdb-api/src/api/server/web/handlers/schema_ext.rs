@@ -176,9 +176,7 @@ async fn get_space_details<
         let tag_indexes = storage
             .list_tag_indexes(&name)
             .map_err(|e| WebError::Storage(e.to_string()))?;
-        let edge_indexes = storage
-            .list_edge_indexes(&name)
-            .map_err(|e| WebError::Storage(e.to_string()))?;
+        let edge_indexes: Vec<crate::core::types::Index> = Vec::new();
 
         Ok::<_, WebError>(SpaceDetail {
             id: space_info.space_id,
@@ -236,9 +234,7 @@ async fn get_space_statistics<
         let tag_indexes = storage
             .list_tag_indexes(&name)
             .map_err(|e| WebError::Storage(e.to_string()))?;
-        let edge_indexes = storage
-            .list_edge_indexes(&name)
-            .map_err(|e| WebError::Storage(e.to_string()))?;
+        let edge_indexes: Vec<crate::core::types::Index> = Vec::new();
 
         Ok::<_, WebError>(SpaceStatistics {
             tag_count: tags.len() as i64,
@@ -830,9 +826,6 @@ async fn list_indexes<
         let tag_indexes = storage
             .list_tag_indexes(&space_name)
             .map_err(|e| WebError::Storage(e.to_string()))?;
-        let edge_indexes = storage
-            .list_edge_indexes(&space_name)
-            .map_err(|e| WebError::Storage(e.to_string()))?;
 
         let mut index_list: Vec<IndexInfo> = Vec::new();
 
@@ -847,19 +840,6 @@ async fn list_indexes<
                 created_at: 0,
             });
         }
-
-        for (idx, index) in edge_indexes.iter().enumerate() {
-            index_list.push(IndexInfo {
-                id: (tag_indexes.len() + idx) as i64,
-                name: index.name.clone(),
-                index_type: format!("{:?}", index.index_type),
-                fields: index.fields.iter().map(|f| f.name.clone()).collect(),
-                status: format!("{:?}", index.status),
-                progress: None,
-                created_at: 0,
-            });
-        }
-
         Ok::<_, WebError>(serde_json::json!({
             "space": space_name,
             "space_id": space_info.space_id,
@@ -949,22 +929,6 @@ async fn get_index<
         // Try to get tag index first
         if let Some(index) = storage
             .get_tag_index(&space_name, &index_name)
-            .map_err(|e| WebError::Storage(e.to_string()))?
-        {
-            return Ok::<_, WebError>(IndexInfo {
-                id: 0,
-                name: index.name,
-                index_type: format!("{:?}", index.index_type),
-                fields: index.fields.iter().map(|f| f.name.clone()).collect(),
-                status: format!("{:?}", index.status),
-                progress: None,
-                created_at: 0,
-            });
-        }
-
-        // Try to get edge index
-        if let Some(index) = storage
-            .get_edge_index(&space_name, &index_name)
             .map_err(|e| WebError::Storage(e.to_string()))?
         {
             return Ok::<_, WebError>(IndexInfo {

@@ -5,10 +5,9 @@
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use crate::core::Value;
+use crate::core::error::DBError;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::query::DataSet;
 use crate::storage::StorageClient;
 
 /// Display the status of the edge index executor.
@@ -62,62 +61,7 @@ impl<S: StorageClient> ShowEdgeIndexStatusExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgeIndexStatusExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
-        let storage = self.get_storage();
-        let storage_guard = storage.read();
-
-        let indexes = storage_guard.list_edge_indexes(&self.space_name);
-
-        match indexes {
-            Ok(all_indexes) => {
-                let filtered_indexes: Vec<_> = if let Some(ref name) = self.index_name {
-                    all_indexes
-                        .iter()
-                        .filter(|idx| &idx.name == name)
-                        .cloned()
-                        .collect()
-                } else {
-                    all_indexes
-                };
-
-                if filtered_indexes.is_empty() {
-                    if let Some(ref name) = self.index_name {
-                        return Ok(ExecutionResult::Error(format!(
-                            "Index '{}' not found",
-                            name
-                        )));
-                    }
-                }
-
-                let rows: Vec<Vec<Value>> = filtered_indexes
-                    .iter()
-                    .map(|idx| {
-                        vec![
-                            Value::String(idx.name.clone()),
-                            Value::String(idx.schema_name.clone()),
-                            Value::String(idx.properties.join(", ")),
-                            Value::String(format!("{:?}", idx.status)),
-                            Value::BigInt(idx.id as i64),
-                        ]
-                    })
-                    .collect();
-
-                let dataset = DataSet {
-                    col_names: vec![
-                        "Index Name".to_string(),
-                        "Edge Name".to_string(),
-                        "Fields".to_string(),
-                        "Status".to_string(),
-                        "Pending Parts".to_string(),
-                    ],
-                    rows,
-                };
-                Ok(ExecutionResult::DataSet(dataset))
-            }
-            Err(e) => Ok(ExecutionResult::Error(format!(
-                "Failed to show edge index status: {}",
-                e
-            ))),
-        }
+        Err(DBError::storage("edge indexes are not supported"))
     }
 
     fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
@@ -176,7 +120,7 @@ mod tests {
             ShowEdgeIndexStatusExecutor::new(1, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -194,7 +138,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]

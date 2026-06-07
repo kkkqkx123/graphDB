@@ -13,7 +13,7 @@ impl KeyParser {
     // Vertex Forward Index Key Parsing
     // ========================================================================
 
-    pub fn parse_vertex_id_from_key(key_bytes: &[u8]) -> Result<Value, StorageError> {
+    fn parse_key_parts(key_bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>, usize), StorageError> {
         let mut pos = 9;
 
         if key_bytes.len() < pos + 4 {
@@ -30,7 +30,15 @@ impl KeyParser {
         }
         let prop_value_len =
             u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
-        pos += 4 + prop_value_len;
+        pos += 4;
+
+        if key_bytes.len() < pos + prop_value_len {
+            return Err(StorageError::db_error(
+                "Invalid key: prop_value exceeds key length".to_string(),
+            ));
+        }
+        let prop_value = key_bytes[pos..pos + prop_value_len].to_vec();
+        pos += prop_value_len;
 
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::db_error(
@@ -46,8 +54,19 @@ impl KeyParser {
                 "Invalid key: vertex_id exceeds key length".to_string(),
             ));
         }
-        let vertex_id_bytes = &key_bytes[pos..pos + vertex_id_len];
-        deserialize_value(vertex_id_bytes)
+        let vertex_id = key_bytes[pos..pos + vertex_id_len].to_vec();
+
+        Ok((prop_value, vertex_id, pos + vertex_id_len))
+    }
+
+    pub fn parse_vertex_id_from_key(key_bytes: &[u8]) -> Result<Value, StorageError> {
+        let (_, vertex_id_bytes, _) = Self::parse_key_parts(key_bytes)?;
+        deserialize_value(&vertex_id_bytes)
+    }
+
+    pub fn parse_prop_value_from_key(key_bytes: &[u8]) -> Result<Value, StorageError> {
+        let (prop_value_bytes, _, _) = Self::parse_key_parts(key_bytes)?;
+        deserialize_value(&prop_value_bytes)
     }
 
     // ========================================================================
@@ -102,74 +121,6 @@ impl KeyParser {
         Ok((vertex_id_bytes, index_name))
     }
 
-    // ========================================================================
-    // Edge Reverse Index Key Parsing
-    // ========================================================================
-
-    pub fn parse_edge_reverse_key_v2(
-        key_bytes: &[u8],
-    ) -> Result<(Vec<u8>, Vec<u8>, String), StorageError> {
-        if key_bytes.len() < 9 {
-            return Err(StorageError::db_error(
-                "Invalid edge reverse key v2: too short".to_string(),
-            ));
-        }
-
-        let mut pos = 9;
-
-        if key_bytes.len() < pos + 4 {
-            return Err(StorageError::db_error(
-                "Invalid edge reverse key v2: missing src_len".to_string(),
-            ));
-        }
-        let src_len =
-            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
-        pos += 4;
-
-        if key_bytes.len() < pos + src_len {
-            return Err(StorageError::db_error(
-                "Invalid edge reverse key v2: src exceeds key length".to_string(),
-            ));
-        }
-        let src_bytes = key_bytes[pos..pos + src_len].to_vec();
-        pos += src_len;
-
-        if key_bytes.len() < pos + 4 {
-            return Err(StorageError::db_error(
-                "Invalid edge reverse key v2: missing dst_len".to_string(),
-            ));
-        }
-        let dst_len =
-            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
-        pos += 4;
-
-        if key_bytes.len() < pos + dst_len {
-            return Err(StorageError::db_error(
-                "Invalid edge reverse key v2: dst exceeds key length".to_string(),
-            ));
-        }
-        let dst_bytes = key_bytes[pos..pos + dst_len].to_vec();
-        pos += dst_len;
-
-        if key_bytes.len() < pos + 4 {
-            return Err(StorageError::db_error(
-                "Invalid edge reverse key v2: missing index_name_len".to_string(),
-            ));
-        }
-        let index_name_len =
-            u32::from_le_bytes(key_bytes[pos..pos + 4].try_into().unwrap_or([0; 4])) as usize;
-        pos += 4;
-
-        if key_bytes.len() < pos + index_name_len {
-            return Err(StorageError::db_error(
-                "Invalid edge reverse key v2: index_name exceeds key length".to_string(),
-            ));
-        }
-        let index_name = String::from_utf8(key_bytes[pos..pos + index_name_len].to_vec())
-            .map_err(|e| StorageError::db_error(format!("Invalid index_name encoding: {}", e)))?;
-
-        Ok((src_bytes, dst_bytes, index_name))
-    }
 }
 
 #[cfg(test)]
@@ -209,26 +160,5 @@ mod tests {
 
         let vertex_id_bytes = serialize_value(&vertex_id).expect("serialize_value should succeed");
         assert_eq!(parsed_vid_bytes, vertex_id_bytes);
-    }
-
-    #[test]
-    fn test_parse_edge_reverse_key_v2() {
-        let space_id = 1u64;
-        let src = Value::Int(100);
-        let dst = Value::Int(200);
-        let index_name = "edge_idx";
-
-        let key = KeyBuilder::build_edge_reverse_key_v2(space_id, &src, &dst, index_name)
-            .expect("build_edge_reverse_key_v2 should succeed");
-
-        let (parsed_src_bytes, parsed_dst_bytes, parsed_name) =
-            KeyParser::parse_edge_reverse_key_v2(&key.0)
-                .expect("parse_edge_reverse_key_v2 should succeed");
-        assert_eq!(parsed_name, index_name);
-
-        let src_bytes = serialize_value(&src).expect("serialize_value should succeed");
-        let dst_bytes = serialize_value(&dst).expect("serialize_value should succeed");
-        assert_eq!(parsed_src_bytes, src_bytes);
-        assert_eq!(parsed_dst_bytes, dst_bytes);
     }
 }

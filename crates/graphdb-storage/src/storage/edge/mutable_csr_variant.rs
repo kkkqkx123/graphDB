@@ -79,51 +79,51 @@ impl CsrBase for MutableCsrVariant {
 impl MutableCsrTrait for MutableCsrVariant {
     fn insert_edge(
         &mut self,
-        src: VertexId,
+        src_vid: u32,
         dst: VertexId,
         edge_id: EdgeId,
         prop_offset: u32,
         ts: Timestamp,
     ) -> bool {
-        delegate!(self.insert_edge(src, dst, edge_id, prop_offset, ts))
+        delegate!(self.insert_edge(src_vid, dst, edge_id, prop_offset, ts))
     }
 
-    fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool {
+    fn delete_edge(&mut self, src_vid: u32, edge_id: EdgeId, ts: Timestamp) -> bool {
         match self {
-            MutableCsrVariant::Multiple(csr) => csr.delete_edge(src, edge_id, ts),
-            MutableCsrVariant::Single(csr) => csr.delete_edge_by_id(src, edge_id, ts),
+            MutableCsrVariant::Multiple(csr) => csr.delete_edge(src_vid, edge_id, ts),
+            MutableCsrVariant::Single(csr) => csr.delete_edge_by_id(src_vid, edge_id, ts),
         }
     }
 
-    fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool {
-        delegate!(self.delete_edge_by_dst(src, dst, ts))
+    fn delete_edge_by_dst(&mut self, src_vid: u32, dst: VertexId, ts: Timestamp) -> bool {
+        delegate!(self.delete_edge_by_dst(src_vid, dst, ts))
     }
 
-    fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
-        delegate!(self.delete_edge_by_offset(src, offset, ts))
+    fn delete_edge_by_offset(&mut self, src_vid: u32, offset: i32, ts: Timestamp) -> bool {
+        delegate!(self.delete_edge_by_offset(src_vid, offset, ts))
     }
 
-    fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool {
-        delegate!(self.revert_delete_by_offset(src, offset, ts))
+    fn revert_delete_by_offset(&mut self, src_vid: u32, offset: i32, ts: Timestamp) -> bool {
+        delegate!(self.revert_delete_by_offset(src_vid, offset, ts))
     }
 
-    fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
+    fn get_edge(&self, src_vid: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
         match self {
-            MutableCsrVariant::Multiple(csr) => csr.get_edge(src, dst, ts),
-            MutableCsrVariant::Single(csr) => csr.get_edge_by_dst(src, dst, ts),
+            MutableCsrVariant::Multiple(csr) => csr.get_edge(src_vid, dst, ts),
+            MutableCsrVariant::Single(csr) => csr.get_edge_by_dst(src_vid, dst, ts),
         }
     }
 
-    fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr> {
-        delegate!(self.edges_of(src, ts))
+    fn edges_of(&self, src_vid: u32, ts: Timestamp) -> Vec<Nbr> {
+        delegate!(self.edges_of(src_vid, ts))
     }
 
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         delegate!(self.compact_with_ts(ts, reserve_ratio))
     }
 
-    fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId> {
-        delegate!(self.find_deleted_edge(src, dst))
+    fn find_deleted_edge(&self, src_vid: u32, dst: VertexId) -> Option<EdgeId> {
+        delegate!(self.find_deleted_edge(src_vid, dst))
     }
 
     fn used_memory_size(&self) -> usize {
@@ -164,7 +164,7 @@ mod tests {
     fn test_multiple_csr_variant() {
         let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
 
-        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
@@ -172,14 +172,14 @@ mod tests {
     fn test_single_csr_variant() {
         let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Single, 10, 100).unwrap();
 
-        assert!(csr.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
     #[test]
     fn test_clone() {
         let mut csr1 = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
-        csr1.insert_edge(VertexId::from_int64(0), VertexId::from_int64(1), 100, 0, 1);
+        csr1.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1);
 
         let csr2 = csr1.clone();
         assert_eq!(csr2.edge_count(), 1);

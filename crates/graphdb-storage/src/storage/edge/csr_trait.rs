@@ -25,7 +25,7 @@ pub trait MutableCsrTrait: CsrBase {
     /// - `SingleMutableCsr`: overwrites based on timestamp ordering (only if new ts > existing ts).
     fn insert_edge(
         &mut self,
-        src: VertexId,
+        src_vid: u32,
         dst: VertexId,
         edge_id: EdgeId,
         prop_offset: u32,
@@ -36,31 +36,31 @@ pub trait MutableCsrTrait: CsrBase {
     ///
     /// - `MutableCsr`: uses `edge_id` to locate and delete the specific edge.
     /// - `SingleMutableCsr`: `edge_id` is **ignored** since there is only one edge per vertex.
-    fn delete_edge(&mut self, src: VertexId, edge_id: EdgeId, ts: Timestamp) -> bool;
+    fn delete_edge(&mut self, src_vid: u32, edge_id: EdgeId, ts: Timestamp) -> bool;
 
     /// Delete all edges matching (src, dst).
     ///
     /// - `MutableCsr`: scans primary and overflow, deletes **all** matching edges.
     /// - `SingleMutableCsr`: deletes the single edge if dst matches.
-    fn delete_edge_by_dst(&mut self, src: VertexId, dst: VertexId, ts: Timestamp) -> bool;
+    fn delete_edge_by_dst(&mut self, src_vid: u32, dst: VertexId, ts: Timestamp) -> bool;
 
     /// Delete an edge by its offset position in the primary block.
     ///
     /// - `MutableCsr`: offset indexes into the primary block of the vertex.
     /// - `SingleMutableCsr`: only offset == 0 is valid; returns false otherwise.
-    fn delete_edge_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool;
+    fn delete_edge_by_offset(&mut self, src_vid: u32, offset: i32, ts: Timestamp) -> bool;
 
     /// Revert a deleted edge by its offset position.
     ///
     /// - `MutableCsr`: offset indexes into the primary block.
     /// - `SingleMutableCsr`: only offset == 0 is valid.
-    fn revert_delete_by_offset(&mut self, src: VertexId, offset: i32, ts: Timestamp) -> bool;
+    fn revert_delete_by_offset(&mut self, src_vid: u32, offset: i32, ts: Timestamp) -> bool;
 
     /// Get a specific edge by source and destination.
-    fn get_edge(&self, src: VertexId, dst: VertexId, ts: Timestamp) -> Option<Nbr>;
+    fn get_edge(&self, src_vid: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr>;
 
     /// Get all valid edges of a vertex at the given timestamp.
-    fn edges_of(&self, src: VertexId, ts: Timestamp) -> Vec<Nbr>;
+    fn edges_of(&self, src_vid: u32, ts: Timestamp) -> Vec<Nbr>;
 
     /// Compact with timestamp threshold and reserve ratio.
     ///
@@ -73,7 +73,7 @@ pub trait MutableCsrTrait: CsrBase {
     }
 
     /// Find a deleted edge by destination vertex.
-    fn find_deleted_edge(&self, src: VertexId, dst: VertexId) -> Option<EdgeId>;
+    fn find_deleted_edge(&self, src_vid: u32, dst: VertexId) -> Option<EdgeId>;
 
     /// Return the approximate memory usage in bytes.
     fn used_memory_size(&self) -> usize;

@@ -93,8 +93,6 @@ impl StorageReader for MockStorage {
     mock_stub!(&self, list_edge_types(_space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError>, Ok(Vec::new()));
     mock_stub!(&self, get_tag_index(_space: &str, _index: &str) -> Result<Option<Index>, StorageError>, Ok(None));
     mock_stub!(&self, list_tag_indexes(_space: &str) -> Result<Vec<Index>, StorageError>, Ok(Vec::new()));
-    mock_stub!(&self, get_edge_index(_space: &str, _index: &str) -> Result<Option<Index>, StorageError>, Ok(None));
-    mock_stub!(&self, list_edge_indexes(_space: &str) -> Result<Vec<Index>, StorageError>, Ok(Vec::new()));
 }
 
 impl StorageWriter for MockStorage {
@@ -155,9 +153,6 @@ impl StorageSchemaOps for MockStorage {
     mock_stub!(&mut self, create_tag_index(_space: &str, _info: &Index) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, drop_tag_index(_space: &str, _index: &str) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, rebuild_tag_index(_space: &str, _index: &str) -> Result<bool, StorageError>, Ok(true));
-    mock_stub!(&mut self, create_edge_index(_space: &str, _info: &Index) -> Result<bool, StorageError>, Ok(true));
-    mock_stub!(&mut self, drop_edge_index(_space: &str, _index: &str) -> Result<bool, StorageError>, Ok(true));
-    mock_stub!(&mut self, rebuild_edge_index(_space: &str, _index: &str) -> Result<bool, StorageError>, Ok(true));
 }
 
 impl StorageAuthOps for MockStorage {

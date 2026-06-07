@@ -2,13 +2,14 @@ use crate::core::types::{
     DataType, EdgeTypeInfo, LabelId, PropertyDef, SpaceInfo, TagInfo, Timestamp, VertexId,
 };
 use crate::core::wal::traits::RecoveryApplier;
-use crate::core::{StorageError, StorageResult};
+use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeStrategy;
 use crate::storage::engine::graph_storage::GraphStorageContext;
 use crate::storage::engine::params::{CreateEdgeTypeParams, EdgeOperationParams};
-use crate::storage::engine::transaction::{AddEdgeParams, DeleteEdgeParams, TransactionOps};
+use crate::storage::engine::transaction::{AddEdgeParams, TransactionOps};
 use crate::storage::types::StoragePropertyDef;
 use crate::transaction::codec::bytes_to_value;
+use graphdb_core::core::metadata::IndexMetadataManager;
 use crate::transaction::wal::{
     AddEdgePropRedo, AddVertexPropRedo, AlterSpaceCommentRedo, ClearSpaceRedo, CreateEdgeTypeRedo,
     CreateSpaceRedo, CreateVertexTypeRedo, DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo,
@@ -33,6 +34,12 @@ impl RecoveryApplier for GraphStorageContext {
             TransactionOps::add_vertex(&mut vertex_tables, label, vid, properties, ts)?;
         }
         self.mark_vertex_modified(label);
+
+        // Replay vertex index updates so indexes stay consistent after crash recovery.
+        // Without this, a crash between vertex-write and index-update in the normal
+        // write path would leave indexes permanently stale.
+        self.replay_vertex_index_update(label, vid, properties, ts)?;
+
         Ok(())
     }
 
@@ -71,9 +78,9 @@ impl RecoveryApplier for GraphStorageContext {
 
         let params = AddEdgeParams {
             src_label: redo.src_label,
-            src_vid: VertexId::from_u64(src_internal as u64),
+            src_vid: src_internal,
             dst_label: redo.dst_label,
-            dst_vid: VertexId::from_u64(dst_internal as u64),
+            dst_vid: dst_internal,
             edge_label: redo.edge_label,
             rank: redo.rank,
         };
@@ -81,14 +88,29 @@ impl RecoveryApplier for GraphStorageContext {
         {
             let vertex_tables = self.data_store().vertex_tables().read();
             let mut edge_tables = self.data_store().edge_tables().write();
-            TransactionOps::add_edge(
+
+            // Idempotent replay: if the edge already exists, it was persisted before
+            // the crash (data was flushed past this WAL entry). Skip silently.
+            if let Err(e) = TransactionOps::add_edge(
                 &mut edge_tables,
                 &vertex_tables,
                 params,
                 &redo.properties,
                 ts,
-            )
-            .map_err(|e| StorageError::db_error(format!("Failed to replay insert edge: {}", e)))?;
+            ) {
+                use crate::transaction::insert_transaction::InsertTransactionError;
+                match &e {
+                    InsertTransactionError::SchemaError(msg) if msg.contains("already exists") => {
+                        // edge already present — idempotent, skip
+                    }
+                    _ => {
+                        return Err(StorageError::db_error(format!(
+                            "Failed to replay insert edge: {}",
+                            e
+                        )));
+                    }
+                }
+            }
         }
 
         self.mark_edge_modified(redo.edge_label);
@@ -176,57 +198,45 @@ impl RecoveryApplier for GraphStorageContext {
                 })?;
         }
         self.mark_vertex_modified(label);
+
+        self.replay_vertex_index_delete(label, vid, ts)?;
+
         Ok(())
     }
 
     fn replay_delete_edge(&self, redo: &DeleteEdgeRedo, ts: Timestamp) -> StorageResult<()> {
+        let key = crate::storage::engine::data_store::EdgeTableKey::new(
+            redo.src_label,
+            redo.dst_label,
+            redo.edge_label,
+        );
+
         let (src_internal, dst_internal) = {
             let vertex_tables = self.data_store().vertex_tables().read();
-            let src_table = vertex_tables.get(&redo.src_label).ok_or_else(|| {
-                StorageError::db_error(format!(
-                    "Source vertex label not found during recovery: label={}",
-                    redo.src_label
-                ))
-            })?;
-            let dst_table = vertex_tables.get(&redo.dst_label).ok_or_else(|| {
-                StorageError::db_error(format!(
-                    "Destination vertex label not found during recovery: label={}",
-                    redo.dst_label
-                ))
-            })?;
-
-            let src_internal = TransactionOps::resolve_vertex_id(src_table, redo.src_vid, ts)
+            let src_internal = resolve_external_vid(&vertex_tables, redo.src_label, redo.src_vid, ts)
                 .ok_or_else(|| {
                     StorageError::db_error(format!(
-                        "Source vertex not found during recovery: label={}, vid={:?}",
+                        "Source vertex not found during delete-edge recovery: label={}, vid={:?}",
                         redo.src_label, redo.src_vid
                     ))
                 })?;
-            let dst_internal = TransactionOps::resolve_vertex_id(dst_table, redo.dst_vid, ts)
+            let dst_internal = resolve_external_vid(&vertex_tables, redo.dst_label, redo.dst_vid, ts)
                 .ok_or_else(|| {
                     StorageError::db_error(format!(
-                        "Destination vertex not found during recovery: label={}, vid={:?}",
+                        "Destination vertex not found during delete-edge recovery: label={}, vid={:?}",
                         redo.dst_label, redo.dst_vid
                     ))
                 })?;
             (src_internal, dst_internal)
         };
 
-        let params = DeleteEdgeParams {
-            src_label: redo.src_label,
-            src_vid: VertexId::from_u64(src_internal as u64),
-            dst_label: redo.dst_label,
-            dst_vid: VertexId::from_u64(dst_internal as u64),
-            edge_label: redo.edge_label,
-            rank: redo.rank,
-        };
-
         {
             let mut edge_tables = self.data_store().edge_tables().write();
-            TransactionOps::delete_edge(&mut edge_tables, params, 0, 0, ts).map_err(|e| {
-                StorageError::db_error(format!("Failed to replay delete edge: {}", e))
-            })?;
+            if let Some(table) = edge_tables.get_mut(&key) {
+                let _ = table.delete_edge(src_internal, dst_internal, redo.rank, ts)?;
+            }
         }
+
         self.mark_edge_modified(redo.edge_label);
         Ok(())
     }
@@ -608,7 +618,89 @@ impl RecoveryApplier for GraphStorageContext {
     }
 }
 
+/// Resolve an external VertexId to its internal u32 ID.
+fn resolve_external_vid(
+    vertex_tables: &std::collections::HashMap<
+        LabelId,
+        crate::storage::vertex::VertexTable,
+    >,
+    label: LabelId,
+    vid: VertexId,
+    ts: Timestamp,
+) -> Option<u32> {
+    let table = vertex_tables.get(&label)?;
+    if let Some(int_id) = vid.as_int64() {
+        table.get_internal_id_by_i64(int_id, ts)
+    } else if let Some(str_id) = vid.as_str() {
+        table.get_internal_id(str_id, ts)
+    } else {
+        None
+    }
+}
+
 impl GraphStorageContext {
+    /// Replay vertex index updates after a vertex insert recovery.
+    /// Ensures indexes are consistent with data even if the original
+    /// write crashed between the data-write and index-update steps.
+    fn replay_vertex_index_update(
+        &self,
+        label: LabelId,
+        vid: VertexId,
+        properties: &[(String, Vec<u8>)],
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        let Some((space_name, tag_info)) = self.schema_manager().find_tag_by_id(label) else {
+            return Ok(());
+        };
+        let Some(space_info) = self.schema_manager().get_space(&space_name)? else {
+            return Ok(());
+        };
+        let space_id = space_info.space_id;
+        let props: Vec<(String, Value)> = properties
+            .iter()
+            .filter_map(|(name, bytes)| bytes_to_value(bytes).map(|val| (name.clone(), val)))
+            .collect();
+        if props.is_empty() {
+            return Ok(());
+        }
+        let indexes = self.index_metadata_manager().list_tag_indexes(space_id)?;
+        let vid_value = Value::from(vid);
+        for index in indexes {
+            if index.schema_name == tag_info.tag_name {
+                self.update_vertex_indexes_mvcc(space_id, &vid_value, &index.name, &props, ts)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Replay vertex index deletion after a vertex delete recovery.
+    fn replay_vertex_index_delete(
+        &self,
+        label: LabelId,
+        vid: VertexId,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        let Some((space_name, tag_info)) = self.schema_manager().find_tag_by_id(label) else {
+            return Ok(());
+        };
+        let Some(space_info) = self.schema_manager().get_space(&space_name)? else {
+            return Ok(());
+        };
+        let space_id = space_info.space_id;
+        let index_names: Vec<String> = self
+            .index_metadata_manager()
+            .list_tag_indexes(space_id)?
+            .into_iter()
+            .filter(|index| index.schema_name == tag_info.tag_name)
+            .map(|index| index.name)
+            .collect();
+        if !index_names.is_empty() {
+            let vid_value = Value::from(vid);
+            self.delete_vertex_indexes_mvcc(space_id, &vid_value, &index_names, ts)?;
+        }
+        Ok(())
+    }
+
     fn ensure_recovery_space(&self, space_name: &str) -> StorageResult<()> {
         if self.schema_manager().get_space(space_name)?.is_some() {
             return Ok(());
@@ -705,7 +797,8 @@ fn parse_data_type(raw: &str) -> StorageResult<DataType> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::wal::traits::RecoveryApplier;
+use graphdb_core::core::metadata::IndexMetadataManager;
+use crate::core::wal::traits::RecoveryApplier;
     use crate::core::Value;
     use crate::storage::engine::{EdgeOperationParams, InsertEdgeParams};
 

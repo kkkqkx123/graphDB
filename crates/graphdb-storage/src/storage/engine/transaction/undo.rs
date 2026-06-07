@@ -54,9 +54,9 @@ impl UndoTarget for GraphStorageContext {
     fn delete_edge(&self, edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
         let params = DeleteEdgeParams {
             src_label: edge_ctx.edge_id.src_label,
-            src_vid: edge_ctx.edge_id.src_vid,
+            src_vid: edge_ctx.edge_id.src_vid.as_int64().unwrap_or(0) as u32,
             dst_label: edge_ctx.edge_id.dst_label,
-            dst_vid: edge_ctx.edge_id.dst_vid,
+            dst_vid: edge_ctx.edge_id.dst_vid.as_int64().unwrap_or(0) as u32,
             edge_label: edge_ctx.edge_id.edge_label,
             rank: edge_ctx.edge_id.rank,
         };
@@ -107,9 +107,9 @@ impl UndoTarget for GraphStorageContext {
     ) -> UndoLogResult<()> {
         let params = UpdateEdgePropertyUndoParams {
             src_label: edge_id.src_label,
-            src_vid: edge_id.src_vid,
+            src_vid: edge_id.src_vid.as_int64().unwrap_or(0) as u32,
             dst_label: edge_id.dst_label,
-            dst_vid: edge_id.dst_vid,
+            dst_vid: edge_id.dst_vid.as_int64().unwrap_or(0) as u32,
             edge_label: edge_id.edge_label,
             rank: edge_id.rank,
         };
@@ -143,8 +143,8 @@ impl UndoTarget for GraphStorageContext {
             src_label: edge_ctx.edge_id.src_label,
             dst_label: edge_ctx.edge_id.dst_label,
             edge_label: edge_ctx.edge_id.edge_label,
-            src_vid: edge_ctx.edge_id.src_vid,
-            dst_vid: edge_ctx.edge_id.dst_vid,
+            src_vid: edge_ctx.edge_id.src_vid.as_int64().unwrap_or(0) as u32,
+            dst_vid: edge_ctx.edge_id.dst_vid.as_int64().unwrap_or(0) as u32,
             rank: edge_ctx.edge_id.rank,
         };
         {

@@ -238,7 +238,6 @@ impl IndexGcManager {
                     if !stats.is_empty() {
                         tracing::debug!(
                             vertex_removed = stats.vertex_entries_removed,
-                            edge_removed = stats.edge_entries_removed,
                             "GC pass completed"
                         );
                     }

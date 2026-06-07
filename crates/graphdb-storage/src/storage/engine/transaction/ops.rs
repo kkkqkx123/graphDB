@@ -20,9 +20,9 @@ use crate::storage::vertex::VertexTable;
 /// Parameters for add_edge operation
 pub struct AddEdgeParams {
     pub src_label: LabelId,
-    pub src_vid: VertexId,
+    pub src_vid: u32,
     pub dst_label: LabelId,
-    pub dst_vid: VertexId,
+    pub dst_vid: u32,
     pub edge_label: LabelId,
     pub rank: i64,
 }
@@ -30,9 +30,9 @@ pub struct AddEdgeParams {
 /// Parameters for delete_edge operation
 pub struct DeleteEdgeParams {
     pub src_label: LabelId,
-    pub src_vid: VertexId,
+    pub src_vid: u32,
     pub dst_label: LabelId,
-    pub dst_vid: VertexId,
+    pub dst_vid: u32,
     pub edge_label: LabelId,
     pub rank: i64,
 }
@@ -40,9 +40,9 @@ pub struct DeleteEdgeParams {
 /// Parameters for update_edge_property_undo operation
 pub struct UpdateEdgePropertyUndoParams {
     pub src_label: LabelId,
-    pub src_vid: VertexId,
+    pub src_vid: u32,
     pub dst_label: LabelId,
-    pub dst_vid: VertexId,
+    pub dst_vid: u32,
     pub edge_label: LabelId,
     pub rank: i64,
 }
@@ -50,9 +50,9 @@ pub struct UpdateEdgePropertyUndoParams {
 /// Parameters for revert_delete_edge operation
 pub struct RevertDeleteEdgeParams {
     pub src_label: LabelId,
-    pub src_vid: VertexId,
+    pub src_vid: u32,
     pub dst_label: LabelId,
-    pub dst_vid: VertexId,
+    pub dst_vid: u32,
     pub edge_label: LabelId,
     pub rank: i64,
 }
@@ -132,11 +132,11 @@ impl TransactionOps {
             .ok_or(InsertTransactionError::LabelNotFound(params.dst_label))?;
 
         let src_external = src_table
-            .get_external_id(params.src_vid.as_int64().unwrap_or(0) as u32, ts)
-            .ok_or(InsertTransactionError::VertexNotFound(params.src_vid))?;
+            .get_external_id(params.src_vid, ts)
+            .ok_or(InsertTransactionError::VertexNotFound(VertexId::from_int64(params.src_vid as i64)))?;
         let dst_external = dst_table
-            .get_external_id(params.dst_vid.as_int64().unwrap_or(0) as u32, ts)
-            .ok_or(InsertTransactionError::VertexNotFound(params.dst_vid))?;
+            .get_external_id(params.dst_vid, ts)
+            .ok_or(InsertTransactionError::VertexNotFound(VertexId::from_int64(params.dst_vid as i64)))?;
 
         let props: Vec<(String, Value)> = properties
             .iter()
@@ -157,11 +157,11 @@ impl TransactionOps {
             .get_mut(&key)
             .ok_or(InsertTransactionError::LabelNotFound(params.edge_label))?;
 
-        let edge_id = edge_table
+        let edge_offset = edge_table
             .insert_edge(params.src_vid, params.dst_vid, params.rank, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
-        Ok(edge_id)
+        Ok(edge_offset)
     }
 
     pub fn delete_vertex_type(
@@ -376,8 +376,8 @@ impl TransactionOps {
 
         table
             .update_edge_property(
-                VertexId::from_int64(src_internal as i64),
-                VertexId::from_int64(dst_internal as i64),
+                src_internal,
+                dst_internal,
                 params.rank,
                 prop_name,
                 value,

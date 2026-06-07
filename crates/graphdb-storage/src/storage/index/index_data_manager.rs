@@ -8,7 +8,6 @@
 
 use crate::core::types::{Index, Timestamp, MAX_TIMESTAMP};
 use crate::core::{StorageError, StorageResult, Value};
-use crate::storage::index::edge_index_manager::EdgeIndexManager;
 use crate::storage::index::vertex_index_manager::VertexIndexManager;
 use std::path::Path;
 
@@ -84,31 +83,6 @@ pub trait VertexIndexOps: Send + Sync {
     fn clear_tag_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError>;
 }
 
-/// Edge index operations trait.
-/// Provides update, delete, and lookup operations for edge indexes.
-pub trait EdgeIndexOps: Send + Sync {
-    fn update_edge_indexes_mvcc(
-        &self,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        index_name: &str,
-        props: &[(String, Value)],
-        write_ts: Timestamp,
-    ) -> Result<(), StorageError>;
-
-    fn delete_edge_indexes_mvcc(
-        &self,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        index_names: &[String],
-        write_ts: Timestamp,
-    ) -> Result<(), StorageError>;
-
-    fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError>;
-}
-
 /// Index garbage collection operations trait.
 pub trait IndexGcOps: Send + Sync {
     fn gc_tombstones(&self, safe_ts: Timestamp) -> Result<GcStats, StorageError>;
@@ -123,28 +97,24 @@ pub trait IndexGcOps: Send + Sync {
 #[derive(Clone)]
 pub struct IndexDataManagerImpl {
     vertex_manager: VertexIndexManager,
-    edge_manager: EdgeIndexManager,
 }
 
 impl IndexDataManagerImpl {
     pub fn new() -> Self {
         Self {
             vertex_manager: VertexIndexManager::new(),
-            edge_manager: EdgeIndexManager::new(),
         }
     }
 
     pub fn flush<P: AsRef<Path>>(&self, path: P) -> StorageResult<()> {
         let path = path.as_ref();
         self.vertex_manager.flush(path.join("vertex_index"))?;
-        self.edge_manager.flush(path.join("edge_index"))?;
         Ok(())
     }
 
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
         let path = path.as_ref();
         self.vertex_manager.load(path.join("vertex_index"))?;
-        self.edge_manager.load(path.join("edge_index"))?;
         Ok(())
     }
 }
@@ -152,16 +122,15 @@ impl IndexDataManagerImpl {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct GcStats {
     pub vertex_entries_removed: usize,
-    pub edge_entries_removed: usize,
 }
 
 impl GcStats {
     pub fn total_removed(&self) -> usize {
-        self.vertex_entries_removed + self.edge_entries_removed
+        self.vertex_entries_removed
     }
 
     pub fn is_empty(&self) -> bool {
-        self.vertex_entries_removed == 0 && self.edge_entries_removed == 0
+        self.vertex_entries_removed == 0
     }
 }
 
@@ -229,55 +198,12 @@ impl VertexIndexOps for IndexDataManagerImpl {
     }
 }
 
-impl EdgeIndexOps for IndexDataManagerImpl {
-    fn update_edge_indexes_mvcc(
-        &self,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        index_name: &str,
-        props: &[(String, Value)],
-        write_ts: Timestamp,
-    ) -> Result<(), StorageError> {
-        if write_ts == MAX_TIMESTAMP {
-            self.edge_manager
-                .update_edge_indexes(space_id, src, dst, index_name, props)
-        } else {
-            self.edge_manager
-                .update_edge_indexes_mvcc(space_id, src, dst, index_name, props, write_ts)
-        }
-    }
-
-    fn delete_edge_indexes_mvcc(
-        &self,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        index_names: &[String],
-        write_ts: Timestamp,
-    ) -> Result<(), StorageError> {
-        if write_ts == MAX_TIMESTAMP {
-            self.edge_manager
-                .delete_edge_indexes(space_id, src, dst, index_names)
-        } else {
-            self.edge_manager
-                .delete_edge_indexes_mvcc(space_id, src, dst, index_names, write_ts)
-        }
-    }
-
-    fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
-        self.edge_manager.clear_edge_index(space_id, index_name)
-    }
-}
-
 impl IndexGcOps for IndexDataManagerImpl {
     fn gc_tombstones(&self, safe_ts: Timestamp) -> Result<GcStats, StorageError> {
         let vertex_removed = self.vertex_manager.gc_tombstones(safe_ts)?;
-        let edge_removed = self.edge_manager.gc_tombstones(safe_ts)?;
 
         Ok(GcStats {
             vertex_entries_removed: vertex_removed,
-            edge_entries_removed: edge_removed,
         })
     }
 
@@ -289,22 +215,14 @@ impl IndexGcOps for IndexDataManagerImpl {
         let vertex_removed = self
             .vertex_manager
             .gc_tombstones_incremental(safe_ts, batch_size)?;
-        let remaining = batch_size.saturating_sub(vertex_removed);
-        let edge_removed = if remaining > 0 {
-            self.edge_manager
-                .gc_tombstones_incremental(safe_ts, remaining)?
-        } else {
-            0
-        };
 
         Ok(GcStats {
             vertex_entries_removed: vertex_removed,
-            edge_entries_removed: edge_removed,
         })
     }
 
     fn tombstone_count(&self) -> usize {
-        self.vertex_manager.tombstone_count() + self.edge_manager.tombstone_count()
+        self.vertex_manager.tombstone_count()
     }
 }
 

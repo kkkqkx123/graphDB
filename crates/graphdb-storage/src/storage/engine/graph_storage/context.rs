@@ -796,6 +796,22 @@ impl GraphStorageContext {
             .map(|k| k.to_string())
     }
 
+    /// Get external ID by internal ID without timestamp check.
+    /// Returns the external ID even for deleted vertices.
+    pub fn get_external_id_by_internal_id(
+        &self,
+        label: LabelId,
+        internal_id: u32,
+    ) -> Option<VertexId> {
+        let vertex_tables = self.persistent.data_store.vertex_tables().read();
+        let table = vertex_tables.get(&label)?;
+        let key = table.get_external_id_raw(internal_id)?;
+        Some(match key {
+            crate::storage::vertex::IdKey::Int(i) => VertexId::from_int64(i),
+            crate::storage::vertex::IdKey::Text(s) => VertexId::from_string(s),
+        })
+    }
+
     pub fn delete_vertex(
         &self,
         label: LabelId,
@@ -946,8 +962,8 @@ impl GraphStorageContext {
         })?;
 
         let offset = edge_table.insert_edge(
-            VertexId::from_int64(src_internal as i64),
-            VertexId::from_int64(dst_internal as i64),
+            src_internal,
+            dst_internal,
             params.rank,
             params.properties,
             params.ts,
@@ -976,8 +992,8 @@ impl GraphStorageContext {
         let edge_table = edge_tables.get(&key)?;
 
         edge_table.get_edge(
-            VertexId::from_int64(src_internal as i64),
-            VertexId::from_int64(dst_internal as i64),
+            src_internal,
+            dst_internal,
             params.rank,
             ts,
         )
@@ -992,10 +1008,24 @@ impl GraphStorageContext {
 
         let src_internal = self
             .resolve_internal_id(&vertex_tables, params.src_label, params.src_id, ts)
+            .or_else(|| {
+                self.resolve_internal_id_any(
+                    &vertex_tables,
+                    params.src_label,
+                    params.src_id,
+                )
+            })
             .ok_or(StorageError::vertex_not_found())?;
 
         let dst_internal = self
             .resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, ts)
+            .or_else(|| {
+                self.resolve_internal_id_any(
+                    &vertex_tables,
+                    params.dst_label,
+                    params.dst_id,
+                )
+            })
             .ok_or(StorageError::vertex_not_found())?;
 
         drop(vertex_tables);
@@ -1007,8 +1037,8 @@ impl GraphStorageContext {
         })?;
 
         let deleted = edge_table.delete_edge(
-            VertexId::from_int64(src_internal as i64),
-            VertexId::from_int64(dst_internal as i64),
+            src_internal,
+            dst_internal,
             params.rank,
             ts,
         )?;
@@ -1039,7 +1069,7 @@ impl GraphStorageContext {
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let edge_table = edge_tables.get(&key)?;
 
-        Some(edge_table.out_edges(VertexId::from_int64(src_internal as i64), ts))
+        Some(edge_table.out_edges(src_internal, ts))
     }
 
     pub fn in_edges(
@@ -1062,7 +1092,61 @@ impl GraphStorageContext {
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let edge_table = edge_tables.get(&key)?;
 
-        Some(edge_table.in_edges(VertexId::from_int64(dst_internal as i64), ts))
+        Some(edge_table.in_edges(dst_internal, ts))
+    }
+
+    pub fn out_edges_strict(
+        &self,
+        edge_label: LabelId,
+        src_label: LabelId,
+        dst_label: LabelId,
+        src_id: VertexId,
+        ts: Timestamp,
+    ) -> StorageResult<Vec<EdgeRecord>> {
+        if !self.persistent.is_open.load(Ordering::Acquire) {
+            return Err(StorageError::storage_not_open());
+        }
+
+        let vertex_tables = self.persistent.data_store.vertex_tables().read();
+        let src_internal = self
+            .resolve_internal_id(&vertex_tables, src_label, src_id, ts)
+            .ok_or(StorageError::vertex_not_found())?;
+        drop(vertex_tables);
+
+        let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+        let edge_tables = self.persistent.data_store.edge_tables().read();
+        let edge_table = edge_tables.get(&key).ok_or(StorageError::not_found(
+            "Edge table not found",
+        ))?;
+
+        Ok(edge_table.out_edges(src_internal, ts))
+    }
+
+    pub fn in_edges_strict(
+        &self,
+        edge_label: LabelId,
+        src_label: LabelId,
+        dst_label: LabelId,
+        dst_id: VertexId,
+        ts: Timestamp,
+    ) -> StorageResult<Vec<EdgeRecord>> {
+        if !self.persistent.is_open.load(Ordering::Acquire) {
+            return Err(StorageError::storage_not_open());
+        }
+
+        let vertex_tables = self.persistent.data_store.vertex_tables().read();
+        let dst_internal = self
+            .resolve_internal_id(&vertex_tables, dst_label, dst_id, ts)
+            .ok_or(StorageError::vertex_not_found())?;
+        drop(vertex_tables);
+
+        let key = EdgeTableKey::new(src_label, dst_label, edge_label);
+        let edge_tables = self.persistent.data_store.edge_tables().read();
+        let edge_table = edge_tables.get(&key).ok_or(StorageError::not_found(
+            "Edge table not found",
+        ))?;
+
+        Ok(edge_table.in_edges(dst_internal, ts))
     }
 
     // ── Query Operations ──
@@ -1349,9 +1433,8 @@ impl GraphStorageContext {
         match self.gc_index_tombstones(ts) {
             Ok(index_gc_stats) if index_gc_stats.total_removed() > 0 => {
                 log::info!(
-                    "Index GC during compaction: removed {} vertex entries, {} edge entries",
+                    "Index GC during compaction: removed {} vertex entries",
                     index_gc_stats.vertex_entries_removed,
-                    index_gc_stats.edge_entries_removed
                 );
             }
             Ok(_) => {}
@@ -1404,31 +1487,6 @@ impl GraphStorageContext {
         super::index_engine::delete_vertex_indexes_mvcc(self, space_id, vertex_id, index_names, ts)
     }
 
-    pub(crate) fn update_edge_indexes_mvcc(
-        &self,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        index_name: &str,
-        props: &[(String, Value)],
-        ts: Timestamp,
-    ) -> StorageResult<()> {
-        super::index_engine::update_edge_indexes_mvcc(
-            self, space_id, src, dst, index_name, props, ts,
-        )
-    }
-
-    pub(crate) fn delete_edge_indexes_mvcc(
-        &self,
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        index_names: &[String],
-        ts: Timestamp,
-    ) -> StorageResult<()> {
-        super::index_engine::delete_edge_indexes_mvcc(self, space_id, src, dst, index_names, ts)
-    }
-
     pub(crate) fn gc_index_tombstones(&self, ts: Timestamp) -> StorageResult<GcStats> {
         self.persistent.index_data_manager.write().gc_tombstones(ts)
     }
@@ -1446,6 +1504,37 @@ impl GraphStorageContext {
             self.resolve_internal_id_from_i64(vertex_tables, label, int_id, ts)
         } else if let Some(str_id) = id.as_str() {
             self.resolve_internal_id_from_str(vertex_tables, label, str_id, ts)
+        } else {
+            None
+        }
+    }
+
+    /// Resolve internal ID without timestamp check (works for deleted vertices).
+    /// Used for dangling edge repair where the endpoint vertex may be deleted.
+    fn resolve_internal_id_any(
+        &self,
+        vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
+        label: LabelId,
+        id: VertexId,
+    ) -> Option<u32> {
+        if let Some(int_id) = id.as_int64() {
+            if label == 0 {
+                vertex_tables
+                    .values()
+                    .find_map(|t| t.get_internal_id_by_i64_raw(int_id))
+            } else {
+                vertex_tables
+                    .get(&label)?
+                    .get_internal_id_by_i64_raw(int_id)
+            }
+        } else if let Some(str_id) = id.as_str() {
+            if label == 0 {
+                vertex_tables
+                    .values()
+                    .find_map(|t| t.get_internal_id_raw(str_id))
+            } else {
+                vertex_tables.get(&label)?.get_internal_id_raw(str_id)
+            }
         } else {
             None
         }

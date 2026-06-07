@@ -90,8 +90,8 @@ impl Csr {
     }
 
     /// Get edges of a vertex
-    pub fn edges_of(&self, vid: VertexId) -> &[ImmutableNbr] {
-        let vid_idx = vid.as_int64().unwrap_or(0) as usize;
+    pub fn edges_of(&self, vid: u32) -> &[ImmutableNbr] {
+        let vid_idx = vid as usize;
         if vid_idx >= self.vertex_capacity {
             return &[];
         }
@@ -107,12 +107,12 @@ impl Csr {
     }
 
     /// Get a specific edge
-    pub fn get_edge(&self, src: VertexId, dst: VertexId) -> Option<&ImmutableNbr> {
+    pub fn get_edge(&self, src: u32, dst: VertexId) -> Option<&ImmutableNbr> {
         let edges = self.edges_of(src);
         edges.iter().find(|e| e.neighbor == dst)
     }
 
-    pub fn from_nbr_entries(entries: &[(VertexId, Nbr)], vertex_capacity: usize) -> Self {
+    pub fn from_nbr_entries(entries: &[(u32, Nbr)], vertex_capacity: usize) -> Self {
         let mut csr = Self::with_capacity(vertex_capacity.max(1), entries.len());
         if entries.is_empty() {
             return csr;
@@ -135,7 +135,7 @@ impl Csr {
 
     pub fn batch_put_edges_with_timestamps(
         &mut self,
-        src_list: &[VertexId],
+        src_list: &[u32],
         dst_list: &[VertexId],
         edge_ids: &[EdgeId],
         prop_offsets: &[u32],
@@ -145,20 +145,14 @@ impl Csr {
             return;
         }
 
-        let max_vertex = src_list
-            .iter()
-            .max()
-            .cloned()
-            .unwrap_or(VertexId::zero())
-            .as_int64()
-            .unwrap_or(0) as usize;
+        let max_vertex = *src_list.iter().max().unwrap_or(&0) as usize;
         if max_vertex >= self.vertex_capacity {
             self.resize(max_vertex + 1);
         }
 
         let mut degrees = vec![0u32; self.vertex_capacity];
         for src in src_list {
-            let src_idx = src.as_int64().unwrap_or(0) as usize;
+            let src_idx = *src as usize;
             if src_idx < degrees.len() {
                 degrees[src_idx] += 1;
             }
@@ -175,7 +169,7 @@ impl Csr {
         let mut new_edges = vec![ImmutableNbr::new(VertexId::from_int64(0), 0, 0); src_list.len()];
         let mut current_pos = new_offsets.clone();
         for i in 0..src_list.len() {
-            let src = src_list[i].as_int64().unwrap_or(0) as usize;
+            let src = src_list[i] as usize;
             if src < current_pos.len() - 1 {
                 let pos = current_pos[src] as usize;
                 if pos < new_edges.len() {
@@ -350,8 +344,8 @@ mod tests {
         let mut csr = Csr::with_capacity(10, 100);
 
         csr.batch_put_edges_with_timestamps(
-            &[0, 0, 1, 2].map(VertexId::from_int64),
-            &[1, 2, 3, 0].map(VertexId::from_int64),
+            &[0u32, 0, 1, 2],
+            &[1, 2, 3, 0].map(|v| VertexId::from_int64(v as i64)),
             &[0, 1, 2, 3],
             &[0, 1, 2, 3],
             &[100, 100, 100, 100],
@@ -359,18 +353,18 @@ mod tests {
 
         assert_eq!(csr.edge_count(), 4);
 
-        assert_eq!(csr.edges_of(VertexId::from_int64(0)).len(), 2);
-        assert_eq!(csr.edges_of(VertexId::from_int64(1)).len(), 1);
-        assert_eq!(csr.edges_of(VertexId::from_int64(2)).len(), 1);
+        assert_eq!(csr.edges_of(0).len(), 2);
+        assert_eq!(csr.edges_of(1).len(), 1);
+        assert_eq!(csr.edges_of(2).len(), 1);
 
         assert!(csr
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1))
+            .get_edge(0, VertexId::from_int64(1))
             .is_some());
         assert!(csr
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(2))
+            .get_edge(0, VertexId::from_int64(2))
             .is_some());
         assert!(csr
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(3))
+            .get_edge(0, VertexId::from_int64(3))
             .is_none());
     }
 
@@ -379,7 +373,7 @@ mod tests {
         let mut csr = Csr::with_capacity(5, 20);
 
         csr.batch_put_edges_with_timestamps(
-            &[0, 1, 2].map(VertexId::from_int64),
+            &[0u32, 1, 2],
             &[1, 2, 3].map(VertexId::from_int64),
             &[0, 1, 2],
             &[0, 0, 0],
@@ -395,8 +389,8 @@ mod tests {
         let mut csr1 = Csr::with_capacity(10, 100);
 
         csr1.batch_put_edges_with_timestamps(
-            &[0, 0, 1, 2].map(VertexId::from_int64),
-            &[1, 2, 3, 0].map(VertexId::from_int64),
+            &[0u32, 0, 1, 2],
+            &[1, 2, 3, 0].map(|v| VertexId::from_int64(v as i64)),
             &[0, 1, 2, 3],
             &[0, 1, 2, 3],
             &[100, 100, 100, 100],
@@ -410,13 +404,13 @@ mod tests {
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
         assert!(csr2
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(1))
+            .get_edge(0, VertexId::from_int64(1))
             .is_some());
         assert!(csr2
-            .get_edge(VertexId::from_int64(0), VertexId::from_int64(2))
+            .get_edge(0, VertexId::from_int64(2))
             .is_some());
         assert!(csr2
-            .get_edge(VertexId::from_int64(1), VertexId::from_int64(3))
+            .get_edge(1, VertexId::from_int64(3))
             .is_some());
     }
 
@@ -425,18 +419,18 @@ mod tests {
         let mut csr = Csr::with_capacity(10, 100);
 
         csr.batch_put_edges_with_timestamps(
-            &[0, 0].map(VertexId::from_int64),
+            &[0u32, 0],
             &[1, 2].map(VertexId::from_int64),
             &[100, 101],
             &[0, 1],
             &[100, 100],
         );
 
-        let edge = csr.get_edge(VertexId::from_int64(0), VertexId::from_int64(1));
+        let edge = csr.get_edge(0, VertexId::from_int64(1));
         assert!(edge.is_some());
         assert_eq!(edge.unwrap().edge_id, 100);
 
-        let edge = csr.get_edge(VertexId::from_int64(0), VertexId::from_int64(3));
+        let edge = csr.get_edge(0, VertexId::from_int64(3));
         assert!(edge.is_none());
     }
 }

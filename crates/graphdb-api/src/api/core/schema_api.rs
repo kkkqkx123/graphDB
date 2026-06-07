@@ -362,20 +362,9 @@ impl<S: StorageClient> SchemaApi<S> {
                 storage.create_tag_index(&space_name, &index)
             }
             IndexType::EdgeIndex => {
-                let index = Index {
-                    id: 0, // Allocated by the storage layer
-                    name: name.to_string(),
-                    space_id,
-                    schema_name,
-                    fields,
-                    properties: Vec::new(),
-                    index_type: IndexType::EdgeIndex,
-                    status: IndexStatus::Active,
-                    is_unique: false,
-                    comment: None,
-                    partial_condition: None,
-                };
-                storage.create_edge_index(&space_name, &index)
+                return Err(CoreError::StorageError(
+                    "edge indexes are not supported".to_string(),
+                ));
             }
         }
         .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -420,21 +409,6 @@ impl<S: StorageClient> SchemaApi<S> {
             }
         }
 
-        // Try to delete the edge index.
-        if let Ok(Some(_)) = storage.get_edge_index(&space_name, name) {
-            let result = storage
-                .drop_edge_index(&space_name, name)
-                .map_err(|e| CoreError::StorageError(e.to_string()))?;
-            if result {
-                log::info!(
-                    "Deleted edge index successfully: {} from space {}",
-                    name,
-                    space_id
-                );
-                return Ok(());
-            }
-        }
-
         Err(CoreError::NotFound(format!(
             "Index '{}' does not exist",
             name
@@ -459,21 +433,6 @@ impl<S: StorageClient> SchemaApi<S> {
             if result {
                 log::info!(
                     "Rebuilt tag index successfully: {} in space {}",
-                    index_name,
-                    space_id
-                );
-                return Ok(());
-            }
-        }
-
-        // Try to rebuild edge index
-        if let Ok(Some(_)) = storage.get_edge_index(&space_name, index_name) {
-            let result = storage
-                .rebuild_edge_index(&space_name, index_name)
-                .map_err(|e| CoreError::StorageError(e.to_string()))?;
-            if result {
-                log::info!(
-                    "Rebuilt edge index successfully: {} in space {}",
                     index_name,
                     space_id
                 );
@@ -519,9 +478,7 @@ impl<S: StorageClient> SchemaApi<S> {
         let tag_indexes = storage
             .list_tag_indexes(space_name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
-        let edge_indexes = storage
-            .list_edge_indexes(space_name)
-            .map_err(|e| CoreError::StorageError(e.to_string()))?;
+        let edge_indexes: Vec<crate::core::types::Index> = Vec::new();
 
         // Construct a descriptive string
         let mut description = format!("Graph space: {} (ID: {})", space_name, space_id);

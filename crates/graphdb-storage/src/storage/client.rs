@@ -86,9 +86,6 @@ pub trait StorageReader: Send + Sync + std::fmt::Debug {
 
     fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
     fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
-
-    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
-    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
 }
 
 /// Write operations for vertex and edge data.
@@ -177,10 +174,6 @@ pub trait StorageSchemaOps: Send + Sync + std::fmt::Debug {
     fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
     fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
     fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-
-    fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
-    fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-    fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
 }
 
 /// Authentication and authorization operations.

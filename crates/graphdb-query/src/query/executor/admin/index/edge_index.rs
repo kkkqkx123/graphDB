@@ -1,68 +1,14 @@
-//! Side Indexing Actuator
+//! Edge Index Actuator
 //!
-//! Provides creation, deletion, description and listing functions for side indexes.
+//! Edge indexes are not supported. All executors return an error.
 
+use crate::core::error::DBError;
+use crate::core::types::Index;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::storage::StorageClient;
 use parking_lot::RwLock;
 use std::sync::Arc;
-
-use crate::core::types::index::IndexConfig;
-use crate::core::types::{Index, IndexField, IndexType};
-use crate::core::Value;
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::query::DataSet;
-
-use crate::storage::StorageClient;
-
-/// Side Index Description Information
-#[derive(Debug, Clone)]
-pub struct EdgeIndexDesc {
-    pub index_id: i32,
-    pub index_name: String,
-    pub edge_name: String,
-    pub fields: Vec<String>,
-    pub comment: Option<String>,
-}
-
-impl EdgeIndexDesc {
-    pub fn from_metadata(info: &Index) -> Self {
-        Self {
-            index_id: info.id,
-            index_name: info.name.clone(),
-            edge_name: info.schema_name.clone(),
-            fields: info.properties.clone(),
-            comment: info.comment.clone(),
-        }
-    }
-}
-
-impl From<&EdgeIndexDesc> for Index {
-    fn from(desc: &EdgeIndexDesc) -> Self {
-        let fields = desc
-            .fields
-            .iter()
-            .map(|field_name| {
-                IndexField::new(
-                    field_name.clone(),
-                    Value::String("string".to_string()),
-                    false,
-                )
-            })
-            .collect();
-
-        Index::new(IndexConfig {
-            id: 0,
-            name: desc.index_name.clone(),
-            space_id: 0,
-            schema_name: desc.edge_name.clone(),
-            fields,
-            properties: desc.fields.clone(),
-            index_type: IndexType::EdgeIndex,
-            is_unique: false,
-            partial_condition: None,
-        })
-    }
-}
 
 /// Creating a Side-Indexed Executor
 #[derive(Debug)]
@@ -117,28 +63,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
-        let storage = self.get_storage();
-        let mut storage_guard = storage.write();
-
-        let result = storage_guard.create_edge_index(&self.space_name, &self.index_info);
-
-        match result {
-            Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => {
-                if self.if_not_exists {
-                    Ok(ExecutionResult::Success)
-                } else {
-                    Ok(ExecutionResult::Error(format!(
-                        "Index '{}' already exists",
-                        self.index_info.name
-                    )))
-                }
-            }
-            Err(e) => Ok(ExecutionResult::Error(format!(
-                "Failed to create edge index: {}",
-                e
-            ))),
-        }
+        Err(DBError::storage("edge indexes are not supported"))
     }
 
     fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
@@ -232,28 +157,7 @@ impl<S: StorageClient> DropEdgeIndexExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
-        let storage = self.get_storage();
-        let mut storage_guard = storage.write();
-
-        let result = storage_guard.drop_edge_index(&self.space_name, &self.index_name);
-
-        match result {
-            Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => {
-                if self.if_exists {
-                    Ok(ExecutionResult::Success)
-                } else {
-                    Ok(ExecutionResult::Error(format!(
-                        "Index '{}' not found",
-                        self.index_name
-                    )))
-                }
-            }
-            Err(e) => Ok(ExecutionResult::Error(format!(
-                "Failed to drop edge index: {}",
-                e
-            ))),
-        }
+        Err(DBError::storage("edge indexes are not supported"))
     }
 
     fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
@@ -319,41 +223,7 @@ impl<S: StorageClient> DescEdgeIndexExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
-        let storage = self.get_storage();
-        let storage_guard = storage.read();
-
-        let result = storage_guard.get_edge_index(&self.space_name, &self.index_name);
-
-        match result {
-            Ok(Some(desc)) => {
-                let desc = EdgeIndexDesc::from_metadata(&desc);
-                let rows = vec![vec![
-                    Value::String(desc.index_name),
-                    Value::String(desc.edge_name),
-                    Value::String(desc.fields.join(", ")),
-                    Value::String(desc.comment.unwrap_or_default()),
-                ]];
-
-                let dataset = DataSet {
-                    col_names: vec![
-                        "Index Name".to_string(),
-                        "Edge Name".to_string(),
-                        "Fields".to_string(),
-                        "Comment".to_string(),
-                    ],
-                    rows,
-                };
-                Ok(ExecutionResult::DataSet(dataset))
-            }
-            Ok(None) => Ok(ExecutionResult::Error(format!(
-                "Index '{}' not found",
-                self.index_name
-            ))),
-            Err(e) => Ok(ExecutionResult::Error(format!(
-                "Failed to describe edge index: {}",
-                e
-            ))),
-        }
+        Err(DBError::storage("edge indexes are not supported"))
     }
 
     fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
@@ -416,40 +286,7 @@ impl<S: StorageClient> ShowEdgeIndexesExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgeIndexesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
-        let storage = self.get_storage();
-        let storage_guard = storage.read();
-
-        let result = storage_guard.list_edge_indexes(&self.space_name);
-
-        match result {
-            Ok(indexes) => {
-                let rows: Vec<Vec<Value>> = indexes
-                    .iter()
-                    .map(|desc| {
-                        let desc = EdgeIndexDesc::from_metadata(desc);
-                        vec![
-                            Value::String(desc.index_name.clone()),
-                            Value::String(desc.edge_name.clone()),
-                            Value::String(desc.fields.join(", ")),
-                        ]
-                    })
-                    .collect();
-
-                let dataset = DataSet {
-                    col_names: vec![
-                        "Index Name".to_string(),
-                        "Edge Name".to_string(),
-                        "Fields".to_string(),
-                    ],
-                    rows,
-                };
-                Ok(ExecutionResult::DataSet(dataset))
-            }
-            Err(e) => Ok(ExecutionResult::Error(format!(
-                "Failed to show edge indexes: {}",
-                e
-            ))),
-        }
+        Err(DBError::storage("edge indexes are not supported"))
     }
 
     fn open(&mut self) -> crate::query::executor::base::DBResult<()> {

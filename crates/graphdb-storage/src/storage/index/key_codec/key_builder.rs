@@ -5,8 +5,7 @@
 use crate::core::{StorageError, Value};
 
 use super::key_types::{
-    serialize_value, ByteKey, KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE,
-    KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
+    serialize_value, ByteKey, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
 pub struct KeyBuilder;
@@ -85,86 +84,6 @@ impl KeyBuilder {
     }
 
     // ========================================================================
-    // Edge Forward Index Keys
-    // ========================================================================
-
-    pub fn build_edge_index_key(
-        space_id: u64,
-        index_name: &str,
-        prop_value: &Value,
-        src: &Value,
-        dst: &Value,
-    ) -> Result<ByteKey, StorageError> {
-        let prop_value_bytes = serialize_value(prop_value)?;
-        let src_bytes = serialize_value(src)?;
-        let dst_bytes = serialize_value(dst)?;
-
-        let mut key = Vec::new();
-        key.extend_from_slice(&space_id.to_le_bytes());
-        key.push(KEY_TYPE_EDGE_FORWARD);
-        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
-        key.extend_from_slice(index_name.as_bytes());
-        key.extend_from_slice(&(prop_value_bytes.len() as u32).to_le_bytes());
-        key.extend_from_slice(&prop_value_bytes);
-        key.extend_from_slice(&(src_bytes.len() as u32).to_le_bytes());
-        key.extend_from_slice(&src_bytes);
-        key.extend_from_slice(&(dst_bytes.len() as u32).to_le_bytes());
-        key.extend_from_slice(&dst_bytes);
-
-        Ok(ByteKey(key))
-    }
-
-    pub fn build_edge_index_prefix(space_id: u64, index_name: &str) -> ByteKey {
-        let mut key = Vec::new();
-        key.extend_from_slice(&space_id.to_le_bytes());
-        key.push(KEY_TYPE_EDGE_FORWARD);
-        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
-        key.extend_from_slice(index_name.as_bytes());
-        ByteKey(key)
-    }
-
-    pub fn build_edge_reverse_key_v2(
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-        index_name: &str,
-    ) -> Result<ByteKey, StorageError> {
-        let src_bytes = serialize_value(src)?;
-        let dst_bytes = serialize_value(dst)?;
-
-        let mut key = Vec::new();
-        key.extend_from_slice(&space_id.to_le_bytes());
-        key.push(KEY_TYPE_EDGE_REVERSE);
-        key.extend_from_slice(&(src_bytes.len() as u32).to_le_bytes());
-        key.extend_from_slice(&src_bytes);
-        key.extend_from_slice(&(dst_bytes.len() as u32).to_le_bytes());
-        key.extend_from_slice(&dst_bytes);
-        key.extend_from_slice(&(index_name.len() as u32).to_le_bytes());
-        key.extend_from_slice(index_name.as_bytes());
-
-        Ok(ByteKey(key))
-    }
-
-    pub fn build_edge_reverse_prefix_v2_with_dst(
-        space_id: u64,
-        src: &Value,
-        dst: &Value,
-    ) -> Result<ByteKey, StorageError> {
-        let src_bytes = serialize_value(src)?;
-        let dst_bytes = serialize_value(dst)?;
-
-        let mut key = Vec::new();
-        key.extend_from_slice(&space_id.to_le_bytes());
-        key.push(KEY_TYPE_EDGE_REVERSE);
-        key.extend_from_slice(&(src_bytes.len() as u32).to_le_bytes());
-        key.extend_from_slice(&src_bytes);
-        key.extend_from_slice(&(dst_bytes.len() as u32).to_le_bytes());
-        key.extend_from_slice(&dst_bytes);
-
-        Ok(ByteKey(key))
-    }
-
-    // ========================================================================
     // Range Query Helpers
     // ========================================================================
 
@@ -212,35 +131,6 @@ mod tests {
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_REVERSE);
-    }
-
-    #[test]
-    fn test_build_edge_index_key() {
-        let space_id = 1u64;
-        let index_name = "edge_idx";
-        let prop_value = Value::String("edge_prop".to_string());
-        let src = Value::Int(100);
-        let dst = Value::Int(200);
-
-        let key = KeyBuilder::build_edge_index_key(space_id, index_name, &prop_value, &src, &dst)
-            .expect("build_edge_index_key should succeed");
-
-        assert!(key.0.len() > 9);
-        assert_eq!(key.0[8], KEY_TYPE_EDGE_FORWARD);
-    }
-
-    #[test]
-    fn test_build_edge_reverse_key_v2() {
-        let space_id = 1u64;
-        let src = Value::Int(100);
-        let dst = Value::Int(200);
-        let index_name = "edge_idx";
-
-        let key = KeyBuilder::build_edge_reverse_key_v2(space_id, &src, &dst, index_name)
-            .expect("build_edge_reverse_key_v2 should succeed");
-
-        assert!(key.0.len() > 9);
-        assert_eq!(key.0[8], KEY_TYPE_EDGE_REVERSE);
     }
 
     #[test]

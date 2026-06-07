@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::core::types::VertexId;
 use crate::core::types::{EdgeTypeInfo, LabelId, TagInfo};
+use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::params::EdgeOperationParams;
 
@@ -25,6 +28,9 @@ pub(crate) fn get_vertex(
     }
 
     let ts = ctx.get_read_timestamp();
+    let mut all_tags: Vec<Tag> = Vec::new();
+    let mut merged_properties: HashMap<String, Value> = HashMap::new();
+    let mut internal_id = 0u32;
 
     for tag in &tags {
         let label_id = tag.tag_id;
@@ -36,29 +42,65 @@ pub(crate) fn get_vertex(
         };
 
         if let Some(record) = record {
-            let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
-            return Ok(Some(vertex));
+            internal_id = record.internal_id;
+            let props: HashMap<String, Value> = record.properties.iter().cloned().collect();
+            all_tags.push(Tag::new(tag.tag_name.clone(), props.clone()));
+            merged_properties.extend(props);
         }
     }
 
-    Ok(None)
+    if all_tags.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Vertex {
+            vid: *id,
+            id: internal_id as i64,
+            tags: all_tags,
+            properties: merged_properties,
+        }))
+    }
 }
 
 pub(crate) fn scan_vertices(ctx: &GraphStorageContext, space: &str) -> StorageResult<Vec<Vertex>> {
     let tags = ctx.schema_manager().list_tags(space)?;
     let ts = ctx.get_read_timestamp();
-    let mut vertices = Vec::new();
+
+    // Group records by vertex ID to merge multi-tag vertices
+    struct MergedVertex {
+        vid: VertexId,
+        internal_id: u32,
+        tags: Vec<Tag>,
+        properties: HashMap<String, Value>,
+    }
+
+    let mut merged: HashMap<VertexId, MergedVertex> = HashMap::new();
 
     for tag in &tags {
         if let Some(iterator) = ctx.scan_vertices(tag.tag_id, ts) {
             for record in iterator {
-                let vertex = vertex_record_to_vertex(&record, &tag.tag_name);
-                vertices.push(vertex);
+                let entry = merged.entry(record.vid).or_insert(MergedVertex {
+                    vid: record.vid,
+                    internal_id: record.internal_id,
+                    tags: Vec::new(),
+                    properties: HashMap::new(),
+                });
+                entry.internal_id = record.internal_id;
+                let props: HashMap<String, Value> = record.properties.iter().cloned().collect();
+                entry.tags.push(Tag::new(tag.tag_name.clone(), props.clone()));
+                entry.properties.extend(props);
             }
         }
     }
 
-    Ok(vertices)
+    Ok(merged
+        .into_values()
+        .map(|mv| Vertex {
+            vid: mv.vid,
+            id: mv.internal_id as i64,
+            tags: mv.tags,
+            properties: mv.properties,
+        })
+        .collect())
 }
 
 pub(crate) fn scan_vertices_by_tag(

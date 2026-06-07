@@ -201,11 +201,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
-        match result.expect("Failed to execute query") {
-            crate::query::executor::base::ExecutionResult::Success => {}
-            _ => panic!("Expected Success result"),
-        }
+        assert!(result.is_err());
     }
 
     #[test]
@@ -235,7 +231,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -252,11 +248,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
-        match result.expect("Failed to execute query") {
-            crate::query::executor::base::ExecutionResult::Success => {}
-            _ => panic!("Expected Success result"),
-        }
+        assert!(result.is_err());
     }
 
     #[test]
@@ -273,7 +265,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -290,7 +282,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -306,7 +298,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -323,11 +315,7 @@ mod tests {
         );
 
         let result = executor.execute();
-        assert!(result.is_ok());
-        match result.expect("Failed to execute query") {
-            crate::query::executor::base::ExecutionResult::Success => {}
-            _ => panic!("Expected Success result"),
-        }
+        assert!(result.is_err());
     }
 
     #[test]

@@ -299,8 +299,35 @@ impl VertexTable {
         }
     }
 
+    /// Lookup internal ID from external i64 without timestamp check.
+    /// Returns Some(internal_id) even for deleted vertices.
+    pub fn get_internal_id_by_i64_raw(&self, external_id: i64) -> Option<u32> {
+        if !self.is_open {
+            return None;
+        }
+        self.id_indexer.get_index(&IdKey::Int(external_id))
+    }
+
+    /// Lookup internal ID from external string without timestamp check.
+    /// Returns Some(internal_id) even for deleted vertices.
+    pub fn get_internal_id_raw(&self, external_id: &str) -> Option<u32> {
+        if !self.is_open {
+            return None;
+        }
+        self.id_indexer.get_index(&IdKey::Text(external_id.to_string()))
+    }
+
     pub fn get_external_id(&self, internal_id: u32, ts: Timestamp) -> Option<IdKey> {
         if !self.is_open || !self.timestamps.is_valid(internal_id, ts) {
+            return None;
+        }
+        self.id_indexer.get_key(internal_id).cloned()
+    }
+
+    /// Lookup external ID from internal ID without timestamp check.
+    /// Returns the external ID even for deleted vertices.
+    pub fn get_external_id_raw(&self, internal_id: u32) -> Option<IdKey> {
+        if !self.is_open {
             return None;
         }
         self.id_indexer.get_key(internal_id).cloned()

@@ -26,10 +26,6 @@ impl VertexIndexManager {
         }
     }
 
-    fn decompress_key(&self, compressed: &[u8]) -> StorageResult<Vec<u8>> {
-        Ok(compressed.to_vec())
-    }
-
     pub fn update_vertex_indexes(
         &self,
         space_id: u64,
@@ -149,11 +145,11 @@ impl VertexIndexManager {
                 reverse_index.range(reverse_prefix.0.clone()..reverse_end.0)
             {
                 if entry.is_visible_at(write_ts) {
-                    let key_bytes = self.decompress_key(compressed_key)?;
+                    let key_bytes = compressed_key.as_slice();
                     reverse_keys_to_delete.push(compressed_key.clone());
 
                     if let Ok((_vertex_id_bytes, index_name)) =
-                        KeyParser::parse_vertex_reverse_key_v2(&key_bytes)
+                        KeyParser::parse_vertex_reverse_key_v2(key_bytes)
                     {
                         if index_names.contains(&index_name) {
                             let forward_key_start =
@@ -165,12 +161,12 @@ impl VertexIndexManager {
                                 forward_index.range(forward_key_start.0.clone()..forward_key_end.0)
                             {
                                 if fwd_entry.is_visible_at(write_ts) {
-                                    let fwd_key_bytes = self.decompress_key(fwd_compressed_key)?;
-                                    if let Ok(vid) =
-                                        KeyParser::parse_vertex_id_from_key(&fwd_key_bytes)
-                                    {
+                                    if let Ok(vid) = KeyParser::parse_vertex_id_from_key(
+                                        fwd_compressed_key.as_slice(),
+                                    ) {
                                         if vid == *vertex_id {
-                                            forward_keys_to_delete.push(fwd_compressed_key.clone());
+                                            forward_keys_to_delete
+                                                .push(fwd_compressed_key.clone());
                                         }
                                     }
                                 }
@@ -206,19 +202,24 @@ impl VertexIndexManager {
         let prefix = KeyBuilder::build_vertex_index_prefix(space_id, index_name);
         let end = KeyBuilder::build_range_end(&prefix);
 
-        let mut forward_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
-        let mut reverse_keys_to_delete: Vec<SecondaryIndexKey> = Vec::new();
+        let mut forward_keys_to_mark: Vec<SecondaryIndexKey> = Vec::new();
+        let mut reverse_keys_to_mark: Vec<SecondaryIndexKey> = Vec::new();
 
         {
             let forward_index = self.base.forward_index().read();
-            for (key_bytes, _) in forward_index.range(prefix.0.clone()..end.0) {
-                forward_keys_to_delete.push(key_bytes.clone());
+            for (key_bytes, entry) in forward_index.range(prefix.0.clone()..end.0) {
+                if entry.is_visible_at(MAX_TIMESTAMP) {
+                    forward_keys_to_mark.push(key_bytes.clone());
+                }
             }
         }
 
         {
             let reverse_index = self.base.reverse_index().read();
-            for (key_bytes, _) in reverse_index.iter() {
+            for (key_bytes, entry) in reverse_index.iter() {
+                if !entry.is_visible_at(MAX_TIMESTAMP) {
+                    continue;
+                }
                 if key_bytes.len() < 9 || key_bytes[0..8] != space_id.to_le_bytes() {
                     continue;
                 }
@@ -227,7 +228,7 @@ impl VertexIndexManager {
                     KeyParser::parse_vertex_reverse_key_v2(key_bytes)
                 {
                     if parsed_index_name == index_name {
-                        reverse_keys_to_delete.push(key_bytes.clone());
+                        reverse_keys_to_mark.push(key_bytes.clone());
                     }
                 }
             }
@@ -235,15 +236,19 @@ impl VertexIndexManager {
 
         {
             let mut forward_index = self.base.forward_index().write();
-            for key in &forward_keys_to_delete {
-                forward_index.remove(key);
+            for key in &forward_keys_to_mark {
+                if let Some(entry) = forward_index.get_mut(key) {
+                    entry.mark_deleted(MAX_TIMESTAMP);
+                }
             }
         }
 
         {
             let mut reverse_index = self.base.reverse_index().write();
-            for key in &reverse_keys_to_delete {
-                reverse_index.remove(key);
+            for key in &reverse_keys_to_mark {
+                if let Some(entry) = reverse_index.get_mut(key) {
+                    entry.mark_deleted(MAX_TIMESTAMP);
+                }
             }
         }
 
@@ -279,26 +284,12 @@ impl VertexIndexManager {
                 continue;
             }
 
-            let key_bytes = self.decompress_key(compressed_key)?;
-            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(&key_bytes) {
-                if key_bytes.len() > prefix.0.len() + 4 {
-                    let prop_len_start = prefix.0.len();
-                    let prop_value_len = u32::from_le_bytes(
-                        key_bytes[prop_len_start..prop_len_start + 4]
-                            .try_into()
-                            .unwrap_or([0; 4]),
-                    ) as usize;
-
-                    if prop_value_len == value_bytes.len() {
-                        let prop_value_start = prop_len_start + 4;
-                        let stored_prop_value =
-                            &key_bytes[prop_value_start..prop_value_start + prop_value_len];
-
-                        if stored_prop_value == value_bytes.as_slice()
-                            && seen.insert(vertex_id.clone())
-                        {
-                            results.push(vertex_id);
-                        }
+            let key_bytes = compressed_key.as_slice();
+            if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
+                if let Ok(stored_value) = KeyParser::parse_prop_value_from_key(&key_bytes) {
+                    let sv_bytes = serialize_value(&stored_value)?;
+                    if sv_bytes == value_bytes && seen.insert(vertex_id.clone()) {
+                        results.push(vertex_id);
                     }
                 }
             }
@@ -448,7 +439,12 @@ mod tests {
             .expect("Failed to lookup tag index");
         assert!(results_after.is_empty());
 
-        assert_eq!(manager.base.entry_count(), (0, 0));
+        // Entries remain in the BTreeMap (marked as tombstone by mark_deleted)
+        // for MVCC snapshot isolation, unlike the old hard remove.
+        // GC will clean them up when safe_ts advances past MAX_TIMESTAMP.
+        let (fwd, rev) = manager.base.entry_count();
+        assert!(fwd >= 1, "forward entries should exist as tombstones");
+        assert!(rev >= 1, "reverse entries should exist as tombstones");
     }
 
     #[test]

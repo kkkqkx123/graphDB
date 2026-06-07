@@ -33,7 +33,7 @@ pub mod key_parser;
 pub mod key_types;
 
 pub use key_builder::KeyBuilder;
-pub use key_generator::{EdgeIndexKeyGen, IndexKeyGenerator, VertexIndexKeyGen};
+pub use key_generator::{IndexKeyGenerator, VertexIndexKeyGen};
 pub use key_parser::KeyParser;
 
 #[cfg(test)]
@@ -41,8 +41,8 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::storage::index::key_codec::key_types::{
-        deserialize_value, serialize_value, ByteKey, KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE,
-        KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
+        deserialize_value, serialize_value, ByteKey, KEY_TYPE_VERTEX_FORWARD,
+        KEY_TYPE_VERTEX_REVERSE,
     };
 
     #[test]
@@ -81,45 +81,6 @@ mod tests {
 
         let vertex_id_bytes = serialize_value(&vertex_id).expect("serialize_value should succeed");
         assert_eq!(parsed_vid_bytes, vertex_id_bytes);
-    }
-
-    #[test]
-    fn test_build_and_parse_edge_key() {
-        let space_id = 1u64;
-        let index_name = "edge_idx";
-        let prop_value = Value::String("edge_prop".to_string());
-        let src = Value::Int(100);
-        let dst = Value::Int(200);
-
-        let key = KeyBuilder::build_edge_index_key(space_id, index_name, &prop_value, &src, &dst)
-            .expect("build_edge_index_key should succeed");
-
-        assert!(key.0.len() > 9);
-        assert_eq!(key.0[8], KEY_TYPE_EDGE_FORWARD);
-    }
-
-    #[test]
-    fn test_build_and_parse_edge_reverse_key_v2() {
-        let space_id = 1u64;
-        let src = Value::Int(100);
-        let dst = Value::Int(200);
-        let index_name = "edge_idx";
-
-        let key = KeyBuilder::build_edge_reverse_key_v2(space_id, &src, &dst, index_name)
-            .expect("build_edge_reverse_key_v2 should succeed");
-
-        assert!(key.0.len() > 9);
-        assert_eq!(key.0[8], KEY_TYPE_EDGE_REVERSE);
-
-        let (parsed_src_bytes, parsed_dst_bytes, parsed_name) =
-            KeyParser::parse_edge_reverse_key_v2(&key.0)
-                .expect("parse_edge_reverse_key_v2 should succeed");
-        assert_eq!(parsed_name, index_name);
-
-        let src_bytes = serialize_value(&src).expect("serialize_value should succeed");
-        let dst_bytes = serialize_value(&dst).expect("serialize_value should succeed");
-        assert_eq!(parsed_src_bytes, src_bytes);
-        assert_eq!(parsed_dst_bytes, dst_bytes);
     }
 
     #[test]
