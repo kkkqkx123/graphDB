@@ -207,28 +207,22 @@ impl<S: StorageReader> VectorSearchExecutor<S> {
         let space_id = self.node.space_id;
         let index_name = &self.node.index_name;
 
-        // Search for index metadata by collection name (index_name)
+        // Search logical index registry by matching tag_name and field_name
         let indexes = self.coordinator.list_indexes();
         let index_metadata = indexes.iter().find(|idx| {
-            // Match by collection name or index name pattern
-            let expected_collection =
-                format!("space_{}_{}_{}", space_id, idx.tag_name, idx.field_name);
-            expected_collection == *index_name || idx.collection_name == *index_name
+            // Match by (space_id, tag_name, field_name)
+            idx.space_id == space_id
+                && format!("{}_{}", idx.tag_name, idx.field_name) == *index_name
         });
 
         if let Some(metadata) = index_metadata {
             Ok((metadata.tag_name.clone(), metadata.field_name.clone()))
         } else {
-            // Fallback: try to parse index_name format "space_{space_id}_{tag}_{field}" or "{tag}_{field}"
-            // Simple heuristic: split by underscore and extract components
+            // Fallback: try to parse index_name as "{tag}_{field}"
             let parts: Vec<&str> = index_name.split('_').collect();
             if parts.len() >= 2 {
-                // Assume format: {tag}_{field} or space_{id}_{tag}_{field}
-                let (tag, field) = if parts.len() >= 4 && parts[0] == "space" {
-                    (parts[2].to_string(), parts[3].to_string())
-                } else {
-                    (parts[0].to_string(), parts[1].to_string())
-                };
+                let tag = parts[0].to_string();
+                let field = parts[1].to_string();
                 Ok((tag, field))
             } else {
                 Err(DBError::validation(format!(

@@ -14,7 +14,7 @@ use crate::engine::QdrantEngine;
 use crate::engine::QdrantGrpcEngine;
 use crate::engine::VectorEngine;
 use crate::error::{Result, VectorClientError};
-use crate::types::{CollectionConfig, SearchQuery, SearchResult, VectorPoint};
+use crate::types::{CollectionConfig, SearchQuery, SearchResult, VectorFilter, VectorPoint};
 
 pub struct VectorManager {
     engine: Arc<dyn VectorEngine>,
@@ -94,6 +94,16 @@ impl VectorManager {
         Ok(())
     }
 
+    pub fn unregister_index(&self, name: &str) {
+        if self.indexes.remove(name).is_some() {
+            debug!("Unregistered logical index: {}", name);
+        }
+    }
+
+    pub fn register_index(&self, name: &str, metadata: IndexMetadata) {
+        self.indexes.insert(name.to_string(), metadata);
+    }
+
     pub fn index_exists(&self, name: &str) -> bool {
         self.indexes.contains_key(name)
     }
@@ -123,6 +133,15 @@ impl VectorManager {
 
     pub async fn delete_batch(&self, collection: &str, point_ids: Vec<&str>) -> Result<()> {
         self.engine.delete_batch(collection, point_ids).await?;
+        Ok(())
+    }
+
+    pub async fn delete_by_filter(
+        &self,
+        collection: &str,
+        filter: VectorFilter,
+    ) -> Result<()> {
+        self.engine.delete_by_filter(collection, filter).await?;
         Ok(())
     }
 

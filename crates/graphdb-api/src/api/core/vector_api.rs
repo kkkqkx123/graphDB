@@ -8,7 +8,8 @@ use crate::sync::vector_sync::{SearchOptions, VectorIndexLocation, VectorSyncCoo
 use std::sync::Arc;
 use vector_client::manager::IndexMetadata;
 use vector_client::{
-    CollectionConfig, DistanceMetric, SearchQuery, VectorClientError, VectorManager, VectorPoint,
+    CollectionConfig, DistanceMetric, FilterCondition, SearchQuery, VectorClientError,
+    VectorFilter, VectorManager, VectorPoint,
 };
 
 /// Vector Index API – Core Layer
@@ -62,7 +63,8 @@ impl VectorApi {
                 .await
                 .map_err(|e| CoreError::VectorError(e.to_string()))
         } else {
-            let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+            let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+                .to_collection_name();
             let config = CollectionConfig {
                 vector_size,
                 distance,
@@ -72,6 +74,15 @@ impl VectorApi {
                 .create_index(&collection_name, config)
                 .await
                 .map_err(|e| CoreError::VectorError(e.to_string()))?;
+            let _ = self
+                .vector_manager
+                .engine()
+                .create_payload_index(
+                    &collection_name,
+                    "group_id",
+                    vector_client::types::PayloadSchemaType::Keyword,
+                )
+                .await;
             Ok(collection_name)
         }
     }
@@ -89,11 +100,10 @@ impl VectorApi {
                 .await
                 .map_err(|e| CoreError::VectorError(e.to_string()))
         } else {
-            let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
-            self.vector_manager
-                .drop_index(&collection_name)
-                .await
-                .map_err(|e: VectorClientError| CoreError::VectorError(e.to_string()))
+            let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+                .to_collection_name();
+            self.vector_manager.unregister_index(&collection_name);
+            Ok(())
         }
     }
 
@@ -104,7 +114,8 @@ impl VectorApi {
         tag_name: &str,
         field_name: &str,
     ) -> CoreResult<Option<IndexMetadata>> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
         Ok(self.vector_manager.get_index_metadata(&collection_name))
     }
 
@@ -125,7 +136,7 @@ impl VectorApi {
         field_name: &str,
         point: VectorPoint,
     ) -> CoreResult<()> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
         self.vector_manager
             .upsert(&collection_name, point)
             .await
@@ -141,7 +152,8 @@ impl VectorApi {
         field_name: &str,
         points: Vec<VectorPoint>,
     ) -> CoreResult<()> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
         self.vector_manager
             .upsert_batch(&collection_name, points)
             .await
@@ -157,7 +169,8 @@ impl VectorApi {
         field_name: &str,
         point_id: &str,
     ) -> CoreResult<()> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
         self.vector_manager
             .delete(&collection_name, point_id)
             .await
@@ -172,7 +185,8 @@ impl VectorApi {
         field_name: &str,
         point_ids: Vec<&str>,
     ) -> CoreResult<()> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
         self.vector_manager
             .delete_batch(&collection_name, point_ids)
             .await
@@ -184,6 +198,24 @@ impl VectorApi {
         &self,
         options: SearchOptions,
     ) -> CoreResult<Vec<VectorSearchResult>> {
+        if let Some(coordinator) = &self.coordinator {
+            return coordinator
+                .search_with_options(options)
+                .await
+                .map(|results| {
+                    results
+                        .into_iter()
+                        .map(|r| VectorSearchResult {
+                            id: r.id,
+                            score: r.score,
+                            vector: r.vector.map(|v| v.to_vec()),
+                            payload: r.payload.map(|p| p.into_iter().collect()),
+                        })
+                        .collect()
+                })
+                .map_err(|e| CoreError::VectorError(e.to_string()));
+        }
+
         let collection_name =
             VectorIndexLocation::new(options.space_id, &options.tag_name, &options.field_name)
                 .to_collection_name();
@@ -194,9 +226,11 @@ impl VectorApi {
             query = query.with_score_threshold(threshold);
         }
 
-        if let Some(filter) = options.filter {
-            query = query.with_filter(filter);
-        }
+        // Inject group_id filter
+        let group_id = format!("{}_{}", options.tag_name, options.field_name);
+        let mut filter = options.filter.unwrap_or_default();
+        filter = filter.must(FilterCondition::match_value("group_id", &group_id));
+        query = query.with_filter(filter);
 
         let results = self
             .vector_manager
@@ -223,7 +257,8 @@ impl VectorApi {
         field_name: &str,
         point_id: &str,
     ) -> CoreResult<Option<VectorPoint>> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
         self.vector_manager
             .get(&collection_name, point_id)
             .await
@@ -232,7 +267,8 @@ impl VectorApi {
 
     /// Get vector index count
     pub async fn count(&self, space_id: u64, tag_name: &str, field_name: &str) -> CoreResult<u64> {
-        let collection_name = format!("space_{}_{}_{}", space_id, tag_name, field_name);
+        let collection_name = VectorIndexLocation::new(space_id, tag_name, field_name)
+            .to_collection_name();
         self.vector_manager
             .count(&collection_name)
             .await

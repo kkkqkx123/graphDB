@@ -14,7 +14,8 @@ use crate::core::{Value, Vertex};
 use crate::sync::external_index::{VectorCoordinatorError, VectorCoordinatorResult};
 
 use vector_client::{
-    EmbeddingService, SearchQuery, SearchResult, VectorFilter, VectorManager, VectorPoint,
+    EmbeddingService, FilterCondition, SearchQuery, SearchResult, VectorFilter, VectorManager,
+    VectorPoint,
 };
 
 /// Vector point data for synchronization
@@ -92,7 +93,7 @@ pub struct VectorIndexLocation {
     pub field_name: String,
 }
 
-const VECTOR_INDEX_PREFIX: &str = "space_vec";
+const VECTOR_INDEX_PREFIX: &str = "space";
 
 impl VectorIndexLocation {
     pub fn new(space_id: u64, tag_name: impl Into<String>, field_name: impl Into<String>) -> Self {
@@ -104,10 +105,11 @@ impl VectorIndexLocation {
     }
 
     pub fn to_collection_name(&self) -> String {
-        format!(
-            "{}_{}_{}_{}",
-            VECTOR_INDEX_PREFIX, self.space_id, self.tag_name, self.field_name
-        )
+        format!("{}_{}", VECTOR_INDEX_PREFIX, self.space_id)
+    }
+
+    pub fn group_id(&self) -> String {
+        format!("{}_{}", self.tag_name, self.field_name)
     }
 }
 
@@ -251,6 +253,8 @@ pub struct VectorSyncCoordinator {
     vector_manager: Arc<VectorManager>,
     embedding_service: Option<Arc<EmbeddingService>>,
     transaction_buffer: Option<Arc<VectorTransactionBuffer>>,
+    /// Tracks registered logical indexes by key "space_{space_id}_{tag}_{field}" -> metadata
+    logical_indexes: DashMap<String, vector_client::manager::IndexMetadata>,
 }
 
 impl std::fmt::Debug for VectorSyncCoordinator {
@@ -258,6 +262,7 @@ impl std::fmt::Debug for VectorSyncCoordinator {
         f.debug_struct("VectorSyncCoordinator")
             .field("vector_manager", &self.vector_manager)
             .field("embedding_service", &self.embedding_service.is_some())
+            .field("logical_index_count", &self.logical_indexes.len())
             .finish()
     }
 }
@@ -272,6 +277,7 @@ impl VectorSyncCoordinator {
             vector_manager,
             embedding_service,
             transaction_buffer: None,
+            logical_indexes: DashMap::new(),
         }
     }
 
@@ -285,7 +291,12 @@ impl VectorSyncCoordinator {
             vector_manager,
             embedding_service,
             transaction_buffer: Some(Arc::new(VectorTransactionBuffer::new(config))),
+            logical_indexes: DashMap::new(),
         }
+    }
+
+    fn logical_index_key(space_id: u64, tag_name: &str, field_name: &str) -> String {
+        format!("space_idx_{}_{}_{}", space_id, tag_name, field_name)
     }
 
     /// Get the vector manager
@@ -303,7 +314,7 @@ impl VectorSyncCoordinator {
         self.transaction_buffer.as_ref()
     }
 
-    /// Create a vector index
+    /// Create a vector index (logical index in shared collection)
     pub async fn create_vector_index(
         &self,
         space_id: u64,
@@ -315,41 +326,64 @@ impl VectorSyncCoordinator {
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
-        let config = vector_client::CollectionConfig::new(vector_size, distance);
+        // Only create the physical collection if it doesn't exist yet
+        if !self.vector_manager.index_exists(&collection_name) {
+            let config = vector_client::CollectionConfig::new(vector_size, distance)
+                .with_hnsw(vector_client::HnswConfig::new(16, 100).with_payload_m(16));
 
-        self.vector_manager
-            .create_index(&collection_name, config)
-            .await
-            .map_err(|e| VectorCoordinatorError::IndexCreationFailed {
-                tag_name: tag_name.to_string(),
-                field_name: field_name.to_string(),
-                reason: e.to_string(),
-            })?;
+            self.vector_manager
+                .create_index(&collection_name, config)
+                .await
+                .map_err(|e| VectorCoordinatorError::IndexCreationFailed {
+                    tag_name: tag_name.to_string(),
+                    field_name: field_name.to_string(),
+                    reason: e.to_string(),
+                })?;
 
-        info!("Vector index created: {}", collection_name);
+            // Create payload index for group_id filtering
+            let _ = self
+                .vector_manager
+                .engine()
+                .create_payload_index(
+                    &collection_name,
+                    "group_id",
+                    vector_client::types::PayloadSchemaType::Keyword,
+                )
+                .await;
+        }
+
+        // Register logical index
+        let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
+        let meta = vector_client::manager::IndexMetadata::new(
+            collection_name.clone(),
+            vector_client::CollectionConfig::new(vector_size, distance),
+        );
+        self.logical_indexes.insert(logical_key, meta);
+
+        info!(
+            "Logical vector index created: space={} tag={} field={} in collection {}",
+            space_id, tag_name, field_name, collection_name
+        );
         Ok(collection_name)
     }
 
-    /// Drop a vector index
+    /// Drop a vector index (remove logical index, physical collection remains)
     pub async fn drop_vector_index(
         &self,
         space_id: u64,
         tag_name: &str,
         field_name: &str,
     ) -> VectorCoordinatorResult<()> {
-        let collection_name =
-            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+        let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
+        self.logical_indexes.remove(&logical_key);
 
-        self.vector_manager
-            .drop_index(&collection_name)
-            .await
-            .map_err(|e| VectorCoordinatorError::IndexDropFailed {
-                tag_name: tag_name.to_string(),
-                field_name: field_name.to_string(),
-                reason: e.to_string(),
-            })?;
+        // Don't delete the physical collection as other indexes may be using it
+        // Just mark that this logical index no longer exists
 
-        info!("Vector index dropped: {}", collection_name);
+        info!(
+            "Logical vector index dropped: space={} tag={} field={}",
+            space_id, tag_name, field_name
+        );
         Ok(())
     }
 
@@ -377,11 +411,25 @@ impl VectorSyncCoordinator {
 
                 if self.vector_manager.index_exists(&collection_name) {
                     if let Some(vector) = value.as_vector() {
-                        let point_id = vertex.vid.to_string();
+                        let point_id = format!("{}_{}_{}", vertex.vid, tag.name, field_name);
                         let mut payload = HashMap::new();
                         payload.insert(
                             "vertex_id".to_string(),
                             serde_json::to_value(vertex.vid).unwrap_or(serde_json::Value::Null),
+                        );
+                        payload.insert(
+                            "group_id".to_string(),
+                            serde_json::to_value(VectorIndexLocation::new(space_id, &tag.name, field_name).group_id())
+                                .unwrap_or(serde_json::Value::Null),
+                        );
+                        payload.insert(
+                            "tags".to_string(),
+                            serde_json::to_value(vertex.tags.iter().map(|t| t.name.clone()).collect::<Vec<_>>())
+                                .unwrap_or(serde_json::Value::Null),
+                        );
+                        payload.insert(
+                            "field".to_string(),
+                            serde_json::Value::String(field_name.clone()),
                         );
 
                         let point = VectorPoint::new(point_id.clone(), vector.clone())
@@ -433,13 +481,27 @@ impl VectorSyncCoordinator {
                         .to_collection_name();
 
                     if self.vector_manager.index_exists(&collection_name) {
-                        let point_id = vertex.vid.to_string();
+                        let point_id = format!("{}_{}_{}", vertex.vid, tag.name, field_name);
 
                         if let Some(vector) = value.as_vector() {
                             let mut payload = HashMap::new();
                             payload.insert(
                                 "vertex_id".to_string(),
                                 serde_json::to_value(vertex.vid).unwrap_or(serde_json::Value::Null),
+                            );
+                            payload.insert(
+                                "group_id".to_string(),
+                                serde_json::to_value(VectorIndexLocation::new(space_id, &tag.name, field_name).group_id())
+                                    .unwrap_or(serde_json::Value::Null),
+                            );
+                            payload.insert(
+                                "tags".to_string(),
+                                serde_json::to_value(vertex.tags.iter().map(|t| t.name.clone()).collect::<Vec<_>>())
+                                    .unwrap_or(serde_json::Value::Null),
+                            );
+                            payload.insert(
+                                "field".to_string(),
+                                serde_json::Value::String(field_name.clone()),
                             );
 
                             let point = VectorPoint::new(point_id.clone(), vector.clone())
@@ -502,33 +564,24 @@ impl VectorSyncCoordinator {
     pub async fn on_vertex_deleted(
         &self,
         space_id: u64,
-        tag_name: &str,
+        _tag_name: &str,
         vertex_id: &Value,
     ) -> VectorCoordinatorResult<()> {
-        let point_id = format!("{}", vertex_id);
+        let collection_name = VectorIndexLocation::new(space_id, "", "").to_collection_name();
 
-        let collections_to_delete_from: Vec<String> = self
-            .vector_manager
-            .list_indexes()
-            .iter()
-            .filter(|metadata| {
-                metadata
-                    .name
-                    .starts_with(&format!("space_{}_{}_", space_id, tag_name))
-            })
-            .map(|m| m.name.clone())
-            .collect();
+        let filter = VectorFilter::new().must(FilterCondition::match_value(
+            "vertex_id",
+            vertex_id.to_string(),
+        ));
 
-        for collection_name in collections_to_delete_from {
-            self.vector_manager
-                .delete(&collection_name, &point_id)
-                .await?;
+        self.vector_manager
+            .delete_by_filter(&collection_name, filter)
+            .await?;
 
-            debug!(
-                "Deleted vector for vertex {} from collection {}",
-                vertex_id, collection_name
-            );
-        }
+        debug!(
+            "Deleted vectors for vertex {} from collection {}",
+            vertex_id, collection_name
+        );
         Ok(())
     }
 
@@ -562,12 +615,17 @@ impl VectorSyncCoordinator {
         match ctx.change_type {
             VectorChangeType::Insert => {
                 let vector = ctx.data.vector;
-                let json_payload: HashMap<String, serde_json::Value> = ctx
+                let mut json_payload: HashMap<String, serde_json::Value> = ctx
                     .data
                     .payload
                     .into_iter()
                     .filter_map(|(k, v)| serde_json::to_value(&v).ok().map(|json| (k, json)))
                     .collect();
+
+                json_payload.insert(
+                    "group_id".to_string(),
+                    serde_json::to_value(ctx.location.group_id()).unwrap_or(serde_json::Value::Null),
+                );
 
                 let point = VectorPoint::new(point_id, vector).with_payload(json_payload);
 
@@ -628,12 +686,17 @@ impl VectorSyncCoordinator {
             match ctx.change_type {
                 VectorChangeType::Insert => {
                     let vector = ctx.data.vector;
-                    let json_payload: HashMap<String, serde_json::Value> = ctx
+                    let mut json_payload: HashMap<String, serde_json::Value> = ctx
                         .data
                         .payload
                         .into_iter()
                         .filter_map(|(k, v)| serde_json::to_value(&v).ok().map(|json| (k, json)))
                         .collect();
+
+                    json_payload.insert(
+                        "group_id".to_string(),
+                        serde_json::to_value(ctx.location.group_id()).unwrap_or(serde_json::Value::Null),
+                    );
 
                     let point = VectorPoint::new(point_id, vector).with_payload(json_payload);
 
@@ -714,6 +777,74 @@ impl VectorSyncCoordinator {
             query = query.with_score_threshold(threshold);
         }
 
+        // Inject group_id filter to scope search to the correct (tag, field) group
+        let group_id = format!("{}_{}", options.tag_name, options.field_name);
+        let mut filter = options.filter.unwrap_or_default();
+        filter = filter.must(FilterCondition::match_value("group_id", group_id));
+        query = query.with_filter(filter);
+
+        let results = self.search(&collection_name, query).await?;
+        Ok(results)
+    }
+
+    /// Search with space_id and tag/field names
+    pub async fn search_by_location(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        let filter = VectorFilter::new()
+            .must(FilterCondition::match_value("group_id", format!("{}_{}", tag_name, field_name)));
+        let query = SearchQuery::new(query_vector, limit).with_filter(filter);
+        self.search(&collection_name, query).await
+    }
+
+    /// Search with threshold
+    pub async fn search_with_threshold(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        threshold: f32,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        let filter = VectorFilter::new()
+            .must(FilterCondition::match_value("group_id", format!("{}_{}", tag_name, field_name)));
+        let query = SearchQuery::new(query_vector, limit)
+            .with_score_threshold(threshold)
+            .with_filter(filter);
+        self.search(&collection_name, query).await
+    }
+
+    /// Search with filter
+    pub async fn search_with_filter(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        query_vector: Vec<f32>,
+        limit: usize,
+        filter: VectorFilter,
+    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        let collection_name =
+            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        let group_id = format!("{}_{}", tag_name, field_name);
+        let filter = filter.must(FilterCondition::match_value("group_id", group_id));
+        let query = SearchQuery::new(query_vector, limit).with_filter(filter);
+        self.search(&collection_name, query).await
+    }
+
         if let Some(filter) = options.filter {
             query = query.with_filter(filter);
         }
@@ -737,23 +868,40 @@ impl VectorSyncCoordinator {
         }
     }
 
-    /// Check if index exists
+    /// Check if index exists (logical index)
     pub fn index_exists(&self, space_id: u64, tag_name: &str, field_name: &str) -> bool {
-        let collection_name =
-            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
-        self.vector_manager.index_exists(&collection_name)
+        let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
+        self.logical_indexes.contains_key(&logical_key)
     }
 
-    /// List all indexes
+    /// List all indexes (logical indexes)
     pub fn list_indexes(&self) -> Vec<crate::sync::vector_sync::IndexMetadataWrapper> {
-        self.vector_manager
-            .list_indexes()
-            .into_iter()
-            .map(crate::sync::vector_sync::IndexMetadataWrapper::from)
+        self.logical_indexes
+            .iter()
+            .map(|pair| {
+                let key = pair.key();
+                // Parse "space_idx_{space_id}_{tag}_{field}"
+                let parts: Vec<&str> = key.split('_').collect();
+                let (space_id, tag_name, field_name) =
+                    if parts.len() >= 5 && parts[0] == "space" && parts[1] == "idx" {
+                        let sid: u64 = parts[2].parse().unwrap_or(0);
+                        let tag = parts[3..parts.len()-1].join("_");
+                        let field = parts[parts.len()-1].to_string();
+                        (sid, tag, field)
+                    } else {
+                        (0, String::new(), String::new())
+                    };
+                crate::sync::vector_sync::IndexMetadataWrapper {
+                    collection_name: pair.value().name.clone(),
+                    space_id,
+                    tag_name,
+                    field_name,
+                }
+            })
             .collect()
     }
 
-    /// Create vector index with config
+    /// Create vector index with config (logical index in shared collection)
     pub async fn create_index_with_config(
         &self,
         space_id: u64,
@@ -764,16 +912,37 @@ impl VectorSyncCoordinator {
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
-        self.vector_manager
-            .create_index(&collection_name, config)
-            .await
-            .map_err(|e| VectorCoordinatorError::IndexCreationFailed {
-                tag_name: tag_name.to_string(),
-                field_name: field_name.to_string(),
-                reason: e.to_string(),
-            })?;
+        if !self.vector_manager.index_exists(&collection_name) {
+            self.vector_manager
+                .create_index(&collection_name, config.clone())
+                .await
+                .map_err(|e| VectorCoordinatorError::IndexCreationFailed {
+                    tag_name: tag_name.to_string(),
+                    field_name: field_name.to_string(),
+                    reason: e.to_string(),
+                })?;
 
-        info!("Vector index created: {}", collection_name);
+            let _ = self
+                .vector_manager
+                .engine()
+                .create_payload_index(
+                    &collection_name,
+                    "group_id",
+                    vector_client::types::PayloadSchemaType::Keyword,
+                )
+                .await;
+        } else {
+            // Collection exists but we still need to update logical index config
+        }
+
+        let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
+        let meta = vector_client::manager::IndexMetadata::new(collection_name.clone(), config);
+        self.logical_indexes.insert(logical_key, meta);
+
+        info!(
+            "Logical vector index created with config: space={} tag={} field={} in collection {}",
+            space_id, tag_name, field_name, collection_name
+        );
         Ok(collection_name)
     }
 
