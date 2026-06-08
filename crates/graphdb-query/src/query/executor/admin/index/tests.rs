@@ -179,56 +179,8 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let index_config = crate::core::types::IndexConfig {
-            id: 0,
-            name: "knows_weight_index".to_string(),
-            space_id: 0,
-            schema_name: "knows".to_string(),
-            fields: Vec::new(),
-            properties: vec!["weight".to_string()],
-            index_type: IndexType::EdgeIndex,
-            is_unique: false,
-            partial_condition: None,
-        };
-        let index = Index::new(index_config);
 
-        let mut executor = CreateEdgeIndexExecutor::new(
-            8,
-            storage,
-            "test_space".to_string(),
-            index,
-            create_test_context(),
-        );
-
-        let result = executor.execute();
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_create_edge_index_executor_with_if_not_exists() {
-        let storage = Arc::new(RwLock::new(
-            MockStorage::new().expect("Failed to create MockStorage"),
-        ));
-        let index_config = crate::core::types::IndexConfig {
-            id: 0,
-            name: "knows_weight_index".to_string(),
-            space_id: 0,
-            schema_name: "knows".to_string(),
-            fields: Vec::new(),
-            properties: vec!["weight".to_string()],
-            index_type: IndexType::EdgeIndex,
-            is_unique: false,
-            partial_condition: None,
-        };
-        let index = Index::new(index_config);
-
-        let mut executor = CreateEdgeIndexExecutor::with_if_not_exists(
-            9,
-            storage,
-            "test_space".to_string(),
-            index,
-            create_test_context(),
-        );
+        let mut executor = CreateEdgeIndexExecutor::new(8, storage, create_test_context());
 
         let result = executor.execute();
         assert!(result.is_err());
@@ -239,30 +191,8 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = DropEdgeIndexExecutor::new(
-            10,
-            storage,
-            "test_space".to_string(),
-            "knows_weight_index".to_string(),
-            create_test_context(),
-        );
 
-        let result = executor.execute();
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_drop_edge_index_executor_with_if_exists() {
-        let storage = Arc::new(RwLock::new(
-            MockStorage::new().expect("Failed to create MockStorage"),
-        ));
-        let mut executor = DropEdgeIndexExecutor::with_if_exists(
-            11,
-            storage,
-            "test_space".to_string(),
-            "knows_weight_index".to_string(),
-            create_test_context(),
-        );
+        let mut executor = DropEdgeIndexExecutor::new(10, storage, create_test_context());
 
         let result = executor.execute();
         assert!(result.is_err());
@@ -273,13 +203,8 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = DescEdgeIndexExecutor::new(
-            12,
-            storage,
-            "test_space".to_string(),
-            "knows_weight_index".to_string(),
-            create_test_context(),
-        );
+
+        let mut executor = DescEdgeIndexExecutor::new(12, storage, create_test_context());
 
         let result = executor.execute();
         assert!(result.is_err());
@@ -290,12 +215,8 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = ShowEdgeIndexesExecutor::new(
-            13,
-            storage,
-            "test_space".to_string(),
-            create_test_context(),
-        );
+
+        let mut executor = ShowEdgeIndexesExecutor::new(13, storage, create_test_context());
 
         let result = executor.execute();
         assert!(result.is_err());
@@ -306,13 +227,8 @@ mod tests {
         let storage = Arc::new(RwLock::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = RebuildEdgeIndexExecutor::new(
-            14,
-            storage,
-            "test_space".to_string(),
-            "knows_weight_index".to_string(),
-            create_test_context(),
-        );
+
+        let mut executor = RebuildEdgeIndexExecutor::new(14, storage, create_test_context());
 
         let result = executor.execute();
         assert!(result.is_err());

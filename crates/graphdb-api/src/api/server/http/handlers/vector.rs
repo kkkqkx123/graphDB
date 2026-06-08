@@ -273,7 +273,7 @@ pub async fn search<
         let search_results: Vec<VectorSearchResult> = results
             .into_iter()
             .map(|r| VectorSearchResult {
-                id: r.id,
+                id: r.id.to_string(),
                 score: r.score,
                 vector: r.vector.map(|v| v.to_vec()),
                 payload: None,

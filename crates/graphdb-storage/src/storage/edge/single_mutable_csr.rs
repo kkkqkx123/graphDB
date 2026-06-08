@@ -258,22 +258,6 @@ impl SingleMutableCsr {
         self.get_edge(src, ts).map_or(Vec::new(), |nbr| vec![nbr])
     }
 
-    pub fn find_deleted_edge(&self, src: u32, dst: VertexId) -> Option<EdgeId> {
-        let src_idx = src as usize;
-
-        if src_idx >= self.vertex_capacity {
-            return None;
-        }
-
-        let nbr = &self.nbr_list[src_idx];
-
-        if nbr.timestamp == INVALID_TIMESTAMP && nbr.neighbor == dst {
-            Some(nbr.edge_id)
-        } else {
-            None
-        }
-    }
-
     pub fn clear(&mut self) {
         for nbr in &mut self.nbr_list {
             *nbr = Nbr::new(
@@ -440,10 +424,6 @@ impl MutableCsrTrait for SingleMutableCsr {
 
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         SingleMutableCsr::compact_with_ts(self, ts, reserve_ratio)
-    }
-
-    fn find_deleted_edge(&self, src: u32, dst: VertexId) -> Option<EdgeId> {
-        SingleMutableCsr::find_deleted_edge(self, src, dst)
     }
 
     fn used_memory_size(&self) -> usize {

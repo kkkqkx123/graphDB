@@ -284,11 +284,11 @@ fn test_create_edge_index_metadata() {
         partial_condition: None,
     });
 
-    let result = get_storage(&storage).create_edge_index("test_space", &index);
+    let result = get_storage(&storage).create_tag_index("test_space", &index);
     let created = result.expect("创建索引应该成功");
     assert!(created, "The index should be created");
 
-    let retrieved = get_storage(&storage).get_edge_index("test_space", "knows_since_idx");
+    let retrieved = get_storage(&storage).get_tag_index("test_space", "knows_since_idx");
     let index_opt = retrieved.expect("获取索引应该成功");
     assert_some(&index_opt);
 
@@ -326,13 +326,13 @@ fn test_drop_edge_index_metadata() {
         partial_condition: None,
     });
 
-    assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
+    assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
-    let result = get_storage(&storage).drop_edge_index("test_space", "knows_since_idx");
+    let result = get_storage(&storage).drop_tag_index("test_space", "knows_since_idx");
     let dropped = result.expect("删除索引应该成功");
     assert!(dropped, "Indexes should be deleted");
 
-    let retrieved = get_storage(&storage).get_edge_index("test_space", "knows_since_idx");
+    let retrieved = get_storage(&storage).get_tag_index("test_space", "knows_since_idx");
     let index_opt = retrieved.expect("获取索引应该成功");
     assert_none(&index_opt);
 }
@@ -381,10 +381,10 @@ fn test_list_edge_indexes() {
         partial_condition: None,
     });
 
-    assert_ok(get_storage(&storage).create_edge_index("test_space", &index1));
-    assert_ok(get_storage(&storage).create_edge_index("test_space", &index2));
+    assert_ok(get_storage(&storage).create_tag_index("test_space", &index1));
+    assert_ok(get_storage(&storage).create_tag_index("test_space", &index2));
 
-    let result = get_storage(&storage).list_edge_indexes("test_space");
+    let result = get_storage(&storage).list_tag_indexes("test_space");
     let indexes = result.expect("列出索引应该成功");
     assert_count(&indexes, 2, "索引");
 
@@ -494,7 +494,7 @@ fn test_delete_edge_indexes() {
         partial_condition: None,
     });
 
-    assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
+    assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
     let src = VertexId::from_int64(1);
     let dst = VertexId::from_int64(2);

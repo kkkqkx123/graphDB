@@ -285,7 +285,7 @@ impl VertexIndexManager {
 
             let key_bytes = compressed_key.as_slice();
             if let Ok(vertex_id) = KeyParser::parse_vertex_id_from_key(key_bytes) {
-                if let Ok(stored_value) = KeyParser::parse_prop_value_from_key(&key_bytes) {
+                if let Ok(stored_value) = KeyParser::parse_prop_value_from_key(key_bytes) {
                     let sv_bytes = serialize_value(&stored_value)?;
                     if sv_bytes == value_bytes && seen.insert(vertex_id.clone()) {
                         results.push(vertex_id);

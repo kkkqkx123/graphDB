@@ -34,8 +34,8 @@ pub use self::index::{
     CreateFulltextIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor,
     DescTagIndexExecutor, DescribeFulltextIndexExecutor, DropEdgeIndexExecutor,
     DropFulltextIndexExecutor, DropTagIndexExecutor, RebuildEdgeIndexExecutor,
-    RebuildTagIndexExecutor, ShowEdgeIndexStatusExecutor, ShowEdgeIndexesExecutor,
-    ShowFulltextIndexExecutor, ShowTagIndexStatusExecutor, ShowTagIndexesExecutor,
+    RebuildTagIndexExecutor, ShowEdgeIndexesExecutor, ShowFulltextIndexExecutor,
+    ShowTagIndexStatusExecutor, ShowTagIndexesExecutor,
 };
 
 pub use self::user::{

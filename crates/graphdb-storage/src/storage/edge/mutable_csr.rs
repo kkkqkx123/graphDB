@@ -419,37 +419,7 @@ impl MutableCsr {
         false
     }
 
-    /// Find a deleted edge by destination
-    pub fn find_deleted_edge(&self, src_vid: u32, dst: VertexId) -> Option<EdgeId> {
-        let src_idx = src_vid as usize;
-        if src_idx >= self.vertex_capacity {
-            return None;
-        }
 
-        // Scan primary
-        let degree = self.degrees[src_idx] as usize;
-        let offset = self.adj_offsets[src_idx] as usize;
-        for i in 0..degree {
-            let nbr = &self.nbr_list[offset + i];
-            if nbr.neighbor == dst && nbr.timestamp == INVALID_TIMESTAMP {
-                return Some(nbr.edge_id);
-            }
-        }
-
-        // Scan overflow
-        if self.overflow_starts[src_idx] != NO_OVERFLOW {
-            let o_start = self.overflow_starts[src_idx] as usize;
-            let o_count = self.overflow_counts[src_idx] as usize;
-            for i in 0..o_count {
-                let nbr = &self.nbr_list[o_start + i];
-                if nbr.neighbor == dst && nbr.timestamp == INVALID_TIMESTAMP {
-                    return Some(nbr.edge_id);
-                }
-            }
-        }
-
-        None
-    }
 
     /// Get edges of a vertex at a given timestamp
     pub fn edges_of(&self, src_vid: u32, ts: Timestamp) -> Vec<Nbr> {
@@ -915,10 +885,6 @@ impl MutableCsrTrait for MutableCsr {
 
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         MutableCsr::compact_with_ts(self, ts, reserve_ratio)
-    }
-
-    fn find_deleted_edge(&self, src_vid: u32, dst: VertexId) -> Option<EdgeId> {
-        MutableCsr::find_deleted_edge(self, src_vid, dst)
     }
 
     fn used_memory_size(&self) -> usize {

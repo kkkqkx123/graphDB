@@ -499,29 +499,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::core::types::{Index, IndexType};
-        let fields = node
-            .info()
-            .properties
-            .iter()
-            .map(|prop| IndexField::new(prop.clone(), Value::String("string".to_string()), false))
-            .collect();
-        let index = Index::new(IndexConfig {
-            id: 0,
-            name: node.info().index_name.clone(),
-            space_id: 0,
-            schema_name: node.info().target_name.clone(),
-            fields,
-            properties: node.info().properties.clone(),
-            index_type: IndexType::EdgeIndex,
-            is_unique: false,
-            partial_condition: None,
-        });
         let executor = CreateEdgeIndexExecutor::new(
             node.id(),
             storage,
-            node.space_name().to_string(),
-            index,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::IndexManage(
@@ -538,8 +518,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let executor = DropEdgeIndexExecutor::new(
             node.id(),
             storage,
-            node.space_name().to_string(),
-            node.index_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::IndexManage(
@@ -556,8 +534,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let executor = DescEdgeIndexExecutor::new(
             node.id(),
             storage,
-            node.space_name().to_string(),
-            node.index_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::IndexManage(
@@ -574,7 +550,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let executor = ShowEdgeIndexesExecutor::new(
             node.id(),
             storage,
-            node.space_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::IndexManage(
@@ -591,8 +566,6 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         let executor = RebuildEdgeIndexExecutor::new(
             node.id(),
             storage,
-            node.space_name().to_string(),
-            node.index_name().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::IndexManage(

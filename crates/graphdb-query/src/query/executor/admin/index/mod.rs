@@ -5,7 +5,6 @@
 pub mod edge_index;
 pub mod fulltext_index;
 pub mod rebuild_index;
-pub mod show_edge_index_status;
 pub mod show_tag_index_status;
 pub mod tag_index;
 
@@ -21,8 +20,6 @@ pub use edge_index::{
 };
 
 pub use rebuild_index::{RebuildEdgeIndexExecutor, RebuildTagIndexExecutor};
-
-pub use show_edge_index_status::ShowEdgeIndexStatusExecutor;
 pub use show_tag_index_status::ShowTagIndexStatusExecutor;
 
 pub use fulltext_index::{

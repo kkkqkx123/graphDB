@@ -3,14 +3,22 @@
 //! Provides transport layer independent vector index management and search operations.
 
 use crate::api::core::error::{CoreError, CoreResult};
-use crate::api::core::types::VectorSearchResult;
 use crate::sync::vector_sync::{SearchOptions, VectorIndexLocation, VectorSyncCoordinator};
 use std::sync::Arc;
 use vector_client::manager::IndexMetadata;
 use vector_client::{
-    CollectionConfig, DistanceMetric, FilterCondition, SearchQuery, VectorClientError,
-    VectorFilter, VectorManager, VectorPoint,
+    CollectionConfig, DistanceMetric, FilterCondition, SearchQuery, VectorManager, VectorPoint,
 };
+use vector_client::types::PointId;
+
+/// Vector search result
+#[derive(Debug, Clone)]
+pub struct VectorSearchResult {
+    pub id: PointId,
+    pub score: f32,
+    pub vector: Option<Vec<f32>>,
+    pub payload: Option<std::collections::HashMap<String, serde_json::Value>>,
+}
 
 /// Vector Index API – Core Layer
 pub struct VectorApi {
@@ -68,6 +76,15 @@ impl VectorApi {
             let config = CollectionConfig {
                 vector_size,
                 distance,
+                index_type: Some(vector_client::types::IndexType::HNSW),
+                hnsw_config: Some(vector_client::types::HnswConfig {
+                    m: 16,
+                    ef_construct: 100,
+                    full_scan_threshold: None,
+                    max_indexing_threads: None,
+                    on_disk: None,
+                    payload_m: Some(16),
+                }),
                 ..Default::default()
             };
             self.vector_manager

@@ -517,9 +517,9 @@ mod tests {
         let ctx = GraphStorageContext::new();
         ctx.create_vertex_type("Person", name_prop(), "name")
             .expect("create_vertex_type should succeed");
-        assert!(ctx.get_vertex_label_id("Person").is_some());
+        assert!(ctx.persistent.data_store.vertex_label_names().read().contains_key("Person"));
         ctx.drop_vertex_type("Person").expect("drop should succeed");
-        assert!(ctx.get_vertex_label_id("Person").is_none());
+        assert!(!ctx.persistent.data_store.vertex_label_names().read().contains_key("Person"));
     }
 
     #[test]

@@ -1077,60 +1077,6 @@ impl GraphStorageContext {
         Some(edge_table.in_edges(dst_internal, ts))
     }
 
-    pub fn out_edges_strict(
-        &self,
-        edge_label: LabelId,
-        src_label: LabelId,
-        dst_label: LabelId,
-        src_id: VertexId,
-        ts: Timestamp,
-    ) -> StorageResult<Vec<EdgeRecord>> {
-        if !self.persistent.is_open.load(Ordering::Acquire) {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let vertex_tables = self.persistent.data_store.vertex_tables().read();
-        let src_internal = self
-            .resolve_internal_id(&vertex_tables, src_label, src_id, ts)
-            .ok_or(StorageError::vertex_not_found())?;
-        drop(vertex_tables);
-
-        let key = EdgeTableKey::new(src_label, dst_label, edge_label);
-        let edge_tables = self.persistent.data_store.edge_tables().read();
-        let edge_table = edge_tables
-            .get(&key)
-            .ok_or(StorageError::not_found("Edge table not found"))?;
-
-        Ok(edge_table.out_edges(src_internal, ts))
-    }
-
-    pub fn in_edges_strict(
-        &self,
-        edge_label: LabelId,
-        src_label: LabelId,
-        dst_label: LabelId,
-        dst_id: VertexId,
-        ts: Timestamp,
-    ) -> StorageResult<Vec<EdgeRecord>> {
-        if !self.persistent.is_open.load(Ordering::Acquire) {
-            return Err(StorageError::storage_not_open());
-        }
-
-        let vertex_tables = self.persistent.data_store.vertex_tables().read();
-        let dst_internal = self
-            .resolve_internal_id(&vertex_tables, dst_label, dst_id, ts)
-            .ok_or(StorageError::vertex_not_found())?;
-        drop(vertex_tables);
-
-        let key = EdgeTableKey::new(src_label, dst_label, edge_label);
-        let edge_tables = self.persistent.data_store.edge_tables().read();
-        let edge_table = edge_tables
-            .get(&key)
-            .ok_or(StorageError::not_found("Edge table not found"))?;
-
-        Ok(edge_table.in_edges(dst_internal, ts))
-    }
-
     // ── Query Operations ──
 
     pub fn scan_vertices(&self, label: LabelId, ts: Timestamp) -> Option<Vec<VertexRecord>> {
@@ -1142,15 +1088,6 @@ impl GraphStorageContext {
     }
 
     // ── Label Access ──
-
-    pub fn get_vertex_label_id(&self, name: &str) -> Option<LabelId> {
-        self.persistent
-            .data_store
-            .vertex_label_names()
-            .read()
-            .get(name)
-            .copied()
-    }
 
     pub fn scan_edges(
         &self,

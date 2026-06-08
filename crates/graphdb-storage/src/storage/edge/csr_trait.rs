@@ -72,9 +72,6 @@ pub trait MutableCsrTrait: CsrBase {
         0
     }
 
-    /// Find a deleted edge by destination vertex.
-    fn find_deleted_edge(&self, src_vid: u32, dst: VertexId) -> Option<EdgeId>;
-
     /// Return the approximate memory usage in bytes.
     fn used_memory_size(&self) -> usize;
 }

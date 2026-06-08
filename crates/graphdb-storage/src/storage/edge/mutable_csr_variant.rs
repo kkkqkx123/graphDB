@@ -122,10 +122,6 @@ impl MutableCsrTrait for MutableCsrVariant {
         delegate!(self.compact_with_ts(ts, reserve_ratio))
     }
 
-    fn find_deleted_edge(&self, src_vid: u32, dst: VertexId) -> Option<EdgeId> {
-        delegate!(self.find_deleted_edge(src_vid, dst))
-    }
-
     fn used_memory_size(&self) -> usize {
         delegate!(self.used_memory_size())
     }

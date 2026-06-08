@@ -326,13 +326,14 @@ impl VectorSyncCoordinator {
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
+        let hnsw_config = vector_client::HnswConfig::new(16, 100).with_payload_m(16);
+        let config = vector_client::CollectionConfig::new(vector_size, distance)
+            .with_hnsw(hnsw_config);
+
         // Only create the physical collection if it doesn't exist yet
         if !self.vector_manager.index_exists(&collection_name) {
-            let config = vector_client::CollectionConfig::new(vector_size, distance)
-                .with_hnsw(vector_client::HnswConfig::new(16, 100).with_payload_m(16));
-
             self.vector_manager
-                .create_index(&collection_name, config)
+                .create_index(&collection_name, config.clone())
                 .await
                 .map_err(|e| VectorCoordinatorError::IndexCreationFailed {
                     tag_name: tag_name.to_string(),
@@ -350,13 +351,27 @@ impl VectorSyncCoordinator {
                     vector_client::types::PayloadSchemaType::Keyword,
                 )
                 .await;
+        } else {
+            if let Some(existing_meta) = self.vector_manager.get_index_metadata(&collection_name) {
+                if existing_meta.config.vector_size != vector_size
+                    || existing_meta.config.distance != distance
+                {
+                    return Err(VectorCoordinatorError::CollectionConfigConflict {
+                        collection_name: collection_name.clone(),
+                        existing_size: existing_meta.config.vector_size,
+                        existing_dist: format!("{:?}", existing_meta.config.distance),
+                        requested_size: vector_size,
+                        requested_dist: format!("{:?}", distance),
+                    });
+                }
+            }
         }
 
-        // Register logical index
+        // Register logical index with the actual config used
         let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
         let meta = vector_client::manager::IndexMetadata::new(
             collection_name.clone(),
-            vector_client::CollectionConfig::new(vector_size, distance),
+            config,
         );
         self.logical_indexes.insert(logical_key, meta);
 
@@ -571,7 +586,7 @@ impl VectorSyncCoordinator {
 
         let filter = VectorFilter::new().must(FilterCondition::match_value(
             "vertex_id",
-            vertex_id.to_string(),
+            format!("{}", vertex_id),
         ));
 
         self.vector_manager
@@ -845,14 +860,6 @@ impl VectorSyncCoordinator {
         self.search(&collection_name, query).await
     }
 
-        if let Some(filter) = options.filter {
-            query = query.with_filter(filter);
-        }
-
-        let results = self.search(&collection_name, query).await?;
-        Ok(results)
-    }
-
     /// Embed text to vector
     pub async fn embed_text(&self, text: &str) -> VectorCoordinatorResult<Vec<f32>> {
         if let Some(embedding) = &self.embedding_service {
@@ -932,7 +939,19 @@ impl VectorSyncCoordinator {
                 )
                 .await;
         } else {
-            // Collection exists but we still need to update logical index config
+            if let Some(existing_meta) = self.vector_manager.get_index_metadata(&collection_name) {
+                if existing_meta.config.vector_size != config.vector_size
+                    || existing_meta.config.distance != config.distance
+                {
+                    return Err(VectorCoordinatorError::CollectionConfigConflict {
+                        collection_name: collection_name.clone(),
+                        existing_size: existing_meta.config.vector_size,
+                        existing_dist: format!("{:?}", existing_meta.config.distance),
+                        requested_size: config.vector_size,
+                        requested_dist: format!("{:?}", config.distance),
+                    });
+                }
+            }
         }
 
         let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
@@ -944,56 +963,6 @@ impl VectorSyncCoordinator {
             space_id, tag_name, field_name, collection_name
         );
         Ok(collection_name)
-    }
-
-    /// Search with space_id and tag/field names
-    pub async fn search_by_location(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-        query_vector: Vec<f32>,
-        limit: usize,
-    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
-        let collection_name =
-            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
-
-        let query = SearchQuery::new(query_vector, limit);
-        self.search(&collection_name, query).await
-    }
-
-    /// Search with threshold
-    pub async fn search_with_threshold(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-        query_vector: Vec<f32>,
-        limit: usize,
-        threshold: f32,
-    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
-        let collection_name =
-            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
-
-        let query = SearchQuery::new(query_vector, limit).with_score_threshold(threshold);
-        self.search(&collection_name, query).await
-    }
-
-    /// Search with filter
-    pub async fn search_with_filter(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-        query_vector: Vec<f32>,
-        limit: usize,
-        filter: VectorFilter,
-    ) -> VectorCoordinatorResult<Vec<SearchResult>> {
-        let collection_name =
-            VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
-
-        let query = SearchQuery::new(query_vector, limit).with_filter(filter);
-        self.search(&collection_name, query).await
     }
 
     /// Search with threshold and filter

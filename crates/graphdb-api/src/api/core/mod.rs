@@ -24,7 +24,7 @@ pub use sync_api::SyncApi;
 pub use transaction_api::TransactionApi;
 pub use types::*;
 #[cfg(feature = "qdrant")]
-pub use vector_api::VectorApi;
+pub use vector_api::{VectorApi, VectorSearchResult};
 
 // Re-export the statistical types from the core layer.
 pub use crate::core::{

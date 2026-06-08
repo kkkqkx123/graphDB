@@ -117,6 +117,15 @@ pub enum VectorCoordinatorError {
     #[error("Embedding error: {0}")]
     EmbeddingError(String),
 
+    #[error("Collection config conflict for {collection_name}: existing {existing_size}/{existing_dist}, requested {requested_size}/{requested_dist}")]
+    CollectionConfigConflict {
+        collection_name: String,
+        existing_size: usize,
+        existing_dist: String,
+        requested_size: usize,
+        requested_dist: String,
+    },
+
     #[error("Internal error: {0}")]
     Internal(String),
 

@@ -107,17 +107,12 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for RebuildTa
 #[derive(Debug)]
 pub struct RebuildEdgeIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
-    space_name: String,
-    index_name: String,
 }
 
 impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
-    /// Creating a new RebuildEdgeIndexExecutor
     pub fn new(
         id: i64,
         storage: Arc<RwLock<S>>,
-        space_name: String,
-        index_name: String,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -127,8 +122,6 @@ impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
                 storage,
                 expr_context,
             ),
-            space_name,
-            index_name,
         }
     }
 }

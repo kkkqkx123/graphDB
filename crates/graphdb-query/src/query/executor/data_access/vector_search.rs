@@ -252,7 +252,7 @@ impl<S: StorageReader> VectorSearchExecutor<S> {
     /// Extract field value from search result
     fn extract_field_value(&self, field: &OutputField, result: &SearchResult) -> DBResult<Value> {
         match field.name.as_str() {
-            "id" | "vertex_id" => Ok(Value::String(result.id.clone())),
+            "id" | "vertex_id" => Ok(Value::String(result.id.to_string())),
             "score" => Ok(Value::Double(result.score as f64)),
             "vector" => {
                 // Return vector if requested
@@ -487,7 +487,7 @@ impl<S: StorageReader> VectorLookupExecutor<S> {
     /// Extract field value from search result
     fn extract_field_value(&self, field: &OutputField, result: &SearchResult) -> DBResult<Value> {
         match field.name.as_str() {
-            "id" | "vertex_id" => Ok(Value::String(result.id.clone())),
+            "id" | "vertex_id" => Ok(Value::String(result.id.to_string())),
             "score" => Ok(Value::Double(result.score as f64)),
             _ => {
                 if let Some(payload) = &result.payload {
@@ -722,7 +722,7 @@ impl<S: StorageReader> Executor<S> for VectorMatchExecutor<S> {
 
         for result in results {
             dataset.add_row(vec![
-                Value::String(result.id),
+                Value::String(result.id.to_string()),
                 Value::Double(result.score as f64),
             ]);
         }

@@ -868,10 +868,20 @@ mod tests {
         .expect("Second vertex type replay should succeed");
 
         let person_label = ctx
-            .get_vertex_label_id("space_1:tag:Person")
+            .persistent
+            .data_store
+            .vertex_label_names()
+            .read()
+            .get("space_1:tag:Person")
+            .copied()
             .expect("Person label should exist");
         let city_label = ctx
-            .get_vertex_label_id("space_1:tag:City")
+            .persistent
+            .data_store
+            .vertex_label_names()
+            .read()
+            .get("space_1:tag:City")
+            .copied()
             .expect("City label should exist");
 
         ctx.replay_add_vertex_prop(
