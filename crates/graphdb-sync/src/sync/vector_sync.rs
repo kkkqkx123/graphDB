@@ -36,9 +36,9 @@ pub enum VectorChangeType {
 impl From<crate::sync::coordinator::ChangeType> for VectorChangeType {
     fn from(ct: crate::sync::coordinator::ChangeType) -> Self {
         match ct {
-            crate::sync::coordinator::ChangeType::Insert => VectorChangeType::Insert,
+            crate::sync::coordinator::ChangeType::Insert
+            | crate::sync::coordinator::ChangeType::Update => VectorChangeType::Insert,
             crate::sync::coordinator::ChangeType::Delete => VectorChangeType::Delete,
-            _ => VectorChangeType::Delete,
         }
     }
 }

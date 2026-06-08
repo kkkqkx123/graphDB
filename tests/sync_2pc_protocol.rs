@@ -16,7 +16,7 @@ fn create_harness_with_paths(
     db_path: &Path,
     index_path: &Path,
 ) -> Result<SyncTestHarness, Box<dyn std::error::Error>> {
-    use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
+    use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig, TantivyConfig, TokenizerKind};
     use graphdb::storage::GraphStorage;
     use graphdb::sync::batch::BatchConfig;
     use graphdb::sync::coordinator::SyncCoordinator;
@@ -32,10 +32,13 @@ fn create_harness_with_paths(
         index_path: index_path.to_path_buf(),
         default_engine: EngineType::Bm25,
         sync: SyncConfig::default(),
-        tantivy: Default::default(),
         cache_size: 100,
         max_result_cache: 1000,
         result_cache_ttl_secs: 60,
+        tantivy: TantivyConfig {
+            tokenizer: TokenizerKind::Default,
+            ..Default::default()
+        },
     };
 
     let fulltext_manager = Arc::new(FulltextIndexManager::new(config)?);
@@ -67,6 +70,7 @@ fn create_harness_with_paths(
         sync_coordinator,
         temp_dir: TempDir::new()?,
         current_txn_id: None,
+        current_txn_seq: 0,
         rt,
     })
 }

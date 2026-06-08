@@ -260,6 +260,7 @@ impl SearchEngine for TantivySearchEngine {
             Ok(())
         })
         .await?;
+        self.reader.reload()?;
         self.refresh_stats_cache();
         Ok(())
     }

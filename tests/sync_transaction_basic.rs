@@ -418,9 +418,21 @@ fn test_transaction_edge_with_properties_sync() {
             vec!["name"],
         )
         .expect("Failed to create tag");
+    harness
+        .create_tag_with_fulltext(
+            "test_space",
+            "Company",
+            vec![("name", DataType::String)],
+            vec!["name"],
+        )
+        .expect("Failed to create Company tag");
 
     // Create edge type with properties
-    let edge_info = graphdb::core::types::EdgeTypeInfo::new("WORKS_AT".to_string());
+    let edge_info = graphdb::core::types::EdgeTypeInfo::new("WORKS_AT".to_string())
+        .with_properties(vec![
+            graphdb::core::types::PropertyDef::new("position".to_string(), DataType::String),
+            graphdb::core::types::PropertyDef::new("since".to_string(), DataType::Int),
+        ]);
     harness
         .storage
         .create_edge_type("test_space", &edge_info)

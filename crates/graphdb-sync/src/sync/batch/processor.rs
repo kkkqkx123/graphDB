@@ -242,8 +242,11 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
 
     async fn commit_all(&self) -> BatchResult<()> {
         let keys = self.buffer.keys();
-        for key in keys {
-            self.execute_batch(&key).await?;
+        for key in &keys {
+            self.execute_batch(key).await?;
+        }
+        if keys.is_empty() {
+            self.engine.commit().await.map_err(BatchError::from)?;
         }
         Ok(())
     }
@@ -369,6 +372,28 @@ impl TransactionBatchBuffer {
         let mut entry = txn_buffer.entry(key).or_default();
         entry.operations.push(operation);
         Ok(())
+    }
+
+    /// Peek at operations without removing them (non-destructive)
+    ///
+    /// Returns a clone of all grouped operations for validation during prepare phase.
+    pub fn peek_operations(
+        &self,
+        txn_id: TransactionId,
+    ) -> BatchResult<Vec<(IndexKey, Vec<IndexOperation>)>> {
+        if let Some(txn_buffer) = self.pending.get(&txn_id) {
+            let mut result = Vec::new();
+            for entry in txn_buffer.iter() {
+                let key = entry.key().clone();
+                let ops = entry.value().operations.clone();
+                if !ops.is_empty() {
+                    result.push((key, ops));
+                }
+            }
+            Ok(result)
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     /// Rollback the transaction by discarding all buffered operations

@@ -236,7 +236,6 @@ impl SyncManager {
     ) -> Result<(), SyncError> {
         let edge_id = format!("{}->{}", src, dst);
 
-        // Get all indexed fields for this edge type and delete from each fulltext index.
         let indexes = self
             .sync_coordinator
             .fulltext_manager()
@@ -268,7 +267,6 @@ impl SyncManager {
             );
         }
 
-        // Also delete from vector indexes for this edge type
         #[cfg(feature = "qdrant")]
         if let Some(ref vector_coord) = self.vector_coordinator {
             let vector_indexes = vector_coord.list_indexes();
@@ -288,6 +286,116 @@ impl SyncManager {
                     vector_coord
                         .buffer_vector_change(txn_id, ctx)
                         .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Edge update (synchronized buffering)
+    ///
+    /// For each indexed field of the edge, issues Delete + Insert operations
+    /// to ensure the fulltext index reflects the updated properties.
+    pub fn on_edge_update(
+        &self,
+        txn_id: crate::core::types::TransactionId,
+        space_id: u64,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+        old_props: &[(String, Value)],
+        new_props: &[(String, Value)],
+    ) -> Result<(), SyncError> {
+        let edge_id = format!("{}->{}", src, dst);
+        let indexes = self
+            .sync_coordinator
+            .fulltext_manager()
+            .get_space_indexes(space_id)
+            .into_iter()
+            .filter(|m| m.tag_name == edge_type)
+            .collect::<Vec<_>>();
+
+        for metadata in &indexes {
+            let field_name = &metadata.field_name;
+
+            if let Some((_, old_value)) = old_props.iter().find(|(k, _)| k == field_name) {
+                if let Value::String(text) = old_value {
+                    let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                        space_id,
+                        edge_type,
+                        field_name,
+                        ChangeType::Delete,
+                        edge_id.clone(),
+                        text.clone(),
+                    );
+                    self.sync_coordinator
+                        .buffer_operation(txn_id, ctx)
+                        .map_err(SyncError::from)?;
+                }
+            }
+
+            if let Some((_, new_value)) = new_props.iter().find(|(k, _)| k == field_name) {
+                if let Value::String(text) = new_value {
+                    let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                        space_id,
+                        edge_type,
+                        field_name,
+                        ChangeType::Insert,
+                        edge_id.clone(),
+                        text.clone(),
+                    );
+                    self.sync_coordinator
+                        .buffer_operation(txn_id, ctx)
+                        .map_err(SyncError::from)?;
+                }
+            }
+        }
+
+        #[cfg(feature = "qdrant")]
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            for idx in vector_coord.list_indexes() {
+                if idx.space_id == space_id && idx.tag_name == edge_type {
+                    if let Some((_, old_value)) =
+                        old_props.iter().find(|(k, _)| k == &idx.field_name)
+                    {
+                        if let Some(vector) = old_value.as_vector() {
+                            let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                                space_id,
+                                edge_type,
+                                &idx.field_name,
+                                crate::sync::vector_sync::VectorChangeType::Delete,
+                                crate::sync::vector_sync::VectorPointData {
+                                    id: edge_id.clone(),
+                                    vector: Vec::new(),
+                                    payload: std::collections::HashMap::new(),
+                                },
+                            );
+                            vector_coord
+                                .buffer_vector_change(txn_id, ctx)
+                                .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                        }
+                    }
+                    if let Some((_, new_value)) =
+                        new_props.iter().find(|(k, _)| k == &idx.field_name)
+                    {
+                        if let Some(vector) = new_value.as_vector() {
+                            let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                                space_id,
+                                edge_type,
+                                &idx.field_name,
+                                crate::sync::vector_sync::VectorChangeType::Insert,
+                                crate::sync::vector_sync::VectorPointData {
+                                    id: edge_id.clone(),
+                                    vector: vector.clone(),
+                                    payload: std::collections::HashMap::new(),
+                                },
+                            );
+                            vector_coord
+                                .buffer_vector_change(txn_id, ctx)
+                                .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                        }
+                    }
                 }
             }
         }

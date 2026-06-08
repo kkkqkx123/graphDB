@@ -6,7 +6,7 @@ use graphdb::core::types::VertexId;
 use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig};
+use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig, TantivyConfig, TokenizerKind};
 use graphdb::storage::GraphStorage;
 use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
 use graphdb::sync::batch::BatchConfig;
@@ -24,6 +24,7 @@ pub struct SyncTestHarness {
     pub sync_coordinator: Arc<SyncCoordinator>,
     pub temp_dir: TempDir,
     pub current_txn_id: Option<u64>,
+    pub current_txn_seq: u64,
     pub rt: tokio::runtime::Runtime,
 }
 
@@ -43,10 +44,13 @@ impl SyncTestHarness {
             index_path: index_path.clone(),
             default_engine: EngineType::Bm25,
             sync: SyncConfig::default(),
-            tantivy: Default::default(),
             cache_size: 100,
             max_result_cache: 1000,
             result_cache_ttl_secs: 60,
+            tantivy: TantivyConfig {
+                tokenizer: TokenizerKind::Default,
+                ..Default::default()
+            },
         };
 
         let fulltext_manager = Arc::new(FulltextIndexManager::new(config)?);
@@ -79,6 +83,7 @@ impl SyncTestHarness {
             sync_coordinator,
             temp_dir,
             current_txn_id: None,
+            current_txn_seq: 0,
             rt,
         })
     }
@@ -117,8 +122,7 @@ impl SyncTestHarness {
 
         // Create fulltext index for specified fields
         let space_id = self.storage.get_space_id(space_name)?;
-        let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
+        self.rt.block_on(async {
             let coordinator = self.sync_manager.sync_coordinator();
             for field in fulltext_fields {
                 let _ = coordinator
@@ -171,7 +175,8 @@ impl SyncTestHarness {
 
     /// Begin a new transaction
     pub fn begin_transaction(&mut self) -> Result<u64, Box<dyn std::error::Error>> {
-        let txn_id = 1; // Simple sequential ID for testing
+        self.current_txn_seq += 1;
+        let txn_id = self.current_txn_seq;
         self.current_txn_id = Some(txn_id);
         Ok(txn_id)
     }
@@ -179,16 +184,7 @@ impl SyncTestHarness {
     /// Commit current transaction
     pub fn commit_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
-            let rt = tokio::runtime::Runtime::new()?;
-
-            // Commit through sync manager
-            let sync_manager = self.sync_manager.clone();
-            let coordinator = sync_manager.sync_coordinator();
-
-            rt.block_on(sync_manager.commit_transaction(txn_id))?;
-
-            // Force flush all pending batches
-            rt.block_on(coordinator.commit_all())?;
+            self.rt.block_on(self.sync_manager.commit_transaction(txn_id))?;
         }
         Ok(())
     }
@@ -196,11 +192,7 @@ impl SyncTestHarness {
     /// Rollback current transaction
     pub fn rollback_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
-            let rt = tokio::runtime::Runtime::new()?;
-
-            // Rollback through sync manager
-            let sync_manager = self.sync_manager.clone();
-            rt.block_on(sync_manager.rollback_transaction(txn_id))?;
+            self.rt.block_on(self.sync_manager.rollback_transaction(txn_id))?;
         }
         Ok(())
     }
@@ -211,13 +203,10 @@ impl SyncTestHarness {
         space_name: &str,
         vertex: Vertex,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Insert into storage first
         self.storage.insert_vertex(space_name, vertex.clone())?;
 
-        // Manually sync to fulltext index (non-transactional mode)
         let space_id = self.storage.get_space_id(space_name)?;
-        let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
+        self.rt.block_on(async {
             for tag in &vertex.tags {
                 let tag_name = &tag.name;
                 let properties: Vec<(String, Value)> = tag
@@ -241,8 +230,6 @@ impl SyncTestHarness {
             Ok::<_, Box<dyn std::error::Error>>(())
         })?;
 
-        // Note: Batch processing will happen automatically based on batch config
-        // Tests should wait for async processing or call commit_all explicitly
         Ok(())
     }
 
@@ -259,14 +246,11 @@ impl SyncTestHarness {
         let space_id = self.storage.get_space_id(space_name)?;
         let txn_id = self.current_txn_id.unwrap();
 
-        // Check if vertex already exists
         let vertex_id = vertex.vid;
         let exists = self.storage.get_vertex(space_name, &vertex_id)?.is_some();
 
         if exists {
-            // Update mode: Get old vertex and buffer delete operations
             if let Some(old_vertex) = self.storage.get_vertex(space_name, &vertex_id)? {
-                // Buffer delete for old properties
                 for tag in &old_vertex.tags {
                     let tag_name = &tag.name;
                     for (field_name, value) in &tag.properties {
@@ -282,7 +266,6 @@ impl SyncTestHarness {
                 }
             }
 
-            // Buffer insert for new properties
             for tag in &vertex.tags {
                 let tag_name = &tag.name;
                 for (field_name, value) in &tag.properties {
@@ -297,34 +280,21 @@ impl SyncTestHarness {
                 }
             }
 
-            // Update in storage
             self.storage.update_vertex(space_name, vertex)?;
         } else {
-            // Insert mode: use on_vertex_change
-            let rt = tokio::runtime::Runtime::new()?;
-            rt.block_on(async {
-                for tag in &vertex.tags {
-                    let tag_name = &tag.name;
-                    let properties: Vec<(String, Value)> = tag
-                        .properties
-                        .iter()
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect();
-                    if !properties.is_empty() {
-                        self.sync_manager
-                            .sync_coordinator()
-                            .on_vertex_change(
-                                space_id,
-                                tag_name,
-                                &Value::from(vertex.vid),
-                                &properties,
-                                ChangeType::Insert,
-                            )
-                            .await?;
-                    }
+            for tag in &vertex.tags {
+                let tag_name = &tag.name;
+                for (field_name, value) in &tag.properties {
+                    self.sync_manager.on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        tag_name,
+                        &Value::from(vertex_id),
+                        &[(field_name.clone(), value.clone())],
+                        graphdb::sync::coordinator::ChangeType::Insert,
+                    )?;
                 }
-                Ok::<_, Box<dyn std::error::Error>>(())
-            })?;
+            }
 
             self.storage.insert_vertex(space_name, vertex)?;
         }
@@ -342,8 +312,7 @@ impl SyncTestHarness {
         limit: usize,
     ) -> Result<Vec<graphdb::search::SearchResult>, Box<dyn std::error::Error>> {
         let space_id = self.storage.get_space_id(space_name)?;
-        let rt = tokio::runtime::Runtime::new()?;
-        let results = rt.block_on(async {
+        let results = self.rt.block_on(async {
             self.sync_manager
                 .sync_coordinator()
                 .fulltext_manager()

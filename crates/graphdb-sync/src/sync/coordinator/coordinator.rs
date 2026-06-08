@@ -128,6 +128,11 @@ impl SyncCoordinator {
         self.fulltext_processors
             .insert(key.clone(), processor.clone());
 
+        let proc_clone = processor.clone();
+        tokio::spawn(async move {
+            proc_clone.start_background_task().await;
+        });
+
         Some(processor)
     }
 
@@ -336,18 +341,37 @@ impl SyncCoordinator {
         }
     }
 
-    /// Prepare phase: validate all operations
+    /// Prepare phase: validate all target engines are consistent
     pub async fn prepare_transaction(
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
-        // Check if there is a buffer for this transaction
         if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
             let count = buffer.pending_count(txn_id);
+
+            let grouped_ops = buffer
+                .peek_operations(txn_id)
+                .map_err(SyncCoordinatorError::BatchError)?;
+
+            for (key, _) in &grouped_ops {
+                if let Some(engine) =
+                    self.fulltext_manager
+                        .get_engine(key.space_id, &key.tag_name, &key.field_name)
+                {
+                    if engine.consistency_state() == ConsistencyState::Inconsistent {
+                        return Err(SyncCoordinatorError::InvalidOperation(format!(
+                            "Engine for {}.{}.{} is marked Inconsistent. Repair before committing.",
+                            key.space_id, key.tag_name, key.field_name
+                        )));
+                    }
+                }
+            }
+
             log::debug!(
-                "Transaction {:?} prepared with {} operations",
+                "Transaction {:?} prepared with {} operations across {} indexes (engines consistent)",
                 txn_id,
-                count
+                count,
+                grouped_ops.len()
             );
         }
         Ok(())
@@ -774,14 +798,10 @@ impl SyncCoordinator {
     pub async fn start_background_tasks(&self) {
         log::info!("Starting background tasks for sync coordinator");
 
-        // Fulltext processors do not need background tasks because all fulltext
-        // index operations go through the transactional path:
-        //
-        //   buffer_operation() → TransactionBatchBuffer → commit_transaction()
-        //     → execute_now_without_commit() [bypasses BatchBuffer]
-        //
-        // The BatchBuffer within GenericBatchProcessor is never populated
-        // for fulltext operations, so a background flush would be a no-op.
+        for entry in self.fulltext_processors.iter() {
+            let processor: Arc<FulltextProcessor> = entry.value().clone();
+            processor.start_background_task().await;
+        }
 
         #[cfg(feature = "qdrant")]
         for entry in self.vector_processors.iter() {
