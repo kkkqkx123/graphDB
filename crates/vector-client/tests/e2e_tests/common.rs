@@ -26,7 +26,10 @@ fn qdrant_available() -> bool {
                 true
             }
             _ => {
-                eprintln!("[E2E] Qdrant not available at {}, skipping E2E tests", log_url);
+                eprintln!(
+                    "[E2E] Qdrant not available at {}, skipping E2E tests",
+                    log_url
+                );
                 false
             }
         }
@@ -56,7 +59,12 @@ pub async fn create_e2e_client() -> Option<VectorClient> {
 }
 
 pub async fn ensure_deleted(client: &VectorClient, name: &str) {
-    if client.engine().collection_exists(name).await.unwrap_or(false) {
+    if client
+        .engine()
+        .collection_exists(name)
+        .await
+        .unwrap_or(false)
+    {
         client.engine().delete_collection(name).await.ok();
     }
 }

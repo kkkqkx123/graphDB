@@ -405,8 +405,8 @@ mod tests {
 
     #[test]
     fn test_collection_config_with_index_type() {
-        let cfg = CollectionConfig::new(384, DistanceMetric::Euclid)
-            .with_index_type(IndexType::FLAT);
+        let cfg =
+            CollectionConfig::new(384, DistanceMetric::Euclid).with_index_type(IndexType::FLAT);
         assert_eq!(cfg.index_type, Some(IndexType::FLAT));
     }
 

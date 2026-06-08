@@ -165,8 +165,7 @@ impl VertexIndexManager {
                                         fwd_compressed_key.as_slice(),
                                     ) {
                                         if vid == *vertex_id {
-                                            forward_keys_to_delete
-                                                .push(fwd_compressed_key.clone());
+                                            forward_keys_to_delete.push(fwd_compressed_key.clone());
                                         }
                                     }
                                 }

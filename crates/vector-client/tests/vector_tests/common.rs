@@ -261,7 +261,10 @@ impl VectorEngine for MockVectorEngine {
         });
 
         match &query.search_mode {
-            Some(SearchMode::Range { radius, max_results }) => {
+            Some(SearchMode::Range {
+                radius,
+                max_results,
+            }) => {
                 results.retain(|r| r.score >= *radius);
                 if let Some(max) = max_results {
                     results.truncate(*max);
@@ -396,7 +399,7 @@ impl VectorEngine for MockVectorEngine {
             })
             .collect();
 
-        points.sort_by(|a, b| a.id.to_string().cmp(&b.id.to_string()));
+        points.sort_by_key(|a| a.id.to_string());
 
         let skip = if let Some(offset_id) = offset {
             points
@@ -626,10 +629,8 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
         ConditionType::Nested { filter } => {
             if let Some(field_value) = payload.get(&condition.field) {
                 if let Some(obj) = field_value.as_object() {
-                    let nested_payload: Payload = obj
-                        .iter()
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect();
+                    let nested_payload: Payload =
+                        obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
                     let nested_point = VectorPoint {
                         id: point.id.clone(),
                         vector: point.vector.clone(),
@@ -670,10 +671,26 @@ fn matches_condition(condition: &FilterCondition, point: &VectorPoint) -> bool {
             if let Some(field_value) = payload.get(&condition.field) {
                 if let Some(arr) = field_value.as_array() {
                     let count = arr.len() as u64;
-                    if let Some(gt) = vc.gt { if count <= gt { return false; } }
-                    if let Some(gte) = vc.gte { if count < gte { return false; } }
-                    if let Some(lt) = vc.lt { if count >= lt { return false; } }
-                    if let Some(lte) = vc.lte { if count > lte { return false; } }
+                    if let Some(gt) = vc.gt {
+                        if count <= gt {
+                            return false;
+                        }
+                    }
+                    if let Some(gte) = vc.gte {
+                        if count < gte {
+                            return false;
+                        }
+                    }
+                    if let Some(lt) = vc.lt {
+                        if count >= lt {
+                            return false;
+                        }
+                    }
+                    if let Some(lte) = vc.lte {
+                        if count > lte {
+                            return false;
+                        }
+                    }
                     return true;
                 }
             }

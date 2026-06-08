@@ -250,7 +250,6 @@ impl StorageReader for GraphStorage {
     fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
         index_manager::list_tag_indexes(&self.ctx, space)
     }
-
 }
 
 impl StorageWriter for GraphStorage {
@@ -419,7 +418,6 @@ impl StorageSchemaOps for GraphStorage {
         let vertices = reader::scan_vertices(&self.ctx, space)?;
         index_manager::rebuild_tag_index(&self.ctx, space, index_name, &vertices)
     }
-
 }
 
 impl StorageAuthOps for GraphStorage {

@@ -977,13 +977,7 @@ mod tests {
         let mut csr = MutableCsr::with_capacity(2, 10);
 
         csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1);
-        csr.insert_edge(
-            100u32,
-            VertexId::from_int64(1),
-            101,
-            0,
-            1,
-        );
+        csr.insert_edge(100u32, VertexId::from_int64(1), 101, 0, 1);
 
         assert!(csr.vertex_capacity() >= 101);
     }

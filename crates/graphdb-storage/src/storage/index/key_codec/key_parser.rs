@@ -120,7 +120,6 @@ impl KeyParser {
 
         Ok((vertex_id_bytes, index_name))
     }
-
 }
 
 #[cfg(test)]

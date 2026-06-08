@@ -104,7 +104,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl EmbeddingProvider for TestProvider {
-        async fn embed(&self, texts: &[&str]) -> std::result::Result<Vec<Vec<f32>>, EmbeddingError> {
+        async fn embed(
+            &self,
+            texts: &[&str],
+        ) -> std::result::Result<Vec<Vec<f32>>, EmbeddingError> {
             Ok(texts.iter().map(|_| vec![0.0; self.dim]).collect())
         }
 
@@ -141,8 +144,7 @@ mod tests {
     #[test]
     fn test_service_debug() {
         let provider = Box::new(TestProvider { dim: 768 });
-        let config = EmbeddingConfig::new("http://example.com", "my-model")
-            .with_dimension(768);
+        let config = EmbeddingConfig::new("http://example.com", "my-model").with_dimension(768);
         let service = EmbeddingService::new(provider, config);
         let debug_str = format!("{:?}", service);
         assert!(debug_str.contains("my-model"));

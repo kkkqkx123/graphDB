@@ -430,13 +430,7 @@ impl EdgeTable {
         Ok(reverted)
     }
 
-    pub fn get_edge(
-        &self,
-        src: u32,
-        dst: u32,
-        rank: i64,
-        ts: Timestamp,
-    ) -> Option<EdgeRecord> {
+    pub fn get_edge(&self, src: u32, dst: u32, rank: i64, ts: Timestamp) -> Option<EdgeRecord> {
         if !self.is_open {
             return None;
         }
@@ -1129,7 +1123,8 @@ impl<'a> EdgeTableScanIterator<'a> {
 
         for (src_vid, nbr) in table.out_csr.iter(ts) {
             if !table.is_tombstoned(nbr.edge_id, ts) && seen.insert(nbr.edge_id) {
-                records.push(table.edge_record_from_nbr(src_vid.as_int64().unwrap_or(0) as u32, nbr));
+                records
+                    .push(table.edge_record_from_nbr(src_vid.as_int64().unwrap_or(0) as u32, nbr));
             }
         }
 
@@ -1196,20 +1191,12 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         let _edge_offset = table
-            .insert_edge(
-                0,
-                1,
-                0,
-                &[("weight".to_string(), Value::Double(1.5))],
-                100,
-            )
+            .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
             .unwrap();
 
         assert!(table.has_edge(0, 1, 0, 100));
 
-        let edge = table
-            .get_edge(0, 1, 0, 100)
-            .unwrap();
+        let edge = table.get_edge(0, 1, 0, 100).unwrap();
         assert_eq!(edge.src_vid, VertexId::from_int64(0));
         assert_eq!(edge.dst_vid, VertexId::from_int64(1));
         assert_eq!(edge.properties.len(), 1);
@@ -1221,30 +1208,14 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         table
-            .insert_edge(
-                0,
-                1,
-                10,
-                &[("weight".to_string(), Value::Double(1.0))],
-                100,
-            )
+            .insert_edge(0, 1, 10, &[("weight".to_string(), Value::Double(1.0))], 100)
             .unwrap();
         table
-            .insert_edge(
-                0,
-                1,
-                20,
-                &[("weight".to_string(), Value::Double(2.0))],
-                100,
-            )
+            .insert_edge(0, 1, 20, &[("weight".to_string(), Value::Double(2.0))], 100)
             .unwrap();
 
-        let rank_10 = table
-            .get_edge(0, 1, 10, 100)
-            .unwrap();
-        let rank_20 = table
-            .get_edge(0, 1, 20, 100)
-            .unwrap();
+        let rank_10 = table.get_edge(0, 1, 10, 100).unwrap();
+        let rank_20 = table.get_edge(0, 1, 20, 100).unwrap();
 
         assert_eq!(rank_10.rank, 10);
         assert_eq!(rank_20.rank, 20);
@@ -1257,18 +1228,10 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         table
-            .insert_edge(
-                0,
-                1,
-                0,
-                &[("weight".to_string(), Value::Double(1.5))],
-                100,
-            )
+            .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
             .unwrap();
 
-        assert!(table
-            .delete_edge(0, 1, 0, 200)
-            .unwrap());
+        assert!(table.delete_edge(0, 1, 0, 200).unwrap());
         assert!(!table.has_edge(0, 1, 0, 300));
     }
 
@@ -1278,22 +1241,10 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         table
-            .insert_edge(
-                0,
-                1,
-                0,
-                &[("weight".to_string(), Value::Double(1.5))],
-                100,
-            )
+            .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
             .unwrap();
         table
-            .insert_edge(
-                0,
-                2,
-                0,
-                &[("weight".to_string(), Value::Double(2.5))],
-                110,
-            )
+            .insert_edge(0, 2, 0, &[("weight".to_string(), Value::Double(2.5))], 110)
             .unwrap();
 
         let before = table.scan(150);
@@ -1313,20 +1264,10 @@ mod tests {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema).unwrap();
 
-        table
-            .insert_edge(
-                0,
-                1,
-                0,
-                &[],
-                100,
-            )
-            .unwrap();
+        table.insert_edge(0, 1, 0, &[], 100).unwrap();
         table.freeze_csr(150);
 
-        assert!(table
-            .delete_edge(0, 1, 0, 200)
-            .unwrap());
+        assert!(table.delete_edge(0, 1, 0, 200).unwrap());
         assert!(table.has_edge(0, 1, 0, 150));
         assert!(!table.has_edge(0, 1, 0, 250));
         assert_eq!(table.scan(250).len(), 0);
@@ -1337,33 +1278,9 @@ mod tests {
         let schema = create_test_schema();
         let mut table = EdgeTable::new(schema).unwrap();
 
-        table
-            .insert_edge(
-                0,
-                1,
-                0,
-                &[],
-                100,
-            )
-            .unwrap();
-        table
-            .insert_edge(
-                0,
-                2,
-                0,
-                &[],
-                100,
-            )
-            .unwrap();
-        table
-            .insert_edge(
-                1,
-                0,
-                0,
-                &[],
-                100,
-            )
-            .unwrap();
+        table.insert_edge(0, 1, 0, &[], 100).unwrap();
+        table.insert_edge(0, 2, 0, &[], 100).unwrap();
+        table.insert_edge(1, 0, 0, &[], 100).unwrap();
 
         assert_eq!(table.out_edges(0, 100).len(), 2);
         assert_eq!(table.in_edges(0, 100).len(), 1);
@@ -1377,30 +1294,15 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         table
-            .insert_edge(
-                0,
-                1,
-                0,
-                &[("weight".to_string(), Value::Double(1.0))],
-                100,
-            )
+            .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.0))], 100)
             .unwrap();
 
         let updated = table
-            .update_edge_property(
-                0,
-                1,
-                0,
-                "weight",
-                &Value::Double(2.0),
-                100,
-            )
+            .update_edge_property(0, 1, 0, "weight", &Value::Double(2.0), 100)
             .unwrap();
         assert!(updated);
 
-        let edge = table
-            .get_edge(0, 1, 0, 100)
-            .unwrap();
+        let edge = table.get_edge(0, 1, 0, 100).unwrap();
         assert_eq!(edge.properties.len(), 1);
     }
 
@@ -1413,33 +1315,15 @@ mod tests {
 
         let ts = 100u32;
         let _edge_id_1 = table
-            .insert_edge(
-                1,
-                2,
-                0,
-                &[("weight".to_string(), Value::Double(1.5))],
-                ts,
-            )
+            .insert_edge(1, 2, 0, &[("weight".to_string(), Value::Double(1.5))], ts)
             .unwrap();
 
         let _edge_id_2 = table
-            .insert_edge(
-                1,
-                3,
-                0,
-                &[("weight".to_string(), Value::Double(2.5))],
-                ts,
-            )
+            .insert_edge(1, 3, 0, &[("weight".to_string(), Value::Double(2.5))], ts)
             .unwrap();
 
         let _edge_id_3 = table
-            .insert_edge(
-                2,
-                3,
-                0,
-                &[("weight".to_string(), Value::Double(3.5))],
-                ts,
-            )
+            .insert_edge(2, 3, 0, &[("weight".to_string(), Value::Double(3.5))], ts)
             .unwrap();
 
         let temp_dir = std::env::temp_dir().join("edge_table_test_flush_load");
@@ -1502,27 +1386,13 @@ mod tests {
         let mut table = EdgeTable::new(schema).unwrap();
 
         table
-            .insert_edge(
-                1,
-                2,
-                0,
-                &[("weight".to_string(), Value::Double(1.5))],
-                100,
-            )
+            .insert_edge(1, 2, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
             .unwrap();
         table
-            .insert_edge(
-                1,
-                3,
-                0,
-                &[("weight".to_string(), Value::Double(2.5))],
-                110,
-            )
+            .insert_edge(1, 3, 0, &[("weight".to_string(), Value::Double(2.5))], 110)
             .unwrap();
         table.freeze_csr(150);
-        table
-            .delete_edge(1, 2, 0, 200)
-            .unwrap();
+        table.delete_edge(1, 2, 0, 200).unwrap();
 
         let temp_dir = std::env::temp_dir().join("edge_table_test_segments_tombstones");
         let _ = fs::remove_dir_all(&temp_dir);

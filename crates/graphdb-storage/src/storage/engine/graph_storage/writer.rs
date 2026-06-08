@@ -976,5 +976,3 @@ fn delete_vertex_indexes(
     }
     Ok(())
 }
-
-

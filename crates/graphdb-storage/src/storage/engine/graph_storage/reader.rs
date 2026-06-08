@@ -86,7 +86,9 @@ pub(crate) fn scan_vertices(ctx: &GraphStorageContext, space: &str) -> StorageRe
                 });
                 entry.internal_id = record.internal_id;
                 let props: HashMap<String, Value> = record.properties.iter().cloned().collect();
-                entry.tags.push(Tag::new(tag.tag_name.clone(), props.clone()));
+                entry
+                    .tags
+                    .push(Tag::new(tag.tag_name.clone(), props.clone()));
                 entry.properties.extend(props);
             }
         }

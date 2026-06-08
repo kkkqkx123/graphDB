@@ -132,9 +132,8 @@ mod tests {
             partial_condition: None,
         });
 
-        super::create_tag_index(&ctx, "test_space", &index).expect_err(
-            "should fail because space does not exist",
-        );
+        super::create_tag_index(&ctx, "test_space", &index)
+            .expect_err("should fail because space does not exist");
 
         // Actually we need a space + schema adapter for full testing.
         // The index_manager functions require a schema_manager with registered space.

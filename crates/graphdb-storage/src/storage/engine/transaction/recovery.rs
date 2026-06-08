@@ -1,7 +1,7 @@
+use crate::core::error::storage::StorageErrorKind;
 use crate::core::types::{
     DataType, EdgeTypeInfo, LabelId, PropertyDef, SpaceInfo, TagInfo, Timestamp, VertexId,
 };
-use crate::core::error::storage::StorageErrorKind;
 use crate::core::wal::traits::RecoveryApplier;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeStrategy;
@@ -10,13 +10,13 @@ use crate::storage::engine::params::{CreateEdgeTypeParams, EdgeOperationParams};
 use crate::storage::engine::transaction::{AddEdgeParams, TransactionOps};
 use crate::storage::types::StoragePropertyDef;
 use crate::transaction::codec::bytes_to_value;
-use graphdb_core::core::metadata::IndexMetadataManager;
 use crate::transaction::wal::{
     AddEdgePropRedo, AddVertexPropRedo, AlterSpaceCommentRedo, ClearSpaceRedo, CreateEdgeTypeRedo,
     CreateSpaceRedo, CreateVertexTypeRedo, DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo,
     DeleteVertexPropRedo, DeleteVertexTypeRedo, DropSpaceRedo, InsertEdgeRedo, RenameEdgePropRedo,
     RenameVertexPropRedo, UpdateEdgePropRedo,
 };
+use graphdb_core::core::metadata::IndexMetadataManager;
 
 impl RecoveryApplier for GraphStorageContext {
     // ========================================================================
@@ -212,24 +212,27 @@ impl RecoveryApplier for GraphStorageContext {
             redo.edge_label,
         );
 
-        let (src_internal, dst_internal) = {
-            let vertex_tables = self.data_store().vertex_tables().read();
-            let src_internal = resolve_external_vid(&vertex_tables, redo.src_label, redo.src_vid, ts)
-                .ok_or_else(|| {
-                    StorageError::db_error(format!(
+        let (src_internal, dst_internal) =
+            {
+                let vertex_tables = self.data_store().vertex_tables().read();
+                let src_internal =
+                    resolve_external_vid(&vertex_tables, redo.src_label, redo.src_vid, ts)
+                        .ok_or_else(|| {
+                            StorageError::db_error(format!(
                         "Source vertex not found during delete-edge recovery: label={}, vid={:?}",
                         redo.src_label, redo.src_vid
                     ))
-                })?;
-            let dst_internal = resolve_external_vid(&vertex_tables, redo.dst_label, redo.dst_vid, ts)
-                .ok_or_else(|| {
-                    StorageError::db_error(format!(
-                        "Destination vertex not found during delete-edge recovery: label={}, vid={:?}",
-                        redo.dst_label, redo.dst_vid
-                    ))
-                })?;
-            (src_internal, dst_internal)
-        };
+                        })?;
+                let dst_internal =
+                    resolve_external_vid(&vertex_tables, redo.dst_label, redo.dst_vid, ts)
+                        .ok_or_else(|| {
+                            StorageError::db_error(format!(
+                    "Destination vertex not found during delete-edge recovery: label={}, vid={:?}",
+                    redo.dst_label, redo.dst_vid
+                ))
+                        })?;
+                (src_internal, dst_internal)
+            };
 
         {
             let mut edge_tables = self.data_store().edge_tables().write();
@@ -333,7 +336,10 @@ impl RecoveryApplier for GraphStorageContext {
 
         self.ensure_recovery_space(&redo.space_name)?;
 
-        let space_id = self.schema_manager().get_space_id(&redo.space_name).unwrap_or(0);
+        let space_id = self
+            .schema_manager()
+            .get_space_id(&redo.space_name)
+            .unwrap_or(0);
         let storage_name = format!("space_{space_id}:tag:{}", redo.label_name);
         let label_id = if let Some(label_id) = redo.label_id {
             match self.create_vertex_type_with_id(
@@ -359,7 +365,10 @@ impl RecoveryApplier for GraphStorageContext {
                 })
                 .collect::<StorageResult<Vec<_>>>()?,
         );
-        match self.schema_manager().create_tag_with_id(&redo.space_name, &tag, label_id) {
+        match self
+            .schema_manager()
+            .create_tag_with_id(&redo.space_name, &tag, label_id)
+        {
             Ok(_) => {}
             Err(e) if e.kind() == StorageErrorKind::LabelAlreadyExists => {}
             Err(e) => return Err(e),
@@ -399,7 +408,10 @@ impl RecoveryApplier for GraphStorageContext {
 
         self.ensure_recovery_space(&redo.space_name)?;
 
-        let space_id = self.schema_manager().get_space_id(&redo.space_name).unwrap_or(0);
+        let space_id = self
+            .schema_manager()
+            .get_space_id(&redo.space_name)
+            .unwrap_or(0);
         let storage_name = format!("space_{space_id}:edge:{}", redo.edge_label);
         let label_id = if let Some(label_id) = redo.label_id {
             match self.create_edge_type_with_id(
@@ -440,7 +452,10 @@ impl RecoveryApplier for GraphStorageContext {
                     })
                     .collect::<StorageResult<Vec<_>>>()?,
             );
-        match self.schema_manager().create_edge_type_with_id(&redo.space_name, &edge_type, label_id) {
+        match self
+            .schema_manager()
+            .create_edge_type_with_id(&redo.space_name, &edge_type, label_id)
+        {
             Ok(_) => {}
             Err(e) if e.kind() == StorageErrorKind::LabelAlreadyExists => {}
             Err(e) => return Err(e),
@@ -641,10 +656,7 @@ impl RecoveryApplier for GraphStorageContext {
 
 /// Resolve an external VertexId to its internal u32 ID.
 fn resolve_external_vid(
-    vertex_tables: &std::collections::HashMap<
-        LabelId,
-        crate::storage::vertex::VertexTable,
-    >,
+    vertex_tables: &std::collections::HashMap<LabelId, crate::storage::vertex::VertexTable>,
     label: LabelId,
     vid: VertexId,
     ts: Timestamp,
@@ -818,10 +830,10 @@ fn parse_data_type(raw: &str) -> StorageResult<DataType> {
 #[cfg(test)]
 mod tests {
     use super::*;
-use graphdb_core::core::metadata::IndexMetadataManager;
-use crate::core::wal::traits::RecoveryApplier;
+    use crate::core::wal::traits::RecoveryApplier;
     use crate::core::Value;
     use crate::storage::engine::{EdgeOperationParams, InsertEdgeParams};
+    use graphdb_core::core::metadata::IndexMetadataManager;
 
     #[test]
     fn test_schema_replay_roundtrip() {

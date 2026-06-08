@@ -57,11 +57,7 @@ impl VectorEngine for DisabledEngine {
     async fn delete(&self, _collection: &str, _point_id: &str) -> Result<DeleteResult> {
         self.err().await
     }
-    async fn delete_batch(
-        &self,
-        _collection: &str,
-        _point_ids: Vec<&str>,
-    ) -> Result<DeleteResult> {
+    async fn delete_batch(&self, _collection: &str, _point_ids: Vec<&str>) -> Result<DeleteResult> {
         self.err().await
     }
     async fn delete_by_filter(
@@ -71,11 +67,7 @@ impl VectorEngine for DisabledEngine {
     ) -> Result<DeleteResult> {
         self.err().await
     }
-    async fn search(
-        &self,
-        _collection: &str,
-        _query: SearchQuery,
-    ) -> Result<Vec<SearchResult>> {
+    async fn search(&self, _collection: &str, _query: SearchQuery) -> Result<Vec<SearchResult>> {
         self.err().await
     }
     async fn search_batch(
@@ -245,7 +237,9 @@ mod tests {
     #[tokio::test]
     async fn test_disabled_engine_returns_error() {
         let engine = DisabledEngine;
-        let result = engine.create_collection("test", CollectionConfig::default()).await;
+        let result = engine
+            .create_collection("test", CollectionConfig::default())
+            .await;
         assert!(result.is_err());
         match result.unwrap_err() {
             VectorClientError::EngineNotAvailable(_) => {}
@@ -264,9 +258,15 @@ mod tests {
     #[tokio::test]
     async fn test_disabled_engine_all_ops_error() {
         let engine = DisabledEngine;
-        assert!(engine.upsert("c", VectorPoint::new(1u64, vec![1.0])).await.is_err());
+        assert!(engine
+            .upsert("c", VectorPoint::new(1u64, vec![1.0]))
+            .await
+            .is_err());
         assert!(engine.delete("c", "1").await.is_err());
-        assert!(engine.search("c", SearchQuery::new(vec![1.0], 10)).await.is_err());
+        assert!(engine
+            .search("c", SearchQuery::new(vec![1.0], 10))
+            .await
+            .is_err());
         assert!(engine.get("c", "1").await.is_err());
         assert!(engine.count("c").await.is_err());
         assert!(engine.collection_exists("c").await.is_err());

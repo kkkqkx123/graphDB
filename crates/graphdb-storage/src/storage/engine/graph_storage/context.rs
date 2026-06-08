@@ -991,12 +991,7 @@ impl GraphStorageContext {
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let edge_table = edge_tables.get(&key)?;
 
-        edge_table.get_edge(
-            src_internal,
-            dst_internal,
-            params.rank,
-            ts,
-        )
+        edge_table.get_edge(src_internal, dst_internal, params.rank, ts)
     }
 
     pub fn delete_edge(&self, params: &EdgeOperationParams, ts: Timestamp) -> StorageResult<bool> {
@@ -1009,22 +1004,14 @@ impl GraphStorageContext {
         let src_internal = self
             .resolve_internal_id(&vertex_tables, params.src_label, params.src_id, ts)
             .or_else(|| {
-                self.resolve_internal_id_any(
-                    &vertex_tables,
-                    params.src_label,
-                    params.src_id,
-                )
+                self.resolve_internal_id_any(&vertex_tables, params.src_label, params.src_id)
             })
             .ok_or(StorageError::vertex_not_found())?;
 
         let dst_internal = self
             .resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, ts)
             .or_else(|| {
-                self.resolve_internal_id_any(
-                    &vertex_tables,
-                    params.dst_label,
-                    params.dst_id,
-                )
+                self.resolve_internal_id_any(&vertex_tables, params.dst_label, params.dst_id)
             })
             .ok_or(StorageError::vertex_not_found())?;
 
@@ -1036,12 +1023,7 @@ impl GraphStorageContext {
             StorageError::label_not_found(format!("edge label {}", params.edge_label))
         })?;
 
-        let deleted = edge_table.delete_edge(
-            src_internal,
-            dst_internal,
-            params.rank,
-            ts,
-        )?;
+        let deleted = edge_table.delete_edge(src_internal, dst_internal, params.rank, ts)?;
         if deleted {
             self.mark_edge_modified(params.edge_label);
         }
@@ -1115,9 +1097,9 @@ impl GraphStorageContext {
 
         let key = EdgeTableKey::new(src_label, dst_label, edge_label);
         let edge_tables = self.persistent.data_store.edge_tables().read();
-        let edge_table = edge_tables.get(&key).ok_or(StorageError::not_found(
-            "Edge table not found",
-        ))?;
+        let edge_table = edge_tables
+            .get(&key)
+            .ok_or(StorageError::not_found("Edge table not found"))?;
 
         Ok(edge_table.out_edges(src_internal, ts))
     }
@@ -1142,9 +1124,9 @@ impl GraphStorageContext {
 
         let key = EdgeTableKey::new(src_label, dst_label, edge_label);
         let edge_tables = self.persistent.data_store.edge_tables().read();
-        let edge_table = edge_tables.get(&key).ok_or(StorageError::not_found(
-            "Edge table not found",
-        ))?;
+        let edge_table = edge_tables
+            .get(&key)
+            .ok_or(StorageError::not_found("Edge table not found"))?;
 
         Ok(edge_table.in_edges(dst_internal, ts))
     }

@@ -333,8 +333,8 @@ mod tests {
 
     #[test]
     fn test_build_request_single_text() {
-        let config = EmbeddingConfig::new("http://example.com/embeddings", "test-model")
-            .with_dimension(128);
+        let config =
+            EmbeddingConfig::new("http://example.com/embeddings", "test-model").with_dimension(128);
         let provider = OpenAICompatibleProvider::new(config).unwrap();
         let req = provider.build_request(&["hello world"]);
         assert_eq!(req.model, "test-model");
@@ -344,8 +344,8 @@ mod tests {
 
     #[test]
     fn test_build_request_multiple_texts() {
-        let config = EmbeddingConfig::new("http://example.com/embeddings", "test-model")
-            .with_dimension(128);
+        let config =
+            EmbeddingConfig::new("http://example.com/embeddings", "test-model").with_dimension(128);
         let provider = OpenAICompatibleProvider::new(config).unwrap();
         let req = provider.build_request(&["a", "b", "c"]);
         assert_eq!(req.input.len(), 3);
@@ -463,21 +463,23 @@ mod tests {
     fn test_provider_type() {
         let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(128);
         let provider = OpenAICompatibleProvider::new(config).unwrap();
-        assert_eq!(provider.provider_type(), crate::embedding::ProviderType::Http);
+        assert_eq!(
+            provider.provider_type(),
+            crate::embedding::ProviderType::Http
+        );
     }
 
     #[test]
     fn test_model_name() {
-        let config = EmbeddingConfig::new("http://example.com", "my-special-model")
-            .with_dimension(128);
+        let config =
+            EmbeddingConfig::new("http://example.com", "my-special-model").with_dimension(128);
         let provider = OpenAICompatibleProvider::new(config).unwrap();
         assert_eq!(provider.model_name(), "my-special-model");
     }
 
     #[test]
     fn test_provider_debug() {
-        let config = EmbeddingConfig::new("http://example.com", "debug-model")
-            .with_dimension(256);
+        let config = EmbeddingConfig::new("http://example.com", "debug-model").with_dimension(256);
         let provider = OpenAICompatibleProvider::new(config).unwrap();
         let debug_str = format!("{:?}", provider);
         assert!(debug_str.contains("debug-model"));

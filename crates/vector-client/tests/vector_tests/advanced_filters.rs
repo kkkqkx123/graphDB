@@ -1,10 +1,8 @@
-use super::common::{
-    create_payload, create_test_points, generate_test_vectors, VectorTestContext,
-};
+use super::common::{create_payload, create_test_points, generate_test_vectors, VectorTestContext};
 use vector_client::types::{
     ConditionType, DistanceMetric, FilterCondition, GeoBoundingBox, GeoPoint, GeoRadius,
-    MinShouldCondition, RangeCondition, SearchQuery, VectorFilter, VectorPoint,
-    ValuesCountCondition,
+    MinShouldCondition, RangeCondition, SearchQuery, ValuesCountCondition, VectorFilter,
+    VectorPoint,
 };
 
 /// Contains filter on array payload field
@@ -17,18 +15,16 @@ async fn test_contains_filter() {
         .expect("create index");
 
     let vectors = generate_test_vectors(3, 64, 42);
-    let payloads = vec![
+    let payloads = [
         create_payload(vec![("tags", serde_json::json!(["rust", "db"]))]),
         create_payload(vec![("tags", serde_json::json!(["rust"]))]),
         create_payload(vec![("tags", serde_json::json!(["python", "ml"]))]),
     ];
-    let ids = vec!["doc_1", "doc_2", "doc_3"];
+    let ids = ["doc_1", "doc_2", "doc_3"];
     let points: Vec<VectorPoint> = ids
         .iter()
         .enumerate()
-        .map(|(i, &id)| {
-            VectorPoint::new(id, vectors[i].clone()).with_payload(payloads[i].clone())
-        })
+        .map(|(i, &id)| VectorPoint::new(id, vectors[i].clone()).with_payload(payloads[i].clone()))
         .collect();
     ctx.insert_test_vectors(1, "Doc", "emb", points)
         .await
@@ -59,14 +55,17 @@ async fn test_has_id_filter() {
         .expect("create index");
 
     let vectors = generate_test_vectors(5, 64, 42);
-    let ids: Vec<&str> = vec!["a", "b", "c", "d", "e"];
-    let points = create_test_points(ids, vectors.clone(), None);
+    let ids: [&str; 5] = ["a", "b", "c", "d", "e"];
+    let points = create_test_points(ids.to_vec(), vectors.clone(), None);
     ctx.insert_test_vectors(1, "Doc", "emb", points)
         .await
         .expect("insert");
 
-    let filter = VectorFilter::new()
-        .must(FilterCondition::has_id(vec!["a".into(), "c".into(), "e".into()]));
+    let filter = VectorFilter::new().must(FilterCondition::has_id(vec![
+        "a".into(),
+        "c".into(),
+        "e".into(),
+    ]));
     let query = SearchQuery::new(vectors[0].clone(), 10).with_filter(filter);
     let results = ctx
         .manager
@@ -91,19 +90,17 @@ async fn test_match_any_filter() {
         .expect("create index");
 
     let vectors = generate_test_vectors(4, 64, 42);
-    let payloads = vec![
+    let payloads = [
         create_payload(vec![("color", serde_json::json!("red"))]),
         create_payload(vec![("color", serde_json::json!("blue"))]),
         create_payload(vec![("color", serde_json::json!("green"))]),
         create_payload(vec![("color", serde_json::json!("red"))]),
     ];
-    let ids = vec!["d1", "d2", "d3", "d4"];
+    let ids = ["d1", "d2", "d3", "d4"];
     let points: Vec<VectorPoint> = ids
         .iter()
         .enumerate()
-        .map(|(i, &id)| {
-            VectorPoint::new(id, vectors[i].clone()).with_payload(payloads[i].clone())
-        })
+        .map(|(i, &id)| VectorPoint::new(id, vectors[i].clone()).with_payload(payloads[i].clone()))
         .collect();
     ctx.insert_test_vectors(1, "Doc", "emb", points)
         .await
@@ -209,7 +206,12 @@ async fn test_nested_filter() {
         .expect("insert");
 
     let inner = VectorFilter::new().must(FilterCondition::match_value("status", "active"));
-    let nested = FilterCondition::new("meta", ConditionType::Nested { filter: Box::new(inner) });
+    let nested = FilterCondition::new(
+        "meta",
+        ConditionType::Nested {
+            filter: Box::new(inner),
+        },
+    );
     let filter = VectorFilter::new().must(nested);
     let query = SearchQuery::new(vectors[0].clone(), 10).with_filter(filter);
     let results = ctx
@@ -324,10 +326,14 @@ async fn test_values_count_filter() {
     let pts = vec![
         VectorPoint::new("few", vectors[0].clone())
             .with_payload(create_payload(vec![("items", serde_json::json!([1]))])),
-        VectorPoint::new("some", vectors[1].clone())
-            .with_payload(create_payload(vec![("items", serde_json::json!([1, 2, 3]))])),
-        VectorPoint::new("many", vectors[2].clone())
-            .with_payload(create_payload(vec![("items", serde_json::json!([1, 2, 3, 4, 5]))])),
+        VectorPoint::new("some", vectors[1].clone()).with_payload(create_payload(vec![(
+            "items",
+            serde_json::json!([1, 2, 3]),
+        )])),
+        VectorPoint::new("many", vectors[2].clone()).with_payload(create_payload(vec![(
+            "items",
+            serde_json::json!([1, 2, 3, 4, 5]),
+        )])),
     ];
     ctx.insert_test_vectors(1, "Doc", "emb", pts)
         .await

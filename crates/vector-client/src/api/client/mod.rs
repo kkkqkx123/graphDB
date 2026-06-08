@@ -1,5 +1,6 @@
-mod client;
+#[path = "client.rs"]
+mod client_impl;
 mod core;
 
-pub use client::*;
+pub use client_impl::*;
 pub use core::*;

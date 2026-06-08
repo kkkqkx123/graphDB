@@ -56,14 +56,8 @@ fn test_multi_tag_vertex_get_and_scan() {
 
     // Both tags should be present
     let tag_names: Vec<&str> = retrieved.tags.iter().map(|t| t.name.as_str()).collect();
-    assert!(
-        tag_names.contains(&"Person"),
-        "Should have Person tag"
-    );
-    assert!(
-        tag_names.contains(&"Employee"),
-        "Should have Employee tag"
-    );
+    assert!(tag_names.contains(&"Person"), "Should have Person tag");
+    assert!(tag_names.contains(&"Employee"), "Should have Employee tag");
 
     // scan_vertices should NOT return duplicates (vertex with 2 tags = 1 result)
     let all_vertices = storage.scan_vertices("test_space").unwrap();
@@ -131,10 +125,7 @@ fn test_delete_tag_from_vertex() {
         .unwrap()
         .expect("Vertex should still exist");
     let tag_names: Vec<&str> = retrieved.tags.iter().map(|t| t.name.as_str()).collect();
-    assert!(
-        tag_names.contains(&"Person"),
-        "Person tag should remain"
-    );
+    assert!(tag_names.contains(&"Person"), "Person tag should remain");
     assert!(
         !tag_names.contains(&"Employee"),
         "Employee tag should be deleted"
@@ -187,10 +178,7 @@ fn test_dangling_edge_detection_and_repair() {
     let repaired_count = storage
         .repair_dangling_edges("test_space")
         .expect("repair_dangling_edges should succeed");
-    assert!(
-        repaired_count >= 1,
-        "Should have repaired at least 1 edge"
-    );
+    assert!(repaired_count >= 1, "Should have repaired at least 1 edge");
 
     // Verify no dangling edges remain
     let remaining = storage
@@ -263,7 +251,10 @@ fn test_alter_tag_properties_with_existing_data() {
             "Person".to_string(),
             vec![
                 ("name".to_string(), Value::String("Diana".to_string())),
-                ("email".to_string(), Value::String("diana@test.com".to_string())),
+                (
+                    "email".to_string(),
+                    Value::String("diana@test.com".to_string()),
+                ),
             ]
             .into_iter()
             .collect(),
@@ -335,10 +326,7 @@ fn test_alter_edge_type_properties() {
         )
         .unwrap()
         .expect("New edge with rank 1 should exist");
-    assert_eq!(
-        retrieved.props.get("weight"),
-        Some(&Value::Double(0.5))
-    );
+    assert_eq!(retrieved.props.get("weight"), Some(&Value::Double(0.5)));
 }
 
 // ── Scenario 4: Edge Traversal with Multiple Edge Types ──
@@ -374,9 +362,9 @@ fn test_multi_edge_type_traversal() {
     storage.insert_vertex("test_space", charlie_emp).unwrap();
 
     // KNOWS edges between persons
-    let knows_ab = common::create_knows_edge(1, 2, 2020);  // Alice -> Bob
-    let knows_bc = common::create_knows_edge(2, 3, 2021);  // Bob -> Charlie
-    let knows_ca = common::create_knows_edge(3, 1, 2022);  // Charlie -> Alice
+    let knows_ab = common::create_knows_edge(1, 2, 2020); // Alice -> Bob
+    let knows_bc = common::create_knows_edge(2, 3, 2021); // Bob -> Charlie
+    let knows_ca = common::create_knows_edge(3, 1, 2022); // Charlie -> Alice
     storage.insert_edge("test_space", knows_ab).unwrap();
     storage.insert_edge("test_space", knows_bc).unwrap();
     storage.insert_edge("test_space", knows_ca).unwrap();
@@ -403,17 +391,17 @@ fn test_multi_edge_type_traversal() {
     let alice_in = storage
         .get_node_edges("test_space", &VertexId::from_int64(1), EdgeDirection::In)
         .unwrap();
-    assert_eq!(alice_in.len(), 1, "Alice should have 1 incoming edge (KNOWS from Charlie)");
+    assert_eq!(
+        alice_in.len(),
+        1,
+        "Alice should have 1 incoming edge (KNOWS from Charlie)"
+    );
 
     // Charlie's incoming: KNOWS from Bob + WORKS_AT from Alice = 2
     let charlie_in = storage
         .get_node_edges("test_space", &VertexId::from_int64(3), EdgeDirection::In)
         .unwrap();
-    assert_eq!(
-        charlie_in.len(),
-        2,
-        "Charlie should have 2 incoming edges"
-    );
+    assert_eq!(charlie_in.len(), 2, "Charlie should have 2 incoming edges");
 
     // Charlie's outgoing: KNOWS -> Alice, no WORKS_AT from Charlie
     let charlie_out = storage
@@ -692,9 +680,7 @@ fn test_delete_vertex_with_edges_cascade() {
         .is_none());
 
     // Edge is gone (cascaded)
-    let remaining_edges = storage
-        .scan_edges_by_type("test_space", "KNOWS")
-        .unwrap();
+    let remaining_edges = storage.scan_edges_by_type("test_space", "KNOWS").unwrap();
     assert_eq!(remaining_edges.len(), 0);
 }
 
@@ -839,7 +825,11 @@ fn test_edge_both_direction_traversal() {
     let bob_both = storage
         .get_node_edges("test_space", &VertexId::from_int64(2), EdgeDirection::Both)
         .unwrap();
-    assert_eq!(bob_both.len(), 1, "Both traversal should find 1 incoming edge for Bob");
+    assert_eq!(
+        bob_both.len(),
+        1,
+        "Both traversal should find 1 incoming edge for Bob"
+    );
 }
 
 // ── Scenario 13: Update Vertex ──
@@ -859,7 +849,10 @@ fn test_update_vertex_properties() {
         vec![Tag::new(
             "Person".to_string(),
             vec![
-                ("name".to_string(), Value::String("AliceUpdated".to_string())),
+                (
+                    "name".to_string(),
+                    Value::String("AliceUpdated".to_string()),
+                ),
                 ("age".to_string(), Value::BigInt(31)),
             ]
             .into_iter()

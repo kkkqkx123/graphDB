@@ -7,9 +7,7 @@ use graphdb_storage::core::types::{
 use graphdb_storage::core::vertex_edge_path::Tag;
 use graphdb_storage::core::DataType;
 use graphdb_storage::core::{Edge, Value, Vertex};
-use graphdb_storage::storage::{
-    GraphStorage, StorageReader, StorageSchemaOps, StorageWriter,
-};
+use graphdb_storage::storage::{GraphStorage, StorageReader, StorageSchemaOps, StorageWriter};
 
 /// Create a new in-memory storage for integration testing.
 pub fn create_in_memory_storage() -> GraphStorage {
@@ -17,17 +15,14 @@ pub fn create_in_memory_storage() -> GraphStorage {
 }
 
 /// Create a persistent storage at the given path.
-pub fn create_persistent_storage(
-    path: &Path,
-) -> GraphStorage {
+pub fn create_persistent_storage(path: &Path) -> GraphStorage {
     GraphStorage::new_with_path(path.to_path_buf())
         .expect("Failed to create persistent GraphStorage")
 }
 
 /// Open a previously persisted storage.
 pub fn open_persistent_storage(path: &Path) -> GraphStorage {
-    GraphStorage::open(path.to_path_buf())
-        .expect("Failed to open persistent GraphStorage")
+    GraphStorage::open(path.to_path_buf()).expect("Failed to open persistent GraphStorage")
 }
 
 /// Create test space with BigInt vid type.
@@ -41,10 +36,11 @@ pub fn create_space(storage: &mut GraphStorage, name: &str) -> u64 {
 
 /// Create a Person tag with name and age properties.
 pub fn create_person_tag(storage: &mut GraphStorage, space: &str) -> u32 {
-    let tag = graphdb_storage::core::types::TagInfo::new("Person".to_string()).with_properties(vec![
-        PropertyDef::new("name".to_string(), DataType::String),
-        PropertyDef::new("age".to_string(), DataType::BigInt),
-    ]);
+    let tag =
+        graphdb_storage::core::types::TagInfo::new("Person".to_string()).with_properties(vec![
+            PropertyDef::new("name".to_string(), DataType::String),
+            PropertyDef::new("age".to_string(), DataType::BigInt),
+        ]);
     storage
         .create_tag(space, &tag)
         .expect("Failed to create Person tag")
@@ -52,8 +48,8 @@ pub fn create_person_tag(storage: &mut GraphStorage, space: &str) -> u32 {
 
 /// Create an Employee tag with company and salary properties.
 pub fn create_employee_tag(storage: &mut GraphStorage, space: &str) -> u32 {
-    let tag = graphdb_storage::core::types::TagInfo::new("Employee".to_string())
-        .with_properties(vec![
+    let tag =
+        graphdb_storage::core::types::TagInfo::new("Employee".to_string()).with_properties(vec![
             PropertyDef::new("company".to_string(), DataType::String),
             PropertyDef::new("salary".to_string(), DataType::BigInt),
         ]);
@@ -101,7 +97,13 @@ pub fn create_person_vertex(id: i64, name: &str, age: i64) -> Vertex {
 }
 
 /// Create a person+employee vertex with both tags.
-pub fn create_multi_tag_vertex(id: i64, name: &str, age: i64, company: &str, salary: i64) -> Vertex {
+pub fn create_multi_tag_vertex(
+    id: i64,
+    name: &str,
+    age: i64,
+    company: &str,
+    salary: i64,
+) -> Vertex {
     let mut props: HashMap<String, Value> = HashMap::new();
     props.insert("name".to_string(), Value::String(name.to_string()));
     props.insert("age".to_string(), Value::BigInt(age));

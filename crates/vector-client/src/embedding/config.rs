@@ -113,29 +113,29 @@ mod tests {
 
     #[test]
     fn test_with_api_key() {
-        let cfg = EmbeddingConfig::new("http://example.com", "model")
-            .with_api_key("sk-test");
+        let cfg = EmbeddingConfig::new("http://example.com", "model").with_api_key("sk-test");
         assert_eq!(cfg.api_key, Some("sk-test".into()));
     }
 
     #[test]
     fn test_with_timeout() {
-        let cfg = EmbeddingConfig::new("http://example.com", "model")
-            .with_timeout(60);
+        let cfg = EmbeddingConfig::new("http://example.com", "model").with_timeout(60);
         assert_eq!(cfg.timeout_secs, 60);
     }
 
     #[test]
     fn test_with_dimension() {
-        let cfg = EmbeddingConfig::new("http://example.com", "model")
-            .with_dimension(768);
+        let cfg = EmbeddingConfig::new("http://example.com", "model").with_dimension(768);
         assert_eq!(cfg.dimension, Some(768));
     }
 
     #[test]
     fn test_with_preprocessor() {
-        let cfg = EmbeddingConfig::new("http://example.com", "model")
-            .with_preprocessor(PreprocessorConfig::Prefix { prefix: "query: ".into() });
+        let cfg = EmbeddingConfig::new("http://example.com", "model").with_preprocessor(
+            PreprocessorConfig::Prefix {
+                prefix: "query: ".into(),
+            },
+        );
         match cfg.preprocessor {
             PreprocessorConfig::Prefix { ref prefix } => assert_eq!(prefix, "query: "),
             _ => panic!("expected Prefix preprocessor"),

@@ -314,7 +314,8 @@ impl VertexTable {
         if !self.is_open {
             return None;
         }
-        self.id_indexer.get_index(&IdKey::Text(external_id.to_string()))
+        self.id_indexer
+            .get_index(&IdKey::Text(external_id.to_string()))
     }
 
     pub fn get_external_id(&self, internal_id: u32, ts: Timestamp) -> Option<IdKey> {

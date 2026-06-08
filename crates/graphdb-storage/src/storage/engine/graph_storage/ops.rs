@@ -331,8 +331,8 @@ mod tests {
     use crate::storage::vertex::VertexRecord;
 
     use super::{
-        edge_record_to_edge, edge_type_storage_name, serialize_properties,
-        value_to_string, vertex_record_to_vertex, vertex_type_storage_name,
+        edge_record_to_edge, edge_type_storage_name, serialize_properties, value_to_string,
+        vertex_record_to_vertex, vertex_type_storage_name,
     };
 
     #[test]
@@ -340,7 +340,10 @@ mod tests {
         assert_eq!(value_to_string(&Value::SmallInt(42)), "42");
         assert_eq!(value_to_string(&Value::Int(100)), "100");
         assert_eq!(value_to_string(&Value::BigInt(9999999999)), "9999999999");
-        assert_eq!(value_to_string(&Value::String("hello".to_string())), "hello");
+        assert_eq!(
+            value_to_string(&Value::String("hello".to_string())),
+            "hello"
+        );
         assert_eq!(value_to_string(&Value::Float(3.14)), "3.14");
         assert_eq!(value_to_string(&Value::Double(2.71828)), "2.71828");
         assert_eq!(value_to_string(&Value::Bool(true)), "true");
@@ -349,10 +352,7 @@ mod tests {
 
     #[test]
     fn test_vertex_type_storage_name() {
-        assert_eq!(
-            vertex_type_storage_name(1, "Person"),
-            "space_1:tag:Person"
-        );
+        assert_eq!(vertex_type_storage_name(1, "Person"), "space_1:tag:Person");
         assert_eq!(
             vertex_type_storage_name(0, "Employee"),
             "space_0:tag:Employee"
@@ -361,10 +361,7 @@ mod tests {
 
     #[test]
     fn test_edge_type_storage_name() {
-        assert_eq!(
-            edge_type_storage_name(1, "KNOWS"),
-            "space_1:edge:KNOWS"
-        );
+        assert_eq!(edge_type_storage_name(1, "KNOWS"), "space_1:edge:KNOWS");
         assert_eq!(
             edge_type_storage_name(0, "WORKS_AT"),
             "space_0:edge:WORKS_AT"
@@ -402,9 +399,7 @@ mod tests {
             src_vid: VertexId::from_int64(1),
             dst_vid: VertexId::from_int64(2),
             rank: 0,
-            properties: vec![
-                ("since".to_string(), Value::Int(2020)),
-            ],
+            properties: vec![("since".to_string(), Value::Int(2020))],
         };
 
         let edge = edge_record_to_edge(&record, "KNOWS", "1", "2");

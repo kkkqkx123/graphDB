@@ -367,8 +367,7 @@ mod tests {
 
     #[test]
     fn test_vector_filter_must_not() {
-        let f = VectorFilter::new()
-            .must_not(FilterCondition::is_null("deleted"));
+        let f = VectorFilter::new().must_not(FilterCondition::is_null("deleted"));
         assert_eq!(f.must_not.as_ref().map(|v| v.len()), Some(1));
     }
 

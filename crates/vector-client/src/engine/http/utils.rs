@@ -78,7 +78,9 @@ mod tests {
 
     #[test]
     fn test_vector_value_into_vec_multi() {
-        let vv = VectorValue::Multi { data: vec![4.0, 5.0] };
+        let vv = VectorValue::Multi {
+            data: vec![4.0, 5.0],
+        };
         assert_eq!(vv.into_vec(), Some(vec![4.0, 5.0]));
     }
 

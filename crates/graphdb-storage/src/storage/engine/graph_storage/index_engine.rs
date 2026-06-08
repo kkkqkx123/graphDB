@@ -31,5 +31,3 @@ pub fn delete_vertex_indexes_mvcc(
         ts,
     )
 }
-
-

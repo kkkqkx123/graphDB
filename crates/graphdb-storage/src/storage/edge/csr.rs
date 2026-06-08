@@ -357,15 +357,9 @@ mod tests {
         assert_eq!(csr.edges_of(1).len(), 1);
         assert_eq!(csr.edges_of(2).len(), 1);
 
-        assert!(csr
-            .get_edge(0, VertexId::from_int64(1))
-            .is_some());
-        assert!(csr
-            .get_edge(0, VertexId::from_int64(2))
-            .is_some());
-        assert!(csr
-            .get_edge(0, VertexId::from_int64(3))
-            .is_none());
+        assert!(csr.get_edge(0, VertexId::from_int64(1)).is_some());
+        assert!(csr.get_edge(0, VertexId::from_int64(2)).is_some());
+        assert!(csr.get_edge(0, VertexId::from_int64(3)).is_none());
     }
 
     #[test]
@@ -403,15 +397,9 @@ mod tests {
 
         assert_eq!(csr2.vertex_capacity(), csr1.vertex_capacity());
         assert_eq!(csr2.edge_count(), csr1.edge_count());
-        assert!(csr2
-            .get_edge(0, VertexId::from_int64(1))
-            .is_some());
-        assert!(csr2
-            .get_edge(0, VertexId::from_int64(2))
-            .is_some());
-        assert!(csr2
-            .get_edge(1, VertexId::from_int64(3))
-            .is_some());
+        assert!(csr2.get_edge(0, VertexId::from_int64(1)).is_some());
+        assert!(csr2.get_edge(0, VertexId::from_int64(2)).is_some());
+        assert!(csr2.get_edge(1, VertexId::from_int64(3)).is_some());
     }
 
     #[test]

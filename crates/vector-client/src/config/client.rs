@@ -272,7 +272,10 @@ mod validation_tests {
     #[test]
     fn test_timeout_config_durations() {
         let config = TimeoutConfig::new(10, 20, 30);
-        assert_eq!(config.request_duration(), std::time::Duration::from_secs(10));
+        assert_eq!(
+            config.request_duration(),
+            std::time::Duration::from_secs(10)
+        );
         assert_eq!(config.search_duration(), std::time::Duration::from_secs(20));
         assert_eq!(config.upsert_duration(), std::time::Duration::from_secs(30));
     }

@@ -125,7 +125,6 @@ fn build_quantization_json(qt: &QuantizationType) -> Value {
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 pub fn build_create_collection_body(
     _name: &str,
     vector_size: usize,
@@ -321,12 +320,26 @@ mod tests {
         assert_eq!(field_type_to_qdrant(PayloadSchemaType::Text), "text");
         assert_eq!(field_type_to_qdrant(PayloadSchemaType::Bool), "bool");
         assert_eq!(field_type_to_qdrant(PayloadSchemaType::Geo), "geo");
-        assert_eq!(field_type_to_qdrant(PayloadSchemaType::Datetime), "datetime");
+        assert_eq!(
+            field_type_to_qdrant(PayloadSchemaType::Datetime),
+            "datetime"
+        );
     }
 
     #[test]
     fn test_build_create_collection_body() {
-        let body = build_create_collection_body("test", 384, DistanceMetric::Cosine, None, &None, &None, None, None, None, None);
+        let body = build_create_collection_body(
+            "test",
+            384,
+            DistanceMetric::Cosine,
+            None,
+            &None,
+            &None,
+            None,
+            None,
+            None,
+            None,
+        );
         let vectors = body.get("vectors").unwrap();
         assert_eq!(vectors.get("size").unwrap().as_u64(), Some(384));
         assert_eq!(vectors.get("distance").unwrap().as_str(), Some("Cosine"));
@@ -335,7 +348,18 @@ mod tests {
     #[test]
     fn test_build_create_collection_body_with_hnsw() {
         let hnsw = HnswConfig::new(32, 200).with_on_disk(true);
-        let body = build_create_collection_body("test", 128, DistanceMetric::Dot, None, &Some(hnsw), &None, None, None, None, None);
+        let body = build_create_collection_body(
+            "test",
+            128,
+            DistanceMetric::Dot,
+            None,
+            &Some(hnsw),
+            &None,
+            None,
+            None,
+            None,
+            None,
+        );
         let vectors = body.get("vectors").unwrap();
         let hnsw_json = vectors.get("hnsw_config").unwrap();
         assert_eq!(hnsw_json.get("m").unwrap().as_u64(), Some(32));
@@ -345,21 +369,57 @@ mod tests {
 
     #[test]
     fn test_build_create_collection_body_with_shards() {
-        let body = build_create_collection_body("test", 384, DistanceMetric::Cosine, None, &None, &None, None, Some(3), None, None);
+        let body = build_create_collection_body(
+            "test",
+            384,
+            DistanceMetric::Cosine,
+            None,
+            &None,
+            &None,
+            None,
+            Some(3),
+            None,
+            None,
+        );
         assert_eq!(body.get("shard_number").unwrap().as_u64(), Some(3));
     }
 
     #[test]
     fn test_build_create_collection_body_on_disk_payload() {
-        let body = build_create_collection_body("test", 384, DistanceMetric::Cosine, None, &None, &None, Some(true), None, None, None);
+        let body = build_create_collection_body(
+            "test",
+            384,
+            DistanceMetric::Cosine,
+            None,
+            &None,
+            &None,
+            Some(true),
+            None,
+            None,
+            None,
+        );
         assert_eq!(body.get("on_disk_payload").unwrap().as_bool(), Some(true));
     }
 
     #[test]
     fn test_build_create_collection_body_with_replication() {
-        let body = build_create_collection_body("test", 384, DistanceMetric::Cosine, None, &None, &None, None, None, Some(2), Some(1));
+        let body = build_create_collection_body(
+            "test",
+            384,
+            DistanceMetric::Cosine,
+            None,
+            &None,
+            &None,
+            None,
+            None,
+            Some(2),
+            Some(1),
+        );
         assert_eq!(body.get("replication_factor").unwrap().as_u64(), Some(2));
-        assert_eq!(body.get("write_consistency_factor").unwrap().as_u64(), Some(1));
+        assert_eq!(
+            body.get("write_consistency_factor").unwrap().as_u64(),
+            Some(1)
+        );
     }
 
     #[test]
@@ -399,11 +459,19 @@ mod tests {
     fn test_build_search_body_with_options() {
         let filter = serde_json::json!({"must": []});
         let body = build_search_body(
-            vec![1.0], 5, Some(2), Some(0.5),
-            Some(filter), Some(false), Some(true), Some(64),
+            vec![1.0],
+            5,
+            Some(2),
+            Some(0.5),
+            Some(filter),
+            Some(false),
+            Some(true),
+            Some(64),
         );
         assert_eq!(body.get("offset").unwrap().as_u64(), Some(2));
-        assert!((body.get("score_threshold").unwrap().as_f64().unwrap() - 0.5).abs() < f64::EPSILON);
+        assert!(
+            (body.get("score_threshold").unwrap().as_f64().unwrap() - 0.5).abs() < f64::EPSILON
+        );
         assert_eq!(body.get("with_payload").unwrap().as_bool(), Some(false));
         assert_eq!(body.get("with_vector").unwrap().as_bool(), Some(true));
         assert!(body.get("filter").is_some());
@@ -440,7 +508,10 @@ mod tests {
         let ids = vec![serde_json::json!(1)];
         let payload = serde_json::json!({"color": "red"});
         let body = build_set_payload_body(ids, payload);
-        assert_eq!(body.get("payload").unwrap().get("color").unwrap().as_str(), Some("red"));
+        assert_eq!(
+            body.get("payload").unwrap().get("color").unwrap().as_str(),
+            Some("red")
+        );
         assert_eq!(body.get("points").unwrap().as_array().unwrap().len(), 1);
     }
 
@@ -478,7 +549,10 @@ mod tests {
         let json = super::super::config::build_hnsw_json(&hnsw);
         assert_eq!(json.get("m").unwrap().as_u64(), Some(16));
         assert_eq!(json.get("ef_construct").unwrap().as_u64(), Some(100));
-        assert_eq!(json.get("full_scan_threshold").unwrap().as_u64(), Some(5000));
+        assert_eq!(
+            json.get("full_scan_threshold").unwrap().as_u64(),
+            Some(5000)
+        );
         assert_eq!(json.get("max_indexing_threads").unwrap().as_u64(), Some(4));
         assert_eq!(json.get("on_disk").unwrap().as_bool(), Some(false));
         assert_eq!(json.get("payload_m").unwrap().as_u64(), Some(8));
@@ -487,14 +561,19 @@ mod tests {
     #[test]
     fn test_build_quantization_scalar_json() {
         use crate::types::QuantizationType;
-        let qt = QuantizationType::Scalar { quantile: Some(0.99), always_ram: Some(true) };
+        let qt = QuantizationType::Scalar {
+            quantile: Some(0.99),
+            always_ram: Some(true),
+        };
         let json = super::super::config::build_quantization_json(&qt);
         let scalar = json.get("scalar").expect("scalar key should exist");
         assert_eq!(scalar.get("type").unwrap().as_str(), Some("scalar"));
         assert_eq!(scalar.get("always_ram").unwrap().as_bool(), Some(true));
         let actual = scalar.get("quantile").unwrap().as_f64().unwrap();
-        assert!((actual - 0.99).abs() < 0.001, "quantile expected ~0.99, got {}", actual);
+        assert!(
+            (actual - 0.99).abs() < 0.001,
+            "quantile expected ~0.99, got {}",
+            actual
+        );
     }
-
-
 }

@@ -427,7 +427,10 @@ mod tests {
     #[test]
     fn test_create_vertex_type() {
         let ctx = GraphStorageContext::new();
-        let props = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        let props = vec![StoragePropertyDef::new(
+            "name".to_string(),
+            DataType::String,
+        )];
         let label_id = ctx
             .create_vertex_type("Person", props, "name")
             .expect("create_vertex_type should succeed");
@@ -437,10 +440,16 @@ mod tests {
     #[test]
     fn test_create_duplicate_vertex_type() {
         let ctx = GraphStorageContext::new();
-        let props = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        let props = vec![StoragePropertyDef::new(
+            "name".to_string(),
+            DataType::String,
+        )];
         ctx.create_vertex_type("Person", props, "name")
             .expect("create_vertex_type should succeed");
-        let props2 = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        let props2 = vec![StoragePropertyDef::new(
+            "name".to_string(),
+            DataType::String,
+        )];
         let result = ctx.create_vertex_type("Person", props2, "name");
         assert!(result.is_err());
     }
@@ -450,7 +459,10 @@ mod tests {
         let ctx = GraphStorageContext::new();
         let result = ctx.create_vertex_type(
             "Person",
-            vec![StoragePropertyDef::new("name".to_string(), DataType::String)],
+            vec![StoragePropertyDef::new(
+                "name".to_string(),
+                DataType::String,
+            )],
             "nonexistent",
         );
         assert!(result.is_err());
@@ -459,7 +471,10 @@ mod tests {
     #[test]
     fn test_create_edge_type() {
         let ctx = GraphStorageContext::new();
-        let props = vec![StoragePropertyDef::new("name".to_string(), DataType::String)];
+        let props = vec![StoragePropertyDef::new(
+            "name".to_string(),
+            DataType::String,
+        )];
         ctx.create_vertex_type("Person", props, "name")
             .expect("create_vertex_type should succeed");
 
@@ -480,13 +495,21 @@ mod tests {
     fn test_create_edge_type_missing_src_label() {
         let ctx = GraphStorageContext::new();
         let result = ctx.create_edge_type(
-            "KNOWS", 0, 0, vec![], EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+            "KNOWS",
+            0,
+            0,
+            vec![],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
         );
         assert!(result.is_err());
     }
 
     fn name_prop() -> Vec<StoragePropertyDef> {
-        vec![StoragePropertyDef::new("name".to_string(), DataType::String)]
+        vec![StoragePropertyDef::new(
+            "name".to_string(),
+            DataType::String,
+        )]
     }
 
     #[test]
@@ -512,7 +535,12 @@ mod tests {
         ctx.create_vertex_type("Person", name_prop(), "name")
             .expect("create_vertex_type should succeed");
         ctx.create_edge_type(
-            "KNOWS", 0, 0, vec![], EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+            "KNOWS",
+            0,
+            0,
+            vec![],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
         )
         .expect("create_edge_type should succeed");
         ctx.drop_edge_type("KNOWS").expect("drop should succeed");
@@ -536,7 +564,12 @@ mod tests {
         ctx.create_vertex_type("Person", name_prop(), "name")
             .expect("create_vertex_type should succeed");
         ctx.create_edge_type(
-            "KNOWS", 0, 0, vec![], EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+            "KNOWS",
+            0,
+            0,
+            vec![],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
         )
         .expect("create_edge_type should succeed");
         ctx.add_edge_property(
@@ -574,9 +607,12 @@ mod tests {
         ctx.create_vertex_type("Person", name_prop(), "name")
             .expect("create_vertex_type should succeed");
         ctx.create_edge_type(
-            "KNOWS", 0, 0,
+            "KNOWS",
+            0,
+            0,
             vec![StoragePropertyDef::new("since".to_string(), DataType::Int)],
-            EdgeStrategy::Multiple, EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
         )
         .expect("create_edge_type should succeed");
         ctx.delete_edge_property(0, "since")

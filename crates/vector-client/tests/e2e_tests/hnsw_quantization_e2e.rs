@@ -22,20 +22,38 @@ async fn test_e2e_hnsw_config_roundtrip() {
     config.on_disk_payload = Some(false);
     config.shard_number = Some(1);
 
-    client.engine().create_collection(&collection, config).await.expect("create");
+    client
+        .engine()
+        .create_collection(&collection, config)
+        .await
+        .expect("create");
 
-    let info = client.engine().collection_info(&collection).await.expect("info");
+    let info = client
+        .engine()
+        .collection_info(&collection)
+        .await
+        .expect("info");
     assert_eq!(info.config.vector_size, 4);
     assert_eq!(info.config.distance, DistanceMetric::Cosine);
 
-    client.engine().delete_collection(&collection).await.expect("delete");
+    client
+        .engine()
+        .delete_collection(&collection)
+        .await
+        .expect("delete");
 }
 
 async fn quantization_supported(client: &vector_client::api::VectorClient) -> bool {
     let collection = test_collection("quant_probe");
     ensure_deleted(client, &collection).await;
-    let qt = QuantizationType::Scalar { quantile: Some(0.99), always_ram: Some(true) };
-    let qc = QuantizationConfig { enabled: true, quant_type: Some(qt) };
+    let qt = QuantizationType::Scalar {
+        quantile: Some(0.99),
+        always_ram: Some(true),
+    };
+    let qc = QuantizationConfig {
+        enabled: true,
+        quant_type: Some(qt),
+    };
     let mut config = CollectionConfig::new(4, DistanceMetric::Euclid);
     config.quantization_config = Some(qc);
     let result = client.engine().create_collection(&collection, config).await;
@@ -56,19 +74,40 @@ async fn test_e2e_scalar_quantization_roundtrip() {
     let collection = test_collection("scalar_q");
     ensure_deleted(&client, &collection).await;
 
-    let qt = QuantizationType::Scalar { quantile: Some(0.99), always_ram: Some(true) };
-    let qc = QuantizationConfig { enabled: true, quant_type: Some(qt) };
+    let qt = QuantizationType::Scalar {
+        quantile: Some(0.99),
+        always_ram: Some(true),
+    };
+    let qc = QuantizationConfig {
+        enabled: true,
+        quant_type: Some(qt),
+    };
 
     let mut config = CollectionConfig::new(4, DistanceMetric::Euclid);
     config.quantization_config = Some(qc);
 
-    client.engine().create_collection(&collection, config).await.expect("create");
+    client
+        .engine()
+        .create_collection(&collection, config)
+        .await
+        .expect("create");
 
-    let info = client.engine().collection_info(&collection).await.expect("info");
+    let info = client
+        .engine()
+        .collection_info(&collection)
+        .await
+        .expect("info");
     assert_eq!(info.config.vector_size, 4);
-    assert!(info.config.quantization_config.is_some(), "quantization config should be set");
+    assert!(
+        info.config.quantization_config.is_some(),
+        "quantization config should be set"
+    );
 
-    client.engine().delete_collection(&collection).await.expect("delete");
+    client
+        .engine()
+        .delete_collection(&collection)
+        .await
+        .expect("delete");
 }
 
 #[tokio::test]
@@ -84,18 +123,36 @@ async fn test_e2e_product_quantization_roundtrip() {
     let collection = test_collection("product_q");
     ensure_deleted(&client, &collection).await;
 
-    let qt = QuantizationType::Product { compression: CompressionRatio::X8, always_ram: Some(false) };
-    let qc = QuantizationConfig { enabled: true, quant_type: Some(qt) };
+    let qt = QuantizationType::Product {
+        compression: CompressionRatio::X8,
+        always_ram: Some(false),
+    };
+    let qc = QuantizationConfig {
+        enabled: true,
+        quant_type: Some(qt),
+    };
 
     let mut config = CollectionConfig::new(4, DistanceMetric::Dot);
     config.quantization_config = Some(qc);
 
-    client.engine().create_collection(&collection, config).await.expect("create");
+    client
+        .engine()
+        .create_collection(&collection, config)
+        .await
+        .expect("create");
 
-    let info = client.engine().collection_info(&collection).await.expect("info");
+    let info = client
+        .engine()
+        .collection_info(&collection)
+        .await
+        .expect("info");
     assert!(info.config.quantization_config.is_some());
 
-    client.engine().delete_collection(&collection).await.expect("delete");
+    client
+        .engine()
+        .delete_collection(&collection)
+        .await
+        .expect("delete");
 }
 
 #[tokio::test]
@@ -112,17 +169,32 @@ async fn test_e2e_binary_quantization_roundtrip() {
     ensure_deleted(&client, &collection).await;
 
     let qt = QuantizationType::Binary { always_ram: None };
-    let qc = QuantizationConfig { enabled: true, quant_type: Some(qt) };
+    let qc = QuantizationConfig {
+        enabled: true,
+        quant_type: Some(qt),
+    };
 
     let mut config = CollectionConfig::new(4, DistanceMetric::Cosine);
     config.quantization_config = Some(qc);
 
-    client.engine().create_collection(&collection, config).await.expect("create");
+    client
+        .engine()
+        .create_collection(&collection, config)
+        .await
+        .expect("create");
 
-    let info = client.engine().collection_info(&collection).await.expect("info");
+    let info = client
+        .engine()
+        .collection_info(&collection)
+        .await
+        .expect("info");
     assert!(info.config.quantization_config.is_some());
 
-    client.engine().delete_collection(&collection).await.expect("delete");
+    client
+        .engine()
+        .delete_collection(&collection)
+        .await
+        .expect("delete");
 }
 
 #[tokio::test]
@@ -137,20 +209,40 @@ async fn test_e2e_on_disk_payload() {
     let mut config = CollectionConfig::new(4, DistanceMetric::Cosine);
     config.on_disk_payload = Some(true);
 
-    client.engine().create_collection(&collection, config).await.expect("create");
+    client
+        .engine()
+        .create_collection(&collection, config)
+        .await
+        .expect("create");
 
     let mut payload = std::collections::HashMap::new();
     payload.insert("data".to_string(), serde_json::json!("hello"));
     let point = VectorPoint::new(1u64, vec![0.5f32; 4]).with_payload(payload);
-    client.engine().upsert(&collection, point).await.expect("upsert");
+    client
+        .engine()
+        .upsert(&collection, point)
+        .await
+        .expect("upsert");
 
-    let result = client.engine().get(&collection, "1").await.expect("get").expect("exists");
+    let result = client
+        .engine()
+        .get(&collection, "1")
+        .await
+        .expect("get")
+        .expect("exists");
     assert_eq!(
-        result.payload.as_ref().and_then(|p| p.get("data").and_then(|v| v.as_str())),
+        result
+            .payload
+            .as_ref()
+            .and_then(|p| p.get("data").and_then(|v| v.as_str())),
         Some("hello")
     );
 
-    client.engine().delete_collection(&collection).await.expect("delete");
+    client
+        .engine()
+        .delete_collection(&collection)
+        .await
+        .expect("delete");
 }
 
 #[tokio::test]
@@ -164,7 +256,10 @@ async fn test_e2e_payload_index_crud() {
 
     client
         .engine()
-        .create_collection(&collection, CollectionConfig::new(4, DistanceMetric::Cosine))
+        .create_collection(
+            &collection,
+            CollectionConfig::new(4, DistanceMetric::Cosine),
+        )
         .await
         .expect("create");
 
@@ -187,8 +282,14 @@ async fn test_e2e_payload_index_crud() {
 
     let mut indexes = Vec::new();
     for _ in 0..5 {
-        indexes = client.engine().list_payload_indexes(&collection).await.expect("list");
-        if indexes.len() >= 2 { break; }
+        indexes = client
+            .engine()
+            .list_payload_indexes(&collection)
+            .await
+            .expect("list");
+        if indexes.len() >= 2 {
+            break;
+        }
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
     if indexes.is_empty() {
@@ -207,8 +308,16 @@ async fn test_e2e_payload_index_crud() {
 
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    let indexes = client.engine().list_payload_indexes(&collection).await.expect("list");
+    let indexes = client
+        .engine()
+        .list_payload_indexes(&collection)
+        .await
+        .expect("list");
     assert_eq!(indexes.len(), 1, "should have 1 payload index after delete");
 
-    client.engine().delete_collection(&collection).await.expect("delete");
+    client
+        .engine()
+        .delete_collection(&collection)
+        .await
+        .expect("delete");
 }

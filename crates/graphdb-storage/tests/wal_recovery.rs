@@ -11,8 +11,8 @@
 mod common;
 
 use graphdb_storage::core::types::VertexId;
-use graphdb_storage::core::Value;
 use graphdb_storage::core::vertex_edge_path::Tag;
+use graphdb_storage::core::Value;
 use graphdb_storage::core::Vertex;
 use graphdb_storage::storage::{
     StorageAdmin, StoragePersistenceOps, StorageReader, StorageSchemaOps, StorageWriter,
@@ -21,7 +21,9 @@ use graphdb_storage::storage::{
 /// Helper: save and checkpoint so that prior WAL entries are not replayed.
 fn save_and_checkpoint(storage: &mut graphdb_storage::storage::GraphStorage) {
     storage.save_to_disk().expect("save_to_disk failed");
-    storage.create_checkpoint().expect("create_checkpoint failed");
+    storage
+        .create_checkpoint()
+        .expect("create_checkpoint failed");
 }
 
 /// Write data, crash (drop) without saving, reopen and verify
@@ -59,9 +61,7 @@ fn test_crash_without_flush_loses_uncommitted_data() {
         let mut storage = common::open_persistent_storage(&dir);
         common::verify_test_data(&mut storage, "test_space");
 
-        let extra_vertex = storage
-            .get_vertex("test_space", &vid)
-            .unwrap();
+        let extra_vertex = storage.get_vertex("test_space", &vid).unwrap();
         assert!(
             extra_vertex.is_some(),
             "WAL should have replayed the extra vertex insert"
@@ -146,7 +146,10 @@ fn test_crash_recovery_replays_vertex_delete() {
         let alice = storage
             .get_vertex("test_space", &VertexId::from_int64(1))
             .unwrap();
-        assert!(alice.is_none(), "WAL should have replayed the vertex delete");
+        assert!(
+            alice.is_none(),
+            "WAL should have replayed the vertex delete"
+        );
 
         let bob = storage
             .get_vertex("test_space", &VertexId::from_int64(2))
@@ -179,10 +182,7 @@ fn test_crash_recovery_replays_tag_creation() {
         let mut storage = common::open_persistent_storage(&dir);
 
         let tag = storage.get_tag("test_space", "Person").unwrap();
-        assert!(
-            tag.is_some(),
-            "Tag should be recovered via WAL replay"
-        );
+        assert!(tag.is_some(), "Tag should be recovered via WAL replay");
     }
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -227,10 +227,7 @@ fn test_crash_recovery_replays_edge_delete() {
                 0,
             )
             .unwrap();
-        assert!(
-            edge.is_none(),
-            "WAL should have replayed the edge delete"
-        );
+        assert!(edge.is_none(), "WAL should have replayed the edge delete");
     }
 
     let _ = std::fs::remove_dir_all(&dir);

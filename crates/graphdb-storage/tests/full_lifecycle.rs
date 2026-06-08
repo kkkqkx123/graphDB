@@ -73,10 +73,7 @@ fn test_index_created_after_data_insertion() {
             &Value::String("Alice".to_string()),
         )
         .unwrap();
-    assert_eq!(
-        alice,
-        vec![Value::from(VertexId::from_int64(1))]
-    );
+    assert_eq!(alice, vec![Value::from(VertexId::from_int64(1))]);
 
     let bob = storage
         .lookup_index(
@@ -143,14 +140,8 @@ fn test_space_isolation() {
     );
 
     // Edge type exists only in alpha
-    assert!(storage
-        .get_edge_type("alpha", "KNOWS")
-        .unwrap()
-        .is_some());
-    assert!(storage
-        .get_edge_type("beta", "KNOWS")
-        .unwrap()
-        .is_none());
+    assert!(storage.get_edge_type("alpha", "KNOWS").unwrap().is_some());
+    assert!(storage.get_edge_type("beta", "KNOWS").unwrap().is_none());
 }
 
 // ── Scenario 9: Drop Index Does Not Affect Data ──
@@ -178,12 +169,10 @@ fn test_drop_index_keeps_data_intact() {
     let names: Vec<&str> = vertices
         .iter()
         .filter_map(|v| {
-            v.properties
-                .get("name")
-                .and_then(|v| match v {
-                    Value::String(s) => Some(s.as_str()),
-                    _ => None,
-                })
+            v.properties.get("name").and_then(|v| match v {
+                Value::String(s) => Some(s.as_str()),
+                _ => None,
+            })
         })
         .collect();
     assert!(names.contains(&"Alice"));
@@ -222,12 +211,7 @@ fn test_scan_vertices_by_property_match() {
 
     // Scan by matching age
     let age_result = storage
-        .scan_vertices_by_prop(
-            "test_space",
-            "Person",
-            "age",
-            &Value::BigInt(23),
-        )
+        .scan_vertices_by_prop("test_space", "Person", "age", &Value::BigInt(23))
         .unwrap();
     assert_eq!(age_result.len(), 1);
 

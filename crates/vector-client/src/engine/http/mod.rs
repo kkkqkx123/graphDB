@@ -917,12 +917,18 @@ mod tests {
 
     #[test]
     fn test_parse_collection_status_green() {
-        assert_eq!(parse_collection_status(Some("green")), CollectionStatus::Green);
+        assert_eq!(
+            parse_collection_status(Some("green")),
+            CollectionStatus::Green
+        );
     }
 
     #[test]
     fn test_parse_collection_status_yellow() {
-        assert_eq!(parse_collection_status(Some("yellow")), CollectionStatus::Yellow);
+        assert_eq!(
+            parse_collection_status(Some("yellow")),
+            CollectionStatus::Yellow
+        );
     }
 
     #[test]
@@ -932,23 +938,38 @@ mod tests {
 
     #[test]
     fn test_parse_collection_status_grey() {
-        assert_eq!(parse_collection_status(Some("grey")), CollectionStatus::Grey);
+        assert_eq!(
+            parse_collection_status(Some("grey")),
+            CollectionStatus::Grey
+        );
     }
 
     #[test]
     fn test_parse_collection_status_gray() {
-        assert_eq!(parse_collection_status(Some("gray")), CollectionStatus::Grey);
+        assert_eq!(
+            parse_collection_status(Some("gray")),
+            CollectionStatus::Grey
+        );
     }
 
     #[test]
     fn test_parse_collection_status_case_insensitive() {
-        assert_eq!(parse_collection_status(Some("GREEN")), CollectionStatus::Green);
-        assert_eq!(parse_collection_status(Some("Yellow")), CollectionStatus::Yellow);
+        assert_eq!(
+            parse_collection_status(Some("GREEN")),
+            CollectionStatus::Green
+        );
+        assert_eq!(
+            parse_collection_status(Some("Yellow")),
+            CollectionStatus::Yellow
+        );
     }
 
     #[test]
     fn test_parse_collection_status_unknown() {
-        assert_eq!(parse_collection_status(Some("unknown")), CollectionStatus::Grey);
+        assert_eq!(
+            parse_collection_status(Some("unknown")),
+            CollectionStatus::Grey
+        );
     }
 
     #[test]

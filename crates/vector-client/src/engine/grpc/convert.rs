@@ -395,9 +395,10 @@ pub fn collection_info_from_proto(
         _ => CollectionStatus::Grey,
     };
 
-    let (vector_size, distance) = info.config
+    let (vector_size, distance) = info
+        .config
         .as_ref()
-        .map(|cfg| extract_vector_config(cfg))
+        .map(extract_vector_config)
         .unwrap_or((1536, DistanceMetric::Cosine));
 
     let params = info.config.as_ref().and_then(|c| c.params.as_ref());
@@ -408,7 +409,8 @@ pub fn collection_info_from_proto(
         hnsw_config: None,
         quantization_config: None,
         replication_factor: params.and_then(|p| p.replication_factor.map(|v| v as usize)),
-        write_consistency_factor: params.and_then(|p| p.write_consistency_factor.map(|v| v as usize)),
+        write_consistency_factor: params
+            .and_then(|p| p.write_consistency_factor.map(|v| v as usize)),
         on_disk_payload: params.map(|p| p.on_disk_payload),
         shard_number: params.map(|p| p.shard_number as usize),
     };

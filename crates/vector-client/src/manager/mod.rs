@@ -345,7 +345,10 @@ mod tests {
         let result = engine
             .create_collection("test", CollectionConfig::default())
             .await;
-        assert!(matches!(result, Err(crate::error::VectorClientError::EngineNotAvailable(_))));
+        assert!(matches!(
+            result,
+            Err(crate::error::VectorClientError::EngineNotAvailable(_))
+        ));
     }
 
     #[tokio::test]
@@ -357,7 +360,10 @@ mod tests {
     #[tokio::test]
     async fn test_disabled_engine_upsert() {
         let engine = DisabledEngine;
-        assert!(engine.upsert("c", VectorPoint::new(1u64, vec![1.0])).await.is_err());
+        assert!(engine
+            .upsert("c", VectorPoint::new(1u64, vec![1.0]))
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -381,13 +387,19 @@ mod tests {
     #[tokio::test]
     async fn test_disabled_engine_delete_by_filter() {
         let engine = DisabledEngine;
-        assert!(engine.delete_by_filter("c", VectorFilter::new()).await.is_err());
+        assert!(engine
+            .delete_by_filter("c", VectorFilter::new())
+            .await
+            .is_err());
     }
 
     #[tokio::test]
     async fn test_disabled_engine_search() {
         let engine = DisabledEngine;
-        assert!(engine.search("c", SearchQuery::new(vec![1.0], 10)).await.is_err());
+        assert!(engine
+            .search("c", SearchQuery::new(vec![1.0], 10))
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -431,7 +443,10 @@ mod tests {
     #[tokio::test]
     async fn test_disabled_engine_delete_payload() {
         let engine = DisabledEngine;
-        assert!(engine.delete_payload("c", vec!["1"], vec!["k"]).await.is_err());
+        assert!(engine
+            .delete_payload("c", vec!["1"], vec!["k"])
+            .await
+            .is_err());
     }
 
     #[tokio::test]

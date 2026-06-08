@@ -94,18 +94,26 @@ fn test_compact_after_multiple_operations() {
 
     // Even-numbered vertices survive
     for i in (2..=10).step_by(2) {
-        assert!(storage
-            .get_vertex("test_space", &VertexId::from_int64(i))
-            .unwrap()
-            .is_some(), "Vertex {} should survive", i);
+        assert!(
+            storage
+                .get_vertex("test_space", &VertexId::from_int64(i))
+                .unwrap()
+                .is_some(),
+            "Vertex {} should survive",
+            i
+        );
     }
 
     // Odd-numbered vertices are gone
     for i in (1..=10).step_by(2) {
-        assert!(storage
-            .get_vertex("test_space", &VertexId::from_int64(i))
-            .unwrap()
-            .is_none(), "Vertex {} should be gone", i);
+        assert!(
+            storage
+                .get_vertex("test_space", &VertexId::from_int64(i))
+                .unwrap()
+                .is_none(),
+            "Vertex {} should be gone",
+            i
+        );
     }
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -168,7 +176,10 @@ fn test_compact_persistent_roundtrip() {
         .unwrap();
     // Edge might or might not exist depending on compaction of edge CSR
     // This is informative rather than critical
-    eprintln!("Edge after compact: {:?}", edge.as_ref().map(|e| e.properties()));
+    eprintln!(
+        "Edge after compact: {:?}",
+        edge.as_ref().map(|e| e.properties())
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }

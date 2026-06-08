@@ -17,16 +17,24 @@ pub fn cleanup_old_e2e_collections() {
         let http = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build();
-        let Ok(http) = http else { return; };
+        let Ok(http) = http else {
+            return;
+        };
         let url = format!("http://localhost:{}/collections", port);
-        let Ok(resp) = http.get(&url).send() else { return; };
-        let Ok(json) = resp.json::<serde_json::Value>() else { return; };
+        let Ok(resp) = http.get(&url).send() else {
+            return;
+        };
+        let Ok(json) = resp.json::<serde_json::Value>() else {
+            return;
+        };
         let Some(collections) = json["result"]["collections"].as_array() else {
             return;
         };
         let mut cleaned = 0;
         for col in collections {
-            let Some(name) = col["name"].as_str() else { continue };
+            let Some(name) = col["name"].as_str() else {
+                continue;
+            };
             if name.starts_with("e2e_") || name.starts_with("quant_") {
                 let del_url = format!("http://localhost:{}/collections/{}", port, name);
                 if http.delete(&del_url).send().is_ok() {
