@@ -8,8 +8,8 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::core::Value;
-use graphdb::query::parser::Parser;
+use graphdb_query::core::Value;
+use graphdb_query::query::parser::Parser;
 use std::collections::HashMap;
 
 // ==================== UPDATE VERTEX Parser Tests ====================
@@ -133,23 +133,23 @@ fn test_update_vertex_and_verify() {
         .assert_success()
         .assert_vertex_props(1, "Person", {
             let mut map = std::collections::HashMap::new();
-            map.insert("age", graphdb::core::Value::Int(30));
-            map.insert("city", graphdb::core::Value::String("NYC".into()));
+            map.insert("age", graphdb_query::core::Value::Int(30));
+            map.insert("city", graphdb_query::core::Value::String("NYC".into()));
             map
         })
         .exec_dml("UPDATE 1 SET age = 31")
         .assert_success()
         .assert_vertex_props(1, "Person", {
             let mut map = std::collections::HashMap::new();
-            map.insert("age", graphdb::core::Value::Int(31));
+            map.insert("age", graphdb_query::core::Value::Int(31));
             map
         })
         .exec_dml("UPDATE 1 SET age = 32, city = 'LA'")
         .assert_success()
         .assert_vertex_props(1, "Person", {
             let mut map = std::collections::HashMap::new();
-            map.insert("age", graphdb::core::Value::Int(32));
-            map.insert("city", graphdb::core::Value::String("LA".into()));
+            map.insert("age", graphdb_query::core::Value::Int(32));
+            map.insert("city", graphdb_query::core::Value::String("LA".into()));
             map
         });
 }
@@ -167,11 +167,11 @@ fn test_update_vertex_with_condition() {
         .assert_success()
         .assert_vertex_props(1, "Person", {
             let mut map = std::collections::HashMap::new();
-            map.insert("state", graphdb::core::Value::String("premium".into()));
+            map.insert("state", graphdb_query::core::Value::String("premium".into()));
             map
         })
         .query("FETCH PROP ON Person 2")
-        .assert_vertex_or_edge_has_property("state", graphdb::core::Value::String("inactive".into()));
+        .assert_vertex_or_edge_has_property("state", graphdb_query::core::Value::String("inactive".into()));
 }
 
 #[test]
@@ -189,7 +189,7 @@ fn test_update_edge_and_verify() {
         .exec_dml("UPDATE 1 -> 2 OF KNOWS SET strength = 0.9")
         .assert_success()
         .query("FETCH PROP ON KNOWS 1 -> 2")
-        .assert_vertex_or_edge_has_property("strength", graphdb::core::Value::Double(0.9));
+        .assert_vertex_or_edge_has_property("strength", graphdb_query::core::Value::Double(0.9));
 }
 
 // ==================== Error Handling Tests ====================
@@ -481,10 +481,10 @@ fn test_update_edge_yield_execution() {
 #[test]
 fn test_update_divide_by_zero() {
     use crate::common::TestStorage;
-    use graphdb::core::stats::StatsManager;
-    use graphdb::query::optimizer::OptimizerEngine;
-    use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-    use graphdb::storage::{StorageReader, StorageSchemaContextOps};
+    use graphdb_query::core::stats::StatsManager;
+    use graphdb_query::query::optimizer::OptimizerEngine;
+    use graphdb_query::query::query_pipeline_manager::QueryPipelineManager;
+    use graphdb_query::storage::{StorageReader, StorageSchemaContextOps};
     use std::sync::Arc;
 
     let test_storage = TestStorage::new().expect("Failed to create test storage");

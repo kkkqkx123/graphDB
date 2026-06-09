@@ -10,9 +10,9 @@ use super::common;
 
 use common::test_scenario::TestScenario;
 use common::TestStorage;
-use graphdb::core::stats::StatsManager;
-use graphdb::query::optimizer::OptimizerEngine;
-use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb_query::core::stats::StatsManager;
+use graphdb_query::query::optimizer::OptimizerEngine;
+use graphdb_query::query::query_pipeline_manager::QueryPipelineManager;
 use std::sync::Arc;
 
 // ==================== Batch INSERT Tests ====================
@@ -156,17 +156,17 @@ fn test_complete_crud_flow() {
         .assert_vertex_exists(101, "Product")
         .assert_vertex_props(101, "Product", {
             let mut map = std::collections::HashMap::new();
-            map.insert("stock", graphdb::core::Value::Int(10));
+            map.insert("stock", graphdb_query::core::Value::Int(10));
             map
         })
         .query("FETCH PROP ON Product 101")
         .assert_result_count(1)
-        .assert_vertex_or_edge_has_property("name", graphdb::core::Value::String("Laptop".into()))
+        .assert_vertex_or_edge_has_property("name", graphdb_query::core::Value::String("Laptop".into()))
         .exec_dml("UPDATE 101 SET stock = 9")
         .assert_success()
         .assert_vertex_props(101, "Product", {
             let mut map = std::collections::HashMap::new();
-            map.insert("stock", graphdb::core::Value::Int(9));
+            map.insert("stock", graphdb_query::core::Value::Int(9));
             map
         })
         .exec_dml("DELETE VERTEX 101")

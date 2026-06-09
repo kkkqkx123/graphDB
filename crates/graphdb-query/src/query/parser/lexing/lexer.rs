@@ -111,6 +111,29 @@ impl<'a> Lexer<'a> {
             .to_string()
     }
 
+    fn read_backtick_identifier(&mut self) -> String {
+        let start = self.position;
+        loop {
+            match self.peek_char() {
+                Some(&'`') => {
+                    self.read_char();
+                    break;
+                }
+                Some(&ch) if ch == '\n' || ch == '\r' => {
+                    break;
+                }
+                Some(_) => {
+                    self.read_char();
+                }
+                None => break,
+            }
+        }
+        self.input
+            .get(start..self.position.saturating_sub(1))
+            .unwrap_or("")
+            .to_string()
+    }
+
     fn read_number(&mut self) -> String {
         let start = self.position;
         let mut has_decimal = false;
@@ -888,6 +911,13 @@ impl<'a> Lexer<'a> {
                         }
                     }
                 }
+            }
+            Some(&'`') => {
+                let start_col = self.column;
+                let start_line = self.line;
+                self.read_char();
+                let literal = self.read_backtick_identifier();
+                Token::new(Tk::Identifier(literal.clone()), literal, start_line, start_col)
             }
             Some(&ch) => {
                 let start_col = self.column;

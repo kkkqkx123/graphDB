@@ -12,7 +12,7 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::query::parser::Parser;
+use graphdb_query::query::parser::Parser;
 
 // ==================== MATCH Parser Tests ====================
 
@@ -222,7 +222,7 @@ fn test_match_complex_social_network() {
         .query("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person) WHERE a.name == 'Alice' AND c.city == 'LA' RETURN DISTINCT c.name, c.age")
         .assert_success()
         .assert_result_count(1)
-        .assert_result_contains(vec![graphdb::core::Value::String("David".into()), graphdb::core::Value::Int(28)]);
+        .assert_result_contains(vec![graphdb_query::core::Value::String("David".into()), graphdb_query::core::Value::Int(28)]);
 }
 
 // ==================== MATCH Edge Cases Tests ====================

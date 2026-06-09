@@ -8,8 +8,8 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::core::Value;
-use graphdb::query::parser::Parser;
+use graphdb_query::core::Value;
+use graphdb_query::query::parser::Parser;
 use std::collections::HashMap;
 
 // ==================== UPSERT VERTEX Parser Tests ====================
@@ -373,7 +373,7 @@ fn test_upsert_nonexistent_tag() {
         .expect("Failed to create test scenario")
         .setup_space("test_space")
         .exec_dml("UPSERT VERTEX ON NonExistent SET name = 'test' WHERE id(vid) == 1")
-        .assert_success();
+        .assert_error();
 }
 
 #[test]

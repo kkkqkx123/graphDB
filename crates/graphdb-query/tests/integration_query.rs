@@ -14,17 +14,17 @@ mod common;
 
 use common::{assertions::assert_ok, TestStorage};
 
-use graphdb::core::types::SpaceInfo;
-use graphdb::core::StatsManager;
-use graphdb::query::optimizer::OptimizerEngine;
-use graphdb::query::parser::Parser;
-use graphdb::query::planning::PlannerConfig;
-use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::query::validator::validator_trait::StatementType;
-use graphdb::query::validator::Validator;
-use graphdb::query::QueryContext;
-use graphdb::query::QueryRequestContext;
-use graphdb::storage::StorageSchemaOps;
+use graphdb_query::core::types::SpaceInfo;
+use graphdb_query::core::StatsManager;
+use graphdb_query::query::optimizer::OptimizerEngine;
+use graphdb_query::query::parser::Parser;
+use graphdb_query::query::planning::PlannerConfig;
+use graphdb_query::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb_query::query::validator::validator_trait::StatementType;
+use graphdb_query::query::validator::Validator;
+use graphdb_query::query::QueryContext;
+use graphdb_query::query::QueryRequestContext;
+use graphdb_query::storage::StorageSchemaOps;
 use std::sync::Arc;
 
 /// Creating a query context for testing

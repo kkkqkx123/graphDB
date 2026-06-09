@@ -8,7 +8,7 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::query::parser::Parser;
+use graphdb_query::query::parser::Parser;
 
 // ==================== FETCH Parser Tests ====================
 
@@ -165,7 +165,7 @@ fn test_fetch_execution_edge_properties() {
         .assert_result_count(1)
         .assert_vertex_or_edge_has_property(
             "since",
-            graphdb::core::Value::Date(graphdb::core::DateValue {
+            graphdb_query::core::Value::Date(graphdb_query::core::DateValue {
                 year: 2020,
                 month: 1,
                 day: 1,
@@ -184,8 +184,8 @@ fn test_fetch_execution_vertex_properties() {
         .query("FETCH PROP ON Person 1")
         .assert_success()
         .assert_result_count(1)
-        .assert_vertex_or_edge_has_property("name", graphdb::core::Value::String("Alice".into()))
-        .assert_vertex_or_edge_has_property("age", graphdb::core::Value::Int(30));
+        .assert_vertex_or_edge_has_property("name", graphdb_query::core::Value::String("Alice".into()))
+        .assert_vertex_or_edge_has_property("age", graphdb_query::core::Value::Int(30));
 }
 
 // ==================== FETCH Error Handling Tests ====================

@@ -30,3 +30,4 @@ fulltext-search = ["graphdb-search/fulltext-search", "graphdb-sync/fulltext-sear
 
 [dev-dependencies]
 graphdb-storage = { path = "../graphdb-storage", features = ["test-support"] }
+tempfile.workspace = true

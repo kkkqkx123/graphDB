@@ -11,8 +11,8 @@
 use super::common;
 
 use common::test_scenario::TestScenario;
-use graphdb::core::Value;
-use graphdb::query::parser::Parser;
+use graphdb_query::core::Value;
+use graphdb_query::query::parser::Parser;
 
 // ==================== GROUP BY Parser Tests ====================
 
