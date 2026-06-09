@@ -10,14 +10,14 @@
 mod common;
 
 use common::TestStorage;
-use graphdb::core::types::VertexId;
-use graphdb::core::vertex_edge_path::Tag;
-use graphdb::core::{Edge, Path, Step, Value, Vertex};
-use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
-use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
+use graphdb_query::core::types::VertexId;
+use graphdb_query::core::vertex_edge_path::Tag;
+use graphdb_query::core::{Edge, Path, Step, Value, Vertex};
+use graphdb_query::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
+use graphdb_query::query::executor::graph_operations::graph_traversal::algorithms::{
     AlgorithmContext, AlgorithmStats, MultiShortestPathExecutor, SubgraphConfig, SubgraphExecutor,
 };
-use graphdb::query::validator::context::ExpressionAnalysisContext;
+use graphdb_query::query::validator::context::ExpressionAnalysisContext;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -73,12 +73,12 @@ fn test_multi_shortest_path_executor_creation() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             1,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::MultiShortestPathConfig {
+        graphdb_query::query::executor::base::MultiShortestPathConfig {
             start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
@@ -98,12 +98,12 @@ fn test_multi_shortest_path_with_edge_filter() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             1,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::MultiShortestPathConfig {
+        graphdb_query::query::executor::base::MultiShortestPathConfig {
             start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Out,
             edge_types: Some(vec!["KNOWS".to_string()]),
@@ -122,12 +122,12 @@ fn test_multi_shortest_path_bidirectional_direction() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             1,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::MultiShortestPathConfig {
+        graphdb_query::query::executor::base::MultiShortestPathConfig {
             start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Both,
             edge_types: None,
@@ -305,12 +305,12 @@ fn test_multi_shortest_path_empty_start() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             1,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::MultiShortestPathConfig {
+        graphdb_query::query::executor::base::MultiShortestPathConfig {
             start_vids: vec![],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
@@ -329,12 +329,12 @@ fn test_multi_shortest_path_empty_end() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             1,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::MultiShortestPathConfig {
+        graphdb_query::query::executor::base::MultiShortestPathConfig {
             start_vids: vec![VertexId::from_string("alice")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
@@ -435,7 +435,7 @@ fn test_algorithm_context_with_loop_and_other_options() {
 
 #[test]
 fn test_expand_executor_with_loop() {
-    use graphdb::query::executor::graph_operations::graph_traversal::ExpandExecutor;
+    use graphdb_query::query::executor::graph_operations::graph_traversal::ExpandExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -466,19 +466,19 @@ fn test_expand_executor_with_loop() {
 
 #[test]
 fn test_all_paths_executor_with_loop() {
-    use graphdb::query::executor::graph_operations::graph_traversal::AllPathsExecutor;
+    use graphdb_query::query::executor::graph_operations::graph_traversal::AllPathsExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
     // Create the default executor (with_loop = false)
     let executor_default = AllPathsExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             1,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::AllPathsConfig {
+        graphdb_query::query::executor::base::AllPathsConfig {
             left_start_ids: vec![VertexId::from_string("A")],
             right_start_ids: vec![VertexId::from_string("B")],
             max_hops: 5,
@@ -491,12 +491,12 @@ fn test_all_paths_executor_with_loop() {
 
     // Create an executor that allows the execution of self-looping edges.
     let executor_with_loop = AllPathsExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             2,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::AllPathsConfig {
+        graphdb_query::query::executor::base::AllPathsConfig {
             left_start_ids: vec![VertexId::from_string("A")],
             right_start_ids: vec![VertexId::from_string("B")],
             max_hops: 5,
@@ -513,22 +513,22 @@ fn test_all_paths_executor_with_loop() {
 
 #[test]
 fn test_weighted_shortest_path_executor_creation() {
-    use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
+    use graphdb_query::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, ShortestPathAlgorithmType,
     };
-    use graphdb::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
+    use graphdb_query::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
     // Create an executor for finding the shortest path with weights
     let executor = ShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             100,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::ShortestPathConfig {
+        graphdb_query::query::executor::base::ShortestPathConfig {
             start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: Some(vec!["connect".to_string()]),
@@ -544,22 +544,22 @@ fn test_weighted_shortest_path_executor_creation() {
 
 #[test]
 fn test_weighted_shortest_path_with_ranking() {
-    use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
+    use graphdb_query::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, ShortestPathAlgorithmType,
     };
-    use graphdb::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
+    use graphdb_query::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
     // Use “ranking” as the weight.
     let executor = ShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             101,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::ShortestPathConfig {
+        graphdb_query::query::executor::base::ShortestPathConfig {
             start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
@@ -574,22 +574,22 @@ fn test_weighted_shortest_path_with_ranking() {
 
 #[test]
 fn test_weighted_shortest_path_astar() {
-    use graphdb::query::executor::graph_operations::graph_traversal::algorithms::{
+    use graphdb_query::query::executor::graph_operations::graph_traversal::algorithms::{
         EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType,
     };
-    use graphdb::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
+    use graphdb_query::query::executor::graph_operations::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
     // Using the A* algorithm, with an heuristic function
     let executor = ShortestPathExecutor::new(
-        graphdb::query::executor::base::ExecutorConfig::new(
+        graphdb_query::query::executor::base::ExecutorConfig::new(
             102,
             storage.clone(),
             Arc::new(ExpressionAnalysisContext::new()),
         ),
-        graphdb::query::executor::base::ShortestPathConfig {
+        graphdb_query::query::executor::base::ShortestPathConfig {
             start_vertex_ids: vec![VertexId::from_string("A")],
             direction: ExecEdgeDirection::Out,
             edge_types: None,
@@ -605,7 +605,7 @@ fn test_weighted_shortest_path_astar() {
 
 #[test]
 fn test_weighted_path_query_parser_integration() {
-    use graphdb::query::parser::Parser;
+    use graphdb_query::query::parser::Parser;
 
     // Testing the parsing of authorized path query statements
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT weight";
@@ -614,17 +614,17 @@ fn test_weighted_path_query_parser_integration() {
 
     assert!(
         result.is_ok(),
-        "带权路径查询解析应该成功: {:?}",
+        "带权path查询: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("解析应该成功");
+    let stmt = result.expect(": should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "FIND PATH");
 }
 
 #[test]
 fn test_weighted_path_query_with_ranking_parser() {
-    use graphdb::query::parser::Parser;
+    use graphdb_query::query::parser::Parser;
 
     // Test the parsing of query statements that use “ranking” as a weighting factor.
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT ranking";
@@ -633,14 +633,14 @@ fn test_weighted_path_query_with_ranking_parser() {
 
     assert!(
         result.is_ok(),
-        "使用ranking权重的路径查询解析应该成功: {:?}",
+        "使用ranking权重的path查询: should succeed: {:?}",
         result.err()
     );
 }
 
 #[test]
 fn test_unweighted_path_query_parser() {
-    use graphdb::query::parser::Parser;
+    use graphdb_query::query::parser::Parser;
 
     // Testing the parsing of query statements for unauthorized path access.
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect";
@@ -649,7 +649,7 @@ fn test_unweighted_path_query_parser() {
 
     assert!(
         result.is_ok(),
-        "无权路径查询解析应该成功: {:?}",
+        "无权path查询: should succeed: {:?}",
         result.err()
     );
 }

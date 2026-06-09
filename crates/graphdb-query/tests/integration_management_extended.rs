@@ -19,7 +19,7 @@
 mod common;
 
 use common::test_scenario::TestScenario;
-use graphdb::core::Value;
+use graphdb_query::core::Value;
 
 // ==================== USE Statement Extended Tests ====================
 

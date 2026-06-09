@@ -10,10 +10,10 @@
 
 mod common;
 
-use graphdb::core::types::VertexId;
-use graphdb::core::vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
-use graphdb::core::{List, NullType, Value};
-use graphdb::query::executor::expression::functions::FunctionRegistry;
+use graphdb_query::core::types::VertexId;
+use graphdb_query::core::vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
+use graphdb_query::core::{List, NullType, Value};
+use graphdb_query::query::executor::expression::functions::FunctionRegistry;
 use std::collections::HashMap;
 
 /// Create vertices for testing purposes.
@@ -644,7 +644,7 @@ fn test_empty_path() {
     let v1 = create_test_vertex(1, vec![("Person", HashMap::new())]);
     let empty_path = Path::new(v1);
 
-    // nodes(空路径) 应该返回包含起点的列表
+    // nodes(空path) 应该返回包含起点的列表
     let result = registry.execute("nodes", &[Value::Path(Box::new(empty_path.clone()))]);
     assert!(result.is_ok());
 
@@ -654,7 +654,7 @@ fn test_empty_path() {
         panic!("The expected return type is a list.");
     }
 
-    // relationships(空路径) 应该返回空列表
+    // relationships(空path) 应该返回空列表
     let result = registry.execute("relationships", &[Value::Path(Box::new(empty_path))]);
     assert!(result.is_ok());
 
@@ -744,7 +744,7 @@ fn test_timestamp_function() {
     ));
 
     // 测试 timestamp(datetime)
-    let dt = Value::DateTime(graphdb::core::value::DateTimeValue {
+    let dt = Value::DateTime(graphdb_query::core::value::DateTimeValue {
         year: 2024,
         month: 1,
         day: 15,
@@ -1085,7 +1085,7 @@ fn test_st_point_function() {
 #[test]
 fn test_st_distance_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::{Geography, GeographyValue};
+    use graphdb_query::core::value::geography::{Geography, GeographyValue};
 
     let beijing = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,
@@ -1109,7 +1109,7 @@ fn test_st_distance_function() {
 #[test]
 fn test_st_isvalid_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::{Geography, GeographyValue};
+    use graphdb_query::core::value::geography::{Geography, GeographyValue};
 
     let valid_point = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,
@@ -1124,7 +1124,7 @@ fn test_st_isvalid_function() {
 #[test]
 fn test_st_dwithin_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::{Geography, GeographyValue};
+    use graphdb_query::core::value::geography::{Geography, GeographyValue};
 
     let point1 = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,
@@ -1143,7 +1143,7 @@ fn test_st_dwithin_function() {
 #[test]
 fn test_st_astext_function() {
     let registry = FunctionRegistry::new();
-    use graphdb::core::value::geography::{Geography, GeographyValue};
+    use graphdb_query::core::value::geography::{Geography, GeographyValue};
 
     let point = Value::Geography(Geography::Point(GeographyValue {
         longitude: 116.4074,

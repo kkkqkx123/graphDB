@@ -17,10 +17,10 @@ mod common;
 
 use common::TestStorage;
 
-use graphdb::core::stats::StatsManager;
-use graphdb::query::optimizer::OptimizerEngine;
-use graphdb::query::parser::Parser;
-use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb_query::core::stats::StatsManager;
+use graphdb_query::query::optimizer::OptimizerEngine;
+use graphdb_query::query::parser::Parser;
+use graphdb_query::query::query_pipeline_manager::QueryPipelineManager;
 use std::sync::Arc;
 
 // ==================== USE 语句测试 ====================
@@ -31,9 +31,9 @@ fn test_use_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "USE基础解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "USE基础: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("USE语句解析应该成功");
+    let stmt = result.expect("USE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "USE");
 }
 
@@ -45,11 +45,11 @@ fn test_use_parser_complex_name() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "USE复杂名称解析应该成功: {:?}",
+        "USE复杂名称: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("USE语句解析应该成功");
+    let stmt = result.expect("USE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "USE");
 }
 
@@ -61,11 +61,11 @@ fn test_use_parser_with_dots() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "USE带点号名称解析应该成功: {:?}",
+        "USE带点号名称: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("USE语句解析应该成功");
+    let stmt = result.expect("USE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "USE");
 }
 
@@ -115,11 +115,11 @@ fn test_show_parser_spaces() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW SPACES解析应该成功: {:?}",
+        "SHOW SPACES: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -129,9 +129,9 @@ fn test_show_parser_tags() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW TAGS解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "SHOW TAGS: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -141,9 +141,9 @@ fn test_show_parser_edges() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW EDGES解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "SHOW EDGES: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -153,9 +153,9 @@ fn test_show_parser_hosts() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW HOSTS解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "SHOW HOSTS: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -165,9 +165,9 @@ fn test_show_parser_parts() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW PARTS解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "SHOW PARTS: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -235,11 +235,11 @@ fn test_explain_parser_match() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "EXPLAIN MATCH解析应该成功: {:?}",
+        "EXPLAIN MATCH: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
@@ -249,9 +249,9 @@ fn test_explain_parser_go() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "EXPLAIN GO解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "EXPLAIN GO: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
@@ -263,11 +263,11 @@ fn test_explain_parser_lookup() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "EXPLAIN LOOKUP解析应该成功: {:?}",
+        "EXPLAIN LOOKUP: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
@@ -315,9 +315,9 @@ fn test_return_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "RETURN基础解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "RETURN基础: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("RETURN语句解析应该成功");
+    let stmt = result.expect("RETURN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
@@ -329,11 +329,11 @@ fn test_return_parser_with_alias() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "RETURN带别名解析应该成功: {:?}",
+        "RETURN带别名: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("RETURN语句解析应该成功");
+    let stmt = result.expect("RETURN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
@@ -345,11 +345,11 @@ fn test_return_parser_with_expression() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "RETURN带表达式解析应该成功: {:?}",
+        "RETURN带表达式: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("RETURN语句解析应该成功");
+    let stmt = result.expect("RETURN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
@@ -361,11 +361,11 @@ fn test_return_parser_with_aggregate() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "RETURN带聚合函数解析应该成功: {:?}",
+        "RETURN带聚合函数: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("RETURN语句解析应该成功");
+    let stmt = result.expect("RETURN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
@@ -377,11 +377,11 @@ fn test_return_parser_with_distinct() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "RETURN带DISTINCT解析应该成功: {:?}",
+        "RETURN带DISTINCT: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("RETURN语句解析应该成功");
+    let stmt = result.expect("RETURN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
@@ -411,9 +411,9 @@ fn test_with_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "WITH基础解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "WITH基础: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("WITH语句解析应该成功");
+    let stmt = result.expect("WITH语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "WITH");
 }
 
@@ -423,9 +423,9 @@ fn test_with_parser_with_aggregate() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "WITH带聚合解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "WITH带聚合: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("WITH语句解析应该成功");
+    let stmt = result.expect("WITH语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "WITH");
 }
 
@@ -437,11 +437,11 @@ fn test_with_parser_with_expression() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "WITH带表达式解析应该成功: {:?}",
+        "WITH带表达式: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("WITH语句解析应该成功");
+    let stmt = result.expect("WITH语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "WITH");
 }
 
@@ -471,9 +471,9 @@ fn test_unwind_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "UNWIND基础解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "UNWIND基础: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("UNWIND语句解析应该成功");
+    let stmt = result.expect("UNWIND语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UNWIND");
 }
 
@@ -485,11 +485,11 @@ fn test_unwind_parser_with_string_list() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UNWIND字符串列表解析应该成功: {:?}",
+        "UNWIND字符串列表: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UNWIND语句解析应该成功");
+    let stmt = result.expect("UNWIND语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UNWIND");
 }
 
@@ -501,11 +501,11 @@ fn test_unwind_parser_with_expression() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UNWIND带表达式解析应该成功: {:?}",
+        "UNWIND带表达式: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UNWIND语句解析应该成功");
+    let stmt = result.expect("UNWIND语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UNWIND");
 }
 
@@ -535,9 +535,9 @@ fn test_pipe_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "PIPE基础解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "PIPE基础: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("PIPE语句解析应该成功");
+    let stmt = result.expect("PIPE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PIPE");
 }
 
@@ -549,11 +549,11 @@ fn test_pipe_parser_multiple() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "PIPE多个操作解析应该成功: {:?}",
+        "PIPE多个操作: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("PIPE语句解析应该成功");
+    let stmt = result.expect("PIPE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PIPE");
 }
 
@@ -565,11 +565,11 @@ fn test_pipe_parser_complex() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "PIPE复杂查询解析应该成功: {:?}",
+        "PIPE复杂查询: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("PIPE语句解析应该成功");
+    let stmt = result.expect("PIPE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PIPE");
 }
 
@@ -601,11 +601,11 @@ fn test_profile_parser_match() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "PROFILE MATCH解析应该成功: {:?}",
+        "PROFILE MATCH: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("PROFILE语句解析应该成功");
+    let stmt = result.expect("PROFILE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
 }
 
@@ -615,9 +615,9 @@ fn test_profile_parser_go() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "PROFILE GO解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "PROFILE GO: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("PROFILE语句解析应该成功");
+    let stmt = result.expect("PROFILE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
 }
 
@@ -629,11 +629,11 @@ fn test_profile_parser_with_limit() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "PROFILE带LIMIT解析应该成功: {:?}",
+        "PROFILE带LIMIT: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("PROFILE语句解析应该成功");
+    let stmt = result.expect("PROFILE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
 }
 
@@ -683,11 +683,11 @@ fn test_group_by_parser_basic() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "GROUP BY基础解析应该成功: {:?}",
+        "GROUP BY基础: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("GROUP BY语句解析应该成功");
+    let stmt = result.expect("GROUP BY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
 }
 
@@ -699,11 +699,11 @@ fn test_group_by_parser_with_aggregation() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "GROUP BY带聚合函数解析应该成功: {:?}",
+        "GROUP BY带聚合函数: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("GROUP BY语句解析应该成功");
+    let stmt = result.expect("GROUP BY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
 }
 
@@ -735,11 +735,11 @@ fn test_kill_query_parser_basic() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "KILL QUERY基础解析应该成功: {:?}",
+        "KILL QUERY基础: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("KILL QUERY语句解析应该成功");
+    let stmt = result.expect("KILL QUERY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
 }
 
@@ -751,11 +751,11 @@ fn test_kill_query_parser_multiple() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "KILL QUERY多个查询解析应该成功: {:?}",
+        "KILL QUERY多个查询: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("KILL QUERY语句解析应该成功");
+    let stmt = result.expect("KILL QUERY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
 }
 
@@ -787,11 +787,11 @@ fn test_update_configs_parser_basic() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE CONFIGS基础解析应该成功: {:?}",
+        "UPDATE CONFIGS基础: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    let stmt = result.expect("UPDATE CONFIGS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
@@ -803,11 +803,11 @@ fn test_update_configs_parser_with_module() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE CONFIGS带模块解析应该成功: {:?}",
+        "UPDATE CONFIGS带模块: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    let stmt = result.expect("UPDATE CONFIGS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
@@ -819,11 +819,11 @@ fn test_update_configs_parser_multiple() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE CONFIGS多个配置解析应该成功: {:?}",
+        "UPDATE CONFIGS多个配置: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    let stmt = result.expect("UPDATE CONFIGS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
@@ -855,11 +855,11 @@ fn test_show_parser_sessions() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW SESSIONS解析应该成功: {:?}",
+        "SHOW SESSIONS: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -871,11 +871,11 @@ fn test_show_parser_queries() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW QUERIES解析应该成功: {:?}",
+        "SHOW QUERIES: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -887,11 +887,11 @@ fn test_show_parser_configs() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW CONFIGS解析应该成功: {:?}",
+        "SHOW CONFIGS: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -903,11 +903,11 @@ fn test_show_parser_configs_with_module() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW CONFIGS带模块解析应该成功: {:?}",
+        "SHOW CONFIGS带模块: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW语句解析应该成功");
+    let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
@@ -975,11 +975,11 @@ fn test_explain_parser_format_table() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "EXPLAIN FORMAT TABLE解析应该成功: {:?}",
+        "EXPLAIN FORMAT TABLE: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
@@ -991,11 +991,11 @@ fn test_explain_parser_format_dot() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "EXPLAIN FORMAT DOT解析应该成功: {:?}",
+        "EXPLAIN FORMAT DOT: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
@@ -1379,11 +1379,11 @@ fn test_explain_format_table() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "EXPLAIN FORMAT TABLE解析应该成功: {:?}",
+        "EXPLAIN FORMAT TABLE: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
@@ -1395,11 +1395,11 @@ fn test_explain_format_dot() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "EXPLAIN FORMAT DOT解析应该成功: {:?}",
+        "EXPLAIN FORMAT DOT: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("EXPLAIN语句解析应该成功");
+    let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
@@ -1409,9 +1409,9 @@ fn test_profile_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "PROFILE解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "PROFILE: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("PROFILE语句解析应该成功");
+    let stmt = result.expect("PROFILE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
 }
 
@@ -1423,11 +1423,11 @@ fn test_profile_format_dot() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "PROFILE FORMAT DOT解析应该成功: {:?}",
+        "PROFILE FORMAT DOT: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("PROFILE语句解析应该成功");
+    let stmt = result.expect("PROFILE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
 }
 
@@ -1441,11 +1441,11 @@ fn test_group_by_basic() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "GROUP BY基础解析应该成功: {:?}",
+        "GROUP BY基础: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("GROUP BY语句解析应该成功");
+    let stmt = result.expect("GROUP BY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
 }
 
@@ -1457,11 +1457,11 @@ fn test_group_by_multiple_items() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "GROUP BY多字段解析应该成功: {:?}",
+        "GROUP BY多字段: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("GROUP BY语句解析应该成功");
+    let stmt = result.expect("GROUP BY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
 }
 
@@ -1475,11 +1475,11 @@ fn test_show_sessions() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW SESSIONS解析应该成功: {:?}",
+        "SHOW SESSIONS: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW SESSIONS语句解析应该成功");
+    let stmt = result.expect("SHOW SESSIONS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW SESSIONS");
 }
 
@@ -1491,11 +1491,11 @@ fn test_show_queries() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW QUERIES解析应该成功: {:?}",
+        "SHOW QUERIES: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW QUERIES语句解析应该成功");
+    let stmt = result.expect("SHOW QUERIES语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW QUERIES");
 }
 
@@ -1505,9 +1505,9 @@ fn test_kill_query() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "KILL QUERY解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "KILL QUERY: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("KILL QUERY语句解析应该成功");
+    let stmt = result.expect("KILL QUERY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
 }
 
@@ -1521,11 +1521,11 @@ fn test_show_configs() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW CONFIGS解析应该成功: {:?}",
+        "SHOW CONFIGS: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW CONFIGS语句解析应该成功");
+    let stmt = result.expect("SHOW CONFIGS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW CONFIGS");
 }
 
@@ -1537,11 +1537,11 @@ fn test_show_configs_with_module() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "SHOW CONFIGS storage解析应该成功: {:?}",
+        "SHOW CONFIGS storage: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("SHOW CONFIGS语句解析应该成功");
+    let stmt = result.expect("SHOW CONFIGS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW CONFIGS");
 }
 
@@ -1553,11 +1553,11 @@ fn test_update_configs() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE CONFIGS解析应该成功: {:?}",
+        "UPDATE CONFIGS: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    let stmt = result.expect("UPDATE CONFIGS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
@@ -1569,11 +1569,11 @@ fn test_update_configs_with_module() {
     let result = parser.parse();
     assert!(
         result.is_ok(),
-        "UPDATE CONFIGS storage解析应该成功: {:?}",
+        "UPDATE CONFIGS storage: should succeed: {:?}",
         result.err()
     );
 
-    let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
+    let stmt = result.expect("UPDATE CONFIGS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
@@ -1616,9 +1616,9 @@ fn test_assignment_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "变量赋值解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "变量赋值: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("变量赋值语句解析应该成功");
+    let stmt = result.expect("变量赋值语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "ASSIGNMENT");
 }
 
@@ -1630,9 +1630,9 @@ fn test_union_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "UNION解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "UNION: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("UNION语句解析应该成功");
+    let stmt = result.expect("UNION语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SET OPERATION");
 }
 
@@ -1642,9 +1642,9 @@ fn test_intersect_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "INTERSECT解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "INTERSECT: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("INTERSECT语句解析应该成功");
+    let stmt = result.expect("INTERSECT语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SET OPERATION");
 }
 
@@ -1654,8 +1654,8 @@ fn test_minus_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "MINUS解析应该成功: {:?}", result.err());
+    assert!(result.is_ok(), "MINUS: should succeed: {:?}", result.err());
 
-    let stmt = result.expect("MINUS语句解析应该成功");
+    let stmt = result.expect("MINUS语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SET OPERATION");
 }
