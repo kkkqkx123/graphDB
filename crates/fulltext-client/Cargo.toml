@@ -1,0 +1,13 @@
+[package]
+name = "graphdb-fulltext-client"
+version.workspace = true
+edition.workspace = true
+description = "Tokenizer adapters for graphdb full text search"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+jieba-rs = "0.9"
+tantivy-tokenizer-api = { path = "../tantivy/tokenizer-api", package = "tantivy-tokenizer-api" }
+

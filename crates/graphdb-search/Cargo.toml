@@ -13,6 +13,7 @@ log.workspace = true
 parking_lot.workspace = true
 chrono.workspace = true
 tantivy = { path = "../tantivy", optional = true }
+graphdb-fulltext-client = { path = "../fulltext-client", optional = true }
 dashmap.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
@@ -20,7 +21,7 @@ tokio = { workspace = true, features = ["fs"] }
 
 [features]
 fulltext-search = ["dep:tantivy"]
-jieba = ["tantivy/jieba"]
+jieba = ["dep:graphdb-fulltext-client"]
 
 [dev-dependencies]
 tempfile.workspace = true

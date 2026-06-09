@@ -13,12 +13,13 @@ use tantivy::schema::*;
 use tantivy::IndexWriter;
 use tantivy::TantivyDocument;
 
+#[cfg(feature = "jieba")]
+use graphdb_fulltext_client::JiebaTokenizer;
+
 use crate::core::Value;
 use crate::search::engine::{ConsistencyState, SearchEngine};
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
-#[cfg(feature = "jieba")]
-use tantivy::tokenizer::JiebaTokenizer;
 
 pub use crate::config::common::fulltext::{TantivyConfig, TokenizerKind};
 
