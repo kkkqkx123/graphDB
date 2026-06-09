@@ -15,6 +15,9 @@ members = [
     "graphdb-cli",
 ]
 
+[patch.crates-io]
+tantivy = { path = "crates/tantivy" }
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

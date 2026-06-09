@@ -9,5 +9,4 @@ homepage.workspace = true
 
 [dependencies]
 jieba-rs = "0.9"
-tantivy-tokenizer-api = { path = "../tantivy/tokenizer-api", package = "tantivy-tokenizer-api" }
-
+tantivy-tokenizer-api = "0.7"

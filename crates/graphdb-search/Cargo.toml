@@ -12,7 +12,7 @@ thiserror.workspace = true
 log.workspace = true
 parking_lot.workspace = true
 chrono.workspace = true
-tantivy = { path = "../tantivy", optional = true }
+tantivy = { version = "0.26.0", optional = true }
 graphdb-fulltext-client = { path = "../fulltext-client", optional = true }
 dashmap.workspace = true
 async-trait.workspace = true
