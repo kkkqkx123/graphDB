@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::sync::external_index::IndexOperation;
+use crate::sync::types::IndexOperation;
 
 /// Dead letter queue entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -241,11 +241,10 @@ pub struct DeadLetterQueueStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sync::external_index::{IndexData, IndexKey, IndexOperation};
-    use std::collections::HashMap;
+    use crate::sync::types::{IndexOpKey, IndexOperation};
 
-    fn create_test_index_key() -> IndexKey {
-        IndexKey {
+    fn create_test_index_key() -> IndexOpKey {
+        IndexOpKey {
             space_id: 1,
             tag_name: "Article".to_string(),
             field_name: "content".to_string(),
@@ -254,14 +253,13 @@ mod tests {
 
     fn create_test_operation() -> IndexOperation {
         IndexOperation::Insert {
-            key: crate::sync::external_index::IndexKey {
+            key: IndexOpKey {
                 space_id: 1,
                 tag_name: "test_tag".to_string(),
                 field_name: "test_field".to_string(),
             },
             id: "test_id".to_string(),
-            data: IndexData::Fulltext("test".to_string()),
-            payload: HashMap::new(),
+            text: "test".to_string(),
         }
     }
 
@@ -269,8 +267,7 @@ mod tests {
         IndexOperation::Insert {
             key: create_test_index_key(),
             id: id.to_string(),
-            data: IndexData::Fulltext(text.to_string()),
-            payload: HashMap::new(),
+            text: text.to_string(),
         }
     }
 

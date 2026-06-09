@@ -1,5 +1,8 @@
 use thiserror::Error;
 
+use crate::search::SearchError;
+use crate::sync::coordinator::CoordinatorError;
+
 #[derive(Debug, Error)]
 pub enum BatchError {
     #[error("Buffer overflow: {0}")]
@@ -11,8 +14,8 @@ pub enum BatchError {
     #[error("Queue is closed")]
     QueueClosed,
 
-    #[error("Index error: {0}")]
-    IndexError(#[from] crate::sync::external_index::ExternalIndexError),
+    #[error("Coordinator error: {0}")]
+    CoordinatorError(#[from] CoordinatorError),
 
     #[error("Commit error: {0}")]
     CommitError(String),
@@ -25,6 +28,9 @@ pub enum BatchError {
 
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
+
+    #[error("Search engine error: {0}")]
+    SearchError(#[from] SearchError),
 }
 
 pub type BatchResult<T> = Result<T, BatchError>;

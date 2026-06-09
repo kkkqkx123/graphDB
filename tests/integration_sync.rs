@@ -5,6 +5,7 @@
 //! - Batch processing
 //! - Transaction integration
 //! - Concurrent safety
+#![cfg(feature = "fulltext-search")]
 
 mod common;
 
@@ -15,7 +16,7 @@ use std::time::Duration;
 use graphdb::core::types::VertexId;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
+use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, TantivyConfig, TokenizerKind};
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;
@@ -33,12 +34,16 @@ struct SyncTestContext {
 impl SyncTestContext {
     fn new() -> Self {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let tantivy = TantivyConfig {
+            tokenizer: TokenizerKind::Default,
+            ..Default::default()
+        };
         let config = FulltextConfig {
             enabled: true,
             index_path: temp_dir.path().to_path_buf(),
             default_engine: EngineType::Bm25,
             sync: graphdb::search::SyncConfig::default(),
-            tantivy: Default::default(),
+            tantivy,
             cache_size: 100,
             max_result_cache: 1000,
             result_cache_ttl_secs: 60,
@@ -61,12 +66,16 @@ impl SyncTestContext {
 
     fn with_batch_config(batch_config: BatchConfig) -> Self {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let tantivy = TantivyConfig {
+            tokenizer: TokenizerKind::Default,
+            ..Default::default()
+        };
         let config = FulltextConfig {
             enabled: true,
             index_path: temp_dir.path().to_path_buf(),
             default_engine: EngineType::Bm25,
             sync: graphdb::search::SyncConfig::default(),
-            tantivy: Default::default(),
+            tantivy,
             cache_size: 100,
             max_result_cache: 1000,
             result_cache_ttl_secs: 60,

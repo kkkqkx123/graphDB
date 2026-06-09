@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 use super::error::BatchResult;
-use crate::sync::external_index::IndexOperation;
+use crate::sync::types::IndexOperation;
 
 /// Trait for batch processing of index operations
 ///

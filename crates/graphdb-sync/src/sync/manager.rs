@@ -4,8 +4,7 @@
 
 use crate::core::Value;
 use crate::search::SyncConfig;
-use crate::sync::coordinator::{ChangeType, SyncCoordinator};
-use crate::sync::external_index::CoordinatorError;
+use crate::sync::coordinator::{ChangeType, CoordinatorError, SyncCoordinator};
 #[cfg(feature = "qdrant")]
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use std::sync::Arc;
@@ -359,7 +358,7 @@ impl SyncManager {
                     if let Some((_, old_value)) =
                         old_props.iter().find(|(k, _)| k == &idx.field_name)
                     {
-                        if let Some(vector) = old_value.as_vector() {
+                        if old_value.as_vector().is_some() {
                             let ctx = crate::sync::vector_sync::VectorChangeContext::new(
                                 space_id,
                                 edge_type,
@@ -472,7 +471,7 @@ impl SyncManager {
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
-        self.sync_coordinator.rollback_transaction(txn_id).await?;
+        self.sync_coordinator.rollback_transaction(txn_id)?;
 
         // Also rollback vector index buffer
         #[cfg(feature = "qdrant")]

@@ -1,39 +1,28 @@
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use dashmap::DashMap;
 use tracing::{debug, warn};
 
-use super::types::{ChangeContext, ChangeData, ChangeType, IndexType};
+use super::types::{ChangeContext, ChangeData, ChangeType};
 use crate::core::stats::StatsManager;
 use crate::search::engine::ConsistencyState;
 use crate::search::manager::FulltextIndexManager;
 use crate::sync::batch::{
-    BatchConfig, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
+    BatchConfig, BatchProcessor, FulltextBatchProcessor, TransactionBatchBuffer,
 };
 
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
-use crate::sync::external_index::{FulltextClient, IndexData, IndexKey, IndexOperation};
-#[cfg(feature = "qdrant")]
-use crate::sync::external_index::{VectorClient, VectorClientConfig};
+use crate::sync::types::{IndexOpKey, IndexOperation};
 use crate::sync::retry::{default_local_retry_config, with_retry};
 
-type FulltextProcessor = GenericBatchProcessor<FulltextClient>;
-#[cfg(feature = "qdrant")]
-type VectorProcessor = GenericBatchProcessor<VectorClient>;
+type FulltextProcessor = FulltextBatchProcessor;
 
 pub struct SyncCoordinator {
     fulltext_manager: Arc<FulltextIndexManager>,
-    #[cfg(feature = "qdrant")]
-    vector_manager: Option<Arc<vector_client::VectorManager>>,
     fulltext_processors: DashMap<(u64, String, String), Arc<FulltextProcessor>>,
-    #[cfg(feature = "qdrant")]
-    vector_processors: DashMap<(u64, String, String), Arc<VectorProcessor>>,
     transaction_buffers: DashMap<crate::core::types::TransactionId, Arc<TransactionBatchBuffer>>,
     config: BatchConfig,
-    #[cfg(feature = "qdrant")]
-    vector_client_config: VectorClientConfig,
     dead_letter_queue: Arc<DeadLetterQueue>,
     stats_manager: Option<Arc<StatsManager>>,
 }
@@ -42,8 +31,6 @@ impl std::fmt::Debug for SyncCoordinator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("SyncCoordinator");
         d.field("fulltext_processors_count", &self.fulltext_processors.len());
-        #[cfg(feature = "qdrant")]
-        d.field("vector_processors_count", &self.vector_processors.len());
         d.field("config", &self.config);
         d.finish_non_exhaustive()
     }
@@ -55,37 +42,16 @@ impl SyncCoordinator {
 
         Self {
             fulltext_manager,
-            #[cfg(feature = "qdrant")]
-            vector_manager: None,
             fulltext_processors: DashMap::new(),
-            #[cfg(feature = "qdrant")]
-            vector_processors: DashMap::new(),
             transaction_buffers: DashMap::new(),
             config,
-            #[cfg(feature = "qdrant")]
-            vector_client_config: VectorClientConfig::default(),
             dead_letter_queue,
             stats_manager: None,
         }
     }
 
-    #[cfg(feature = "qdrant")]
-    pub fn with_vector_manager(
-        mut self,
-        vector_manager: Arc<vector_client::VectorManager>,
-    ) -> Self {
-        self.vector_manager = Some(vector_manager);
-        self
-    }
-
     pub fn with_stats_manager(mut self, stats_manager: Arc<StatsManager>) -> Self {
         self.stats_manager = Some(stats_manager);
-        self
-    }
-
-    #[cfg(feature = "qdrant")]
-    pub fn with_vector_client_config(mut self, config: VectorClientConfig) -> Self {
-        self.vector_client_config = config;
         self
     }
 
@@ -113,15 +79,11 @@ impl SyncCoordinator {
             .fulltext_manager
             .get_engine(space_id, tag_name, field_name)?;
 
-        let fulltext_client = Arc::new(FulltextClient::new(
+        let processor = Arc::new(FulltextBatchProcessor::new(
             space_id,
             tag_name.to_string(),
             field_name.to_string(),
             engine,
-        ));
-
-        let processor = Arc::new(GenericBatchProcessor::new(
-            fulltext_client,
             self.config.clone(),
         ));
 
@@ -136,70 +98,17 @@ impl SyncCoordinator {
         Some(processor)
     }
 
-    #[cfg(feature = "qdrant")]
-    fn get_or_create_vector_processor(
-        &self,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-    ) -> Option<Arc<VectorProcessor>> {
-        let vector_manager = self.vector_manager.as_ref()?;
-
-        let key = (space_id, tag_name.to_string(), field_name.to_string());
-
-        if let Some(processor) = self.vector_processors.get(&key) {
-            return Some(processor.clone());
-        }
-
-        let vector_client = Arc::new(
-            VectorClient::with_config(
-                space_id,
-                tag_name.to_string(),
-                field_name.to_string(),
-                vector_manager.clone(),
-                self.vector_client_config.clone(),
-            )
-            .with_dead_letter_queue(self.dead_letter_queue.clone()),
-        );
-
-        let processor = Arc::new(GenericBatchProcessor::new(
-            vector_client,
-            self.config.clone(),
-        ));
-
-        self.vector_processors
-            .insert(key.clone(), processor.clone());
-
-        Some(processor)
-    }
-
     pub async fn on_change(&self, ctx: ChangeContext) -> Result<(), SyncCoordinatorError> {
         let start = Instant::now();
         let operation = self.create_operation(&ctx)?;
 
         let result = async {
-            match ctx.index_type {
-                IndexType::Fulltext => {
-                    if let Some(processor) = self.get_or_create_fulltext_processor(
-                        ctx.space_id,
-                        &ctx.tag_name,
-                        &ctx.field_name,
-                    ) {
-                        processor.add(operation).await?;
-                    }
-                }
-                #[cfg(feature = "qdrant")]
-                IndexType::Vector => {
-                    if let Some(processor) = self.get_or_create_vector_processor(
-                        ctx.space_id,
-                        &ctx.tag_name,
-                        &ctx.field_name,
-                    ) {
-                        processor.add(operation).await?;
-                    }
-                }
-                #[cfg(not(feature = "qdrant"))]
-                _ => {}
+            if let Some(processor) = self.get_or_create_fulltext_processor(
+                ctx.space_id,
+                &ctx.tag_name,
+                &ctx.field_name,
+            ) {
+                processor.add(operation).await?;
             }
             Ok::<(), SyncCoordinatorError>(())
         }
@@ -220,25 +129,19 @@ impl SyncCoordinator {
         &self,
         ctx: &ChangeContext,
     ) -> Result<IndexOperation, SyncCoordinatorError> {
-        let data = match &ctx.data {
-            ChangeData::Fulltext(text) => IndexData::Fulltext(text.clone()),
-            ChangeData::Vector(vector) => IndexData::Vector(vector.clone()),
-        };
-
-        let key = IndexKey::new(ctx.space_id, ctx.tag_name.clone(), ctx.field_name.clone());
+        let ChangeData::Fulltext(ref text) = ctx.data;
+        let key = IndexOpKey::new(ctx.space_id, &ctx.tag_name, &ctx.field_name);
 
         let operation = match ctx.change_type {
             ChangeType::Insert => IndexOperation::Insert {
                 key,
                 id: ctx.vertex_id.clone(),
-                data,
-                payload: HashMap::new(),
+                text: text.clone(),
             },
             ChangeType::Update => IndexOperation::Update {
                 key,
                 id: ctx.vertex_id.clone(),
-                data,
-                payload: HashMap::new(),
+                text: text.clone(),
             },
             ChangeType::Delete => IndexOperation::Delete {
                 key,
@@ -275,23 +178,6 @@ impl SyncCoordinator {
                         text.clone(),
                     );
                     self.on_change(ctx).await?;
-                }
-            }
-
-            #[cfg(feature = "qdrant")]
-            {
-                if let Some(ref _vm) = self.vector_manager {
-                    if let Some(vector) = value.as_vector() {
-                        let ctx = ChangeContext::new_vector(
-                            space_id,
-                            tag_name,
-                            field_name,
-                            change_type,
-                            vid_str.clone(),
-                            vector,
-                        );
-                        self.on_change(ctx).await?;
-                    }
                 }
             }
         }
@@ -393,40 +279,8 @@ impl SyncCoordinator {
                 .take_operations(txn_id)
                 .map_err(SyncCoordinatorError::BatchError)?;
 
-            #[cfg(feature = "qdrant")]
-            let mut vector_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
-            let mut fulltext_batches: HashMap<IndexKey, Vec<IndexOperation>> = HashMap::new();
-
-            // Categorize operations
-            for (key, operations) in grouped_ops {
-                #[cfg(not(feature = "qdrant"))]
-                {
-                    fulltext_batches.insert(key, operations);
-                }
-                #[cfg(feature = "qdrant")]
-                {
-                    let is_vector = operations.iter().any(|op| {
-                        matches!(
-                            op,
-                            IndexOperation::Insert {
-                                data: IndexData::Vector(_),
-                                ..
-                            } | IndexOperation::Update {
-                                data: IndexData::Vector(_),
-                                ..
-                            }
-                        )
-                    });
-                    if is_vector {
-                        vector_batches.insert(key, operations);
-                    } else {
-                        fulltext_batches.insert(key, operations);
-                    }
-                }
-            }
-
             // Pre-commit validation: check consistency of all involved engines
-            for key in fulltext_batches.keys() {
+            for (key, _) in &grouped_ops {
                 if let Some(engine) =
                     self.fulltext_manager
                         .get_engine(key.space_id, &key.tag_name, &key.field_name)
@@ -440,43 +294,11 @@ impl SyncCoordinator {
                 }
             }
 
-            #[cfg(feature = "qdrant")]
-            let _vector_batch_count = vector_batches.len();
-            #[cfg(not(feature = "qdrant"))]
-            let _vector_batch_count = 0usize;
-
-            // Phase 1: Apply vector operations.
-            // Retry is handled internally by VectorClient; coordinator only checks final result.
-            #[cfg(feature = "qdrant")]
-            {
-                let mut vector_failed = false;
-                for (key, operations) in vector_batches {
-                    if let Some(processor) = self.get_or_create_vector_processor(
-                        key.space_id,
-                        &key.tag_name,
-                        &key.field_name,
-                    ) {
-                        if let Err(e) = processor.execute_now(operations).await {
-                            warn!("Vector batch commit failed: {:?}", e);
-                            vector_failed = true;
-                        }
-                    }
-                }
-                if vector_failed {
-                    return Err(SyncCoordinatorError::BatchError(
-                        crate::sync::batch::BatchError::InvalidOperation(
-                            "Vector batch commit failed".to_string(),
-                        ),
-                    ));
-                }
-            }
-
-            // Phase 2: Apply fulltext operations WITHOUT committing (deferred commit)
-            // This ensures atomicity across multiple fulltext indexes.
+            // Apply fulltext operations WITHOUT committing (deferred commit)
             let mut fulltext_failed = false;
-            let mut failed_keys: Vec<IndexKey> = Vec::new();
+            let mut failed_keys: Vec<IndexOpKey> = Vec::new();
 
-            for (key, operations) in &fulltext_batches {
+            for (key, operations) in &grouped_ops {
                 let retry_config = default_local_retry_config();
 
                 if let Some(processor) = self.get_or_create_fulltext_processor(
@@ -543,14 +365,13 @@ impl SyncCoordinator {
                 ));
             }
 
-            // Phase 3: Commit all fulltext engines at once
+            // Commit all fulltext engines at once
             self.commit_all().await?;
 
             log::debug!(
-                "Transaction {:?} committed successfully ({} fulltext, {} vector batches)",
+                "Transaction {:?} committed successfully ({} fulltext batches)",
                 txn_id,
-                fulltext_batches.len(),
-                _vector_batch_count
+                grouped_ops.len(),
             );
             if let Some(ref sm) = self.stats_manager {
                 let total_depth: u64 = self
@@ -568,78 +389,165 @@ impl SyncCoordinator {
         result
     }
 
-    /// Rollback phase: discard buffer
-    pub async fn rollback_transaction(
+    pub async fn commit_all(&self) -> Result<(), SyncCoordinatorError> {
+        let processors: Vec<Arc<FulltextProcessor>> = self
+            .fulltext_processors
+            .iter()
+            .map(|e| e.value().clone())
+            .collect();
+
+        for processor in &processors {
+            processor.commit_all().await.map_err(|e| {
+                SyncCoordinatorError::BatchError(
+                    crate::sync::batch::BatchError::InvalidOperation(format!(
+                        "commit_all failed: {:?}",
+                        e
+                    )),
+                )
+            })?;
+        }
+
+        Ok(())
+    }
+
+    /// Rollback transaction: discard buffered operations
+    pub fn rollback_transaction(
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncCoordinatorError> {
-        if let Some((_, buffer)) = self.transaction_buffers.remove(&txn_id) {
-            let count = buffer.pending_count(txn_id);
-            log::debug!(
-                "Transaction {:?} rolled back ({} operations discarded)",
-                txn_id,
-                count
-            );
-            buffer
-                .rollback(txn_id)
-                .map_err(SyncCoordinatorError::BatchError)?;
-            if let Some(ref sm) = self.stats_manager {
-                let total_depth: u64 = self
-                    .transaction_buffers
-                    .iter()
-                    .map(|entry| entry.value().pending_count(*entry.key()) as u64)
-                    .sum();
-                sm.set_sync_queue_depth(total_depth);
-            }
+        if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
+            buffer.rollback(txn_id)?;
         }
+        self.transaction_buffers.remove(&txn_id);
         Ok(())
     }
 
-    pub async fn commit_all(&self) -> Result<(), SyncCoordinatorError> {
-        for entry in self.fulltext_processors.iter() {
-            let processor: &Arc<FulltextProcessor> = entry.value();
-            processor.commit_all().await?;
-        }
+    pub async fn stop_background_tasks(&self) {
+        let processors: Vec<Arc<FulltextProcessor>> = self
+            .fulltext_processors
+            .iter()
+            .map(|e| e.value().clone())
+            .collect();
 
-        #[cfg(feature = "qdrant")]
-        for entry in self.vector_processors.iter() {
-            let processor: &Arc<VectorProcessor> = entry.value();
-            processor.commit_all().await?;
+        for processor in &processors {
+            processor.stop_background_task().await;
         }
-
-        Ok(())
     }
 
-    /// Recover failed operations from dead letter queue
-    pub async fn recover_from_dead_letter_queue(
+    pub async fn start_background_tasks(&self) {
+        let processors: Vec<Arc<FulltextProcessor>> = self
+            .fulltext_processors
+            .iter()
+            .map(|e| e.value().clone())
+            .collect();
+
+        for processor in &processors {
+            let p = processor.clone();
+            tokio::spawn(async move {
+                p.start_background_task().await;
+            });
+        }
+    }
+
+    /// Recover operations from the dead letter queue.
+    pub async fn recover_dead_letter(
         &self,
-        max_entries: usize,
     ) -> Result<RecoveryResult, SyncCoordinatorError> {
-        let unrecovered = self.dead_letter_queue.get_unrecovered();
+        let dead_letter_entries = self.dead_letter_queue.get_all();
         let mut result = RecoveryResult::default();
+        result.total = dead_letter_entries.len();
 
-        for (index, entry) in unrecovered.iter().take(max_entries).enumerate() {
-            if entry.recovered {
-                continue;
-            }
-
-            // Try to recover the operation
+        for (index, entry) in dead_letter_entries.iter().enumerate() {
             match self.recover_operation(&entry.operation).await {
                 Ok(()) => {
                     self.dead_letter_queue.mark_recovered(index);
-                    result.successful += 1;
+                    result.recovered += 1;
                 }
                 Err(e) => {
-                    result.failed += 1;
-                    result.errors.push(format!(
-                        "Failed to recover operation at index {}: {}",
+                    warn!(
+                        "Failed to recover dead letter entry at index {}: {:?}",
                         index, e
-                    ));
+                    );
+                    result.failed += 1;
                 }
             }
         }
 
-        result.total_attempted = result.successful + result.failed;
+        Ok(result)
+    }
+
+    /// Recover operations from the dead letter queue by retrying each one.
+    ///
+    /// This retries each failed operation through the normal batch processing pipeline.
+    /// Successfully retried operations are marked as recovered in the DLQ.
+    pub async fn retry_dead_letter(
+        &self,
+        max_entries: Option<usize>,
+    ) -> Result<RecoveryResult, SyncCoordinatorError> {
+        let unrecovered = self.dead_letter_queue.get_unrecovered();
+        let entries: Vec<_> = match max_entries {
+            Some(limit) => unrecovered.into_iter().take(limit).collect(),
+            None => unrecovered,
+        };
+
+        let mut result = RecoveryResult::default();
+        result.total = entries.len();
+
+        for (offset, entry) in entries.iter().enumerate() {
+            match self.recover_operation(&entry.operation).await {
+                Ok(()) => {
+                    self.dead_letter_queue.mark_recovered(offset);
+                    result.recovered += 1;
+                }
+                Err(e) => {
+                    warn!(
+                        "Dead letter retry failed at offset {}: {:?}",
+                        offset, e
+                    );
+                    result.failed += 1;
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Recover operations from specific indexes
+    pub async fn recover_operations_for_indexes(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+    ) -> Result<RecoveryResult, SyncCoordinatorError> {
+        let target_key = IndexOpKey::new(space_id, tag_name, field_name);
+        let entries = self.dead_letter_queue.get_all();
+        let mut result = RecoveryResult::default();
+
+        for (index, entry) in entries.iter().enumerate() {
+            let matches = match &entry.operation {
+                IndexOperation::Insert { key, .. }
+                | IndexOperation::Update { key, .. }
+                | IndexOperation::Delete { key, .. } => *key == target_key,
+            };
+
+            if matches {
+                result.total += 1;
+                match self.recover_operation(&entry.operation).await {
+                    Ok(()) => {
+                        self.dead_letter_queue.mark_recovered(index);
+                        result.recovered += 1;
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to recover operation for {}.{}.{}: {:?}",
+                            space_id, tag_name, field_name, e
+                        );
+                        result.failed += 1;
+                    }
+                }
+            }
+        }
+
         Ok(result)
     }
 
@@ -649,111 +557,42 @@ impl SyncCoordinator {
         operation: &IndexOperation,
     ) -> Result<(), SyncCoordinatorError> {
         match operation {
-            IndexOperation::Insert {
-                key,
-                id: _,
-                data,
-                payload: _,
-            } => {
-                // Determine if it's a vector or full-text operation based on data type
-                match data {
-                    IndexData::Fulltext(_text) => {
-                        if let Some(processor) = self.get_or_create_fulltext_processor(
-                            key.space_id,
-                            &key.tag_name,
-                            &key.field_name,
-                        ) {
-                            processor.add(operation.clone()).await.map_err(|e| {
-                                SyncCoordinatorError::BatchError(
-                                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                                        "Recovery failed: {:?}",
-                                        e
-                                    )),
-                                )
-                            })?;
-                        }
-                    }
-                    #[cfg(feature = "qdrant")]
-                    IndexData::Vector(_vector) => {
-                        if let Some(processor) = self.get_or_create_vector_processor(
-                            key.space_id,
-                            &key.tag_name,
-                            &key.field_name,
-                        ) {
-                            processor
-                                .execute_now(vec![operation.clone()])
-                                .await
-                                .map_err(|e| {
-                                    SyncCoordinatorError::BatchError(
-                                        crate::sync::batch::BatchError::InvalidOperation(format!(
-                                            "Recovery failed: {:?}",
-                                            e
-                                        )),
-                                    )
-                                })?;
-                        }
-                    }
-                    #[cfg(not(feature = "qdrant"))]
-                    IndexData::Vector(_) => {
-                        log::warn!("Vector recovery skipped (qdrant feature disabled)");
-                    }
+            IndexOperation::Insert { key, .. } => {
+                if let Some(processor) = self.get_or_create_fulltext_processor(
+                    key.space_id,
+                    &key.tag_name,
+                    &key.field_name,
+                ) {
+                    processor.add(operation.clone()).await.map_err(|e| {
+                        SyncCoordinatorError::BatchError(
+                            crate::sync::batch::BatchError::InvalidOperation(format!(
+                                "Recovery failed: {:?}",
+                                e
+                            )),
+                        )
+                    })?;
                 }
             }
-            IndexOperation::Update {
-                key,
-                id: _,
-                data,
-                payload: _,
-            } => {
-                // Similar to insert, but for updates
-                match data {
-                    IndexData::Fulltext(_text) => {
-                        if let Some(processor) = self.get_or_create_fulltext_processor(
-                            key.space_id,
-                            &key.tag_name,
-                            &key.field_name,
-                        ) {
-                            processor
-                                .execute_now(vec![operation.clone()])
-                                .await
-                                .map_err(|e| {
-                                    SyncCoordinatorError::BatchError(
-                                        crate::sync::batch::BatchError::InvalidOperation(format!(
-                                            "Recovery failed: {:?}",
-                                            e
-                                        )),
-                                    )
-                                })?;
-                        }
-                    }
-                    #[cfg(feature = "qdrant")]
-                    IndexData::Vector(_vector) => {
-                        if let Some(processor) = self.get_or_create_vector_processor(
-                            key.space_id,
-                            &key.tag_name,
-                            &key.field_name,
-                        ) {
-                            processor
-                                .execute_now(vec![operation.clone()])
-                                .await
-                                .map_err(|e| {
-                                    SyncCoordinatorError::BatchError(
-                                        crate::sync::batch::BatchError::InvalidOperation(format!(
-                                            "Recovery failed: {:?}",
-                                            e
-                                        )),
-                                    )
-                                })?;
-                        }
-                    }
-                    #[cfg(not(feature = "qdrant"))]
-                    IndexData::Vector(_) => {
-                        log::warn!("Vector recovery skipped (qdrant feature disabled)");
-                    }
+            IndexOperation::Update { key, .. } => {
+                if let Some(processor) = self.get_or_create_fulltext_processor(
+                    key.space_id,
+                    &key.tag_name,
+                    &key.field_name,
+                ) {
+                    processor
+                        .execute_now(vec![operation.clone()])
+                        .await
+                        .map_err(|e| {
+                            SyncCoordinatorError::BatchError(
+                                crate::sync::batch::BatchError::InvalidOperation(format!(
+                                    "Recovery failed: {:?}",
+                                    e
+                                )),
+                            )
+                        })?;
                 }
             }
-            IndexOperation::Delete { key, id: _ } => {
-                // For deletes, we can retry the deletion
+            IndexOperation::Delete { key, .. } => {
                 if let Some(processor) = self.get_or_create_fulltext_processor(
                     key.space_id,
                     &key.tag_name,
@@ -776,105 +615,53 @@ impl SyncCoordinator {
 
         Ok(())
     }
-
-    /// Get dead letter queue statistics
-    pub fn get_dead_letter_queue_stats(
-        &self,
-    ) -> crate::sync::dead_letter_queue::DeadLetterQueueStats {
-        self.dead_letter_queue.get_stats()
-    }
 }
 
-/// Recovery result statistics
+/// Result of a recovery operation
 #[derive(Debug, Default)]
 pub struct RecoveryResult {
-    pub total_attempted: usize,
-    pub successful: usize,
+    pub total: usize,
+    pub recovered: usize,
     pub failed: usize,
-    pub errors: Vec<String>,
+    pub total_attempted: usize,
 }
 
-impl SyncCoordinator {
-    pub async fn start_background_tasks(&self) {
-        log::info!("Starting background tasks for sync coordinator");
-
-        for entry in self.fulltext_processors.iter() {
-            let processor: Arc<FulltextProcessor> = entry.value().clone();
-            processor.start_background_task().await;
-        }
-
-        #[cfg(feature = "qdrant")]
-        for entry in self.vector_processors.iter() {
-            let processor: Arc<VectorProcessor> = entry.value().clone();
-            processor.start_background_task().await;
-        }
-
-        // Start dead letter queue cleanup task
-        if self.dead_letter_queue.is_auto_cleanup_enabled() {
-            let dlq = self.dead_letter_queue.clone();
-            let interval = self.dead_letter_queue.get_cleanup_interval();
-
-            tokio::spawn(async move {
-                log::info!(
-                    "Starting dead letter queue cleanup task (interval: {:?})",
-                    interval
-                );
-                let mut interval_timer = tokio::time::interval(interval);
-                loop {
-                    interval_timer.tick().await;
-                    let removed = dlq.cleanup();
-                    if removed > 0 {
-                        log::debug!("Cleaned up {} old dead letter entries", removed);
-                    }
-                }
-            });
-            log::info!("Started dead letter queue cleanup task");
-        }
-
-        log::info!("All background tasks started");
+impl RecoveryResult {
+    pub fn total(&self) -> usize {
+        self.total
     }
 
-    pub async fn stop_background_tasks(&self) {
-        log::info!("Stopping background tasks for sync coordinator");
-
-        // Stop background tasks for all processors
-        for entry in self.fulltext_processors.iter() {
-            let processor: &Arc<FulltextProcessor> = entry.value();
-            processor.stop_background_task().await;
-        }
-
-        #[cfg(feature = "qdrant")]
-        for entry in self.vector_processors.iter() {
-            let processor: &Arc<VectorProcessor> = entry.value();
-            processor.stop_background_task().await;
-        }
-
-        log::info!("All background tasks stopped");
+    pub fn recovered(&self) -> usize {
+        self.recovered
     }
 
-    pub fn is_auto_cleanup_enabled(&self) -> bool {
-        self.dead_letter_queue.is_auto_cleanup_enabled()
+    pub fn failed(&self) -> usize {
+        self.failed
     }
 
-    pub fn get_cleanup_interval(&self) -> Duration {
-        self.dead_letter_queue.get_cleanup_interval()
+    pub fn is_complete(&self) -> bool {
+        self.failed == 0
     }
 }
 
+/// Error types for the sync coordinator
 #[derive(Debug, thiserror::Error)]
 pub enum SyncCoordinatorError {
-    #[error("Index error: {0}")]
-    IndexError(#[from] crate::sync::external_index::ExternalIndexError),
-
     #[error("Batch error: {0}")]
-    BatchError(#[from] crate::sync::batch::BatchError),
-
-    #[error("Fulltext coordinator error: {0}")]
-    FulltextError(#[from] crate::sync::external_index::CoordinatorError),
-
-    #[error("Vector coordinator error: {0}")]
-    VectorError(#[from] crate::sync::external_index::VectorCoordinatorError),
+    BatchError(crate::sync::batch::BatchError),
 
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
+
+    #[error("Operation not supported: {0}")]
+    NotSupported(String),
+
+    #[error("Recovery error: {0}")]
+    RecoveryError(String),
+}
+
+impl From<crate::sync::batch::BatchError> for SyncCoordinatorError {
+    fn from(e: crate::sync::batch::BatchError) -> Self {
+        SyncCoordinatorError::BatchError(e)
+    }
 }

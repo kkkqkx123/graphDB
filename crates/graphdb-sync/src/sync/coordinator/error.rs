@@ -1,10 +1,8 @@
-//! Fulltext Index and Coordinator Error Types
-//!
-//! Provides specialized error types for fulltext search and coordination layer.
-
 use thiserror::Error;
 
-/// Fulltext index operation errors
+use crate::search::error::SearchError;
+use crate::sync::SyncError;
+
 #[derive(Error, Debug, Clone)]
 pub enum FulltextError {
     #[error("Index not found: {0}")]
@@ -48,7 +46,6 @@ pub enum FulltextError {
     Internal(String),
 }
 
-/// Coordinator operation errors
 #[derive(Error, Debug, Clone)]
 pub enum CoordinatorError {
     #[error("Fulltext index error: {0}")]
@@ -105,65 +102,51 @@ pub enum CoordinatorError {
 pub type FulltextResult<T> = std::result::Result<T, FulltextError>;
 pub type CoordinatorResult<T> = std::result::Result<T, CoordinatorError>;
 
-impl From<crate::search::error::SearchError> for FulltextError {
-    fn from(err: crate::search::error::SearchError) -> Self {
+impl From<SearchError> for FulltextError {
+    fn from(err: SearchError) -> Self {
         match err {
-            crate::search::error::SearchError::EngineNotFound(msg) => {
-                FulltextError::EngineNotFound {
-                    space_id: 0,
-                    tag_name: String::new(),
-                    field_name: msg,
-                }
-            }
-            crate::search::error::SearchError::IndexNotFound(msg) => {
-                FulltextError::IndexNotFound(msg)
-            }
-            crate::search::error::SearchError::IndexAlreadyExists(msg) => {
-                FulltextError::IndexAlreadyExists(msg)
-            }
-            crate::search::error::SearchError::SpaceNotFound(space_id) => {
+            SearchError::EngineNotFound(msg) => FulltextError::EngineNotFound {
+                space_id: 0,
+                tag_name: String::new(),
+                field_name: msg,
+            },
+            SearchError::IndexNotFound(msg) => FulltextError::IndexNotFound(msg),
+            SearchError::IndexAlreadyExists(msg) => FulltextError::IndexAlreadyExists(msg),
+            SearchError::SpaceNotFound(space_id) => {
                 FulltextError::Internal(format!("Space not found: {}", space_id))
             }
-            crate::search::error::SearchError::TagNotFound(tag) => {
+            SearchError::TagNotFound(tag) => {
                 FulltextError::Internal(format!("Tag not found: {}", tag))
             }
-            crate::search::error::SearchError::FieldNotFound(field) => {
+            SearchError::FieldNotFound(field) => {
                 FulltextError::Internal(format!("Field not found: {}", field))
             }
-            crate::search::error::SearchError::EngineUnavailable => {
+            SearchError::EngineUnavailable => {
                 FulltextError::EngineUnavailable("engine unavailable".to_string())
             }
-            crate::search::error::SearchError::IndexCorrupted(msg) => {
-                FulltextError::IndexCorrupted(msg)
-            }
+            SearchError::IndexCorrupted(msg) => FulltextError::IndexCorrupted(msg),
             #[cfg(feature = "fulltext-search")]
-            crate::search::error::SearchError::TantivyError(e) => {
-                FulltextError::Internal(e.to_string())
-            }
-            crate::search::error::SearchError::IoError(e) => FulltextError::Internal(e.to_string()),
-            crate::search::error::SearchError::SerializationError(msg) => {
+            SearchError::TantivyError(e) => FulltextError::Internal(e.to_string()),
+            SearchError::IoError(e) => FulltextError::Internal(e.to_string()),
+            SearchError::SerializationError(msg) => {
                 FulltextError::Internal(format!("Serialization error: {}", msg))
             }
-            crate::search::error::SearchError::ConfigError(msg) => FulltextError::ConfigError(msg),
-            crate::search::error::SearchError::QueryParseError(msg) => {
-                FulltextError::QueryParseError(msg)
-            }
-            crate::search::error::SearchError::InvalidDocId(msg) => {
-                FulltextError::InvalidDocId(msg)
-            }
-            crate::search::error::SearchError::Internal(msg) => FulltextError::Internal(msg),
+            SearchError::ConfigError(msg) => FulltextError::ConfigError(msg),
+            SearchError::QueryParseError(msg) => FulltextError::QueryParseError(msg),
+            SearchError::InvalidDocId(msg) => FulltextError::InvalidDocId(msg),
+            SearchError::Internal(msg) => FulltextError::Internal(msg),
         }
     }
 }
 
-impl From<crate::sync::SyncError> for CoordinatorError {
-    fn from(err: crate::sync::SyncError) -> Self {
+impl From<SyncError> for CoordinatorError {
+    fn from(err: SyncError) -> Self {
         CoordinatorError::Sync(err.to_string())
     }
 }
 
-impl From<crate::search::error::SearchError> for CoordinatorError {
-    fn from(err: crate::search::error::SearchError) -> Self {
+impl From<SearchError> for CoordinatorError {
+    fn from(err: SearchError) -> Self {
         CoordinatorError::Fulltext(FulltextError::from(err))
     }
 }

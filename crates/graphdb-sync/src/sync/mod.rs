@@ -6,15 +6,16 @@ pub mod batch;
 pub mod circuit_breaker;
 pub mod coordinator;
 pub mod dead_letter_queue;
-pub mod external_index;
 pub mod manager;
 pub mod retry;
+pub mod types;
+pub mod vector_error;
 #[cfg(feature = "qdrant")]
 pub mod vector_sync;
 
 pub use crate::search::SyncConfig;
 pub use batch::{
-    BatchConfig, BatchError, BatchProcessor, GenericBatchProcessor, TransactionBatchBuffer,
+    BatchConfig, BatchError, BatchProcessor, FulltextBatchProcessor, TransactionBatchBuffer,
 };
 pub use circuit_breaker::{
     with_circuit_breaker, CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError,
@@ -24,7 +25,7 @@ pub use coordinator::{
     ChangeContext, ChangeData, ChangeType, IndexType, SyncCoordinator, SyncCoordinatorError,
 };
 pub use dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
-pub use external_index::{ExternalIndexClient, IndexData, IndexOperation};
+pub use types::{IndexOpKey, IndexOperation};
 pub use manager::{SyncError, SyncManager};
 pub use retry::{with_retry, RetryConfig};
 #[cfg(feature = "qdrant")]

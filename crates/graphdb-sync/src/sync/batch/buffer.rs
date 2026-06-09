@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use std::time::Instant;
 
-use crate::sync::external_index::IndexOperation;
+use crate::sync::types::IndexOperation;
 
 type IndexKey = (u64, String, String);
 

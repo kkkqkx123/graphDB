@@ -1,7 +1,3 @@
-//! Vector Index and Coordinator Error Types
-//!
-//! Provides specialized error types for vector search and coordination layer.
-
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]

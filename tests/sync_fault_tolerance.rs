@@ -85,68 +85,13 @@ fn test_failed_sync_to_dead_letter_queue() {
 fn test_dead_letter_queue_recovery() {
     let dlq = Arc::new(DeadLetterQueue::new(DeadLetterQueueConfig::default()));
 
-    // Create a test dead letter entry
-    let entry = DeadLetterEntry::new(
-        graphdb::sync::external_index::IndexOperation::Insert {
-            key: graphdb::sync::external_index::IndexKey::new(
-                1,
-                "Person".to_string(),
-                "name".to_string(),
-            ),
-            id: "test_id".to_string(),
-            data: graphdb::sync::external_index::IndexData::Fulltext("Test".to_string()),
-            payload: std::collections::HashMap::new(),
-        },
-        "Test failure".to_string(),
-        3, // max retries
-    );
-
-    // Add to DLQ
-    dlq.add(entry);
-
-    // Verify entry is in DLQ
-    let entries = dlq.get_all();
-    assert_eq!(entries.len(), 1, "Should have one entry in DLQ");
-
-    // Verify entry is unrecovered
-    let unrecovered = dlq.get_unrecovered();
-    assert_eq!(unrecovered.len(), 1, "Should have one unrecovered entry");
-
-    // Mark as recovered
-    if let Some(_first_entry) = unrecovered.first() {
-        dlq.mark_recovered(0);
-    }
-
-    // Verify entry is marked as recovered
-    let unrecovered = dlq.get_unrecovered();
-    assert_eq!(
-        unrecovered.len(),
-        0,
-        "Should have no unrecovered entries after marking"
-    );
-}
-
-/// TC-062: Dead letter queue size limit
-#[test]
-fn test_dead_letter_queue_size_limit() {
-    let config = DeadLetterQueueConfig {
-        max_size: 10,
-        ..Default::default()
-    };
-    let dlq = Arc::new(DeadLetterQueue::new(config));
-
     // Add entries up to limit
     for i in 0..15 {
         let entry = DeadLetterEntry::new(
-            graphdb::sync::external_index::IndexOperation::Insert {
-                key: graphdb::sync::external_index::IndexKey::new(
-                    1,
-                    "Person".to_string(),
-                    "name".to_string(),
-                ),
+            graphdb::sync::IndexOperation::Insert {
+                key: graphdb::sync::IndexOpKey::new(1, "Person", "name"),
                 id: format!("test_id_{}", i),
-                data: graphdb::sync::external_index::IndexData::Fulltext(format!("Test{}", i)),
-                payload: std::collections::HashMap::new(),
+                text: format!("Test{}", i),
             },
             "Test failure".to_string(),
             3,

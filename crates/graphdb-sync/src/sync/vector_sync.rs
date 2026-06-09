@@ -11,7 +11,7 @@ use tracing::{debug, info};
 
 use crate::core::types::TransactionId;
 use crate::core::{Value, Vertex};
-use crate::sync::external_index::{VectorCoordinatorError, VectorCoordinatorResult};
+use crate::sync::vector_error::{VectorCoordinatorError, VectorCoordinatorResult};
 
 use vector_client::{
     EmbeddingService, FilterCondition, SearchQuery, SearchResult, VectorFilter, VectorManager,
@@ -210,6 +210,14 @@ impl VectorTransactionBuffer {
 
         buffer.push(update);
         Ok(())
+    }
+
+    /// Peek at pending updates without removing them from the buffer
+    pub fn peek_updates(&self, txn_id: TransactionId) -> Vec<PendingVectorUpdate> {
+        self.buffers
+            .get(&txn_id)
+            .map(|entry| entry.value().clone())
+            .unwrap_or_default()
     }
 
     /// Get and clear pending updates for a transaction
@@ -659,7 +667,10 @@ impl VectorSyncCoordinator {
     /// Commit transaction: flush buffered vector updates
     pub async fn commit_transaction(&self, txn_id: TransactionId) -> VectorCoordinatorResult<()> {
         if let Some(ref buffer) = self.transaction_buffer {
-            let updates = buffer.take_updates(txn_id);
+            // Peek at updates without removing them from the buffer.
+            // This prevents data loss: if batch processing fails partway,
+            // the buffer still has all pending updates for retry.
+            let updates = buffer.peek_updates(txn_id);
 
             if !updates.is_empty() {
                 debug!(
@@ -668,10 +679,13 @@ impl VectorSyncCoordinator {
                     txn_id
                 );
 
-                // Process updates in batch
-                for update in updates {
-                    self.on_vector_change(update.context).await?;
-                }
+                // Use batch processing for efficiency (groups by collection)
+                let contexts: Vec<VectorChangeContext> =
+                    updates.into_iter().map(|u| u.context).collect();
+                self.on_vector_change_batch(contexts).await?;
+
+                // All operations succeeded — now safely remove from buffer
+                buffer.take_updates(txn_id);
             }
         }
 

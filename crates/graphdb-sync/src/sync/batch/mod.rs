@@ -7,6 +7,6 @@ pub mod trait_def;
 pub use buffer::BatchBuffer;
 pub use config::BatchConfig;
 pub use error::BatchError;
-pub use processor::GenericBatchProcessor;
+pub use processor::FulltextBatchProcessor;
 pub use processor::TransactionBatchBuffer;
 pub use trait_def::BatchProcessor;

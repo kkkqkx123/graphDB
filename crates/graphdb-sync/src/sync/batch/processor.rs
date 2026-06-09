@@ -9,29 +9,42 @@ use super::config::BatchConfig;
 use super::error::{BatchError, BatchResult};
 use super::trait_def::BatchProcessor;
 use crate::core::types::TransactionId;
-use crate::sync::external_index::{ExternalIndexClient, IndexData, IndexKey, IndexOperation};
+use crate::search::engine::SearchEngine;
+use crate::sync::types::{IndexOpKey, IndexOperation};
 
-pub struct GenericBatchProcessor<E: ExternalIndexClient> {
-    engine: Arc<E>,
+pub struct FulltextBatchProcessor {
+    space_id: u64,
+    tag_name: String,
+    field_name: String,
+    engine: Arc<dyn SearchEngine>,
     config: BatchConfig,
     buffer: Arc<BatchBuffer>,
     background_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     immediate_mode: bool,
 }
 
-impl<E: ExternalIndexClient> std::fmt::Debug for GenericBatchProcessor<E> {
+impl std::fmt::Debug for FulltextBatchProcessor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GenericBatchProcessor")
-            .field("client_type", &self.engine.client_type())
+        f.debug_struct("FulltextBatchProcessor")
+            .field("location", &(self.space_id, &self.tag_name, &self.field_name))
             .field("config", &self.config)
             .field("buffer_count", &self.buffer.total_count())
             .finish_non_exhaustive()
     }
 }
 
-impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
-    pub fn new(engine: Arc<E>, config: BatchConfig) -> Self {
+impl FulltextBatchProcessor {
+    pub fn new(
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+        engine: Arc<dyn SearchEngine>,
+        config: BatchConfig,
+    ) -> Self {
         Self {
+            space_id,
+            tag_name,
+            field_name,
             engine,
             config,
             buffer: Arc::new(BatchBuffer::new()),
@@ -40,9 +53,16 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
         }
     }
 
-    /// Create a processor that executes operations immediately without batching
-    pub fn new_immediate(engine: Arc<E>) -> Self {
+    pub fn new_immediate(
+        space_id: u64,
+        tag_name: String,
+        field_name: String,
+        engine: Arc<dyn SearchEngine>,
+    ) -> Self {
         Self {
+            space_id,
+            tag_name,
+            field_name,
             engine,
             config: BatchConfig::default(),
             buffer: Arc::new(BatchBuffer::new()),
@@ -51,18 +71,21 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
         }
     }
 
-    /// Execute a single operation immediately without buffering
+    fn location(&self) -> (u64, String, String) {
+        (self.space_id, self.tag_name.clone(), self.field_name.clone())
+    }
+
     async fn execute_immediate(&self, operation: IndexOperation) -> BatchResult<()> {
         match operation {
-            IndexOperation::Insert { id, data, .. } | IndexOperation::Update { id, data, .. } => {
+            IndexOperation::Insert { id, text, .. } | IndexOperation::Update { id, text, .. } => {
                 self.engine
-                    .insert_batch(vec![(id, data)])
+                    .index_batch(vec![(id, text)])
                     .await
                     .map_err(BatchError::from)?;
             }
             IndexOperation::Delete { id, .. } => {
                 self.engine
-                    .delete_batch(&[id.as_str()])
+                    .delete_batch(vec![id.as_str()])
                     .await
                     .map_err(BatchError::from)?;
             }
@@ -97,22 +120,22 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
         for op in operations {
             match op {
                 IndexOperation::Delete { id, .. } => deletes.push(id),
-                IndexOperation::Insert { id, data, .. }
-                | IndexOperation::Update { id, data, .. } => items.push((id, data)),
+                IndexOperation::Insert { id, text, .. }
+                | IndexOperation::Update { id, text, .. } => items.push((id, text)),
             }
         }
 
         if !deletes.is_empty() {
             let ids: Vec<&str> = deletes.iter().map(|s| s.as_str()).collect();
             self.engine
-                .delete_batch(&ids)
+                .delete_batch(ids)
                 .await
                 .map_err(BatchError::from)?;
         }
 
         if !items.is_empty() {
             self.engine
-                .insert_batch(items)
+                .index_batch(items)
                 .await
                 .map_err(BatchError::from)?;
         }
@@ -120,7 +143,7 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
         Ok(())
     }
 
-    pub fn engine(&self) -> &Arc<E> {
+    pub fn engine(&self) -> &Arc<dyn SearchEngine> {
         &self.engine
     }
 
@@ -132,37 +155,34 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
         if self.buffer.count(key) >= self.config.batch_size {
             return true;
         }
-
         self.buffer.is_timeout(key, self.config.flush_interval)
     }
 
     async fn execute_batch(&self, key: &(u64, String, String)) -> BatchResult<()> {
         let entry = self.buffer.drain_all(key);
 
-        // Process deletes first, then inserts
-        // This ensures that update operations (delete + insert) work correctly
         if !entry.deletes.is_empty() {
             let ids: Vec<&str> = entry.deletes.iter().map(|s| s.as_str()).collect();
             self.engine
-                .delete_batch(&ids)
+                .delete_batch(ids)
                 .await
                 .map_err(BatchError::from)?;
         }
 
         if !entry.inserts.is_empty() {
-            let items: Vec<(String, IndexData)> = entry
+            let items: Vec<(String, String)> = entry
                 .inserts
                 .into_iter()
                 .filter_map(|op| match op {
-                    IndexOperation::Insert { id, data, .. } => Some((id, data)),
-                    IndexOperation::Update { id, data, .. } => Some((id, data)),
+                    IndexOperation::Insert { id, text, .. } => Some((id, text)),
+                    IndexOperation::Update { id, text, .. } => Some((id, text)),
                     _ => None,
                 })
                 .collect();
 
             if !items.is_empty() {
                 self.engine
-                    .insert_batch(items)
+                    .index_batch(items)
                     .await
                     .map_err(BatchError::from)?;
             }
@@ -175,7 +195,7 @@ impl<E: ExternalIndexClient + 'static> GenericBatchProcessor<E> {
     }
 }
 
-impl<E: ExternalIndexClient> Drop for GenericBatchProcessor<E> {
+impl Drop for FulltextBatchProcessor {
     fn drop(&mut self) {
         if let Ok(handle) = self.background_task.try_lock() {
             if let Some(task) = handle.as_ref() {
@@ -186,14 +206,13 @@ impl<E: ExternalIndexClient> Drop for GenericBatchProcessor<E> {
 }
 
 #[async_trait]
-impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<E> {
+impl BatchProcessor for FulltextBatchProcessor {
     async fn add(&self, operation: IndexOperation) -> BatchResult<()> {
         if self.immediate_mode {
-            // Immediate mode: execute directly without buffering
             return self.execute_immediate(operation).await;
         }
 
-        let key = self.engine.index_key();
+        let key = self.location();
 
         match &operation {
             IndexOperation::Insert { .. } | IndexOperation::Update { .. } => {
@@ -213,14 +232,13 @@ impl<E: ExternalIndexClient + 'static> BatchProcessor for GenericBatchProcessor<
 
     async fn add_batch(&self, operations: Vec<IndexOperation>) -> BatchResult<()> {
         if self.immediate_mode {
-            // Immediate mode: execute all operations directly
             for operation in operations {
                 self.execute_immediate(operation).await?;
             }
             return Ok(());
         }
 
-        let key = self.engine.index_key();
+        let key = self.location();
 
         for operation in operations {
             match &operation {
@@ -311,7 +329,7 @@ pub struct TransactionBufferEntry {
 /// Note: This buffer only stores operations. The actual execution of operations
 /// must be performed by the caller using `take_operations()` to retrieve and execute them.
 pub struct TransactionBatchBuffer {
-    pending: DashMap<TransactionId, DashMap<IndexKey, TransactionBufferEntry>>,
+    pending: DashMap<TransactionId, DashMap<IndexOpKey, TransactionBufferEntry>>,
 }
 
 impl std::fmt::Debug for TransactionBatchBuffer {
@@ -343,7 +361,7 @@ impl TransactionBatchBuffer {
     pub fn take_operations(
         &self,
         txn_id: TransactionId,
-    ) -> BatchResult<Vec<(IndexKey, Vec<IndexOperation>)>> {
+    ) -> BatchResult<Vec<(IndexOpKey, Vec<IndexOperation>)>> {
         if let Some((_, txn_buffer)) = self.pending.remove(&txn_id) {
             let mut result = Vec::new();
             for entry in txn_buffer.iter() {
@@ -380,7 +398,7 @@ impl TransactionBatchBuffer {
     pub fn peek_operations(
         &self,
         txn_id: TransactionId,
-    ) -> BatchResult<Vec<(IndexKey, Vec<IndexOperation>)>> {
+    ) -> BatchResult<Vec<(IndexOpKey, Vec<IndexOperation>)>> {
         if let Some(txn_buffer) = self.pending.get(&txn_id) {
             let mut result = Vec::new();
             for entry in txn_buffer.iter() {
