@@ -147,6 +147,11 @@ name = "graphdb-server"
 path = "src/main.rs"
 required-features = ["server"]
 
+[[bin]]
+name = "graphdb-e2e"
+path = "src/bin/graphdb-e2e.rs"
+required-features = ["server"]
+
 [dependencies]
 graphdb-core = { path = "crates/graphdb-core" }
 graphdb-config = { path = "crates/graphdb-config" }
@@ -199,3 +204,4 @@ rand = "0.8"
 log = "0.4"
 regex = "1"
 toml = "1.1"
+reqwest = { version = "0.12", features = ["json"] }
