@@ -6,7 +6,6 @@
 //! - Transaction integration
 //! - Concurrent safety
 
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,7 +13,9 @@ use std::time::Duration;
 use graphdb::core::types::VertexId;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, TantivyConfig, TokenizerKind};
+use graphdb::search::{
+    EngineType, FulltextConfig, FulltextIndexManager, TantivyConfig, TokenizerKind,
+};
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::{ChangeType, SyncCoordinator};
 use graphdb::sync::manager::SyncManager;

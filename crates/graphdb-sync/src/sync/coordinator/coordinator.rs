@@ -14,8 +14,8 @@ use crate::sync::batch::{
 };
 
 use crate::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
-use crate::sync::types::{IndexOpKey, IndexOperation};
 use crate::sync::retry::{default_local_retry_config, with_retry};
+use crate::sync::types::{IndexOpKey, IndexOperation};
 
 type FulltextProcessor = FulltextBatchProcessor;
 
@@ -104,11 +104,9 @@ impl SyncCoordinator {
         let operation = self.create_operation(&ctx)?;
 
         let result = async {
-            if let Some(processor) = self.get_or_create_fulltext_processor(
-                ctx.space_id,
-                &ctx.tag_name,
-                &ctx.field_name,
-            ) {
+            if let Some(processor) =
+                self.get_or_create_fulltext_processor(ctx.space_id, &ctx.tag_name, &ctx.field_name)
+            {
                 processor.add(operation).await?;
             }
             Ok::<(), SyncCoordinatorError>(())
@@ -411,12 +409,9 @@ impl SyncCoordinator {
 
         for processor in &processors {
             processor.commit_all().await.map_err(|e| {
-                SyncCoordinatorError::BatchError(
-                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                        "commit_all failed: {:?}",
-                        e
-                    )),
-                )
+                SyncCoordinatorError::BatchError(crate::sync::batch::BatchError::InvalidOperation(
+                    format!("commit_all failed: {:?}", e),
+                ))
             })?;
         }
 
@@ -463,9 +458,7 @@ impl SyncCoordinator {
     }
 
     /// Recover operations from the dead letter queue.
-    pub async fn recover_dead_letter(
-        &self,
-    ) -> Result<RecoveryResult, SyncCoordinatorError> {
+    pub async fn recover_dead_letter(&self) -> Result<RecoveryResult, SyncCoordinatorError> {
         let dead_letter_entries = self.dead_letter_queue.get_all();
         let mut result = RecoveryResult::default();
         result.total = dead_letter_entries.len();
@@ -519,10 +512,7 @@ impl SyncCoordinator {
                     result.recovered += 1;
                 }
                 Err(e) => {
-                    warn!(
-                        "Dead letter retry failed at index {}: {:?}",
-                        index, e
-                    );
+                    warn!("Dead letter retry failed at index {}: {:?}", index, e);
                     result.failed += 1;
                 }
             }

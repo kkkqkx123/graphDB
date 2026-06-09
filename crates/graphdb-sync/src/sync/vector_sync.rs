@@ -335,8 +335,8 @@ impl VectorSyncCoordinator {
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
         let hnsw_config = vector_client::HnswConfig::new(16, 100).with_payload_m(16);
-        let config = vector_client::CollectionConfig::new(vector_size, distance)
-            .with_hnsw(hnsw_config);
+        let config =
+            vector_client::CollectionConfig::new(vector_size, distance).with_hnsw(hnsw_config);
 
         // Only create the physical collection if it doesn't exist yet
         if !self.vector_manager.index_exists(&collection_name) {
@@ -377,10 +377,7 @@ impl VectorSyncCoordinator {
 
         // Register logical index with the actual config used
         let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
-        let meta = vector_client::manager::IndexMetadata::new(
-            collection_name.clone(),
-            config,
-        );
+        let meta = vector_client::manager::IndexMetadata::new(collection_name.clone(), config);
         self.logical_indexes.insert(logical_key, meta);
 
         info!(
@@ -442,13 +439,22 @@ impl VectorSyncCoordinator {
                         );
                         payload.insert(
                             "group_id".to_string(),
-                            serde_json::to_value(VectorIndexLocation::new(space_id, &tag.name, field_name).group_id())
-                                .unwrap_or(serde_json::Value::Null),
+                            serde_json::to_value(
+                                VectorIndexLocation::new(space_id, &tag.name, field_name)
+                                    .group_id(),
+                            )
+                            .unwrap_or(serde_json::Value::Null),
                         );
                         payload.insert(
                             "tags".to_string(),
-                            serde_json::to_value(vertex.tags.iter().map(|t| t.name.clone()).collect::<Vec<_>>())
-                                .unwrap_or(serde_json::Value::Null),
+                            serde_json::to_value(
+                                vertex
+                                    .tags
+                                    .iter()
+                                    .map(|t| t.name.clone())
+                                    .collect::<Vec<_>>(),
+                            )
+                            .unwrap_or(serde_json::Value::Null),
                         );
                         payload.insert(
                             "field".to_string(),
@@ -514,13 +520,22 @@ impl VectorSyncCoordinator {
                             );
                             payload.insert(
                                 "group_id".to_string(),
-                                serde_json::to_value(VectorIndexLocation::new(space_id, &tag.name, field_name).group_id())
-                                    .unwrap_or(serde_json::Value::Null),
+                                serde_json::to_value(
+                                    VectorIndexLocation::new(space_id, &tag.name, field_name)
+                                        .group_id(),
+                                )
+                                .unwrap_or(serde_json::Value::Null),
                             );
                             payload.insert(
                                 "tags".to_string(),
-                                serde_json::to_value(vertex.tags.iter().map(|t| t.name.clone()).collect::<Vec<_>>())
-                                    .unwrap_or(serde_json::Value::Null),
+                                serde_json::to_value(
+                                    vertex
+                                        .tags
+                                        .iter()
+                                        .map(|t| t.name.clone())
+                                        .collect::<Vec<_>>(),
+                                )
+                                .unwrap_or(serde_json::Value::Null),
                             );
                             payload.insert(
                                 "field".to_string(),
@@ -647,7 +662,8 @@ impl VectorSyncCoordinator {
 
                 json_payload.insert(
                     "group_id".to_string(),
-                    serde_json::to_value(ctx.location.group_id()).unwrap_or(serde_json::Value::Null),
+                    serde_json::to_value(ctx.location.group_id())
+                        .unwrap_or(serde_json::Value::Null),
                 );
 
                 let point = VectorPoint::new(point_id, vector).with_payload(json_payload);
@@ -724,7 +740,8 @@ impl VectorSyncCoordinator {
 
                     json_payload.insert(
                         "group_id".to_string(),
-                        serde_json::to_value(ctx.location.group_id()).unwrap_or(serde_json::Value::Null),
+                        serde_json::to_value(ctx.location.group_id())
+                            .unwrap_or(serde_json::Value::Null),
                     );
 
                     let point = VectorPoint::new(point_id, vector).with_payload(json_payload);
@@ -828,8 +845,10 @@ impl VectorSyncCoordinator {
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
-        let filter = VectorFilter::new()
-            .must(FilterCondition::match_value("group_id", format!("{}_{}", tag_name, field_name)));
+        let filter = VectorFilter::new().must(FilterCondition::match_value(
+            "group_id",
+            format!("{}_{}", tag_name, field_name),
+        ));
         let query = SearchQuery::new(query_vector, limit).with_filter(filter);
         self.search(&collection_name, query).await
     }
@@ -847,8 +866,10 @@ impl VectorSyncCoordinator {
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
-        let filter = VectorFilter::new()
-            .must(FilterCondition::match_value("group_id", format!("{}_{}", tag_name, field_name)));
+        let filter = VectorFilter::new().must(FilterCondition::match_value(
+            "group_id",
+            format!("{}_{}", tag_name, field_name),
+        ));
         let query = SearchQuery::new(query_vector, limit)
             .with_score_threshold(threshold)
             .with_filter(filter);
@@ -906,8 +927,8 @@ impl VectorSyncCoordinator {
                 let (space_id, tag_name, field_name) =
                     if parts.len() >= 5 && parts[0] == "space" && parts[1] == "idx" {
                         let sid: u64 = parts[2].parse().unwrap_or(0);
-                        let tag = parts[3..parts.len()-1].join("_");
-                        let field = parts[parts.len()-1].to_string();
+                        let tag = parts[3..parts.len() - 1].join("_");
+                        let field = parts[parts.len() - 1].to_string();
                         (sid, tag, field)
                     } else {
                         (0, String::new(), String::new())

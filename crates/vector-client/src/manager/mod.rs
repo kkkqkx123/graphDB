@@ -136,11 +136,7 @@ impl VectorManager {
         Ok(())
     }
 
-    pub async fn delete_by_filter(
-        &self,
-        collection: &str,
-        filter: VectorFilter,
-    ) -> Result<()> {
+    pub async fn delete_by_filter(&self, collection: &str, filter: VectorFilter) -> Result<()> {
         self.engine.delete_by_filter(collection, filter).await?;
         Ok(())
     }

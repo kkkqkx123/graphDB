@@ -419,8 +419,6 @@ impl MutableCsr {
         false
     }
 
-
-
     /// Get edges of a vertex at a given timestamp
     pub fn edges_of(&self, src_vid: u32, ts: Timestamp) -> Vec<Nbr> {
         let src_idx = src_vid as usize;

@@ -2,7 +2,6 @@
 //!
 //! Tests for batch processor edge cases
 
-
 use super::common::sync_helpers::SyncTestHarness;
 use graphdb::core::Value;
 use graphdb::storage::StorageWriter;
@@ -12,7 +11,9 @@ use graphdb::storage::StorageWriter;
 fn test_empty_batch_handling() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     // Force commit all with no operations
     let rt = &harness.rt;
@@ -32,7 +33,9 @@ fn test_empty_batch_handling() {
 fn test_batch_flush_on_timeout() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -45,9 +48,13 @@ fn test_batch_flush_on_timeout() {
 
     // Insert single vertex (below batch size)
     let mut properties = std::collections::HashMap::new();
-    properties.insert("name".to_string(), Value::String("Timeout Test".to_string()));
+    properties.insert(
+        "name".to_string(),
+        Value::String("Timeout Test".to_string()),
+    );
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
 
     harness
         .insert_vertex("test_space", vertex)
@@ -74,7 +81,9 @@ fn test_batch_flush_on_timeout() {
 fn test_batch_flush_on_size_trigger() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -89,8 +98,10 @@ fn test_batch_flush_on_size_trigger() {
         let mut properties = std::collections::HashMap::new();
         properties.insert("name".to_string(), Value::String(format!("Doc{}", i)));
         let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-        let vertex =
-            graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(i + 1), vec![tag]);
+        let vertex = graphdb::core::Vertex::new(
+            graphdb::core::types::VertexId::from_int64(i + 1),
+            vec![tag],
+        );
 
         harness
             .insert_vertex("test_space", vertex)
@@ -131,7 +142,9 @@ fn test_batch_flush_on_size_trigger() {
 fn test_large_batch_processing() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -144,10 +157,15 @@ fn test_large_batch_processing() {
 
     for i in 0..200 {
         let mut properties = std::collections::HashMap::new();
-        properties.insert("name".to_string(), Value::String(format!("LargeBatch{}", i)));
+        properties.insert(
+            "name".to_string(),
+            Value::String(format!("LargeBatch{}", i)),
+        );
         let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-        let vertex =
-            graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(i + 1), vec![tag]);
+        let vertex = graphdb::core::Vertex::new(
+            graphdb::core::types::VertexId::from_int64(i + 1),
+            vec![tag],
+        );
 
         harness
             .insert_vertex("test_space", vertex)
@@ -188,7 +206,9 @@ fn test_large_batch_processing() {
 fn test_mixed_operation_types_in_batch() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -203,8 +223,10 @@ fn test_mixed_operation_types_in_batch() {
         let mut properties = std::collections::HashMap::new();
         properties.insert("name".to_string(), Value::String(format!("Initial{}", i)));
         let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-        let vertex =
-            graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(i + 1), vec![tag]);
+        let vertex = graphdb::core::Vertex::new(
+            graphdb::core::types::VertexId::from_int64(i + 1),
+            vec![tag],
+        );
 
         harness
             .insert_vertex("test_space", vertex)
@@ -217,8 +239,10 @@ fn test_mixed_operation_types_in_batch() {
         let mut properties = std::collections::HashMap::new();
         properties.insert("name".to_string(), Value::String(format!("Updated{}", i)));
         let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-        let vertex =
-            graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(i + 1), vec![tag]);
+        let vertex = graphdb::core::Vertex::new(
+            graphdb::core::types::VertexId::from_int64(i + 1),
+            vec![tag],
+        );
 
         harness
             .storage
@@ -242,7 +266,9 @@ fn test_mixed_operation_types_in_batch() {
 fn test_rapid_successive_commits() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -257,8 +283,10 @@ fn test_rapid_successive_commits() {
         let mut properties = std::collections::HashMap::new();
         properties.insert("name".to_string(), Value::String(format!("Rapid{}", i)));
         let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-        let vertex =
-            graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(i + 1), vec![tag]);
+        let vertex = graphdb::core::Vertex::new(
+            graphdb::core::types::VertexId::from_int64(i + 1),
+            vec![tag],
+        );
 
         harness
             .insert_vertex("test_space", vertex)

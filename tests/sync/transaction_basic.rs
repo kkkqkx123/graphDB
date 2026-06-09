@@ -2,7 +2,6 @@
 //!
 //! Tests for basic transaction synchronization functionality
 
-
 use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::{DataType, VertexId};
 use graphdb::core::Value;

@@ -2,7 +2,6 @@
 //!
 //! Tests for external index client infrastructure
 
-
 /// TC-220: Index key structure
 #[test]
 fn test_index_key_structure() {
@@ -77,8 +76,14 @@ fn test_vector_error_types() {
     let timeout = VectorError::Timeout;
     assert!(matches!(timeout, VectorError::Timeout));
 
-    let dim_mismatch = VectorError::DimensionMismatch { expected: 128, actual: 64 };
-    assert!(matches!(dim_mismatch, VectorError::DimensionMismatch { .. }));
+    let dim_mismatch = VectorError::DimensionMismatch {
+        expected: 128,
+        actual: 64,
+    };
+    assert!(matches!(
+        dim_mismatch,
+        VectorError::DimensionMismatch { .. }
+    ));
 
     let conn_failed = VectorError::ConnectionFailed("refused".to_string());
     assert!(matches!(conn_failed, VectorError::ConnectionFailed(_)));
@@ -100,7 +105,9 @@ fn test_coordinator_error_types() {
 /// TC-227: Dead letter entry creation
 #[test]
 fn test_dead_letter_entry() {
-    use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
+    use graphdb::sync::dead_letter_queue::{
+        DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig,
+    };
     use graphdb::sync::{IndexOpKey, IndexOperation};
 
     let dlq = DeadLetterQueue::new(DeadLetterQueueConfig::default());
@@ -148,5 +155,3 @@ fn test_vector_index_location_tc229() {
     assert_eq!(loc.to_collection_name(), format!("space_{}", 1));
     assert_eq!(loc.group_id(), format!("{}_{}", "tag", "field"));
 }
-
-

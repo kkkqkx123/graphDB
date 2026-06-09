@@ -4,7 +4,6 @@
 //! Note: storage writes in `insert_vertex_with_txn` are immediate (not transactional).
 //! Rollback only affects sync/index state, not storage.
 
-
 use super::common::sync_helpers::SyncTestHarness;
 use graphdb::core::{types::DataType, Value};
 use graphdb::storage::StorageWriter;
@@ -15,7 +14,9 @@ use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLet
 fn test_complete_sync_and_verify() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -27,9 +28,13 @@ fn test_complete_sync_and_verify() {
         .expect("Failed to create tag");
 
     let mut properties = std::collections::HashMap::new();
-    properties.insert("title".to_string(), Value::String("Complete Test".to_string()));
+    properties.insert(
+        "title".to_string(),
+        Value::String("Complete Test".to_string()),
+    );
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
 
     harness
         .insert_vertex("test_space", vertex)
@@ -47,7 +52,9 @@ fn test_complete_sync_and_verify() {
 fn test_transaction_commit_and_verify() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -63,9 +70,13 @@ fn test_transaction_commit_and_verify() {
         .expect("Failed to begin transaction");
 
     let mut properties = std::collections::HashMap::new();
-    properties.insert("title".to_string(), Value::String("Transaction Test".to_string()));
+    properties.insert(
+        "title".to_string(),
+        Value::String("Transaction Test".to_string()),
+    );
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
 
     harness
         .insert_vertex_with_txn("test_space", vertex)
@@ -87,7 +98,9 @@ fn test_transaction_commit_and_verify() {
 fn test_transaction_rollback_and_verify() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -103,9 +116,13 @@ fn test_transaction_rollback_and_verify() {
         .expect("Failed to begin transaction");
 
     let mut properties = std::collections::HashMap::new();
-    properties.insert("title".to_string(), Value::String("Rollback Test".to_string()));
+    properties.insert(
+        "title".to_string(),
+        Value::String("Rollback Test".to_string()),
+    );
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
 
     harness
         .insert_vertex_with_txn("test_space", vertex)
@@ -152,7 +169,9 @@ fn test_dead_letter_queue_operations() {
 fn test_multiple_sequential_transactions() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -208,7 +227,9 @@ fn test_multiple_sequential_transactions() {
 fn test_interleaved_txn_non_txn() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -222,7 +243,8 @@ fn test_interleaved_txn_non_txn() {
     let mut properties = std::collections::HashMap::new();
     properties.insert("title".to_string(), Value::String("NonTxn1".to_string()));
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
     harness
         .insert_vertex("test_space", vertex)
         .expect("Failed to insert vertex");
@@ -236,7 +258,8 @@ fn test_interleaved_txn_non_txn() {
     let mut properties = std::collections::HashMap::new();
     properties.insert("title".to_string(), Value::String("Txn1".to_string()));
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(2), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(2), vec![tag]);
 
     harness
         .insert_vertex_with_txn("test_space", vertex)
@@ -251,7 +274,8 @@ fn test_interleaved_txn_non_txn() {
     let mut properties = std::collections::HashMap::new();
     properties.insert("title".to_string(), Value::String("NonTxn2".to_string()));
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(3), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(3), vec![tag]);
     harness
         .insert_vertex("test_space", vertex)
         .expect("Failed to insert vertex");
@@ -270,7 +294,9 @@ fn test_interleaved_txn_non_txn() {
 fn test_large_transaction() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -328,7 +354,9 @@ fn test_large_transaction() {
 fn test_rollback_does_not_corrupt_existing_data() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -342,7 +370,8 @@ fn test_rollback_does_not_corrupt_existing_data() {
     let mut properties = std::collections::HashMap::new();
     properties.insert("title".to_string(), Value::String("Initial".to_string()));
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(1), vec![tag]);
     harness
         .insert_vertex("test_space", vertex)
         .expect("Failed to insert vertex");
@@ -360,7 +389,8 @@ fn test_rollback_does_not_corrupt_existing_data() {
     let mut properties = std::collections::HashMap::new();
     properties.insert("title".to_string(), Value::String("Failed".to_string()));
     let tag = graphdb::core::vertex_edge_path::Tag::new("Document".to_string(), properties);
-    let vertex = graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(2), vec![tag]);
+    let vertex =
+        graphdb::core::Vertex::new(graphdb::core::types::VertexId::from_int64(2), vec![tag]);
 
     harness
         .insert_vertex_with_txn("test_space", vertex)
@@ -382,7 +412,9 @@ fn test_rollback_does_not_corrupt_existing_data() {
 fn test_storage_consistency_after_multi_insert() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(
@@ -421,7 +453,9 @@ fn test_storage_consistency_after_multi_insert() {
 fn test_delete_and_verify_remaining() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
 
     harness
         .create_tag_with_fulltext(

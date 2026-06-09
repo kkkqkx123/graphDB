@@ -499,11 +499,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = CreateEdgeIndexExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            CreateEdgeIndexExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::IndexManage(
             IndexManageExecutor::CreateEdgeIndex(executor),
         ))
@@ -515,11 +512,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = DropEdgeIndexExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            DropEdgeIndexExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::IndexManage(
             IndexManageExecutor::DropEdgeIndex(executor),
         ))
@@ -531,11 +525,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = DescEdgeIndexExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            DescEdgeIndexExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::IndexManage(
             IndexManageExecutor::DescEdgeIndex(executor),
         ))
@@ -547,11 +538,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = ShowEdgeIndexesExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            ShowEdgeIndexesExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::IndexManage(
             IndexManageExecutor::ShowEdgeIndexes(executor),
         ))
@@ -563,11 +551,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = RebuildEdgeIndexExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            RebuildEdgeIndexExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::IndexManage(
             IndexManageExecutor::RebuildEdgeIndex(executor),
         ))

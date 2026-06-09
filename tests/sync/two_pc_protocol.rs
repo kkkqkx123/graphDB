@@ -2,7 +2,6 @@
 //!
 //! Tests for two-phase commit protocol implementation
 
-
 use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
@@ -15,7 +14,9 @@ fn create_harness_with_paths(
     db_path: &Path,
     index_path: &Path,
 ) -> Result<SyncTestHarness, Box<dyn std::error::Error>> {
-    use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig, TantivyConfig, TokenizerKind};
+    use graphdb::search::{
+        EngineType, FulltextConfig, FulltextIndexManager, SyncConfig, TantivyConfig, TokenizerKind,
+    };
     use graphdb::storage::GraphStorage;
     use graphdb::sync::batch::BatchConfig;
     use graphdb::sync::coordinator::SyncCoordinator;

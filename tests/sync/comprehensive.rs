@@ -3,7 +3,6 @@
 //! Tests covering remaining paths not covered by sync_2pc_protocol,
 //! sync_fault_tolerance, or sync_transaction_basic.
 
-
 use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
@@ -16,7 +15,9 @@ use graphdb::core::Value;
 fn test_non_transactional_direct_path() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -74,7 +75,9 @@ fn test_non_transactional_direct_path() {
 fn test_multi_field_transaction_atomicity() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -88,7 +91,9 @@ fn test_multi_field_transaction_atomicity() {
         )
         .expect("Failed to create tag with 3 fulltext fields");
 
-    harness.begin_transaction().expect("Failed to begin transaction");
+    harness
+        .begin_transaction()
+        .expect("Failed to begin transaction");
 
     let vertex = create_test_vertex(
         1,
@@ -129,7 +134,9 @@ fn test_multi_field_transaction_atomicity() {
 fn test_multi_tag_transaction_atomicity() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -147,7 +154,9 @@ fn test_multi_tag_transaction_atomicity() {
         )
         .expect("Failed to create Company tag");
 
-    harness.begin_transaction().expect("Failed to begin transaction");
+    harness
+        .begin_transaction()
+        .expect("Failed to begin transaction");
 
     let person = create_test_vertex(
         1,
@@ -178,10 +187,7 @@ fn test_multi_tag_transaction_atomicity() {
         .expect("Failed to search Company");
 
     assert!(!person_results.is_empty(), "Person should be indexed");
-    assert!(
-        !company_results.is_empty(),
-        "Company should be indexed"
-    );
+    assert!(!company_results.is_empty(), "Company should be indexed");
 }
 
 /// TC-103: Transaction rollback does not affect other transactions
@@ -192,7 +198,9 @@ fn test_multi_tag_transaction_atomicity() {
 fn test_rollback_no_side_effects() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -223,7 +231,9 @@ fn test_rollback_no_side_effects() {
     harness
         .insert_vertex_with_txn("test_space", vertex2)
         .expect("Failed to insert into txn2");
-    harness.rollback_transaction().expect("Failed to rollback txn2");
+    harness
+        .rollback_transaction()
+        .expect("Failed to rollback txn2");
     harness.wait_for_async(200);
 
     let results_committed = harness
@@ -251,7 +261,9 @@ fn test_rollback_no_side_effects() {
 fn test_batch_size_exact_boundary() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -307,7 +319,9 @@ fn test_batch_size_exact_boundary() {
 fn test_large_batch_transaction() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -317,7 +331,9 @@ fn test_large_batch_transaction() {
         )
         .expect("Failed to create tag");
 
-    harness.begin_transaction().expect("Failed to begin transaction");
+    harness
+        .begin_transaction()
+        .expect("Failed to begin transaction");
 
     for i in 0..50 {
         let vertex = create_test_vertex(
@@ -336,7 +352,13 @@ fn test_large_batch_transaction() {
     let mut found = 0;
     for i in 0..50 {
         let results = harness
-            .search_fulltext("test_space", "Person", "name", &format!("Bulk{}", i + 1), 10)
+            .search_fulltext(
+                "test_space",
+                "Person",
+                "name",
+                &format!("Bulk{}", i + 1),
+                10,
+            )
             .expect("Failed to search");
         if !results.is_empty() {
             found += 1;
@@ -357,7 +379,9 @@ fn test_large_batch_transaction() {
 fn test_sequential_transactions() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -368,7 +392,9 @@ fn test_sequential_transactions() {
         .expect("Failed to create tag");
 
     for txn_num in 0..3 {
-        harness.begin_transaction().expect("Failed to begin transaction");
+        harness
+            .begin_transaction()
+            .expect("Failed to begin transaction");
         for i in 0..3 {
             let vid = txn_num * 3 + i + 1;
             let vertex = create_test_vertex(
@@ -395,12 +421,7 @@ fn test_sequential_transactions() {
                     10,
                 )
                 .expect("Failed to search");
-            assert!(
-                !results.is_empty(),
-                "Seq{}{} should be indexed",
-                txn_num,
-                i
-            );
+            assert!(!results.is_empty(), "Seq{}{} should be indexed", txn_num, i);
         }
     }
 }
@@ -414,7 +435,9 @@ fn test_sequential_transactions() {
 fn test_mixed_transactional_non_transactional() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
@@ -449,7 +472,9 @@ fn test_mixed_transactional_non_transactional() {
         .expect("Failed to search");
     assert!(!results.is_empty(), "Initial insert should be indexed");
 
-    harness.begin_transaction().expect("Failed to begin transaction");
+    harness
+        .begin_transaction()
+        .expect("Failed to begin transaction");
     let updated_vertex = create_test_vertex(
         1,
         "Person",
@@ -464,10 +489,7 @@ fn test_mixed_transactional_non_transactional() {
     let results = harness
         .search_fulltext("test_space", "Person", "name", "Updated", 10)
         .expect("Failed to search");
-    assert!(
-        !results.is_empty(),
-        "Updated vertex should be searchable"
-    );
+    assert!(!results.is_empty(), "Updated vertex should be searchable");
 }
 
 /// TC-108: Transaction with interleaved field updates
@@ -478,20 +500,21 @@ fn test_mixed_transactional_non_transactional() {
 fn test_interleaved_field_updates() {
     let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
 
-    harness.create_space("test_space").expect("Failed to create space");
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
     harness
         .create_tag_with_fulltext(
             "test_space",
             "Person",
-            vec![
-                ("name", DataType::String),
-                ("title", DataType::String),
-            ],
+            vec![("name", DataType::String), ("title", DataType::String)],
             vec!["name", "title"],
         )
         .expect("Failed to create tag");
 
-    harness.begin_transaction().expect("Failed to begin transaction");
+    harness
+        .begin_transaction()
+        .expect("Failed to begin transaction");
 
     let vertex = create_test_vertex(
         1,

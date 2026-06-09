@@ -87,7 +87,7 @@ impl<S: StorageReader> Executor<S> for CreateVectorIndexExecutor<S> {
             vector_size: self.node.vector_size,
             distance: convert_distance(self.node.distance),
             index_type: Some(vector_client::IndexType::HNSW),
-             hnsw_config: Some(vector_client::HnswConfig {
+            hnsw_config: Some(vector_client::HnswConfig {
                 m: self.node.hnsw_m.unwrap_or(16),
                 ef_construct: self.node.hnsw_ef_construct.unwrap_or(100),
                 full_scan_threshold: None,

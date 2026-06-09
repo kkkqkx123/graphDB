@@ -2,7 +2,6 @@
 //!
 //! Tests for dead letter queue, compensation, and recovery mechanisms
 
-
 use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
@@ -419,7 +418,8 @@ fn test_failure_policy_configuration() {
     );
 
     // Verify custom policy can be set
-    let fail_closed_config = BatchConfig::default().with_failure_policy(SyncFailurePolicy::FailClosed);
+    let fail_closed_config =
+        BatchConfig::default().with_failure_policy(SyncFailurePolicy::FailClosed);
     assert_eq!(
         fail_closed_config.failure_policy,
         SyncFailurePolicy::FailClosed,
@@ -449,7 +449,8 @@ fn test_failure_policy_configuration() {
     );
 
     // Create coordinator with FailClosed policy
-    let fail_closed_config = BatchConfig::default().with_failure_policy(SyncFailurePolicy::FailClosed);
+    let fail_closed_config =
+        BatchConfig::default().with_failure_policy(SyncFailurePolicy::FailClosed);
     let _coordinator = SyncCoordinator::new(fulltext_manager.clone(), fail_closed_config);
 
     // Verify the coordinator is functional (happy path)

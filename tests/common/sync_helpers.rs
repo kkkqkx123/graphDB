@@ -6,7 +6,9 @@ use graphdb::core::types::VertexId;
 use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Value, Vertex};
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager, SyncConfig, TantivyConfig, TokenizerKind};
+use graphdb::search::{
+    EngineType, FulltextConfig, FulltextIndexManager, SyncConfig, TantivyConfig, TokenizerKind,
+};
 use graphdb::storage::GraphStorage;
 use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
 use graphdb::sync::batch::BatchConfig;
@@ -184,7 +186,8 @@ impl SyncTestHarness {
     /// Commit current transaction
     pub fn commit_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
-            self.rt.block_on(self.sync_manager.commit_transaction(txn_id))?;
+            self.rt
+                .block_on(self.sync_manager.commit_transaction(txn_id))?;
         }
         Ok(())
     }
@@ -192,7 +195,8 @@ impl SyncTestHarness {
     /// Rollback current transaction
     pub fn rollback_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
-            self.rt.block_on(self.sync_manager.rollback_transaction(txn_id))?;
+            self.rt
+                .block_on(self.sync_manager.rollback_transaction(txn_id))?;
         }
         Ok(())
     }

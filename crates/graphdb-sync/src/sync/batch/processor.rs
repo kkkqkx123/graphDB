@@ -26,7 +26,10 @@ pub struct FulltextBatchProcessor {
 impl std::fmt::Debug for FulltextBatchProcessor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FulltextBatchProcessor")
-            .field("location", &(self.space_id, &self.tag_name, &self.field_name))
+            .field(
+                "location",
+                &(self.space_id, &self.tag_name, &self.field_name),
+            )
             .field("config", &self.config)
             .field("buffer_count", &self.buffer.total_count())
             .finish_non_exhaustive()
@@ -72,7 +75,11 @@ impl FulltextBatchProcessor {
     }
 
     fn location(&self) -> (u64, String, String) {
-        (self.space_id, self.tag_name.clone(), self.field_name.clone())
+        (
+            self.space_id,
+            self.tag_name.clone(),
+            self.field_name.clone(),
+        )
     }
 
     async fn execute_immediate(&self, operation: IndexOperation) -> BatchResult<()> {

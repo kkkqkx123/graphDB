@@ -50,7 +50,10 @@ fn test_circuit_breaker_blocks_when_open() {
     assert_eq!(breaker.state(), CircuitState::Open);
 
     // Check if requests are blocked
-    assert!(!breaker.is_allowed(), "Circuit should block requests when open");
+    assert!(
+        !breaker.is_allowed(),
+        "Circuit should block requests when open"
+    );
 }
 
 /// TC-252: Circuit breaker half-open state
@@ -71,7 +74,10 @@ fn test_circuit_breaker_half_open() {
     assert_eq!(breaker.state(), CircuitState::Closed);
 
     // Verify requests are allowed again
-    assert!(breaker.is_allowed(), "Circuit should allow requests when closed");
+    assert!(
+        breaker.is_allowed(),
+        "Circuit should allow requests when closed"
+    );
 }
 
 /// TC-253: Circuit breaker with concurrent access
@@ -138,17 +144,20 @@ fn test_circuit_breaker_reset() {
     assert_eq!(breaker.state(), CircuitState::Closed);
 
     // Should allow operations
-    assert!(breaker.is_allowed(), "Circuit should allow requests after reset");
+    assert!(
+        breaker.is_allowed(),
+        "Circuit should allow requests after reset"
+    );
 }
 
 /// TC-256: Circuit breaker with custom config
 #[test]
 fn test_circuit_breaker_custom_config() {
     let config = CircuitBreakerConfig::new(
-        3,                          // failure_threshold
-        Duration::from_secs(10),    // recovery_timeout
-        2,                          // success_threshold
-        Duration::from_secs(30),    // failure_window
+        3,                       // failure_threshold
+        Duration::from_secs(10), // recovery_timeout
+        2,                       // success_threshold
+        Duration::from_secs(30), // failure_window
     );
 
     let breaker = Arc::new(CircuitBreaker::new("custom_test", config));
@@ -239,10 +248,10 @@ async fn test_circuit_breaker_async_operation() {
 #[test]
 fn test_circuit_breaker_half_open_auto_transition() {
     let config = CircuitBreakerConfig::new(
-        3,                                  // failure_threshold
-        Duration::from_millis(50),          // recovery_timeout (short for testing)
-        2,                                  // success_threshold
-        Duration::from_secs(60),             // failure_window
+        3,                         // failure_threshold
+        Duration::from_millis(50), // recovery_timeout (short for testing)
+        2,                         // success_threshold
+        Duration::from_secs(60),   // failure_window
     );
 
     let breaker = Arc::new(CircuitBreaker::new("auto_transition", config));
@@ -276,10 +285,10 @@ fn test_circuit_breaker_half_open_auto_transition() {
 #[test]
 fn test_circuit_breaker_half_open_to_closed() {
     let config = CircuitBreakerConfig::new(
-        3,                                  // failure_threshold
-        Duration::from_millis(50),          // recovery_timeout
-        2,                                  // success_threshold (need 2 successes)
-        Duration::from_secs(60),             // failure_window
+        3,                         // failure_threshold
+        Duration::from_millis(50), // recovery_timeout
+        2,                         // success_threshold (need 2 successes)
+        Duration::from_secs(60),   // failure_window
     );
 
     let breaker = Arc::new(CircuitBreaker::new("half_to_closed", config));
@@ -319,10 +328,10 @@ fn test_circuit_breaker_half_open_to_closed() {
 #[test]
 fn test_circuit_breaker_half_open_reopens_on_failure() {
     let config = CircuitBreakerConfig::new(
-        3,                                  // failure_threshold
-        Duration::from_millis(50),          // recovery_timeout
-        2,                                  // success_threshold
-        Duration::from_secs(60),             // failure_window
+        3,                         // failure_threshold
+        Duration::from_millis(50), // recovery_timeout
+        2,                         // success_threshold
+        Duration::from_secs(60),   // failure_window
     );
 
     let breaker = Arc::new(CircuitBreaker::new("reopen_on_fail", config));

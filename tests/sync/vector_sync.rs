@@ -31,7 +31,10 @@ async fn test_vector_change_type_variants() {
 
     // Test Insert change type
     let insert_ctx = VectorChangeContext::new(
-        1, "test", "field", VectorChangeType::Insert,
+        1,
+        "test",
+        "field",
+        VectorChangeType::Insert,
         VectorPointData {
             id: "insert_id".to_string(),
             vector: vec![1.0, 2.0, 3.0],
@@ -42,7 +45,10 @@ async fn test_vector_change_type_variants() {
 
     // Test Delete change type
     let delete_ctx = VectorChangeContext::new(
-        1, "test", "field", VectorChangeType::Delete,
+        1,
+        "test",
+        "field",
+        VectorChangeType::Delete,
         VectorPointData {
             id: "delete_id".to_string(),
             vector: vec![],
@@ -52,8 +58,12 @@ async fn test_vector_change_type_variants() {
     assert!(matches!(delete_ctx.change_type, VectorChangeType::Delete));
 
     // Buffer both types
-    coordinator.buffer_vector_change(txn_id, insert_ctx).unwrap();
-    coordinator.buffer_vector_change(txn_id, delete_ctx).unwrap();
+    coordinator
+        .buffer_vector_change(txn_id, insert_ctx)
+        .unwrap();
+    coordinator
+        .buffer_vector_change(txn_id, delete_ctx)
+        .unwrap();
 
     if let Some(buffer) = coordinator.transaction_buffer() {
         assert!(buffer.has_pending_updates(txn_id));
@@ -69,7 +79,10 @@ async fn test_pending_update_with_change_types() {
     let txn_id = TransactionId::from(1u64);
 
     let insert_ctx = VectorChangeContext::new(
-        1, "docs", "embedding", VectorChangeType::Insert,
+        1,
+        "docs",
+        "embedding",
+        VectorChangeType::Insert,
         VectorPointData {
             id: "doc_1".to_string(),
             vector: vec![1.0, 2.0, 3.0],
@@ -77,11 +90,17 @@ async fn test_pending_update_with_change_types() {
         },
     );
     let insert_update = PendingVectorUpdate::new(txn_id, insert_ctx);
-    assert!(matches!(insert_update.context.change_type, VectorChangeType::Insert));
+    assert!(matches!(
+        insert_update.context.change_type,
+        VectorChangeType::Insert
+    ));
     buffer.add_update(txn_id, insert_update).unwrap();
 
     let delete_ctx = VectorChangeContext::new(
-        1, "docs", "embedding", VectorChangeType::Delete,
+        1,
+        "docs",
+        "embedding",
+        VectorChangeType::Delete,
         VectorPointData {
             id: "doc_1".to_string(),
             vector: vec![],
@@ -89,7 +108,10 @@ async fn test_pending_update_with_change_types() {
         },
     );
     let delete_update = PendingVectorUpdate::new(txn_id, delete_ctx);
-    assert!(matches!(delete_update.context.change_type, VectorChangeType::Delete));
+    assert!(matches!(
+        delete_update.context.change_type,
+        VectorChangeType::Delete
+    ));
     buffer.add_update(txn_id, delete_update).unwrap();
 
     assert!(buffer.has_pending_updates(txn_id));
@@ -115,7 +137,10 @@ async fn test_vector_index_location() {
 #[tokio::test]
 async fn test_point_data_with_payload() {
     let mut payload: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
-    payload.insert("category".to_string(), Value::String("electronics".to_string()));
+    payload.insert(
+        "category".to_string(),
+        Value::String("electronics".to_string()),
+    );
     payload.insert("price".to_string(), Value::String("99.99".to_string()));
 
     let point = VectorPointData {
@@ -153,7 +178,10 @@ async fn test_coordinator_commit_disabled_engine() {
     let txn_id = TransactionId::from(1u64);
 
     let ctx = VectorChangeContext::new(
-        1, "docs", "embedding", VectorChangeType::Insert,
+        1,
+        "docs",
+        "embedding",
+        VectorChangeType::Insert,
         VectorPointData {
             id: "doc_0".to_string(),
             vector: vec![1.0, 2.0, 3.0],
@@ -198,24 +226,34 @@ async fn test_different_dimensions_in_buffer() {
     let txn_id = TransactionId::from(1u64);
 
     let ctx_3d = VectorChangeContext::new(
-        1, "doc3d", "emb", VectorChangeType::Insert,
+        1,
+        "doc3d",
+        "emb",
+        VectorChangeType::Insert,
         VectorPointData {
             id: "doc_3d".to_string(),
             vector: vec![1.0, 2.0, 3.0],
             payload: std::collections::HashMap::new(),
         },
     );
-    buffer.add_update(txn_id, PendingVectorUpdate::new(txn_id, ctx_3d)).unwrap();
+    buffer
+        .add_update(txn_id, PendingVectorUpdate::new(txn_id, ctx_3d))
+        .unwrap();
 
     let ctx_128d = VectorChangeContext::new(
-        2, "doc128d", "emb", VectorChangeType::Insert,
+        2,
+        "doc128d",
+        "emb",
+        VectorChangeType::Insert,
         VectorPointData {
             id: "doc_128d".to_string(),
             vector: vec![0.5; 128],
             payload: std::collections::HashMap::new(),
         },
     );
-    buffer.add_update(txn_id, PendingVectorUpdate::new(txn_id, ctx_128d)).unwrap();
+    buffer
+        .add_update(txn_id, PendingVectorUpdate::new(txn_id, ctx_128d))
+        .unwrap();
 
     let updates = buffer.take_updates(txn_id);
     assert_eq!(updates.len(), 2);
@@ -238,7 +276,10 @@ async fn test_rollback_clears_buffer() {
     // buffer + rollback
     let txn_1 = TransactionId::from(1u64);
     let ctx_1 = VectorChangeContext::new(
-        1, "docs", "emb", VectorChangeType::Insert,
+        1,
+        "docs",
+        "emb",
+        VectorChangeType::Insert,
         VectorPointData {
             id: "doc_1".to_string(),
             vector: vec![1.0, 2.0, 3.0],
@@ -254,7 +295,10 @@ async fn test_rollback_clears_buffer() {
     // buffer + rollback again
     let txn_2 = TransactionId::from(2u64);
     let ctx_2 = VectorChangeContext::new(
-        1, "docs", "emb", VectorChangeType::Insert,
+        1,
+        "docs",
+        "emb",
+        VectorChangeType::Insert,
         VectorPointData {
             id: "doc_2".to_string(),
             vector: vec![4.0, 5.0, 6.0],
@@ -275,7 +319,10 @@ async fn test_invalid_transaction_handling() {
 
     let non_existent = TransactionId::from(999u64);
     let updates = buffer.take_updates(non_existent);
-    assert!(updates.is_empty(), "Should return empty for non-existent txn");
+    assert!(
+        updates.is_empty(),
+        "Should return empty for non-existent txn"
+    );
 
     assert!(!buffer.has_pending_updates(non_existent));
 }
@@ -295,7 +342,11 @@ async fn test_empty_buffer_operations() {
 #[tokio::test]
 async fn test_multiple_locations_in_transaction() {
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
-        Arc::new(VectorManager::new(VectorClientConfig::disabled()).await.unwrap()),
+        Arc::new(
+            VectorManager::new(VectorClientConfig::disabled())
+                .await
+                .unwrap(),
+        ),
         None,
         VectorTransactionBufferConfig::default(),
     );
@@ -310,7 +361,10 @@ async fn test_multiple_locations_in_transaction() {
 
     for (i, (space, tag, field)) in locations.iter().enumerate() {
         let ctx = VectorChangeContext::new(
-            *space, *tag, *field, VectorChangeType::Insert,
+            *space,
+            *tag,
+            *field,
+            VectorChangeType::Insert,
             VectorPointData {
                 id: format!("item_{}", i),
                 vector: vec![i as f32; 4],

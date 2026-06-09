@@ -2,7 +2,6 @@
 //!
 //! Tests for SyncManager edge insert/delete/update operations
 
-
 use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::{DataType, EdgeTypeInfo, PropertyDef, VertexId};
 use graphdb::core::Value;
@@ -143,9 +142,10 @@ fn test_edge_with_fulltext_property_sync() {
         )
         .expect("Failed to create tag");
 
-    let edge_info = EdgeTypeInfo::new("KNOWS".to_string()).with_properties(vec![
-        PropertyDef::new("description".to_string(), DataType::String),
-    ]);
+    let edge_info = EdgeTypeInfo::new("KNOWS".to_string()).with_properties(vec![PropertyDef::new(
+        "description".to_string(),
+        DataType::String,
+    )]);
     harness
         .storage
         .create_edge_type("test_space", &edge_info)
@@ -242,9 +242,10 @@ fn test_edge_delete_sync_via_manager() {
 
     let space_id = harness.storage.get_space_id("test_space").unwrap();
 
-    let edge_info = EdgeTypeInfo::new("KNOWS".to_string()).with_properties(vec![
-        PropertyDef::new("description".to_string(), DataType::String),
-    ]);
+    let edge_info = EdgeTypeInfo::new("KNOWS".to_string()).with_properties(vec![PropertyDef::new(
+        "description".to_string(),
+        DataType::String,
+    )]);
     harness
         .storage
         .create_edge_type("test_space", &edge_info)
@@ -319,13 +320,7 @@ fn test_edge_delete_sync_via_manager() {
     // Sync delete
     harness
         .sync_manager
-        .on_edge_delete(
-            txn_id,
-            space_id,
-            &Value::Int(1),
-            &Value::Int(2),
-            "KNOWS",
-        )
+        .on_edge_delete(txn_id, space_id, &Value::Int(1), &Value::Int(2), "KNOWS")
         .expect("Failed to sync edge delete");
 
     harness.commit_transaction().expect("Failed to commit");
@@ -363,9 +358,10 @@ fn test_edge_update_sync_via_manager() {
 
     let space_id = harness.storage.get_space_id("test_space").unwrap();
 
-    let edge_info = EdgeTypeInfo::new("KNOWS".to_string()).with_properties(vec![
-        PropertyDef::new("description".to_string(), DataType::String),
-    ]);
+    let edge_info = EdgeTypeInfo::new("KNOWS".to_string()).with_properties(vec![PropertyDef::new(
+        "description".to_string(),
+        DataType::String,
+    )]);
     harness
         .storage
         .create_edge_type("test_space", &edge_info)
@@ -464,8 +460,14 @@ fn test_edge_update_sync_via_manager() {
             &Value::Int(1),
             &Value::Int(2),
             "KNOWS",
-            &[("description".to_string(), Value::String("old description".to_string()))],
-            &[("description".to_string(), Value::String("new description".to_string()))],
+            &[(
+                "description".to_string(),
+                Value::String("old description".to_string()),
+            )],
+            &[(
+                "description".to_string(),
+                Value::String("new description".to_string()),
+            )],
         )
         .expect("Failed to sync edge update");
 

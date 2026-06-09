@@ -2,7 +2,6 @@
 //!
 //! Tests for DLQ recovery, retry, and the RecoveryResult struct
 
-
 use super::common::sync_helpers::SyncTestHarness;
 use graphdb::core::types::DataType;
 use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
@@ -58,7 +57,8 @@ fn test_dlq_recovery_flow() {
 
     // Recovery should have attempted all entries
     assert_eq!(
-        result.total(), 3,
+        result.total(),
+        3,
         "Should have attempted recovery for 3 entries"
     );
 }
@@ -118,10 +118,7 @@ fn test_dlq_retry_flow() {
         .expect("Retry should complete");
 
     // Only 1 unrecovered entry should be retried
-    assert_eq!(
-        result.total(), 1,
-        "Should retry only 1 unrecovered entry"
-    );
+    assert_eq!(result.total(), 1, "Should retry only 1 unrecovered entry");
 }
 
 /// TC-312: DLQ recovery with max_entries limit
@@ -161,12 +158,7 @@ fn test_dlq_recovery_with_limit() {
 
     let rt = &harness.rt;
     let result = rt
-        .block_on(async {
-            harness
-                .sync_coordinator
-                .retry_dead_letter(Some(2))
-                .await
-        })
+        .block_on(async { harness.sync_coordinator.retry_dead_letter(Some(2)).await })
         .expect("Retry with limit should complete");
 
     assert!(result.total() <= 2, "Should retry at most 2 entries");
@@ -226,7 +218,8 @@ fn test_recover_operations_for_specific_index() {
         .expect("Recovery for specific index should complete");
 
     assert_eq!(
-        result.total(), 1,
+        result.total(),
+        1,
         "Should recover only 1 entry for Person.name"
     );
 }
