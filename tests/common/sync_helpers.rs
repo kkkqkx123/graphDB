@@ -302,6 +302,42 @@ impl SyncTestHarness {
         Ok(())
     }
 
+    /// Delete vertex with transaction (sync-aware)
+    pub fn delete_vertex_with_txn(
+        &mut self,
+        space_name: &str,
+        vid: i64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_txn_id.is_none() {
+            return Err("No active transaction".into());
+        }
+
+        let space_id = self.storage.get_space_id(space_name)?;
+        let txn_id = self.current_txn_id.unwrap();
+        let vertex_id = graphdb::core::types::VertexId::from_int64(vid);
+        let vid_value = Value::Int(vid as i32);
+
+        // Get the vertex to extract tag and field info for index cleanup
+        if let Some(existing) = self.storage.get_vertex(space_name, &vertex_id)? {
+            for tag in &existing.tags {
+                let tag_name = &tag.name;
+                for (field_name, value) in &tag.properties {
+                    self.sync_manager.on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        tag_name,
+                        &vid_value,
+                        &[(field_name.clone(), value.clone())],
+                        graphdb::sync::coordinator::ChangeType::Delete,
+                    )?;
+                }
+            }
+        }
+
+        self.storage.delete_vertex(space_name, &vertex_id)?;
+        Ok(())
+    }
+
     /// Search fulltext
     pub fn search_fulltext(
         &self,

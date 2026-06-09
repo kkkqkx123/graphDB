@@ -8,6 +8,7 @@ use super::types::{ChangeContext, ChangeData, ChangeType};
 use crate::core::stats::StatsManager;
 use crate::search::engine::ConsistencyState;
 use crate::search::manager::FulltextIndexManager;
+use crate::search::SyncFailurePolicy;
 use crate::sync::batch::{
     BatchConfig, BatchProcessor, FulltextBatchProcessor, TransactionBatchBuffer,
 };
@@ -341,28 +342,40 @@ impl SyncCoordinator {
             }
 
             if fulltext_failed {
-                // Mark failed engines as inconsistent so they can be rebuilt
-                for key in &failed_keys {
-                    if let Some(engine) = self.fulltext_manager.get_engine(
-                        key.space_id,
-                        &key.tag_name,
-                        &key.field_name,
-                    ) {
-                        engine.mark_inconsistent();
-                        warn!(
-                            "Marked engine {}.{}.{} as Inconsistent due to commit failure",
-                            key.space_id, key.tag_name, key.field_name
-                        );
+                match self.config.failure_policy {
+                    SyncFailurePolicy::FailClosed => {
+                        return Err(SyncCoordinatorError::BatchError(
+                            crate::sync::batch::BatchError::InvalidOperation(format!(
+                                "Fulltext commit failed for {} indexes under FailClosed policy",
+                                failed_keys.len()
+                            )),
+                        ));
+                    }
+                    SyncFailurePolicy::FailOpen => {
+                        // Mark failed engines as inconsistent so they can be rebuilt
+                        for key in &failed_keys {
+                            if let Some(engine) = self.fulltext_manager.get_engine(
+                                key.space_id,
+                                &key.tag_name,
+                                &key.field_name,
+                            ) {
+                                engine.mark_inconsistent();
+                                warn!(
+                                    "Marked engine {}.{}.{} as Inconsistent due to commit failure",
+                                    key.space_id, key.tag_name, key.field_name
+                                );
+                            }
+                        }
+                        // Still try to commit the successful batch processors
+                        self.commit_all().await.ok();
+                        return Err(SyncCoordinatorError::BatchError(
+                            crate::sync::batch::BatchError::InvalidOperation(format!(
+                                "Fulltext commit failed for {} indexes, marked as Inconsistent. Repair with rebuild_index.",
+                                failed_keys.len()
+                            )),
+                        ));
                     }
                 }
-                // Still try to commit the successful batch processors
-                self.commit_all().await.ok();
-                return Err(SyncCoordinatorError::BatchError(
-                    crate::sync::batch::BatchError::InvalidOperation(format!(
-                        "Fulltext commit failed for {} indexes, marked as Inconsistent. Repair with rebuild_index.",
-                        failed_keys.len()
-                    )),
-                ));
             }
 
             // Commit all fulltext engines at once
@@ -473,6 +486,7 @@ impl SyncCoordinator {
             }
         }
 
+        result.total_attempted = result.total;
         Ok(result)
     }
 
@@ -484,31 +498,38 @@ impl SyncCoordinator {
         &self,
         max_entries: Option<usize>,
     ) -> Result<RecoveryResult, SyncCoordinatorError> {
-        let unrecovered = self.dead_letter_queue.get_unrecovered();
-        let entries: Vec<_> = match max_entries {
-            Some(limit) => unrecovered.into_iter().take(limit).collect(),
-            None => unrecovered,
-        };
-
+        let all_entries = self.dead_letter_queue.get_all();
         let mut result = RecoveryResult::default();
-        result.total = entries.len();
+        let mut processed = 0;
 
-        for (offset, entry) in entries.iter().enumerate() {
+        for (index, entry) in all_entries.iter().enumerate() {
+            if entry.recovered {
+                continue;
+            }
+            if let Some(limit) = max_entries {
+                if processed >= limit {
+                    break;
+                }
+            }
+            result.total += 1;
+
             match self.recover_operation(&entry.operation).await {
                 Ok(()) => {
-                    self.dead_letter_queue.mark_recovered(offset);
+                    self.dead_letter_queue.mark_recovered(index);
                     result.recovered += 1;
                 }
                 Err(e) => {
                     warn!(
-                        "Dead letter retry failed at offset {}: {:?}",
-                        offset, e
+                        "Dead letter retry failed at index {}: {:?}",
+                        index, e
                     );
                     result.failed += 1;
                 }
             }
+            processed += 1;
         }
 
+        result.total_attempted = processed;
         Ok(result)
     }
 
@@ -548,6 +569,7 @@ impl SyncCoordinator {
             }
         }
 
+        result.total_attempted = result.total;
         Ok(result)
     }
 

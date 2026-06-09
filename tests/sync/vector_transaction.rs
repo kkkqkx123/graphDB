@@ -1,5 +1,4 @@
 //! Vector Transaction Buffer Integration Tests
-#![cfg(feature = "qdrant")]
 
 use std::sync::Arc;
 

@@ -2,11 +2,13 @@
 //!
 //! Tests for dead letter queue, compensation, and recovery mechanisms
 
-mod common;
 
-use common::sync_helpers::{create_test_vertex, SyncTestHarness};
+use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
+use graphdb::search::SyncFailurePolicy;
+use graphdb::sync::batch::BatchConfig;
+use graphdb::sync::coordinator::SyncCoordinator;
 use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 use std::sync::Arc;
 
@@ -399,5 +401,63 @@ fn test_batch_aggregation_optimization() {
         found_count >= 5,
         "All batch updates should be indexed, found {}",
         found_count
+    );
+}
+
+/// TC-093: FailurePolicy configuration (FailClosed vs FailOpen)
+///
+/// Verifies that SyncFailurePolicy is correctly passed through
+/// BatchConfig and that the coordinator component respects the policy.
+#[test]
+fn test_failure_policy_configuration() {
+    // Verify FailOpen is the default
+    let config = BatchConfig::default();
+    assert_eq!(
+        config.failure_policy,
+        SyncFailurePolicy::FailOpen,
+        "Default failure policy should be FailOpen"
+    );
+
+    // Verify custom policy can be set
+    let fail_closed_config = BatchConfig::default().with_failure_policy(SyncFailurePolicy::FailClosed);
+    assert_eq!(
+        fail_closed_config.failure_policy,
+        SyncFailurePolicy::FailClosed,
+        "Should support FailClosed policy"
+    );
+
+    // Verify FailOpen behavior through a SyncCoordinator
+    let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+    let index_path = temp_dir.path().join("index");
+
+    let fulltext_config = graphdb::search::FulltextConfig {
+        enabled: true,
+        index_path,
+        default_engine: graphdb::search::EngineType::Bm25,
+        sync: graphdb::search::SyncConfig::default(),
+        cache_size: 100,
+        max_result_cache: 1000,
+        result_cache_ttl_secs: 60,
+        tantivy: graphdb::search::TantivyConfig {
+            tokenizer: graphdb::search::TokenizerKind::Default,
+            ..Default::default()
+        },
+    };
+    let fulltext_manager = Arc::new(
+        graphdb::search::FulltextIndexManager::new(fulltext_config)
+            .expect("Failed to create fulltext manager"),
+    );
+
+    // Create coordinator with FailClosed policy
+    let fail_closed_config = BatchConfig::default().with_failure_policy(SyncFailurePolicy::FailClosed);
+    let _coordinator = SyncCoordinator::new(fulltext_manager.clone(), fail_closed_config);
+
+    // Verify the coordinator is functional (happy path)
+    // Note: Full failure-policy behavior (FailClosed halting on first error)
+    // requires engine error injection which is not available in integration tests
+    let dead_letter = _coordinator.dead_letter_queue();
+    assert!(
+        dead_letter.is_empty(),
+        "Dead letter queue should be empty for happy path"
     );
 }

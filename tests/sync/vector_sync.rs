@@ -2,7 +2,6 @@
 //!
 //! Tests for basic vector synchronization at the sync layer.
 //! These tests use VectorManager::disabled() to avoid needing a real qdrant instance.
-#![cfg(feature = "qdrant")]
 
 use std::sync::Arc;
 

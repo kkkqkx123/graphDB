@@ -2,9 +2,8 @@
 //!
 //! Tests for two-phase commit protocol implementation
 
-mod common;
 
-use common::sync_helpers::{create_test_vertex, SyncTestHarness};
+use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
 use std::path::Path;

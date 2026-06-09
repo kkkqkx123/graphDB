@@ -3,9 +3,8 @@
 //! Tests covering remaining paths not covered by sync_2pc_protocol,
 //! sync_fault_tolerance, or sync_transaction_basic.
 
-mod common;
 
-use common::sync_helpers::{create_test_vertex, SyncTestHarness};
+use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
 

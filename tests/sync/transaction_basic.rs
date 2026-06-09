@@ -2,9 +2,8 @@
 //!
 //! Tests for basic transaction synchronization functionality
 
-mod common;
 
-use common::sync_helpers::{create_test_vertex, SyncTestHarness};
+use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::{DataType, VertexId};
 use graphdb::core::Value;
 use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
@@ -178,17 +177,97 @@ fn test_transaction_vertex_delete_sync() {
         .expect("Failed to search");
     assert_eq!(results.len(), 1, "Should find vertex");
 
-    // Begin transaction and delete (using insert with same ID for simplicity)
-    // Note: In actual implementation, use proper delete API
+    // Begin transaction and delete with sync cleanup
+    harness
+        .begin_transaction()
+        .expect("Failed to begin transaction");
+    harness
+        .delete_vertex_with_txn("test_space", 1)
+        .expect("Failed to delete vertex with txn");
+
+    harness
+        .commit_transaction()
+        .expect("Failed to commit transaction");
+
+    harness.wait_for_async(200);
+
+    // Verify vertex no longer exists in storage
+    let vertex_opt = harness
+        .get_vertex("test_space", &Value::Int(1))
+        .expect("Failed to get vertex");
+    assert!(
+        vertex_opt.is_none(),
+        "Vertex should be deleted from storage"
+    );
+
+    // Verify index is cleaned up
+    let results = harness
+        .search_fulltext("test_space", "Person", "name", "Alice", 10)
+        .expect("Failed to search");
+    assert_eq!(
+        results.len(),
+        0,
+        "Vertex should be removed from fulltext index"
+    );
+}
+
+/// TC-006: Transaction vertex update sync (full pipeline: insert → update → verify)
+#[test]
+fn test_transaction_vertex_update_pipeline_sync() {
+    let mut harness = SyncTestHarness::new().expect("Failed to create test harness");
+
+    harness
+        .create_space("test_space")
+        .expect("Failed to create space");
+    harness
+        .create_tag_with_fulltext(
+            "test_space",
+            "Person",
+            vec![("name", DataType::String)],
+            vec!["name"],
+        )
+        .expect("Failed to create tag");
+
+    // Insert initial vertex
+    let vertex = create_test_vertex(
+        1,
+        "Person",
+        vec![("name", Value::String("Alice".to_string()))],
+    );
+    harness
+        .insert_vertex("test_space", vertex)
+        .expect("Failed to insert vertex");
+
+    harness.wait_for_async(200);
+
+    // Update vertex in transaction
     harness
         .begin_transaction()
         .expect("Failed to begin transaction");
 
-    // For now, just verify the setup works
-    // TODO: Implement proper delete test when delete API is available
+    let updated_vertex = create_test_vertex(
+        1,
+        "Person",
+        vec![("name", Value::String("AliceUpdated".to_string()))],
+    );
+    harness
+        .insert_vertex_with_txn("test_space", updated_vertex)
+        .expect("Failed to update vertex");
+
     harness
         .commit_transaction()
         .expect("Failed to commit transaction");
+
+    harness.wait_for_async(200);
+
+    // Verify new content is searchable
+    let new_results = harness
+        .search_fulltext("test_space", "Person", "name", "AliceUpdated", 10)
+        .expect("Failed to search updated name");
+    assert!(
+        !new_results.is_empty(),
+        "Updated vertex content should be searchable"
+    );
 }
 
 /// TC-004: Transaction batch vertex insert sync

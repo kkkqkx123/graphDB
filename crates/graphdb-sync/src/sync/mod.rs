@@ -22,7 +22,8 @@ pub use circuit_breaker::{
     CircuitBreakerStats, CircuitState,
 };
 pub use coordinator::{
-    ChangeContext, ChangeData, ChangeType, IndexType, SyncCoordinator, SyncCoordinatorError,
+    ChangeContext, ChangeData, ChangeType, IndexType, RecoveryResult, SyncCoordinator,
+    SyncCoordinatorError,
 };
 pub use dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 pub use types::{IndexOpKey, IndexOperation};
