@@ -15,7 +15,7 @@ use graphdb_storage::core::vertex_edge_path::Tag;
 use graphdb_storage::core::Value;
 use graphdb_storage::core::Vertex;
 use graphdb_storage::storage::{
-    StorageAdmin, StoragePersistenceOps, StorageReader, StorageSchemaOps, StorageWriter,
+    StorageAdmin, StoragePersistenceOps, StorageReader, StorageWriter,
 };
 
 /// Helper: save and checkpoint so that prior WAL entries are not replayed.
@@ -58,8 +58,8 @@ fn test_crash_without_flush_loses_uncommitted_data() {
 
     // Reopen — WAL should replay the unflushed insert
     {
-        let mut storage = common::open_persistent_storage(&dir);
-        common::verify_test_data(&mut storage, "test_space");
+        let storage = common::open_persistent_storage(&dir);
+        common::verify_test_data(&storage, "test_space");
 
         let extra_vertex = storage.get_vertex("test_space", &vid).unwrap();
         assert!(
@@ -95,7 +95,7 @@ fn test_crash_recovery_replays_edge_insert() {
     }
 
     {
-        let mut storage = common::open_persistent_storage(&dir);
+        let storage = common::open_persistent_storage(&dir);
 
         // Edge should exist after WAL replay
         let edge = storage
@@ -141,7 +141,7 @@ fn test_crash_recovery_replays_vertex_delete() {
     }
 
     {
-        let mut storage = common::open_persistent_storage(&dir);
+        let storage = common::open_persistent_storage(&dir);
 
         let alice = storage
             .get_vertex("test_space", &VertexId::from_int64(1))
@@ -179,7 +179,7 @@ fn test_crash_recovery_replays_tag_creation() {
     }
 
     {
-        let mut storage = common::open_persistent_storage(&dir);
+        let storage = common::open_persistent_storage(&dir);
 
         let tag = storage.get_tag("test_space", "Person").unwrap();
         assert!(tag.is_some(), "Tag should be recovered via WAL replay");
@@ -216,7 +216,7 @@ fn test_crash_recovery_replays_edge_delete() {
     }
 
     {
-        let mut storage = common::open_persistent_storage(&dir);
+        let storage = common::open_persistent_storage(&dir);
 
         let edge = storage
             .get_edge(
@@ -268,7 +268,7 @@ fn test_multiple_crash_recovery_cycles() {
 
     // Recover, verify both
     {
-        let mut storage = common::open_persistent_storage(&dir);
+        let storage = common::open_persistent_storage(&dir);
         assert!(storage
             .get_vertex("test_space", &VertexId::from_int64(1))
             .unwrap()
