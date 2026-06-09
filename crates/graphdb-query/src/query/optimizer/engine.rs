@@ -370,6 +370,7 @@ impl OptimizerEngine {
         use crate::query::optimizer::context::OptimizationContext;
         use crate::query::optimizer::cost_based::trait_def::StrategyChain;
         use crate::query::optimizer::cost_based::MaterializationOptimizer;
+        use crate::query::optimizer::cost_based::TraversalDirectionOptimizer;
 
         // Create optimization context
         let mut ctx = OptimizationContext::from(self);
@@ -381,12 +382,17 @@ impl OptimizerEngine {
             let batch_analysis = batch_analyzer.analyze(root);
             ctx.set_batch_plan_analysis(batch_analysis);
 
-            // Create materialization optimizer
+            // Create optimizers
             let materialization_optimizer =
                 MaterializationOptimizer::new(self.stats_manager.as_ref());
+            let traversal_direction_optimizer =
+                TraversalDirectionOptimizer::new(self.cost_calculator.clone());
 
-            // Create strategy chain and add materialization strategy
-            let chain = StrategyChain::new().add_strategy(Box::new(materialization_optimizer));
+            // Create strategy chain with all registered cost-based strategies
+            // Order matters: materialization first, then traversal direction
+            let chain = StrategyChain::new()
+                .add_strategy(Box::new(materialization_optimizer))
+                .add_strategy(Box::new(traversal_direction_optimizer));
 
             // Apply strategies to the plan root
             let optimized_root = chain

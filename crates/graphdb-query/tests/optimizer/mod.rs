@@ -11,4 +11,7 @@
 
 pub mod cost;
 pub mod cost_based;
+pub mod cost_based_strategies;
 pub mod heuristic;
+pub mod heuristic_coverage;
+pub mod result_equivalence;

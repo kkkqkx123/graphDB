@@ -544,6 +544,20 @@ impl TraversalParser {
                     }
 
                     ctx.expect_token(TokenKind::RBracket)?;
+                } else if matches!(ctx.current_token().kind, TokenKind::IntegerLiteral(_)) {
+                    let min = ctx.expect_integer_literal()? as usize;
+                    if ctx.match_token(TokenKind::DotDot) {
+                        let max = if matches!(ctx.current_token().kind, TokenKind::IntegerLiteral(_))
+                        {
+                            let n = ctx.expect_integer_literal()? as usize;
+                            Some(n)
+                        } else {
+                            None
+                        };
+                        range = Some(EdgeRange::new(Some(min), max));
+                    } else {
+                        range = Some(EdgeRange::fixed(min));
+                    }
                 } else {
                     range = Some(EdgeRange::any());
                 }
