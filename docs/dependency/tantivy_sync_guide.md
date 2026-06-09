@@ -32,6 +32,13 @@ git -C crates/tantivy config rerere.autoupdate true
 git -C crates/tantivy config merge.conflictstyle zdiff3
 ```
 
+如果你希望这个 fork 以功能分支作为默认入口，可以在第一次推送后把本地分支指向 fork 远程：
+
+```bash
+git -C crates/tantivy config branch.feat/add-configurable-k1-b.remote origin
+git -C crates/tantivy config branch.feat/add-configurable-k1-b.merge refs/heads/feat/add-configurable-k1-b
+```
+
 可选地，在根仓库打开 submodule 递归处理：
 
 ```bash
@@ -56,6 +63,22 @@ git -C crates/tantivy merge --no-edit upstream/main
 ```bash
 cargo check --workspace --features server,fulltext-search,grpc,qdrant
 ```
+
+然后把功能分支推到 fork 远程。推送时使用本地代理，避免网络波动：
+
+```bash
+export https_proxy="http://localhost:7890"
+export http_proxy="http://localhost:7890"
+git -C crates/tantivy push -u origin feat/add-configurable-k1-b
+```
+
+如果你已经在 GitHub 网站上把 fork 的默认分支切到 `feat/add-configurable-k1-b`，本地可以同步远程默认分支指针：
+
+```bash
+git -C crates/tantivy remote set-head origin -a
+```
+
+默认分支切换本身需要在 GitHub 仓库的 Settings 页面手动完成，本地 Git 只能在切换后刷新指针。
 
 最后把 submodule 指针更新回根仓库：
 
