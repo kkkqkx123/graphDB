@@ -78,7 +78,7 @@ impl TransactionManager {
 
         self.state = TransactionState::Active {
             id: format!("tx_{}", uuid::Uuid::new_v4()),
-            space: session.current_space().unwrap_or("").to_string(),
+            space: session.current_space().unwrap_or_default().to_string(),
         };
         self.started_at = Some(Instant::now());
         self.query_count = 0;

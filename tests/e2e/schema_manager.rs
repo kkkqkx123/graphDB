@@ -5,223 +5,154 @@
 //! 2. Basic query operations work when vector search is enabled but fails to initialize
 //! 3. Schema validation works correctly
 
+use crate::common::{assert_query_ok, create_test_db, setup_test_space};
 use graphdb::api::server::graph_service::GraphService;
 use graphdb::config::Config;
-use graphdb::core::stats::StatsManager;
-use graphdb::query::optimizer::OptimizerEngine;
-use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use graphdb::storage::{GraphStorage, SyncWrapper};
 use std::sync::Arc;
-
-use crate::common::TestStorage;
 
 /// Test schema manager initialization in different configurations
 mod initialization {
     use super::*;
 
     /// Verify basic connection works
-    #[tokio::test]
-    async fn test_basic_connection() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
-
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
-
-        let result = pipeline.execute_query("SHOW SPACES");
-        assert!(result.is_ok(), "Basic connection failed");
+    #[test]
+    fn test_basic_connection() {
+        let mut db = create_test_db();
+        let result = db.execute_query("SHOW SPACES");
+        assert_query_ok(result, "Basic connection failed");
     }
 
     /// Create space should work regardless of vector config
-    #[tokio::test]
-    async fn test_create_space_without_vector() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
-
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
+    #[test]
+    fn test_create_space_without_vector() {
+        let mut db = create_test_db();
 
         // Drop if exists
-        let _ = pipeline.execute_query("DROP SPACE IF EXISTS schema_manager_test_space");
+        let _ = db.execute_query("DROP SPACE IF EXISTS schema_manager_test_space");
 
         // Create space - this should work even if schema_manager is not initialized
-        let result = pipeline.execute_query(
+        let result = db.execute_query(
             "CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)"
         );
-        assert!(
-            result.is_ok(),
+        assert_query_ok(
+            result,
             "CREATE SPACE failed - schema_manager may not be initialized"
         );
     }
 
     /// Use space should work
-    #[tokio::test]
-    async fn test_use_space() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
-
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
+    #[test]
+    fn test_use_space() {
+        let mut db = create_test_db();
 
         // Create space first
-        pipeline.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
+        db.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
             .expect("CREATE SPACE should succeed");
 
-        let result = pipeline.execute_query("USE schema_manager_test_space");
-        assert!(
-            result.is_ok(),
+        let result = db.execute_query("USE schema_manager_test_space");
+        assert_query_ok(
+            result,
             "USE SPACE failed - schema_manager may not be initialized"
         );
     }
 
     /// Create tag should work with schema_manager
-    #[tokio::test]
-    async fn test_create_tag() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
+    #[test]
+    fn test_create_tag() {
+        let mut db = create_test_db();
+        setup_test_space(
+            &db,
+            "schema_manager_test_space",
+            &[],
+            &[],
+        ).expect("Failed to setup test space");
 
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
-
-        // Setup
-        pipeline.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
-            .expect("CREATE SPACE should succeed");
-        pipeline.execute_query("USE schema_manager_test_space")
-            .expect("USE should succeed");
-
-        let result = pipeline.execute_query(
+        let result = db.execute_query(
             "CREATE TAG IF NOT EXISTS test_person(name STRING NOT NULL, age INT)"
         );
-        assert!(
-            result.is_ok(),
+        assert_query_ok(
+            result,
             "CREATE TAG failed - schema_manager may not be initialized"
         );
     }
 
     /// Show tags should work
-    #[tokio::test]
-    async fn test_show_tags() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
+    #[test]
+    fn test_show_tags() {
+        let mut db = create_test_db();
+        setup_test_space(
+            &db,
+            "schema_manager_test_space",
+            &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
+            &[],
+        ).expect("Failed to setup test space");
 
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
-
-        // Setup
-        pipeline.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
-            .expect("CREATE SPACE should succeed");
-        pipeline.execute_query("USE schema_manager_test_space")
-            .expect("USE should succeed");
-        pipeline.execute_query("CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)")
-            .expect("CREATE TAG should succeed");
-
-        let result = pipeline.execute_query("SHOW TAGS");
-        assert!(
-            result.is_ok(),
+        let result = db.execute_query("SHOW TAGS");
+        assert_query_ok(
+            result,
             "SHOW TAGS failed - schema_manager may not be initialized"
         );
     }
 
     /// Insert vertex should work
-    #[tokio::test]
-    async fn test_insert_vertex() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
+    #[test]
+    fn test_insert_vertex() {
+        let mut db = create_test_db();
+        setup_test_space(
+            &db,
+            "schema_manager_test_space",
+            &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
+            &[],
+        ).expect("Failed to setup test space");
 
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
-
-        // Setup
-        pipeline.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
-            .expect("CREATE SPACE should succeed");
-        pipeline.execute_query("USE schema_manager_test_space")
-            .expect("USE should succeed");
-        pipeline.execute_query("CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)")
-            .expect("CREATE TAG should succeed");
-
-        let result = pipeline.execute_query(
+        let result = db.execute_query(
             "INSERT VERTEX test_person(name, age) VALUES 'p1': ('Alice', 30)"
         );
-        assert!(
-            result.is_ok(),
+        assert_query_ok(
+            result,
             "INSERT VERTEX failed - schema_manager may not be initialized"
         );
     }
 
     /// Fetch vertex should work
-    #[tokio::test]
-    async fn test_fetch_vertex() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
-
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
-
-        // Setup
-        pipeline.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
-            .expect("CREATE SPACE should succeed");
-        pipeline.execute_query("USE schema_manager_test_space")
-            .expect("USE should succeed");
-        pipeline.execute_query("CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)")
-            .expect("CREATE TAG should succeed");
+    #[test]
+    fn test_fetch_vertex() {
+        let mut db = create_test_db();
+        setup_test_space(
+            &db,
+            "schema_manager_test_space",
+            &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
+            &[],
+        ).expect("Failed to setup test space");
 
         // Insert vertex
-        pipeline.execute_query("INSERT VERTEX test_person(name, age) VALUES 'p_fetch': ('Bob', 25)")
+        db.execute_query("INSERT VERTEX test_person(name, age) VALUES 'p_fetch': ('Bob', 25)")
             .expect("INSERT should succeed");
 
-        let result = pipeline.execute_query("FETCH PROP ON test_person 'p_fetch'");
-        assert!(
-            result.is_ok(),
+        let result = db.execute_query("FETCH PROP ON test_person 'p_fetch'");
+        assert_query_ok(
+            result,
             "FETCH PROP failed - schema_manager may not be initialized"
         );
     }
 
     /// MATCH query should work
-    #[tokio::test]
-    async fn test_match_query() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
-
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
-
-        // Setup
-        pipeline.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
-            .expect("CREATE SPACE should succeed");
-        pipeline.execute_query("USE schema_manager_test_space")
-            .expect("USE should succeed");
-        pipeline.execute_query("CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)")
-            .expect("CREATE TAG should succeed");
+    #[test]
+    fn test_match_query() {
+        let mut db = create_test_db();
+        setup_test_space(
+            &db,
+            "schema_manager_test_space",
+            &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
+            &[],
+        ).expect("Failed to setup test space");
 
         // Insert vertex
-        pipeline.execute_query("INSERT VERTEX test_person(name, age) VALUES 'p1': ('Alice', 30)")
+        db.execute_query("INSERT VERTEX test_person(name, age) VALUES 'p1': ('Alice', 30)")
             .expect("INSERT should succeed");
 
-        let result = pipeline.execute_query("MATCH (v:test_person) RETURN v LIMIT 1");
+        let result = db.execute_query("MATCH (v:test_person) RETURN v LIMIT 1");
         // MATCH might not be fully implemented, so we just check it doesn't crash
         // and doesn't return schema_manager error
         if let Err(ref e) = result {
@@ -234,26 +165,16 @@ mod initialization {
     }
 
     /// Drop space should work
-    #[tokio::test]
-    async fn test_drop_space() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
-
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
+    #[test]
+    fn test_drop_space() {
+        let mut db = create_test_db();
 
         // Setup
-        pipeline.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
+        db.execute_query("CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)")
             .expect("CREATE SPACE should succeed");
 
-        let result = pipeline.execute_query("DROP SPACE IF EXISTS schema_manager_test_space");
-        assert!(
-            result.is_ok(),
-            "DROP SPACE failed"
-        );
+        let result = db.execute_query("DROP SPACE IF EXISTS schema_manager_test_space");
+        assert_query_ok(result, "DROP SPACE failed");
     }
 }
 
@@ -262,19 +183,12 @@ mod error_handling {
     use super::*;
 
     /// Error messages should be clear when operations fail
-    #[tokio::test]
-    async fn test_error_message_clarity() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
-
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
+    #[test]
+    fn test_error_message_clarity() {
+        let mut db = create_test_db();
 
         // Try to use a non-existent space
-        let result = pipeline.execute_query("USE non_existent_space_xyz");
+        let result = db.execute_query("USE non_existent_space_xyz");
 
         // Should fail, but error should not be "schema manager not initialized"
         if let Err(ref e) = result {
@@ -287,22 +201,12 @@ mod error_handling {
     }
 
     /// SHOW SPACES should always work
-    #[tokio::test]
-    async fn test_show_spaces_always_works() {
-        let test_storage = TestStorage::new().expect("Failed to create test storage");
-        let storage = test_storage.storage();
-        let schema_manager = test_storage.schema_manager();
-        let stats_manager = Arc::new(StatsManager::new());
-        let optimizer = Arc::new(OptimizerEngine::default());
+    #[test]
+    fn test_show_spaces_always_works() {
+        let mut db = create_test_db();
 
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer)
-            .with_schema_manager(schema_manager);
-
-        let result = pipeline.execute_query("SHOW SPACES");
-        assert!(
-            result.is_ok(),
-            "SHOW SPACES should always work but failed"
-        );
+        let result = db.execute_query("SHOW SPACES");
+        assert_query_ok(result, "SHOW SPACES should always work but failed");
     }
 }
 
@@ -317,7 +221,7 @@ mod graph_service {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let db_path = temp_dir.path().join("test.db");
         let storage = Arc::new(SyncWrapper::new(
-            GraphStorage::new_with_path(db_path).expect("Failed to create storage"),
+            GraphStorage::open(db_path.clone()).expect("Failed to create storage"),
         ));
 
         let graph_service = GraphService::new(config, storage).await;
@@ -340,7 +244,7 @@ mod graph_service {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let db_path = temp_dir.path().join("test.db");
         let storage = Arc::new(SyncWrapper::new(
-            GraphStorage::new_with_path(db_path).expect("Failed to create storage"),
+            GraphStorage::open(db_path.clone()).expect("Failed to create storage"),
         ));
 
         let graph_service = GraphService::new(config, storage).await;

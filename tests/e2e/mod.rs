@@ -1,12 +1,16 @@
 //! E2E Test Suite for GraphDB
 //!
-//! End-to-end tests migrated from Python to Rust.
-//! These tests verify the complete system functionality including:
-//! - Social network scenario tests
-//! - Query optimizer tests
-//! - Extended type tests
-//! - Schema manager tests
+//! This library provides all E2E tests for GraphDB.
+//! Run with: cargo test --test integration_e2e
+//!
+//! Tests are organized by functionality:
+//! - common: Shared test utilities
+//! - social_network: Basic graph operations
+//! - schema_manager: Schema management
+//! - optimizer: Query optimization
+//! - extended_types: Extended type support (geography, vector, fulltext)
 
+pub mod common;
 pub mod extended_types;
 pub mod optimizer;
 pub mod schema_manager;

@@ -180,7 +180,7 @@ fn test_session_use_space() {
         .expect("创建空间失败");
 
     session.use_space("test_space").expect("切换空间失败");
-    assert_eq!(session.current_space(), Some("test_space"));
+    assert_eq!(session.current_space().as_deref(), Some("test_space"));
     assert!(session.current_space_id().is_some());
 }
 

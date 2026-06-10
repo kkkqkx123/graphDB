@@ -6,8 +6,12 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi}
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
+use crate::core::DataType;
+use crate::core::types::SpaceSummary;
 use crate::core::Value;
 use crate::core::{SessionStatistics, StatsManager};
+use crate::query::executor::base::ExecutionResult;
+use crate::query::DataSet;
 use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
 use crate::search::FulltextIndexManager;
 use crate::storage::StorageClient;
@@ -48,8 +52,8 @@ use std::sync::Arc;
 /// ```
 pub struct Session<S: StorageClient + Clone + 'static> {
     db: Arc<GraphDatabaseInner<S>>,
-    space_id: Option<u64>,
-    space_name: Option<String>,
+    space_id: Arc<RwLock<Option<u64>>>,
+    space_name: Arc<RwLock<Option<String>>>,
     auto_commit: bool,
     /// Session-level change statistics
     statistics: SessionStatistics,
@@ -74,8 +78,8 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     pub(crate) fn new(db: Arc<GraphDatabaseInner<S>>) -> Self {
         Self {
             db,
-            space_id: None,
-            space_name: None,
+            space_id: Arc::new(RwLock::new(None)),
+            space_name: Arc::new(RwLock::new(None)),
             auto_commit: true,
             statistics: SessionStatistics::new(),
             function_registry: Arc::new(RwLock::new(FunctionRegistry::new())),
@@ -129,19 +133,45 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// - Return an error when something goes wrong (for example, if the required space does not exist).
     pub fn use_space(&mut self, space_name: &str) -> CoreResult<()> {
         let space_id = self.db.schema_api.use_space(space_name)?;
-        self.space_id = Some(space_id);
-        self.space_name = Some(space_name.to_string());
+        *self.space_id.write() = Some(space_id);
+        *self.space_name.write() = Some(space_name.to_string());
         Ok(())
     }
 
     /// Obtain the name of the current image space.
-    pub fn current_space(&self) -> Option<&str> {
-        self.space_name.as_deref()
+    pub fn current_space(&self) -> Option<String> {
+        self.space_name.read().clone()
     }
 
     /// Obtain the current image space ID.
     pub fn current_space_id(&self) -> Option<u64> {
-        self.space_id
+        *self.space_id.read()
+    }
+
+    /// After executing a query, check if the result represents a space switch
+    /// (from USE <space>), and persist the new space context on this session.
+    ///
+    /// The core QueryApi converts SpaceSwitched to a QueryResult with
+    /// "space_name", "space_id", "vid_type" columns. This method detects
+    /// that pattern and updates the session's space state accordingly.
+    fn update_space_from_result(&self, result: &crate::api::core::QueryResult) {
+        if !result.columns.iter().any(|c| c == "space_name") {
+            return;
+        }
+        let row = match result.rows.first() {
+            Some(r) => r,
+            None => return,
+        };
+        let name = match row.values.get("space_name") {
+            Some(Value::String(s)) => s.clone(),
+            _ => return,
+        };
+        let id = match row.values.get("space_id") {
+            Some(Value::BigInt(i)) => *i as u64,
+            _ => return,
+        };
+        *self.space_id.write() = Some(id);
+        *self.space_name.write() = Some(name);
     }
 
     /// Enable the automatic submission mode.
@@ -170,8 +200,8 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         self.statistics.reset_last();
 
         let ctx = QueryRequest {
-            space_id: self.space_id,
-            space_name: self.space_name.clone(),
+            space_id: *self.space_id.read(),
+            space_name: self.space_name.read().clone(),
             auto_commit: self.auto_commit,
             transaction_id: None,
             parameters: None,
@@ -183,6 +213,9 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         // Update statistical information
         self.statistics
             .record_changes(result.metadata.rows_returned);
+
+        // Detect USE <space> results and persist space context
+        self.update_space_from_result(&result);
 
         Ok(QueryResult::from_core(result))
     }
@@ -196,14 +229,14 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns query results on success
     /// - Return error on failure
-    pub fn execute_with_params(
+pub fn execute_with_params(
         &self,
         query: &str,
         params: HashMap<String, Value>,
     ) -> CoreResult<QueryResult> {
         let ctx = QueryRequest {
-            space_id: self.space_id,
-            space_name: self.space_name.clone(),
+            space_id: *self.space_id.read(),
+            space_name: self.space_name.read().clone(),
             auto_commit: self.auto_commit,
             transaction_id: None,
             parameters: Some(params),
@@ -211,6 +244,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
         let mut query_api = self.db.query_api.write();
         let result = query_api.execute(query, ctx)?;
+
+        // Detect USE <space> results and persist space context
+        self.update_space_from_result(&result);
+
         Ok(QueryResult::from_core(result))
     }
 
@@ -346,7 +383,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
     /// Get space ID (internal use)
     pub(crate) fn space_id(&self) -> Option<u64> {
-        self.space_id
+        *self.space_id.read()
     }
 
     /// Getting the transaction manager (internal use)
@@ -360,8 +397,8 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     }
 
     /// Get current space name (for internal use)
-    pub(crate) fn space_name(&self) -> Option<&str> {
-        self.space_name.as_deref()
+    pub(crate) fn space_name(&self) -> Option<String> {
+        self.space_name.read().clone()
     }
 
     /// Creating a Batch Inserter
@@ -563,8 +600,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         query_vector: Vec<f32>,
         limit: usize,
     ) -> CoreResult<Vec<crate::api::core::VectorSearchResult>> {
-        let space_id = self
-            .space_id
+        let space_id = (*self.space_id.read())
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         let sync_manager =
@@ -614,8 +650,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         limit: usize,
         threshold: f32,
     ) -> CoreResult<Vec<crate::api::core::VectorSearchResult>> {
-        let space_id = self
-            .space_id
+        let space_id = (*self.space_id.read())
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         let sync_manager =
@@ -721,7 +756,7 @@ impl<S: StorageClient + Clone + 'static> Drop for Session<S> {
         // Just logging here for debugging purposes
         log::debug!(
             "Session released, current graph space: {:?}",
-            self.space_name
+            self.space_name.read()
         );
     }
 }
