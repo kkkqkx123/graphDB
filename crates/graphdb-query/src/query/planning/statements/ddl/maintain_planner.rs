@@ -245,13 +245,8 @@ impl MaintainPlanner {
                 let current_space = self.current_space(validated);
                 let mut alter_info = TagAlterInfo::new(current_space, tag_name.clone())
                     .with_additions(additions.clone())
-                    .with_deletions(deletions.clone());
-
-                for change in changes {
-                    let prop = PropertyDef::new(change.new_name.clone(), change.data_type.clone());
-                    alter_info.additions.push(prop);
-                    alter_info.deletions.push(change.old_name.clone());
-                }
+                    .with_deletions(deletions.clone())
+                    .with_changes(changes.clone());
 
                 let node = AlterTagNode::new(next_node_id(), alter_info);
                 PlanNodeEnum::TagManage(TagManageNode::Alter(node))

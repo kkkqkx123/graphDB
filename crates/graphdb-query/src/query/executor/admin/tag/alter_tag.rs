@@ -42,6 +42,14 @@ impl AlterTagItem {
             property_name: Some(property_name),
         }
     }
+
+    pub fn change_property(old_name: String, new_name: String, data_type: crate::core::DataType) -> Self {
+        Self {
+            op: AlterTagOp::Change,
+            property: Some(PropertyDef::new(new_name, data_type)),
+            property_name: Some(old_name),
+        }
+    }
 }
 
 /// Tag modification information
@@ -121,7 +129,20 @@ impl<S: StorageReader + StorageSchemaOps + Send + Sync + 'static> Executor<S>
             .iter()
             .filter_map(|item| match item.op {
                 AlterTagOp::Drop => item.property_name.clone(),
-                AlterTagOp::Change => item.property_name.clone(),
+                _ => None,
+            })
+            .collect();
+
+        let changes: Vec<(String, String)> = self
+            .alter_info
+            .items
+            .iter()
+            .filter_map(|item| match item.op {
+                AlterTagOp::Change => {
+                    let old_name = item.property_name.clone()?;
+                    let new_name = item.property.as_ref().map(|p| p.name.clone())?;
+                    Some((old_name, new_name))
+                }
                 _ => None,
             })
             .collect();
@@ -141,15 +162,39 @@ impl<S: StorageReader + StorageSchemaOps + Send + Sync + 'static> Executor<S>
             }
         }
 
+        if !changes.is_empty() {
+            for (old_name, new_name) in &changes {
+                storage_guard.rename_tag_property(
+                    &self.alter_info.space_name,
+                    &self.alter_info.tag_name,
+                    old_name,
+                    new_name,
+                )?;
+            }
+        }
+
         let result = storage_guard.alter_tag(
             &self.alter_info.space_name,
             &self.alter_info.tag_name,
-            additions,
-            deletions,
+            additions.clone(),
+            deletions.clone(),
         );
 
         match result {
-            Ok(true) => Ok(ExecutionResult::Success),
+            Ok(true) => {
+                if let Ok(Some(tag)) =
+                    storage_guard.get_tag(&self.alter_info.space_name, &self.alter_info.tag_name)
+                {
+                    for (old_name, new_name) in &changes {
+                        let _ = storage_guard.rename_vertex_property(
+                            tag.tag_id,
+                            old_name,
+                            new_name,
+                        );
+                    }
+                }
+                Ok(ExecutionResult::Success)
+            }
             Ok(false) => Ok(ExecutionResult::Error(format!(
                 "Tag '{}' not found in space '{}'",
                 self.alter_info.tag_name, self.alter_info.space_name

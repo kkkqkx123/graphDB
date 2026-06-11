@@ -18,7 +18,7 @@ mod index {
     fn test_index_scan_for_equality() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer",
             &["CREATE TAG person(name: STRING, age: INT, city: STRING, salary: INT)"],
             &[],
@@ -59,7 +59,7 @@ mod index {
     fn test_index_scan_for_range() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_range",
             &["CREATE TAG person(name: STRING, age: INT)"],
             &[],
@@ -89,7 +89,7 @@ mod index {
     fn test_no_index_full_scan() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_scan",
             &["CREATE TAG person(name: STRING, salary: INT)"],
             &[],
@@ -120,7 +120,7 @@ mod join {
     fn test_join_algorithm_selection() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_join",
             &[
                 "CREATE TAG company(name: STRING, industry: STRING)",
@@ -171,7 +171,7 @@ mod aggregate {
     fn test_hash_aggregate() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_agg",
             &["CREATE TAG sales(product: STRING, amount: INT, category: STRING)"],
             &[],
@@ -210,7 +210,7 @@ mod topn {
     fn test_order_by_limit() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_topn",
             &["CREATE TAG product(name: STRING, price: INT, sales: INT)"],
             &[],
@@ -240,7 +240,7 @@ mod explain_format {
     fn test_text_format() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_explain",
             &["CREATE TAG person(name: STRING, age: INT)"],
             &[],
@@ -256,7 +256,7 @@ mod explain_format {
     fn test_dot_format() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_dot",
             &["CREATE TAG person(name: STRING, age: INT)"],
             &[],
@@ -277,7 +277,7 @@ mod profile {
     fn test_basic_profile() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_optimizer_profile",
             &["CREATE TAG person(name: STRING, age: INT)"],
             &[],

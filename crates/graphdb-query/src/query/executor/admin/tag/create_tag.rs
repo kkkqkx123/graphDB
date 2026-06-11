@@ -18,8 +18,8 @@ pub fn tag_info_from_executor(executor_info: &ExecutorTagInfo) -> TagInfo {
             name: p.name.clone(),
             data_type: p.data_type.clone(),
             nullable: p.nullable,
-            default: None,
-            comment: None,
+            default: p.default.clone(),
+            comment: p.comment.clone(),
         })
         .collect();
 

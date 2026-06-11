@@ -359,7 +359,7 @@ impl GraphStorageContext {
         if let Some(txn_ctx) = self.runtime.get_transaction_context() {
             txn_ctx.timestamp
         } else {
-            self.persistent.version_manager.write_timestamp()
+            self.persistent.version_manager.next_write_timestamp()
         }
     }
 

@@ -36,6 +36,8 @@ pub(crate) fn get_vertex(
         let label_id = tag.tag_id;
         let record = if let Some(id_int) = id.as_int64() {
             ctx.get_vertex_by_i64(label_id, id_int, ts)
+        } else if let Some(id_str) = id.as_str() {
+            ctx.get_vertex(label_id, id_str, ts)
         } else {
             let id_str = id.to_string();
             ctx.get_vertex(label_id, &id_str, ts)

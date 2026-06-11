@@ -24,11 +24,11 @@ CREATE TAG IF NOT EXISTS company(
 CREATE EDGE IF NOT EXISTS works_at(
     position: STRING,
     salary: INT
-)
+) FROM person TO company
 
 CREATE EDGE IF NOT EXISTS manages(
     since: DATE
-)
+) FROM person TO company
 
 -- Create indexes
 CREATE TAG INDEX IF NOT EXISTS idx_person_name ON person(name)

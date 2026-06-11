@@ -153,10 +153,11 @@ impl InsertVerticesValidator {
 
                 // Validate property constraints if schema manager is available
                 if let Some(schema_mgr) = schema_manager {
-                    // Check that all NOT NULL properties are present in the insert
+                    // Check that all NOT NULL properties are present in the insert (or have a DEFAULT)
                     if let Ok(Some(tag_info)) = schema_mgr.get_tag(space_name, &tag_spec.tag_name) {
                         for prop_def in &tag_info.properties {
-                            if !prop_def.nullable && !tag_spec.prop_names.contains(&prop_def.name) {
+                            // NOT NULL violation only if property is omitted AND has no default value
+                            if !prop_def.nullable && !tag_spec.prop_names.contains(&prop_def.name) && prop_def.default.is_none() {
                                 return Err(ValidationError::new(
                                     format!(
                                         "NOT NULL constraint violation for property '{}' in tag '{}': property is required and cannot be omitted",

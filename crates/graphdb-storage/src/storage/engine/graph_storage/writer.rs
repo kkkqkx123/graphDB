@@ -87,6 +87,8 @@ fn insert_vertex_at_timestamp(
 
         if let Some(vid_int) = vertex.vid.as_int64() {
             ctx.insert_vertex_by_i64(label_id, vid_int, &props, ts)?;
+        } else if let Some(id_str) = vertex.vid.as_str() {
+            ctx.insert_vertex(label_id, id_str, &props, ts)?;
         } else {
             let id_str = vertex.vid.to_string();
             ctx.insert_vertex(label_id, &id_str, &props, ts)?;
@@ -111,6 +113,8 @@ fn insert_vertex_at_timestamp(
             ts,
         )?;
     }
+
+    ctx.version_manager().release_insert_timestamp(ts);
 
     Ok(vertex.vid)
 }
@@ -155,6 +159,8 @@ pub(crate) fn update_vertex(
         if let Some(label_id) = tag_label_id(ctx, space, &tag.name)? {
             let current_record = if let Some(id_int) = vid_int {
                 ctx.get_vertex_by_i64(label_id, id_int, ts)
+            } else if let Some(id_str) = vertex.vid.as_str() {
+                ctx.get_vertex(label_id, id_str, ts)
             } else {
                 let id_str = vertex.vid.to_string();
                 ctx.get_vertex(label_id, &id_str, ts)
@@ -177,12 +183,14 @@ pub(crate) fn update_vertex(
                 };
                 ctx.append_wal_redo(WalOpType::UpdateVertexProp, ts, &redo)?;
 
-                if let Some(id_int) = vid_int {
-                    ctx.update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
-                } else {
-                    let id_str = vertex.vid.to_string();
-                    ctx.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
-                }
+if let Some(id_int) = vid_int {
+                     ctx.update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
+                 } else if let Some(id_str) = vertex.vid.as_str() {
+                     ctx.update_vertex_property(label_id, id_str, prop_name, value, ts)?;
+                 } else {
+                     let id_str = vertex.vid.to_string();
+                     ctx.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
+                 }
             }
 
             let props: Vec<(String, Value)> = merged_props.into_iter().collect();
@@ -226,6 +234,8 @@ pub(crate) fn delete_vertex(
 
         if let Some(vid_int) = id_int {
             let _ = ctx.delete_vertex_by_i64(label_id, vid_int, ts);
+        } else if let Some(id_str) = id.as_str() {
+            let _ = ctx.delete_vertex(label_id, id_str, ts);
         } else {
             let id_str = id.to_string();
             let _ = ctx.delete_vertex(label_id, &id_str, ts);
@@ -335,7 +345,7 @@ pub(crate) fn delete_tags(
     let mut deleted_count = 0;
 
     let id_int = vertex_id.as_int64();
-    let id_str = vertex_id.to_string();
+    let id_str_raw = vertex_id.as_str();
 
     for tag_name in tag_names {
         if let Some(label_id) = tag_label_id(ctx, space, tag_name)? {
@@ -347,7 +357,10 @@ pub(crate) fn delete_tags(
 
             let result = if let Some(vid_int) = id_int {
                 ctx.delete_vertex_by_i64(label_id, vid_int, ts)
+            } else if let Some(id_str) = id_str_raw {
+                ctx.delete_vertex(label_id, id_str, ts)
             } else {
+                let id_str = vertex_id.to_string();
                 ctx.delete_vertex(label_id, &id_str, ts)
             };
 
@@ -396,6 +409,7 @@ fn insert_edge_at_timestamp(
 ) -> StorageResult<()> {
     let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
     let edge_label_id = edge_type.edge_type_id;
+    eprintln!("[DEBUG insert_edge] edge_type={} src_tag={} dst_tag={} edge_label_id={}", edge.edge_type, edge_type.src_tag_name, edge_type.dst_tag_name, edge_label_id);
     let src_label_id =
         endpoint_label_id(ctx, space, &edge_type.src_tag_name)?.ok_or_else(|| {
             StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name))
@@ -407,6 +421,7 @@ fn insert_edge_at_timestamp(
                 edge_type.dst_tag_name
             ))
         })?;
+
     let props: Vec<(String, Value)> = edge
         .props
         .iter()
@@ -574,7 +589,7 @@ fn validate_edge_batch(
     edges: &[Edge],
 ) -> StorageResult<()> {
     for edge in edges {
-        let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
+    let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
         if endpoint_label_id(ctx, space, &edge_type.src_tag_name)?.is_none() {
             return Err(StorageError::not_found(format!(
                 "Source tag {} not found",
@@ -615,9 +630,15 @@ pub(crate) fn insert_vertex_data(
     let label_id = tag.tag_id;
     let vid = VertexId::try_from(&info.vertex_id)
         .map_err(|e| StorageError::invalid_input(e.to_string()))?;
-    let id_str = vid.to_string();
 
-    let result = ctx.insert_vertex(label_id, &id_str, &info.props, ts);
+    let result = if let Some(id_int) = vid.as_int64() {
+        ctx.insert_vertex_by_i64(label_id, id_int, &info.props, ts)
+    } else if let Some(id_str) = vid.as_str() {
+        ctx.insert_vertex(label_id, id_str, &info.props, ts)
+    } else {
+        let id_str = vid.to_string();
+        ctx.insert_vertex(label_id, &id_str, &info.props, ts)
+    };
     match result {
         Ok(_) => {
             update_vertex_indexes(

@@ -76,6 +76,21 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                             tag_props.insert(prop_name.clone(), value);
                         }
                     }
+                    
+                    // Fill in default values from schema for missing properties
+                    if let Some(schema_manager) = storage.read().get_schema_manager().as_ref() {
+                        if let Ok(Some(tag_schema)) = schema_manager.get_tag(node.space_name(), tag_name) {
+                            for prop_def in &tag_schema.properties {
+                                if !tag_props.contains_key(&prop_def.name) {
+                                    if let Some(default) = &prop_def.default {
+                                        tag_props.insert(prop_def.name.clone(), default.clone());
+                                    } else if !prop_def.nullable {
+                                        tag_props.insert(prop_def.name.clone(), Value::Null(crate::core::NullType::default()));
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // Create tags
                     let tag = Tag::new(tag_name.clone(), tag_props);
@@ -112,10 +127,18 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         Ok(ExecutorEnum::InsertVertices(executor))
     }
 
-    /// Evaluate a literal expression to get its value
+    /// Evaluate a literal expression to get its value.
+    /// Also evaluates function calls (e.g., now()) that can be resolved at build time.
     fn evaluate_literal(expr: &crate::core::Expression) -> Option<Value> {
         match expr {
             crate::core::Expression::Literal(value) => Some(value.clone()),
+            crate::core::Expression::Function { .. } => {
+                use crate::query::executor::expression::evaluator::ExpressionEvaluator;
+                use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
+
+                let mut eval_ctx = DefaultExpressionContext::new();
+                ExpressionEvaluator::evaluate(expr, &mut eval_ctx).ok()
+            }
             _ => None,
         }
     }
@@ -157,6 +180,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 .and_then(|expr| Self::evaluate_literal(&expr))
                 .and_then(|v| match v {
                     crate::core::Value::BigInt(v) => Some(v),
+                    crate::core::Value::Int(v) => Some(v as i64),
                     _ => None,
                 })
                 .unwrap_or(0);

@@ -25,7 +25,7 @@ use std::sync::Arc;
 use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
-    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
+    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
@@ -378,6 +378,27 @@ impl StorageSchemaOps for GraphStorage {
         deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
         schema_adapter::alter_tag(&self.ctx, space, tag_name, additions, deletions)
+    }
+
+    fn rename_vertex_property(
+        &mut self,
+        label: LabelId,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<(), StorageError> {
+        schema_engine::rename_vertex_property(&self.ctx, label, old_name, new_name)
+    }
+
+    fn rename_tag_property(
+        &mut self,
+        space: &str,
+        tag: &str,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<bool, StorageError> {
+        self.ctx
+            .schema_manager()
+            .rename_tag_property(space, tag, old_name, new_name)
     }
 
     fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError> {

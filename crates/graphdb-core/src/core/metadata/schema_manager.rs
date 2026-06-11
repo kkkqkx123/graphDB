@@ -607,6 +607,34 @@ impl SchemaManager {
         Ok(false)
     }
 
+    pub fn rename_tag_property(
+        &self,
+        space_name: &str,
+        tag_name: &str,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<bool, StorageError> {
+        let space_info = self.get_space(space_name)?.ok_or_else(|| {
+            StorageError::db_error(format!("Space \"{}\" does not exist", space_name))
+        })?;
+
+        let mut tags = self.tags.write();
+        let tag_key = tags
+            .iter()
+            .find(|((sid, _), data)| *sid == space_info.space_id && data.info.tag_name == tag_name)
+            .map(|(k, _)| *k);
+
+        if let Some(key) = tag_key {
+            if let Some(data) = tags.get_mut(&key) {
+                if let Some(prop) = data.info.properties.iter_mut().find(|p| p.name == old_name) {
+                    prop.name = new_name.to_string();
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     pub fn alter_edge_type(
         &self,
         space_name: &str,

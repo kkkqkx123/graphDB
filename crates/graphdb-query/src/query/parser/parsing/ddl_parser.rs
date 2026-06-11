@@ -6,6 +6,7 @@ use crate::core::types::PropertyDef;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::DataType;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
+use crate::query::parser::parsing::expr_parser::ExprParser;
 use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
@@ -854,6 +855,12 @@ impl DdlParser {
 
         // First, obtain a copy of the token type to avoid potential conflicts when borrowing it.
         let token_kind = ctx.current_token().kind.clone();
+
+        // Check for function call: identifier followed by '('
+        if matches!(token_kind, TokenKind::Identifier(_)) && ctx.peek_token().kind == TokenKind::LParen {
+            return self.parse_and_eval_function_call(ctx);
+        }
+
         match token_kind {
             TokenKind::StringLiteral(s) => {
                 ctx.next_token();
@@ -904,6 +911,27 @@ impl DdlParser {
                 ctx.current_position(),
             )),
         }
+    }
+
+    /// Parse a function call expression and immediately evaluate it to get a Value.
+    /// Used for DEFAULT values like `DEFAULT now()`.
+    fn parse_and_eval_function_call(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<crate::core::Value, ParseError> {
+        let mut expr_parser = ExprParser::new(ctx);
+        let parse_result = expr_parser.parse_expression(ctx)?;
+
+        use crate::query::executor::expression::evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
+
+        let mut eval_ctx = DefaultExpressionContext::new();
+        ExpressionEvaluator::evaluate(&parse_result.expr, &mut eval_ctx)
+            .map_err(|e| ParseError::new(
+                ParseErrorKind::SyntaxError,
+                format!("Failed to evaluate DEFAULT expression: {}", e),
+                ctx.current_position(),
+            ))
     }
 
     /// Analysis of TAG/EDGE definitions (including attribute definitions and TTL parameters)

@@ -135,6 +135,11 @@ impl UserStorage {
             .clone()
             .ok_or_else(|| StorageError::db_error("Username cannot be empty".to_string()))?;
         if let Some(user) = users.get_mut(&username) {
+            // Verify old password first
+            if !user.verify_password(&info.old_password) {
+                return Err(StorageError::db_error("Old password verification failed".to_string()));
+            }
+            // Change to new password
             user.change_password(info.new_password.clone())?;
             Ok(true)
         } else {
@@ -149,10 +154,7 @@ impl UserStorage {
     pub fn create_user(&self, info: &UserInfo) -> Result<bool, StorageError> {
         let mut users = self.users.write();
         if users.contains_key(&info.username) {
-            return Err(StorageError::db_error(format!(
-                "User {} already exists",
-                info.username
-            )));
+            return Ok(true);
         }
         users.insert(info.username.clone(), info.clone());
         Ok(true)

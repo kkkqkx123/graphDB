@@ -223,6 +223,19 @@ impl<S: StorageClient + 'static> StorageSchemaOps for SyncWrapper<S> {
             additions: Vec<crate::core::types::PropertyDef>,
             deletions: Vec<String>,
         ) -> Result<bool, StorageError>;
+        fn rename_vertex_property(
+            &mut self,
+            label: crate::core::types::LabelId,
+            old_name: &str,
+            new_name: &str,
+        ) -> Result<(), StorageError>;
+        fn rename_tag_property(
+            &mut self,
+            space: &str,
+            tag: &str,
+            old_name: &str,
+            new_name: &str,
+        ) -> Result<bool, StorageError>;
         fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError>;
         fn create_edge_type(
             &mut self,

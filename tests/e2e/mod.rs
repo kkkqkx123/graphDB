@@ -11,6 +11,7 @@
 //! - extended_types: Extended type support (geography, vector, fulltext)
 
 pub mod common;
+pub mod data_driven;
 pub mod extended_types;
 pub mod optimizer;
 pub mod schema_manager;

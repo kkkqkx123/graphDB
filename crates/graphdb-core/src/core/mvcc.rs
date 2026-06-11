@@ -181,6 +181,11 @@ impl VersionManager {
         self.write_ts.load(Ordering::SeqCst)
     }
 
+    pub fn next_write_timestamp(&self) -> Timestamp {
+        self.pending_reqs.fetch_add(1, Ordering::SeqCst);
+        self.write_ts.fetch_add(1, Ordering::SeqCst)
+    }
+
     pub fn read_timestamp(&self) -> Timestamp {
         self.read_ts.load(Ordering::SeqCst)
     }
@@ -263,7 +268,8 @@ impl VersionManager {
     pub fn release_insert_timestamp(&self, ts: Timestamp) {
         let _guard = self.lock.lock();
 
-        if ts == self.read_ts.load(Ordering::SeqCst) + 1 {
+        let current_read_ts = self.read_ts.load(Ordering::SeqCst);
+        if ts >= current_read_ts {
             while self
                 .buffer
                 .atomic_reset_with_ret((ts + 1) & RING_INDEX_MASK)

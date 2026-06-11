@@ -16,7 +16,7 @@ mod geography {
     fn test_point_creation() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_geography",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY, address: STRING, category: STRING)"],
             &[],
@@ -34,7 +34,7 @@ mod geography {
     fn test_wkt_creation() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_geography_wkt",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY, category: STRING)"],
             &[],
@@ -52,7 +52,7 @@ mod geography {
     fn test_distance_calculation() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_geography_dist",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY)"],
             &[],
@@ -78,7 +78,7 @@ mod geography {
     fn test_within_distance() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_geography_within",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY)"],
             &[],
@@ -104,7 +104,7 @@ mod geography {
     fn test_explain_geography_query() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_geography_explain",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY)"],
             &[],
@@ -132,7 +132,7 @@ mod vector {
     fn test_vector_insertion() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_vector",
             &["CREATE TAG product_vector(product_id: STRING NOT NULL, name: STRING, category: STRING, embedding: VECTOR(128), price: DOUBLE)"],
             &[],
@@ -154,7 +154,7 @@ mod vector {
     fn test_cosine_similarity() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_vector_search",
             &["CREATE TAG product_vector(product_id: STRING NOT NULL, name: STRING, embedding: VECTOR(128))"],
             &[],
@@ -192,7 +192,7 @@ mod vector {
     fn test_filtered_vector_search() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_vector_filtered",
             &["CREATE TAG product_vector(product_id: STRING NOT NULL, name: STRING, embedding: VECTOR(128), price: DOUBLE)"],
             &[],
@@ -230,7 +230,7 @@ mod vector {
     fn test_explain_vector_query() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_vector_explain",
             &["CREATE TAG product_vector(product_id: STRING NOT NULL, name: STRING, embedding: VECTOR(128))"],
             &[],
@@ -267,7 +267,7 @@ mod fulltext {
     fn test_fulltext_index_creation() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_fulltext",
             &["CREATE TAG article(doc_id: STRING NOT NULL, title: STRING, content: STRING, author: STRING)"],
             &[],
@@ -285,7 +285,7 @@ mod fulltext {
     fn test_basic_search() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_fulltext_search",
             &["CREATE TAG article(doc_id: STRING NOT NULL, title: STRING, content: STRING)"],
             &[],
@@ -316,7 +316,7 @@ mod fulltext {
     fn test_boolean_search() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_fulltext_bool",
             &["CREATE TAG article(doc_id: STRING NOT NULL, title: STRING, content: STRING)"],
             &[],
@@ -347,7 +347,7 @@ mod fulltext {
     fn test_explain_fulltext() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "e2e_fulltext_explain",
             &["CREATE TAG article(doc_id: STRING NOT NULL, title: STRING, content: STRING)"],
             &[],

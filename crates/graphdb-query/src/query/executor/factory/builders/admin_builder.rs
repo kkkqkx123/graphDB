@@ -168,6 +168,13 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         for prop_name in node.info().deletions.iter() {
             items.push(AlterTagItem::drop_property(prop_name.clone()));
         }
+        for change in node.info().changes.iter() {
+            items.push(AlterTagItem::change_property(
+                change.old_name.clone(),
+                change.new_name.clone(),
+                change.data_type.clone(),
+            ));
+        }
         let alter_info =
             AlterTagInfo::new(node.info().space_name.clone(), node.info().tag_name.clone())
                 .with_items(items);

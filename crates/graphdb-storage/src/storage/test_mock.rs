@@ -1,6 +1,6 @@
 use crate::core::error::StorageError;
 use crate::core::types::{
-    EdgeTypeInfo, EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
+    EdgeTypeInfo, EdgeTypeSchema, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, TransactionContextInfo, UpdateInfo, UserAlterInfo, UserInfo,
     VertexId,
 };
@@ -146,6 +146,8 @@ impl StorageSchemaOps for MockStorage {
     mock_stub!(&mut self, alter_space_comment(_space_id: u64, _comment: String) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, create_tag(_space: &str, _info: &TagInfo) -> Result<u32, StorageError>, Ok(1));
     mock_stub!(&mut self, alter_tag(_space: &str, _tag: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError>, Ok(true));
+    mock_stub!(&mut self, rename_vertex_property(_label: LabelId, _old_name: &str, _new_name: &str) -> Result<(), StorageError>, Ok(()));
+    mock_stub!(&mut self, rename_tag_property(_space: &str, _tag: &str, _old_name: &str, _new_name: &str) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, drop_tag(_space: &str, _tag: &str) -> Result<bool, StorageError>, Ok(true));
     mock_stub!(&mut self, create_edge_type(_space: &str, _info: &EdgeTypeSchema) -> Result<u32, StorageError>, Ok(1));
     mock_stub!(&mut self, alter_edge_type(_space: &str, _edge_type: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError>, Ok(true));

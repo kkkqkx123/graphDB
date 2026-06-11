@@ -3,6 +3,7 @@
 //! Provide definitions for the planning nodes related to label management.
 
 use crate::core::types::PropertyDef;
+use crate::query::parser::ast::stmt::PropertyChange;
 use crate::define_plan_node;
 
 define_plan_node! {
@@ -196,6 +197,7 @@ pub struct TagAlterInfo {
     pub tag_name: String,
     pub additions: Vec<PropertyDef>,
     pub deletions: Vec<String>,
+    pub changes: Vec<PropertyChange>,
 }
 
 impl TagAlterInfo {
@@ -205,6 +207,7 @@ impl TagAlterInfo {
             tag_name,
             additions: Vec::new(),
             deletions: Vec::new(),
+            changes: Vec::new(),
         }
     }
 
@@ -215,6 +218,11 @@ impl TagAlterInfo {
 
     pub fn with_deletions(mut self, deletions: Vec<String>) -> Self {
         self.deletions = deletions;
+        self
+    }
+
+    pub fn with_changes(mut self, changes: Vec<PropertyChange>) -> Self {
+        self.changes = changes;
         self
     }
 }

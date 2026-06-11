@@ -4,7 +4,7 @@ use std::time::Instant;
 use crate::core::metadata::SchemaManager;
 use crate::core::stats::StatsManager;
 use crate::core::types::{
-    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
+    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo, PropertyDef, SpaceInfo,
     TagInfo, TransactionContextInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
@@ -153,6 +153,8 @@ impl<S: StorageClient> StorageSchemaOps for MetricsStorage<S> {
     wrap_write!(alter_space_comment(self, space_id: u64, comment: String) -> Result<bool, StorageError>);
     wrap_write!(create_tag(self, space: &str, tag: &TagInfo) -> Result<u32, StorageError>);
     wrap_write!(alter_tag(self, space: &str, tag: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError>);
+    wrap_write!(rename_vertex_property(self, label: LabelId, old_name: &str, new_name: &str) -> Result<(), StorageError>);
+    wrap_write!(rename_tag_property(self, space: &str, tag: &str, old_name: &str, new_name: &str) -> Result<bool, StorageError>);
     wrap_write!(drop_tag(self, space: &str, tag: &str) -> Result<bool, StorageError>);
     wrap_write!(create_edge_type(self, space: &str, edge: &EdgeTypeInfo) -> Result<u32, StorageError>);
     wrap_write!(alter_edge_type(self, space: &str, edge_type: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError>);

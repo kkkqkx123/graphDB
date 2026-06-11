@@ -35,7 +35,7 @@ fn test_create_and_use_space() {
 fn test_create_tags_and_edges() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_social_network_tags",
         &[
             "CREATE TAG IF NOT EXISTS person(name: STRING NOT NULL, age: INT, email: STRING, city: STRING)",
@@ -61,7 +61,7 @@ fn test_create_tags_and_edges() {
 fn test_show_tags() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_show_tags",
         &["CREATE TAG person(name: STRING, age: INT)"],
         &[],
@@ -76,7 +76,7 @@ fn test_show_tags() {
 fn test_show_edges() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_show_edges",
         &["CREATE TAG person(name: STRING)"],
         &["CREATE EDGE friend(degree: FLOAT)"],
@@ -91,7 +91,7 @@ fn test_show_edges() {
 fn test_insert_vertex() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_insert_vertex",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT, email: STRING)"],
         &[],
@@ -108,7 +108,7 @@ fn test_insert_vertex() {
 fn test_insert_multiple_vertices() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_insert_multiple",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &[],
@@ -125,7 +125,7 @@ fn test_insert_multiple_vertices() {
 fn test_insert_edge() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_insert_edge",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &["CREATE EDGE friend(degree: FLOAT)"],
@@ -149,7 +149,7 @@ fn test_insert_edge() {
 fn test_fetch_vertex() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_fetch_vertex",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT, email: STRING)"],
         &[],
@@ -170,7 +170,7 @@ fn test_fetch_vertex() {
 fn test_fetch_edge() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_fetch_edge",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &["CREATE EDGE friend(degree: FLOAT)"],
@@ -194,7 +194,7 @@ fn test_fetch_edge() {
 fn test_match_basic() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_match_basic",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT, city: STRING)"],
         &["CREATE EDGE friend(degree: FLOAT)"],
@@ -218,7 +218,7 @@ fn test_match_basic() {
 fn test_match_with_filter() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_match_filter",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &[],
@@ -239,7 +239,7 @@ fn test_match_with_filter() {
 fn test_match_path() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_match_path",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &["CREATE EDGE friend(degree: FLOAT)"],
@@ -265,7 +265,7 @@ fn test_match_path() {
 fn test_go_traversal() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_go_traversal",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &["CREATE EDGE friend(degree: FLOAT)"],
@@ -289,7 +289,7 @@ fn test_go_traversal() {
 fn test_go_multiple_steps() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_go_multi",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &["CREATE EDGE friend(degree: FLOAT)"],
@@ -317,7 +317,7 @@ fn test_go_multiple_steps() {
 fn test_lookup_index() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_lookup",
         &["CREATE TAG person(name: STRING NOT NULL, age: INT)"],
         &[],
@@ -343,7 +343,7 @@ fn test_lookup_index() {
 fn test_explain_basic() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_explain",
         &["CREATE TAG person(name: STRING, age: INT)"],
         &[],
@@ -359,7 +359,7 @@ fn test_explain_basic() {
 fn test_profile_query() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_profile",
         &["CREATE TAG person(name: STRING, age: INT)"],
         &[],
@@ -379,7 +379,7 @@ fn test_profile_query() {
 fn test_transaction_commit() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_tx_commit",
         &["CREATE TAG person(name: STRING, age: INT)"],
         &[],
@@ -405,7 +405,7 @@ fn test_transaction_commit() {
 fn test_transaction_rollback() {
     let mut db = create_test_db();
     setup_test_space(
-        &db,
+        &mut db,
         "e2e_tx_rollback",
         &["CREATE TAG person(name: STRING, age: INT)"],
         &[],

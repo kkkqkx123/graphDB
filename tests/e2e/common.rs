@@ -7,6 +7,7 @@ use graphdb::api::core::query_api::QueryApi;
 use graphdb::api::core::types::QueryResult;
 use graphdb::api::core::CoreResult;
 use graphdb::core::metadata::SchemaManager;
+use graphdb::core::Value;
 use graphdb::core::StatsManager;
 use graphdb::query::OptimizerEngine;
 use graphdb::storage::{GraphStorage, StorageClient, StorageSchemaContextOps};
@@ -19,6 +20,8 @@ pub struct TestDb {
     stats_manager: Arc<StatsManager>,
     schema_manager: Arc<SchemaManager>,
     query_api: QueryApi<GraphStorage>,
+    current_space_id: Option<u64>,
+    current_space_name: Option<String>,
 }
 
 impl TestDb {
@@ -47,6 +50,8 @@ impl TestDb {
             stats_manager,
             schema_manager,
             query_api,
+            current_space_id: None,
+            current_space_name: None,
         }
     }
 
@@ -73,6 +78,8 @@ impl TestDb {
             stats_manager,
             schema_manager,
             query_api,
+            current_space_id: None,
+            current_space_name: None,
         }
     }
 
@@ -94,13 +101,28 @@ impl TestDb {
     /// Execute a query using a persistent session context
     pub fn execute_query(&mut self, query: &str) -> CoreResult<QueryResult> {
         let ctx = graphdb::api::core::types::QueryRequest {
-            space_id: None,
-            space_name: None,
+            space_id: self.current_space_id,
+            space_name: self.current_space_name.clone(),
             auto_commit: true,
             transaction_id: None,
             parameters: None,
         };
-        self.query_api.execute(query, ctx)
+        let result = self.query_api.execute(query, ctx)?;
+
+        // Track space switching from USE statements
+        if result.columns.iter().any(|c| c == "space_name") {
+            if let Some(row) = result.rows.first() {
+                if let Some(Value::String(name)) = row.values.get("space_name") {
+                    eprintln!("[DEBUG] Space switched to: id={:?}, name={:?}", row.values.get("space_id"), name);
+                    self.current_space_name = Some(name.clone());
+                }
+                if let Some(Value::BigInt(id)) = row.values.get("space_id") {
+                    self.current_space_id = Some(*id as u64);
+                }
+            }
+        }
+
+        Ok(result)
     }
 }
 
@@ -152,4 +174,152 @@ pub fn assert_query_ok<T: std::fmt::Debug>(result: CoreResult<T>, context: &str)
 /// Assert that a query fails
 pub fn assert_query_err<T: std::fmt::Debug>(result: CoreResult<T>, context: &str) {
     assert!(result.is_err(), "{}: expected error but got Ok", context);
+}
+
+/// Load and execute a GQL data file
+///
+/// Reads the file line-by-line.  Blank lines and comment lines (`--`)
+/// are statement separators.  Continuation lines (indented, or starting
+/// with `)`) are appended to the current statement.
+pub fn load_gql_file(db: &mut TestDb, path: &str) -> CoreResult<()> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| graphdb::api::core::CoreError::Internal(format!("Failed to read {}: {}", path, e)))?;
+
+    let mut buffer = String::new();
+    let mut stmt_num: usize = 0;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("--") {
+            if !buffer.is_empty() {
+                stmt_num += 1;
+                if let Err(e) = db.execute_query(&buffer) {
+                    eprintln!("[LOAD_GQL] statement #{} failed: {}", stmt_num, e);
+                    eprintln!("[LOAD_GQL] statement: {}", buffer);
+                    return Err(e);
+                }
+                buffer.clear();
+            }
+            continue;
+        }
+        if line.starts_with(' ') || line.starts_with('\t') || trimmed.starts_with(')') {
+            buffer.push(' ');
+            buffer.push_str(trimmed);
+        } else {
+            if !buffer.is_empty() {
+                stmt_num += 1;
+                if let Err(e) = db.execute_query(&buffer) {
+                    eprintln!("[LOAD_GQL] statement #{} failed: {}", stmt_num, e);
+                    eprintln!("[LOAD_GQL] statement: {}", buffer);
+                    return Err(e);
+                }
+            }
+            buffer = trimmed.to_string();
+        }
+    }
+    if !buffer.is_empty() {
+        stmt_num += 1;
+        if let Err(e) = db.execute_query(&buffer) {
+            eprintln!("[LOAD_GQL] statement #{} failed: {}", stmt_num, e);
+            eprintln!("[LOAD_GQL] statement: {}", buffer);
+            return Err(e);
+        }
+    }
+
+    Ok(())
+}
+
+/// Assert that `result` is Ok and that the QueryResult contains exactly `expected` rows
+pub fn assert_row_count(result: CoreResult<QueryResult>, expected: usize, context: &str) {
+    match result {
+        Ok(ref qr) => assert_eq!(
+            qr.rows.len(),
+            expected,
+            "{}: expected {} rows, got {}",
+            context,
+            expected,
+            qr.rows.len()
+        ),
+        Err(e) => panic!("{}: query failed: {:?}", context, e),
+    }
+}
+
+/// Assert that a single-column count query returns the expected value
+///
+/// Executes `query` and reads the first row's first value as i64.
+pub fn assert_count_eq(db: &mut TestDb, query: &str, expected: i64, context: &str) {
+    match db.execute_query(query) {
+        Ok(qr) => {
+            let first = qr
+                .rows
+                .first()
+                .expect(&format!("{}: result set is empty", context));
+            let val = first
+                .values
+                .values()
+                .next()
+                .expect(&format!("{}: no column", context));
+            let actual = match val {
+                Value::BigInt(v) => *v as i64,
+                Value::Int(v) => *v as i64,
+                Value::SmallInt(v) => *v as i64,
+                other => panic!("{}: expected numeric value, got {:?}", context, other),
+            };
+            assert_eq!(
+                actual, expected,
+                "{}: expected count {}, got {}",
+                context, expected, actual
+            );
+        }
+        Err(e) => panic!("{}: query failed: {:?}", context, e),
+    }
+}
+
+/// Assert that a query succeeds and returns exactly `expected` rows
+pub fn assert_query_row_count(
+    db: &mut TestDb,
+    query: &str,
+    expected: usize,
+    context: &str,
+) {
+    match db.execute_query(query) {
+        Ok(qr) => {
+            let actual = qr.rows.len();
+            assert_eq!(
+                actual, expected,
+                "{}: expected {} rows, got {}",
+                context, expected, actual
+            );
+        }
+        Err(e) => panic!("{}: query failed: {:?}", context, e),
+    }
+}
+
+/// Assert that a single-value query returns the expected f64 value (within epsilon)
+pub fn assert_float_eq(db: &mut TestDb, query: &str, expected: f64, context: &str) {
+    match db.execute_query(query) {
+        Ok(qr) => {
+            let first = qr
+                .rows
+                .first()
+                .expect(&format!("{}: result set is empty", context));
+            let val = first
+                .values
+                .values()
+                .next()
+                .expect(&format!("{}: no column", context));
+            let actual = match val {
+                Value::Double(v) => *v,
+                Value::Float(v) => *v as f64,
+                other => panic!("{}: expected float, got {:?}", context, other),
+            };
+            assert!(
+                (actual - expected).abs() < 1e-6,
+                "{}: expected {}, got {}",
+                context,
+                expected,
+                actual
+            );
+        }
+        Err(e) => panic!("{}: query failed: {:?}", context, e),
+    }
 }

@@ -62,7 +62,7 @@ mod initialization {
     fn test_create_tag() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "schema_manager_test_space",
             &[],
             &[],
@@ -82,7 +82,7 @@ mod initialization {
     fn test_show_tags() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],
@@ -100,7 +100,7 @@ mod initialization {
     fn test_insert_vertex() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],
@@ -120,7 +120,7 @@ mod initialization {
     fn test_fetch_vertex() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],
@@ -142,7 +142,7 @@ mod initialization {
     fn test_match_query() {
         let mut db = create_test_db();
         setup_test_space(
-            &db,
+        &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],

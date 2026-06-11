@@ -952,6 +952,7 @@ impl<'a> Iterator for VertexIterator<'a> {
                 return Some(record);
             }
         }
+        eprintln!("[DEBUG] VertexIterator: end={}, ts={}", self.end, self.ts);
         None
     }
 }
