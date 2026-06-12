@@ -164,47 +164,34 @@ impl GroupAggregateState {
 
     /// Merge the two AggData datasets.
     fn merge_agg_data(target: &mut AggData, source: &AggData) -> DBResult<()> {
-        // Combine the COUNT functions
+        if !source.result().is_null() && !source.result().is_empty() {
+            if target.result().is_null() || target.result().is_empty() {
+                target.set_result(source.result().clone());
+            } else if let Ok(new_value) = target.result().add(source.result()) {
+                target.set_result(new_value);
+            }
+        }
+
         if !source.cnt().is_null() && !source.cnt().is_empty() {
             if target.cnt().is_null() || target.cnt().is_empty() {
                 target.set_cnt(source.cnt().clone());
-            } else {
-                if let Ok(new_cnt) = target.cnt().add(source.cnt()) {
-                    target.set_cnt(new_cnt)
-                }
+            } else if let Ok(new_value) = target.cnt().add(source.cnt()) {
+                target.set_cnt(new_value);
             }
         }
 
-        // Merge the SUM functions
         if !source.sum().is_null() && !source.sum().is_empty() {
             if target.sum().is_null() || target.sum().is_empty() {
                 target.set_sum(source.sum().clone());
-            } else {
-                if let Ok(new_sum) = target.sum().add(source.sum()) {
-                    target.set_sum(new_sum)
-                }
+            } else if let Ok(new_value) = target.sum().add(source.sum()) {
+                target.set_sum(new_value);
             }
         }
 
-        // Merge the MAX values.
-        if !source.result().is_null()
-            && !source.result().is_empty()
-            && (target.result().is_null()
-                || target.result().is_empty()
-                || source.result() > target.result())
+        if !source.avg().is_null() && !source.avg().is_empty()
+            && (target.avg().is_null() || target.avg().is_empty())
         {
-            target.set_result(source.result().clone());
-        }
-
-        // Merge and remove duplicate sets
-        if let Some(source_uniques) = source.uniques() {
-            if target.uniques().is_none() {
-                target.set_uniques(source_uniques.clone());
-            } else if let Some(target_uniques) = target.uniques_mut() {
-                for val in source_uniques {
-                    target_uniques.insert(val.clone());
-                }
-            }
+            target.set_avg(source.avg().clone());
         }
 
         Ok(())
@@ -286,14 +273,6 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
         match input_result {
             ExecutionResult::DataSet(dataset) => {
-                eprintln!(
-                    "[DEBUG] AggregateExecutor::process_input: input col_names={:?}, rows={}",
-                    dataset.col_names,
-                    dataset.rows.len()
-                );
-                for (i, row) in dataset.rows.iter().enumerate() {
-                    eprintln!("[DEBUG] AggregateExecutor input row {}: {:?}", i, row);
-                }
                 self.aggregate_dataset(dataset)
             }
             ExecutionResult::Empty
@@ -803,7 +782,6 @@ impl<S: StorageClient> AggregateExecutor<S> {
                     let agg_value = if agg_func.distinct
                         && matches!(agg_func.function, AggregateFunction::Count(_))
                     {
-                        // Use the size of the set of unique elements as the result of the COUNT DISTINCT function.
                         if let Some(uniques) = agg_data.uniques() {
                             Value::BigInt(uniques.len() as i64)
                         } else {
@@ -820,15 +798,6 @@ impl<S: StorageClient> AggregateExecutor<S> {
             }
 
             result_dataset.rows.push(result_row);
-        }
-
-        eprintln!(
-            "[DEBUG] AggregateExecutor::build_result_dataset: col_names={:?}, rows={}",
-            result_dataset.col_names,
-            result_dataset.rows.len()
-        );
-        for (i, row) in result_dataset.rows.iter().enumerate() {
-            eprintln!("[DEBUG] AggregateExecutor row {}: {:?}", i, row);
         }
 
         Ok(result_dataset)

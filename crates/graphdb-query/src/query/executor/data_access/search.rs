@@ -530,20 +530,9 @@ impl<S: StorageReader> IndexScanExecutor<S> {
 
 impl<S: StorageReader + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        eprintln!("IndexScanExecutor::execute called");
-        eprintln!(
-            "  space_id={}, tag_id={}, index_id={}",
-            self.space_id, self.tag_id, self.index_id
-        );
-        eprintln!(
-            "  index_name={}, schema_name={}, scan_type={}",
-            self.index_name, self.schema_name, self.scan_type
-        );
-        eprintln!("  scan_limits={:?}", self.scan_limits);
         let storage = self.get_storage().read();
 
         let index_results = self.lookup_by_index(&storage)?;
-        eprintln!("  index_results count: {}", index_results.len());
 
         let entities = self.fetch_entities(&storage, index_results)?;
 

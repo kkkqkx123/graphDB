@@ -21,6 +21,7 @@ use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ClearSpaceNode, PlanNodeEnum, ShowSpacesNode,
     ShowStatsNode, ShowStatsType, ShowUsersNode,
 };
+use crate::query::planning::plan::{BeginTransactionNode, CommitNode, RollbackNode};
 use crate::query::planning::plan::SubPlan;
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -445,6 +446,21 @@ impl Planner for MaintainPlanner {
 
             Stmt::Desc(desc_stmt) => self.plan_desc(desc_stmt, validated),
 
+            Stmt::BeginTransaction(_) => {
+                let node = BeginTransactionNode::new(next_node_id());
+                PlanNodeEnum::BeginTransaction(node)
+            }
+
+            Stmt::CommitTransaction(_) => {
+                let node = CommitNode::new(next_node_id());
+                PlanNodeEnum::Commit(node)
+            }
+
+            Stmt::RollbackTransaction(_) => {
+                let node = RollbackNode::new(next_node_id());
+                PlanNodeEnum::Rollback(node)
+            }
+
             Stmt::Drop(drop_stmt) => self.plan_drop(drop_stmt, validated),
 
             _ => {
@@ -469,6 +485,9 @@ impl Planner for MaintainPlanner {
                 | Stmt::ClearSpace(_)
                 | Stmt::Desc(_)
                 | Stmt::Drop(_)
+                | Stmt::BeginTransaction(_)
+                | Stmt::CommitTransaction(_)
+                | Stmt::RollbackTransaction(_)
         )
     }
 }

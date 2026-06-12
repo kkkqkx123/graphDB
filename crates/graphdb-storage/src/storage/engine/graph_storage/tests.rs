@@ -1149,4 +1149,138 @@ mod tests {
         let result = storage.delete_vertex("nonexistent", &VertexId::from_int64(999));
         assert!(result.is_err());
     }
+
+    // ==================== String ID Edge Tests ====================
+
+    fn setup_string_id_space(storage: &mut GraphStorage) {
+        let mut space = SpaceInfo::new("str_space".to_string())
+            .with_vid_type(DataType::String);
+        storage.create_space(&mut space).unwrap();
+
+        let tag = crate::core::types::TagInfo::new("Node".to_string())
+            .with_properties(vec![
+                PropertyDef::new("name".to_string(), DataType::String),
+            ]);
+        storage.create_tag("str_space", &tag).unwrap();
+
+        let edge = EdgeTypeInfo::new("LINK".to_string());
+        storage.create_edge_type("str_space", &edge).unwrap();
+    }
+
+    #[test]
+    fn test_string_id_get_node_edges_in() {
+        let mut storage = create_test_storage();
+        setup_string_id_space(&mut storage);
+
+        let v1 = Vertex::new(
+            VertexId::from_string("a"),
+            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("A".to_string()))].into_iter().collect())],
+        );
+        let v2 = Vertex::new(
+            VertexId::from_string("b"),
+            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("B".to_string()))].into_iter().collect())],
+        );
+        let v3 = Vertex::new(
+            VertexId::from_string("c"),
+            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("C".to_string()))].into_iter().collect())],
+        );
+        storage.insert_vertex("str_space", v1).unwrap();
+        storage.insert_vertex("str_space", v2).unwrap();
+        storage.insert_vertex("str_space", v3).unwrap();
+
+        let edge1 = Edge::new(
+            VertexId::from_string("b"),
+            VertexId::from_string("a"),
+            "LINK".to_string(),
+            0,
+            std::collections::HashMap::new(),
+        );
+        let edge2 = Edge::new(
+            VertexId::from_string("c"),
+            VertexId::from_string("a"),
+            "LINK".to_string(),
+            0,
+            std::collections::HashMap::new(),
+        );
+        storage.insert_edge("str_space", edge1).unwrap();
+        storage.insert_edge("str_space", edge2).unwrap();
+
+        let in_edges = storage
+            .get_node_edges("str_space", &VertexId::from_string("a"), EdgeDirection::In)
+            .unwrap();
+        assert_eq!(in_edges.len(), 2, "Node 'a' should have 2 incoming edges");
+
+        for edge in &in_edges {
+            assert_eq!(edge.dst, VertexId::from_string("a"), "dst should be 'a'");
+            assert!(
+                edge.src == VertexId::from_string("b") || edge.src == VertexId::from_string("c"),
+                "src should be 'b' or 'c', got {:?}",
+                edge.src
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_id_get_node_edges_out() {
+        let mut storage = create_test_storage();
+        setup_string_id_space(&mut storage);
+
+        let v1 = Vertex::new(
+            VertexId::from_string("a"),
+            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("A".to_string()))].into_iter().collect())],
+        );
+        let v2 = Vertex::new(
+            VertexId::from_string("b"),
+            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("B".to_string()))].into_iter().collect())],
+        );
+        storage.insert_vertex("str_space", v1).unwrap();
+        storage.insert_vertex("str_space", v2).unwrap();
+
+        let edge = Edge::new(
+            VertexId::from_string("a"),
+            VertexId::from_string("b"),
+            "LINK".to_string(),
+            0,
+            std::collections::HashMap::new(),
+        );
+        storage.insert_edge("str_space", edge).unwrap();
+
+        let out_edges = storage
+            .get_node_edges("str_space", &VertexId::from_string("a"), EdgeDirection::Out)
+            .unwrap();
+        assert_eq!(out_edges.len(), 1, "Node 'a' should have 1 outgoing edge");
+        assert_eq!(out_edges[0].src, VertexId::from_string("a"));
+        assert_eq!(out_edges[0].dst, VertexId::from_string("b"));
+    }
+
+    #[test]
+    fn test_string_id_scan_edges_by_type() {
+        let mut storage = create_test_storage();
+        setup_string_id_space(&mut storage);
+
+        let v1 = Vertex::new(
+            VertexId::from_string("x"),
+            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("X".to_string()))].into_iter().collect())],
+        );
+        let v2 = Vertex::new(
+            VertexId::from_string("y"),
+            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("Y".to_string()))].into_iter().collect())],
+        );
+        storage.insert_vertex("str_space", v1).unwrap();
+        storage.insert_vertex("str_space", v2).unwrap();
+
+        let edge = Edge::new(
+            VertexId::from_string("x"),
+            VertexId::from_string("y"),
+            "LINK".to_string(),
+            0,
+            std::collections::HashMap::new(),
+        );
+        storage.insert_edge("str_space", edge).unwrap();
+
+        let edges = storage.scan_edges_by_type("str_space", "LINK").unwrap();
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].src, VertexId::from_string("x"));
+        assert_eq!(edges[0].dst, VertexId::from_string("y"));
+    }
 }

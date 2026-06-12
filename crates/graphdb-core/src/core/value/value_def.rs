@@ -94,7 +94,7 @@ impl Value {
             Value::Map(_) => DataType::Map,
             Value::Set(_) => DataType::Set,
             Value::Geography(_) => DataType::Geography,
-            Value::Vector(_) => DataType::Vector,
+            Value::Vector(v) => DataType::VectorDense(v.dimension()),
             Value::DataSet(_) => DataType::DataSet,
             Value::Json(_) => DataType::Json,
             Value::JsonB(_) => DataType::JsonB,

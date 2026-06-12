@@ -13,6 +13,7 @@ pub mod merge_validator;
 pub mod remove_validator;
 pub mod set_validator;
 pub mod unwind_validator;
+pub mod transaction_validator;
 pub mod update_validator;
 
 pub use create_validator::CreateValidator;
@@ -30,6 +31,7 @@ pub use merge_validator::MergeValidator;
 pub use remove_validator::RemoveValidator;
 pub use set_validator::{SetItem, SetStatementType, SetValidator, ValidatedSet, ValidatedSetItem};
 pub use unwind_validator::{UnwindValidator, ValidatedUnwind};
+pub use crate::query::validator::statements::transaction_validator::TransactionValidator;
 pub use update_validator::UpdateValidator;
 
 pub use crate::query::validator::strategies::ExpressionValidationStrategy;

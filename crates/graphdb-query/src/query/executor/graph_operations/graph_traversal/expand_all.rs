@@ -593,7 +593,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             _ => Vec::new(),
         };
 
-        // If src_vids is set (from GO FROM clause), add those vertices as input nodes
         if !self.src_vids.is_empty() {
             let storage = self.get_storage().read();
             for vid in &self.src_vids {
@@ -603,20 +602,83 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             }
         }
 
+        // Special case: for edge-only patterns (MATCH ()-[e]->()) with specific edge types,
+        // directly scan edges by type instead of scanning all vertices and expanding.
+        // This is more efficient and avoids potential issues with vertex-based expansion.
+        let has_specific_edge_types = !self.any_edge_type && self.edge_types.as_ref().map_or(false, |t| !t.is_empty());
+        let is_from_go_clause = !self.src_vids.is_empty();
+
+        if has_specific_edge_types && !is_from_go_clause {
+            if let Some(ref edge_types) = self.edge_types {
+                if !edge_types.is_empty() {
+                    let storage = self.get_storage().read();
+                    let mut all_edges = Vec::new();
+
+                    // Scan edges for each specified edge type
+                    for edge_type in edge_types {
+                        match storage.scan_edges_by_type(&self.space_name, edge_type) {
+                            Ok(edges) => all_edges.extend(edges),
+                            Err(e) => {
+                                log::warn!("Failed to scan edges for type '{}': {}", edge_type, e);
+                            }
+                        }
+                    }
+
+                    // If we found edges, create a dataset with edge values
+                    if !all_edges.is_empty() {
+                        let mut dataset = DataSet::new();
+                        dataset.col_names = self.col_names.clone();
+
+                        for edge in all_edges {
+                            // Create a row with the edge value
+                            // Column format: [src, edge, dst] or just [edge] depending on col_names
+                            let mut row = Vec::new();
+
+                            if self.col_names.len() >= 3 {
+                                // Full format: src, edge, dst
+                                row.push(Value::Vertex(Box::new(Vertex::new(edge.src.clone(), Vec::new()))));
+                                row.push(Value::edge(edge.clone()));
+                                row.push(Value::Vertex(Box::new(Vertex::new(edge.dst, Vec::new()))));
+                            } else if self.col_names.len() == 1 {
+                                // Edge-only format: just the edge
+                                row.push(Value::edge(edge));
+                            } else {
+                                // Default format: edge only
+                                row.push(Value::edge(edge));
+                            }
+
+                            dataset.rows.push(row);
+                        }
+
+                        return Ok(ExecutionResult::DataSet(dataset));
+                    }
+                }
+            }
+        }
+
+        // Fallback: if no input nodes from executor, src_vids, or context,
+        // scan all vertices from the space. This handles MATCH ()-[e]->() patterns
+        // where no explicit input source is provided.
+        if input_nodes.is_empty() && self.input_executor.is_none() {
+            let storage = self.get_storage().read();
+            if let Ok(vertices) = storage.scan_vertices(&self.space_name) {
+                input_nodes = vertices;
+            }
+        }
+
         // Determine the maximum depth.
         let max_depth = self.max_depth.unwrap_or(3); // The default depth is 3.
 
-        for vertex in input_nodes {
+        for vertex in &input_nodes {
             self.visited_nodes.clear();
             self.visited_nodes.insert(vertex.vid);
 
-            let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
+            let initial_npath = Arc::new(NPath::new(Arc::new(vertex.clone())));
 
             let mut expanded_npaths = self.expand_paths_recursive(&initial_npath, 0, max_depth)?;
             self.npath_cache.append(&mut expanded_npaths);
         }
 
-        // Build the results.
         Ok(self.build_expansion_result())
     }
 

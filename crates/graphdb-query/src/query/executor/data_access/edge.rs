@@ -156,6 +156,7 @@ pub struct ScanEdgesExecutor<S: StorageReader> {
     edge_type: Option<String>,
     filter: Option<crate::core::Expression>,
     limit: Option<usize>,
+    space_name: String,
 }
 
 impl<S: StorageReader> ScanEdgesExecutor<S> {
@@ -172,7 +173,13 @@ impl<S: StorageReader> ScanEdgesExecutor<S> {
             edge_type,
             filter,
             limit,
+            space_name: "default".to_string(),
         }
+    }
+
+    pub fn with_space_name(mut self, space_name: String) -> Self {
+        self.space_name = space_name;
+        self
     }
 }
 
@@ -237,9 +244,9 @@ impl<S: StorageReader> ScanEdgesExecutor<S> {
         let storage = self.get_storage().read();
 
         let mut edges: Vec<vertex_edge_path::Edge> = if let Some(ref edge_type) = self.edge_type {
-            storage.scan_edges_by_type("default", edge_type)?
+            storage.scan_edges_by_type(&self.space_name, edge_type)?
         } else {
-            storage.scan_all_edges("default")?
+            storage.scan_all_edges(&self.space_name)?
         };
 
         if let Some(ref filter_expr) = self.filter {

@@ -796,6 +796,7 @@ impl MatchStatementPlanner {
         &self,
         edge: &crate::query::parser::ast::pattern::EdgePattern,
         space_id: u64,
+        space_name: &str,
     ) -> Result<SubPlan, PlannerError> {
         let direction = match edge.direction {
             crate::query::parser::ast::types::EdgeDirection::Out => "out",
@@ -863,6 +864,9 @@ impl MatchStatementPlanner {
             }
         }
 
+        // For edge-only patterns (no source node), the ExpandAllNode will use its fallback
+        // to scan all vertices from the space. This is handled in ExpandAllExecutor::do_execute
+        // when input_nodes is empty and input_executor is None.
         Ok(plan)
     }
 
@@ -1268,7 +1272,7 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
             Pattern::Node(node) => self.plan_pattern_node(node, space_id, space_name),
-            Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
+            Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id, space_name),
             Pattern::Path(_) => {
                 self.plan_path_pattern(pattern, space_id, space_name, validation_info, _qctx)
             }
@@ -1361,7 +1365,7 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         let opt_plan = match element {
             PathElement::Node(node) => self.plan_pattern_node(node, space_id, space_name)?,
-            PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
+            PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id, space_name)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
                     "Optional paths do not support nested complex patterns".to_string(),
@@ -1413,7 +1417,7 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         let base_plan = match element {
             PathElement::Node(node) => self.plan_pattern_node(node, space_id, space_name)?,
-            PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
+            PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id, space_name)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
                     "Repeated paths do not support nested complex patterns".to_string(),

@@ -249,6 +249,10 @@ impl<'a> ParseContext<'a> {
                 self.next_token();
                 Ok("vertex".to_string())
             }
+            TokenKind::KeywordVector => {
+                self.next_token();
+                Ok("VECTOR".to_string())
+            }
             TokenKind::Vertices => {
                 self.next_token();
                 Ok("vertices".to_string())
@@ -387,6 +391,21 @@ impl<'a> ParseContext<'a> {
             TokenKind::Lookup => keyword.eq_ignore_ascii_case("LOOKUP"),
             TokenKind::Match => keyword.eq_ignore_ascii_case("MATCH"),
             TokenKind::KeywordVector => keyword.eq_ignore_ascii_case("VECTOR"),
+            TokenKind::If => keyword.eq_ignore_ascii_case("IF"),
+            TokenKind::Not => keyword.eq_ignore_ascii_case("NOT"),
+            TokenKind::Exists => keyword.eq_ignore_ascii_case("EXISTS"),
+            TokenKind::User => keyword.eq_ignore_ascii_case("USER"),
+            TokenKind::Tag => keyword.eq_ignore_ascii_case("TAG"),
+            TokenKind::Edge => keyword.eq_ignore_ascii_case("EDGE"),
+            TokenKind::Space => keyword.eq_ignore_ascii_case("SPACE"),
+            TokenKind::Insert => keyword.eq_ignore_ascii_case("INSERT"),
+            TokenKind::Delete => keyword.eq_ignore_ascii_case("DELETE"),
+            TokenKind::Update => keyword.eq_ignore_ascii_case("UPDATE"),
+            TokenKind::Return => keyword.eq_ignore_ascii_case("RETURN"),
+            TokenKind::Where => keyword.eq_ignore_ascii_case("WHERE"),
+            TokenKind::Set => keyword.eq_ignore_ascii_case("SET"),
+            TokenKind::Remove => keyword.eq_ignore_ascii_case("REMOVE"),
+            TokenKind::Add => keyword.eq_ignore_ascii_case("ADD"),
             _ => false,
         }
     }

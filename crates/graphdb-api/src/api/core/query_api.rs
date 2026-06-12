@@ -79,6 +79,30 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         }
     }
 
+    /// Create a new QueryApi instance with both schema manager and sync manager support
+    pub fn with_schema_and_sync_manager(
+        storage: Arc<RwLock<S>>,
+        stats_manager: Arc<StatsManager>,
+        schema_manager: Arc<SchemaManager>,
+        sync_manager: Arc<SyncManager>,
+    ) -> Self {
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
+
+        let schema_provider = Arc::new(SchemaMetadataProvider::new(schema_manager.clone(), None));
+        let cached_provider = Arc::new(CachedMetadataProvider::new(schema_provider));
+
+        Self {
+            pipeline_manager: QueryPipelineManager::with_optimizer(
+                storage,
+                stats_manager,
+                optimizer_engine,
+            )
+            .with_schema_manager(schema_manager)
+            .with_metadata_provider(cached_provider)
+            .with_sync_manager(sync_manager),
+        }
+    }
+
     /// Create a new QueryApi instance with vector search support
     #[cfg(feature = "qdrant")]
     pub async fn with_vector_search(

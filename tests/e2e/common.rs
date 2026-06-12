@@ -10,18 +10,55 @@ use graphdb::core::metadata::SchemaManager;
 use graphdb::core::Value;
 use graphdb::core::StatsManager;
 use graphdb::query::OptimizerEngine;
+use graphdb::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
 use graphdb::storage::{GraphStorage, StorageClient, StorageSchemaContextOps};
+use graphdb::sync::{SyncConfig, SyncManager};
 use parking_lot::RwLock;
 use std::sync::Arc;
+use tempfile::TempDir;
+
+#[cfg(feature = "qdrant")]
+use vector_client::{VectorClientConfig, VectorManager};
 
 /// Test database wrapper with proper schema manager initialization
 pub struct TestDb {
+    temp_dir: Option<TempDir>,
     storage: Arc<RwLock<GraphStorage>>,
     stats_manager: Arc<StatsManager>,
     schema_manager: Arc<SchemaManager>,
     query_api: QueryApi<GraphStorage>,
     current_space_id: Option<u64>,
     current_space_name: Option<String>,
+}
+
+fn create_sync_manager() -> Arc<SyncManager> {
+    let fulltext_config = FulltextConfig::default();
+    let manager = Arc::new(
+        FulltextIndexManager::new(fulltext_config).expect("Failed to create fulltext manager"),
+    );
+    let sync_config = SyncConfig::default();
+    let batch_config = graphdb::sync::batch::BatchConfig::from(sync_config.clone());
+    let sync_coordinator = Arc::new(graphdb::sync::coordinator::SyncCoordinator::new(
+        manager,
+        batch_config,
+    ));
+
+    let mut sync_manager = SyncManager::with_sync_config(sync_coordinator, sync_config);
+
+    #[cfg(feature = "qdrant")]
+    {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+        let vector_manager = rt
+            .block_on(VectorManager::new(VectorClientConfig::disabled()))
+            .expect("Failed to create disabled vector manager");
+        let vector_coordinator = Arc::new(graphdb::sync::vector_sync::VectorSyncCoordinator::new(
+            Arc::new(vector_manager),
+            None,
+        ));
+        sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
+    }
+
+    Arc::new(sync_manager)
 }
 
 impl TestDb {
@@ -38,14 +75,16 @@ impl TestDb {
             .get_schema_manager()
             .expect("Storage should provide a schema manager");
 
-        let optimizer = Arc::new(OptimizerEngine::default());
-        let query_api = QueryApi::with_schema_manager(
+        let sync_manager = create_sync_manager();
+        let query_api = QueryApi::with_schema_and_sync_manager(
             storage.clone(),
             stats_manager.clone(),
             schema_manager.clone(),
+            sync_manager,
         );
 
         Self {
+            temp_dir: Some(temp_dir),
             storage,
             stats_manager,
             schema_manager,
@@ -66,14 +105,16 @@ impl TestDb {
             .get_schema_manager()
             .expect("Storage should provide a schema manager");
 
-        let optimizer = Arc::new(OptimizerEngine::default());
-        let query_api = QueryApi::with_schema_manager(
+        let sync_manager = create_sync_manager();
+        let query_api = QueryApi::with_schema_and_sync_manager(
             storage.clone(),
             stats_manager.clone(),
             schema_manager.clone(),
+            sync_manager,
         );
 
         Self {
+            temp_dir: None,
             storage,
             stats_manager,
             schema_manager,
@@ -113,7 +154,6 @@ impl TestDb {
         if result.columns.iter().any(|c| c == "space_name") {
             if let Some(row) = result.rows.first() {
                 if let Some(Value::String(name)) = row.values.get("space_name") {
-                    eprintln!("[DEBUG] Space switched to: id={:?}, name={:?}", row.values.get("space_id"), name);
                     self.current_space_name = Some(name.clone());
                 }
                 if let Some(Value::BigInt(id)) = row.values.get("space_id") {
@@ -193,8 +233,6 @@ pub fn load_gql_file(db: &mut TestDb, path: &str) -> CoreResult<()> {
             if !buffer.is_empty() {
                 stmt_num += 1;
                 if let Err(e) = db.execute_query(&buffer) {
-                    eprintln!("[LOAD_GQL] statement #{} failed: {}", stmt_num, e);
-                    eprintln!("[LOAD_GQL] statement: {}", buffer);
                     return Err(e);
                 }
                 buffer.clear();
@@ -208,8 +246,6 @@ pub fn load_gql_file(db: &mut TestDb, path: &str) -> CoreResult<()> {
             if !buffer.is_empty() {
                 stmt_num += 1;
                 if let Err(e) = db.execute_query(&buffer) {
-                    eprintln!("[LOAD_GQL] statement #{} failed: {}", stmt_num, e);
-                    eprintln!("[LOAD_GQL] statement: {}", buffer);
                     return Err(e);
                 }
             }
@@ -218,11 +254,9 @@ pub fn load_gql_file(db: &mut TestDb, path: &str) -> CoreResult<()> {
     }
     if !buffer.is_empty() {
         stmt_num += 1;
-        if let Err(e) = db.execute_query(&buffer) {
-            eprintln!("[LOAD_GQL] statement #{} failed: {}", stmt_num, e);
-            eprintln!("[LOAD_GQL] statement: {}", buffer);
-            return Err(e);
-        }
+                if let Err(e) = db.execute_query(&buffer) {
+                    return Err(e);
+                }
     }
 
     Ok(())

@@ -68,6 +68,13 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         storage: Arc<RwLock<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        let space_name = {
+            let storage_guard = storage.read();
+            match storage_guard.get_space_by_id(node.space_id()) {
+                Ok(Some(space_info)) => space_info.space_name,
+                _ => "default".to_string(),
+            }
+        };
         let executor = ScanEdgesExecutor::new(
             node.id(),
             storage,
@@ -75,7 +82,8 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
             node.filter().and_then(|f| f.get_expression()),
             node.limit().map(|l| l as usize),
             context.expression_context().clone(),
-        );
+        )
+        .with_space_name(space_name);
         Ok(ExecutorEnum::ScanEdges(executor))
     }
 

@@ -244,11 +244,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
     /// Single-threaded filtering
     fn apply_filter_single(&self, dataset: &mut DataSet) -> DBResult<()> {
-        eprintln!(
-            "[DEBUG] FilterExecutor::apply_filter_single: col_names={:?}, rows={}",
-            dataset.col_names,
-            dataset.rows.len()
-        );
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
@@ -319,20 +314,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                 })
                 .collect();
             context.set_variable("row".to_string(), crate::core::Value::map(row_map));
-
-            // Debug
-            eprintln!("[DEBUG] Filter condition: {:?}", self.condition);
-            eprintln!("[DEBUG] Row values: {:?}", row);
-            let vars: Vec<_> = (0..dataset.col_names.len())
-                .map(|i| {
-                    if i < row.len() {
-                        format!("{}={:?}", dataset.col_names[i], row[i])
-                    } else {
-                        format!("{}=", dataset.col_names[i])
-                    }
-                })
-                .collect();
-            eprintln!("[DEBUG] Variables: {}", vars.join(", "));
 
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {

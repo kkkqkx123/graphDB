@@ -236,6 +236,11 @@ pub enum StatementType {
     SearchVector,
     LookupVector,
     MatchVector,
+
+    // Transaction statements
+    BeginTransaction,
+    CommitTransaction,
+    RollbackTransaction,
 }
 
 impl StatementType {
@@ -343,6 +348,11 @@ impl StatementType {
             StatementType::SearchVector => "SEARCH_VECTOR",
             StatementType::LookupVector => "LOOKUP_VECTOR",
             StatementType::MatchVector => "MATCH_VECTOR",
+
+            // Transaction statements
+            StatementType::BeginTransaction => "BEGIN_TRANSACTION",
+            StatementType::CommitTransaction => "COMMIT_TRANSACTION",
+            StatementType::RollbackTransaction => "ROLLBACK_TRANSACTION",
         }
     }
 

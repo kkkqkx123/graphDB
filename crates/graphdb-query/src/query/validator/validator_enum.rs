@@ -48,6 +48,7 @@ use crate::query::validator::statements::match_validator::MatchValidator;
 use crate::query::validator::statements::merge_validator::MergeValidator;
 use crate::query::validator::statements::remove_validator::RemoveValidator;
 use crate::query::validator::statements::set_validator::SetValidator;
+use crate::query::validator::statements::transaction_validator::TransactionValidator;
 use crate::query::validator::statements::unwind_validator::UnwindValidator;
 use crate::query::validator::statements::update_validator::UpdateValidator;
 use crate::query::validator::utility::acl_validator::{
@@ -189,11 +190,13 @@ pub enum Validator {
     /// CLEAR SPACE Statement Validator
     ClearSpace(ClearSpaceValidator),
 
-    // Full-text Search validators
-    /// Full-text search statement validator
-    Fulltext(FulltextValidator),
-    /// Vector search statement validator
-    Vector(VectorValidator),
+     // Full-text Search validators
+     /// Full-text search statement validator
+     Fulltext(FulltextValidator),
+     /// Vector search statement validator
+     Vector(VectorValidator),
+     /// Transaction statement validator
+     Transaction(TransactionValidator),
 }
 
 impl Validator {
@@ -256,6 +259,7 @@ impl Validator {
             Validator::ClearSpace(v) => v.statement_type(),
             Validator::Fulltext(v) => v.statement_type(),
             Validator::Vector(v) => v.statement_type(),
+            Validator::Transaction(v) => v.statement_type(),
         }
     }
 
@@ -430,6 +434,9 @@ impl Validator {
             Validator::Vector(v) => v
                 .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Transaction(v) => v
+                .validate(ast, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
         }
     }
 
@@ -492,6 +499,7 @@ impl Validator {
             Validator::ClearSpace(v) => v.inputs().to_vec(),
             Validator::Fulltext(v) => v.inputs().to_vec(),
             Validator::Vector(v) => v.inputs().to_vec(),
+            Validator::Transaction(v) => v.inputs().to_vec(),
         }
     }
 
@@ -554,6 +562,7 @@ impl Validator {
             Validator::ClearSpace(v) => v.outputs().to_vec(),
             Validator::Fulltext(v) => v.outputs().to_vec(),
             Validator::Vector(v) => v.outputs().to_vec(),
+            Validator::Transaction(v) => v.outputs().to_vec(),
         }
     }
 }
@@ -673,12 +682,16 @@ impl Validator {
             Stmt::Search(_) => StatementType::Search,
             Stmt::LookupFulltext(_) => StatementType::LookupFulltext,
             Stmt::MatchFulltext(_) => StatementType::MatchFulltext,
-            // Vector Search statements
-            Stmt::CreateVectorIndex(_) => StatementType::CreateVectorIndex,
-            Stmt::DropVectorIndex(_) => StatementType::DropVectorIndex,
-            Stmt::SearchVector(_) => StatementType::SearchVector,
-            Stmt::LookupVector(_) => StatementType::LookupVector,
-            Stmt::MatchVector(_) => StatementType::MatchVector,
+             // Vector Search statements
+             Stmt::CreateVectorIndex(_) => StatementType::CreateVectorIndex,
+             Stmt::DropVectorIndex(_) => StatementType::DropVectorIndex,
+             Stmt::SearchVector(_) => StatementType::SearchVector,
+             Stmt::LookupVector(_) => StatementType::LookupVector,
+             Stmt::MatchVector(_) => StatementType::MatchVector,
+             // Transaction statements
+             Stmt::BeginTransaction(_) => StatementType::BeginTransaction,
+             Stmt::CommitTransaction(_) => StatementType::CommitTransaction,
+             Stmt::RollbackTransaction(_) => StatementType::RollbackTransaction,
         }
     }
 
@@ -758,11 +771,21 @@ impl Validator {
             | StatementType::Search
             | StatementType::LookupFulltext
             | StatementType::MatchFulltext => Validator::Fulltext(FulltextValidator::new()),
-            StatementType::CreateVectorIndex
-            | StatementType::DropVectorIndex
-            | StatementType::SearchVector
-            | StatementType::LookupVector
-            | StatementType::MatchVector => Validator::Vector(VectorValidator::new()),
+             StatementType::CreateVectorIndex
+             | StatementType::DropVectorIndex
+             | StatementType::SearchVector
+             | StatementType::LookupVector
+             | StatementType::MatchVector => Validator::Vector(VectorValidator::new()),
+             // Transaction statements
+             StatementType::BeginTransaction => {
+                 Validator::Transaction(TransactionValidator::new(StatementType::BeginTransaction))
+             }
+             StatementType::CommitTransaction => {
+                 Validator::Transaction(TransactionValidator::new(StatementType::CommitTransaction))
+             }
+             StatementType::RollbackTransaction => {
+                 Validator::Transaction(TransactionValidator::new(StatementType::RollbackTransaction))
+             }
             StatementType::DropSpace
             | StatementType::DropTag
             | StatementType::DropEdge
@@ -836,6 +859,7 @@ impl Validator {
             Validator::ClearSpace(v) => v.user_defined_vars(),
             Validator::Fulltext(v) => v.user_defined_vars(),
             Validator::Vector(v) => v.user_defined_vars(),
+            Validator::Transaction(v) => v.user_defined_vars(),
         }
     }
 
@@ -903,6 +927,7 @@ impl Validator {
             Validator::ClearSpace(v) => v.expression_props(),
             Validator::Fulltext(v) => v.expression_props(),
             Validator::Vector(v) => v.expression_props(),
+            Validator::Transaction(v) => v.expression_props(),
         }
     }
 }

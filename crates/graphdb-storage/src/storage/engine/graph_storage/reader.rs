@@ -12,6 +12,19 @@ use super::ops::{
     vertex_record_to_vertex,
 };
 
+/// Convert a VertexId to its external string representation.
+/// For string IDs, returns the raw string without quotes.
+/// For integer IDs, returns the integer as a string.
+fn vid_to_string(vid: &VertexId) -> String {
+    if let Some(s) = vid.as_str() {
+        s.to_string()
+    } else if let Some(i) = vid.as_int64() {
+        i.to_string()
+    } else {
+        format!("{:?}", vid.as_bytes())
+    }
+}
+
 pub(crate) fn get_vertex(
     ctx: &GraphStorageContext,
     space: &str,
@@ -238,6 +251,7 @@ pub(crate) fn get_node_edges(
             Some(id) => id,
             None => continue,
         };
+
         match direction {
             EdgeDirection::Out => {
                 if let Some(out_edges) =
@@ -247,10 +261,14 @@ pub(crate) fn get_node_edges(
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
                         let dst_external = if dst_label_id != 0 {
                             ctx.get_external_id(dst_label_id, dst_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                                .or_else(|| {
+                                    ctx.get_external_id_by_internal_id(dst_label_id, dst_internal)
+                                        .map(|v| vid_to_string(&v))
+                                })
+                                .unwrap_or_else(|| vid_to_string(&record.dst_vid))
                         } else {
                             ctx.get_external_id_any(dst_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                                .unwrap_or_else(|| vid_to_string(&record.dst_vid))
                         };
 
                         let edge =
@@ -267,10 +285,14 @@ pub(crate) fn get_node_edges(
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
                         let src_external = if src_label_id != 0 {
                             ctx.get_external_id(src_label_id, src_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                                .or_else(|| {
+                                    ctx.get_external_id_by_internal_id(src_label_id, src_internal)
+                                        .map(|v| vid_to_string(&v))
+                                })
+                                .unwrap_or_else(|| vid_to_string(&record.src_vid))
                         } else {
                             ctx.get_external_id_any(src_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                                .unwrap_or_else(|| vid_to_string(&record.src_vid))
                         };
 
                         let edge =
@@ -287,10 +309,14 @@ pub(crate) fn get_node_edges(
                         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
                         let dst_external = if dst_label_id != 0 {
                             ctx.get_external_id(dst_label_id, dst_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                                .or_else(|| {
+                                    ctx.get_external_id_by_internal_id(dst_label_id, dst_internal)
+                                        .map(|v| vid_to_string(&v))
+                                })
+                                .unwrap_or_else(|| vid_to_string(&record.dst_vid))
                         } else {
                             ctx.get_external_id_any(dst_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.dst_vid))
+                                .unwrap_or_else(|| vid_to_string(&record.dst_vid))
                         };
 
                         let edge =
@@ -305,10 +331,14 @@ pub(crate) fn get_node_edges(
                         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
                         let src_external = if src_label_id != 0 {
                             ctx.get_external_id(src_label_id, src_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                                .or_else(|| {
+                                    ctx.get_external_id_by_internal_id(src_label_id, src_internal)
+                                        .map(|v| vid_to_string(&v))
+                                })
+                                .unwrap_or_else(|| vid_to_string(&record.src_vid))
                         } else {
                             ctx.get_external_id_any(src_internal, ts)
-                                .unwrap_or_else(|| format!("{}", record.src_vid))
+                                .unwrap_or_else(|| vid_to_string(&record.src_vid))
                         };
 
                         let edge =

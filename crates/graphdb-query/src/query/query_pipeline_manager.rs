@@ -800,6 +800,22 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                     }
                 }
             }
+            Stmt::CreateFulltextIndex(create) => {
+                // Pre-resolve tag metadata for the target schema of the fulltext index
+                if !create.schema_name.is_empty() {
+                    match metadata_provider.get_tag_metadata(space_id, &create.schema_name) {
+                        Ok(tag_metadata) => {
+                            context.set_tag_metadata(create.schema_name.clone(), tag_metadata);
+                        }
+                        Err(e) => {
+                            return Err(DBError::from(QueryError::invalid_query(format!(
+                                "Tag '{}' not found: {}",
+                                create.schema_name, e
+                            ))));
+                        }
+                    }
+                }
+            }
             // For other statement types, we can extend metadata resolution as needed
             _ => {
                 // No specific metadata resolution for other statement types yet

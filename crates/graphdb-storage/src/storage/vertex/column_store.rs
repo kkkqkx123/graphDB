@@ -8,8 +8,9 @@
 //! - `VariableWidthColumn`: For variable-length types (String)
 //! - `Column`: Public wrapper that selects the appropriate variant at construction time
 
-use crate::core::value::{DateTimeValue, DateValue, TimeValue};
+use crate::core::value::{DateTimeValue, DateValue, TimeValue, VectorValue};
 use crate::core::{DataType, StorageError, StorageResult, Value};
+
 use crate::storage::encoding::{
     ColumnEncoding, ColumnStats, CompressionConfig, CompressionSelector, EncodingType, FsstColumn,
     FsstEncoder,
@@ -79,6 +80,8 @@ pub fn is_variable_length_type(data_type: &DataType) -> bool {
             | DataType::Edge
             | DataType::Path
             | DataType::Vector
+            | DataType::VectorDense(_)
+            | DataType::VectorSparse(_)
             | DataType::DataSet
             | DataType::Json
             | DataType::JsonB
@@ -327,6 +330,18 @@ impl ColumnStorage for VariableWidthColumn {
             serde_json::from_slice::<crate::core::value::Geography>(bytes)
                 .ok()
                 .map(Value::Geography)
+        } else if matches!(self.data_type, DataType::Vector) {
+            if bytes.len() % std::mem::size_of::<f32>() == 0 {
+                let dim = bytes.len() / std::mem::size_of::<f32>();
+                let mut data = Vec::with_capacity(dim);
+                for i in 0..dim {
+                    let chunk: [u8; 4] = bytes[i * 4..(i + 1) * 4].try_into().ok()?;
+                    data.push(f32::from_le_bytes(chunk));
+                }
+                Some(Value::Vector(VectorValue::dense(data)))
+            } else {
+                None
+            }
         } else {
             String::from_utf8(bytes.to_vec()).ok().map(Value::String)
         }
@@ -593,6 +608,16 @@ fn write_variable_value(data: &mut Vec<u8>, value: &Value) -> StorageResult<()> 
             let len = json.len() as u64;
             data.extend_from_slice(&len.to_le_bytes());
             data.extend_from_slice(&json);
+        }
+        Value::Vector(vec) => {
+            let dense = vec.to_dense();
+            let bytes = dense
+                .iter()
+                .flat_map(|f| f.to_le_bytes())
+                .collect::<Vec<u8>>();
+            let len = bytes.len() as u64;
+            data.extend_from_slice(&len.to_le_bytes());
+            data.extend_from_slice(&bytes);
         }
         _ => {
             return Err(StorageError::type_mismatch(

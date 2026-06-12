@@ -111,6 +111,10 @@ pub enum Stmt {
     SearchVector(SearchVectorStatement),
     LookupVector(LookupVector),
     MatchVector(MatchVector),
+    // Transaction statements
+    BeginTransaction(BeginTransactionStmt),
+    CommitTransaction(CommitTransactionStmt),
+    RollbackTransaction(RollbackTransactionStmt),
 }
 
 impl Stmt {
@@ -171,12 +175,16 @@ impl Stmt {
             Stmt::Search(s) => s.span,
             Stmt::LookupFulltext(s) => s.span,
             Stmt::MatchFulltext(s) => s.span,
-            // Vector search statements
-            Stmt::CreateVectorIndex(s) => s.span,
-            Stmt::DropVectorIndex(s) => s.span,
-            Stmt::SearchVector(s) => s.span,
-            Stmt::LookupVector(s) => s.span,
-            Stmt::MatchVector(s) => s.span,
+             // Vector search statements
+             Stmt::CreateVectorIndex(s) => s.span,
+             Stmt::DropVectorIndex(s) => s.span,
+             Stmt::SearchVector(s) => s.span,
+             Stmt::LookupVector(s) => s.span,
+             Stmt::MatchVector(s) => s.span,
+             // Transaction statements
+             Stmt::BeginTransaction(s) => s.span,
+             Stmt::CommitTransaction(s) => s.span,
+             Stmt::RollbackTransaction(s) => s.span,
         }
     }
 
@@ -243,14 +251,18 @@ impl Stmt {
             Stmt::Search(_) => "SEARCH",
             Stmt::LookupFulltext(_) => "LOOKUP FULLTEXT",
             Stmt::MatchFulltext(_) => "MATCH FULLTEXT",
-            // Vector search statements
-            Stmt::CreateVectorIndex(_) => "CREATE VECTOR INDEX",
-            Stmt::DropVectorIndex(_) => "DROP VECTOR INDEX",
-            Stmt::SearchVector(_) => "SEARCH VECTOR",
-            Stmt::LookupVector(_) => "LOOKUP VECTOR",
-            Stmt::MatchVector(_) => "MATCH VECTOR",
-        }
-    }
+             // Vector search statements
+             Stmt::CreateVectorIndex(_) => "CREATE VECTOR INDEX",
+             Stmt::DropVectorIndex(_) => "DROP VECTOR INDEX",
+             Stmt::SearchVector(_) => "SEARCH VECTOR",
+             Stmt::LookupVector(_) => "LOOKUP VECTOR",
+             Stmt::MatchVector(_) => "MATCH VECTOR",
+             // Transaction statements
+             Stmt::BeginTransaction(_) => "BEGIN TRANSACTION",
+             Stmt::CommitTransaction(_) => "COMMIT TRANSACTION",
+             Stmt::RollbackTransaction(_) => "ROLLBACK TRANSACTION",
+         }
+     }
 
     // Type conversion methods
     pub fn as_query(&self) -> Option<&QueryStmt> {
@@ -1620,6 +1632,24 @@ pub enum ShowCreateTarget {
 pub struct ClearSpaceStmt {
     pub span: Span,
     pub space_name: String,
+}
+
+/// BEGIN TRANSACTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct BeginTransactionStmt {
+    pub span: Span,
+}
+
+/// COMMIT TRANSACTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommitTransactionStmt {
+    pub span: Span,
+}
+
+/// ROLLBACK TRANSACTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct RollbackTransactionStmt {
+    pub span: Span,
 }
 
 #[cfg(test)]

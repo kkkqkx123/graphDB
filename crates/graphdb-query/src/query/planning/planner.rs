@@ -239,7 +239,10 @@ impl PlannerEnum {
             | Stmt::KillQuery(_)
             | Stmt::ShowConfigs(_)
             | Stmt::UpdateConfigs(_)
-            | Stmt::ClearSpace(_) => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
+            | Stmt::ClearSpace(_)
+            | Stmt::BeginTransaction(_)
+            | Stmt::CommitTransaction(_)
+            | Stmt::RollbackTransaction(_) => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
             // The type of the following sentence does not currently support direct planning.
             _ => None,
         }

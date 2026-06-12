@@ -1106,14 +1106,14 @@ impl GraphStorageContext {
     }
 
     pub fn scan_edges_by_label(&self, edge_label: LabelId, ts: Timestamp) -> Vec<EdgeRecord> {
-        self.persistent
-            .data_store
-            .edge_tables()
-            .read()
-            .values()
-            .find(|t| t.label() == edge_label)
-            .map(|t| t.scan(ts))
-            .unwrap_or_default()
+        let edge_tables = self.persistent.data_store.edge_tables().read();
+        let mut records = Vec::new();
+
+        for table in edge_tables.values().filter(|table| table.label() == edge_label) {
+            records.extend(table.scan(ts));
+        }
+
+        records
     }
 
     pub fn total_vertex_count(&self) -> usize {

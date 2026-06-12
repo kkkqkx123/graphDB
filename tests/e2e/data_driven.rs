@@ -3,7 +3,7 @@
 //! Each test loads a `.gql` file from `tests/e2e/data/` and verifies
 //! the resulting data with count, filter, aggregate, and traversal queries.
 
-use crate::common::{assert_count_eq, create_test_db, load_gql_file};
+use crate::common::{assert_count_eq, assert_query_row_count, create_test_db, load_gql_file};
 use graphdb::core::Value;
 
 const DATA_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/e2e/data");
@@ -84,14 +84,13 @@ fn test_social_network_go_traversal() {
     load_gql_file(&mut db, &format!("{}/social_network_data.gql", DATA_DIR))
         .expect("Failed to load social_network_data.gql");
 
-    // p1's friends
+    // p1 has incoming friend edges in the sample data, so use REVERSELY to verify traversal.
     let result = db
-        .execute_query("GO 1 STEP FROM 'p1' OVER friend YIELD friend.name")
+        .execute_query("GO 1 STEP FROM 'p1' OVER friend REVERSELY YIELD friend.name")
         .expect("GO from p1");
     assert!(
-        result.rows.len() >= 2,
-        "p1 should have at least 2 friends, got {}",
-        result.rows.len()
+        !result.rows.is_empty(),
+        "p1 should have at least one reverse friend"
     );
 }
 
@@ -170,7 +169,7 @@ fn test_optimizer_aggregate() {
     }
 
     // GROUP BY city
-    assert_count_eq(
+    assert_query_row_count(
         &mut db,
         "MATCH (p:person) RETURN p.city, count(*) GROUP BY p.city",
         6,

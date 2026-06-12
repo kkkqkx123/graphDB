@@ -276,6 +276,10 @@ impl std::fmt::Debug for VectorSyncCoordinator {
 }
 
 impl VectorSyncCoordinator {
+    fn is_disabled_engine(&self) -> bool {
+        self.vector_manager.engine().name() == "disabled"
+    }
+
     /// Create a new vector sync coordinator
     pub fn new(
         vector_manager: Arc<VectorManager>,
@@ -333,6 +337,20 @@ impl VectorSyncCoordinator {
     ) -> VectorCoordinatorResult<String> {
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
+
+        if self.is_disabled_engine() {
+            let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
+            let meta = vector_client::manager::IndexMetadata::new(
+                collection_name.clone(),
+                vector_client::CollectionConfig::new(vector_size, distance),
+            );
+            self.logical_indexes.insert(logical_key, meta);
+            info!(
+                "Logical vector index created in disabled mode: space={} tag={} field={} in collection {}",
+                space_id, tag_name, field_name, collection_name
+            );
+            return Ok(collection_name);
+        }
 
         let hnsw_config = vector_client::HnswConfig::new(16, 100).with_payload_m(16);
         let config =
@@ -647,6 +665,10 @@ impl VectorSyncCoordinator {
 
     /// Handle vector change (direct sync mode)
     pub async fn on_vector_change(&self, ctx: VectorChangeContext) -> VectorCoordinatorResult<()> {
+        if self.is_disabled_engine() {
+            return Ok(());
+        }
+
         let collection_name = ctx.location.to_collection_name();
         let point_id = ctx.data.id.to_string();
 
@@ -721,6 +743,10 @@ impl VectorSyncCoordinator {
         &self,
         contexts: Vec<VectorChangeContext>,
     ) -> VectorCoordinatorResult<()> {
+        if self.is_disabled_engine() {
+            return Ok(());
+        }
+
         let mut upsert_by_collection: HashMap<String, Vec<VectorPoint>> = HashMap::new();
         let mut delete_by_collection: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -804,6 +830,9 @@ impl VectorSyncCoordinator {
         collection: &str,
         query: SearchQuery,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        if self.is_disabled_engine() {
+            return Ok(Vec::new());
+        }
         let results = self.vector_manager.search(collection, query).await?;
         Ok(results)
     }
@@ -813,6 +842,9 @@ impl VectorSyncCoordinator {
         &self,
         options: SearchOptions,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        if self.is_disabled_engine() {
+            return Ok(Vec::new());
+        }
         let collection_name =
             VectorIndexLocation::new(options.space_id, &options.tag_name, &options.field_name)
                 .to_collection_name();
@@ -842,6 +874,9 @@ impl VectorSyncCoordinator {
         query_vector: Vec<f32>,
         limit: usize,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        if self.is_disabled_engine() {
+            return Ok(Vec::new());
+        }
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
@@ -863,6 +898,9 @@ impl VectorSyncCoordinator {
         limit: usize,
         threshold: f32,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        if self.is_disabled_engine() {
+            return Ok(Vec::new());
+        }
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 
@@ -886,6 +924,9 @@ impl VectorSyncCoordinator {
         limit: usize,
         filter: VectorFilter,
     ) -> VectorCoordinatorResult<Vec<SearchResult>> {
+        if self.is_disabled_engine() {
+            return Ok(Vec::new());
+        }
         let collection_name =
             VectorIndexLocation::new(space_id, tag_name, field_name).to_collection_name();
 

@@ -396,6 +396,8 @@ pub(crate) fn insert_edge(ctx: &GraphStorageContext, space: &str, edge: Edge) ->
         rollback_edges(ctx, space_info.space_id, &rollback, ts);
     }
 
+    ctx.version_manager().release_insert_timestamp(ts);
+
     result
 }
 
@@ -409,7 +411,6 @@ fn insert_edge_at_timestamp(
 ) -> StorageResult<()> {
     let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
     let edge_label_id = edge_type.edge_type_id;
-    eprintln!("[DEBUG insert_edge] edge_type={} src_tag={} dst_tag={} edge_label_id={}", edge.edge_type, edge_type.src_tag_name, edge_type.dst_tag_name, edge_label_id);
     let src_label_id =
         endpoint_label_id(ctx, space, &edge_type.src_tag_name)?.ok_or_else(|| {
             StorageError::not_found(format!("Source tag {} not found", edge_type.src_tag_name))
@@ -554,6 +555,8 @@ pub(crate) fn delete_edge(
         )));
     }
 
+    ctx.version_manager().release_insert_timestamp(ts);
+
     Ok(())
 }
 
@@ -580,6 +583,9 @@ pub(crate) fn batch_insert_edges(
             return Err(e);
         }
     }
+
+    ctx.version_manager().release_insert_timestamp(ts);
+
     Ok(())
 }
 
@@ -712,7 +718,10 @@ pub(crate) fn insert_edge_data(
     });
 
     match result {
-        Ok(_) => Ok(true),
+        Ok(_) => {
+            ctx.version_manager().release_insert_timestamp(ts);
+            Ok(true)
+        }
         Err(e) => {
             if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists {
                 return Ok(false);

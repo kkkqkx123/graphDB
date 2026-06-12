@@ -336,9 +336,13 @@ impl<'a> ExprParser<'a> {
                     if let Expression::List(elements) = expression.expr.clone() {
                         let mut vector_data = Vec::with_capacity(elements.len());
                         for elem in elements {
-                            if let Expression::Literal(Value::Float(f)) = elem {
+                            if let Expression::Literal(Value::Double(f)) = elem {
+                                vector_data.push(f as f32);
+                            } else if let Expression::Literal(Value::Float(f)) = elem {
                                 vector_data.push(f);
                             } else if let Expression::Literal(Value::Int(i)) = elem {
+                                vector_data.push(i as f32);
+                            } else if let Expression::Literal(Value::BigInt(i)) = elem {
                                 vector_data.push(i as f32);
                             } else {
                                 return Err(ParseError::new(

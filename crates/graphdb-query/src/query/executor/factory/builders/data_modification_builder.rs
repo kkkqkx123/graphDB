@@ -132,6 +132,49 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
     fn evaluate_literal(expr: &crate::core::Expression) -> Option<Value> {
         match expr {
             crate::core::Expression::Literal(value) => Some(value.clone()),
+            crate::core::Expression::Vector(data) => Some(Value::vector(data.clone())),
+            crate::core::Expression::List(elements) => {
+                if elements.is_empty() {
+                    return None;
+                }
+                let mut f32_values = Vec::with_capacity(elements.len());
+                for e in elements.iter() {
+                    match e {
+                        crate::core::Expression::Literal(Value::Float(v)) => {
+                            f32_values.push(*v);
+                        }
+                        crate::core::Expression::Literal(Value::Double(v)) => {
+                            f32_values.push(*v as f32);
+                        }
+                        crate::core::Expression::Literal(Value::Int(v)) => {
+                            f32_values.push(*v as f32);
+                        }
+                        crate::core::Expression::Literal(Value::BigInt(v)) => {
+                            f32_values.push(*v as f32);
+                        }
+                        crate::core::Expression::Unary {
+                            op: crate::core::types::operators::UnaryOperator::Minus,
+                            operand,
+                        } => match operand.as_ref() {
+                            crate::core::Expression::Literal(Value::Float(v)) => {
+                                f32_values.push(-*v);
+                            }
+                            crate::core::Expression::Literal(Value::Double(v)) => {
+                                f32_values.push(-*v as f32);
+                            }
+                            crate::core::Expression::Literal(Value::Int(v)) => {
+                                f32_values.push(-*v as f32);
+                            }
+                            crate::core::Expression::Literal(Value::BigInt(v)) => {
+                                f32_values.push(-*v as f32);
+                            }
+                            _ => return None,
+                        },
+                        _ => return None,
+                    }
+                }
+                Some(Value::vector(f32_values))
+            }
             crate::core::Expression::Function { .. } => {
                 use crate::query::executor::expression::evaluator::ExpressionEvaluator;
                 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;

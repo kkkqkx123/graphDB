@@ -77,17 +77,22 @@ impl StmtParser {
             TokenKind::Set => UtilStmtParser::new().parse_set_statement(ctx),
             TokenKind::Remove => UtilStmtParser::new().parse_remove_statement(ctx),
 
-            // Full-text search statements
-            // Check if it's SEARCH VECTOR or SEARCH INDEX
-            TokenKind::Search => {
-                // Peek ahead to check if it's SEARCH VECTOR
-                if ctx.check_keyword_sequence(&["SEARCH", "VECTOR"]) {
-                    // It's a vector search, call vector parser
-                    return crate::query::parser::parsing::vector_parser::parse_vector(ctx);
-                }
-                // Otherwise, it's a fulltext search
-                self.parse_fulltext_statement(ctx)
-            }
+             // Transaction statements
+             TokenKind::Begin => self.parse_begin_transaction(ctx),
+             TokenKind::Commit => self.parse_commit_transaction(ctx),
+             TokenKind::Rollback => self.parse_rollback_transaction(ctx),
+
+             // Full-text search statements
+             // Check if it's SEARCH VECTOR or SEARCH INDEX
+             TokenKind::Search => {
+                 // Peek ahead to check if it's SEARCH VECTOR
+                 if ctx.check_keyword_sequence(&["SEARCH", "VECTOR"]) {
+                     // It's a vector search, call vector parser
+                     return crate::query::parser::parsing::vector_parser::parse_vector(ctx);
+                 }
+                 // Otherwise, it's a fulltext search
+                 self.parse_fulltext_statement(ctx)
+             }
 
             // Variable assignment statement ($var = statement)
             TokenKind::Dollar => self.parse_assignment_statement(ctx),
@@ -621,6 +626,54 @@ impl StmtParser {
 
         // Continue to check whether there are any more set operations.
         self.parse_set_operation_suffix(ctx, set_op_stmt)
+    }
+
+    /// Parse BEGIN TRANSACTION statement
+    fn parse_begin_transaction(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Begin)?;
+
+        // Optional: TRANSACTION keyword
+        if ctx.check_token(TokenKind::Transaction) {
+            ctx.expect_token(TokenKind::Transaction)?;
+        }
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::BeginTransaction(BeginTransactionStmt { span }))
+    }
+
+    /// Parse COMMIT TRANSACTION statement
+    fn parse_commit_transaction(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Commit)?;
+
+        // Optional: TRANSACTION keyword
+        if ctx.check_token(TokenKind::Transaction) {
+            ctx.expect_token(TokenKind::Transaction)?;
+        }
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::CommitTransaction(CommitTransactionStmt { span }))
+    }
+
+    /// Parse ROLLBACK TRANSACTION statement
+    fn parse_rollback_transaction(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Rollback)?;
+
+        // Optional: TRANSACTION keyword
+        if ctx.check_token(TokenKind::Transaction) {
+            ctx.expect_token(TokenKind::Transaction)?;
+        }
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::RollbackTransaction(RollbackTransactionStmt { span }))
     }
 }
 

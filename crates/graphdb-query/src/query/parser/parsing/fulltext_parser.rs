@@ -72,6 +72,9 @@ pub fn parse_create_fulltext_index(
 pub fn parse_create_fulltext_index_after_create(
     ctx: &mut ParseContext,
 ) -> Result<Stmt, crate::query::parser::ParseError> {
+    ctx.consume_keyword("FULLTEXT")?;
+    ctx.consume_keyword("INDEX")?;
+
     let if_not_exists = if ctx.check_keyword("IF") {
         ctx.consume_keyword("IF")?;
         ctx.consume_keyword("NOT")?;
@@ -80,9 +83,6 @@ pub fn parse_create_fulltext_index_after_create(
     } else {
         false
     };
-
-    ctx.consume_keyword("FULLTEXT")?;
-    ctx.consume_keyword("INDEX")?;
 
     let index_name = ctx.consume_identifier()?;
     ctx.consume_keyword("ON")?;
@@ -140,7 +140,7 @@ pub fn parse_create_fulltext_index_after_create(
 
         loop {
             let key = ctx.consume_identifier()?;
-            ctx.expect_token(TokenKind::Eq)?;
+            ctx.expect_token(TokenKind::Assign)?;
 
             match key.to_lowercase().as_str() {
                 "k1" => {

@@ -138,12 +138,12 @@ mod vector {
             &[],
         ).expect("Failed to setup test space");
 
-        // Insert vector
+        // Insert vector using VECTOR cast syntax
         let vector = vec![0.1; 128];
         let vector_str = vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
 
         let result = db.execute_query(&format!(
-            "INSERT VERTEX product_vector(product_id, name, category, embedding, price) VALUES 'pv_test': ('TEST001', 'Test Product', 'test', [{}], 99.99)",
+            "INSERT VERTEX product_vector(product_id, name, category, embedding, price) VALUES 'pv_test': ('TEST001', 'Test Product', 'test', [{}]::VECTOR, 99.99)",
             vector_str
         ));
         assert_query_ok(result, "INSERT VECTOR should succeed");
@@ -166,7 +166,7 @@ mod vector {
             let vector_str = vector.iter().map(|v| format!("{:.4}", v)).collect::<Vec<_>>().join(", ");
 
             db.execute_query(&format!(
-                "INSERT VERTEX product_vector(product_id, name, embedding) VALUES 'pv{:03}': ('PROD{:03}', 'Product {}', [{}])",
+                "INSERT VERTEX product_vector(product_id, name, embedding) VALUES 'pv{:03}': ('PROD{:03}', 'Product {}', [{}]::VECTOR)",
                 i, i, i, vector_str
             )).expect("INSERT should succeed");
         }
@@ -204,7 +204,7 @@ mod vector {
             let vector_str = vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
 
             db.execute_query(&format!(
-                "INSERT VERTEX product_vector(product_id, name, embedding, price) VALUES 'pv{:03}': ('PROD{:03}', 'Product {}', [{}], {}.0)",
+                "INSERT VERTEX product_vector(product_id, name, embedding, price) VALUES 'pv{:03}': ('PROD{:03}', 'Product {}', [{}]::VECTOR, {}.0)",
                 i, i, i, vector_str, i * 10
             )).expect("INSERT should succeed");
         }
@@ -245,7 +245,7 @@ mod vector {
         let vector = vec![0.1; 128];
         let vector_str = vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
         db.execute_query(&format!(
-            "INSERT VERTEX product_vector(product_id, name, embedding) VALUES 'pv001': ('PROD001', 'Product 1', [{}])",
+            "INSERT VERTEX product_vector(product_id, name, embedding) VALUES 'pv001': ('PROD001', 'Product 1', [{}]::VECTOR)",
             vector_str
         )).expect("INSERT should succeed");
 
@@ -273,9 +273,8 @@ mod fulltext {
             &[],
         ).expect("Failed to setup test space");
 
-        // Create fulltext index
         let result = db.execute_query(
-            "CREATE FULLTEXT INDEX idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
+            "CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
         );
         assert_query_ok(result, "CREATE FULLTEXT INDEX should succeed");
     }
@@ -291,9 +290,8 @@ mod fulltext {
             &[],
         ).expect("Failed to setup test space");
 
-        // Create fulltext index
         db.execute_query(
-            "CREATE FULLTEXT INDEX idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
+            "CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
         ).expect("CREATE FULLTEXT INDEX should succeed");
 
         // Insert articles
@@ -306,7 +304,7 @@ mod fulltext {
 
         // Search
         let result = db.execute_query(
-            "SEARCH INDEX idx_article_content MATCH 'database' YIELD doc_id, title, score"
+            "SEARCH INDEX idx_article_content_test2 MATCH 'database' YIELD doc_id, title, score"
         );
         assert_query_ok(result, "SEARCH INDEX should succeed");
     }
@@ -322,9 +320,8 @@ mod fulltext {
             &[],
         ).expect("Failed to setup test space");
 
-        // Create fulltext index
         db.execute_query(
-            "CREATE FULLTEXT INDEX idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
+            "CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
         ).expect("CREATE FULLTEXT INDEX should succeed");
 
         // Insert articles
@@ -337,7 +334,7 @@ mod fulltext {
 
         // Boolean search
         let result = db.execute_query(
-            "SEARCH INDEX idx_article_content MATCH 'graph AND database' YIELD doc_id, title"
+            "SEARCH INDEX idx_article_content_test3 MATCH 'graph AND database' YIELD doc_id, title"
         );
         assert_query_ok(result, "SEARCH INDEX with boolean should succeed");
     }
@@ -353,9 +350,8 @@ mod fulltext {
             &[],
         ).expect("Failed to setup test space");
 
-        // Create fulltext index
         db.execute_query(
-            "CREATE FULLTEXT INDEX idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
+            "CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
         ).expect("CREATE FULLTEXT INDEX should succeed");
 
         // Insert articles
@@ -365,7 +361,7 @@ mod fulltext {
 
         // EXPLAIN
         let result = db.execute_query(
-            "EXPLAIN SEARCH INDEX idx_article_content MATCH 'performance' YIELD doc_id, score"
+            "EXPLAIN SEARCH INDEX idx_article_content_test4 MATCH 'performance' YIELD doc_id, score"
         );
         assert_query_ok(result, "EXPLAIN SEARCH INDEX should succeed");
     }
