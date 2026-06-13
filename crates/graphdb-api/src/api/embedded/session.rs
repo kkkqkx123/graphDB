@@ -71,6 +71,10 @@ pub(crate) struct GraphDatabaseInner<S: StorageClient + Clone + 'static> {
     pub(crate) fulltext_manager: Option<Arc<FulltextIndexManager>>,
     pub(crate) sync_manager: Option<Arc<SyncManager>>,
     pub(crate) stats_manager: Arc<StatsManager>,
+    /// Tokio runtime for vector operations in embedded mode.
+    /// Stored here to ensure the runtime lives as long as the database.
+    #[cfg(feature = "qdrant")]
+    pub(crate) vector_runtime: Arc<tokio::runtime::Runtime>,
 }
 
 impl<S: StorageClient + Clone + 'static> Session<S> {
@@ -453,7 +457,7 @@ pub fn execute_with_params(
         let count = vertices.len();
         let mut storage = self.storage_mut();
         storage
-            .batch_insert_vertices(space_name, vertices)
+            .batch_insert_vertices(&space_name, vertices)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         Ok(count)
@@ -475,7 +479,7 @@ pub fn execute_with_params(
         let count = edges.len();
         let mut storage = self.storage_mut();
         storage
-            .batch_insert_edges(space_name, edges)
+            .batch_insert_edges(&space_name, edges)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
         Ok(count)
@@ -699,8 +703,8 @@ pub fn execute_with_params(
         vector_size: usize,
         distance: vector_client::DistanceMetric,
     ) -> CoreResult<String> {
-        let space_id = self
-            .space_id
+        let guard = self.space_id.read();
+        let space_id = guard
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         let sync_manager =
@@ -729,8 +733,8 @@ pub fn execute_with_params(
     /// - Return error on failure
     #[cfg(feature = "qdrant")]
     pub async fn drop_vector_index(&self, tag_name: &str, field_name: &str) -> CoreResult<()> {
-        let space_id = self
-            .space_id
+        let guard = self.space_id.read();
+        let space_id = guard
             .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
 
         let sync_manager =

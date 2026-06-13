@@ -5,7 +5,7 @@
 //! - Vector search
 //! - Full-text search
 
-use crate::common::{assert_query_ok, create_test_db, setup_test_space};
+use crate::common::{assert_query_ok, create_test_db, setup_test_space, TestDb};
 
 /// Geography/Geospatial type tests
 mod geography {
@@ -127,6 +127,15 @@ mod geography {
 mod vector {
     use super::*;
 
+
+    fn require_vector_coordinator(db: &TestDb) -> bool {
+        if !db.has_vector_coordinator {
+            eprintln!("SKIP: No vector coordinator available (Qdrant not running)");
+            return false;
+        }
+        true
+    }
+
     /// Insert vertex with vector (VECTOR type is core, works without qdrant)
     #[test]
     fn test_vector_insertion() {
@@ -148,11 +157,14 @@ mod vector {
         assert_query_ok(result, "INSERT VECTOR should succeed");
     }
 
-    /// Cosine similarity search (requires qdrant feature)
+    /// Cosine similarity search (requires qdrant feature and running qdrant service)
     #[test]
     #[cfg_attr(not(feature = "qdrant"), ignore)]
     fn test_cosine_similarity() {
         let mut db = create_test_db();
+        if !require_vector_coordinator(&db) {
+            return;
+        }
         setup_test_space(
         &mut db,
             "e2e_vector_search",
@@ -187,11 +199,14 @@ mod vector {
         assert_query_ok(result, "SEARCH VECTOR should succeed");
     }
 
-    /// Vector search with filter (requires qdrant feature)
+    /// Vector search with filter (requires qdrant feature and running qdrant service)
     #[test]
     #[cfg_attr(not(feature = "qdrant"), ignore)]
     fn test_filtered_vector_search() {
         let mut db = create_test_db();
+        if !require_vector_coordinator(&db) {
+            return;
+        }
         setup_test_space(
         &mut db,
             "e2e_vector_filtered",
@@ -226,11 +241,14 @@ mod vector {
         assert_query_ok(result, "SEARCH VECTOR with filter should succeed");
     }
 
-    /// EXPLAIN vector query (requires qdrant feature)
+    /// EXPLAIN vector query (requires qdrant feature and running qdrant service)
     #[test]
     #[cfg_attr(not(feature = "qdrant"), ignore)]
     fn test_explain_vector_query() {
         let mut db = create_test_db();
+        if !require_vector_coordinator(&db) {
+            return;
+        }
         setup_test_space(
         &mut db,
             "e2e_vector_explain",

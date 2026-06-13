@@ -26,8 +26,10 @@ async fn setup_vector_sync(
         match VectorManager::new(config.vector_config().clone()).await {
             Ok(vm) => {
                 let vector_manager = Arc::new(vm);
+                // `setup_vector_sync` is an async fn — `Handle::current()` always succeeds
+                let handle = tokio::runtime::Handle::current();
                 let vector_coordinator = Arc::new(
-                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None),
+                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None, handle),
                 );
                 info!("Vector index sync enabled");
                 sync_manager.with_vector_coordinator(vector_coordinator)

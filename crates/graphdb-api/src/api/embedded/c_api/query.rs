@@ -59,7 +59,8 @@ pub unsafe extern "C" fn graphdb_execute(
                 // Check whether it is a data modification operation, and then call the update hook.
                 if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result)
                 {
-                    let space_name = handle.inner.current_space().as_deref().unwrap_or("default");
+                    let space_name_owned = handle.inner.current_space();
+                    let space_name = space_name_owned.as_deref().unwrap_or("default");
                     handle.invoke_update_hook(operation, space_name, rowid);
                 }
 
@@ -143,7 +144,8 @@ pub unsafe extern "C" fn graphdb_execute_params(
                 // Check whether it is a data modification operation, and then call the update hook.
                 if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result)
                 {
-                    let space_name = handle.inner.current_space().as_deref().unwrap_or("default");
+                    let space_name_owned = handle.inner.current_space();
+                    let space_name = space_name_owned.as_deref().unwrap_or("default");
                     handle.invoke_update_hook(operation, space_name, rowid);
                 }
 

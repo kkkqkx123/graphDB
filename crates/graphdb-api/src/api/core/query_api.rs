@@ -140,7 +140,9 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         );
 
         // Create vector coordinator (embedding service is optional)
-        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager, None));
+        // This is an async function, so we can get the current runtime handle
+        let handle = tokio::runtime::Handle::current();
+        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager, None, handle));
 
         // Create metadata providers
         let vector_provider: Arc<dyn MetadataProvider> =

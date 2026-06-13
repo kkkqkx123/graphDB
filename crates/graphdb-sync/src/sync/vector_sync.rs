@@ -263,6 +263,10 @@ pub struct VectorSyncCoordinator {
     transaction_buffer: Option<Arc<VectorTransactionBuffer>>,
     /// Tracks registered logical indexes by key "space_{space_id}_{tag}_{field}" -> metadata
     logical_indexes: DashMap<String, vector_client::manager::IndexMetadata>,
+    /// Tokio runtime handle for blocking async operations from sync context.
+    /// Using `Handle` instead of `&Runtime` avoids lifetime issues while allowing
+    /// the caller (API layer or tests) to control the runtime lifecycle.
+    runtime: tokio::runtime::Handle,
 }
 
 impl std::fmt::Debug for VectorSyncCoordinator {
@@ -280,16 +284,22 @@ impl VectorSyncCoordinator {
         self.vector_manager.engine().name() == "disabled"
     }
 
-    /// Create a new vector sync coordinator
+    /// Create a new vector sync coordinator with an explicit runtime handle.
+    ///
+    /// The caller is responsible for ensuring the runtime outlives the coordinator.
+    /// In async contexts, use `Handle::current()` or `Runtime::handle()`.
+    /// In sync contexts (e.g. tests), create a runtime and pass its handle.
     pub fn new(
         vector_manager: Arc<VectorManager>,
         embedding_service: Option<Arc<EmbeddingService>>,
+        runtime: tokio::runtime::Handle,
     ) -> Self {
         Self {
             vector_manager,
             embedding_service,
             transaction_buffer: None,
             logical_indexes: DashMap::new(),
+            runtime,
         }
     }
 
@@ -298,13 +308,20 @@ impl VectorSyncCoordinator {
         vector_manager: Arc<VectorManager>,
         embedding_service: Option<Arc<EmbeddingService>>,
         config: VectorTransactionBufferConfig,
+        runtime: tokio::runtime::Handle,
     ) -> Self {
         Self {
             vector_manager,
             embedding_service,
             transaction_buffer: Some(Arc::new(VectorTransactionBuffer::new(config))),
             logical_indexes: DashMap::new(),
+            runtime,
         }
+    }
+
+    /// Get the runtime handle for blocking async operations
+    pub fn runtime(&self) -> &tokio::runtime::Handle {
+        &self.runtime
     }
 
     fn logical_index_key(space_id: u64, tag_name: &str, field_name: &str) -> String {

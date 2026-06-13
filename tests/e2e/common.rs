@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 #[cfg(feature = "qdrant")]
-use vector_client::{VectorClientConfig, VectorManager};
+use vector_client::{VectorClientConfig, VectorManager, HealthStatus};
 
 /// Test database wrapper with proper schema manager initialization
 pub struct TestDb {
@@ -29,6 +29,9 @@ pub struct TestDb {
     query_api: QueryApi<GraphStorage>,
     current_space_id: Option<u64>,
     current_space_name: Option<String>,
+    /// Whether a vector coordinator is available (Qdrant is running and healthy).
+    /// Vector tests check this to skip gracefully when Qdrant is not available.
+    pub has_vector_coordinator: bool,
 }
 
 fn create_sync_manager() -> Arc<SyncManager> {
@@ -53,14 +56,24 @@ fn create_sync_manager() -> Arc<SyncManager> {
     #[cfg(feature = "qdrant")]
     {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-        let vector_manager = rt
-            .block_on(VectorManager::new(VectorClientConfig::disabled()))
-            .expect("Failed to create disabled vector manager");
-        let vector_coordinator = Arc::new(graphdb::sync::vector_sync::VectorSyncCoordinator::new(
-            Arc::new(vector_manager),
-            None,
-        ));
-        sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
+         match rt.block_on(VectorManager::new(VectorClientConfig::qdrant())) {
+            Ok(vector_manager) => {
+                let health = rt.block_on(vector_manager.engine().health_check()).unwrap_or_else(|_| HealthStatus::unhealthy("unknown", "unknown", "health check failed"));
+                if health.is_healthy {
+                    let vector_coordinator = Arc::new(graphdb::sync::vector_sync::VectorSyncCoordinator::new(
+                        Arc::new(vector_manager),
+                        None,
+                        rt.handle().clone(),
+                    ));
+                    sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
+                } else {
+                    eprintln!("WARNING: Qdrant connected but not healthy. Vector tests will be skipped.");
+                }
+            }
+            Err(e) => {
+                eprintln!("WARNING: Failed to connect to Qdrant ({}). Vector tests will be skipped.", e);
+            }
+        }
     }
 
     Arc::new(sync_manager)
@@ -81,6 +94,7 @@ impl TestDb {
             .expect("Storage should provide a schema manager");
 
         let sync_manager = create_sync_manager();
+        let has_vector_coordinator = sync_manager.vector_coordinator().is_some();
         let query_api = QueryApi::with_schema_and_sync_manager(
             storage.clone(),
             stats_manager.clone(),
@@ -96,6 +110,7 @@ impl TestDb {
             query_api,
             current_space_id: None,
             current_space_name: None,
+            has_vector_coordinator,
         }
     }
 
@@ -111,6 +126,7 @@ impl TestDb {
             .expect("Storage should provide a schema manager");
 
         let sync_manager = create_sync_manager();
+        let has_vector_coordinator = sync_manager.vector_coordinator().is_some();
         let query_api = QueryApi::with_schema_and_sync_manager(
             storage.clone(),
             stats_manager.clone(),
@@ -126,6 +142,7 @@ impl TestDb {
             query_api,
             current_space_id: None,
             current_space_name: None,
+            has_vector_coordinator,
         }
     }
 

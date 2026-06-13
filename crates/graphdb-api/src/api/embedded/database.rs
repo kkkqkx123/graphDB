@@ -22,14 +22,17 @@ use vector_client::{VectorClientConfig, VectorManager};
 #[cfg(test)]
 use crate::storage::MockStorage;
 
-/// Create a VectorManager from the default configuration (requires a running tokio runtime)
+/// Create a VectorManager from the default configuration.
+///
+/// Uses the provided runtime handle to block on async VectorManager initialization.
 #[cfg(feature = "qdrant")]
-fn create_vector_manager(vector_config: &VectorClientConfig) -> CoreResult<Arc<VectorManager>> {
-    let rt = tokio::runtime::Handle::try_current().map_err(|_| {
-        CoreError::Internal("No tokio runtime available for vector manager".to_string())
-    })?;
+fn create_vector_manager(
+    vector_config: &VectorClientConfig,
+    runtime: &tokio::runtime::Handle,
+) -> CoreResult<Arc<VectorManager>> {
     let vector_manager = Arc::new(
-        rt.block_on(VectorManager::new(vector_config.clone()))
+        runtime
+            .block_on(VectorManager::new(vector_config.clone()))
             .map_err(|e| {
                 CoreError::Internal(format!("Failed to initialize vector manager: {}", e))
             })?,
@@ -37,17 +40,21 @@ fn create_vector_manager(vector_config: &VectorClientConfig) -> CoreResult<Arc<V
     Ok(vector_manager)
 }
 
-/// Attach a vector sync coordinator to an existing SyncManager (no-op if vector is disabled)
+/// Attach a vector sync coordinator to an existing SyncManager (no-op if vector is disabled).
 #[cfg(feature = "qdrant")]
-fn attach_vector_coordinator(mut sync: SyncManager) -> CoreResult<SyncManager> {
+fn attach_vector_coordinator(
+    mut sync: SyncManager,
+    runtime: &tokio::runtime::Handle,
+) -> CoreResult<SyncManager> {
     let vector_config = VectorClientConfig::default();
     if !vector_config.enabled {
         return Ok(sync);
     }
-    let vector_manager = create_vector_manager(&vector_config)?;
+    let vector_manager = create_vector_manager(&vector_config, runtime)?;
     let vector_coordinator = Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
         vector_manager,
         None,
+        runtime.clone(),
     ));
     sync = sync.with_vector_coordinator(vector_coordinator);
     Ok(sync)
@@ -58,15 +65,18 @@ type InitManagers = (Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>
 /// Full init path when qdrant is enabled but fulltext is not: create a full sync pipeline
 /// just to host the vector coordinator.
 #[cfg(feature = "qdrant")]
-fn setup_sync_with_vector_only() -> CoreResult<InitManagers> {
+fn setup_sync_with_vector_only(
+    runtime: &tokio::runtime::Handle,
+) -> CoreResult<InitManagers> {
     let vector_config = VectorClientConfig::default();
     if !vector_config.enabled {
         return Ok((None, None));
     }
-    let vector_manager = create_vector_manager(&vector_config)?;
+    let vector_manager = create_vector_manager(&vector_config, runtime)?;
     let vector_coordinator = Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
         vector_manager,
         None,
+        runtime.clone(),
     ));
 
     let sync_config = SyncConfig::default();
@@ -87,7 +97,9 @@ fn setup_sync_with_vector_only() -> CoreResult<InitManagers> {
 
 /// Stub: no qdrant, return (None, None)
 #[cfg(not(feature = "qdrant"))]
-fn setup_sync_with_vector_only() -> CoreResult<InitManagers> {
+fn setup_sync_with_vector_only(
+    _runtime: &tokio::runtime::Handle,
+) -> CoreResult<InitManagers> {
     Ok((None, None))
 }
 
@@ -159,6 +171,16 @@ impl GraphDatabase<GraphStorage> {
     /// - Returns GraphDatabase instance on success
     /// - Return error on failure
     pub fn open_with_config(config: DatabaseConfig) -> CoreResult<Self> {
+        // Create a dedicated tokio runtime for vector operations in embedded mode.
+        // This runtime lives for the lifetime of the GraphDatabase and is stored
+        // to prevent it from being dropped.
+        #[cfg(feature = "qdrant")]
+        let vector_runtime = Arc::new(
+            tokio::runtime::Runtime::new().map_err(|e| {
+                CoreError::Internal(format!("Failed to create tokio runtime: {}", e))
+            })?,
+        );
+
         let (storage, _enable_wal, _sync_policy) = if config.is_memory() {
             let storage = GraphStorage::new().map_err(|e| {
                 CoreError::StorageError(format!("Failed to initialize memory store: {}", e))
@@ -204,12 +226,12 @@ impl GraphDatabase<GraphStorage> {
             let sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
             #[cfg(feature = "qdrant")]
-            let sync = attach_vector_coordinator(sync)?;
+            let sync = attach_vector_coordinator(sync, vector_runtime.handle())?;
 
             let sync = Arc::new(sync);
             (Some(manager), Some(sync))
         } else {
-            setup_sync_with_vector_only()?
+            setup_sync_with_vector_only(vector_runtime.handle())?
         };
 
         let txn_manager_config = TransactionManagerConfig::default();
@@ -244,6 +266,8 @@ impl GraphDatabase<GraphStorage> {
             fulltext_manager,
             sync_manager,
             stats_manager,
+            #[cfg(feature = "qdrant")]
+            vector_runtime,
         });
 
         Ok(Self { inner, config })
