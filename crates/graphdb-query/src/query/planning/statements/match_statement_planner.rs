@@ -796,7 +796,7 @@ impl MatchStatementPlanner {
         &self,
         edge: &crate::query::parser::ast::pattern::EdgePattern,
         space_id: u64,
-        space_name: &str,
+        _space_name: &str,
     ) -> Result<SubPlan, PlannerError> {
         let direction = match edge.direction {
             crate::query::parser::ast::types::EdgeDirection::Out => "out",

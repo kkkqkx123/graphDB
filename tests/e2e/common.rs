@@ -9,9 +9,8 @@ use graphdb::api::core::CoreResult;
 use graphdb::core::metadata::SchemaManager;
 use graphdb::core::Value;
 use graphdb::core::StatsManager;
-use graphdb::query::OptimizerEngine;
-use graphdb::search::{FulltextConfig, FulltextIndexManager, SyncFailurePolicy};
-use graphdb::storage::{GraphStorage, StorageClient, StorageSchemaContextOps};
+use graphdb::search::{FulltextConfig, FulltextIndexManager};
+use graphdb::storage::{GraphStorage, StorageSchemaContextOps};
 use graphdb::sync::{SyncConfig, SyncManager};
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -22,6 +21,10 @@ use vector_client::{VectorClientConfig, VectorManager, HealthStatus};
 
 /// Test database wrapper with proper schema manager initialization
 pub struct TestDb {
+    /// RAII guard that keeps the temp directory alive for the lifetime of `TestDb`.
+    /// Must not be dropped (the directory is deleted on drop), so this field is
+    /// never read — it exists solely for lifetime management.
+    #[allow(dead_code)]
     temp_dir: Option<TempDir>,
     storage: Arc<RwLock<GraphStorage>>,
     stats_manager: Arc<StatsManager>,
@@ -36,8 +39,10 @@ pub struct TestDb {
 
 fn create_sync_manager() -> Arc<SyncManager> {
     let fulltext_temp_dir = tempfile::tempdir().expect("Failed to create fulltext temp dir");
-    let mut fulltext_config = FulltextConfig::default();
-    fulltext_config.index_path = fulltext_temp_dir.path().to_path_buf();
+    let fulltext_config = FulltextConfig {
+        index_path: fulltext_temp_dir.path().to_path_buf(),
+        ..Default::default()
+    };
     let manager = Arc::new(
         FulltextIndexManager::new(fulltext_config).expect("Failed to create fulltext manager"),
     );
@@ -79,6 +84,7 @@ fn create_sync_manager() -> Arc<SyncManager> {
     Arc::new(sync_manager)
 }
 
+#[allow(clippy::new_without_default)]
 impl TestDb {
     /// Create a new test database with a temporary file
     pub fn new() -> Self {
@@ -248,15 +254,11 @@ pub fn load_gql_file(db: &mut TestDb, path: &str) -> CoreResult<()> {
         .map_err(|e| graphdb::api::core::CoreError::Internal(format!("Failed to read {}: {}", path, e)))?;
 
     let mut buffer = String::new();
-    let mut stmt_num: usize = 0;
     for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with("--") {
             if !buffer.is_empty() {
-                stmt_num += 1;
-                if let Err(e) = db.execute_query(&buffer) {
-                    return Err(e);
-                }
+                db.execute_query(&buffer)?;
                 buffer.clear();
             }
             continue;
@@ -266,19 +268,13 @@ pub fn load_gql_file(db: &mut TestDb, path: &str) -> CoreResult<()> {
             buffer.push_str(trimmed);
         } else {
             if !buffer.is_empty() {
-                stmt_num += 1;
-                if let Err(e) = db.execute_query(&buffer) {
-                    return Err(e);
-                }
+                db.execute_query(&buffer)?;
             }
             buffer = trimmed.to_string();
         }
     }
     if !buffer.is_empty() {
-        stmt_num += 1;
-                if let Err(e) = db.execute_query(&buffer) {
-                    return Err(e);
-                }
+        db.execute_query(&buffer)?;
     }
 
     Ok(())
@@ -305,17 +301,16 @@ pub fn assert_row_count(result: CoreResult<QueryResult>, expected: usize, contex
 pub fn assert_count_eq(db: &mut TestDb, query: &str, expected: i64, context: &str) {
     match db.execute_query(query) {
         Ok(qr) => {
-            let first = qr
-                .rows
-                .first()
-                .expect(&format!("{}: result set is empty", context));
+            let first = qr.rows.first().unwrap_or_else(|| {
+                panic!("{}: result set is empty", context)
+            });
             let val = first
                 .values
                 .values()
                 .next()
-                .expect(&format!("{}: no column", context));
+                .unwrap_or_else(|| panic!("{}: no column", context));
             let actual = match val {
-                Value::BigInt(v) => *v as i64,
+                Value::BigInt(v) => *v,
                 Value::Int(v) => *v as i64,
                 Value::SmallInt(v) => *v as i64,
                 other => panic!("{}: expected numeric value, got {:?}", context, other),
@@ -354,15 +349,14 @@ pub fn assert_query_row_count(
 pub fn assert_float_eq(db: &mut TestDb, query: &str, expected: f64, context: &str) {
     match db.execute_query(query) {
         Ok(qr) => {
-            let first = qr
-                .rows
-                .first()
-                .expect(&format!("{}: result set is empty", context));
+            let first = qr.rows.first().unwrap_or_else(|| {
+                panic!("{}: result set is empty", context)
+            });
             let val = first
                 .values
                 .values()
                 .next()
-                .expect(&format!("{}: no column", context));
+                .unwrap_or_else(|| panic!("{}: no column", context));
             let actual = match val {
                 Value::Double(v) => *v,
                 Value::Float(v) => *v as f64,

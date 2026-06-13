@@ -264,7 +264,7 @@ fn parse_vector_query_expr(
     let span = ctx.current_span();
 
     let keyword = ctx.consume_identifier()?;
-    if !ctx.expect_token(TokenKind::Eq).is_ok() {
+    if ctx.expect_token(TokenKind::Eq).is_err() {
         ctx.expect_token(TokenKind::Assign)?;
     }
 

@@ -21,10 +21,12 @@ async fn test_vector_change_type_variants() {
             .await
             .unwrap(),
     );
+    let handle = tokio::runtime::Handle::current();
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         vector_manager,
         None,
         VectorTransactionBufferConfig::default(),
+        handle,
     );
 
     let txn_id = TransactionId::from(1u64);
@@ -169,10 +171,12 @@ async fn test_coordinator_commit_disabled_engine() {
             .await
             .unwrap(),
     );
+    let handle = tokio::runtime::Handle::current();
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         vector_manager,
         None,
         VectorTransactionBufferConfig::default(),
+        handle,
     );
 
     let txn_id = TransactionId::from(1u64);
@@ -214,7 +218,8 @@ async fn test_coordinator_without_buffer() {
             .await
             .unwrap(),
     );
-    let coordinator = VectorSyncCoordinator::new(vector_manager, None);
+    let handle = tokio::runtime::Handle::current();
+    let coordinator = VectorSyncCoordinator::new(vector_manager, None, handle);
 
     assert!(coordinator.transaction_buffer().is_none());
 }
@@ -267,10 +272,12 @@ async fn test_rollback_clears_buffer() {
             .await
             .unwrap(),
     );
+    let handle = tokio::runtime::Handle::current();
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         vector_manager,
         None,
         VectorTransactionBufferConfig::default(),
+        handle,
     );
 
     // buffer + rollback
@@ -341,6 +348,7 @@ async fn test_empty_buffer_operations() {
 /// TC-210: Multiple locations in single transaction
 #[tokio::test]
 async fn test_multiple_locations_in_transaction() {
+    let handle = tokio::runtime::Handle::current();
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         Arc::new(
             VectorManager::new(VectorClientConfig::disabled())
@@ -349,6 +357,7 @@ async fn test_multiple_locations_in_transaction() {
         ),
         None,
         VectorTransactionBufferConfig::default(),
+        handle,
     );
 
     let txn_id = TransactionId::from(1u64);

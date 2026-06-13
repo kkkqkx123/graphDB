@@ -460,8 +460,10 @@ impl SyncCoordinator {
     /// Recover operations from the dead letter queue.
     pub async fn recover_dead_letter(&self) -> Result<RecoveryResult, SyncCoordinatorError> {
         let dead_letter_entries = self.dead_letter_queue.get_all();
-        let mut result = RecoveryResult::default();
-        result.total = dead_letter_entries.len();
+        let mut result = RecoveryResult {
+            total: dead_letter_entries.len(),
+            ..Default::default()
+        };
 
         for (index, entry) in dead_letter_entries.iter().enumerate() {
             match self.recover_operation(&entry.operation).await {

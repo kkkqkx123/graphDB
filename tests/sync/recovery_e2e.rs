@@ -217,7 +217,7 @@ fn test_multiple_sequential_transactions() {
             let vid = txn_num * 3 + i + 1;
             harness
                 .assert_vertex_exists("test_space", &Value::Int(vid))
-                .expect(&format!("Vertex {} should exist", vid));
+                .unwrap_or_else(|_| panic!("Vertex {} should exist", vid));
         }
     }
 }
@@ -285,7 +285,7 @@ fn test_interleaved_txn_non_txn() {
     for vid in 1..=3 {
         harness
             .assert_vertex_exists("test_space", &Value::Int(vid))
-            .expect(&format!("Vertex {} should exist", vid));
+            .unwrap_or_else(|_| panic!("Vertex {} should exist", vid));
     }
 }
 
@@ -444,7 +444,7 @@ fn test_storage_consistency_after_multi_insert() {
     for i in 0..10 {
         harness
             .assert_vertex_exists("test_space", &Value::Int(i + 1))
-            .expect(&format!("Vertex {} should exist", i + 1));
+            .unwrap_or_else(|_| panic!("Vertex {} should exist", i + 1));
     }
 }
 
@@ -503,6 +503,6 @@ fn test_delete_and_verify_remaining() {
     for i in 2..5 {
         harness
             .assert_vertex_exists("test_space", &Value::Int(i + 1))
-            .expect(&format!("Vertex {} should still exist", i + 1));
+            .unwrap_or_else(|_| panic!("Vertex {} should still exist", i + 1));
     }
 }

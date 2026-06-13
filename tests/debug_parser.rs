@@ -1,5 +1,6 @@
-use graphdb::query::parser::parsing::parser::Parser;
-use graphdb::query::parser::parsing::parse_context::ParseContext;
+use graphdb::query::parser::Parser;
+use graphdb::query::parser::ParseContext;
+use graphdb::query::parser::TokenKind;
 
 #[test]
 fn test_fulltext_tokenization() {
@@ -10,7 +11,7 @@ fn test_fulltext_tokenization() {
     let mut ctx = ParseContext::new(sql);
 
     // Skip CREATE token
-    let _ = ctx.expect_token(graphdb::query::parser::TokenKind::Create);
+    let _ = ctx.expect_token(TokenKind::Create);
 
     // Check what the current token is
     let current = ctx.current_token();
@@ -19,7 +20,7 @@ fn test_fulltext_tokenization() {
 
     // Try parsing
     match parser.parse() {
-        Ok(stmt) => println!("Parsed successfully: {:?}", std::mem::discriminant(&stmt)),
+        Ok(stmt) => println!("Parsed successfully: {:?}", stmt),
         Err(e) => println!("Parse error: {}", e),
     }
 }

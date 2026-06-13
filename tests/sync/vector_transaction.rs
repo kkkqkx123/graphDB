@@ -89,11 +89,13 @@ async fn test_vector_sync_coordinator_with_buffer() {
             .unwrap(),
     );
 
+    let handle = tokio::runtime::Handle::current();
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         vector_manager,
         None,
         VectorTransactionBufferConfig::default(),
+        handle,
     );
 
     let txn_id = TransactionId::from(1u64);
@@ -157,11 +159,13 @@ async fn test_vector_sync_coordinator_rollback() {
             .unwrap(),
     );
 
+    let handle = tokio::runtime::Handle::current();
     // Create coordinator with transaction buffer
     let coordinator = VectorSyncCoordinator::with_transaction_buffer(
         vector_manager,
         None,
         VectorTransactionBufferConfig::default(),
+        handle,
     );
 
     let txn_id = TransactionId::from(1u64);

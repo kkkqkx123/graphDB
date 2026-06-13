@@ -21,6 +21,7 @@ pub use ast::stmt::OrderByItem;
 
 // Re-export the parser
 pub use parsing::ExprParser;
+pub use parsing::ParseContext;
 pub use parsing::Parser;
 pub use parsing::ParserResult;
 pub use parsing::StmtParser;

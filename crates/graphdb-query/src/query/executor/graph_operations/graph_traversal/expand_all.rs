@@ -605,7 +605,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         // Special case: for edge-only patterns (MATCH ()-[e]->()) with specific edge types,
         // directly scan edges by type instead of scanning all vertices and expanding.
         // This is more efficient and avoids potential issues with vertex-based expansion.
-        let has_specific_edge_types = !self.any_edge_type && self.edge_types.as_ref().map_or(false, |t| !t.is_empty());
+        let has_specific_edge_types = !self.any_edge_type && self.edge_types.as_ref().is_some_and(|t| !t.is_empty());
         let is_from_go_clause = !self.src_vids.is_empty();
 
         if has_specific_edge_types && !is_from_go_clause {
@@ -636,7 +636,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
 
                             if self.col_names.len() >= 3 {
                                 // Full format: src, edge, dst
-                                row.push(Value::Vertex(Box::new(Vertex::new(edge.src.clone(), Vec::new()))));
+                                row.push(Value::Vertex(Box::new(Vertex::new(edge.src, Vec::new()))));
                                 row.push(Value::edge(edge.clone()));
                                 row.push(Value::Vertex(Box::new(Vertex::new(edge.dst, Vec::new()))));
                             } else if self.col_names.len() == 1 {

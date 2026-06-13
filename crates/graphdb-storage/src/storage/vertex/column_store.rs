@@ -331,7 +331,7 @@ impl ColumnStorage for VariableWidthColumn {
                 .ok()
                 .map(Value::Geography)
         } else if matches!(self.data_type, DataType::Vector) {
-            if bytes.len() % std::mem::size_of::<f32>() == 0 {
+            if bytes.len().is_multiple_of(std::mem::size_of::<f32>()) {
                 let dim = bytes.len() / std::mem::size_of::<f32>();
                 let mut data = Vec::with_capacity(dim);
                 for i in 0..dim {

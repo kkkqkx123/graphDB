@@ -6,12 +6,8 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi}
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
-use crate::core::DataType;
-use crate::core::types::SpaceSummary;
 use crate::core::Value;
 use crate::core::{SessionStatistics, StatsManager};
-use crate::query::executor::base::ExecutionResult;
-use crate::query::DataSet;
 use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
 use crate::search::FulltextIndexManager;
 use crate::storage::StorageClient;
@@ -703,9 +699,12 @@ pub fn execute_with_params(
         vector_size: usize,
         distance: vector_client::DistanceMetric,
     ) -> CoreResult<String> {
-        let guard = self.space_id.read();
-        let space_id = guard
-            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+        let space_id = {
+            let guard = self.space_id.read();
+            guard.ok_or_else(|| {
+                CoreError::InvalidParameter("No graph space selected".to_string())
+            })?
+        };
 
         let sync_manager =
             self.db.sync_manager.as_ref().ok_or_else(|| {
@@ -733,9 +732,12 @@ pub fn execute_with_params(
     /// - Return error on failure
     #[cfg(feature = "qdrant")]
     pub async fn drop_vector_index(&self, tag_name: &str, field_name: &str) -> CoreResult<()> {
-        let guard = self.space_id.read();
-        let space_id = guard
-            .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?;
+        let space_id = {
+            let guard = self.space_id.read();
+            guard.ok_or_else(|| {
+                CoreError::InvalidParameter("No graph space selected".to_string())
+            })?
+        };
 
         let sync_manager =
             self.db.sync_manager.as_ref().ok_or_else(|| {

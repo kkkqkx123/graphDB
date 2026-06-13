@@ -244,7 +244,7 @@ impl MaintainPlanner {
                 changes,
             } => {
                 let current_space = self.current_space(validated);
-                let mut alter_info = TagAlterInfo::new(current_space, tag_name.clone())
+                let alter_info = TagAlterInfo::new(current_space, tag_name.clone())
                     .with_additions(additions.clone())
                     .with_deletions(deletions.clone())
                     .with_changes(changes.clone());

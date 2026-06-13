@@ -3,6 +3,7 @@
 //! Tests for SyncManager edge insert/delete/update operations
 
 use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
+use graphdb::sync::{EdgeProps, EdgeRef};
 use graphdb::core::types::{DataType, EdgeTypeInfo, PropertyDef, VertexId};
 use graphdb::core::Value;
 use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
@@ -457,17 +458,17 @@ fn test_edge_update_sync_via_manager() {
         .on_edge_update(
             txn_id,
             space_id,
-            &Value::Int(1),
-            &Value::Int(2),
-            "KNOWS",
-            &[(
-                "description".to_string(),
-                Value::String("old description".to_string()),
-            )],
-            &[(
-                "description".to_string(),
-                Value::String("new description".to_string()),
-            )],
+            EdgeRef::new(&Value::Int(1), &Value::Int(2), "KNOWS"),
+            EdgeProps::new(
+                &[(
+                    "description".to_string(),
+                    Value::String("old description".to_string()),
+                )],
+                &[(
+                    "description".to_string(),
+                    Value::String("new description".to_string()),
+                )],
+            ),
         )
         .expect("Failed to sync edge update");
 

@@ -414,7 +414,6 @@ impl<'a> ParseContext<'a> {
             TokenKind::Upto => keyword.eq_ignore_ascii_case("UPTO"),
             TokenKind::Limit => keyword.eq_ignore_ascii_case("LIMIT"),
             TokenKind::Asc => keyword.eq_ignore_ascii_case("ASC"),
-            TokenKind::Desc => keyword.eq_ignore_ascii_case("DESC"),
             TokenKind::Order => keyword.eq_ignore_ascii_case("ORDER"),
             TokenKind::By => keyword.eq_ignore_ascii_case("BY"),
             TokenKind::Skip => keyword.eq_ignore_ascii_case("SKIP"),

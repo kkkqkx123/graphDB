@@ -300,68 +300,65 @@ impl SyncManager {
         &self,
         txn_id: crate::core::types::TransactionId,
         space_id: u64,
-        src: &Value,
-        dst: &Value,
-        edge_type: &str,
-        old_props: &[(String, Value)],
-        new_props: &[(String, Value)],
+        edge: EdgeRef<'_>,
+        props: EdgeProps<'_>,
     ) -> Result<(), SyncError> {
-        let edge_id = format!("{}->{}", src, dst);
+        let edge_id = edge.id();
         let indexes = self
             .sync_coordinator
             .fulltext_manager()
             .get_space_indexes(space_id)
             .into_iter()
-            .filter(|m| m.tag_name == edge_type)
+            .filter(|m| m.tag_name == edge.edge_type)
             .collect::<Vec<_>>();
 
         for metadata in &indexes {
             let field_name = &metadata.field_name;
 
-            if let Some((_, old_value)) = old_props.iter().find(|(k, _)| k == field_name) {
-                if let Value::String(text) = old_value {
-                    let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
-                        space_id,
-                        edge_type,
-                        field_name,
-                        ChangeType::Delete,
-                        edge_id.clone(),
-                        text.clone(),
-                    );
-                    self.sync_coordinator
-                        .buffer_operation(txn_id, ctx)
-                        .map_err(SyncError::from)?;
-                }
+            if let Some((_, Value::String(text))) =
+                props.old.iter().find(|(k, _)| k == field_name)
+            {
+                let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                    space_id,
+                    edge.edge_type,
+                    field_name,
+                    ChangeType::Delete,
+                    edge_id.clone(),
+                    text.clone(),
+                );
+                self.sync_coordinator
+                    .buffer_operation(txn_id, ctx)
+                    .map_err(SyncError::from)?;
             }
 
-            if let Some((_, new_value)) = new_props.iter().find(|(k, _)| k == field_name) {
-                if let Value::String(text) = new_value {
-                    let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
-                        space_id,
-                        edge_type,
-                        field_name,
-                        ChangeType::Insert,
-                        edge_id.clone(),
-                        text.clone(),
-                    );
-                    self.sync_coordinator
-                        .buffer_operation(txn_id, ctx)
-                        .map_err(SyncError::from)?;
-                }
+            if let Some((_, Value::String(text))) =
+                props.new.iter().find(|(k, _)| k == field_name)
+            {
+                let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                    space_id,
+                    edge.edge_type,
+                    field_name,
+                    ChangeType::Insert,
+                    edge_id.clone(),
+                    text.clone(),
+                );
+                self.sync_coordinator
+                    .buffer_operation(txn_id, ctx)
+                    .map_err(SyncError::from)?;
             }
         }
 
         #[cfg(feature = "qdrant")]
         if let Some(ref vector_coord) = self.vector_coordinator {
             for idx in vector_coord.list_indexes() {
-                if idx.space_id == space_id && idx.tag_name == edge_type {
+                if idx.space_id == space_id && idx.tag_name == edge.edge_type {
                     if let Some((_, old_value)) =
-                        old_props.iter().find(|(k, _)| k == &idx.field_name)
+                        props.old.iter().find(|(k, _)| k == &idx.field_name)
                     {
                         if old_value.as_vector().is_some() {
                             let ctx = crate::sync::vector_sync::VectorChangeContext::new(
                                 space_id,
-                                edge_type,
+                                edge.edge_type,
                                 &idx.field_name,
                                 crate::sync::vector_sync::VectorChangeType::Delete,
                                 crate::sync::vector_sync::VectorPointData {
@@ -376,12 +373,12 @@ impl SyncManager {
                         }
                     }
                     if let Some((_, new_value)) =
-                        new_props.iter().find(|(k, _)| k == &idx.field_name)
+                        props.new.iter().find(|(k, _)| k == &idx.field_name)
                     {
                         if let Some(vector) = new_value.as_vector() {
                             let ctx = crate::sync::vector_sync::VectorChangeContext::new(
                                 space_id,
-                                edge_type,
+                                edge.edge_type,
                                 &idx.field_name,
                                 crate::sync::vector_sync::VectorChangeType::Insert,
                                 crate::sync::vector_sync::VectorPointData {
@@ -401,7 +398,44 @@ impl SyncManager {
 
         Ok(())
     }
+}
 
+/// Identifies an edge by its endpoints and type.
+#[derive(Debug, Clone)]
+pub struct EdgeRef<'a> {
+    pub src: &'a Value,
+    pub dst: &'a Value,
+    pub edge_type: &'a str,
+}
+
+impl<'a> EdgeRef<'a> {
+    pub fn new(src: &'a Value, dst: &'a Value, edge_type: &'a str) -> Self {
+        Self {
+            src,
+            dst,
+            edge_type,
+        }
+    }
+
+    pub fn id(&self) -> String {
+        format!("{}->{}", self.src, self.dst)
+    }
+}
+
+/// Property change snapshot for an edge update.
+#[derive(Debug, Clone)]
+pub struct EdgeProps<'a> {
+    pub old: &'a [(String, Value)],
+    pub new: &'a [(String, Value)],
+}
+
+impl<'a> EdgeProps<'a> {
+    pub fn new(old: &'a [(String, Value)], new: &'a [(String, Value)]) -> Self {
+        Self { old, new }
+    }
+}
+
+impl SyncManager {
     #[cfg(feature = "qdrant")]
     pub fn on_vector_change_with_context_buffered(
         &self,
