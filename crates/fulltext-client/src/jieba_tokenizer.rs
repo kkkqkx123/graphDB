@@ -1,15 +1,23 @@
 use jieba_rs::{Jieba, TokenizeMode};
+use parking_lot::Mutex;
 use tantivy_tokenizer_api::{Token, TokenStream, Tokenizer};
 
-#[derive(Clone)]
 pub struct JiebaTokenizer {
-    jieba: Jieba,
+    jieba: Mutex<Jieba>,
+}
+
+impl Clone for JiebaTokenizer {
+    fn clone(&self) -> Self {
+        Self {
+            jieba: Mutex::new(Jieba::new()),
+        }
+    }
 }
 
 impl Default for JiebaTokenizer {
     fn default() -> Self {
         Self {
-            jieba: Jieba::new(),
+            jieba: Mutex::new(Jieba::new()),
         }
     }
 }
@@ -18,7 +26,8 @@ impl Tokenizer for JiebaTokenizer {
     type TokenStream<'a> = JiebaTokenStream<'a>;
 
     fn token_stream<'a>(&'a mut self, text: &'a str) -> Self::TokenStream<'a> {
-        let tokens = self.jieba.tokenize(text, TokenizeMode::Search, true);
+        let jieba = self.jieba.lock();
+        let tokens = jieba.tokenize(text, TokenizeMode::Search, true);
         JiebaTokenStream::new(text, tokens)
     }
 }
@@ -98,12 +107,29 @@ mod tests {
         let mut collect = |token: &Token| tokens.push(token.clone());
         stream.process(&mut collect);
 
-        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].text, "hello");
         assert_eq!(tokens[0].offset_from, 0);
         assert_eq!(tokens[0].offset_to, 5);
-        assert_eq!(tokens[1].text, "world");
-        assert_eq!(tokens[1].offset_from, 6);
-        assert_eq!(tokens[1].offset_to, 11);
+        assert_eq!(tokens[1].text, " ");
+        assert_eq!(tokens[1].offset_from, 5);
+        assert_eq!(tokens[1].offset_to, 6);
+        assert_eq!(tokens[2].text, "world");
+        assert_eq!(tokens[2].offset_from, 6);
+        assert_eq!(tokens[2].offset_to, 11);
+    }
+
+    #[test]
+    fn tokenizes_chinese_text() {
+        let mut tokenizer = JiebaTokenizer::default();
+        let mut stream = tokenizer.token_stream("中华人民共和国");
+        let mut tokens: Vec<Token> = Vec::new();
+        let mut collect = |token: &Token| tokens.push(token.clone());
+        stream.process(&mut collect);
+
+        assert!(tokens.len() > 1);
+        assert_eq!(tokens[0].text, "中华");
+        assert_eq!(tokens[0].offset_from, 0);
+        assert_eq!(tokens[0].offset_to, "中华".len());
     }
 }

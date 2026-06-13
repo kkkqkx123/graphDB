@@ -9,4 +9,5 @@ homepage.workspace = true
 
 [dependencies]
 jieba-rs = "0.9"
+parking_lot = "0.12"
 tantivy-tokenizer-api = "0.7"

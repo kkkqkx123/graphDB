@@ -123,9 +123,11 @@ impl TantivySearchEngine {
         // indexes whose schema may reference "jieba". Tantivy's default TokenizerManager
         // auto-registers "raw", "default", and "whitespace".
         #[cfg(feature = "jieba")]
-        index
-            .tokenizers()
-            .register("jieba", JiebaTokenizer::default());
+        if config.tokenizer == TokenizerKind::Jieba {
+            index
+                .tokenizers()
+                .register("jieba", JiebaTokenizer::default());
+        }
 
         let writer = index.writer(config.writer_memory_budget)?;
 

@@ -17,6 +17,7 @@ members = [
 
 [patch.crates-io]
 tantivy = { path = "crates/tantivy" }
+tantivy-tokenizer-api = { path = "crates/tantivy/tokenizer-api" }
 
 [workspace.package]
 version = "0.1.0"
