@@ -57,7 +57,7 @@ impl Planner for VectorSearchPlanner {
 
         match stmt {
             Stmt::CreateVectorIndex(create) => {
-                self.transform_create_vector_index(create, &space_name)
+                self.transform_create_vector_index(create, &space_name, space_id)
             }
             Stmt::DropVectorIndex(drop) => self.transform_drop_vector_index(drop, &space_name),
             Stmt::SearchVector(search) => self.transform_search_vector(search, space_id),
@@ -94,7 +94,7 @@ impl Planner for VectorSearchPlanner {
 
         match stmt {
             Stmt::CreateVectorIndex(create) => {
-                self.transform_create_vector_index(create, &space_name)
+                self.transform_create_vector_index(create, &space_name, space_id)
             }
             Stmt::DropVectorIndex(drop) => self.transform_drop_vector_index(drop, &space_name),
             Stmt::SearchVector(search) => {
@@ -121,6 +121,7 @@ impl VectorSearchPlanner {
         &self,
         create: &CreateVectorIndex,
         space_name: &str,
+        space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let schema_name = if create.schema_name.is_empty() {
             space_name.to_string()
@@ -128,19 +129,21 @@ impl VectorSearchPlanner {
             create.schema_name.clone()
         };
 
-        let node = CreateVectorIndexNode::new(
-            CreateVectorIndexParams::new(
-                create.index_name.clone(),
-                schema_name,
-                create.schema_name.clone(),
-                create.field_name.clone(),
-                create.config.vector_size,
-                create.config.distance,
-            )
-            .with_hnsw_m(create.config.hnsw_m)
-            .with_hnsw_ef_construct(create.config.hnsw_ef_construct)
-            .with_if_not_exists(),
-        );
+        let mut params = CreateVectorIndexParams::new(
+            create.index_name.clone(),
+            schema_name,
+            create.schema_name.clone(),
+            create.field_name.clone(),
+            create.config.vector_size,
+            create.config.distance,
+            space_id,
+        )
+        .with_hnsw_m(create.config.hnsw_m)
+        .with_hnsw_ef_construct(create.config.hnsw_ef_construct);
+        if create.if_not_exists {
+            params = params.with_if_not_exists();
+        }
+        let node = CreateVectorIndexNode::new(params);
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
     }

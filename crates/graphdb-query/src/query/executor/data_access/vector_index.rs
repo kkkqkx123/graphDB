@@ -64,8 +64,8 @@ impl<S: StorageReader> CreateVectorIndexExecutor<S> {
 
 impl<S: StorageReader> Executor<S> for CreateVectorIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // Get space_id from execution context
-        let space_id = self.base.context.current_space_id().unwrap_or(0);
+        // Use space_id from plan node
+        let space_id = self.node.space_id;
 
         // Check if index already exists
         let exists =
@@ -102,18 +102,31 @@ impl<S: StorageReader> Executor<S> for CreateVectorIndexExecutor<S> {
             shard_number: None,
         };
 
-        // Create vector index using tokio runtime
-        let coordinator = self.coordinator.clone();
-        let tag_name = self.node.tag_name.clone();
-        let field_name = self.node.field_name.clone();
+        // Create vector index using tokio runtime (only if engine is not disabled)
+        if !self.coordinator.is_disabled_engine() {
+            let coordinator = self.coordinator.clone();
+            let tag_name = self.node.tag_name.clone();
+            let field_name = self.node.field_name.clone();
 
-        tokio::runtime::Handle::current()
-            .block_on(async move {
-                coordinator
-                    .create_index_with_config(space_id, &tag_name, &field_name, config)
-                    .await
-            })
-            .map_err(|e| DBError::internal(format!("Failed to create vector index: {}", e)))?;
+            tokio::runtime::Handle::current()
+                .block_on(async move {
+                    coordinator
+                        .create_index_with_config(space_id, &tag_name, &field_name, config)
+                        .await
+                })
+                .map_err(|e| DBError::internal(format!("Failed to create vector index: {}", e)))?;
+        } else {
+            // Engine disabled: register logical index so metadata provider can find it
+            let collection_name = format!("space_{}_{}_{}", space_id, self.node.tag_name, self.node.field_name);
+            self.coordinator.register_logical_index(
+                space_id,
+                &self.node.tag_name,
+                &self.node.field_name,
+                collection_name,
+                config,
+                Some(self.node.index_name.clone()),
+            );
+        }
 
         Ok(ExecutionResult::Success)
     }

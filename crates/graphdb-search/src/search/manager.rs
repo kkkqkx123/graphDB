@@ -358,7 +358,9 @@ impl FulltextIndexManager {
         field_name: &str,
         engine_type: Option<EngineType>,
     ) -> Result<String, SearchError> {
-        self.create_index_with_engine_config(space_id, tag_name, field_name, engine_type, None)
+        // Use default display name since no user-specified name is provided
+        let display_name = format!("idx_{}_{}_{}", space_id, tag_name, field_name);
+        self.create_index_with_engine_config(space_id, tag_name, field_name, &display_name, engine_type, None)
             .await
     }
 
@@ -367,6 +369,7 @@ impl FulltextIndexManager {
         space_id: u64,
         tag_name: &str,
         field_name: &str,
+        user_index_name: &str,
         engine_type: Option<EngineType>,
         engine_config: Option<serde_json::Value>,
     ) -> Result<String, SearchError> {
@@ -399,7 +402,7 @@ impl FulltextIndexManager {
 
             let metadata = IndexMetadata {
                 index_id: index_id.clone(),
-                index_name: format!("idx_{}_{}_{}", space_id, tag_name, field_name),
+                index_name: user_index_name.to_string(),
                 space_id,
                 tag_name: tag_name.to_string(),
                 field_name: field_name.to_string(),

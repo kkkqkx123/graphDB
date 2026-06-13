@@ -6,6 +6,7 @@
 
 pub mod cache_provider;
 pub mod context;
+pub mod fulltext_provider;
 pub mod provider;
 pub mod schema_provider;
 pub mod types;
@@ -14,6 +15,7 @@ pub mod vector_provider;
 
 pub use cache_provider::CachedMetadataProvider;
 pub use context::MetadataContext;
+pub use fulltext_provider::FulltextIndexMetadataProvider;
 pub use provider::{CompositeMetadataProvider, MetadataProvider};
 pub use schema_provider::SchemaMetadataProvider;
 pub use types::*;

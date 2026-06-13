@@ -46,15 +46,15 @@ impl MetadataProvider for VectorIndexMetadataProvider {
         space_id: u64,
         index_name: &str,
     ) -> Result<IndexMetadata, MetadataProviderError> {
-        // Search for index by collection name or index name
+        // Search for index by collection name, expected collection name, or user-specified index name
         let indexes = self.coordinator.list_indexes();
-
-        for idx in indexes {
-            // Match by collection name or index name pattern
+        for idx in &indexes {
             let expected_collection =
                 format!("space_{}_{}_{}", space_id, idx.tag_name, idx.field_name);
-
-            if idx.collection_name == index_name || expected_collection == *index_name {
+            if idx.collection_name == index_name
+                || expected_collection == *index_name
+                || idx.index_name.as_deref() == Some(index_name)
+            {
                 return Ok(IndexMetadata::new(
                     idx.collection_name.clone(),
                     space_id,

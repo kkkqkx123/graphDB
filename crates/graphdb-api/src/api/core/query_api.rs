@@ -6,11 +6,12 @@ use crate::api::core::error::{CoreError, CoreResult};
 use crate::api::core::types::{ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::metadata::SchemaManager;
 use crate::core::StatsManager;
-use crate::query::metadata::{CachedMetadataProvider, SchemaMetadataProvider};
-#[cfg(feature = "qdrant")]
 use crate::query::metadata::{
-    CompositeMetadataProvider, MetadataProvider, VectorIndexMetadataProvider,
+    CachedMetadataProvider, CompositeMetadataProvider, FulltextIndexMetadataProvider,
+    MetadataProvider, SchemaMetadataProvider,
 };
+#[cfg(feature = "qdrant")]
+use crate::query::metadata::VectorIndexMetadataProvider;
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
 #[cfg(feature = "qdrant")]
@@ -88,8 +89,26 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ) -> Self {
         let optimizer_engine = Arc::new(OptimizerEngine::default());
 
-        let schema_provider = Arc::new(SchemaMetadataProvider::new(schema_manager.clone(), None));
-        let cached_provider = Arc::new(CachedMetadataProvider::new(schema_provider));
+        let schema_provider: Arc<dyn MetadataProvider> =
+            Arc::new(SchemaMetadataProvider::new(schema_manager.clone(), None));
+
+        let fulltext_provider: Arc<dyn MetadataProvider> =
+            Arc::new(FulltextIndexMetadataProvider::new(
+                sync_manager.fulltext_manager(),
+            ));
+
+        let mut providers: Vec<Arc<dyn MetadataProvider>> =
+            vec![schema_provider, fulltext_provider];
+
+        #[cfg(feature = "qdrant")]
+        if let Some(vector_coordinator) = sync_manager.vector_coordinator() {
+            providers.push(Arc::new(VectorIndexMetadataProvider::new(
+                vector_coordinator.clone(),
+            )));
+        }
+
+        let composite = Arc::new(CompositeMetadataProvider::new(providers));
+        let cached_provider = Arc::new(CachedMetadataProvider::new(composite));
 
         Self {
             pipeline_manager: QueryPipelineManager::with_optimizer(

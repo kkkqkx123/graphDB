@@ -276,7 +276,7 @@ impl std::fmt::Debug for VectorSyncCoordinator {
 }
 
 impl VectorSyncCoordinator {
-    fn is_disabled_engine(&self) -> bool {
+    pub fn is_disabled_engine(&self) -> bool {
         self.vector_manager.engine().name() == "disabled"
     }
 
@@ -963,7 +963,6 @@ impl VectorSyncCoordinator {
             .iter()
             .map(|pair| {
                 let key = pair.key();
-                // Parse "space_idx_{space_id}_{tag}_{field}"
                 let parts: Vec<&str> = key.split('_').collect();
                 let (space_id, tag_name, field_name) =
                     if parts.len() >= 5 && parts[0] == "space" && parts[1] == "idx" {
@@ -979,9 +978,29 @@ impl VectorSyncCoordinator {
                     space_id,
                     tag_name,
                     field_name,
+                    index_name: pair.value().index_name.clone(),
                 }
             })
             .collect()
+    }
+
+    /// Register a logical index (for disabled-engine mode or external registration)
+    pub fn register_logical_index(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+        collection_name: String,
+        config: vector_client::CollectionConfig,
+        user_index_name: Option<String>,
+    ) {
+        let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
+        let meta = if let Some(idx_name) = user_index_name {
+            vector_client::manager::IndexMetadata::with_index_name(collection_name, config, idx_name)
+        } else {
+            vector_client::manager::IndexMetadata::new(collection_name, config)
+        };
+        self.logical_indexes.insert(logical_key, meta);
     }
 
     /// Create vector index with config (logical index in shared collection)
@@ -1061,6 +1080,7 @@ pub struct IndexMetadataWrapper {
     pub space_id: u64,
     pub tag_name: String,
     pub field_name: String,
+    pub index_name: Option<String>,
 }
 
 impl From<vector_client::manager::IndexMetadata> for IndexMetadataWrapper {
@@ -1083,6 +1103,7 @@ impl From<vector_client::manager::IndexMetadata> for IndexMetadataWrapper {
             space_id,
             tag_name,
             field_name,
+            index_name: metadata.index_name,
         }
     }
 }

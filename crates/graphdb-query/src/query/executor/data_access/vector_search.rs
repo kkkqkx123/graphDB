@@ -139,6 +139,11 @@ impl<S: StorageReader> VectorSearchExecutor<S> {
         let filter = self.node.filter.clone();
         let space_id = self.node.space_id;
 
+        // If engine is disabled, return empty results without needing tokio runtime
+        if self.coordinator.is_disabled_engine() {
+            return Ok(Vec::new());
+        }
+
         // Use tokio runtime to execute async operation
         let result = tokio::runtime::Handle::current()
             .block_on(async move {

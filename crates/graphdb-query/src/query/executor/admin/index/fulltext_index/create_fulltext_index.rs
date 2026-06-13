@@ -96,6 +96,7 @@ impl<S: StorageClient> Executor<S> for CreateFulltextIndexExecutor<S> {
                     self.space_id,
                     tag_name,
                     &field.field_name,
+                    &self.index_name,
                     Some(engine_type),
                     Some(engine_config.clone()),
                 ));

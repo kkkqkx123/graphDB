@@ -21,6 +21,7 @@ pub struct CreateVectorIndexParams {
     pub hnsw_m: Option<usize>,
     pub hnsw_ef_construct: Option<usize>,
     pub if_not_exists: bool,
+    pub space_id: u64,
 }
 
 impl CreateVectorIndexParams {
@@ -31,6 +32,7 @@ impl CreateVectorIndexParams {
         field_name: String,
         vector_size: usize,
         distance: VectorDistance,
+        space_id: u64,
     ) -> Self {
         Self {
             index_name,
@@ -42,6 +44,7 @@ impl CreateVectorIndexParams {
             hnsw_m: None,
             hnsw_ef_construct: None,
             if_not_exists: false,
+            space_id,
         }
     }
 
@@ -74,6 +77,7 @@ pub struct CreateVectorIndexNode {
     pub hnsw_m: Option<usize>,
     pub hnsw_ef_construct: Option<usize>,
     pub if_not_exists: bool,
+    pub space_id: u64,
 }
 
 impl CreateVectorIndexNode {
@@ -89,6 +93,7 @@ impl CreateVectorIndexNode {
             hnsw_m: params.hnsw_m,
             hnsw_ef_construct: params.hnsw_ef_construct,
             if_not_exists: params.if_not_exists,
+            space_id: params.space_id,
         }
     }
 }

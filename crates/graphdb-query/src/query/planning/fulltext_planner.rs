@@ -92,14 +92,17 @@ impl FulltextSearchPlanner {
         let stmt = validated.stmt();
         let space_name = qctx.space_name().unwrap_or_else(|| "default".to_string());
 
+        let space_id = qctx.space_id().unwrap_or(0);
+
         match stmt {
             Stmt::CreateFulltextIndex(create) => match metadata_context {
                 Some(metadata_context) => self.transform_create_fulltext_index_with_metadata(
                     create,
                     &space_name,
                     metadata_context,
+                    space_id,
                 ),
-                None => self.transform_create_fulltext_index(create, &space_name),
+                None => self.transform_create_fulltext_index(create, &space_name, space_id),
             },
             Stmt::DropFulltextIndex(drop) => self.transform_drop_fulltext_index(drop),
             Stmt::AlterFulltextIndex(alter) => match metadata_context {
@@ -151,6 +154,7 @@ impl FulltextSearchPlanner {
         &self,
         create: &CreateFulltextIndex,
         space_name: &str,
+        space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let schema_name = if create.schema_name.is_empty() {
             space_name.to_string()
@@ -165,6 +169,7 @@ impl FulltextSearchPlanner {
             create.engine_type,
             create.options.clone(),
             create.if_not_exists,
+            space_id,
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))
@@ -175,6 +180,7 @@ impl FulltextSearchPlanner {
         create: &CreateFulltextIndex,
         space_name: &str,
         metadata_context: &MetadataContext,
+        space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         // Validate that the schema exists in metadata context
         let schema_name = if create.schema_name.is_empty() {
@@ -202,6 +208,7 @@ impl FulltextSearchPlanner {
             create.engine_type,
             create.options.clone(),
             create.if_not_exists,
+            space_id,
         );
 
         Ok(SubPlan::new(Some(node.into_enum()), None))

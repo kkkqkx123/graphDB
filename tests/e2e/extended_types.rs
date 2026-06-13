@@ -127,7 +127,7 @@ mod geography {
 mod vector {
     use super::*;
 
-    /// Insert vertex with vector
+    /// Insert vertex with vector (VECTOR type is core, works without qdrant)
     #[test]
     fn test_vector_insertion() {
         let mut db = create_test_db();
@@ -138,7 +138,6 @@ mod vector {
             &[],
         ).expect("Failed to setup test space");
 
-        // Insert vector using VECTOR cast syntax
         let vector = vec![0.1; 128];
         let vector_str = vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
 
@@ -149,8 +148,9 @@ mod vector {
         assert_query_ok(result, "INSERT VECTOR should succeed");
     }
 
-    /// Cosine similarity search
+    /// Cosine similarity search (requires qdrant feature)
     #[test]
+    #[cfg_attr(not(feature = "qdrant"), ignore)]
     fn test_cosine_similarity() {
         let mut db = create_test_db();
         setup_test_space(
@@ -187,8 +187,9 @@ mod vector {
         assert_query_ok(result, "SEARCH VECTOR should succeed");
     }
 
-    /// Vector search with filter
+    /// Vector search with filter (requires qdrant feature)
     #[test]
+    #[cfg_attr(not(feature = "qdrant"), ignore)]
     fn test_filtered_vector_search() {
         let mut db = create_test_db();
         setup_test_space(
@@ -225,8 +226,9 @@ mod vector {
         assert_query_ok(result, "SEARCH VECTOR with filter should succeed");
     }
 
-    /// EXPLAIN vector query
+    /// EXPLAIN vector query (requires qdrant feature)
     #[test]
+    #[cfg_attr(not(feature = "qdrant"), ignore)]
     fn test_explain_vector_query() {
         let mut db = create_test_db();
         setup_test_space(
@@ -264,6 +266,7 @@ mod fulltext {
 
     /// Create fulltext index
     #[test]
+    #[cfg_attr(not(feature = "fulltext-search"), ignore)]
     fn test_fulltext_index_creation() {
         let mut db = create_test_db();
         setup_test_space(
@@ -281,6 +284,7 @@ mod fulltext {
 
     /// Basic fulltext search
     #[test]
+    #[cfg_attr(not(feature = "fulltext-search"), ignore)]
     fn test_basic_search() {
         let mut db = create_test_db();
         setup_test_space(
@@ -304,13 +308,14 @@ mod fulltext {
 
         // Search
         let result = db.execute_query(
-            "SEARCH INDEX idx_article_content_test2 MATCH 'database' YIELD doc_id, title, score"
+            "SEARCH INDEX idx_article_content MATCH 'database' YIELD doc_id, title, score"
         );
         assert_query_ok(result, "SEARCH INDEX should succeed");
     }
 
     /// Boolean query search
     #[test]
+    #[cfg_attr(not(feature = "fulltext-search"), ignore)]
     fn test_boolean_search() {
         let mut db = create_test_db();
         setup_test_space(
@@ -334,13 +339,14 @@ mod fulltext {
 
         // Boolean search
         let result = db.execute_query(
-            "SEARCH INDEX idx_article_content_test3 MATCH 'graph AND database' YIELD doc_id, title"
+            "SEARCH INDEX idx_article_content MATCH 'graph AND database' YIELD doc_id, title"
         );
         assert_query_ok(result, "SEARCH INDEX with boolean should succeed");
     }
 
     /// EXPLAIN fulltext search
     #[test]
+    #[cfg_attr(not(feature = "fulltext-search"), ignore)]
     fn test_explain_fulltext() {
         let mut db = create_test_db();
         setup_test_space(
@@ -361,7 +367,7 @@ mod fulltext {
 
         // EXPLAIN
         let result = db.execute_query(
-            "EXPLAIN SEARCH INDEX idx_article_content_test4 MATCH 'performance' YIELD doc_id, score"
+            "EXPLAIN SEARCH INDEX idx_article_content MATCH 'performance' YIELD doc_id, score"
         );
         assert_query_ok(result, "EXPLAIN SEARCH INDEX should succeed");
     }

@@ -11,6 +11,7 @@ pub struct IndexMetadata {
     pub config: CollectionConfig,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub vector_count: u64,
+    pub index_name: Option<String>,
 }
 
 impl IndexMetadata {
@@ -20,6 +21,17 @@ impl IndexMetadata {
             config,
             created_at: chrono::Utc::now(),
             vector_count: 0,
+            index_name: None,
+        }
+    }
+
+    pub fn with_index_name(name: String, config: CollectionConfig, index_name: String) -> Self {
+        Self {
+            name,
+            config,
+            created_at: chrono::Utc::now(),
+            vector_count: 0,
+            index_name: Some(index_name),
         }
     }
 }

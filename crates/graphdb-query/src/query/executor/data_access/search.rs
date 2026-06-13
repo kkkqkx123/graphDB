@@ -115,13 +115,33 @@ impl<S: StorageReader> IndexScanExecutor<S> {
 
         match self.scan_type.as_str() {
             "UNIQUE" => {
-                // Unique Index Lookup
+                // Unique Index Lookup - handles both single and multi-condition queries
+                // For multi-condition queries, UNIQUE path uses the first equality column for index lookup,
+                // and subsequent FilterNode applies remaining conditions in memory
                 if let Some(first_limit) = self.scan_limits.first() {
-                    let value = first_limit
-                        .begin_value
-                        .as_ref()
-                        .map(|v| Value::String(v.clone()))
-                        .unwrap_or(Value::Null(NullType::Null));
+                    // Find the first equality condition (where begin_value == end_value)
+                    let equality_limit = self.scan_limits.iter().find(|limit| {
+                        limit.begin_value.is_some()
+                            && limit.end_value.is_some()
+                            && limit.begin_value == limit.end_value
+                    });
+
+                    let value = if let Some(eq_limit) = equality_limit {
+                        // Use the equality condition for precise index lookup
+                        eq_limit
+                            .begin_value
+                            .as_ref()
+                            .map(|v| Value::String(v.clone()))
+                            .unwrap_or(Value::Null(NullType::Null))
+                    } else {
+                        // Fallback to first limit if no equality condition found
+                        first_limit
+                            .begin_value
+                            .as_ref()
+                            .map(|v| Value::String(v.clone()))
+                            .unwrap_or(Value::Null(NullType::Null))
+                    };
+
                     storage
                         .lookup_index(&space_name, &self.index_name, &value)
                         .map_err(DBError::from)
@@ -258,7 +278,14 @@ impl<S: StorageReader> IndexScanExecutor<S> {
                                 };
 
                                 if passes_end {
-                                    results.push(Value::BigInt(vertex.vid.as_int64().unwrap_or(0)));
+                                    let vid_value = if vertex.vid.as_int64().is_some() {
+                                        Value::BigInt(vertex.vid.as_int64().unwrap_or(0))
+                                    } else if vertex.vid.as_str().is_some() {
+                                        Value::String(vertex.vid.as_str().unwrap().to_string())
+                                    } else {
+                                        Value::BigInt(0)
+                                    };
+                                    results.push(vid_value);
                                 }
                             }
                         }
@@ -287,7 +314,15 @@ impl<S: StorageReader> IndexScanExecutor<S> {
                         .map_err(DBError::from)?;
                     let results: Vec<Value> = vertices
                         .iter()
-                        .map(|v| Value::BigInt(v.vid.as_int64().unwrap_or(0)))
+                        .map(|v| {
+                            if v.vid.as_int64().is_some() {
+                                Value::BigInt(v.vid.as_int64().unwrap_or(0))
+                            } else if v.vid.as_str().is_some() {
+                                Value::String(v.vid.as_str().unwrap().to_string())
+                            } else {
+                                Value::BigInt(0)
+                            }
+                        })
                         .collect();
                     Ok(results)
                 }

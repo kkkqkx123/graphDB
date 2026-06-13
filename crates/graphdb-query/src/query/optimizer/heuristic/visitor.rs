@@ -59,6 +59,9 @@ use crate::query::planning::plan::core::nodes::management::manage_node_enums::{
     EdgeManageNode, FulltextManageNode, IndexManageNode, SpaceManageNode, TagManageNode,
     UserManageNode, VectorManageNode,
 };
+use crate::query::planning::plan::core::nodes::search::vector::data_access::{
+    VectorLookupNode, VectorMatchNode, VectorSearchNode,
+};
 use crate::query::planning::plan::core::nodes::RemoveNode;
 
 use crate::query::planning::plan::core::nodes::access::IndexScanNode;
@@ -293,6 +296,18 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
 
     fn visit_vector_manage(&mut self, node: &VectorManageNode) -> Self::Result {
         Ok(PlanNodeEnum::VectorManage(node.clone()))
+    }
+
+    fn visit_vector_search(&mut self, node: &VectorSearchNode) -> Self::Result {
+        Ok(PlanNodeEnum::VectorSearch(node.clone()))
+    }
+
+    fn visit_vector_lookup(&mut self, node: &VectorLookupNode) -> Self::Result {
+        Ok(PlanNodeEnum::VectorLookup(node.clone()))
+    }
+
+    fn visit_vector_match(&mut self, node: &VectorMatchNode) -> Self::Result {
+        Ok(PlanNodeEnum::VectorMatch(node.clone()))
     }
 
     // Multi-input nodes (using dependencies)

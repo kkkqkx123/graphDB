@@ -264,7 +264,9 @@ fn parse_vector_query_expr(
     let span = ctx.current_span();
 
     let keyword = ctx.consume_identifier()?;
-    ctx.expect_token(TokenKind::Eq)?;
+    if !ctx.expect_token(TokenKind::Eq).is_ok() {
+        ctx.expect_token(TokenKind::Assign)?;
+    }
 
     let (query_type, query_data) = if keyword.to_lowercase() == "vector" {
         // vector = [0.1, 0.2, ...]
@@ -314,12 +316,10 @@ fn parse_vector_literal(
     Ok(format!("[{}]", elements.join(", ")))
 }
 
-/// Parse WHERE clause
+/// Parse WHERE clause (caller must have already consumed the WHERE keyword)
 fn parse_where_clause(
     ctx: &mut ParseContext,
 ) -> Result<WhereClause, crate::query::parser::ParseError> {
-    ctx.consume_keyword("WHERE")?;
-
     // Simplified WHERE condition parsing - just parse basic comparison
     let left = ctx.consume_identifier()?;
 

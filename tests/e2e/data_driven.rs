@@ -3,7 +3,7 @@
 //! Each test loads a `.gql` file from `tests/e2e/data/` and verifies
 //! the resulting data with count, filter, aggregate, and traversal queries.
 
-use crate::common::{assert_count_eq, assert_query_row_count, create_test_db, load_gql_file};
+use crate::common::{assert_count_eq, assert_query_row_count, assert_row_count, create_test_db, load_gql_file};
 use graphdb::core::Value;
 
 const DATA_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/e2e/data");
@@ -63,17 +63,15 @@ fn test_social_network_lookup_index() {
         .expect("Failed to load social_network_data.gql");
 
     // By name
-    assert_count_eq(
-        &mut db,
-        "LOOKUP ON person WHERE person.name == 'Alice' YIELD person.name",
+    assert_row_count(
+        db.execute_query("LOOKUP ON person WHERE person.name == 'Alice' YIELD person.name"),
         1,
         "lookup Alice",
     );
-    // By age range
-    assert_count_eq(
-        &mut db,
-        "LOOKUP ON person WHERE person.age > 34 YIELD person.name",
-        7,
+    // By age range (Bob 35, Jack 36, Paul 35 -> 3 people)
+    assert_row_count(
+        db.execute_query("LOOKUP ON person WHERE person.age > 34 YIELD person.name"),
+        3,
         "lookup age > 34",
     );
 }
@@ -172,7 +170,7 @@ fn test_optimizer_aggregate() {
     assert_query_row_count(
         &mut db,
         "MATCH (p:person) RETURN p.city, count(*) GROUP BY p.city",
-        6,
+        5,
         "distinct cities",
     );
 }

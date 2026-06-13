@@ -112,7 +112,11 @@ impl Planner for LookupPlanner {
                 Self::extract_scan_limits_from_where(&lookup_stmt.where_clause, &hint.columns);
             scan_type = if scan_limits.is_empty() {
                 ScanType::Full
+            } else if scan_limits.len() == 1 && scan_limits[0].scan_type == ScanType::Unique {
+                // Single equality condition: use index point lookup
+                ScanType::Unique
             } else {
+                // Multiple conditions or range queries: use Range
                 ScanType::Range
             };
         }

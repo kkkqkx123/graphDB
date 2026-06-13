@@ -150,7 +150,7 @@ required-features = ["server"]
 [[bin]]
 name = "graphdb-e2e"
 path = "src/bin/graphdb-e2e.rs"
-required-features = ["server"]
+required-features = ["server", "fulltext-search", "qdrant"]
 
 [dependencies]
 graphdb-core = { path = "crates/graphdb-core" }

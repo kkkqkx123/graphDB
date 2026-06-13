@@ -18,6 +18,7 @@ pub struct CreateFulltextIndexNode {
     pub engine_type: FulltextEngineType,
     pub options: IndexOptions,
     pub if_not_exists: bool,
+    pub space_id: u64,
 }
 
 impl CreateFulltextIndexNode {
@@ -28,6 +29,7 @@ impl CreateFulltextIndexNode {
         engine_type: FulltextEngineType,
         options: IndexOptions,
         if_not_exists: bool,
+        space_id: u64,
     ) -> Self {
         Self {
             index_name,
@@ -36,6 +38,7 @@ impl CreateFulltextIndexNode {
             engine_type,
             options,
             if_not_exists,
+            space_id,
         }
     }
 }

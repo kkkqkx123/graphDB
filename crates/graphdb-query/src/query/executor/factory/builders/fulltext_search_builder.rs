@@ -53,7 +53,7 @@ impl<S: StorageClient + Send + 'static> FulltextSearchBuilder<S> {
             .ok_or_else(|| QueryError::execution("Sync manager not available".to_string()))?
             .fulltext_manager();
 
-        let space_id = context.current_space_id().unwrap_or(0);
+        let space_id = node.space_id;
 
         let executor = CreateFulltextIndexExecutor::new(
             node.id(),

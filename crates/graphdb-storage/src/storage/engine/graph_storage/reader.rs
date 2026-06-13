@@ -236,7 +236,7 @@ pub(crate) fn get_node_edges(
     }
 
     let ts = ctx.get_read_timestamp();
-    let node_str = node_id.to_string();
+    let node_str = vid_to_string(node_id);
     let mut edges = Vec::new();
 
     for edge_info in &edge_types {
