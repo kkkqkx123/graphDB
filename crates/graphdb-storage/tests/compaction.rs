@@ -12,7 +12,6 @@
 mod common;
 
 use graphdb_storage::core::types::VertexId;
-use graphdb_storage::core::Value;
 use graphdb_storage::storage::{StorageAdmin, StoragePersistenceOps, StorageReader, StorageWriter};
 
 /// Compact and reopen helper: save+checkpoint, compact, save+checkpoint, reopen.

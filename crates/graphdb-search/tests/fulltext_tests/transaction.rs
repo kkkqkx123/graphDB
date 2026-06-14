@@ -207,7 +207,6 @@ async fn test_transaction_rollback() {
 
     ctx.coordinator
         .rollback_transaction(txn_id)
-        .await
         .expect("Rollback should succeed");
 
     let count_after = ctx.coordinator.transaction_buffer_count(txn_id);
@@ -311,7 +310,6 @@ async fn test_concurrent_transactions() {
 
     ctx.coordinator
         .rollback_transaction(txn2)
-        .await
         .expect("Rollback txn2 should succeed");
 
     ctx.coordinator

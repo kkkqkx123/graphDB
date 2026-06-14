@@ -533,6 +533,9 @@ mod tests {
 
         let sum_func = aggregate_from_str_with_args("SUM", &["field".to_string()])
             .expect("from_str_with_args should succeed");
+        assert!(sum_func.is_numeric());
+        assert!(!sum_func.is_collection());
+
         let collect_func = aggregate_from_str_with_args("COLLECT", &["field".to_string()])
             .expect("from_str_with_args should succeed");
         assert!(!collect_func.is_numeric());

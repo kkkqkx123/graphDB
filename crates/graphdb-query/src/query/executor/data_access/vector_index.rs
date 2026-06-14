@@ -102,13 +102,14 @@ impl<S: StorageReader> Executor<S> for CreateVectorIndexExecutor<S> {
             shard_number: None,
         };
 
-        // Create vector index using tokio runtime (only if engine is not disabled)
+        // Create vector index using coordinator's runtime (only if engine is not disabled)
         if !self.coordinator.is_disabled_engine() {
             let coordinator = self.coordinator.clone();
             let tag_name = self.node.tag_name.clone();
             let field_name = self.node.field_name.clone();
 
-            tokio::runtime::Handle::current()
+            self.coordinator
+                .runtime()
                 .block_on(async move {
                     coordinator
                         .create_index_with_config(space_id, &tag_name, &field_name, config)
@@ -227,12 +228,13 @@ impl<S: StorageReader> Executor<S> for DropVectorIndexExecutor<S> {
 
         let metadata = index_metadata.unwrap();
 
-        // Drop vector index using tokio runtime
+        // Drop vector index using coordinator's runtime
         let coordinator = self.coordinator.clone();
         let tag_name = metadata.tag_name.clone();
         let field_name = metadata.field_name.clone();
 
-        tokio::runtime::Handle::current()
+        self.coordinator
+            .runtime()
             .block_on(async move {
                 coordinator
                     .drop_vector_index(space_id, &tag_name, &field_name)

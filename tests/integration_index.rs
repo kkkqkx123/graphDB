@@ -494,10 +494,20 @@ fn test_delete_edge_indexes() {
         partial_condition: None,
     });
 
+    let tag_info = person_tag_info();
+    assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
+
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
+    // Create vertices first
     let src = VertexId::from_int64(1);
     let dst = VertexId::from_int64(2);
+    let tag = graphdb::core::vertex_edge_path::Tag::new("Person".to_string(), std::collections::HashMap::new());
+    let vertex1 = Vertex::new(src, vec![tag.clone()]);
+    let vertex2 = Vertex::new(dst, vec![tag]);
+    assert_ok(get_storage(&storage).insert_vertex("test_space", vertex1));
+    assert_ok(get_storage(&storage).insert_vertex("test_space", vertex2));
+
     let edge_type = "KNOWS";
     let mut props = std::collections::HashMap::new();
     props.insert("since".to_string(), Value::String("2024-01-01".to_string()));

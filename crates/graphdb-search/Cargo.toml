@@ -22,7 +22,8 @@ tokio = { workspace = true, features = ["fs"] }
 [features]
 fulltext-search = ["dep:tantivy"]
 jieba = ["dep:graphdb-fulltext-client"]
+qdrant = ["graphdb-sync/qdrant"]
 
 [dev-dependencies]
 tempfile.workspace = true
-graphdb-sync = { path = "../graphdb-sync", features = ["fulltext-search"] }
+graphdb-sync = { path = "../graphdb-sync", features = ["fulltext-search", "qdrant"] }

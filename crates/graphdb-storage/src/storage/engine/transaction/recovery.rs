@@ -833,7 +833,6 @@ mod tests {
     use crate::core::wal::traits::RecoveryApplier;
     use crate::core::Value;
     use crate::storage::engine::{EdgeOperationParams, InsertEdgeParams};
-    use graphdb_core::core::metadata::IndexMetadataManager;
 
     #[test]
     fn test_schema_replay_roundtrip() {
@@ -867,17 +866,13 @@ mod tests {
         )
         .expect("Second vertex type replay should succeed");
 
-        let person_label = ctx
-            .persistent
-            .data_store
+        let person_label = ctx.data_store()
             .vertex_label_names()
             .read()
             .get("space_1:tag:Person")
             .copied()
             .expect("Person label should exist");
-        let city_label = ctx
-            .persistent
-            .data_store
+        let city_label = ctx.data_store()
             .vertex_label_names()
             .read()
             .get("space_1:tag:City")

@@ -16,8 +16,7 @@ pub(crate) fn create_tag_index(
         .ok_or_else(|| StorageError::not_found(format!("Space {} not found", space)))?
         .space_id;
     ctx.index_metadata_manager()
-        .create_tag_index(space_id, index)?;
-    Ok(true)
+        .create_tag_index(space_id, index)
 }
 
 pub(crate) fn drop_tag_index(
