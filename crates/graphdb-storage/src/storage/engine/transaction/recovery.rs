@@ -32,7 +32,17 @@ impl RecoveryApplier for GraphStorageContext {
     ) -> StorageResult<()> {
         {
             let mut vertex_tables = self.data_store().vertex_tables().write();
-            TransactionOps::add_vertex(&mut vertex_tables, label, vid, properties, ts)?;
+            if let Err(e) = TransactionOps::add_vertex(&mut vertex_tables, label, vid, properties, ts) {
+                if e.to_string().contains("already exists") {
+                    // Vertex already exists — idempotent replay, skip.
+                    return Ok(());
+                }
+                // For other errors (e.g. schema issues), propagate them.
+                return Err(StorageError::db_error(format!(
+                    "Failed to replay insert vertex: {}",
+                    e
+                )));
+            }
         }
         self.mark_vertex_modified(label);
 
@@ -193,10 +203,18 @@ impl RecoveryApplier for GraphStorageContext {
     ) -> StorageResult<()> {
         {
             let mut vertex_tables = self.data_store().vertex_tables().write();
-            TransactionOps::delete_vertex_by_external_vid(&mut vertex_tables, label, vid, ts)
-                .map_err(|e| {
-                    StorageError::db_error(format!("Failed to replay delete vertex: {}", e))
-                })?;
+            match TransactionOps::delete_vertex_by_external_vid(
+                &mut vertex_tables,
+                label,
+                vid,
+                ts,
+            ) {
+                Ok(_) => {}
+                Err(_) => {
+                    // Vertex may have already been deleted (idempotent replay).
+                    // This is expected during re-recovery scenarios.
+                }
+            }
         }
         self.mark_vertex_modified(label);
 

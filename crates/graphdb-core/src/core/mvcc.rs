@@ -170,7 +170,9 @@ impl VersionManager {
     }
 
     pub fn clear(&self) {
-        self.write_ts.store(1, Ordering::SeqCst);
+        // Preserve write_ts so that subsequent writes and checkpoints
+        // use timestamps >= the compact timestamp, ensuring persisted
+        // data remains visible after reload.
         self.read_ts.store(0, Ordering::SeqCst);
         self.pending_reqs.store(0, Ordering::SeqCst);
         self.pending_update_reqs.store(0, Ordering::SeqCst);

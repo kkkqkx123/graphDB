@@ -51,6 +51,7 @@ pub enum PersistenceState {
 pub struct CheckpointInfo {
     pub checkpoint_id: u64,
     pub lsn: Lsn,
+    pub timestamp: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -421,6 +422,7 @@ impl PersistenceCoordinator {
 
         let mut checkpoint_id: Option<u64> = None;
         let mut lsn: Option<u64> = None;
+        let mut timestamp: Option<u32> = None;
 
         for line in reader.lines() {
             let line = line?;
@@ -449,6 +451,14 @@ impl PersistenceCoordinator {
                         ))
                     })?);
                 }
+                "timestamp" => {
+                    timestamp = Some(parts[1].parse().map_err(|e| {
+                        StorageError::deserialize_error(format!(
+                            "Invalid timestamp in checkpoint metadata: {}",
+                            e
+                        ))
+                    })?);
+                }
                 _ => {}
             }
         }
@@ -465,6 +475,7 @@ impl PersistenceCoordinator {
         Ok(CheckpointInfo {
             checkpoint_id,
             lsn: Lsn::new(lsn),
+            timestamp: timestamp.unwrap_or(0),
         })
     }
 

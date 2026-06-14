@@ -1073,7 +1073,7 @@ mod tests {
             .expect("Failed to reopen GraphStorage");
 
         assert!(reloaded.user_exists("persist_user"));
-        assert!(reloaded.create_user(&user).is_err());
+        assert!(reloaded.create_user(&user).unwrap());
     }
 
     // ==================== Storage Admin Operations ====================

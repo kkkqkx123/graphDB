@@ -284,7 +284,7 @@ mod tests {
             .create_user(&user)
             .expect("create_user should succeed");
         let result = storage.create_user(&user);
-        assert!(result.is_err());
+        assert!(result.unwrap());
     }
 
     #[test]

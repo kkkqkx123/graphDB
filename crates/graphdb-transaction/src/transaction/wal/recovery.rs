@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use postcard::from_bytes;
 
+use crate::core::types::Timestamp;
 use crate::core::{StorageError, StorageResult};
 use crate::transaction::wal::{
     AddEdgePropRedo, AddVertexPropRedo, AlterSpaceCommentRedo, ClearSpaceRedo, CreateEdgeTypeRedo,
@@ -49,6 +50,7 @@ pub struct RecoveryStats {
     pub recovery_time_ms: u64,
     pub errors_encountered: usize,
     pub last_lsn: crate::transaction::wal::Lsn,
+    pub max_timestamp: Timestamp,
 }
 
 /// Trait for applying recovered operations to the storage engine.
@@ -158,6 +160,7 @@ impl RecoveryManager {
             };
 
             let ts = entry.header.timestamp;
+            self.stats.max_timestamp = self.stats.max_timestamp.max(ts);
             let payload = &entry.payload;
 
             match op_type {

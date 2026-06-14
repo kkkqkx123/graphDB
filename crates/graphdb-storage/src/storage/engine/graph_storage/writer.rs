@@ -56,6 +56,8 @@ pub(crate) fn insert_vertex(
         rollback_vertex_tags(ctx, space_info.space_id, &rollback, ts);
     }
 
+    ctx.version_manager().release_insert_timestamp(ts);
+
     result
 }
 
@@ -113,8 +115,6 @@ fn insert_vertex_at_timestamp(
             ts,
         )?;
     }
-
-    ctx.version_manager().release_insert_timestamp(ts);
 
     Ok(vertex.vid)
 }
@@ -207,6 +207,8 @@ if let Some(id_int) = vid_int {
         }
     }
 
+    ctx.version_manager().release_insert_timestamp(ts);
+
     Ok(())
 }
 
@@ -251,6 +253,8 @@ pub(crate) fn delete_vertex(
             ts,
         )?;
     }
+
+    ctx.version_manager().release_insert_timestamp(ts);
 
     Ok(())
 }
@@ -304,11 +308,15 @@ pub(crate) fn batch_insert_vertices(
             Ok(id) => id,
             Err(e) => {
                 rollback_vertex_tags(ctx, space_info.space_id, &rollback, ts);
+                ctx.version_manager().release_insert_timestamp(ts);
                 return Err(e);
             }
         };
         ids.push(id);
     }
+
+    ctx.version_manager().release_insert_timestamp(ts);
+
     Ok(ids)
 }
 
@@ -378,6 +386,8 @@ pub(crate) fn delete_tags(
             }
         }
     }
+
+    ctx.version_manager().release_insert_timestamp(ts);
 
     Ok(deleted_count)
 }
@@ -645,7 +655,7 @@ pub(crate) fn insert_vertex_data(
         let id_str = vid.to_string();
         ctx.insert_vertex(label_id, &id_str, &info.props, ts)
     };
-    match result {
+    let final_result = match result {
         Ok(_) => {
             update_vertex_indexes(
                 ctx,
@@ -664,7 +674,9 @@ pub(crate) fn insert_vertex_data(
             Ok(false)
         }
         Err(e) => Err(e),
-    }
+    };
+    ctx.version_manager().release_insert_timestamp(ts);
+    final_result
 }
 
 pub(crate) fn insert_edge_data(
@@ -717,18 +729,15 @@ pub(crate) fn insert_edge_data(
         ts,
     });
 
-    match result {
-        Ok(_) => {
-            ctx.version_manager().release_insert_timestamp(ts);
-            Ok(true)
+    let final_result = match result {
+        Ok(_) => Ok(true),
+        Err(ref e) if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists => {
+            Ok(false)
         }
-        Err(e) => {
-            if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists {
-                return Ok(false);
-            }
-            Err(e)
-        }
-    }
+        Err(e) => Err(e),
+    };
+    ctx.version_manager().release_insert_timestamp(ts);
+    final_result
 }
 
 pub(crate) fn delete_vertex_data(
@@ -759,6 +768,8 @@ pub(crate) fn delete_vertex_data(
             deleted = true;
         }
     }
+
+    ctx.version_manager().release_insert_timestamp(ts);
 
     Ok(deleted)
 }
@@ -809,6 +820,8 @@ pub(crate) fn delete_edge_data(
             deleted = true;
         }
     }
+
+    ctx.version_manager().release_insert_timestamp(ts);
 
     Ok(deleted)
 }
@@ -909,8 +922,10 @@ pub(crate) fn update_data(
             &merged_props.into_iter().collect::<Vec<_>>(),
             ts,
         )?;
+        ctx.version_manager().release_insert_timestamp(ts);
         Ok(true)
     } else {
+        ctx.version_manager().release_insert_timestamp(ts);
         Err(StorageError::not_found(format!(
             "Label {} not found",
             label

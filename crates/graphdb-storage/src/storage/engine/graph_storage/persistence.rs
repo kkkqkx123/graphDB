@@ -50,8 +50,20 @@ pub(crate) fn bootstrap_from_disk(ctx: &GraphStorageContext) -> StorageResult<()
     load_schema_and_index_metadata(ctx)?;
     super::schema_adapter::ensure_graph_types_from_schema(ctx)?;
 
-    if load_latest_checkpoint(ctx)?.is_none() {
+    let checkpoint_info = load_latest_checkpoint(ctx)?;
+    if let Some(ref info) = checkpoint_info {
+        // Initialize the version manager with the checkpoint timestamp so that
+        // persisted data (written at timestamps <= checkpoint timestamp) is visible
+        // after reload. Without this, the fresh version manager's read_ts=1 would
+        // not see data written at higher timestamps.
+        let thread_num = 1;
+        ctx.version_manager().init_ts(info.timestamp, thread_num);
+    } else {
         restore_full_state_from_disk(ctx)?;
+        // If data was restored from the main data directory (no checkpoints),
+        // we can't recover the max timestamp. Use a default that ensures
+        // data at ts=1 is visible (the minimum write timestamp).
+        ctx.version_manager().init_ts(1, 1);
     }
 
     Ok(())
@@ -132,7 +144,7 @@ pub(crate) fn create_checkpoint(
     let graph = ctx.clone();
     let user_storage = ctx.user_storage().clone();
 
-    let stats = persistence.read().create_checkpoint(
+    let result = persistence.read().create_checkpoint(
         |checkpoint_dir, _timestamp| {
             let data_dir = StoragePaths::new(checkpoint_dir).data_dir();
             std::fs::create_dir_all(&data_dir)?;
@@ -152,7 +164,11 @@ pub(crate) fn create_checkpoint(
             })
         },
         ts,
-    )?;
+    );
+
+    ctx.version_manager().release_insert_timestamp(ts);
+
+    let stats = result?;
 
     Ok(Some(stats))
 }
@@ -345,9 +361,30 @@ pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<Recov
 
     let stats = manager.recover_with_applier(ctx)?;
 
+    // Set the WAL writer's LSN to the last replayed position so that
+    // create_checkpoint records the correct LSN instead of the fresh WAL's 0.
+    if let Some(persistence) = ctx.persistence() {
+        let coordinator = persistence.read();
+        if let Some(wal_mgr) = coordinator.wal_manager() {
+            let _ = wal_mgr.write().set_current_lsn(stats.last_lsn);
+        }
+    }
+
+    // Advance write_ts past the max replayed timestamp so create_checkpoint
+    // allocates a timestamp >= all recovered data, making recovered data
+    // visible after reload.
+    let current_ts = ctx.version_manager().write_timestamp();
+    if stats.max_timestamp >= current_ts {
+        ctx.version_manager().init_ts(stats.max_timestamp, 1);
+    }
+
     // Persist the recovered state as a new checkpoint baseline so the next
     // startup does not replay the same WAL range again.
     let _ = create_checkpoint(ctx)?;
+
+    // Update read_ts so recovered data is visible to subsequent reads.
+    let checkpoint_ts = ctx.version_manager().write_timestamp().saturating_sub(1);
+    ctx.version_manager().init_ts(checkpoint_ts, 1);
 
     Ok(stats)
 }
@@ -366,9 +403,29 @@ pub(crate) fn recover_from_wal_with_config(
 
     let stats = manager.recover_with_applier(ctx)?;
 
+    // Set the WAL writer's LSN to the last replayed position so that
+    // create_checkpoint records the correct LSN instead of the fresh WAL's 0.
+    if let Some(persistence) = ctx.persistence() {
+        let coordinator = persistence.read();
+        if let Some(wal_mgr) = coordinator.wal_manager() {
+            let _ = wal_mgr.write().set_current_lsn(stats.last_lsn);
+        }
+    }
+
+    // Advance write_ts past the max replayed timestamp so create_checkpoint
+    // allocates a timestamp >= all recovered data.
+    let current_ts = ctx.version_manager().write_timestamp();
+    if stats.max_timestamp >= current_ts {
+        ctx.version_manager().init_ts(stats.max_timestamp, 1);
+    }
+
     // Persist the recovered state as a new checkpoint baseline so the next
     // startup does not replay the same WAL range again.
     let _ = create_checkpoint(ctx)?;
+
+    // Update read_ts so recovered data is visible to subsequent reads.
+    let checkpoint_ts = ctx.version_manager().write_timestamp().saturating_sub(1);
+    ctx.version_manager().init_ts(checkpoint_ts, 1);
 
     Ok(stats)
 }
@@ -458,6 +515,7 @@ fn read_checkpoint_metadata(dir: &Path) -> StorageResult<CheckpointInfo> {
 
     let mut checkpoint_id: Option<u64> = None;
     let mut lsn: Option<u64> = None;
+    let mut timestamp: Option<u32> = None;
 
     for line in reader.lines() {
         let line = line?;
@@ -486,6 +544,14 @@ fn read_checkpoint_metadata(dir: &Path) -> StorageResult<CheckpointInfo> {
                     ))
                 })?);
             }
+            "timestamp" => {
+                timestamp = Some(parts[1].parse().map_err(|e| {
+                    StorageError::deserialize_error(format!(
+                        "Invalid timestamp in checkpoint metadata: {}",
+                        e
+                    ))
+                })?);
+            }
             _ => {}
         }
     }
@@ -500,6 +566,7 @@ fn read_checkpoint_metadata(dir: &Path) -> StorageResult<CheckpointInfo> {
     Ok(CheckpointInfo {
         checkpoint_id,
         lsn: Lsn::new(lsn),
+        timestamp: timestamp.unwrap_or(0),
     })
 }
 

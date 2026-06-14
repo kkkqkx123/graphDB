@@ -27,7 +27,9 @@ fn append_schema_redo<T: serde::Serialize>(
     redo: &T,
 ) -> StorageResult<()> {
     let timestamp = ctx.get_write_timestamp();
-    ctx.append_wal_redo(op_type, timestamp, redo)
+    let result = ctx.append_wal_redo(op_type, timestamp, redo);
+    ctx.version_manager().release_insert_timestamp(timestamp);
+    result
 }
 
 pub(crate) fn create_space(
