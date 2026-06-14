@@ -206,6 +206,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         // Obtaining neighbor nodes and edges
         let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
 
+
         if neighbors_with_edges.is_empty() {
             // There are no more neighbors; return to the current path.
             return Ok(vec![current_npath.clone()]);
@@ -602,13 +603,16 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             }
         }
 
-        // Special case: for edge-only patterns (MATCH ()-[e]->()) with specific edge types,
+        // Special case: for simple edge-only patterns (MATCH ()-[e]->()) with specific edge types,
         // directly scan edges by type instead of scanning all vertices and expanding.
         // This is more efficient and avoids potential issues with vertex-based expansion.
+        // Skip for multi-hop chains (input has >1 column) — the normal expansion path handles
+        // column combining correctly for those.
+        let is_multi_hop = self.input_dataset.as_ref().map_or(false, |ds| ds.col_names.len() > 1);
         let has_specific_edge_types = !self.any_edge_type && self.edge_types.as_ref().is_some_and(|t| !t.is_empty());
         let is_from_go_clause = !self.src_vids.is_empty();
 
-        if has_specific_edge_types && !is_from_go_clause {
+        if has_specific_edge_types && !is_from_go_clause && !is_multi_hop {
             if let Some(ref edge_types) = self.edge_types {
                 if !edge_types.is_empty() {
                     let storage = self.get_storage().read();
@@ -629,21 +633,45 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                         let mut dataset = DataSet::new();
                         dataset.col_names = self.col_names.clone();
 
+                        // Build a set of source vertex IDs from input nodes for filtering
+                        // and a map from VID to full vertex for property lookup
+                        let src_set: std::collections::HashSet<VertexId> = if !input_nodes.is_empty() {
+                            input_nodes.iter().map(|v| v.vid).collect()
+                        } else {
+                            std::collections::HashSet::new()
+                        };
+                        let src_vid_to_vertex: std::collections::HashMap<VertexId, Vertex> = 
+                            input_nodes.iter().map(|v| (v.vid, v.clone())).collect();
+
+                        // Get storage handle for loading dst vertices
+                        let storage = self.get_storage().read();
+
                         for edge in all_edges {
+                            // Skip edges whose source is not in the input node set
+                            if !input_nodes.is_empty() && !src_set.contains(&edge.src) {
+                                continue;
+                            }
+
                             // Create a row with the edge value
-                            // Column format: [src, edge, dst] or just [edge] depending on col_names
                             let mut row = Vec::new();
 
                             if self.col_names.len() >= 3 {
-                                // Full format: src, edge, dst
-                                row.push(Value::Vertex(Box::new(Vertex::new(edge.src, Vec::new()))));
+                                // Use the source vertex from input_nodes (has full properties)
+                                let src_vertex = src_vid_to_vertex.get(&edge.src)
+                                    .cloned()
+                                    .unwrap_or_else(|| Vertex::new(edge.src, Vec::new()));
+                                // Load the destination vertex from storage (needs properties for RETURN)
+                                let dst_vertex = storage
+                                    .get_vertex(&self.space_name, &edge.dst)
+                                    .ok()
+                                    .flatten()
+                                    .unwrap_or_else(|| Vertex::new(edge.dst, Vec::new()));
+                                row.push(Value::Vertex(Box::new(src_vertex)));
                                 row.push(Value::edge(edge.clone()));
-                                row.push(Value::Vertex(Box::new(Vertex::new(edge.dst, Vec::new()))));
+                                row.push(Value::Vertex(Box::new(dst_vertex)));
                             } else if self.col_names.len() == 1 {
-                                // Edge-only format: just the edge
                                 row.push(Value::edge(edge));
                             } else {
-                                // Default format: edge only
                                 row.push(Value::edge(edge));
                             }
 

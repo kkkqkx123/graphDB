@@ -9,7 +9,6 @@ pub mod data_fixtures;
 pub mod query_helpers;
 pub mod storage_helpers;
 pub mod test_scenario;
-pub mod test_storage;
 
 use graphdb_query::core::error::DBError;
 use graphdb_query::core::metadata::SchemaManager;

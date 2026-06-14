@@ -427,7 +427,7 @@ impl FulltextIndexManager {
 
         #[cfg(not(feature = "fulltext-search"))]
         {
-            let _ = engine_type;
+            let _ = (engine_type, user_index_name);
             Err(SearchError::EngineUnavailable)
         }
     }

@@ -3,7 +3,6 @@
 //! Sub-modules are conditionally compiled based on feature flags.
 
 mod circuit_breaker;
-mod common;
 mod types;
 
 #[cfg(feature = "fulltext-search")]

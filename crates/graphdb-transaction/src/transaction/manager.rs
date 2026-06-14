@@ -169,6 +169,10 @@ impl TransactionManager {
             return Err(TransactionError::too_many_transactions());
         }
 
+        if self.has_active_write_transaction() {
+            return Err(TransactionError::write_transaction_conflict());
+        }
+
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
         let timestamp = self.version_manager.acquire_insert_timestamp();
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
@@ -203,6 +207,10 @@ impl TransactionManager {
             return Err(TransactionError::internal(
                 "Transaction manager is shutdown".to_string(),
             ));
+        }
+
+        if self.has_active_write_transaction() {
+            return Err(TransactionError::write_transaction_conflict());
         }
 
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
@@ -491,6 +499,11 @@ impl TransactionManager {
     /// Get pending transaction count
     pub fn pending_count(&self) -> i32 {
         self.version_manager.pending_count()
+    }
+
+    /// Check if there's an active write transaction
+    fn has_active_write_transaction(&self) -> bool {
+        self.active_transactions.iter().any(|entry| !entry.value().read_only)
     }
 }
 

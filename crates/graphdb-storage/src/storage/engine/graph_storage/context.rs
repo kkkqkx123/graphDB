@@ -1,3 +1,4 @@
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,7 +16,7 @@ use crate::core::types::{
 use crate::core::UserStorage;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::{EdgeRecord, EdgeStrategy};
-use crate::storage::engine::cache_manager::CacheManager;
+use crate::storage::edge::EdgeTable;use crate::storage::engine::cache_manager::CacheManager;
 use crate::storage::engine::config::PropertyGraphConfig;
 use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
 use crate::storage::engine::params::CreateEdgeTypeParams;
@@ -953,24 +954,98 @@ impl GraphStorageContext {
         let dst_internal = self
             .resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, params.ts)
             .ok_or(StorageError::vertex_not_found())?;
+
+        // For unconstrained edge types (params.src_label == 0), resolve the actual
+        // vertex table label so edges go into per-label tables. This prevents internal
+        // ID collisions when different vertex tables use the same internal ID.
+        let actual_src_label = if params.src_label == 0 {
+            Self::resolve_internal_id_label(&vertex_tables, &params.src_id, params.ts)
+                .ok_or(StorageError::vertex_not_found())?
+        } else {
+            params.src_label
+        };
+        let actual_dst_label = if params.dst_label == 0 {
+            Self::resolve_internal_id_label(&vertex_tables, &params.dst_id, params.ts)
+                .ok_or(StorageError::vertex_not_found())?
+        } else {
+            params.dst_label
+        };
         drop(vertex_tables);
 
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
+        // Look up or create the per-label edge table
+        let key = EdgeTableKey::new(actual_src_label, actual_dst_label, params.edge_label);
         let mut edge_tables = self.persistent.data_store.edge_tables().write();
-        let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
-            StorageError::label_not_found(format!("edge label {}", params.edge_label))
-        })?;
 
-        let offset = edge_table.insert_edge(
-            src_internal,
-            dst_internal,
-            params.rank,
-            params.properties,
-            params.ts,
-        )?;
-        self.mark_edge_modified(params.edge_label);
+        // The (0, 0, edge_label) table always exists (created by create_edge_type).
+        // Clone its schema when creating new per-label tables.
+        let edge_table = if edge_tables.contains_key(&key) {
+            edge_tables.get_mut(&key).unwrap()
+        } else {
+            let edge_schema = {
+                let original_key = EdgeTableKey::new(0, 0, params.edge_label);
+                let orig = edge_tables.get(&original_key).ok_or_else(|| {
+                    StorageError::label_not_found(format!("edge label {}", params.edge_label))
+                })?;
+                let mut s = orig.schema().clone();
+                s.src_label = actual_src_label;
+                s.dst_label = actual_dst_label;
+                s
+            };
+            edge_tables.insert(key, EdgeTable::new(edge_schema)?);
+            edge_tables.get_mut(&key).unwrap()
+        };
 
-        Ok(offset)
+        let mut rank = params.rank;
+        loop {
+            match edge_table.insert_edge(
+                src_internal,
+                dst_internal,
+                rank,
+                params.properties,
+                params.ts,
+            ) {
+                Ok(offset) => {
+                    self.mark_edge_modified(params.edge_label);
+                    return Ok(offset);
+                }
+                Err(ref e)
+                    if e.kind()
+                        == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists
+                        && rank == params.rank =>
+                {
+                    rank += 1;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    /// Resolve the actual edge table key for unconstrained edge types.
+    /// For constrained edge types (src_label != 0 and dst_label != 0), returns
+    /// the direct key. For unconstrained types, resolves the actual vertex labels.
+    fn resolve_edge_table_key(
+        &self,
+        vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
+        src_id: &VertexId,
+        src_label: LabelId,
+        dst_id: &VertexId,
+        dst_label: LabelId,
+        edge_label: LabelId,
+        ts: Timestamp,
+    ) -> EdgeTableKey {
+        let actual_src_label = if src_label == 0 {
+            Self::resolve_internal_id_label(vertex_tables, src_id, ts)
+                .unwrap_or(src_label)
+        } else {
+            src_label
+        };
+        let actual_dst_label = if dst_label == 0 {
+            Self::resolve_internal_id_label(vertex_tables, dst_id, ts)
+                .unwrap_or(dst_label)
+        } else {
+            dst_label
+        };
+        EdgeTableKey::new(actual_src_label, actual_dst_label, edge_label)
     }
 
     pub fn get_edge(&self, params: &EdgeOperationParams, ts: Timestamp) -> Option<EdgeRecord> {
@@ -985,9 +1060,15 @@ impl GraphStorageContext {
 
         let dst_internal =
             self.resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, ts)?;
-        drop(vertex_tables);
-
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
+        let key = self.resolve_edge_table_key(
+            &vertex_tables,
+            &params.src_id,
+            params.src_label,
+            &params.dst_id,
+            params.dst_label,
+            params.edge_label,
+            ts,
+        );
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let edge_table = edge_tables.get(&key)?;
 
@@ -1015,9 +1096,17 @@ impl GraphStorageContext {
             })
             .ok_or(StorageError::vertex_not_found())?;
 
+        let key = self.resolve_edge_table_key(
+            &vertex_tables,
+            &params.src_id,
+            params.src_label,
+            &params.dst_id,
+            params.dst_label,
+            params.edge_label,
+            ts,
+        );
         drop(vertex_tables);
 
-        let key = EdgeTableKey::new(params.src_label, params.dst_label, params.edge_label);
         let mut edge_tables = self.persistent.data_store.edge_tables().write();
         let edge_table = edge_tables.get_mut(&key).ok_or_else(|| {
             StorageError::label_not_found(format!("edge label {}", params.edge_label))
@@ -1035,7 +1124,7 @@ impl GraphStorageContext {
         &self,
         edge_label: LabelId,
         src_label: LabelId,
-        dst_label: LabelId,
+        _dst_label: LabelId,
         src_id: VertexId,
         ts: Timestamp,
     ) -> Option<Vec<EdgeRecord>> {
@@ -1045,19 +1134,26 @@ impl GraphStorageContext {
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
         let src_internal = self.resolve_internal_id(&vertex_tables, src_label, src_id, ts)?;
+        let actual_src = if src_label == 0 {
+            Self::resolve_internal_id_label(&vertex_tables, &src_id, ts)
+                .unwrap_or(src_label)
+        } else {
+            src_label
+        };
         drop(vertex_tables);
 
-        let key = EdgeTableKey::new(src_label, dst_label, edge_label);
         let edge_tables = self.persistent.data_store.edge_tables().read();
-        let edge_table = edge_tables.get(&key)?;
-
-        Some(edge_table.out_edges(src_internal, ts))
+        let mut records = Vec::new();
+        for table in edge_tables.values().filter(|t| t.label() == edge_label && t.src_label() == actual_src) {
+            records.extend(table.out_edges(src_internal, ts));
+        }
+        Some(records)
     }
 
     pub fn in_edges(
         &self,
         edge_label: LabelId,
-        src_label: LabelId,
+        _src_label: LabelId,
         dst_label: LabelId,
         dst_id: VertexId,
         ts: Timestamp,
@@ -1068,13 +1164,20 @@ impl GraphStorageContext {
 
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
         let dst_internal = self.resolve_internal_id(&vertex_tables, dst_label, dst_id, ts)?;
+        let actual_dst = if dst_label == 0 {
+            Self::resolve_internal_id_label(&vertex_tables, &dst_id, ts)
+                .unwrap_or(dst_label)
+        } else {
+            dst_label
+        };
         drop(vertex_tables);
 
-        let key = EdgeTableKey::new(src_label, dst_label, edge_label);
         let edge_tables = self.persistent.data_store.edge_tables().read();
-        let edge_table = edge_tables.get(&key)?;
-
-        Some(edge_table.in_edges(dst_internal, ts))
+        let mut records = Vec::new();
+        for table in edge_tables.values().filter(|t| t.label() == edge_label && t.dst_label() == actual_dst) {
+            records.extend(table.in_edges(dst_internal, ts));
+        }
+        Some(records)
     }
 
     // ── Query Operations ──
@@ -1488,6 +1591,26 @@ impl GraphStorageContext {
                 .find_map(|t| t.get_internal_id(id, ts))
         } else {
             vertex_tables.get(&label)?.get_internal_id(id, ts)
+        }
+    }
+
+    /// Resolve the vertex table label for an external vertex ID.
+    /// Searches all vertex tables and returns the label of the matching table.
+    fn resolve_internal_id_label(
+        vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
+        id: &VertexId,
+        ts: Timestamp,
+    ) -> Option<LabelId> {
+        if let Some(int_id) = id.as_int64() {
+            vertex_tables
+                .iter()
+                .find_map(|(lbl, t)| t.get_internal_id_by_i64(int_id, ts).map(|_| *lbl))
+        } else if let Some(str_id) = id.as_str() {
+            vertex_tables
+                .iter()
+                .find_map(|(lbl, t)| t.get_internal_id(str_id, ts).map(|_| *lbl))
+        } else {
+            None
         }
     }
 }

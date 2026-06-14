@@ -382,31 +382,70 @@ pub(crate) fn scan_edges_by_type(
         None => return Ok(edges),
     };
 
-    let records = if edge_info.src_tag_name.is_empty() || edge_info.dst_tag_name.is_empty() {
-        ctx.scan_edges_by_label(edge_label_id, ts)
-    } else {
-        ctx.scan_edges(src_label_id, dst_label_id, edge_label_id, ts)
-    };
+    // For unconstrained edge types (both tags empty), edges may be spread across
+    // multiple edge tables (per-label tables from recent inserts + the original
+    // (0, 0, edge_label) table from legacy inserts). We iterate every edge table
+    // for this edge type and resolve internal IDs using each table's known
+    // src_label/dst_label. The (0, 0, edge_label) table mixes vertices from
+    // different tables whose internal IDs may collide, so we fall back to
+    // get_external_id_any for those (best-effort).
+    if src_label_id == 0 && dst_label_id == 0 {
+        let edge_tables = ctx.data_store().edge_tables().read();
+        for table in edge_tables.values().filter(|t| t.label() == edge_label_id) {
+            let tbl_src = table.src_label();
+            let tbl_dst = table.dst_label();
+            for record in table.scan(ts) {
+                let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
+                let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
+
+                let src_external = if tbl_src != 0 {
+                    ctx.get_external_id(tbl_src, src_internal, ts)
+                        .or_else(|| ctx.get_external_id_by_internal_id(tbl_src, src_internal)
+                            .map(|v| vid_to_string(&v)))
+                        .unwrap_or_else(|| format!("{}", record.src_vid))
+                } else {
+                    ctx.get_external_id_any(src_internal, ts)
+                        .unwrap_or_else(|| format!("{}", record.src_vid))
+                };
+
+                let dst_external = if tbl_dst != 0 {
+                    ctx.get_external_id(tbl_dst, dst_internal, ts)
+                        .or_else(|| ctx.get_external_id_by_internal_id(tbl_dst, dst_internal)
+                            .map(|v| vid_to_string(&v)))
+                        .unwrap_or_else(|| format!("{}", record.dst_vid))
+                } else {
+                    ctx.get_external_id_any(dst_internal, ts)
+                        .unwrap_or_else(|| format!("{}", record.dst_vid))
+                };
+
+                let edge = edge_record_to_edge(&record, edge_type, &src_external, &dst_external);
+                edges.push(edge);
+            }
+        }
+        return Ok(edges);
+    }
+
+    let records = ctx.scan_edges(src_label_id, dst_label_id, edge_label_id, ts);
 
     for record in records {
         let src_internal = record.src_vid.as_int64().unwrap_or(0) as u32;
         let dst_internal = record.dst_vid.as_int64().unwrap_or(0) as u32;
 
-        let src_external = if src_label_id != 0 {
-            ctx.get_external_id(src_label_id, src_internal, ts)
-                .unwrap_or_else(|| format!("{}", record.src_vid))
-        } else {
-            ctx.get_external_id_any(src_internal, ts)
-                .unwrap_or_else(|| format!("{}", record.src_vid))
-        };
+        let src_external = ctx
+            .get_external_id(src_label_id, src_internal, ts)
+            .or_else(|| {
+                ctx.get_external_id_by_internal_id(src_label_id, src_internal)
+                    .map(|v| vid_to_string(&v))
+            })
+            .unwrap_or_else(|| format!("{}", record.src_vid));
 
-        let dst_external = if dst_label_id != 0 {
-            ctx.get_external_id(dst_label_id, dst_internal, ts)
-                .unwrap_or_else(|| format!("{}", record.dst_vid))
-        } else {
-            ctx.get_external_id_any(dst_internal, ts)
-                .unwrap_or_else(|| format!("{}", record.dst_vid))
-        };
+        let dst_external = ctx
+            .get_external_id(dst_label_id, dst_internal, ts)
+            .or_else(|| {
+                ctx.get_external_id_by_internal_id(dst_label_id, dst_internal)
+                    .map(|v| vid_to_string(&v))
+            })
+            .unwrap_or_else(|| format!("{}", record.dst_vid));
 
         let edge = edge_record_to_edge(&record, edge_type, &src_external, &dst_external);
         edges.push(edge);

@@ -135,7 +135,7 @@ fn test_transaction_property_types() {
                 ("int_val", Value::Int(42)),
                 ("string_val", Value::String("test".into())),
                 ("bool_val", Value::Bool(true)),
-                ("float_val", Value::Double(2.71)),
+                ("float_val", Value::Float(2.71)),
             ]),
         );
 }

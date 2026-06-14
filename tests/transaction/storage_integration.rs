@@ -241,7 +241,7 @@ fn test_storage_property_types() {
                 ("int_val", Value::Int(42)),
                 ("string_val", Value::String("test_string".into())),
                 ("bool_val", Value::Bool(true)),
-                ("float_val", Value::Double(3.14)),
+                ("float_val", Value::Float(3.14)),
             ]),
         );
 }

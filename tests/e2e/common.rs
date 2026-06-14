@@ -56,12 +56,13 @@ fn create_sync_manager() -> Arc<SyncManager> {
         batch_config,
     ));
 
-    let mut sync_manager = SyncManager::with_sync_config(sync_coordinator, sync_config);
+    let sync_manager = SyncManager::with_sync_config(sync_coordinator, sync_config);
 
     #[cfg(feature = "qdrant")]
-    {
+    let sync_manager = {
+        let mut sync_manager = sync_manager;
         let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-         match rt.block_on(VectorManager::new(VectorClientConfig::qdrant())) {
+        match rt.block_on(VectorManager::new(VectorClientConfig::qdrant())) {
             Ok(vector_manager) => {
                 let health = rt.block_on(vector_manager.engine().health_check()).unwrap_or_else(|_| HealthStatus::unhealthy("unknown", "unknown", "health check failed"));
                 if health.is_healthy {
@@ -79,7 +80,8 @@ fn create_sync_manager() -> Arc<SyncManager> {
                 eprintln!("WARNING: Failed to connect to Qdrant ({}). Vector tests will be skipped.", e);
             }
         }
-    }
+        sync_manager
+    };
 
     Arc::new(sync_manager)
 }
@@ -100,7 +102,16 @@ impl TestDb {
             .expect("Storage should provide a schema manager");
 
         let sync_manager = create_sync_manager();
-        let has_vector_coordinator = sync_manager.vector_coordinator().is_some();
+        let has_vector_coordinator = {
+            #[cfg(feature = "qdrant")]
+            {
+                sync_manager.vector_coordinator().is_some()
+            }
+            #[cfg(not(feature = "qdrant"))]
+            {
+                false
+            }
+        };
         let query_api = QueryApi::with_schema_and_sync_manager(
             storage.clone(),
             stats_manager.clone(),
@@ -132,7 +143,16 @@ impl TestDb {
             .expect("Storage should provide a schema manager");
 
         let sync_manager = create_sync_manager();
-        let has_vector_coordinator = sync_manager.vector_coordinator().is_some();
+        let has_vector_coordinator = {
+            #[cfg(feature = "qdrant")]
+            {
+                sync_manager.vector_coordinator().is_some()
+            }
+            #[cfg(not(feature = "qdrant"))]
+            {
+                false
+            }
+        };
         let query_api = QueryApi::with_schema_and_sync_manager(
             storage.clone(),
             stats_manager.clone(),

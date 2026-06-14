@@ -352,7 +352,7 @@ impl std::fmt::Display for Value {
             Value::Float(fl) => write!(f, "{}", fl),
             Value::Double(fl) => write!(f, "{}", fl),
             Value::Decimal128(d) => write!(f, "{}", d),
-            Value::String(s) => write!(f, "\"{}\"", s),
+            Value::String(s) => write!(f, "{}", s),
             Value::FixedString { len, data } => write!(f, "\"{}\"[fixed:{}]", data, len),
             Value::Blob(b) => write!(f, "Blob({} bytes)", b.len()),
             Value::Date(d) => write!(f, "{:04}-{:02}-{:02}", d.year, d.month, d.day),

@@ -97,7 +97,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 sync_manager.fulltext_manager(),
             ));
 
-        let mut providers: Vec<Arc<dyn MetadataProvider>> =
+        let providers: Vec<Arc<dyn MetadataProvider>> =
             vec![schema_provider, fulltext_provider];
 
         #[cfg(feature = "qdrant")]

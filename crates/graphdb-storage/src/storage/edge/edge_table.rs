@@ -304,9 +304,6 @@ impl EdgeTable {
             0
         };
 
-        let dst_key = Self::edge_endpoint_key(dst, rank);
-        let src_key = Self::edge_endpoint_key(src, rank);
-
         if self.has_edge(src, dst, rank, ts) {
             self.properties.delete(prop_offset);
             return Err(StorageError::edge_already_exists(format!(
@@ -314,6 +311,9 @@ impl EdgeTable {
                 src, dst, rank
             )));
         }
+
+        let dst_key = Self::edge_endpoint_key(dst, rank);
+        let src_key = Self::edge_endpoint_key(src, rank);
 
         let edge_id = self.next_edge_id;
         self.next_edge_id += 1;
@@ -658,6 +658,14 @@ impl EdgeTable {
 
     pub fn label(&self) -> LabelId {
         self.label
+    }
+
+    pub fn src_label(&self) -> LabelId {
+        self.src_label
+    }
+
+    pub fn dst_label(&self) -> LabelId {
+        self.dst_label
     }
 
     pub fn label_name(&self) -> &str {

@@ -4,7 +4,7 @@ use std::time::Instant;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::Request;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::error::{Result, VectorClientError};
 

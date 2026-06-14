@@ -1,13 +1,12 @@
 use futures::Stream;
 use std::pin::Pin;
-use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::engine::grpc::convert::scored_point_from_proto;
 use crate::engine::grpc::proto;
-use crate::error::{Result, VectorClientError};
+use crate::error::Result;
 use crate::types::*;
 
 type BoxStream<T> = Pin<Box<dyn Stream<Item = T> + Send>>;

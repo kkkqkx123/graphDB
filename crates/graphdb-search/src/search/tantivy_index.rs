@@ -173,6 +173,7 @@ impl SearchEngine for TantivySearchEngine {
         let doc_id = doc_id.to_string();
         let content = content.to_string();
         self.with_writer(move |writer| {
+            writer.delete_term(tantivy::Term::from_field_text(id_field, &doc_id));
             let doc = doc!(id_field => doc_id.as_str(), text_field => content.as_str());
             writer.add_document(doc)?;
             Ok(())
@@ -186,6 +187,7 @@ impl SearchEngine for TantivySearchEngine {
         let docs_clone = docs.clone();
         self.with_writer(move |writer| {
             for (doc_id, content) in &docs_clone {
+                writer.delete_term(tantivy::Term::from_field_text(id_field, doc_id));
                 let doc = doc!(id_field => doc_id.as_str(), text_field => content.as_str());
                 writer.add_document(doc)?;
             }
@@ -195,6 +197,10 @@ impl SearchEngine for TantivySearchEngine {
     }
 
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+
         let searcher = self.reader.searcher();
 
         let query_parser = QueryParser::for_index(&self.index, vec![self.text_field]);
@@ -203,7 +209,7 @@ impl SearchEngine for TantivySearchEngine {
             .map_err(|e| SearchError::QueryParseError(e.to_string()))?;
 
         let top_docs =
-            searcher.search(&query, &TopDocs::with_limit(limit.max(1)).order_by_score())?;
+            searcher.search(&query, &TopDocs::with_limit(limit).order_by_score())?;
 
         // Create snippet generator for highlight extraction.
         let snippet_generator =
