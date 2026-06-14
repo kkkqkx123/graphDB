@@ -7,7 +7,14 @@ pub mod proto {
 pub mod convert;
 pub mod filter;
 
+#[cfg(feature = "qdrant-grpc")]
+pub mod interceptor;
+
+#[cfg(feature = "qdrant-grpc")]
+pub mod streaming;
+
 use async_trait::async_trait;
+use std::time::Duration;
 use tonic::transport::Channel;
 use tracing::{debug, info, warn};
 
@@ -22,6 +29,7 @@ use convert::{
     search_query_to_proto, upsert_result_from_proto,
 };
 use filter::filter_to_proto;
+use interceptor::GrpcInterceptor;
 
 const QDRANT_GRPC_VERSION: &str = "1.12.x (gRPC)";
 
@@ -42,18 +50,30 @@ impl QdrantGrpcEngine {
     pub async fn new(config: VectorClientConfig) -> Result<Self> {
         let grpc_port = config.connection.port;
         let host = &config.connection.host;
-        let addr = format!("http://{}:{}", host, grpc_port);
+        let scheme = if config.connection.use_tls { "https" } else { "http" };
+        let addr = format!("{}://{}:{}", scheme, host, grpc_port);
 
         info!("Connecting to Qdrant gRPC API at {}", addr);
 
         let timeout = config.timeout.request_duration();
 
-        let channel = Channel::from_shared(addr)
+        let endpoint = Channel::from_shared(addr)
             .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?
             .timeout(timeout)
+            .connect_timeout(Duration::from_secs(config.connection.connect_timeout_secs));
+
+        let channel = endpoint
             .connect()
             .await
             .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
+
+        let interceptor = GrpcInterceptor::new(
+            config.connection.api_key.clone(),
+            true,
+            true,
+        );
+
+        let channel = interceptor.apply_to_channel(channel);
 
         let engine = Self { channel, config };
 
@@ -71,6 +91,10 @@ impl QdrantGrpcEngine {
         }
 
         Ok(engine)
+    }
+
+    pub fn streaming(&self) -> streaming::StreamingEngine {
+        streaming::StreamingEngine::new(self.channel.clone())
     }
 
     fn points(&self) -> proto::points_client::PointsClient<Channel> {

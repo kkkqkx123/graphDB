@@ -12,11 +12,19 @@ pub use engine::VectorEngine;
 pub use error::{Result, VectorClientError};
 pub use types::*;
 
-#[cfg(feature = "qdrant-http")]
+#[cfg(all(feature = "qdrant-http", not(feature = "qdrant-grpc")))]
 pub use engine::QdrantEngine;
 
 #[cfg(feature = "qdrant-grpc")]
 pub use engine::QdrantGrpcEngine;
+
+#[cfg(feature = "qdrant-grpc")]
+pub use engine::grpc::streaming::StreamingEngine;
+
+#[cfg(feature = "qdrant-grpc")]
+pub use engine::grpc::interceptor::{
+    CircuitBreaker, CircuitBreakerConfig, GrpcInterceptor, RetryConfig,
+};
 
 pub use api::VectorClient;
 pub use api::{CollectionApi, PointApi, SearchApi};

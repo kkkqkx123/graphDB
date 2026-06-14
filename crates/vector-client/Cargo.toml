@@ -10,13 +10,14 @@ path = "src/lib.rs"
 
 [features]
 default = ["qdrant"]
-qdrant = ["qdrant-http"]
+qdrant = ["qdrant-grpc"]
 qdrant-http = []
 qdrant-grpc = ["dep:tonic", "dep:prost", "dep:prost-types"]
 
 [dependencies]
 async-trait.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -26,6 +27,7 @@ reqwest.workspace = true
 url.workspace = true
 chrono.workspace = true
 dashmap.workspace = true
+futures.workspace = true
 tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }

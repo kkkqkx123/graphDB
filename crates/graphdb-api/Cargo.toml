@@ -41,7 +41,7 @@ tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
-vector-client = { path = "../vector-client", features = ["qdrant-http"], optional = true }
+vector-client = { path = "../vector-client", features = ["qdrant-grpc"], optional = true }
 
 [features]
 server = [
