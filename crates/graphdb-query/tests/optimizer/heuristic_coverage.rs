@@ -376,7 +376,9 @@ mod join_rules {
             .exec_dml("INSERT VERTEX person(name) VALUES 1:('Alice'), 2:('Bob')")
             .exec_dml("INSERT EDGE follows() VALUES 1 -> 2")
             .assert_success()
-            .query("MATCH (n:person) OPTIONAL MATCH (n)-[:follows]->(m:person) RETURN n.name, m.name")
+            .query(
+                "MATCH (n:person) OPTIONAL MATCH (n)-[:follows]->(m:person) RETURN n.name, m.name",
+            )
             .assert_success();
     }
 

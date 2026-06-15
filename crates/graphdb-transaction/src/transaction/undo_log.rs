@@ -838,7 +838,7 @@ mod tests {
         let undo = UpdateVertexPropUndo {
             v_label: 1,
             vid: VertexId::from_int64(100),
-            col_id: 0,
+            col_id: ColumnId(0),
             old_value: PropertyValue::Int(42),
         };
 
@@ -857,7 +857,7 @@ mod tests {
             rank: 0,
             oe_offset: 0,
             ie_offset: 0,
-            col_id: 0,
+            col_id: ColumnId(0),
             old_value: PropertyValue::String("test".to_string()),
         };
 

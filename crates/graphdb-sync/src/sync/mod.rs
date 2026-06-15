@@ -11,11 +11,9 @@ pub mod vector_error;
 pub mod vector_sync;
 
 pub use crate::search::SyncConfig;
-pub use batch::{
-    BatchConfig, BatchError, BatchProcessor, TransactionBatchBuffer,
-};
 #[cfg(feature = "fulltext-search")]
 pub use batch::FulltextBatchProcessor;
+pub use batch::{BatchConfig, BatchError, BatchProcessor, TransactionBatchBuffer};
 pub use circuit_breaker::{
     with_circuit_breaker, CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError,
     CircuitBreakerStats, CircuitState,

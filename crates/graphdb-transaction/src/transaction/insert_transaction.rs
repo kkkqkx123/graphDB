@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use postcard::{from_bytes, to_allocvec};
 
-use super::read_transaction::INVALID_TIMESTAMP;
+use super::read_transaction::RELEASED_TIMESTAMP;
 use super::wal::types::{InsertEdgeRedo, InsertVertexRedo, WalHeader, WalOpType};
 use super::wal::writer::WalWriter;
 use super::wal::{EdgeId, LabelId, Timestamp};
@@ -262,7 +262,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
     ///
     /// Writes the WAL and releases the timestamp.
     pub fn commit(mut self) -> InsertTransactionResult<()> {
-        if self.timestamp == INVALID_TIMESTAMP {
+        if self.timestamp == RELEASED_TIMESTAMP {
             return Ok(());
         }
 
@@ -292,7 +292,7 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
     ///
     /// Simply releases the timestamp without writing WAL.
     pub fn abort(mut self) -> InsertTransactionResult<()> {
-        if self.timestamp != INVALID_TIMESTAMP {
+        if self.timestamp != RELEASED_TIMESTAMP {
             self.version_manager
                 .release_insert_timestamp(self.timestamp);
             self.clear();
@@ -399,13 +399,13 @@ impl<'a, T: InsertTarget + ?Sized> InsertTransaction<'a, T> {
         self.wal_buffer.resize(WalHeader::SIZE, 0);
         self.added_vertices.clear();
         self.vertex_nums.clear();
-        self.timestamp = INVALID_TIMESTAMP;
+        self.timestamp = RELEASED_TIMESTAMP;
     }
 }
 
 impl<'a, T: InsertTarget + ?Sized> Drop for InsertTransaction<'a, T> {
     fn drop(&mut self) {
-        if self.timestamp != INVALID_TIMESTAMP {
+        if self.timestamp != RELEASED_TIMESTAMP {
             self.version_manager
                 .release_insert_timestamp(self.timestamp);
         }
@@ -437,7 +437,7 @@ mod tests {
         }
 
         fn add_edge(&mut self, _param: AddEdgeInsertParam) -> InsertTransactionResult<EdgeId> {
-            Ok(1)
+            Ok(EdgeId(1))
         }
 
         fn get_vertex_id(

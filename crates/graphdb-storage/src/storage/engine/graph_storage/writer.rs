@@ -183,14 +183,14 @@ pub(crate) fn update_vertex(
                 };
                 ctx.append_wal_redo(WalOpType::UpdateVertexProp, ts, &redo)?;
 
-if let Some(id_int) = vid_int {
-                     ctx.update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
-                 } else if let Some(id_str) = vertex.vid.as_str() {
-                     ctx.update_vertex_property(label_id, id_str, prop_name, value, ts)?;
-                 } else {
-                     let id_str = vertex.vid.to_string();
-                     ctx.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
-                 }
+                if let Some(id_int) = vid_int {
+                    ctx.update_vertex_property_by_i64(label_id, id_int, prop_name, value, ts)?;
+                } else if let Some(id_str) = vertex.vid.as_str() {
+                    ctx.update_vertex_property(label_id, id_str, prop_name, value, ts)?;
+                } else {
+                    let id_str = vertex.vid.to_string();
+                    ctx.update_vertex_property(label_id, &id_str, prop_name, value, ts)?;
+                }
             }
 
             let props: Vec<(String, Value)> = merged_props.into_iter().collect();
@@ -605,7 +605,7 @@ fn validate_edge_batch(
     edges: &[Edge],
 ) -> StorageResult<()> {
     for edge in edges {
-    let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
+        let edge_type = resolve_edge_type(ctx, space, &edge.edge_type)?;
         if endpoint_label_id(ctx, space, &edge_type.src_tag_name)?.is_none() {
             return Err(StorageError::not_found(format!(
                 "Source tag {} not found",
@@ -731,7 +731,9 @@ pub(crate) fn insert_edge_data(
 
     let final_result = match result {
         Ok(_) => Ok(true),
-        Err(ref e) if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists => {
+        Err(ref e)
+            if e.kind() == crate::core::error::storage::StorageErrorKind::EdgeAlreadyExists =>
+        {
             Ok(false)
         }
         Err(e) => Err(e),

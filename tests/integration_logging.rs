@@ -18,7 +18,6 @@ use graphdb::search::FulltextConfig;
 #[cfg(all(feature = "qdrant", feature = "embedded"))]
 use vector_client::config::VectorClientConfig;
 
-
 /// Test Log Configuration Defaults
 #[test]
 fn test_log_config_defaults() {

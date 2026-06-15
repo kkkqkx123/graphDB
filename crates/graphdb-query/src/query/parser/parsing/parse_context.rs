@@ -384,8 +384,7 @@ impl<'a> ParseContext<'a> {
             TokenKind::Alter => keyword.eq_ignore_ascii_case("ALTER"),
             TokenKind::Show => keyword.eq_ignore_ascii_case("SHOW"),
             TokenKind::Desc => {
-                keyword.eq_ignore_ascii_case("DESC")
-                    || keyword.eq_ignore_ascii_case("DESCRIBE")
+                keyword.eq_ignore_ascii_case("DESC") || keyword.eq_ignore_ascii_case("DESCRIBE")
             }
             TokenKind::Search => keyword.eq_ignore_ascii_case("SEARCH"),
             TokenKind::Lookup => keyword.eq_ignore_ascii_case("LOOKUP"),

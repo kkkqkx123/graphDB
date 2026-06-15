@@ -9,6 +9,8 @@ use std::fmt::{Debug, Formatter};
 use crate::storage::StorageClient;
 
 use crate::query::executor::admin::AnalyzeExecutor;
+#[cfg(feature = "fulltext-search")]
+use crate::query::executor::base::FulltextManageExecutor;
 #[cfg(feature = "qdrant")]
 use crate::query::executor::base::VectorManageExecutor;
 use crate::query::executor::base::{
@@ -16,18 +18,16 @@ use crate::query::executor::base::{
     IndexManageExecutor, InputExecutor, SpaceManageExecutor, StartExecutor, TagManageExecutor,
     UserManageExecutor,
 };
-#[cfg(feature = "fulltext-search")]
-use crate::query::executor::base::FulltextManageExecutor;
 use crate::query::executor::control_flow::{
     ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor,
-};
-use crate::query::executor::data_access::{
-    GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor, IndexScanExecutor,
-    ScanEdgesExecutor, ScanVerticesExecutor,
 };
 #[cfg(feature = "fulltext-search")]
 use crate::query::executor::data_access::{
     FulltextScanExecutor, FulltextSearchExecutor, MatchFulltextExecutor,
+};
+use crate::query::executor::data_access::{
+    GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
+    IndexScanExecutor, ScanEdgesExecutor, ScanVerticesExecutor,
 };
 #[cfg(feature = "qdrant")]
 use crate::query::executor::data_access::{

@@ -15,7 +15,7 @@
 //! ## Server Mode
 //!
 //! ```rust,no_run
-//! use graphdb::config::Config;
+//! use graphdb_config::config::Config;
 //!
 //! // Load from file
 //! let config = Config::load("config.toml").expect("Failed to load config");
@@ -26,8 +26,8 @@
 //!
 //! ## Embedded Mode
 //!
-//! ```rust
-//! use graphdb::config::{Config, EmbeddedConfig};
+//! ```rust,ignore
+//! use graphdb_config::config::{Config, EmbeddedConfig};
 //!
 //! let mut config = Config::default();
 //! config.embedded.runtime.cache_size_mb = 128;
@@ -81,7 +81,7 @@ use vector_client::VectorClientConfig;
 /// # Examples
 ///
 /// ```rust
-/// use graphdb::config::Config;
+/// use graphdb_config::config::Config;
 ///
 /// // Create default configuration
 /// let config = Config::default();
@@ -123,7 +123,7 @@ impl Config {
         Self::default()
     }
 
-    /// Load configuration from file
+    /// Load configuration from a specific file path.
     ///
     /// # Arguments
     ///
@@ -137,16 +137,31 @@ impl Config {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use graphdb::config::Config;
+    /// use graphdb_config::config::Config;
     ///
     /// let config = Config::load("config.toml").expect("Failed to load config");
     /// ```
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let path = path.as_ref();
+        let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
         let content = fs::read_to_string(path)?;
-        let mut config: Config = toml::from_str(&content)?;
-        config.common.database.storage_path =
-            Config::resolve_storage_path(&config.common.database.storage_path)?;
+        let default_value: toml::Value = toml::from_str(&toml::to_string(&Config::default())?)?;
+        let file_value: toml::Value = toml::from_str(&content)?;
+        let merged_value = Self::merge_toml_values(default_value, file_value);
+        let mut config: Config = toml::from_str(&toml::to_string(&merged_value)?)?;
+        config.resolve_relative_paths(base_dir)?;
         Ok(config)
+    }
+
+    /// Load configuration from the default user configuration directory.
+    pub fn load_user_config() -> Result<Self, Box<dyn std::error::Error>> {
+        Self::load_user_config_named("config.toml")
+    }
+
+    /// Load configuration from the user configuration directory with a custom file name.
+    pub fn load_user_config_named(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let config_dir = Self::user_config_dir()?;
+        Self::load(config_dir.join(file_name))
     }
 
     /// Save configuration to file
@@ -158,7 +173,7 @@ impl Config {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use graphdb::config::Config;
+    /// use graphdb_config::config::Config;
     ///
     /// let config = Config::default();
     /// config.save("config.toml").expect("Failed to save config");
@@ -169,37 +184,140 @@ impl Config {
         Ok(())
     }
 
-    /// Resolve storage path (supports relative paths and ~ expansion)
-    fn resolve_storage_path(storage_path: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let path = PathBuf::from(storage_path);
-
-        if path.is_absolute() {
-            return Ok(storage_path.to_string());
+    fn user_config_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
+        if let Ok(dir) = env::var("GRAPHDB_CONFIG_DIR") {
+            return Ok(PathBuf::from(dir));
         }
 
-        if let Some(relative_path) = storage_path.strip_prefix('~') {
-            if let Some(home_dir) = env::home_dir() {
-                let absolute_path =
-                    if relative_path.starts_with('/') || relative_path.starts_with('\\') {
-                        home_dir.join(&relative_path[1..])
-                    } else {
-                        home_dir.join(relative_path)
-                    };
-                return Ok(absolute_path.to_string_lossy().into_owned());
+        if let Some(dir) = dirs::config_dir() {
+            return Ok(dir.join("graphdb"));
+        }
+
+        Err("Failed to determine user configuration directory".into())
+    }
+
+    fn resolve_relative_paths(
+        &mut self,
+        base_dir: &Path,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let storage_path = self.common.database.storage_path.clone();
+        self.common.database.storage_path = Self::resolve_string_path(base_dir, &storage_path)?;
+
+        let log_dir = self.common.log.dir.clone();
+        self.common.log.dir = Self::resolve_string_path(base_dir, &log_dir)?;
+
+        let slow_query_log_file = self.common.monitoring.slow_query_log.log_file_path.clone();
+        self.common.monitoring.slow_query_log.log_file_path =
+            Self::resolve_string_path(base_dir, &slow_query_log_file)?;
+
+        self.fulltext.index_path = Self::resolve_path_buf(base_dir, &self.fulltext.index_path)?;
+
+        #[cfg(feature = "server")]
+        {
+            let static_dir = self.server.http.static_dir.clone();
+            self.server.http.static_dir = Self::resolve_optional_string_path(base_dir, static_dir)?;
+
+            let https_cert_file = self.server.http.https_cert_file.clone();
+            self.server.http.https_cert_file =
+                Self::resolve_optional_string_path(base_dir, https_cert_file)?;
+
+            let https_key_file = self.server.http.https_key_file.clone();
+            self.server.http.https_key_file =
+                Self::resolve_optional_string_path(base_dir, https_key_file)?;
+
+            let ssl_cert_file = self.server.security.ssl.cert_file.clone();
+            if !self.server.security.ssl.cert_file.is_empty() {
+                self.server.security.ssl.cert_file =
+                    Self::resolve_string_path(base_dir, &ssl_cert_file)?;
             }
-            return Err("Failed to get user home directory".into());
+
+            let ssl_key_file = self.server.security.ssl.key_file.clone();
+            if !self.server.security.ssl.key_file.is_empty() {
+                self.server.security.ssl.key_file =
+                    Self::resolve_string_path(base_dir, &ssl_key_file)?;
+            }
+
+            let ssl_ca_file = self.server.security.ssl.ca_file.clone();
+            self.server.security.ssl.ca_file =
+                Self::resolve_optional_string_path(base_dir, ssl_ca_file)?;
+
+            let audit_log_file = self.server.security.audit.log_file.clone();
+            self.server.security.audit.log_file =
+                Self::resolve_string_path(base_dir, &audit_log_file)?;
         }
 
-        if let Ok(exe_path) = env::current_exe() {
-            let exe_dir = exe_path
-                .parent()
-                .ok_or("Failed to get executable directory")?
-                .to_path_buf();
-            let absolute_path = exe_dir.join(&path);
-            return Ok(absolute_path.to_string_lossy().into_owned());
+        #[cfg(feature = "embedded")]
+        {
+            let runtime_path = self.embedded.runtime.path.clone();
+            self.embedded.runtime.path = Self::resolve_optional_path_buf(base_dir, runtime_path)?;
         }
 
-        Err("Failed to get executable path".into())
+        Ok(())
+    }
+
+    fn resolve_string_path(
+        base_dir: &Path,
+        path_value: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(Self::resolve_path_buf(base_dir, Path::new(path_value))?
+            .to_string_lossy()
+            .into_owned())
+    }
+
+    fn resolve_optional_string_path(
+        base_dir: &Path,
+        path_value: Option<String>,
+    ) -> Result<Option<String>, Box<dyn std::error::Error>> {
+        path_value
+            .map(|path| Self::resolve_string_path(base_dir, &path))
+            .transpose()
+    }
+
+    fn merge_toml_values(base: toml::Value, overlay: toml::Value) -> toml::Value {
+        match (base, overlay) {
+            (toml::Value::Table(mut base_table), toml::Value::Table(overlay_table)) => {
+                for (key, overlay_value) in overlay_table {
+                    let merged_value = match base_table.remove(&key) {
+                        Some(base_value) => Self::merge_toml_values(base_value, overlay_value),
+                        None => overlay_value,
+                    };
+                    base_table.insert(key, merged_value);
+                }
+                toml::Value::Table(base_table)
+            }
+            (_, overlay_value) => overlay_value,
+        }
+    }
+
+    fn resolve_path_buf(
+        base_dir: &Path,
+        path_value: &Path,
+    ) -> Result<PathBuf, Box<dyn std::error::Error>> {
+        if path_value.is_absolute() {
+            return Ok(path_value.to_path_buf());
+        }
+
+        let path_text = path_value.to_string_lossy();
+        if let Some(relative_path) = path_text.strip_prefix('~') {
+            let home_dir = dirs::home_dir().ok_or("Failed to get user home directory")?;
+            let relative_path = relative_path
+                .strip_prefix('/')
+                .or_else(|| relative_path.strip_prefix('\\'))
+                .unwrap_or(relative_path);
+            return Ok(home_dir.join(relative_path));
+        }
+
+        Ok(base_dir.join(path_value))
+    }
+
+    #[cfg(feature = "embedded")]
+    fn resolve_optional_path_buf(
+        base_dir: &Path,
+        path_value: Option<PathBuf>,
+    ) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
+        path_value
+            .map(|path| Self::resolve_path_buf(base_dir, &path))
+            .transpose()
     }
 
     /// Validate all configurations
@@ -340,6 +458,7 @@ mod tests {
     use super::*;
     use std::io::Write;
     use tempfile::NamedTempFile;
+    use tempfile::TempDir;
 
     #[test]
     fn test_config_default() {
@@ -426,6 +545,67 @@ max_memory_per_query = 1073741824
         );
         assert_eq!(config.common.storage.compression_level, 5);
         assert_eq!(config.common.query_resource.max_concurrent_queries, 50);
+    }
+
+    #[test]
+    fn test_config_load_resolves_relative_paths_from_file_directory() {
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        let config_dir = temp_dir.path().join("config");
+        std::fs::create_dir_all(&config_dir).expect("Failed to create config directory");
+
+        let config_content = r#"
+[database]
+storage_path = "data/graphdb"
+"#;
+
+        let config_path = config_dir.join("config.toml");
+        std::fs::write(&config_path, config_content).expect("Failed to write config");
+
+        let config = Config::load(&config_path).expect("Failed to load config");
+
+        assert_eq!(
+            config.common.database.storage_path,
+            config_dir.join("data/graphdb").to_string_lossy()
+        );
+        assert_eq!(
+            config.common.log.dir,
+            config_dir.join("logs").to_string_lossy()
+        );
+        assert_eq!(
+            config.common.monitoring.slow_query_log.log_file_path,
+            config_dir.join("logs/slow_query.log").to_string_lossy()
+        );
+        assert_eq!(config.fulltext.index_path, config_dir.join("data/fulltext"));
+    }
+
+    #[test]
+    fn test_load_user_config_named_uses_graphdb_config_dir() {
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        let config_dir = temp_dir.path().join("user-config");
+        std::fs::create_dir_all(&config_dir).expect("Failed to create config directory");
+
+        let config_content = r#"
+[database]
+storage_path = "storage"
+"#;
+        std::fs::write(config_dir.join("config.toml"), config_content)
+            .expect("Failed to write config");
+
+        let previous_dir = env::var("GRAPHDB_CONFIG_DIR").ok();
+        env::set_var("GRAPHDB_CONFIG_DIR", &config_dir);
+
+        let config =
+            Config::load_user_config_named("config.toml").expect("Failed to load user config");
+        assert_eq!(
+            config.common.database.storage_path,
+            config_dir.join("storage").to_string_lossy()
+        );
+
+        if let Some(value) = previous_dir {
+            env::set_var("GRAPHDB_CONFIG_DIR", value);
+        } else {
+            env::remove_var("GRAPHDB_CONFIG_DIR");
+        }
     }
 
     #[test]

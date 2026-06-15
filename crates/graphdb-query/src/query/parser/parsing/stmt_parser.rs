@@ -77,22 +77,22 @@ impl StmtParser {
             TokenKind::Set => UtilStmtParser::new().parse_set_statement(ctx),
             TokenKind::Remove => UtilStmtParser::new().parse_remove_statement(ctx),
 
-             // Transaction statements
-             TokenKind::Begin => self.parse_begin_transaction(ctx),
-             TokenKind::Commit => self.parse_commit_transaction(ctx),
-             TokenKind::Rollback => self.parse_rollback_transaction(ctx),
+            // Transaction statements
+            TokenKind::Begin => self.parse_begin_transaction(ctx),
+            TokenKind::Commit => self.parse_commit_transaction(ctx),
+            TokenKind::Rollback => self.parse_rollback_transaction(ctx),
 
-             // Full-text search statements
-             // Check if it's SEARCH VECTOR or SEARCH INDEX
-             TokenKind::Search => {
-                 // Peek ahead to check if it's SEARCH VECTOR
-                 if ctx.check_keyword_sequence(&["SEARCH", "VECTOR"]) {
-                     // It's a vector search, call vector parser
-                     return crate::query::parser::parsing::vector_parser::parse_vector(ctx);
-                 }
-                 // Otherwise, it's a fulltext search
-                 self.parse_fulltext_statement(ctx)
-             }
+            // Full-text search statements
+            // Check if it's SEARCH VECTOR or SEARCH INDEX
+            TokenKind::Search => {
+                // Peek ahead to check if it's SEARCH VECTOR
+                if ctx.check_keyword_sequence(&["SEARCH", "VECTOR"]) {
+                    // It's a vector search, call vector parser
+                    return crate::query::parser::parsing::vector_parser::parse_vector(ctx);
+                }
+                // Otherwise, it's a fulltext search
+                self.parse_fulltext_statement(ctx)
+            }
 
             // Variable assignment statement ($var = statement)
             TokenKind::Dollar => self.parse_assignment_statement(ctx),

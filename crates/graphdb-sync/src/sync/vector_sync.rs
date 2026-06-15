@@ -36,8 +36,9 @@ pub enum VectorChangeType {
 impl From<crate::sync::types::ChangeType> for VectorChangeType {
     fn from(ct: crate::sync::types::ChangeType) -> Self {
         match ct {
-            crate::sync::types::ChangeType::Insert
-            | crate::sync::types::ChangeType::Update => VectorChangeType::Insert,
+            crate::sync::types::ChangeType::Insert | crate::sync::types::ChangeType::Update => {
+                VectorChangeType::Insert
+            }
             crate::sync::types::ChangeType::Delete => VectorChangeType::Delete,
         }
     }
@@ -1020,7 +1021,11 @@ impl VectorSyncCoordinator {
     ) {
         let logical_key = Self::logical_index_key(space_id, tag_name, field_name);
         let meta = if let Some(idx_name) = user_index_name {
-            vector_client::manager::IndexMetadata::with_index_name(collection_name, config, idx_name)
+            vector_client::manager::IndexMetadata::with_index_name(
+                collection_name,
+                config,
+                idx_name,
+            )
         } else {
             vector_client::manager::IndexMetadata::new(collection_name, config)
         };

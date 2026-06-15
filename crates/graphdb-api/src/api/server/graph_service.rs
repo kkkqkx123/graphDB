@@ -89,7 +89,8 @@ impl<
         transaction_manager: Arc<TransactionManager>,
     ) -> Arc<Self> {
         #[cfg(feature = "qdrant")]
-        return Self::create_service(config, storage, Some(transaction_manager), true, None, None).await;
+        return Self::create_service(config, storage, Some(transaction_manager), true, None, None)
+            .await;
         #[cfg(not(feature = "qdrant"))]
         return Self::create_service(config, storage, Some(transaction_manager), true, None).await;
     }
@@ -101,15 +102,29 @@ impl<
         transaction_manager: Arc<TransactionManager>,
         stats_manager: Arc<StatsManager>,
     ) -> Arc<Self> {
-        Self::create_service(
-            config,
-            storage,
-            Some(transaction_manager),
-            true,
-            Some(stats_manager),
-            None,
-        )
-        .await
+        #[cfg(feature = "qdrant")]
+        {
+            return Self::create_service(
+                config,
+                storage,
+                Some(transaction_manager),
+                true,
+                Some(stats_manager),
+                None,
+            )
+            .await;
+        }
+        #[cfg(not(feature = "qdrant"))]
+        {
+            return Self::create_service(
+                config,
+                storage,
+                Some(transaction_manager),
+                true,
+                Some(stats_manager),
+            )
+            .await;
+        }
     }
 
     /// Use the transaction manager, external StatsManager, and shared VectorManager to create a GraphService.

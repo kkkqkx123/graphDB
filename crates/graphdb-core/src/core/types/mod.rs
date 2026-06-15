@@ -244,7 +244,7 @@ pub use self::span::{Position, Span, ToSpan};
 pub use self::storage_ids::{
     ColumnId, EdgeDeletionContext, EdgeDeletionContextParams, EdgeId, EdgeIdentifier, EdgeKey,
     EdgeLocation, EdgeOperationContext, EdgePropertyUpdateContext, LabelId, Timestamp,
-    TransactionId, VertexId, VertexIdentifier, INVALID_TIMESTAMP, MAX_TIMESTAMP,
+    TransactionId, VertexId, VertexIdentifier, INVALID_EDGE_ID, INVALID_TIMESTAMP, MAX_TIMESTAMP,
 };
 pub use self::table_tracker::{TableId, TableTracker, TableTrackerConfig, TableType};
 pub use self::transaction_config::{DurabilityLevel, TransactionIsolationLevel};

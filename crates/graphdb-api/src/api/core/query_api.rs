@@ -6,13 +6,13 @@ use crate::api::core::error::{CoreError, CoreResult};
 use crate::api::core::types::{ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::metadata::SchemaManager;
 use crate::core::StatsManager;
-use crate::query::metadata::{
-    CachedMetadataProvider, CompositeMetadataProvider, MetadataProvider, SchemaMetadataProvider,
-};
 #[cfg(feature = "fulltext-search")]
 use crate::query::metadata::FulltextIndexMetadataProvider;
 #[cfg(feature = "qdrant")]
 use crate::query::metadata::VectorIndexMetadataProvider;
+use crate::query::metadata::{
+    CachedMetadataProvider, CompositeMetadataProvider, MetadataProvider, SchemaMetadataProvider,
+};
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
 #[cfg(feature = "qdrant")]
@@ -98,10 +98,9 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
         #[cfg(feature = "fulltext-search")]
         {
-            let fulltext_provider: Arc<dyn MetadataProvider> =
-                Arc::new(FulltextIndexMetadataProvider::new(
-                    sync_manager.fulltext_manager(),
-                ));
+            let fulltext_provider: Arc<dyn MetadataProvider> = Arc::new(
+                FulltextIndexMetadataProvider::new(sync_manager.fulltext_manager()),
+            );
             providers.push(fulltext_provider);
         }
 
@@ -149,11 +148,15 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
 
         // Create optional embedding service
         let handle = tokio::runtime::Handle::current();
-        let embedding_service = embedding_config
-            .and_then(|ec| EmbeddingService::from_config(ec).ok().map(Arc::new));
+        let embedding_service =
+            embedding_config.and_then(|ec| EmbeddingService::from_config(ec).ok().map(Arc::new));
 
         // Create vector coordinator (embedding service is optional)
-        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager.clone(), embedding_service, handle));
+        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(
+            vector_manager.clone(),
+            embedding_service,
+            handle,
+        ));
 
         // Create metadata providers
         let vector_provider: Arc<dyn MetadataProvider> =

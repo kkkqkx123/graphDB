@@ -32,7 +32,9 @@ impl RecoveryApplier for GraphStorageContext {
     ) -> StorageResult<()> {
         {
             let mut vertex_tables = self.data_store().vertex_tables().write();
-            if let Err(e) = TransactionOps::add_vertex(&mut vertex_tables, label, vid, properties, ts) {
+            if let Err(e) =
+                TransactionOps::add_vertex(&mut vertex_tables, label, vid, properties, ts)
+            {
                 if e.to_string().contains("already exists") {
                     // Vertex already exists — idempotent replay, skip.
                     return Ok(());
@@ -203,12 +205,8 @@ impl RecoveryApplier for GraphStorageContext {
     ) -> StorageResult<()> {
         {
             let mut vertex_tables = self.data_store().vertex_tables().write();
-            match TransactionOps::delete_vertex_by_external_vid(
-                &mut vertex_tables,
-                label,
-                vid,
-                ts,
-            ) {
+            match TransactionOps::delete_vertex_by_external_vid(&mut vertex_tables, label, vid, ts)
+            {
                 Ok(_) => {}
                 Err(_) => {
                     // Vertex may have already been deleted (idempotent replay).
@@ -884,13 +882,15 @@ mod tests {
         )
         .expect("Second vertex type replay should succeed");
 
-        let person_label = ctx.data_store()
+        let person_label = ctx
+            .data_store()
             .vertex_label_names()
             .read()
             .get("space_1:tag:Person")
             .copied()
             .expect("Person label should exist");
-        let city_label = ctx.data_store()
+        let city_label = ctx
+            .data_store()
             .vertex_label_names()
             .read()
             .get("space_1:tag:City")

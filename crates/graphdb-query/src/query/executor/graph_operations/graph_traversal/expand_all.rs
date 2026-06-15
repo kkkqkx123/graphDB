@@ -206,7 +206,6 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         // Obtaining neighbor nodes and edges
         let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
 
-
         if neighbors_with_edges.is_empty() {
             // There are no more neighbors; return to the current path.
             return Ok(vec![current_npath.clone()]);
@@ -608,8 +607,12 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         // This is more efficient and avoids potential issues with vertex-based expansion.
         // Skip for multi-hop chains (input has >1 column) — the normal expansion path handles
         // column combining correctly for those.
-        let is_multi_hop = self.input_dataset.as_ref().is_some_and(|ds| ds.col_names.len() > 1);
-        let has_specific_edge_types = !self.any_edge_type && self.edge_types.as_ref().is_some_and(|t| !t.is_empty());
+        let is_multi_hop = self
+            .input_dataset
+            .as_ref()
+            .is_some_and(|ds| ds.col_names.len() > 1);
+        let has_specific_edge_types =
+            !self.any_edge_type && self.edge_types.as_ref().is_some_and(|t| !t.is_empty());
         let is_from_go_clause = !self.src_vids.is_empty();
 
         if has_specific_edge_types && !is_from_go_clause && !is_multi_hop {
@@ -635,12 +638,13 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
 
                         // Build a set of source vertex IDs from input nodes for filtering
                         // and a map from VID to full vertex for property lookup
-                        let src_set: std::collections::HashSet<VertexId> = if !input_nodes.is_empty() {
-                            input_nodes.iter().map(|v| v.vid).collect()
-                        } else {
-                            std::collections::HashSet::new()
-                        };
-                        let src_vid_to_vertex: std::collections::HashMap<VertexId, Vertex> = 
+                        let src_set: std::collections::HashSet<VertexId> =
+                            if !input_nodes.is_empty() {
+                                input_nodes.iter().map(|v| v.vid).collect()
+                            } else {
+                                std::collections::HashSet::new()
+                            };
+                        let src_vid_to_vertex: std::collections::HashMap<VertexId, Vertex> =
                             input_nodes.iter().map(|v| (v.vid, v.clone())).collect();
 
                         // Get storage handle for loading dst vertices
@@ -657,7 +661,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
 
                             if self.col_names.len() >= 3 {
                                 // Use the source vertex from input_nodes (has full properties)
-                                let src_vertex = src_vid_to_vertex.get(&edge.src)
+                                let src_vertex = src_vid_to_vertex
+                                    .get(&edge.src)
                                     .cloned()
                                     .unwrap_or_else(|| Vertex::new(edge.src, Vec::new()));
                                 // Load the destination vertex from storage (needs properties for RETURN)

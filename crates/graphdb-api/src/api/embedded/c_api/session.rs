@@ -379,7 +379,7 @@ pub unsafe extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_ses
     }
 
     let handle = &*(session as *mut GraphDbSessionHandle);
-    handle.inner.last_insert_vertex_id().unwrap_or(-1)
+    handle.inner.last_insert_vertex_id().map(|id| id as i64).unwrap_or(-1)
 }
 
 /// Obtain the ID of the last inserted edge.

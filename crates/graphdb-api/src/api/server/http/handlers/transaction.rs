@@ -105,7 +105,7 @@ pub async fn commit<
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let txn_api = state.server.get_txn_api();
-    let handle = TransactionHandle(txn_id);
+    let handle = TransactionHandle(TransactionId(txn_id));
 
     match txn_api.commit(handle) {
         Ok(()) => Ok(JsonResponse(serde_json::json!({
@@ -135,7 +135,7 @@ pub async fn rollback<
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let txn_api = state.server.get_txn_api();
-    let handle = TransactionHandle(txn_id);
+    let handle = TransactionHandle(TransactionId(txn_id));
 
     match txn_api.rollback(handle) {
         Ok(()) => Ok(JsonResponse(serde_json::json!({

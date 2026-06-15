@@ -3,8 +3,8 @@
 //! Provide definitions for the planning nodes related to label management.
 
 use crate::core::types::PropertyDef;
-use crate::query::parser::ast::stmt::PropertyChange;
 use crate::define_plan_node;
+use crate::query::parser::ast::stmt::PropertyChange;
 
 define_plan_node! {
     pub struct CreateTagNode {

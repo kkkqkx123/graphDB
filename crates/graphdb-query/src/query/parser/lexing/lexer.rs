@@ -921,7 +921,12 @@ impl<'a> Lexer<'a> {
                 let start_line = self.line;
                 self.read_char();
                 let literal = self.read_backtick_identifier();
-                Token::new(Tk::Identifier(literal.clone()), literal, start_line, start_col)
+                Token::new(
+                    Tk::Identifier(literal.clone()),
+                    literal,
+                    start_line,
+                    start_col,
+                )
             }
             Some(&ch) => {
                 let start_col = self.column;

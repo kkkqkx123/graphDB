@@ -1153,14 +1153,11 @@ mod tests {
     // ==================== String ID Edge Tests ====================
 
     fn setup_string_id_space(storage: &mut GraphStorage) {
-        let mut space = SpaceInfo::new("str_space".to_string())
-            .with_vid_type(DataType::String);
+        let mut space = SpaceInfo::new("str_space".to_string()).with_vid_type(DataType::String);
         storage.create_space(&mut space).unwrap();
 
         let tag = crate::core::types::TagInfo::new("Node".to_string())
-            .with_properties(vec![
-                PropertyDef::new("name".to_string(), DataType::String),
-            ]);
+            .with_properties(vec![PropertyDef::new("name".to_string(), DataType::String)]);
         storage.create_tag("str_space", &tag).unwrap();
 
         let edge = EdgeTypeInfo::new("LINK".to_string());
@@ -1174,15 +1171,30 @@ mod tests {
 
         let v1 = Vertex::new(
             VertexId::from_string("a"),
-            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("A".to_string()))].into_iter().collect())],
+            vec![Tag::new(
+                "Node".to_string(),
+                vec![("name".to_string(), Value::String("A".to_string()))]
+                    .into_iter()
+                    .collect(),
+            )],
         );
         let v2 = Vertex::new(
             VertexId::from_string("b"),
-            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("B".to_string()))].into_iter().collect())],
+            vec![Tag::new(
+                "Node".to_string(),
+                vec![("name".to_string(), Value::String("B".to_string()))]
+                    .into_iter()
+                    .collect(),
+            )],
         );
         let v3 = Vertex::new(
             VertexId::from_string("c"),
-            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("C".to_string()))].into_iter().collect())],
+            vec![Tag::new(
+                "Node".to_string(),
+                vec![("name".to_string(), Value::String("C".to_string()))]
+                    .into_iter()
+                    .collect(),
+            )],
         );
         storage.insert_vertex("str_space", v1).unwrap();
         storage.insert_vertex("str_space", v2).unwrap();
@@ -1227,11 +1239,21 @@ mod tests {
 
         let v1 = Vertex::new(
             VertexId::from_string("a"),
-            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("A".to_string()))].into_iter().collect())],
+            vec![Tag::new(
+                "Node".to_string(),
+                vec![("name".to_string(), Value::String("A".to_string()))]
+                    .into_iter()
+                    .collect(),
+            )],
         );
         let v2 = Vertex::new(
             VertexId::from_string("b"),
-            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("B".to_string()))].into_iter().collect())],
+            vec![Tag::new(
+                "Node".to_string(),
+                vec![("name".to_string(), Value::String("B".to_string()))]
+                    .into_iter()
+                    .collect(),
+            )],
         );
         storage.insert_vertex("str_space", v1).unwrap();
         storage.insert_vertex("str_space", v2).unwrap();
@@ -1260,11 +1282,21 @@ mod tests {
 
         let v1 = Vertex::new(
             VertexId::from_string("x"),
-            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("X".to_string()))].into_iter().collect())],
+            vec![Tag::new(
+                "Node".to_string(),
+                vec![("name".to_string(), Value::String("X".to_string()))]
+                    .into_iter()
+                    .collect(),
+            )],
         );
         let v2 = Vertex::new(
             VertexId::from_string("y"),
-            vec![Tag::new("Node".to_string(), vec![("name".to_string(), Value::String("Y".to_string()))].into_iter().collect())],
+            vec![Tag::new(
+                "Node".to_string(),
+                vec![("name".to_string(), Value::String("Y".to_string()))]
+                    .into_iter()
+                    .collect(),
+            )],
         );
         storage.insert_vertex("str_space", v1).unwrap();
         storage.insert_vertex("str_space", v2).unwrap();

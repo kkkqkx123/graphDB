@@ -34,11 +34,12 @@ mod geography {
     fn test_wkt_creation() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "e2e_geography_wkt",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY, category: STRING)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         // Insert point from WKT
         let result = db.execute_query(
@@ -52,11 +53,12 @@ mod geography {
     fn test_distance_calculation() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "e2e_geography_dist",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         // Insert points
         db.execute_query(
@@ -78,11 +80,12 @@ mod geography {
     fn test_within_distance() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "e2e_geography_within",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         // Insert points
         db.execute_query(
@@ -104,16 +107,18 @@ mod geography {
     fn test_explain_geography_query() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "e2e_geography_explain",
             &["CREATE TAG location(name: STRING NOT NULL, coord: GEOGRAPHY)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         // Insert data
         db.execute_query(
-            "INSERT VERTEX location(name, coord) VALUES 'loc1': ('Beijing', ST_Point(116.4, 39.9))"
-        ).expect("INSERT should succeed");
+            "INSERT VERTEX location(name, coord) VALUES 'loc1': ('Beijing', ST_Point(116.4, 39.9))",
+        )
+        .expect("INSERT should succeed");
 
         // EXPLAIN
         let result = db.execute_query(
@@ -126,7 +131,6 @@ mod geography {
 /// Vector search tests
 mod vector {
     use super::*;
-
 
     fn require_vector_coordinator(db: &TestDb) -> bool {
         if !db.has_vector_coordinator {
@@ -148,7 +152,11 @@ mod vector {
         ).expect("Failed to setup test space");
 
         let vector = vec![0.1; 128];
-        let vector_str = vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
+        let vector_str = vector
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
 
         let result = db.execute_query(&format!(
             "INSERT VERTEX product_vector(product_id, name, category, embedding, price) VALUES 'pv_test': ('TEST001', 'Test Product', 'test', [{}]::VECTOR, 99.99)",
@@ -175,7 +183,11 @@ mod vector {
         // Insert products with vectors
         for i in 0..100 {
             let vector: Vec<f64> = (0..128).map(|_| (i as f64) * 0.01).collect();
-            let vector_str = vector.iter().map(|v| format!("{:.4}", v)).collect::<Vec<_>>().join(", ");
+            let vector_str = vector
+                .iter()
+                .map(|v| format!("{:.4}", v))
+                .collect::<Vec<_>>()
+                .join(", ");
 
             db.execute_query(&format!(
                 "INSERT VERTEX product_vector(product_id, name, embedding) VALUES 'pv{:03}': ('PROD{:03}', 'Product {}', [{}]::VECTOR)",
@@ -190,7 +202,11 @@ mod vector {
 
         // Search vector
         let query_vector = vec![0.1; 128];
-        let vector_str = query_vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
+        let vector_str = query_vector
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
 
         let result = db.execute_query(&format!(
             "SEARCH VECTOR idx_product_embedding WITH vector=[{}] YIELD product_id, name LIMIT 10",
@@ -217,7 +233,11 @@ mod vector {
         // Insert data
         for i in 0..50 {
             let vector = vec![0.1; 128];
-            let vector_str = vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
+            let vector_str = vector
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
 
             db.execute_query(&format!(
                 "INSERT VERTEX product_vector(product_id, name, embedding, price) VALUES 'pv{:03}': ('PROD{:03}', 'Product {}', [{}]::VECTOR, {}.0)",
@@ -232,7 +252,11 @@ mod vector {
 
         // Search with filter
         let query_vector = vec![0.1; 128];
-        let vector_str = query_vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
+        let vector_str = query_vector
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
 
         let result = db.execute_query(&format!(
             "SEARCH VECTOR idx_product_embedding WITH vector=[{}] WHERE price < 500 YIELD product_id, name, price LIMIT 5",
@@ -263,7 +287,11 @@ mod vector {
 
         // Insert data
         let vector = vec![0.1; 128];
-        let vector_str = vector.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ");
+        let vector_str = vector
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
         db.execute_query(&format!(
             "INSERT VERTEX product_vector(product_id, name, embedding) VALUES 'pv001': ('PROD001', 'Product 1', [{}]::VECTOR)",
             vector_str
@@ -306,11 +334,12 @@ mod fulltext {
     fn test_basic_search() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "e2e_fulltext_search",
             &["CREATE TAG article(doc_id: STRING NOT NULL, title: STRING, content: STRING)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         db.execute_query(
             "CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
@@ -326,7 +355,7 @@ mod fulltext {
 
         // Search
         let result = db.execute_query(
-            "SEARCH INDEX idx_article_content MATCH 'database' YIELD doc_id, title, score"
+            "SEARCH INDEX idx_article_content MATCH 'database' YIELD doc_id, title, score",
         );
         assert_query_ok(result, "SEARCH INDEX should succeed");
     }
@@ -337,11 +366,12 @@ mod fulltext {
     fn test_boolean_search() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "e2e_fulltext_bool",
             &["CREATE TAG article(doc_id: STRING NOT NULL, title: STRING, content: STRING)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         db.execute_query(
             "CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
@@ -357,7 +387,7 @@ mod fulltext {
 
         // Boolean search
         let result = db.execute_query(
-            "SEARCH INDEX idx_article_content MATCH 'graph AND database' YIELD doc_id, title"
+            "SEARCH INDEX idx_article_content MATCH 'graph AND database' YIELD doc_id, title",
         );
         assert_query_ok(result, "SEARCH INDEX with boolean should succeed");
     }
@@ -368,11 +398,12 @@ mod fulltext {
     fn test_explain_fulltext() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "e2e_fulltext_explain",
             &["CREATE TAG article(doc_id: STRING NOT NULL, title: STRING, content: STRING)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         db.execute_query(
             "CREATE FULLTEXT INDEX IF NOT EXISTS idx_article_content ON article(content) ENGINE BM25 OPTIONS (analyzer='standard')"
@@ -385,7 +416,7 @@ mod fulltext {
 
         // EXPLAIN
         let result = db.execute_query(
-            "EXPLAIN SEARCH INDEX idx_article_content MATCH 'performance' YIELD doc_id, score"
+            "EXPLAIN SEARCH INDEX idx_article_content MATCH 'performance' YIELD doc_id, score",
         );
         assert_query_ok(result, "EXPLAIN SEARCH INDEX should succeed");
     }

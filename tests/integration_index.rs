@@ -502,7 +502,10 @@ fn test_delete_edge_indexes() {
     // Create vertices first
     let src = VertexId::from_int64(1);
     let dst = VertexId::from_int64(2);
-    let tag = graphdb::core::vertex_edge_path::Tag::new("Person".to_string(), std::collections::HashMap::new());
+    let tag = graphdb::core::vertex_edge_path::Tag::new(
+        "Person".to_string(),
+        std::collections::HashMap::new(),
+    );
     let vertex1 = Vertex::new(src, vec![tag.clone()]);
     let vertex2 = Vertex::new(dst, vec![tag]);
     assert_ok(get_storage(&storage).insert_vertex("test_space", vertex1));

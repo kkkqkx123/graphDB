@@ -52,7 +52,11 @@ impl GrpcInterceptor {
         }
 
         if self.enable_logging {
-            let method = request.metadata().get("grpc-method").map(|v| v.to_str().unwrap_or("unknown")).unwrap_or("unknown");
+            let method = request
+                .metadata()
+                .get("grpc-method")
+                .map(|v| v.to_str().unwrap_or("unknown"))
+                .unwrap_or("unknown");
             let counter = self.request_counter.load(Ordering::Relaxed);
             info!(%method, %counter, "gRPC request");
         }
@@ -63,17 +67,9 @@ impl GrpcInterceptor {
     pub fn log_response(&self, status: &str, duration: std::time::Duration, success: bool) {
         if self.enable_metrics {
             if success {
-                debug!(
-                    latency_ms = duration.as_millis(),
-                    status,
-                    "gRPC success"
-                );
+                debug!(latency_ms = duration.as_millis(), status, "gRPC success");
             } else {
-                error!(
-                    latency_ms = duration.as_millis(),
-                    status,
-                    "gRPC error"
-                );
+                error!(latency_ms = duration.as_millis(), status, "gRPC error");
             }
         }
     }
@@ -176,7 +172,9 @@ impl CircuitBreaker {
         match *state {
             CircuitBreakerState::HalfOpen => {
                 self.success_count.fetch_add(1, Ordering::Relaxed);
-                if self.success_count.load(Ordering::Relaxed) >= self.config.success_threshold as u64 {
+                if self.success_count.load(Ordering::Relaxed)
+                    >= self.config.success_threshold as u64
+                {
                     drop(state);
                     let mut state = self.state.lock().await;
                     *state = CircuitBreakerState::Closed;
@@ -228,10 +226,7 @@ impl Default for GrpcClientConfig {
     }
 }
 
-pub async fn execute_with_retry<F, Fut, T>(
-    config: &RetryConfig,
-    operation: F,
-) -> Result<T>
+pub async fn execute_with_retry<F, Fut, T>(config: &RetryConfig, operation: F) -> Result<T>
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T>>,
@@ -264,5 +259,6 @@ where
         }
     }
 
-    Err(last_error.unwrap_or_else(|| VectorClientError::InternalError("Max retries exceeded".to_string())))
+    Err(last_error
+        .unwrap_or_else(|| VectorClientError::InternalError("Max retries exceeded".to_string())))
 }

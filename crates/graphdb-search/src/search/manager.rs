@@ -297,8 +297,15 @@ impl FulltextIndexManager {
         engine_type: Option<EngineType>,
     ) -> Result<String, SearchError> {
         let display_name = format!("idx_{}_{}_{}", space_id, tag_name, field_name);
-        self.create_index_with_engine_config(space_id, tag_name, field_name, &display_name, engine_type, None)
-            .await
+        self.create_index_with_engine_config(
+            space_id,
+            tag_name,
+            field_name,
+            &display_name,
+            engine_type,
+            None,
+        )
+        .await
     }
 
     pub async fn create_index_with_engine_config(

@@ -3,7 +3,9 @@
 //! Each test loads a `.gql` file from `tests/e2e/data/` and verifies
 //! the resulting data with count, filter, aggregate, and traversal queries.
 
-use crate::common::{assert_count_eq, assert_query_row_count, assert_row_count, create_test_db, load_gql_file};
+use crate::common::{
+    assert_count_eq, assert_query_row_count, assert_row_count, create_test_db, load_gql_file,
+};
 use graphdb::core::Value;
 
 const DATA_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/e2e/data");
@@ -19,8 +21,18 @@ fn test_social_network_vertex_counts() {
     load_gql_file(&mut db, &format!("{}/social_network_data.gql", DATA_DIR))
         .expect("Failed to load social_network_data.gql");
 
-    assert_count_eq(&mut db, "MATCH (p:person) RETURN count(p)", 20, "person count");
-    assert_count_eq(&mut db, "MATCH (c:company) RETURN count(c)", 5, "company count");
+    assert_count_eq(
+        &mut db,
+        "MATCH (p:person) RETURN count(p)",
+        20,
+        "person count",
+    );
+    assert_count_eq(
+        &mut db,
+        "MATCH (c:company) RETURN count(c)",
+        5,
+        "company count",
+    );
 }
 
 #[test]
@@ -29,9 +41,24 @@ fn test_social_network_edge_counts() {
     load_gql_file(&mut db, &format!("{}/social_network_data.gql", DATA_DIR))
         .expect("Failed to load social_network_data.gql");
 
-    assert_count_eq(&mut db, "MATCH ()-[f:friend]->() RETURN count(f)", 30, "friend count");
-    assert_count_eq(&mut db, "MATCH ()-[w:works_at]->() RETURN count(w)", 20, "works_at count");
-    assert_count_eq(&mut db, "MATCH ()-[l:lives_in]->() RETURN count(l)", 20, "lives_in count");
+    assert_count_eq(
+        &mut db,
+        "MATCH ()-[f:friend]->() RETURN count(f)",
+        30,
+        "friend count",
+    );
+    assert_count_eq(
+        &mut db,
+        "MATCH ()-[w:works_at]->() RETURN count(w)",
+        20,
+        "works_at count",
+    );
+    assert_count_eq(
+        &mut db,
+        "MATCH ()-[l:lives_in]->() RETURN count(l)",
+        20,
+        "lives_in count",
+    );
 }
 
 #[test]
@@ -103,8 +130,18 @@ fn test_ecommerce_vertex_counts() {
         .expect("Failed to load ecommerce_data.gql");
 
     assert_count_eq(&mut db, "MATCH (u:user) RETURN count(u)", 100, "user count");
-    assert_count_eq(&mut db, "MATCH (p:product) RETURN count(p)", 200, "product count");
-    assert_count_eq(&mut db, "MATCH (o:order) RETURN count(o)", 500, "order count");
+    assert_count_eq(
+        &mut db,
+        "MATCH (p:product) RETURN count(p)",
+        200,
+        "product count",
+    );
+    assert_count_eq(
+        &mut db,
+        "MATCH (o:order) RETURN count(o)",
+        500,
+        "order count",
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +155,12 @@ fn test_geography_vertex_counts() {
         .expect("Failed to load geography_data.gql");
 
     assert_count_eq(&mut db, "MATCH (c:city) RETURN count(c)", 10, "city count");
-    assert_count_eq(&mut db, "MATCH (l:location) RETURN count(l)", 200, "location count");
+    assert_count_eq(
+        &mut db,
+        "MATCH (l:location) RETURN count(l)",
+        200,
+        "location count",
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -147,14 +189,9 @@ fn test_optimizer_aggregate() {
 
     // SUM of salaries
     let result = db
-        .execute_query(
-            "MATCH (p:person) RETURN sum(p.salary) AS total_salary",
-        )
+        .execute_query("MATCH (p:person) RETURN sum(p.salary) AS total_salary")
         .expect("sum salary");
-    let first_row = result
-        .rows
-        .first()
-        .expect("sum result should have a row");
+    let first_row = result.rows.first().expect("sum result should have a row");
     let total = first_row
         .values
         .values()

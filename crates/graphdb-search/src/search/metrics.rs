@@ -91,7 +91,11 @@ impl MetricsSearchEngine {
         result
     }
 
-    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
+    pub async fn search(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SearchResult>, SearchError> {
         let start = Instant::now();
         let result = self.inner.search(query, limit).await;
         let latency_ms = start.elapsed().as_millis() as u64;

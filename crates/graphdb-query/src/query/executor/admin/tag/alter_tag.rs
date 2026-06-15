@@ -43,7 +43,11 @@ impl AlterTagItem {
         }
     }
 
-    pub fn change_property(old_name: String, new_name: String, data_type: crate::core::DataType) -> Self {
+    pub fn change_property(
+        old_name: String,
+        new_name: String,
+        data_type: crate::core::DataType,
+    ) -> Self {
         Self {
             op: AlterTagOp::Change,
             property: Some(PropertyDef::new(new_name, data_type)),
@@ -186,11 +190,8 @@ impl<S: StorageReader + StorageSchemaOps + Send + Sync + 'static> Executor<S>
                     storage_guard.get_tag(&self.alter_info.space_name, &self.alter_info.tag_name)
                 {
                     for (old_name, new_name) in &changes {
-                        let _ = storage_guard.rename_vertex_property(
-                            tag.tag_id,
-                            old_name,
-                            new_name,
-                        );
+                        let _ =
+                            storage_guard.rename_vertex_property(tag.tag_id, old_name, new_name);
                     }
                 }
                 Ok(ExecutionResult::Success)

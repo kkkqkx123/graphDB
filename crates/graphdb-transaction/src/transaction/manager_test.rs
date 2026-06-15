@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use crate::transaction::manager::TransactionManager;
 use crate::transaction::types::{
-    DurabilityLevel, TransactionManagerConfig, TransactionOptions, TransactionState,
+    DurabilityLevel, TransactionId, TransactionManagerConfig, TransactionOptions, TransactionState,
 };
 use crate::transaction::TransactionErrorKind;
 
@@ -152,7 +152,7 @@ fn test_commit_readonly_transaction() {
 fn test_get_transaction_not_found() {
     let manager = create_test_manager();
 
-    let result = manager.get_context(9999);
+    let result = manager.get_context(TransactionId(9999));
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
@@ -162,7 +162,7 @@ fn test_get_transaction_not_found() {
 fn test_commit_transaction_not_found() {
     let manager = create_test_manager();
 
-    let result = manager.commit_transaction(9999);
+    let result = manager.commit_transaction(TransactionId(9999));
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
@@ -172,7 +172,7 @@ fn test_commit_transaction_not_found() {
 fn test_abort_transaction_not_found() {
     let manager = create_test_manager();
 
-    let result = manager.abort_transaction(9999);
+    let result = manager.abort_transaction(TransactionId(9999));
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);

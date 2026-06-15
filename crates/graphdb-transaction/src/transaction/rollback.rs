@@ -3,7 +3,7 @@
 //! Provides rollback functionality for transactions using both OperationLog and UndoLog mechanisms.
 //! The UndoLog-based rollback is the recommended approach for NeuG architecture.
 
-use crate::core::types::{LabelId, Timestamp, VertexId};
+use crate::core::types::{ColumnId, LabelId, Timestamp, VertexId};
 use crate::core::StorageError;
 use crate::transaction::undo_log::{UndoLogEntry, UndoTarget};
 
@@ -132,7 +132,7 @@ pub struct CreateUpdateEdgePropUndoParams {
     pub rank: i64,
     pub oe_offset: i32,
     pub ie_offset: i32,
-    pub col_id: i32,
+    pub col_id: ColumnId,
     pub old_value: PropertyValue,
 }
 
@@ -167,7 +167,7 @@ impl RollbackHelper {
     pub fn create_update_vertex_prop_undo(
         label: LabelId,
         vid: u64,
-        col_id: i32,
+        col_id: ColumnId,
         old_value: PropertyValue,
     ) -> UndoLogEntry {
         UndoLogEntry::UpdateVertexProp(UpdateVertexPropUndo {
@@ -297,7 +297,7 @@ mod tests {
         assert!(undo.description().contains("RemoveEdgeUndo"));
 
         let undo =
-            RollbackHelper::create_update_vertex_prop_undo(1, 100, 0, PropertyValue::Int(42));
+            RollbackHelper::create_update_vertex_prop_undo(1, 100, ColumnId(0), PropertyValue::Int(42));
         assert!(undo.description().contains("UpdateVertexPropUndo"));
     }
 }

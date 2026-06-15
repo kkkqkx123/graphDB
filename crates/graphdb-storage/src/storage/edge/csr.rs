@@ -166,7 +166,7 @@ impl Csr {
         }
         new_offsets[self.vertex_capacity] = cumsum;
 
-        let mut new_edges = vec![ImmutableNbr::new(VertexId::from_int64(0), 0, 0); src_list.len()];
+        let mut new_edges = vec![ImmutableNbr::new(VertexId::from_int64(0), EdgeId(0), 0); src_list.len()];
         let mut current_pos = new_offsets.clone();
         for i in 0..src_list.len() {
             let src = src_list[i] as usize;
@@ -242,13 +242,13 @@ impl Csr {
         let mut edges = Vec::with_capacity(edges_len);
         for _ in 0..edges_len {
             let neighbor = read_vertex_id(data, &mut offset)?;
-            let edge_id = read_u64_le(data, &mut offset)?;
+            let raw_edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
             let timestamp = read_u32_le(data, &mut offset)?;
 
             edges.push(ImmutableNbr::with_timestamp(
                 neighbor,
-                edge_id,
+                EdgeId(raw_edge_id),
                 prop_offset,
                 timestamp,
             ));

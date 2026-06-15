@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,8 +14,9 @@ use crate::core::types::{
 };
 use crate::core::UserStorage;
 use crate::core::{StorageError, StorageResult, Value};
+use crate::storage::edge::EdgeTable;
 use crate::storage::edge::{EdgeRecord, EdgeStrategy};
-use crate::storage::edge::EdgeTable;use crate::storage::engine::cache_manager::CacheManager;
+use crate::storage::engine::cache_manager::CacheManager;
 use crate::storage::engine::config::PropertyGraphConfig;
 use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
 use crate::storage::engine::params::CreateEdgeTypeParams;
@@ -26,7 +26,7 @@ use crate::storage::engine::{EdgeOperationParams, InsertEdgeParams};
 use crate::storage::index::{
     GcStats, IndexDataManagerImpl, IndexGcConfig, IndexGcManager, IndexGcOps,
 };
-use crate::storage::types::{EdgeOffset, StoragePropertyDef};
+use crate::storage::types::StoragePropertyDef;
 use crate::storage::vertex::{IdKey, VertexRecord};
 
 type LastCompactedVertices = Arc<Mutex<Vec<(LabelId, Vec<IdKey>)>>>;
@@ -952,7 +952,7 @@ impl GraphStorageContext {
 
     // ── Edge Operations ──
 
-    pub fn insert_edge(&self, params: InsertEdgeParams) -> StorageResult<EdgeOffset> {
+    pub fn insert_edge(&self, params: InsertEdgeParams) -> StorageResult<()> {
         if !self.persistent.is_open.load(Ordering::Acquire) {
             return Err(StorageError::storage_not_open());
         }
@@ -1016,9 +1016,9 @@ impl GraphStorageContext {
                 params.properties,
                 params.ts,
             ) {
-                Ok(offset) => {
+                Ok(()) => {
                     self.mark_edge_modified(params.edge_label);
-                    return Ok(offset);
+                    return Ok(());
                 }
                 Err(ref e)
                     if e.kind()
@@ -1138,8 +1138,7 @@ impl GraphStorageContext {
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
         let src_internal = self.resolve_internal_id(&vertex_tables, src_label, src_id, ts)?;
         let actual_src = if src_label == 0 {
-            Self::resolve_internal_id_label(&vertex_tables, &src_id, ts)
-                .unwrap_or(src_label)
+            Self::resolve_internal_id_label(&vertex_tables, &src_id, ts).unwrap_or(src_label)
         } else {
             src_label
         };
@@ -1147,7 +1146,10 @@ impl GraphStorageContext {
 
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let mut records = Vec::new();
-        for table in edge_tables.values().filter(|t| t.label() == edge_label && t.src_label() == actual_src) {
+        for table in edge_tables
+            .values()
+            .filter(|t| t.label() == edge_label && t.src_label() == actual_src)
+        {
             records.extend(table.out_edges(src_internal, ts));
         }
         Some(records)
@@ -1168,8 +1170,7 @@ impl GraphStorageContext {
         let vertex_tables = self.persistent.data_store.vertex_tables().read();
         let dst_internal = self.resolve_internal_id(&vertex_tables, dst_label, dst_id, ts)?;
         let actual_dst = if dst_label == 0 {
-            Self::resolve_internal_id_label(&vertex_tables, &dst_id, ts)
-                .unwrap_or(dst_label)
+            Self::resolve_internal_id_label(&vertex_tables, &dst_id, ts).unwrap_or(dst_label)
         } else {
             dst_label
         };
@@ -1177,7 +1178,10 @@ impl GraphStorageContext {
 
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let mut records = Vec::new();
-        for table in edge_tables.values().filter(|t| t.label() == edge_label && t.dst_label() == actual_dst) {
+        for table in edge_tables
+            .values()
+            .filter(|t| t.label() == edge_label && t.dst_label() == actual_dst)
+        {
             records.extend(table.in_edges(dst_internal, ts));
         }
         Some(records)
@@ -1215,7 +1219,10 @@ impl GraphStorageContext {
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let mut records = Vec::new();
 
-        for table in edge_tables.values().filter(|table| table.label() == edge_label) {
+        for table in edge_tables
+            .values()
+            .filter(|table| table.label() == edge_label)
+        {
             records.extend(table.scan(ts));
         }
 

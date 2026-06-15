@@ -38,7 +38,8 @@ pub fn blocks_needed(size: usize) -> usize {
     size.div_ceil(WAL_BLOCK_SIZE)
 }
 
-pub type TransactionId = u64;
+// TransactionId is defined in core::types::storage_ids — use that definition.
+pub use crate::core::types::TransactionId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Lsn(pub u64);

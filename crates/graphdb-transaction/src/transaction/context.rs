@@ -533,9 +533,9 @@ mod tests {
     #[test]
     fn test_transaction_context_basic() {
         let config = TransactionConfig::default();
-        let ctx = TransactionContext::new(1, 1, config);
+        let ctx = TransactionContext::new(TransactionId(1), 1, config);
 
-        assert_eq!(ctx.id, 1);
+        assert_eq!(ctx.id, TransactionId(1));
         assert_eq!(ctx.timestamp(), 1);
         assert_eq!(ctx.state(), TransactionState::Active);
         assert!(!ctx.read_only);
@@ -544,7 +544,7 @@ mod tests {
     #[test]
     fn test_transaction_context_readonly() {
         let config = TransactionConfig::default();
-        let ctx = TransactionContext::new_readonly(1, 1, config);
+        let ctx = TransactionContext::new_readonly(TransactionId(1), 1, config);
 
         assert!(ctx.read_only);
     }
@@ -552,7 +552,7 @@ mod tests {
     #[test]
     fn test_transaction_context_state_transition() {
         let config = TransactionConfig::default();
-        let ctx = TransactionContext::new(1, 1, config);
+        let ctx = TransactionContext::new(TransactionId(1), 1, config);
 
         assert!(ctx.transition_to(TransactionState::Committing).is_ok());
         assert_eq!(ctx.state(), TransactionState::Committing);
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     fn test_transaction_context_savepoint() {
         let config = TransactionConfig::default();
-        let ctx = TransactionContext::new(1, 1, config);
+        let ctx = TransactionContext::new(TransactionId(1), 1, config);
 
         let sp_id = ctx.create_savepoint(Some("test".to_string()));
         assert!(ctx.get_savepoint(sp_id).is_some());
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn test_transaction_context_operation_log() {
         let config = TransactionConfig::default();
-        let ctx = TransactionContext::new(1, 1, config);
+        let ctx = TransactionContext::new(TransactionId(1), 1, config);
 
         ctx.add_operation_log(OperationLog::InsertVertex {
             space: "test".to_string(),

@@ -9,7 +9,8 @@ use super::{
 };
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::persistence::{read_header, section, write_header_to, HEADER_SIZE};
-use crate::storage::types::{EdgeOffset, PropertyId, StoragePropertyDef};
+use crate::storage::types::{PropertyId, StoragePropertyDef};
+use crate::core::types::EdgeId;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -66,10 +67,10 @@ pub struct EdgeTable {
     in_csr: MutableCsrVariant,
     out_segments: Vec<CsrSegment>,
     in_segments: Vec<CsrSegment>,
-    tombstones: HashMap<u64, Timestamp>,
+    tombstones: HashMap<EdgeId, Timestamp>,
     properties: PropertyTable,
     is_open: bool,
-    next_edge_id: u64,
+    next_edge_id: EdgeId,
 }
 
 impl EdgeTable {
@@ -107,7 +108,7 @@ impl EdgeTable {
             tombstones: HashMap::new(),
             properties,
             is_open: true,
-            next_edge_id: 0,
+            next_edge_id: EdgeId(0),
         })
     }
 
@@ -135,7 +136,7 @@ impl EdgeTable {
         )
     }
 
-    fn is_tombstoned(&self, edge_id: u64, ts: Timestamp) -> bool {
+    fn is_tombstoned(&self, edge_id: EdgeId, ts: Timestamp) -> bool {
         self.tombstones
             .get(&edge_id)
             .is_some_and(|delete_ts| *delete_ts <= ts)
@@ -269,7 +270,7 @@ impl EdgeTable {
         rank: i64,
         property_values: &[(String, Value)],
         ts: Timestamp,
-    ) -> StorageResult<EdgeOffset> {
+    ) -> StorageResult<()> {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
@@ -286,7 +287,7 @@ impl EdgeTable {
                 .schema
                 .properties
                 .iter()
-                .find(|p| &p.name == name)
+                .find(|p| p.name == *name)
                 .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
 
             if value.data_type() != prop_def.data_type {
@@ -314,8 +315,7 @@ impl EdgeTable {
         let dst_key = Self::edge_endpoint_key(dst, rank);
         let src_key = Self::edge_endpoint_key(src, rank);
 
-        let edge_id = self.next_edge_id;
-        self.next_edge_id += 1;
+        let edge_id = self.next_edge_id.fetch_add();
         if !self
             .out_csr
             .insert_edge(src, dst_key, edge_id, prop_offset, ts)
@@ -340,7 +340,7 @@ impl EdgeTable {
             )));
         }
 
-        Ok(EdgeOffset::new(prop_offset as i32))
+        Ok(())
     }
 
     pub fn delete_edge(
@@ -409,8 +409,8 @@ impl EdgeTable {
         src: u32,
         dst: u32,
         _rank: i64,
-        oe_offset: EdgeOffset,
-        ie_offset: EdgeOffset,
+        oe_offset: i32,
+        ie_offset: i32,
         ts: Timestamp,
     ) -> StorageResult<bool> {
         if !self.is_open {
@@ -419,11 +419,11 @@ impl EdgeTable {
 
         let reverted = self
             .out_csr
-            .revert_delete_by_offset(src, oe_offset.as_i32(), ts);
+            .revert_delete_by_offset(src, oe_offset, ts);
 
         if reverted && self.schema.ie_strategy != EdgeStrategy::None {
             self.in_csr
-                .revert_delete_by_offset(dst, ie_offset.as_i32(), ts);
+                .revert_delete_by_offset(dst, ie_offset, ts);
         }
 
         Ok(reverted)
@@ -714,10 +714,10 @@ impl EdgeTable {
         meta_file.write_all(&(schema_bytes.len() as u32).to_le_bytes())?;
         meta_file.write_all(schema_bytes)?;
 
-        meta_file.write_all(&self.next_edge_id.to_le_bytes())?;
+        meta_file.write_all(&self.next_edge_id.0.to_le_bytes())?;
         meta_file.write_all(&(self.tombstones.len() as u64).to_le_bytes())?;
         for (edge_id, delete_ts) in &self.tombstones {
-            meta_file.write_all(&edge_id.to_le_bytes())?;
+            meta_file.write_all(&edge_id.0.to_le_bytes())?;
             meta_file.write_all(&delete_ts.to_le_bytes())?;
         }
 
@@ -853,7 +853,7 @@ impl EdgeTable {
 
         let mut next_edge_id_bytes = [0u8; 8];
         meta_cursor.read_exact(&mut next_edge_id_bytes)?;
-        self.next_edge_id = u64::from_le_bytes(next_edge_id_bytes);
+        self.next_edge_id = EdgeId(u64::from_le_bytes(next_edge_id_bytes));
 
         let mut tombstone_count_bytes = [0u8; 8];
         meta_cursor.read_exact(&mut tombstone_count_bytes)?;
@@ -865,7 +865,7 @@ impl EdgeTable {
             let mut delete_ts_bytes = [0u8; 4];
             meta_cursor.read_exact(&mut delete_ts_bytes)?;
             self.tombstones.insert(
-                u64::from_le_bytes(edge_id_bytes),
+                EdgeId(u64::from_le_bytes(edge_id_bytes)),
                 u32::from_le_bytes(delete_ts_bytes),
             );
         }
@@ -879,19 +879,20 @@ impl EdgeTable {
         let props_path = path.join("properties.bin");
         self.load_properties(&props_path)?;
 
-        if self.next_edge_id == 0 {
+        if self.next_edge_id.0 == 0 {
             let ts = u32::MAX;
-            self.next_edge_id = self
+            let max_id = self
                 .out_csr
                 .iter(ts)
-                .map(|(_, nbr)| nbr.edge_id + 1)
+                .map(|(_, nbr)| nbr.edge_id.0 + 1)
                 .chain(
                     self.out_segments
                         .iter()
-                        .flat_map(|segment| segment.csr.iter().map(|(_, nbr)| nbr.edge_id + 1)),
+                        .flat_map(|segment| segment.csr.iter().map(|(_, nbr)| nbr.edge_id.0 + 1)),
                 )
                 .max()
                 .unwrap_or(0);
+            self.next_edge_id = EdgeId(max_id);
         }
         self.is_open = true;
         Ok(())
@@ -1108,7 +1109,7 @@ impl EdgeTable {
             .iter()
             .map(|segment| segment.csr.used_memory_size())
             .sum::<usize>();
-        total += self.tombstones.len() * std::mem::size_of::<(u64, Timestamp)>();
+        total += self.tombstones.len() * std::mem::size_of::<(EdgeId, Timestamp)>();
         total += self.properties.used_memory_size();
 
         total

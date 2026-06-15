@@ -104,8 +104,8 @@ mod tests {
         assert!(!context.has_active_transaction());
         assert!(context.is_auto_commit());
 
-        context.bind_transaction(1001, 123);
-        assert_eq!(context.current_transaction(), Some(1001));
+        context.bind_transaction(TransactionId::from(1001u64), 123);
+        assert_eq!(context.current_transaction(), Some(TransactionId::from(1001u64)));
         assert!(context.has_active_transaction());
 
         context.unbind_transaction(123);

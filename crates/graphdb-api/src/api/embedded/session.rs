@@ -229,7 +229,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Return
     /// - Returns query results on success
     /// - Return error on failure
-pub fn execute_with_params(
+    pub fn execute_with_params(
         &self,
         query: &str,
         params: HashMap<String, Value>,
@@ -701,9 +701,8 @@ pub fn execute_with_params(
     ) -> CoreResult<String> {
         let space_id = {
             let guard = self.space_id.read();
-            guard.ok_or_else(|| {
-                CoreError::InvalidParameter("No graph space selected".to_string())
-            })?
+            guard
+                .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?
         };
 
         let sync_manager =
@@ -734,9 +733,8 @@ pub fn execute_with_params(
     pub async fn drop_vector_index(&self, tag_name: &str, field_name: &str) -> CoreResult<()> {
         let space_id = {
             let guard = self.space_id.read();
-            guard.ok_or_else(|| {
-                CoreError::InvalidParameter("No graph space selected".to_string())
-            })?
+            guard
+                .ok_or_else(|| CoreError::InvalidParameter("No graph space selected".to_string()))?
         };
 
         let sync_manager =

@@ -400,8 +400,10 @@ pub(crate) fn scan_edges_by_type(
 
                 let src_external = if tbl_src != 0 {
                     ctx.get_external_id(tbl_src, src_internal, ts)
-                        .or_else(|| ctx.get_external_id_by_internal_id(tbl_src, src_internal)
-                            .map(|v| vid_to_string(&v)))
+                        .or_else(|| {
+                            ctx.get_external_id_by_internal_id(tbl_src, src_internal)
+                                .map(|v| vid_to_string(&v))
+                        })
                         .unwrap_or_else(|| format!("{}", record.src_vid))
                 } else {
                     ctx.get_external_id_any(src_internal, ts)
@@ -410,8 +412,10 @@ pub(crate) fn scan_edges_by_type(
 
                 let dst_external = if tbl_dst != 0 {
                     ctx.get_external_id(tbl_dst, dst_internal, ts)
-                        .or_else(|| ctx.get_external_id_by_internal_id(tbl_dst, dst_internal)
-                            .map(|v| vid_to_string(&v)))
+                        .or_else(|| {
+                            ctx.get_external_id_by_internal_id(tbl_dst, dst_internal)
+                                .map(|v| vid_to_string(&v))
+                        })
                         .unwrap_or_else(|| format!("{}", record.dst_vid))
                 } else {
                     ctx.get_external_id_any(dst_internal, ts)

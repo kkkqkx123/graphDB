@@ -8,11 +8,11 @@ use dashmap::DashMap;
 use tracing::{debug, info, warn};
 
 use crate::config::{EngineType, VectorClientConfig};
-use crate::engine::VectorEngine;
 #[cfg(all(feature = "qdrant-http", not(feature = "qdrant-grpc")))]
 use crate::engine::QdrantEngine;
 #[cfg(feature = "qdrant-grpc")]
 use crate::engine::QdrantGrpcEngine;
+use crate::engine::VectorEngine;
 use crate::error::{Result, VectorClientError};
 use crate::types::{CollectionConfig, SearchQuery, SearchResult, VectorFilter, VectorPoint};
 

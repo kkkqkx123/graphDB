@@ -124,7 +124,7 @@ impl MutableCsr {
 
         nbr_list.resize(
             offset,
-            Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP),
+            Nbr::new(VertexId::from_int64(0), EdgeId(0), 0, INVALID_TIMESTAMP),
         );
 
         Self {
@@ -171,7 +171,7 @@ impl MutableCsr {
 
         self.nbr_list.resize(
             new_total_capacity,
-            Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP),
+            Nbr::new(VertexId::from_int64(0), EdgeId(0), 0, INVALID_TIMESTAMP),
         );
         self.vertex_capacity = new_vertex_capacity;
         self.total_edge_capacity = new_total_capacity;
@@ -195,7 +195,7 @@ impl MutableCsr {
         let append_pos = self.nbr_list.len();
         self.nbr_list.resize(
             append_pos + additional,
-            Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP),
+            Nbr::new(VertexId::from_int64(0), EdgeId(0), 0, INVALID_TIMESTAMP),
         );
 
         // Copy existing overflow data to new block if re-expanding
@@ -519,7 +519,7 @@ impl MutableCsr {
     /// Clear all edges
     pub fn clear(&mut self) {
         for nbr in &mut self.nbr_list {
-            *nbr = Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP);
+            *nbr = Nbr::new(VertexId::from_int64(0), EdgeId(0), 0, INVALID_TIMESTAMP);
         }
         for degree in &mut self.degrees {
             *degree = 0;
@@ -637,11 +637,11 @@ impl MutableCsr {
         let mut nbr_list = Vec::with_capacity(nbr_count);
         for _ in 0..nbr_count {
             let neighbor = read_vertex_id(data, &mut offset)?;
-            let edge_id = read_u64_le(data, &mut offset)?;
+            let raw_edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
             let timestamp = read_u32_le(data, &mut offset)?;
 
-            nbr_list.push(Nbr::new(neighbor, edge_id, prop_offset, timestamp));
+            nbr_list.push(Nbr::new(neighbor, EdgeId(raw_edge_id), prop_offset, timestamp));
         }
 
         self.vertex_capacity = vertex_capacity;
@@ -722,7 +722,7 @@ impl MutableCsr {
             if remaining > 0 {
                 new_nbr_list.resize(
                     new_nbr_list.len() + remaining,
-                    Nbr::new(VertexId::from_int64(0), 0, 0, INVALID_TIMESTAMP),
+                    Nbr::new(VertexId::from_int64(0), EdgeId(0), 0, INVALID_TIMESTAMP),
                 );
             }
         }

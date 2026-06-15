@@ -50,7 +50,11 @@ impl QdrantGrpcEngine {
     pub async fn new(config: VectorClientConfig) -> Result<Self> {
         let grpc_port = config.connection.port;
         let host = &config.connection.host;
-        let scheme = if config.connection.use_tls { "https" } else { "http" };
+        let scheme = if config.connection.use_tls {
+            "https"
+        } else {
+            "http"
+        };
         let addr = format!("{}://{}:{}", scheme, host, grpc_port);
 
         info!("Connecting to Qdrant gRPC API at {}", addr);
@@ -67,11 +71,7 @@ impl QdrantGrpcEngine {
             .await
             .map_err(|e| VectorClientError::ConnectionFailed(e.to_string()))?;
 
-        let interceptor = GrpcInterceptor::new(
-            config.connection.api_key.clone(),
-            true,
-            true,
-        );
+        let interceptor = GrpcInterceptor::new(config.connection.api_key.clone(), true, true);
 
         let channel = interceptor.apply_to_channel(channel);
 

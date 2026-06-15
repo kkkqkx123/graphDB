@@ -98,12 +98,7 @@ fn test_vector_collection_name_format() {
     let test_cases = vec![
         (1, "Article", "content", "space_1"),
         (42, "User", "email", "space_42"),
-        (
-            999,
-            "Product",
-            "description",
-            "space_999",
-        ),
+        (999, "Product", "description", "space_999"),
     ];
 
     for (space_id, tag, field, expected) in test_cases {

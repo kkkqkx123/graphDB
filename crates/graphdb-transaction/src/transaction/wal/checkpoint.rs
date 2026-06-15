@@ -520,17 +520,17 @@ mod tests {
         let mut manager = CheckpointManager::new(wal_path, work_path, None);
         manager.init().expect("Failed to init");
 
-        manager.register_transaction(1);
-        manager.register_transaction(2);
-        manager.register_transaction(1);
+        manager.register_transaction(TransactionId(1));
+        manager.register_transaction(TransactionId(2));
+        manager.register_transaction(TransactionId(1));
 
         assert_eq!(manager.active_transactions().len(), 2);
-        assert!(manager.active_transactions().contains(&1));
-        assert!(manager.active_transactions().contains(&2));
+        assert!(manager.active_transactions().contains(&TransactionId(1)));
+        assert!(manager.active_transactions().contains(&TransactionId(2)));
 
-        manager.unregister_transaction(1);
+        manager.unregister_transaction(TransactionId(1));
         assert_eq!(manager.active_transactions().len(), 1);
-        assert!(!manager.active_transactions().contains(&1));
+        assert!(!manager.active_transactions().contains(&TransactionId(1)));
     }
 
     #[test]

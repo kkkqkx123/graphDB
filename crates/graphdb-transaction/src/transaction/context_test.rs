@@ -117,7 +117,7 @@ fn create_default_config(timeout: Duration) -> TransactionConfig {
 
 #[test]
 fn test_transaction_context_creation() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -131,7 +131,7 @@ fn test_transaction_context_creation() {
 
 #[test]
 fn test_transaction_context_readonly_creation() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -144,7 +144,7 @@ fn test_transaction_context_readonly_creation() {
 
 #[test]
 fn test_transaction_context_state_transitions() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -159,7 +159,7 @@ fn test_transaction_context_state_transitions() {
 
 #[test]
 fn test_transaction_context_invalid_state_transition() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -179,7 +179,7 @@ fn test_transaction_context_invalid_state_transition() {
 
 #[test]
 fn test_transaction_context_timeout() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_millis(100);
     let config = create_default_config(timeout);
 
@@ -194,7 +194,7 @@ fn test_transaction_context_timeout() {
 
 #[test]
 fn test_transaction_context_remaining_time() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_millis(200);
     let config = create_default_config(timeout);
 
@@ -212,7 +212,7 @@ fn test_transaction_context_remaining_time() {
 
 #[test]
 fn test_transaction_context_modified_tables() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -230,7 +230,7 @@ fn test_transaction_context_modified_tables() {
 
 #[test]
 fn test_transaction_context_operation_log() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -260,7 +260,7 @@ fn test_transaction_context_operation_log() {
 
 #[test]
 fn test_transaction_context_can_execute() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -276,7 +276,7 @@ fn test_transaction_context_can_execute() {
 
 #[test]
 fn test_transaction_context_can_execute_expired() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_millis(50);
     let config = create_default_config(timeout);
 
@@ -292,7 +292,7 @@ fn test_transaction_context_can_execute_expired() {
 
 #[test]
 fn test_transaction_context_info() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -310,7 +310,7 @@ fn test_transaction_context_info() {
 
 #[test]
 fn test_transaction_context_timestamp() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -321,7 +321,7 @@ fn test_transaction_context_timestamp() {
 
 #[test]
 fn test_savepoint_creation() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -339,7 +339,7 @@ fn test_savepoint_creation() {
 
 #[test]
 fn test_multiple_savepoints() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -360,7 +360,7 @@ fn test_multiple_savepoints() {
 
 #[test]
 fn test_rollback_to_savepoint() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -377,7 +377,7 @@ fn test_rollback_to_savepoint() {
 
 #[test]
 fn test_rollback_to_nonexistent_savepoint() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -392,7 +392,7 @@ fn test_rollback_to_nonexistent_savepoint() {
 
 #[test]
 fn test_release_savepoint() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -409,7 +409,7 @@ fn test_release_savepoint() {
 
 #[test]
 fn test_release_nonexistent_savepoint() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -423,7 +423,7 @@ fn test_release_nonexistent_savepoint() {
 
 #[test]
 fn test_savepoint_with_operations() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -458,7 +458,7 @@ fn test_savepoint_with_operations() {
 
 #[test]
 fn test_find_savepoint_by_name() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -482,7 +482,7 @@ fn test_find_savepoint_by_name() {
 
 #[test]
 fn test_get_all_savepoints() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -498,7 +498,7 @@ fn test_get_all_savepoints() {
 
 #[test]
 fn test_clear() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -521,7 +521,7 @@ fn test_clear() {
 
 #[test]
 fn test_query_count() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -538,7 +538,7 @@ fn test_query_count() {
 
 #[test]
 fn test_update_activity() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -553,7 +553,7 @@ fn test_update_activity() {
 
 #[test]
 fn test_two_phase_commit_flag() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = TransactionConfig {
         timeout,
@@ -572,7 +572,7 @@ fn test_two_phase_commit_flag() {
 
 #[test]
 fn test_abort_state_transitions() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -587,7 +587,7 @@ fn test_abort_state_transitions() {
 
 #[test]
 fn test_add_operation_logs_batch() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 
@@ -618,7 +618,7 @@ fn test_add_operation_logs_batch() {
 
 #[test]
 fn test_get_operation_log_range() {
-    let txn_id: TransactionId = 1;
+    let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
     let config = create_default_config(timeout);
 

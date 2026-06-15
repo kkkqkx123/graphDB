@@ -74,7 +74,10 @@ fn main() {
         }
         Cli::Health { host, port } => {
             println!("Checking server health at {}:{}", host, port);
-            println!("Use 'curl http://{}:{}/v1/health' to check manually", host, port);
+            println!(
+                "Use 'curl http://{}:{}/v1/health' to check manually",
+                host, port
+            );
         }
     }
 }

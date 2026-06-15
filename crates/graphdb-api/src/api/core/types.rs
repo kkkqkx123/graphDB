@@ -80,7 +80,7 @@ pub struct ExecutionMetadata {
 
 /// Transaction handler
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TransactionHandle(pub u64);
+pub struct TransactionHandle(pub TransactionId);
 
 /// Save Point ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

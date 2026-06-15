@@ -4,7 +4,7 @@
 //! A compact transaction performs garbage collection and storage optimization,
 //! including CSR compaction and removal of old versions.
 
-use super::read_transaction::INVALID_TIMESTAMP;
+use super::read_transaction::RELEASED_TIMESTAMP;
 use super::wal::types::WalHeader;
 use super::wal::writer::WalWriter;
 use super::wal::Timestamp;
@@ -110,7 +110,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
     ///
     /// Performs the actual compaction and writes WAL.
     pub fn commit(mut self) -> CompactTransactionResult<()> {
-        if self.timestamp == INVALID_TIMESTAMP {
+        if self.timestamp == RELEASED_TIMESTAMP {
             return Ok(());
         }
 
@@ -133,7 +133,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
         self.version_manager
             .release_update_timestamp(self.timestamp);
         self.version_manager.clear();
-        self.timestamp = INVALID_TIMESTAMP;
+        self.timestamp = RELEASED_TIMESTAMP;
 
         Ok(())
     }
@@ -142,10 +142,10 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
     ///
     /// Reverts the timestamp without performing compaction.
     pub fn abort(mut self) -> CompactTransactionResult<()> {
-        if self.timestamp != INVALID_TIMESTAMP {
+        if self.timestamp != RELEASED_TIMESTAMP {
             self.wal_buffer.clear();
             self.version_manager.revert_update_timestamp(self.timestamp);
-            self.timestamp = INVALID_TIMESTAMP;
+            self.timestamp = RELEASED_TIMESTAMP;
         }
         Ok(())
     }
@@ -153,7 +153,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
 
 impl<'a, T: CompactTarget + ?Sized> Drop for CompactTransaction<'a, T> {
     fn drop(&mut self) {
-        if self.timestamp != INVALID_TIMESTAMP {
+        if self.timestamp != RELEASED_TIMESTAMP {
             self.version_manager
                 .release_update_timestamp(self.timestamp);
         }

@@ -129,7 +129,7 @@ impl TransactionManager {
             return Err(TransactionError::too_many_transactions());
         }
 
-        let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
+        let txn_id = TransactionId(self.id_generator.fetch_add(1, Ordering::SeqCst));
         let timestamp = self.version_manager.acquire_read_timestamp();
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
@@ -173,7 +173,7 @@ impl TransactionManager {
             return Err(TransactionError::write_transaction_conflict());
         }
 
-        let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
+        let txn_id = TransactionId(self.id_generator.fetch_add(1, Ordering::SeqCst));
         let timestamp = self.version_manager.acquire_insert_timestamp();
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
@@ -213,7 +213,7 @@ impl TransactionManager {
             return Err(TransactionError::write_transaction_conflict());
         }
 
-        let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
+        let txn_id = TransactionId(self.id_generator.fetch_add(1, Ordering::SeqCst));
         let timestamp = self
             .version_manager
             .acquire_update_timestamp()
@@ -503,7 +503,9 @@ impl TransactionManager {
 
     /// Check if there's an active write transaction
     fn has_active_write_transaction(&self) -> bool {
-        self.active_transactions.iter().any(|entry| !entry.value().read_only)
+        self.active_transactions
+            .iter()
+            .any(|entry| !entry.value().read_only)
     }
 }
 

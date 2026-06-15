@@ -21,9 +21,11 @@ fn test_optimizer_result_equivalence_with_content() {
     {
         let stats_manager = Arc::new(StatsManager::new());
         let opt_enabled = Arc::new(OptimizerEngine::default());
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, opt_enabled)
-            .with_schema_manager(schema_manager.clone());
-        pipeline.execute_query("CREATE SPACE opt_equiv (vid_type=INT64)")
+        let mut pipeline =
+            QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, opt_enabled)
+                .with_schema_manager(schema_manager.clone());
+        pipeline
+            .execute_query("CREATE SPACE opt_equiv (vid_type=INT64)")
             .expect("CREATE SPACE");
     }
 
@@ -41,20 +43,25 @@ fn test_optimizer_result_equivalence_with_content() {
     {
         let stats_manager = Arc::new(StatsManager::new());
         let opt_enabled = Arc::new(OptimizerEngine::default());
-        let mut pipeline = QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, opt_enabled)
-            .with_schema_manager(schema_manager.clone());
-        pipeline.execute_query_with_space(
-            "CREATE TAG Item(name STRING, price DOUBLE, category STRING)",
-            Some(space_info.clone()),
-        ).expect("CREATE TAG");
-        pipeline.execute_query_with_space(
-            "INSERT VERTEX Item(name, price, category) VALUES \
+        let mut pipeline =
+            QueryPipelineManager::with_optimizer(storage.clone(), stats_manager, opt_enabled)
+                .with_schema_manager(schema_manager.clone());
+        pipeline
+            .execute_query_with_space(
+                "CREATE TAG Item(name STRING, price DOUBLE, category STRING)",
+                Some(space_info.clone()),
+            )
+            .expect("CREATE TAG");
+        pipeline
+            .execute_query_with_space(
+                "INSERT VERTEX Item(name, price, category) VALUES \
             1:('A', 10.0, 'Electronics'), \
             2:('B', 20.0, 'Books'), \
             3:('C', 30.0, 'Electronics'), \
             4:('D', 15.0, 'Books')",
-            Some(space_info.clone()),
-        ).expect("INSERT");
+                Some(space_info.clone()),
+            )
+            .expect("INSERT");
     }
 
     // Pipeline with optimization enabled
@@ -87,8 +94,16 @@ fn test_optimizer_result_equivalence_with_content() {
         let result_on = pipeline_on.execute_query_with_space(query, Some(space_info.clone()));
         let result_off = pipeline_off.execute_query_with_space(query, Some(space_info.clone()));
 
-        assert!(result_on.is_ok(), "Optimized query should succeed: {}", query);
-        assert!(result_off.is_ok(), "Non-optimized query should succeed: {}", query);
+        assert!(
+            result_on.is_ok(),
+            "Optimized query should succeed: {}",
+            query
+        );
+        assert!(
+            result_off.is_ok(),
+            "Non-optimized query should succeed: {}",
+            query
+        );
 
         let result_on = result_on.unwrap();
         let result_off = result_off.unwrap();
@@ -105,10 +120,19 @@ fn test_optimizer_result_equivalence_with_content() {
         match (&result_on, &result_off) {
             (ExecutionResult::DataSet(ds_on), ExecutionResult::DataSet(ds_off)) => {
                 // Compare column names
-                assert_eq!(ds_on.col_names, ds_off.col_names, "Column names differ for query: {}", query);
+                assert_eq!(
+                    ds_on.col_names, ds_off.col_names,
+                    "Column names differ for query: {}",
+                    query
+                );
 
                 // Compare row counts
-                assert_eq!(ds_on.rows.len(), ds_off.rows.len(), "Row count differs for query: {}", query);
+                assert_eq!(
+                    ds_on.rows.len(),
+                    ds_off.rows.len(),
+                    "Row count differs for query: {}",
+                    query
+                );
 
                 // Compare rows as sets (order-independent)
                 // Without ORDER BY, result order is undefined and may differ between
@@ -118,13 +142,23 @@ fn test_optimizer_result_equivalence_with_content() {
                 sorted_on.sort();
                 sorted_off.sort();
                 for (row_idx, (row_on, row_off)) in sorted_on.iter().zip(&sorted_off).enumerate() {
-                    assert_eq!(row_on, row_off, "Row {} (sorted) differs for query: {}", row_idx, query);
+                    assert_eq!(
+                        row_on, row_off,
+                        "Row {} (sorted) differs for query: {}",
+                        row_idx, query
+                    );
                 }
-            },
+            }
             _ => {
                 // If not DataSet, just ensure they're both success/failure
-                assert!(matches!(result_on, ExecutionResult::Success | ExecutionResult::Empty));
-                assert!(matches!(result_off, ExecutionResult::Success | ExecutionResult::Empty));
+                assert!(matches!(
+                    result_on,
+                    ExecutionResult::Success | ExecutionResult::Empty
+                ));
+                assert!(matches!(
+                    result_off,
+                    ExecutionResult::Success | ExecutionResult::Empty
+                ));
             }
         }
     }

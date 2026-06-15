@@ -7,8 +7,8 @@ use graphdb::api::core::query_api::QueryApi;
 use graphdb::api::core::types::QueryResult;
 use graphdb::api::core::CoreResult;
 use graphdb::core::metadata::SchemaManager;
-use graphdb::core::Value;
 use graphdb::core::StatsManager;
+use graphdb::core::Value;
 use graphdb::search::{FulltextConfig, FulltextIndexManager};
 use graphdb::storage::{GraphStorage, StorageSchemaContextOps};
 use graphdb::sync::{SyncConfig, SyncManager};
@@ -17,7 +17,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 #[cfg(feature = "qdrant")]
-use vector_client::{VectorClientConfig, VectorManager, HealthStatus};
+use vector_client::{HealthStatus, VectorClientConfig, VectorManager};
 
 /// Test database wrapper with proper schema manager initialization
 pub struct TestDb {
@@ -64,20 +64,30 @@ fn create_sync_manager() -> Arc<SyncManager> {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         match rt.block_on(VectorManager::new(VectorClientConfig::qdrant())) {
             Ok(vector_manager) => {
-                let health = rt.block_on(vector_manager.engine().health_check()).unwrap_or_else(|_| HealthStatus::unhealthy("unknown", "unknown", "health check failed"));
+                let health = rt
+                    .block_on(vector_manager.engine().health_check())
+                    .unwrap_or_else(|_| {
+                        HealthStatus::unhealthy("unknown", "unknown", "health check failed")
+                    });
                 if health.is_healthy {
-                    let vector_coordinator = Arc::new(graphdb::sync::vector_sync::VectorSyncCoordinator::new(
-                        Arc::new(vector_manager),
-                        None,
-                        rt.handle().clone(),
-                    ));
+                    let vector_coordinator =
+                        Arc::new(graphdb::sync::vector_sync::VectorSyncCoordinator::new(
+                            Arc::new(vector_manager),
+                            None,
+                            rt.handle().clone(),
+                        ));
                     sync_manager = sync_manager.with_vector_coordinator(vector_coordinator);
                 } else {
-                    eprintln!("WARNING: Qdrant connected but not healthy. Vector tests will be skipped.");
+                    eprintln!(
+                        "WARNING: Qdrant connected but not healthy. Vector tests will be skipped."
+                    );
                 }
             }
             Err(e) => {
-                eprintln!("WARNING: Failed to connect to Qdrant ({}). Vector tests will be skipped.", e);
+                eprintln!(
+                    "WARNING: Failed to connect to Qdrant ({}). Vector tests will be skipped.",
+                    e
+                );
             }
         }
         sync_manager
@@ -270,8 +280,9 @@ pub fn assert_query_err<T: std::fmt::Debug>(result: CoreResult<T>, context: &str
 /// are statement separators.  Continuation lines (indented, or starting
 /// with `)`) are appended to the current statement.
 pub fn load_gql_file(db: &mut TestDb, path: &str) -> CoreResult<()> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| graphdb::api::core::CoreError::Internal(format!("Failed to read {}: {}", path, e)))?;
+    let content = std::fs::read_to_string(path).map_err(|e| {
+        graphdb::api::core::CoreError::Internal(format!("Failed to read {}: {}", path, e))
+    })?;
 
     let mut buffer = String::new();
     for line in content.lines() {
@@ -321,9 +332,10 @@ pub fn assert_row_count(result: CoreResult<QueryResult>, expected: usize, contex
 pub fn assert_count_eq(db: &mut TestDb, query: &str, expected: i64, context: &str) {
     match db.execute_query(query) {
         Ok(qr) => {
-            let first = qr.rows.first().unwrap_or_else(|| {
-                panic!("{}: result set is empty", context)
-            });
+            let first = qr
+                .rows
+                .first()
+                .unwrap_or_else(|| panic!("{}: result set is empty", context));
             let val = first
                 .values
                 .values()
@@ -346,12 +358,7 @@ pub fn assert_count_eq(db: &mut TestDb, query: &str, expected: i64, context: &st
 }
 
 /// Assert that a query succeeds and returns exactly `expected` rows
-pub fn assert_query_row_count(
-    db: &mut TestDb,
-    query: &str,
-    expected: usize,
-    context: &str,
-) {
+pub fn assert_query_row_count(db: &mut TestDb, query: &str, expected: usize, context: &str) {
     match db.execute_query(query) {
         Ok(qr) => {
             let actual = qr.rows.len();
@@ -369,9 +376,10 @@ pub fn assert_query_row_count(
 pub fn assert_float_eq(db: &mut TestDb, query: &str, expected: f64, context: &str) {
     match db.execute_query(query) {
         Ok(qr) => {
-            let first = qr.rows.first().unwrap_or_else(|| {
-                panic!("{}: result set is empty", context)
-            });
+            let first = qr
+                .rows
+                .first()
+                .unwrap_or_else(|| panic!("{}: result set is empty", context));
             let val = first
                 .values
                 .values()

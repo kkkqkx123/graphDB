@@ -9,7 +9,7 @@ use std::collections::HashSet;
 
 use postcard::to_allocvec;
 
-use super::read_transaction::INVALID_TIMESTAMP;
+use super::read_transaction::RELEASED_TIMESTAMP;
 use super::rollback::RollbackHelper;
 use super::undo_log::{
     AddEdgePropUndo, AddVertexPropUndo, CreateEdgeTypeUndo, CreateVertexTypeUndo,
@@ -21,7 +21,7 @@ use super::wal::types::{
     UpdateVertexPropRedo, WalHeader, WalOpType,
 };
 use super::wal::writer::WalWriter;
-use super::wal::{LabelId, Timestamp, VertexId};
+use super::wal::{ColumnId, LabelId, Timestamp, VertexId};
 use crate::core::mvcc::{VersionManager, VersionManagerError};
 
 /// Result type for vertex deletion including related edge information
@@ -572,7 +572,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
             .add(RollbackHelper::create_update_vertex_prop_undo(
                 label,
                 vid.as_u64().unwrap_or(0),
-                0,
+                ColumnId(0),
                 old_value,
             ));
 
@@ -632,7 +632,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
                     rank: param.rank,
                     oe_offset: 0,
                     ie_offset: 0,
-                    col_id: 0,
+                    col_id: ColumnId(0),
                     old_value: param.old_value,
                 },
             ));
@@ -736,7 +736,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
     /// Commit the update transaction
     pub fn commit(mut self) -> UpdateTransactionResult<()> {
-        if self.timestamp == INVALID_TIMESTAMP {
+        if self.timestamp == RELEASED_TIMESTAMP {
             return Ok(());
         }
 
@@ -782,10 +782,10 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
     /// Release the update timestamp
     fn release(&mut self) {
-        if self.timestamp != INVALID_TIMESTAMP {
+        if self.timestamp != RELEASED_TIMESTAMP {
             self.version_manager
                 .release_update_timestamp(self.timestamp);
-            self.timestamp = INVALID_TIMESTAMP;
+            self.timestamp = RELEASED_TIMESTAMP;
         }
     }
 
@@ -818,7 +818,7 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
 impl<'a, T: UpdateTarget + ?Sized> Drop for UpdateTransaction<'a, T> {
     fn drop(&mut self) {
-        if self.timestamp != INVALID_TIMESTAMP {
+        if self.timestamp != RELEASED_TIMESTAMP {
             self.version_manager
                 .release_update_timestamp(self.timestamp);
         }

@@ -31,7 +31,11 @@ fn test_use_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "USE基础: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "USE基础: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("USE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "USE");
@@ -129,7 +133,11 @@ fn test_show_parser_tags() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW TAGS: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW TAGS: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
@@ -141,7 +149,11 @@ fn test_show_parser_edges() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW EDGES: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW EDGES: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
@@ -153,7 +165,11 @@ fn test_show_parser_hosts() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW HOSTS: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW HOSTS: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
@@ -165,7 +181,11 @@ fn test_show_parser_parts() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "SHOW PARTS: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "SHOW PARTS: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("SHOW语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SHOW");
@@ -249,7 +269,11 @@ fn test_explain_parser_go() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "EXPLAIN GO: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "EXPLAIN GO: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("EXPLAIN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
@@ -315,7 +339,11 @@ fn test_return_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "RETURN基础: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "RETURN基础: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("RETURN语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "RETURN");
@@ -411,7 +439,11 @@ fn test_with_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "WITH基础: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "WITH基础: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("WITH语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "WITH");
@@ -423,7 +455,11 @@ fn test_with_parser_with_aggregate() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "WITH带聚合: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "WITH带聚合: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("WITH语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "WITH");
@@ -471,7 +507,11 @@ fn test_unwind_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "UNWIND基础: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "UNWIND基础: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("UNWIND语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "UNWIND");
@@ -535,7 +575,11 @@ fn test_pipe_parser_basic() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "PIPE基础: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "PIPE基础: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("PIPE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PIPE");
@@ -615,7 +659,11 @@ fn test_profile_parser_go() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "PROFILE GO: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "PROFILE GO: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("PROFILE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
@@ -1409,7 +1457,11 @@ fn test_profile_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "PROFILE: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "PROFILE: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("PROFILE语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
@@ -1505,7 +1557,11 @@ fn test_kill_query() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "KILL QUERY: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "KILL QUERY: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("KILL QUERY语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
@@ -1616,7 +1672,11 @@ fn test_assignment_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "变量赋值: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "变量赋值: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("变量赋值语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "ASSIGNMENT");
@@ -1642,7 +1702,11 @@ fn test_intersect_statement() {
     let mut parser = Parser::new(query);
 
     let result = parser.parse();
-    assert!(result.is_ok(), "INTERSECT: should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "INTERSECT: should succeed: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("INTERSECT语句: should succeed");
     assert_eq!(stmt.ast.stmt.kind(), "SET OPERATION");

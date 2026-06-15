@@ -190,13 +190,13 @@ pub enum Validator {
     /// CLEAR SPACE Statement Validator
     ClearSpace(ClearSpaceValidator),
 
-     // Full-text Search validators
-     /// Full-text search statement validator
-     Fulltext(FulltextValidator),
-     /// Vector search statement validator
-     Vector(VectorValidator),
-     /// Transaction statement validator
-     Transaction(TransactionValidator),
+    // Full-text Search validators
+    /// Full-text search statement validator
+    Fulltext(FulltextValidator),
+    /// Vector search statement validator
+    Vector(VectorValidator),
+    /// Transaction statement validator
+    Transaction(TransactionValidator),
 }
 
 impl Validator {
@@ -682,16 +682,16 @@ impl Validator {
             Stmt::Search(_) => StatementType::Search,
             Stmt::LookupFulltext(_) => StatementType::LookupFulltext,
             Stmt::MatchFulltext(_) => StatementType::MatchFulltext,
-             // Vector Search statements
-             Stmt::CreateVectorIndex(_) => StatementType::CreateVectorIndex,
-             Stmt::DropVectorIndex(_) => StatementType::DropVectorIndex,
-             Stmt::SearchVector(_) => StatementType::SearchVector,
-             Stmt::LookupVector(_) => StatementType::LookupVector,
-             Stmt::MatchVector(_) => StatementType::MatchVector,
-             // Transaction statements
-             Stmt::BeginTransaction(_) => StatementType::BeginTransaction,
-             Stmt::CommitTransaction(_) => StatementType::CommitTransaction,
-             Stmt::RollbackTransaction(_) => StatementType::RollbackTransaction,
+            // Vector Search statements
+            Stmt::CreateVectorIndex(_) => StatementType::CreateVectorIndex,
+            Stmt::DropVectorIndex(_) => StatementType::DropVectorIndex,
+            Stmt::SearchVector(_) => StatementType::SearchVector,
+            Stmt::LookupVector(_) => StatementType::LookupVector,
+            Stmt::MatchVector(_) => StatementType::MatchVector,
+            // Transaction statements
+            Stmt::BeginTransaction(_) => StatementType::BeginTransaction,
+            Stmt::CommitTransaction(_) => StatementType::CommitTransaction,
+            Stmt::RollbackTransaction(_) => StatementType::RollbackTransaction,
         }
     }
 
@@ -771,21 +771,21 @@ impl Validator {
             | StatementType::Search
             | StatementType::LookupFulltext
             | StatementType::MatchFulltext => Validator::Fulltext(FulltextValidator::new()),
-             StatementType::CreateVectorIndex
-             | StatementType::DropVectorIndex
-             | StatementType::SearchVector
-             | StatementType::LookupVector
-             | StatementType::MatchVector => Validator::Vector(VectorValidator::new()),
-             // Transaction statements
-             StatementType::BeginTransaction => {
-                 Validator::Transaction(TransactionValidator::new(StatementType::BeginTransaction))
-             }
-             StatementType::CommitTransaction => {
-                 Validator::Transaction(TransactionValidator::new(StatementType::CommitTransaction))
-             }
-             StatementType::RollbackTransaction => {
-                 Validator::Transaction(TransactionValidator::new(StatementType::RollbackTransaction))
-             }
+            StatementType::CreateVectorIndex
+            | StatementType::DropVectorIndex
+            | StatementType::SearchVector
+            | StatementType::LookupVector
+            | StatementType::MatchVector => Validator::Vector(VectorValidator::new()),
+            // Transaction statements
+            StatementType::BeginTransaction => {
+                Validator::Transaction(TransactionValidator::new(StatementType::BeginTransaction))
+            }
+            StatementType::CommitTransaction => {
+                Validator::Transaction(TransactionValidator::new(StatementType::CommitTransaction))
+            }
+            StatementType::RollbackTransaction => Validator::Transaction(
+                TransactionValidator::new(StatementType::RollbackTransaction),
+            ),
             StatementType::DropSpace
             | StatementType::DropTag
             | StatementType::DropEdge

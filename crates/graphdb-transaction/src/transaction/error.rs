@@ -9,7 +9,7 @@
 
 use std::error::Error;
 
-use super::types::{TransactionId, TransactionState};
+use super::types::{SavepointId, TransactionId, TransactionState};
 use crate::core::error::BoxedError;
 
 /// Transaction operation result type alias
@@ -138,14 +138,14 @@ impl TransactionError {
         Self::new(TransactionErrorKind::SavepointFailed, message)
     }
 
-    pub fn savepoint_not_found(id: TransactionId) -> Self {
+    pub fn savepoint_not_found(id: SavepointId) -> Self {
         Self::new(
             TransactionErrorKind::SavepointNotFound,
             format!("Savepoint not found: {}", id),
         )
     }
 
-    pub fn savepoint_not_active(id: TransactionId) -> Self {
+    pub fn savepoint_not_active(id: SavepointId) -> Self {
         Self::new(
             TransactionErrorKind::SavepointNotActive,
             format!("Savepoint not active: {}", id),
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_transaction_error_creation() {
-        let err = TransactionError::transaction_not_found(123);
+        let err = TransactionError::transaction_not_found(TransactionId(123));
         assert_eq!(err.kind(), TransactionErrorKind::TransactionNotFound);
         assert!(err.message().contains("123"));
     }

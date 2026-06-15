@@ -4,7 +4,7 @@
 //! synchronize storage operations with external index systems (fulltext, vector).
 
 use crate::core::metadata::SchemaManager;
-use crate::core::types::{EdgeTypeInfo, TagInfo, VertexId};
+use crate::core::types::{EdgeTypeInfo, TagInfo, TransactionId, VertexId};
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
@@ -71,9 +71,9 @@ impl<S: StorageClient + StorageTransactionContextOps> SyncWrapper<S> {
     /// Get the current transaction ID from storage context.
     fn get_current_txn_id(&self) -> crate::core::types::TransactionId {
         if let Some(ctx) = self.inner.get_transaction_context() {
-            return ctx.id;
+            return TransactionId(ctx.id);
         }
-        0
+        TransactionId(0)
     }
 }
 

@@ -137,7 +137,9 @@ impl UserStorage {
         if let Some(user) = users.get_mut(&username) {
             // Verify old password first
             if !user.verify_password(&info.old_password) {
-                return Err(StorageError::db_error("Old password verification failed".to_string()));
+                return Err(StorageError::db_error(
+                    "Old password verification failed".to_string(),
+                ));
             }
             // Change to new password
             user.change_password(info.new_password.clone())?;

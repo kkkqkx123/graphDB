@@ -188,7 +188,8 @@ impl GroupAggregateState {
             }
         }
 
-        if !source.avg().is_null() && !source.avg().is_empty()
+        if !source.avg().is_null()
+            && !source.avg().is_empty()
             && (target.avg().is_null() || target.avg().is_empty())
         {
             target.set_avg(source.avg().clone());
@@ -272,9 +273,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         };
 
         match input_result {
-            ExecutionResult::DataSet(dataset) => {
-                self.aggregate_dataset(dataset)
-            }
+            ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset),
             ExecutionResult::Empty
             | ExecutionResult::Success
             | ExecutionResult::SpaceSwitched(_) => {

@@ -311,11 +311,11 @@ impl SingleMutableCsr {
         let mut nbr_list = Vec::with_capacity(vertex_capacity);
         for _ in 0..vertex_capacity {
             let neighbor = read_vertex_id(data, &mut offset)?;
-            let edge_id = read_u64_le(data, &mut offset)?;
+            let raw_edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
             let timestamp = read_u32_le(data, &mut offset)?;
 
-            nbr_list.push(Nbr::new(neighbor, edge_id, prop_offset, timestamp));
+            nbr_list.push(Nbr::new(neighbor, EdgeId(raw_edge_id), prop_offset, timestamp));
         }
 
         self.vertex_capacity = vertex_capacity;

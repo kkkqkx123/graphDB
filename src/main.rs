@@ -10,8 +10,8 @@ mod server_main {
     enum Cli {
         /// Start the GraphDB service
         Serve {
-            #[clap(short, long, default_value = "config.toml")]
-            config: String,
+            #[clap(short, long)]
+            config: Option<String>,
         },
         /// Execute a query directly
         Query {
@@ -25,19 +25,31 @@ mod server_main {
 
         let result = match cli {
             Cli::Serve { config } => {
-                println!("Starting GraphDB service with config: {}", config);
+                println!("Starting GraphDB service");
                 println!("Process ID: {}", std::process::id());
 
                 // Load configuration
-                let cfg = match Config::load(&config) {
-                    Ok(cfg) => cfg,
-                    Err(e) => {
-                        eprintln!(
-                            "Failed to load configuration file: {}, using default configuration",
-                            e
-                        );
-                        Config::default()
-                    }
+                let cfg = match config {
+                    Some(config_path) => match Config::load(&config_path) {
+                        Ok(cfg) => cfg,
+                        Err(e) => {
+                            eprintln!(
+                                "Failed to load configuration file: {}, using default configuration",
+                                e
+                            );
+                            Config::default()
+                        }
+                    },
+                    None => match Config::load_user_config() {
+                        Ok(cfg) => cfg,
+                        Err(e) => {
+                            eprintln!(
+                                "Failed to load user configuration file, using default configuration: {}",
+                                e
+                            );
+                            Config::default()
+                        }
+                    },
                 };
 
                 // Initialize logging system

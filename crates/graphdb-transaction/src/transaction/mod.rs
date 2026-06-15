@@ -69,7 +69,7 @@ pub use manager::TransactionManager;
 pub use monitor::TransactionMonitor;
 pub use read_transaction::{
     ReadTarget, ReadTransaction, ReadTransactionError, ReadTransactionResult, VertexRecord,
-    INVALID_TIMESTAMP,
+    RELEASED_TIMESTAMP,
 };
 pub use rollback::{
     CreateRemoveEdgeUndoParams, CreateRemoveVertexUndoParams, CreateUpdateEdgePropUndoParams,

@@ -7,11 +7,11 @@ use std::sync::Arc;
 
 #[cfg(feature = "qdrant")]
 use log::warn;
+use log::{error, info};
 #[cfg(feature = "qdrant")]
 use vector_client::EmbeddingService;
 #[cfg(feature = "qdrant")]
 use vector_client::VectorManager;
-use log::{error, info};
 
 use crate::api::server::{GraphService, HttpServer};
 use crate::config::Config;
@@ -19,15 +19,12 @@ use crate::core::error::DBResult;
 use crate::storage::{GraphStorage, MetricsStorage, SyncWrapper};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
-/// Start the service using the configuration file path (deprecated; please use start_service_with_config).
-pub async fn start_service(config_path: String) -> DBResult<()> {
-    let config = match Config::load(&config_path) {
+/// Start the service using the user configuration directory.
+pub async fn start_service() -> DBResult<()> {
+    let config = match Config::load_user_config() {
         Ok(config) => config,
         Err(e) => {
-            error!(
-                "Failed to load config from '{}': {}, using default config",
-                config_path, e
-            );
+            error!("Failed to load user config, using default config: {}", e);
             Config::default()
         }
     };
@@ -88,7 +85,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         None
     };
     #[cfg(not(feature = "qdrant"))]
-    let vector_manager: Option<Arc<VectorManager>> = None;
+    let vector_manager = None::<Arc<()>>;
 
     let storage = if config.fulltext.enabled || config.is_vector_enabled() {
         use crate::sync::SyncManager;
@@ -124,10 +121,15 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 #[cfg(feature = "qdrant")]
                 let sync_manager = if let Some(vm) = &vector_manager {
                     let handle = tokio::runtime::Handle::current();
-                    let embedding_service = config.vector_config().embedding.as_ref().map(|ec| {
-                        EmbeddingService::from_config(ec.clone())
-                            .map_err(|e| format!("Failed to create embedding service: {}", e))
-                    }).transpose();
+                    let embedding_service = config
+                        .vector_config()
+                        .embedding
+                        .as_ref()
+                        .map(|ec| {
+                            EmbeddingService::from_config(ec.clone())
+                                .map_err(|e| format!("Failed to create embedding service: {}", e))
+                        })
+                        .transpose();
 
                     let embedding_service = match embedding_service {
                         Ok(es) => es.map(Arc::new),
@@ -137,13 +139,12 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                         }
                     };
 
-                    let vector_coordinator = Arc::new(
-                        crate::sync::vector_sync::VectorSyncCoordinator::new(
+                    let vector_coordinator =
+                        Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
                             vm.clone(),
                             embedding_service,
                             handle,
-                        ),
-                    );
+                        ));
                     info!("Vector index sync enabled");
                     sync_manager.with_vector_coordinator(vector_coordinator)
                 } else {
@@ -160,10 +161,15 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 #[cfg(feature = "qdrant")]
                 let sync_manager = if let Some(vm) = &vector_manager {
                     let handle = tokio::runtime::Handle::current();
-                    let embedding_service = config.vector_config().embedding.as_ref().map(|ec| {
-                        EmbeddingService::from_config(ec.clone())
-                            .map_err(|e| format!("Failed to create embedding service: {}", e))
-                    }).transpose();
+                    let embedding_service = config
+                        .vector_config()
+                        .embedding
+                        .as_ref()
+                        .map(|ec| {
+                            EmbeddingService::from_config(ec.clone())
+                                .map_err(|e| format!("Failed to create embedding service: {}", e))
+                        })
+                        .transpose();
 
                     let embedding_service = match embedding_service {
                         Ok(es) => es.map(Arc::new),
@@ -173,13 +179,12 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                         }
                     };
 
-                    let vector_coordinator = Arc::new(
-                        crate::sync::vector_sync::VectorSyncCoordinator::new(
+                    let vector_coordinator =
+                        Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
                             vm.clone(),
                             embedding_service,
                             handle,
-                        ),
-                    );
+                        ));
                     info!("Vector index sync enabled");
                     sync_manager.with_vector_coordinator(vector_coordinator)
                 } else {
@@ -195,10 +200,15 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
             #[cfg(feature = "qdrant")]
             let sync_manager = if let Some(vm) = &vector_manager {
                 let handle = tokio::runtime::Handle::current();
-                let embedding_service = config.vector_config().embedding.as_ref().map(|ec| {
-                    EmbeddingService::from_config(ec.clone())
-                        .map_err(|e| format!("Failed to create embedding service: {}", e))
-                }).transpose();
+                let embedding_service = config
+                    .vector_config()
+                    .embedding
+                    .as_ref()
+                    .map(|ec| {
+                        EmbeddingService::from_config(ec.clone())
+                            .map_err(|e| format!("Failed to create embedding service: {}", e))
+                    })
+                    .transpose();
 
                 let embedding_service = match embedding_service {
                     Ok(es) => es.map(Arc::new),
@@ -208,13 +218,12 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                     }
                 };
 
-                let vector_coordinator = Arc::new(
-                    crate::sync::vector_sync::VectorSyncCoordinator::new(
+                let vector_coordinator =
+                    Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
                         vm.clone(),
                         embedding_service,
                         handle,
-                    ),
-                );
+                    ));
                 info!("Vector index sync enabled");
                 sync_manager.with_vector_coordinator(vector_coordinator)
             } else {

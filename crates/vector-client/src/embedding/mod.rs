@@ -12,9 +12,7 @@ mod service;
 
 pub use config::EmbeddingConfig;
 pub use error::EmbeddingError;
-pub use preprocessor::{
-    NomicTaskType, PreprocessorConfig, PreprocessorImpl, StellaTaskType,
-};
+pub use preprocessor::{NomicTaskType, PreprocessorConfig, PreprocessorImpl, StellaTaskType};
 pub use provider::EmbeddingProvider;
 pub use service::EmbeddingService;
 

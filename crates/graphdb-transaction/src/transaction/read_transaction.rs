@@ -7,8 +7,9 @@
 use super::wal::{LabelId, Timestamp, VertexId};
 use crate::core::mvcc::{VersionManager, VersionManagerError};
 
-/// Invalid timestamp constant
-pub const INVALID_TIMESTAMP: Timestamp = 0;
+/// Released timestamp sentinel value (0 means timestamp has been released)
+/// Note: distinct from core's RELEASED_TIMESTAMP (u32::MAX)
+pub const RELEASED_TIMESTAMP: Timestamp = 0;
 
 /// Read transaction error
 #[derive(Debug, Clone, thiserror::Error)]
@@ -122,9 +123,9 @@ impl<'a, T: ReadTarget + ?Sized> ReadTransaction<'a, T> {
 
     /// Release the read timestamp
     fn release(&mut self) {
-        if self.timestamp != INVALID_TIMESTAMP {
+        if self.timestamp != RELEASED_TIMESTAMP {
             self.version_manager.release_read_timestamp();
-            self.timestamp = INVALID_TIMESTAMP;
+            self.timestamp = RELEASED_TIMESTAMP;
         }
     }
 }

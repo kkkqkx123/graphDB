@@ -497,7 +497,8 @@ impl SyncManager {
     ) -> Result<(), SyncError> {
         #[cfg(feature = "fulltext-search")]
         if let Some(ref coord) = self.sync_coordinator {
-            coord.rollback_transaction(txn_id)
+            coord
+                .rollback_transaction(txn_id)
                 .map_err(SyncError::from)?;
         }
 
@@ -721,7 +722,11 @@ pub struct EdgeRef<'a> {
 
 impl<'a> EdgeRef<'a> {
     pub fn new(src: &'a Value, dst: &'a Value, edge_type: &'a str) -> Self {
-        Self { src, dst, edge_type }
+        Self {
+            src,
+            dst,
+            edge_type,
+        }
     }
 
     pub fn id(&self) -> String {

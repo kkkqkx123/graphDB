@@ -201,7 +201,9 @@ mod aggregate_strategy {
             .setup_space("test_hash_agg")
             .exec_ddl("CREATE TAG person(city STRING)")
             .assert_success()
-            .exec_dml("INSERT VERTEX person(city) VALUES 1:('Beijing'), 2:('Shanghai'), 3:('Beijing')")
+            .exec_dml(
+                "INSERT VERTEX person(city) VALUES 1:('Beijing'), 2:('Shanghai'), 3:('Beijing')",
+            )
             .assert_success()
             .query("MATCH (n:person) RETURN n.city, count(n)")
             .assert_success();

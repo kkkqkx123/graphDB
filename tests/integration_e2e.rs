@@ -7,7 +7,7 @@ mod e2e;
 
 // Re-export test modules for direct access
 pub use e2e::common;
-pub use e2e::social_network;
-pub use e2e::schema_manager;
-pub use e2e::optimizer;
 pub use e2e::extended_types;
+pub use e2e::optimizer;
+pub use e2e::schema_manager;
+pub use e2e::social_network;

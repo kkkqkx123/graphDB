@@ -5,9 +5,9 @@ pub mod error;
 pub mod jieba_tokenizer;
 #[cfg(feature = "fulltext-search")]
 pub mod manager;
+pub mod metadata;
 #[cfg(feature = "fulltext-search")]
 pub mod metrics;
-pub mod metadata;
 pub mod result;
 #[cfg(feature = "fulltext-search")]
 pub mod tantivy_index;

@@ -72,7 +72,7 @@ pub unsafe extern "C" fn graphdb_session_last_insert_vertex_id(
     let handle = &*(session as *mut GraphDbSessionHandle);
     match handle.inner.last_insert_vertex_id() {
         Some(id) => {
-            *vertex_id = id;
+            *vertex_id = id as i64;
             graphdb_error_code_t::GRAPHDB_OK as c_int
         }
         None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,

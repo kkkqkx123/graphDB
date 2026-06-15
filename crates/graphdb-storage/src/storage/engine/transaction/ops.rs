@@ -5,10 +5,9 @@
 
 use std::collections::HashMap;
 
-use crate::core::types::{LabelId, Timestamp, VertexId};
+use crate::core::types::{ColumnId, LabelId, Timestamp, VertexId};
 use crate::core::Value;
 use crate::storage::edge::UpdateEdgePropertyByOffsetParams;
-use crate::storage::types::EdgeOffset;
 use crate::transaction::codec::{bytes_to_value, property_value_to_value};
 use crate::transaction::insert_transaction::{InsertTransactionError, InsertTransactionResult};
 use crate::transaction::undo_log::{PropertyValue, UndoLogError, UndoLogResult};
@@ -123,7 +122,7 @@ impl TransactionOps {
         params: AddEdgeParams,
         properties: &[(String, Vec<u8>)],
         ts: Timestamp,
-    ) -> InsertTransactionResult<EdgeOffset> {
+    ) -> InsertTransactionResult<()> {
         let src_table = vertex_tables
             .get(&params.src_label)
             .ok_or(InsertTransactionError::LabelNotFound(params.src_label))?;
@@ -157,11 +156,11 @@ impl TransactionOps {
             .get_mut(&key)
             .ok_or(InsertTransactionError::LabelNotFound(params.edge_label))?;
 
-        let edge_offset = edge_table
+        edge_table
             .insert_edge(params.src_vid, params.dst_vid, params.rank, &props, ts)
             .map_err(|e| InsertTransactionError::SchemaError(e.to_string()))?;
 
-        Ok(edge_offset)
+        Ok(())
     }
 
     pub fn delete_vertex_type(
@@ -294,8 +293,8 @@ impl TransactionOps {
                     params.src_vid,
                     params.dst_vid,
                     params.rank,
-                    crate::storage::types::EdgeOffset(oe_offset),
-                    crate::storage::types::EdgeOffset(ie_offset),
+                    oe_offset,
+                    ie_offset,
                     ts,
                 )
                 .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
@@ -334,7 +333,7 @@ impl TransactionOps {
         vertex_tables: &mut HashMap<LabelId, VertexTable>,
         label: LabelId,
         vid: VertexId,
-        col_id: i32,
+        col_id: ColumnId,
         old_value: PropertyValue,
         ts: Timestamp,
     ) -> UndoLogResult<()> {
@@ -344,7 +343,7 @@ impl TransactionOps {
 
         let value = property_value_to_value(old_value);
         table
-            .update_property_by_id(vid.as_int64().unwrap_or(0) as u32, col_id, &value, ts)
+            .update_property_by_id(vid.as_int64().unwrap_or(0) as u32, col_id.0 as i32, &value, ts)
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }

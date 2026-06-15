@@ -6,6 +6,8 @@
 use crate::core::error::query::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::base::ExecutorEnum;
+#[cfg(feature = "fulltext-search")]
+use crate::query::executor::factory::builders::FulltextSearchBuilder;
 #[cfg(feature = "qdrant")]
 use crate::query::executor::factory::builders::VectorSearchBuilder;
 use crate::query::executor::factory::builders::{
@@ -13,8 +15,6 @@ use crate::query::executor::factory::builders::{
     DataProcessingBuilder, JoinBuilder, SetOperationBuilder, TransformationBuilder,
     TraversalBuilder,
 };
-#[cfg(feature = "fulltext-search")]
-use crate::query::executor::factory::builders::FulltextSearchBuilder;
 use crate::query::executor::utils::recursion_detector::{
     ExecutorSafetyConfig, PlanValidator, RecursionDetector,
 };

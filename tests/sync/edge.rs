@@ -3,10 +3,10 @@
 //! Tests for SyncManager edge insert/delete/update operations
 
 use crate::common::sync_helpers::{create_test_vertex, SyncTestHarness};
-use graphdb::sync::{EdgeProps, EdgeRef};
 use graphdb::core::types::{DataType, EdgeTypeInfo, PropertyDef, VertexId};
 use graphdb::core::Value;
 use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
+use graphdb::sync::{EdgeProps, EdgeRef};
 use std::collections::HashMap;
 
 /// TC-300: Edge insert sync via SyncManager

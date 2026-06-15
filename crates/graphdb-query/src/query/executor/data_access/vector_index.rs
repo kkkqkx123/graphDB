@@ -118,7 +118,10 @@ impl<S: StorageReader> Executor<S> for CreateVectorIndexExecutor<S> {
                 .map_err(|e| DBError::internal(format!("Failed to create vector index: {}", e)))?;
         } else {
             // Engine disabled: register logical index so metadata provider can find it
-            let collection_name = format!("space_{}_{}_{}", space_id, self.node.tag_name, self.node.field_name);
+            let collection_name = format!(
+                "space_{}_{}_{}",
+                space_id, self.node.tag_name, self.node.field_name
+            );
             self.coordinator.register_logical_index(
                 space_id,
                 &self.node.tag_name,

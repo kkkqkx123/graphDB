@@ -69,8 +69,8 @@ mod tests {
     use super::*;
     use crate::search::config::FulltextConfig;
     use crate::search::engine::EngineType;
-#[cfg(feature = "fulltext-search")]
-use crate::search::manager::FulltextIndexManager;
+    #[cfg(feature = "fulltext-search")]
+    use crate::search::manager::FulltextIndexManager;
     use tempfile::TempDir;
 
     async fn setup_test_manager() -> (Arc<FulltextIndexManager>, TempDir) {

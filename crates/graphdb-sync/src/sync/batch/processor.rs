@@ -309,5 +309,3 @@ impl BatchProcessor for FulltextBatchProcessor {
         }
     }
 }
-
-

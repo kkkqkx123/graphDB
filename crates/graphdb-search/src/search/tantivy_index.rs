@@ -179,7 +179,11 @@ impl TantivySearchEngine {
         .await
     }
 
-    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
+    pub async fn search(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SearchResult>, SearchError> {
         if limit == 0 {
             return Ok(Vec::new());
         }
@@ -191,8 +195,7 @@ impl TantivySearchEngine {
             .parse_query(query)
             .map_err(|e| SearchError::QueryParseError(e.to_string()))?;
 
-        let top_docs =
-            searcher.search(&query, &TopDocs::with_limit(limit).order_by_score())?;
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(limit).order_by_score())?;
 
         let snippet_generator =
             tantivy::snippet::SnippetGenerator::create(&searcher, &*query, self.text_field)?;
@@ -256,10 +259,7 @@ impl TantivySearchEngine {
     }
 
     pub async fn rollback(&self) -> Result<(), SearchError> {
-        self.with_writer(move |_writer| {
-            Ok(())
-        })
-        .await
+        self.with_writer(move |_writer| Ok(())).await
     }
 
     pub async fn stats(&self) -> Result<IndexStats, SearchError> {

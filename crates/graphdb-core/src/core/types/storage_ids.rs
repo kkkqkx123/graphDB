@@ -25,14 +25,160 @@ pub const MAX_TIMESTAMP: Timestamp = u32::MAX - 1;
 /// Label ID type for vertex and edge type identification
 pub type LabelId = u32;
 
-/// Edge ID type
-pub type EdgeId = u64;
+// ============================================================================
+// EdgeId - Newtype Wrapper
+// ============================================================================
 
-/// Column ID type for property columns
-pub type ColumnId = i32;
+/// Edge ID type - unique edge identifier with type safety.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct EdgeId(pub u64);
 
-/// Transaction ID type
-pub type TransactionId = u64;
+pub const INVALID_EDGE_ID: EdgeId = EdgeId(u64::MAX);
+
+impl EdgeId {
+    pub const fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
+
+    pub fn to_le_bytes(self) -> [u8; 8] {
+        self.0.to_le_bytes()
+    }
+
+    pub fn from_le_bytes(bytes: [u8; 8]) -> Self {
+        Self(u64::from_le_bytes(bytes))
+    }
+
+    /// Increment and return the previous value (for sequential ID generation).
+    pub fn fetch_add(&mut self) -> Self {
+        let old = *self;
+        self.0 += 1;
+        old
+    }
+}
+
+impl From<u64> for EdgeId {
+    fn from(id: u64) -> Self {
+        Self(id)
+    }
+}
+
+impl From<EdgeId> for u64 {
+    fn from(id: EdgeId) -> Self {
+        id.0
+    }
+}
+
+impl Add<u64> for EdgeId {
+    type Output = Self;
+    fn add(self, rhs: u64) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+
+impl fmt::Display for EdgeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "e{}", self.0)
+    }
+}
+
+// ============================================================================
+// ColumnId - Newtype Wrapper (u32, replaces old i32 alias)
+// ============================================================================
+
+/// Column ID type for property columns.
+/// Uses u32 (not i32) since negative values have no valid use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct ColumnId(pub u32);
+
+impl ColumnId {
+    pub const fn new(id: u32) -> Self {
+        Self(id)
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+
+    pub fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl From<u32> for ColumnId {
+    fn from(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+impl From<ColumnId> for u32 {
+    fn from(id: ColumnId) -> Self {
+        id.0
+    }
+}
+
+impl From<ColumnId> for usize {
+    fn from(id: ColumnId) -> Self {
+        id.0 as usize
+    }
+}
+
+impl fmt::Display for ColumnId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "col{}", self.0)
+    }
+}
+
+// ============================================================================
+// TransactionId - Newtype Wrapper
+// ============================================================================
+
+/// Transaction ID type.
+/// Defined once here; do NOT duplicate in other modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct TransactionId(pub u64);
+
+impl TransactionId {
+    pub const fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
+
+    pub fn to_le_bytes(self) -> [u8; 8] {
+        self.0.to_le_bytes()
+    }
+
+    pub fn from_le_bytes(bytes: [u8; 8]) -> Self {
+        Self(u64::from_le_bytes(bytes))
+    }
+}
+
+impl From<u64> for TransactionId {
+    fn from(id: u64) -> Self {
+        Self(id)
+    }
+}
+
+impl From<TransactionId> for u64 {
+    fn from(id: TransactionId) -> Self {
+        id.0
+    }
+}
+
+impl fmt::Display for TransactionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "txn{}", self.0)
+    }
+}
 
 // ============================================================================
 // VertexId - Unified Byte Representation
@@ -75,6 +221,24 @@ impl VertexId {
         VertexId { data, len: 8 }
     }
 
+    /// Create from a string, returning an error if the string exceeds max size.
+    pub fn try_from_string(s: impl AsRef<str>) -> Result<Self, String> {
+        let bytes = s.as_ref().as_bytes();
+        if bytes.len() > VERTEX_ID_MAX_SIZE {
+            return Err(format!(
+                "VertexId string exceeds max length of {} bytes: got {} bytes",
+                VERTEX_ID_MAX_SIZE,
+                bytes.len()
+            ));
+        }
+        let len = bytes.len();
+        let mut data = [0u8; VERTEX_ID_MAX_SIZE];
+        data[..len].copy_from_slice(bytes);
+        Ok(VertexId { data, len: len as u8 })
+    }
+
+    /// Create from a string, truncating silently if too long.
+    /// Prefer `try_from_string` for user-facing paths.
     pub fn from_string(s: impl Into<String>) -> Self {
         let s = s.into();
         let bytes = s.as_bytes();
@@ -203,7 +367,7 @@ impl TryFrom<&Value> for VertexId {
         match value {
             Value::Int(i) => Ok(Self::from_int64(*i as i64)),
             Value::BigInt(i) => Ok(Self::from_int64(*i)),
-            Value::String(s) => Ok(Self::from_string(s)),
+            Value::String(s) => Self::try_from_string(s).map_err(crate::core::StorageError::invalid_input),
             Value::Vertex(v) => Ok(v.vid),
             _ => Err(crate::core::StorageError::invalid_input(
                 "Cannot convert Value to VertexId",
@@ -221,18 +385,6 @@ impl From<i64> for VertexId {
 impl From<u64> for VertexId {
     fn from(id: u64) -> Self {
         Self::from_u64(id)
-    }
-}
-
-impl From<String> for VertexId {
-    fn from(s: String) -> Self {
-        Self::from_string(s)
-    }
-}
-
-impl From<&str> for VertexId {
-    fn from(s: &str) -> Self {
-        Self::from_string(s)
     }
 }
 

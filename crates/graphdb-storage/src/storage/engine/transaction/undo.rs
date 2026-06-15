@@ -120,7 +120,7 @@ impl UndoTarget for GraphStorageContext {
                 params,
                 oe_offset,
                 ie_offset,
-                col_id as u16,
+                col_id.0 as u16,
                 value,
                 ts,
             )?;

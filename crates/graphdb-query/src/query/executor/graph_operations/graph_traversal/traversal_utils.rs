@@ -140,8 +140,6 @@ pub fn get_neighbors_with_edges<S: StorageReader>(
 
     let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
-
-
     let neighbors_with_edges: Vec<(VertexId, Edge)> = filtered_edges
         .into_iter()
         .filter_map(|edge| {

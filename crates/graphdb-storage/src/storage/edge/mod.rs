@@ -46,7 +46,7 @@ pub use mutable_csr_variant::MutableCsrVariant;
 pub use property_table::PropertyTable;
 pub use single_mutable_csr::{SingleMutableCsr, SingleMutableCsrIterator};
 
-pub const INVALID_EDGE_ID: u64 = u64::MAX;
+pub use crate::core::types::INVALID_EDGE_ID;
 
 #[derive(Debug, Clone)]
 pub struct EdgeRecord {

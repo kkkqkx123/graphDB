@@ -33,11 +33,11 @@ mod initialization {
 
         // Create space - this should work even if schema_manager is not initialized
         let result = db.execute_query(
-            "CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)"
+            "CREATE SPACE IF NOT EXISTS schema_manager_test_space (vid_type=STRING)",
         );
         assert_query_ok(
             result,
-            "CREATE SPACE failed - schema_manager may not be initialized"
+            "CREATE SPACE failed - schema_manager may not be initialized",
         );
     }
 
@@ -53,7 +53,7 @@ mod initialization {
         let result = db.execute_query("USE schema_manager_test_space");
         assert_query_ok(
             result,
-            "USE SPACE failed - schema_manager may not be initialized"
+            "USE SPACE failed - schema_manager may not be initialized",
         );
     }
 
@@ -61,19 +61,14 @@ mod initialization {
     #[test]
     fn test_create_tag() {
         let mut db = create_test_db();
-        setup_test_space(
-        &mut db,
-            "schema_manager_test_space",
-            &[],
-            &[],
-        ).expect("Failed to setup test space");
+        setup_test_space(&mut db, "schema_manager_test_space", &[], &[])
+            .expect("Failed to setup test space");
 
-        let result = db.execute_query(
-            "CREATE TAG IF NOT EXISTS test_person(name STRING NOT NULL, age INT)"
-        );
+        let result =
+            db.execute_query("CREATE TAG IF NOT EXISTS test_person(name STRING NOT NULL, age INT)");
         assert_query_ok(
             result,
-            "CREATE TAG failed - schema_manager may not be initialized"
+            "CREATE TAG failed - schema_manager may not be initialized",
         );
     }
 
@@ -82,16 +77,17 @@ mod initialization {
     fn test_show_tags() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         let result = db.execute_query("SHOW TAGS");
         assert_query_ok(
             result,
-            "SHOW TAGS failed - schema_manager may not be initialized"
+            "SHOW TAGS failed - schema_manager may not be initialized",
         );
     }
 
@@ -100,18 +96,18 @@ mod initialization {
     fn test_insert_vertex() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
-        let result = db.execute_query(
-            "INSERT VERTEX test_person(name, age) VALUES 'p1': ('Alice', 30)"
-        );
+        let result =
+            db.execute_query("INSERT VERTEX test_person(name, age) VALUES 'p1': ('Alice', 30)");
         assert_query_ok(
             result,
-            "INSERT VERTEX failed - schema_manager may not be initialized"
+            "INSERT VERTEX failed - schema_manager may not be initialized",
         );
     }
 
@@ -120,11 +116,12 @@ mod initialization {
     fn test_fetch_vertex() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         // Insert vertex
         db.execute_query("INSERT VERTEX test_person(name, age) VALUES 'p_fetch': ('Bob', 25)")
@@ -133,7 +130,7 @@ mod initialization {
         let result = db.execute_query("FETCH PROP ON test_person 'p_fetch'");
         assert_query_ok(
             result,
-            "FETCH PROP failed - schema_manager may not be initialized"
+            "FETCH PROP failed - schema_manager may not be initialized",
         );
     }
 
@@ -142,11 +139,12 @@ mod initialization {
     fn test_match_query() {
         let mut db = create_test_db();
         setup_test_space(
-        &mut db,
+            &mut db,
             "schema_manager_test_space",
             &["CREATE TAG IF NOT EXISTS test_person(name STRING, age INT)"],
             &[],
-        ).expect("Failed to setup test space");
+        )
+        .expect("Failed to setup test space");
 
         // Insert vertex
         db.execute_query("INSERT VERTEX test_person(name, age) VALUES 'p1': ('Alice', 30)")
@@ -257,9 +255,7 @@ mod graph_service {
         let session_id = session.id();
 
         // Execute query
-        let result = graph_service
-            .execute(session_id, "SHOW SPACES")
-            .await;
+        let result = graph_service.execute(session_id, "SHOW SPACES").await;
 
         // Should succeed (or at least not fail due to schema manager)
         if let Err(ref e) = result {

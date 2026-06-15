@@ -37,7 +37,8 @@ impl StreamingEngine {
         let mut client = self.client.clone();
         let collection = collection.to_string();
 
-        let query_proto = crate::engine::grpc::convert::search_query_to_proto(collection.as_str(), &query);
+        let query_proto =
+            crate::engine::grpc::convert::search_query_to_proto(collection.as_str(), &query);
 
         tokio::spawn(async move {
             let request = proto::SearchPoints {
@@ -60,10 +61,8 @@ impl StreamingEngine {
             match client.search(request).await {
                 Ok(response) => {
                     let result = response.into_inner().result;
-                    let results: Vec<SearchResult> = result
-                        .into_iter()
-                        .map(scored_point_from_proto)
-                        .collect();
+                    let results: Vec<SearchResult> =
+                        result.into_iter().map(scored_point_from_proto).collect();
 
                     if tx.send(results).await.is_err() {
                         error!("Failed to send search results to channel");
@@ -105,10 +104,14 @@ impl StreamingEngine {
                     offset: offset.clone(),
                     limit: Some(batch_size as u32),
                     with_payload: Some(proto::WithPayloadSelector {
-                        selector_options: Some(proto::with_payload_selector::SelectorOptions::Enable(with_payload)),
+                        selector_options: Some(
+                            proto::with_payload_selector::SelectorOptions::Enable(with_payload),
+                        ),
                     }),
                     with_vectors: Some(proto::WithVectorsSelector {
-                        selector_options: Some(proto::with_vectors_selector::SelectorOptions::Enable(with_vector)),
+                        selector_options: Some(
+                            proto::with_vectors_selector::SelectorOptions::Enable(with_vector),
+                        ),
                     }),
                     read_consistency: None,
                     shard_key_selector: None,
@@ -119,11 +122,11 @@ impl StreamingEngine {
                 match client.scroll(request).await {
                     Ok(response) => {
                         let scroll_result = response.into_inner();
-        let points: Vec<VectorPoint> = scroll_result
-            .result
-            .into_iter()
-            .map(crate::engine::grpc::convert::retrieved_point_from_proto)
-            .collect();
+                        let points: Vec<VectorPoint> = scroll_result
+                            .result
+                            .into_iter()
+                            .map(crate::engine::grpc::convert::retrieved_point_from_proto)
+                            .collect();
 
                         if points.is_empty() {
                             has_more = false;
@@ -183,7 +186,8 @@ impl StreamingEngine {
                     Ok(response) => {
                         let result = response.into_inner().result;
                         if let Some(op_result) = result {
-                            let upsert_result = crate::engine::grpc::convert::upsert_result_from_proto(op_result);
+                            let upsert_result =
+                                crate::engine::grpc::convert::upsert_result_from_proto(op_result);
                             if tx.send(upsert_result).await.is_err() {
                                 error!("Failed to send upsert result to channel");
                                 break;
@@ -226,9 +230,11 @@ impl StreamingEngine {
                     .collect();
 
                 let selector = proto::PointsSelector {
-                    points_selector_one_of: Some(proto::points_selector::PointsSelectorOneOf::Points(
-                        proto::PointsIdsList { ids },
-                    )),
+                    points_selector_one_of: Some(
+                        proto::points_selector::PointsSelectorOneOf::Points(proto::PointsIdsList {
+                            ids,
+                        }),
+                    ),
                 };
 
                 let request = proto::DeletePoints {

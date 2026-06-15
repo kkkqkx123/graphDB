@@ -21,8 +21,8 @@ use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ClearSpaceNode, PlanNodeEnum, ShowSpacesNode,
     ShowStatsNode, ShowStatsType, ShowUsersNode,
 };
-use crate::query::planning::plan::{BeginTransactionNode, CommitNode, RollbackNode};
 use crate::query::planning::plan::SubPlan;
+use crate::query::planning::plan::{BeginTransactionNode, CommitNode, RollbackNode};
 use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;

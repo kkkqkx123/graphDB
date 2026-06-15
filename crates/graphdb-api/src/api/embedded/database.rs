@@ -65,9 +65,7 @@ type InitManagers = (Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>
 /// Full init path when qdrant is enabled but fulltext is not: create a sync manager
 /// that only hosts the vector coordinator.
 #[cfg(all(feature = "qdrant", not(feature = "fulltext-search")))]
-fn setup_sync_with_vector_only(
-    runtime: &tokio::runtime::Handle,
-) -> CoreResult<InitManagers> {
+fn setup_sync_with_vector_only(runtime: &tokio::runtime::Handle) -> CoreResult<InitManagers> {
     let vector_config = VectorClientConfig::default();
     if !vector_config.enabled {
         return Ok((None, None));
@@ -86,9 +84,7 @@ fn setup_sync_with_vector_only(
 
 /// Full init path when both qdrant and fulltext are enabled.
 #[cfg(all(feature = "qdrant", feature = "fulltext-search"))]
-fn setup_sync_with_vector_only(
-    runtime: &tokio::runtime::Handle,
-) -> CoreResult<InitManagers> {
+fn setup_sync_with_vector_only(runtime: &tokio::runtime::Handle) -> CoreResult<InitManagers> {
     let vector_config = VectorClientConfig::default();
     if !vector_config.enabled {
         return Ok((None, None));
@@ -118,9 +114,7 @@ fn setup_sync_with_vector_only(
 
 /// Stub: no qdrant, return (None, None)
 #[cfg(not(feature = "qdrant"))]
-fn setup_sync_with_vector_only(
-    _runtime: &tokio::runtime::Handle,
-) -> CoreResult<InitManagers> {
+fn setup_sync_with_vector_only(_runtime: &tokio::runtime::Handle) -> CoreResult<InitManagers> {
     Ok((None, None))
 }
 
@@ -196,11 +190,10 @@ impl GraphDatabase<GraphStorage> {
         // This runtime lives for the lifetime of the GraphDatabase and is stored
         // to prevent it from being dropped.
         #[cfg(feature = "qdrant")]
-        let vector_runtime = Arc::new(
-            tokio::runtime::Runtime::new().map_err(|e| {
+        let vector_runtime =
+            Arc::new(tokio::runtime::Runtime::new().map_err(|e| {
                 CoreError::Internal(format!("Failed to create tokio runtime: {}", e))
-            })?,
-        );
+            })?);
 
         let (storage, _enable_wal, _sync_policy) = if config.is_memory() {
             let storage = GraphStorage::new().map_err(|e| {
