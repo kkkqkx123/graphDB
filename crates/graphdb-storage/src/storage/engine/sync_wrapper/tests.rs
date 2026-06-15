@@ -73,7 +73,6 @@ fn does_not_buffer_sync_events_when_edge_insert_fails() {
         dst: VertexId::from_int64(2),
         edge_type: "KNOWS".to_string(),
         ranking: 0,
-        id: 0,
         props: HashMap::new(),
     };
 

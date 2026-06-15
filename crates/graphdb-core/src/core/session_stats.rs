@@ -54,23 +54,22 @@ impl SessionStatistics {
     ///
     /// # Parameters
     /// - `id` - the ID of the inserted vertex
-    pub fn record_vertex_insert(&self, id: i64) {
+    pub fn record_vertex_insert(&self, id: u64) {
         if id > 0 {
-            self.last_insert_vertex_id
-                .store(id as u64, Ordering::SeqCst);
+            self.last_insert_vertex_id.store(id, Ordering::SeqCst);
             self.has_vertex_id.store(1, Ordering::SeqCst);
             self.last_changes.store(1, Ordering::SeqCst);
             self.total_changes.fetch_add(1, Ordering::SeqCst);
         }
     }
 
-    /// Record-side insertion
+    /// Record edge insertion
     ///
     /// # Parameters
-    /// - `id` - the ID of the inserted side
-    pub fn record_edge_insert(&self, id: i64) {
+    /// - `id` - the ID of the inserted edge
+    pub fn record_edge_insert(&self, id: u64) {
         if id > 0 {
-            self.last_insert_edge_id.store(id as u64, Ordering::SeqCst);
+            self.last_insert_edge_id.store(id, Ordering::SeqCst);
             self.has_edge_id.store(1, Ordering::SeqCst);
             self.last_changes.store(1, Ordering::SeqCst);
             self.total_changes.fetch_add(1, Ordering::SeqCst);
@@ -90,9 +89,9 @@ impl SessionStatistics {
     /// Get the ID of the last inserted vertex
     ///
     /// Returns None for no records
-    pub fn last_insert_vertex_id(&self) -> Option<i64> {
+    pub fn last_insert_vertex_id(&self) -> Option<u64> {
         if self.has_vertex_id.load(Ordering::SeqCst) != 0 {
-            Some(self.last_insert_vertex_id.load(Ordering::SeqCst) as i64)
+            Some(self.last_insert_vertex_id.load(Ordering::SeqCst))
         } else {
             None
         }
@@ -100,10 +99,10 @@ impl SessionStatistics {
 
     /// Get the last inserted edge ID
     ///
-    /// Returning None indicates that no records were found.
-    pub fn last_insert_edge_id(&self) -> Option<i64> {
+    /// Returns None if no records were found
+    pub fn last_insert_edge_id(&self) -> Option<u64> {
         if self.has_edge_id.load(Ordering::SeqCst) != 0 {
-            Some(self.last_insert_edge_id.load(Ordering::SeqCst) as i64)
+            Some(self.last_insert_edge_id.load(Ordering::SeqCst))
         } else {
             None
         }

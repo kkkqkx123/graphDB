@@ -95,7 +95,7 @@ pub unsafe extern "C" fn graphdb_session_last_insert_vertex_id(
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_last_insert_edge_id(
     session: *mut graphdb_session_t,
-    edge_id: *mut i64,
+    edge_id: *mut u64,
 ) -> c_int {
     if session.is_null() || edge_id.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
@@ -138,8 +138,8 @@ pub unsafe extern "C" fn graphdb_session_get_statistics(
     *stats = SessionStatistics {
         last_changes: session_stats.last_changes(),
         total_changes: session_stats.total_changes(),
-        last_insert_vertex_id: handle.inner.last_insert_vertex_id().unwrap_or(-1),
-        last_insert_edge_id: handle.inner.last_insert_edge_id().unwrap_or(-1),
+        last_insert_vertex_id: handle.inner.last_insert_vertex_id().unwrap_or(0),
+        last_insert_edge_id: handle.inner.last_insert_edge_id().unwrap_or(0),
     };
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
@@ -153,10 +153,10 @@ pub struct SessionStatistics {
     pub last_changes: u64,
     /// Total number of rows affected
     pub total_changes: u64,
-    /// ID of the last inserted vertex (-1 if none)
-    pub last_insert_vertex_id: i64,
-    /// ID of the last inserted edge (-1 if none)
-    pub last_insert_edge_id: i64,
+    /// ID of the last inserted vertex (0 if none)
+    pub last_insert_vertex_id: u64,
+    /// ID of the last inserted edge (0 if none)
+    pub last_insert_edge_id: u64,
 }
 
 #[cfg(test)]

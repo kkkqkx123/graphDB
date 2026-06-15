@@ -109,12 +109,12 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     }
 
     /// Obtain the ID of the last vertex that was inserted.
-    pub fn last_insert_vertex_id(&self) -> Option<i64> {
+    pub fn last_insert_vertex_id(&self) -> Option<u64> {
         self.statistics.last_insert_vertex_id()
     }
 
     /// Obtain the ID of the last inserted edge.
-    pub fn last_insert_edge_id(&self) -> Option<i64> {
+    pub fn last_insert_edge_id(&self) -> Option<u64> {
         self.statistics.last_insert_edge_id()
     }
 

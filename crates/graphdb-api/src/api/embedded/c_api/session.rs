@@ -393,13 +393,13 @@ pub unsafe extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_ses
 /// # Safety
 /// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_session_t) -> i64 {
+pub unsafe extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_session_t) -> u64 {
     if session.is_null() {
-        return -1;
+        return 0;
     }
 
     let handle = &*(session as *mut GraphDbSessionHandle);
-    handle.inner.last_insert_edge_id().unwrap_or(-1)
+    handle.inner.last_insert_edge_id().unwrap_or(0)
 }
 
 /// Setting the busy wait timeout

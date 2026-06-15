@@ -110,7 +110,6 @@ pub(crate) fn edge_record_to_edge(
         dst: dst_vid,
         edge_type: edge_type.to_string(),
         ranking: record.rank,
-        id: record.edge_id as i64,
         props,
     }
 }
@@ -395,7 +394,6 @@ mod tests {
     #[test]
     fn test_edge_record_to_edge_int_ids() {
         let record = EdgeRecord {
-            edge_id: 100,
             src_vid: VertexId::from_int64(1),
             dst_vid: VertexId::from_int64(2),
             rank: 0,
@@ -408,14 +406,12 @@ mod tests {
         assert_eq!(edge.dst, VertexId::from_int64(2));
         assert_eq!(edge.edge_type, "KNOWS");
         assert_eq!(edge.ranking, 0);
-        assert_eq!(edge.id, 100);
         assert_eq!(edge.props.get("since"), Some(&Value::Int(2020)));
     }
 
     #[test]
     fn test_edge_record_to_edge_string_ids() {
         let record = EdgeRecord {
-            edge_id: 200,
             src_vid: VertexId::from_string("user-a"),
             dst_vid: VertexId::from_string("user-b"),
             rank: 1,

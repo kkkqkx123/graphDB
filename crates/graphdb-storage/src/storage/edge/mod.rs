@@ -50,7 +50,6 @@ pub const INVALID_EDGE_ID: u64 = u64::MAX;
 
 #[derive(Debug, Clone)]
 pub struct EdgeRecord {
-    pub edge_id: EdgeId,
     pub src_vid: VertexId,
     pub dst_vid: VertexId,
     pub rank: i64,
@@ -67,7 +66,6 @@ impl From<&EdgeRecord> for Edge {
             dst: record.dst_vid,
             edge_type: String::new(),
             ranking: record.rank,
-            id: record.edge_id as i64,
             props,
         }
     }
@@ -82,7 +80,6 @@ impl EdgeRecord {
             dst: self.dst_vid,
             edge_type: edge_type.to_string(),
             ranking: self.rank,
-            id: self.edge_id as i64,
             props,
         }
     }

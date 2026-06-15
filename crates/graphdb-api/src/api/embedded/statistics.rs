@@ -14,9 +14,9 @@ pub struct QueryStatistics {
     /// Number of rows returned
     pub rows_returned: u64,
     /// List of inserted vertex IDs
-    pub inserted_vertex_ids: Vec<i64>,
+    pub inserted_vertex_ids: Vec<u64>,
     /// List of inserted edge IDs
-    pub inserted_edge_ids: Vec<i64>,
+    pub inserted_edge_ids: Vec<u64>,
     /// Number of vertices updated
     pub vertices_updated: u64,
     /// Updated number of edges

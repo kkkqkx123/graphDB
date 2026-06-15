@@ -288,13 +288,15 @@ impl Vertex {
 }
 
 /// Represents an edge in the graph, similar to Nebula's Edge structure
+///
+/// Edges are uniquely identified by (src, dst, edge_type, ranking).
+/// The internal edge ID is managed by the storage layer and is not exposed to users.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Edge {
     pub src: VertexId,
     pub dst: VertexId,
     pub edge_type: String,
     pub ranking: i64,
-    pub id: i64,
     pub props: HashMap<String, Value>,
 }
 
@@ -359,7 +361,6 @@ impl Edge {
             dst,
             edge_type,
             ranking,
-            id: 0,
             props: HashMap::new(),
         }
     }
@@ -421,7 +422,6 @@ impl Edge {
             dst,
             edge_type,
             ranking,
-            id: 0,
             props,
         }
     }

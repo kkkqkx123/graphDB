@@ -237,7 +237,6 @@ impl EdgeTable {
     fn edge_record_from_nbr(&self, src: u32, nbr: Nbr) -> EdgeRecord {
         let (dst_vid, rank) = Self::decode_edge_endpoint(nbr.neighbor);
         EdgeRecord {
-            edge_id: nbr.edge_id,
             src_vid: VertexId::from_int64(src as i64),
             dst_vid,
             rank,
@@ -440,7 +439,6 @@ impl EdgeTable {
         let properties = self.properties_for_offset(nbr.prop_offset);
 
         Some(EdgeRecord {
-            edge_id: nbr.edge_id,
             src_vid: VertexId::from_int64(src as i64),
             dst_vid: VertexId::from_int64(dst as i64),
             rank,
@@ -460,7 +458,6 @@ impl EdgeTable {
                 let properties = self.properties_for_offset(nbr.prop_offset);
 
                 EdgeRecord {
-                    edge_id: nbr.edge_id,
                     src_vid: VertexId::from_int64(src as i64),
                     dst_vid,
                     rank,
@@ -482,7 +479,6 @@ impl EdgeTable {
                 let properties = self.properties_for_offset(nbr.prop_offset);
 
                 EdgeRecord {
-                    edge_id: nbr.edge_id,
                     src_vid,
                     dst_vid: VertexId::from_int64(dst as i64),
                     rank,
