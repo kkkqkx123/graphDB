@@ -2,7 +2,7 @@
 //!
 //! Tests for dead letter queue, compensation, and recovery mechanisms
 
-use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
+use crate::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::core::types::DataType;
 use graphdb::core::Value;
 use graphdb::search::SyncFailurePolicy;

@@ -246,6 +246,18 @@ pub struct GraphStorageContext {
     runtime: GraphStorageRuntime,
 }
 
+/// Context for resolving edge table keys with label lookup.
+#[derive(Clone, Copy)]
+struct EdgeLabelLookupCtx<'a> {
+    vertex_tables: &'a HashMap<LabelId, crate::storage::vertex::VertexTable>,
+    src_id: &'a VertexId,
+    src_label: LabelId,
+    dst_id: &'a VertexId,
+    dst_label: LabelId,
+    edge_label: LabelId,
+    ts: Timestamp,
+}
+
 impl GraphStorageContext {
     pub fn new() -> Self {
         Self {
@@ -1023,29 +1035,20 @@ impl GraphStorageContext {
     /// Resolve the actual edge table key for unconstrained edge types.
     /// For constrained edge types (src_label != 0 and dst_label != 0), returns
     /// the direct key. For unconstrained types, resolves the actual vertex labels.
-    fn resolve_edge_table_key(
-        &self,
-        vertex_tables: &HashMap<LabelId, crate::storage::vertex::VertexTable>,
-        src_id: &VertexId,
-        src_label: LabelId,
-        dst_id: &VertexId,
-        dst_label: LabelId,
-        edge_label: LabelId,
-        ts: Timestamp,
-    ) -> EdgeTableKey {
-        let actual_src_label = if src_label == 0 {
-            Self::resolve_internal_id_label(vertex_tables, src_id, ts)
-                .unwrap_or(src_label)
+    fn resolve_edge_table_key(ctx: EdgeLabelLookupCtx) -> EdgeTableKey {
+        let actual_src_label = if ctx.src_label == 0 {
+            Self::resolve_internal_id_label(ctx.vertex_tables, ctx.src_id, ctx.ts)
+                .unwrap_or(ctx.src_label)
         } else {
-            src_label
+            ctx.src_label
         };
-        let actual_dst_label = if dst_label == 0 {
-            Self::resolve_internal_id_label(vertex_tables, dst_id, ts)
-                .unwrap_or(dst_label)
+        let actual_dst_label = if ctx.dst_label == 0 {
+            Self::resolve_internal_id_label(ctx.vertex_tables, ctx.dst_id, ctx.ts)
+                .unwrap_or(ctx.dst_label)
         } else {
-            dst_label
+            ctx.dst_label
         };
-        EdgeTableKey::new(actual_src_label, actual_dst_label, edge_label)
+        EdgeTableKey::new(actual_src_label, actual_dst_label, ctx.edge_label)
     }
 
     pub fn get_edge(&self, params: &EdgeOperationParams, ts: Timestamp) -> Option<EdgeRecord> {
@@ -1060,15 +1063,15 @@ impl GraphStorageContext {
 
         let dst_internal =
             self.resolve_internal_id(&vertex_tables, params.dst_label, params.dst_id, ts)?;
-        let key = self.resolve_edge_table_key(
-            &vertex_tables,
-            &params.src_id,
-            params.src_label,
-            &params.dst_id,
-            params.dst_label,
-            params.edge_label,
+        let key = Self::resolve_edge_table_key(EdgeLabelLookupCtx {
+            vertex_tables: &vertex_tables,
+            src_id: &params.src_id,
+            src_label: params.src_label,
+            dst_id: &params.dst_id,
+            dst_label: params.dst_label,
+            edge_label: params.edge_label,
             ts,
-        );
+        });
         let edge_tables = self.persistent.data_store.edge_tables().read();
         let edge_table = edge_tables.get(&key)?;
 
@@ -1096,15 +1099,15 @@ impl GraphStorageContext {
             })
             .ok_or(StorageError::vertex_not_found())?;
 
-        let key = self.resolve_edge_table_key(
-            &vertex_tables,
-            &params.src_id,
-            params.src_label,
-            &params.dst_id,
-            params.dst_label,
-            params.edge_label,
+        let key = Self::resolve_edge_table_key(EdgeLabelLookupCtx {
+            vertex_tables: &vertex_tables,
+            src_id: &params.src_id,
+            src_label: params.src_label,
+            dst_id: &params.dst_id,
+            dst_label: params.dst_label,
+            edge_label: params.edge_label,
             ts,
-        );
+        });
         drop(vertex_tables);
 
         let mut edge_tables = self.persistent.data_store.edge_tables().write();

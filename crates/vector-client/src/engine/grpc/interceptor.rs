@@ -131,6 +131,12 @@ pub struct CircuitBreaker {
     last_failure_time: Arc<tokio::sync::Mutex<Option<Instant>>>,
 }
 
+impl Default for CircuitBreaker {
+    fn default() -> Self {
+        Self::new(CircuitBreakerConfig::default())
+    }
+}
+
 impl CircuitBreaker {
     pub fn new(config: CircuitBreakerConfig) -> Self {
         Self {
@@ -140,10 +146,6 @@ impl CircuitBreaker {
             success_count: Arc::new(AtomicU64::new(0)),
             last_failure_time: Arc::new(tokio::sync::Mutex::new(None)),
         }
-    }
-
-    pub fn default() -> Self {
-        Self::new(CircuitBreakerConfig::default())
     }
 
     pub async fn is_available(&self) -> bool {

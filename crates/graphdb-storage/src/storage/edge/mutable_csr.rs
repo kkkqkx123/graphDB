@@ -1039,7 +1039,7 @@ mod tests {
         for v in 0..3u32 {
             for i in 0..6 {
                 let dst = VertexId::from_int64((v * 100 + i + 1) as i64);
-                csr.insert_edge(v, dst, (v as u64 * 10 + i as u64), 0, 1);
+                csr.insert_edge(v, dst, v as u64 * 10 + i as u64, 0, 1);
             }
         }
 

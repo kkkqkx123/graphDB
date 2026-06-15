@@ -2,7 +2,7 @@
 //!
 //! Tests for batch processor edge cases
 
-use super::common::sync_helpers::SyncTestHarness;
+use crate::common::sync_helpers::SyncTestHarness;
 use graphdb::core::Value;
 use graphdb::storage::StorageWriter;
 

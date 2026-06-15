@@ -3,11 +3,7 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::core::{DataType, Value};
-    use crate::storage::edge::EdgeStrategy;
     use crate::storage::engine::graph_storage::GraphStorageContext;
-    use crate::storage::engine::params::{
-        CreateEdgeTypeParams, EdgeOperationParams, InsertEdgeParams,
-    };
     use crate::storage::types::StoragePropertyDef;
 
     fn temp_dir(name: &str) -> PathBuf {

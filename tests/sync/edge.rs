@@ -2,7 +2,7 @@
 //!
 //! Tests for SyncManager edge insert/delete/update operations
 
-use super::common::sync_helpers::{create_test_vertex, SyncTestHarness};
+use crate::common::sync_helpers::{create_test_vertex, SyncTestHarness};
 use graphdb::sync::{EdgeProps, EdgeRef};
 use graphdb::core::types::{DataType, EdgeTypeInfo, PropertyDef, VertexId};
 use graphdb::core::Value;

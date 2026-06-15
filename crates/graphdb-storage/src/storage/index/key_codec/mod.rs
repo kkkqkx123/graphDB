@@ -41,7 +41,7 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::storage::index::key_codec::key_types::{
-        deserialize_value, serialize_value, ByteKey, KEY_TYPE_VERTEX_FORWARD,
+        serialize_value, ByteKey, KEY_TYPE_VERTEX_FORWARD,
         KEY_TYPE_VERTEX_REVERSE,
     };
 

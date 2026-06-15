@@ -608,7 +608,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         // This is more efficient and avoids potential issues with vertex-based expansion.
         // Skip for multi-hop chains (input has >1 column) — the normal expansion path handles
         // column combining correctly for those.
-        let is_multi_hop = self.input_dataset.as_ref().map_or(false, |ds| ds.col_names.len() > 1);
+        let is_multi_hop = self.input_dataset.as_ref().is_some_and(|ds| ds.col_names.len() > 1);
         let has_specific_edge_types = !self.any_edge_type && self.edge_types.as_ref().is_some_and(|t| !t.is_empty());
         let is_from_go_clause = !self.src_vids.is_empty();
 
@@ -669,8 +669,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                                 row.push(Value::Vertex(Box::new(src_vertex)));
                                 row.push(Value::edge(edge.clone()));
                                 row.push(Value::Vertex(Box::new(dst_vertex)));
-                            } else if self.col_names.len() == 1 {
-                                row.push(Value::edge(edge));
                             } else {
                                 row.push(Value::edge(edge));
                             }
