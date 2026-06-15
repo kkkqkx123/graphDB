@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+use crate::embedding::EmbeddingConfig;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EngineType {
     Qdrant,
@@ -12,6 +14,8 @@ pub struct VectorClientConfig {
     pub engine: EngineType,
     pub connection: ConnectionConfig,
     pub timeout: TimeoutConfig,
+    #[serde(default)]
+    pub embedding: Option<EmbeddingConfig>,
 }
 
 impl VectorClientConfig {
@@ -21,6 +25,7 @@ impl VectorClientConfig {
             engine,
             connection: ConnectionConfig::default(),
             timeout: TimeoutConfig::default(),
+            embedding: None,
         }
     }
 
@@ -41,6 +46,7 @@ impl VectorClientConfig {
                 http_port: Some(http_port),
             },
             timeout: TimeoutConfig::default(),
+            embedding: None,
         }
     }
 
@@ -50,6 +56,7 @@ impl VectorClientConfig {
             engine: EngineType::Qdrant,
             connection: ConnectionConfig::default(),
             timeout: TimeoutConfig::default(),
+            embedding: None,
         }
     }
 
@@ -60,6 +67,11 @@ impl VectorClientConfig {
 
     pub fn with_timeout(mut self, timeout: TimeoutConfig) -> Self {
         self.timeout = timeout;
+        self
+    }
+
+    pub fn with_embedding(mut self, embedding: EmbeddingConfig) -> Self {
+        self.embedding = Some(embedding);
         self
     }
 }

@@ -7,6 +7,8 @@ use std::sync::Arc;
 
 #[cfg(feature = "qdrant")]
 use log::warn;
+#[cfg(feature = "qdrant")]
+use vector_client::EmbeddingService;
 use log::{error, info};
 
 use crate::api::server::{GraphService, HttpServer};
@@ -26,10 +28,23 @@ async fn setup_vector_sync(
         match VectorManager::new(config.vector_config().clone()).await {
             Ok(vm) => {
                 let vector_manager = Arc::new(vm);
-                // `setup_vector_sync` is an async fn — `Handle::current()` always succeeds
                 let handle = tokio::runtime::Handle::current();
+                // Create optional embedding service
+                let embedding_service = config.vector_config().embedding.as_ref().map(|ec| {
+                    EmbeddingService::from_config(ec.clone())
+                        .map_err(|e| format!("Failed to create embedding service: {}", e))
+                }).transpose();
+
+                let embedding_service = match embedding_service {
+                    Ok(es) => es.map(Arc::new),
+                    Err(e) => {
+                        warn!("Failed to create embedding service: {}", e);
+                        None
+                    }
+                };
+                
                 let vector_coordinator = Arc::new(
-                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, None, handle),
+                    crate::sync::vector_sync::VectorSyncCoordinator::new(vector_manager, embedding_service, handle),
                 );
                 info!("Vector index sync enabled");
                 sync_manager.with_vector_coordinator(vector_coordinator)

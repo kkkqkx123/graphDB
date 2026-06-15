@@ -28,5 +28,5 @@ pub use engine::grpc::interceptor::{
 
 pub use api::VectorClient;
 pub use api::{CollectionApi, PointApi, SearchApi};
-pub use embedding::{EmbeddingConfig, EmbeddingError, EmbeddingProvider, EmbeddingService};
+pub use embedding::{EmbeddingConfig, EmbeddingError, EmbeddingService};
 pub use manager::VectorManager;

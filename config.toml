@@ -124,6 +124,28 @@ max_delay_ms = 5000
 # 重试延迟倍数
 multiplier = 2.0
 
+# 嵌入服务配置（可选，不配置则使用原始向量）
+# [vector.embedding]
+# 嵌入 API 端点
+# base_url = "http://localhost:11434/api/embeddings"
+# API 密钥（如 OpenAI 需要填写）
+# api_key = "sk-xxx"
+# 模型名称
+# model = "all-minilm"
+# 请求超时（秒，默认 30）
+# timeout_secs = 30
+# 向量维度（可选，不填则自动检测）
+# dimension = 768
+
+# 文本预处理器配置（可选）
+# [vector.embedding.preprocessor]
+# type = "prefix"
+# prefix = "query: "
+
+
+# 调试用：在向量查询时自动将文本转为向量
+# 需配合 [vector.embedding] 一起使用
+
 [profile.release]
 opt-level = 3
 lto = true

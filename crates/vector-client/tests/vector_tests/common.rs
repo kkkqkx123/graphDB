@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use std::sync::RwLock;
 use tempfile::TempDir;
-use vector_client::embedding::{EmbeddingError, EmbeddingProvider, ProviderType};
+use vector_client::embedding::{EmbeddingError, EmbeddingProvider};
 use vector_client::engine::VectorEngine;
 use vector_client::error::{Result, VectorClientError};
 use vector_client::manager::IndexMetadata;
@@ -751,10 +751,6 @@ impl EmbeddingProvider for MockEmbeddingProvider {
 
     fn model_name(&self) -> &str {
         &self.model_name
-    }
-
-    fn provider_type(&self) -> ProviderType {
-        ProviderType::LocalLibrary
     }
 }
 

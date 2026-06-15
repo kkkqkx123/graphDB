@@ -13,10 +13,9 @@ mod service;
 pub use config::EmbeddingConfig;
 pub use error::EmbeddingError;
 pub use preprocessor::{
-    ChainedPreprocessor, NomicPreprocessor, NomicTaskType, NoopPreprocessor, PrefixPreprocessor,
-    Preprocessor, PreprocessorConfig, StellaPreprocessor, StellaTaskType, TemplatePreprocessor,
+    NomicTaskType, PreprocessorConfig, PreprocessorImpl, StellaTaskType,
 };
-pub use provider::{EmbeddingProvider, ProviderType};
+pub use provider::EmbeddingProvider;
 pub use service::EmbeddingService;
 
 // Re-export providers for advanced usage

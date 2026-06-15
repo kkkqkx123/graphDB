@@ -12,11 +12,8 @@ use tracing::debug;
 
 use crate::embedding::config::EmbeddingConfig;
 use crate::embedding::error::{EmbeddingError, Result};
-use crate::embedding::preprocessor::{
-    NomicPreprocessor, NoopPreprocessor, PrefixPreprocessor, Preprocessor, StellaPreprocessor,
-    TemplatePreprocessor,
-};
-use crate::embedding::provider::{EmbeddingProvider, ProviderType};
+use crate::embedding::preprocessor::PreprocessorImpl;
+use crate::embedding::provider::EmbeddingProvider;
 
 /// OpenAI-compatible HTTP provider
 ///
@@ -29,7 +26,7 @@ use crate::embedding::provider::{EmbeddingProvider, ProviderType};
 pub struct OpenAICompatibleProvider {
     client: Client,
     config: EmbeddingConfig,
-    preprocessor: Box<dyn Preprocessor>,
+    preprocessor: PreprocessorImpl,
     dimension: usize,
 }
 
@@ -95,15 +92,15 @@ impl OpenAICompatibleProvider {
     ///
     /// # Example
     ///
-    /// ```no_run
-    /// use vector_client::embedding::{EmbeddingConfig, providers::OpenAICompatibleProvider};
+    /// ```
+    /// use vector_client::embedding::{EmbeddingConfig, OpenAICompatibleProvider};
     ///
     /// let config = EmbeddingConfig::new(
     ///     "https://api.openai.com/v1/embeddings",
     ///     "text-embedding-3-small"
-    /// ).with_api_key("sk-xxx");
+    /// ).with_api_key("sk-xxx").with_dimension(1536);
     ///
-    /// let provider = OpenAICompatibleProvider::new(config)?;
+    /// let provider = OpenAICompatibleProvider::new(config).expect("failed");
     /// ```
     pub fn new(config: EmbeddingConfig) -> Result<Self> {
         config.validate()?;
@@ -123,7 +120,7 @@ impl OpenAICompatibleProvider {
         })?;
 
         // Create preprocessor based on config
-        let preprocessor = Self::create_preprocessor(&config.preprocessor);
+        let preprocessor = PreprocessorImpl::from_config(&config.preprocessor);
 
         Ok(Self {
             client,
@@ -131,27 +128,6 @@ impl OpenAICompatibleProvider {
             preprocessor,
             dimension,
         })
-    }
-
-    /// Create preprocessor from configuration
-    fn create_preprocessor(config: &crate::embedding::PreprocessorConfig) -> Box<dyn Preprocessor> {
-        use crate::embedding::PreprocessorConfig;
-
-        match config {
-            PreprocessorConfig::None => Box::new(NoopPreprocessor),
-            PreprocessorConfig::Prefix { prefix } => {
-                Box::new(PrefixPreprocessor::new(prefix)) as Box<dyn Preprocessor>
-            }
-            PreprocessorConfig::Template { template } => {
-                Box::new(TemplatePreprocessor::new(template)) as Box<dyn Preprocessor>
-            }
-            PreprocessorConfig::Nomic { task_type } => {
-                Box::new(NomicPreprocessor::new(*task_type)) as Box<dyn Preprocessor>
-            }
-            PreprocessorConfig::Stella { task_type } => {
-                Box::new(StellaPreprocessor::new(*task_type)) as Box<dyn Preprocessor>
-            }
-        }
     }
 
     /// Build embedding request
@@ -249,8 +225,8 @@ impl OpenAICompatibleProvider {
     }
 
     /// Get the preprocessor
-    pub fn preprocessor(&self) -> &dyn Preprocessor {
-        &*self.preprocessor
+    pub fn preprocessor(&self) -> &PreprocessorImpl {
+        &self.preprocessor
     }
 }
 
@@ -266,10 +242,6 @@ impl EmbeddingProvider for OpenAICompatibleProvider {
 
     fn model_name(&self) -> &str {
         &self.config.model
-    }
-
-    fn provider_type(&self) -> ProviderType {
-        ProviderType::Http
     }
 }
 
@@ -431,7 +403,6 @@ mod tests {
         let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(128);
         let provider = OpenAICompatibleProvider::new(config).unwrap();
         let result = provider.preprocessor().preprocess("text");
-        // Noop preprocessor
         assert_eq!(result, "text");
     }
 
@@ -457,16 +428,6 @@ mod tests {
         let provider = OpenAICompatibleProvider::new(config).unwrap();
         let result = provider.preprocessor().preprocess("hello");
         assert_eq!(result, "[hello]");
-    }
-
-    #[test]
-    fn test_provider_type() {
-        let config = EmbeddingConfig::new("http://example.com", "model").with_dimension(128);
-        let provider = OpenAICompatibleProvider::new(config).unwrap();
-        assert_eq!(
-            provider.provider_type(),
-            crate::embedding::ProviderType::Http
-        );
     }
 
     #[test]

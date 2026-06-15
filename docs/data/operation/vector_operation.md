@@ -116,10 +116,33 @@ Vector functions can be used in SQL queries for vector computation and transform
 | Type | Description | Example |
 |------|-------------|---------|
 | `Vector` | Direct vector data | `[0.1, 0.2, 0.3]` |
-| `Text` | Text query (requires embedding) | `"search text"` |
+| `Text` | Text query (auto-embedded if embedding configured) | `"search text"` |
 | `Parameter` | Parameter reference | `$query_vector` |
 
-### 4.3 Search Options
+### 4.3 Embedding-Aware Text Search
+
+When `[vector.embedding]` is configured in `config.toml`, GraphDB will automatically:
+1. Detect text queries in `SEARCH VECTOR` statements
+2. Call the embedding service to convert text to vector
+3. Use the resulting vector for similarity search
+
+**Example query with automatic embedding**:
+```sql
+-- 如果 [vector.embedding] 已配置，以下查询会自动将文本转为向量
+SEARCH VECTOR ON my_vector INDEX
+QUERY "machine learning tutorial"
+LIMIT 10
+```
+
+**Without embedding config**, text queries require manual vector conversion:
+```sql
+-- 未配置嵌入服务时，需要手动提供向量
+SEARCH VECTOR ON my_vector INDEX
+QUERY [0.1, 0.2, 0.3, ...]
+LIMIT 10
+```
+
+### 4.4 Search Options
 
 | Option | Description |
 |--------|-------------|

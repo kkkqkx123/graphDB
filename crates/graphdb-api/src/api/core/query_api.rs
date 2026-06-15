@@ -21,7 +21,7 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Instant;
 #[cfg(feature = "qdrant")]
-use vector_client::{VectorClientConfig, VectorManager};
+use vector_client::{EmbeddingService, VectorClientConfig, VectorManager};
 
 /// Universal Query API – Core Layer
 pub struct QueryApi<S: StorageClient + 'static> {
@@ -133,6 +133,9 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ) -> Result<Self, String> {
         let optimizer_engine = Arc::new(OptimizerEngine::default());
 
+        // Extract embedding config before vector_manager consumes it
+        let embedding_config = vector_config.embedding.clone();
+
         // Create vector manager
         let vector_manager = Arc::new(
             VectorManager::new(vector_config)
@@ -140,10 +143,13 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 .map_err(|e| format!("Failed to create vector manager: {}", e))?,
         );
 
-        // Create vector coordinator (embedding service is optional)
-        // This is an async function, so we can get the current runtime handle
+        // Create optional embedding service
         let handle = tokio::runtime::Handle::current();
-        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager, None, handle));
+        let embedding_service = embedding_config
+            .and_then(|ec| EmbeddingService::from_config(ec).ok().map(Arc::new));
+
+        // Create vector coordinator (embedding service is optional)
+        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager.clone(), embedding_service, handle));
 
         // Create metadata providers
         let vector_provider: Arc<dyn MetadataProvider> =
