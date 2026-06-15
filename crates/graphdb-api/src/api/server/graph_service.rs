@@ -68,12 +68,18 @@ impl<
 {
     /// Create a new GraphService (without a transaction manager, for use in a production environment).
     pub async fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, true, None).await
+        #[cfg(feature = "qdrant")]
+        return Self::create_service(config, storage, None, true, None, None).await;
+        #[cfg(not(feature = "qdrant"))]
+        return Self::create_service(config, storage, None, true, None).await;
     }
 
     /// Create a new GraphService (without a transaction manager and without starting any background tasks, for testing purposes).
     pub async fn new_for_test(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, false, None).await
+        #[cfg(feature = "qdrant")]
+        return Self::create_service(config, storage, None, false, None, None).await;
+        #[cfg(not(feature = "qdrant"))]
+        return Self::create_service(config, storage, None, false, None).await;
     }
 
     /// Use the transaction manager to create a GraphService.
@@ -82,7 +88,10 @@ impl<
         storage: Arc<S>,
         transaction_manager: Arc<TransactionManager>,
     ) -> Arc<Self> {
-        Self::create_service(config, storage, Some(transaction_manager), true, None).await
+        #[cfg(feature = "qdrant")]
+        return Self::create_service(config, storage, Some(transaction_manager), true, None, None).await;
+        #[cfg(not(feature = "qdrant"))]
+        return Self::create_service(config, storage, Some(transaction_manager), true, None).await;
     }
 
     /// Use the transaction manager and external StatsManager to create a GraphService.
@@ -98,6 +107,27 @@ impl<
             Some(transaction_manager),
             true,
             Some(stats_manager),
+            None,
+        )
+        .await
+    }
+
+    /// Use the transaction manager, external StatsManager, and shared VectorManager to create a GraphService.
+    #[cfg(feature = "qdrant")]
+    pub async fn with_shared_vector_manager(
+        config: Config,
+        storage: Arc<S>,
+        transaction_manager: Arc<TransactionManager>,
+        stats_manager: Arc<StatsManager>,
+        vector_manager: Arc<vector_client::VectorManager>,
+    ) -> Arc<Self> {
+        Self::create_service(
+            config,
+            storage,
+            Some(transaction_manager),
+            true,
+            Some(stats_manager),
+            Some(vector_manager),
         )
         .await
     }
@@ -106,12 +136,14 @@ impl<
     ///
     /// # Parameters
     /// `start_cleanup_task` – Whether to initiate the background task for session cleanup
+    /// `shared_vector_manager` – Optional shared VectorManager to avoid duplicate initialization
     async fn create_service(
         config: Config,
         storage: Arc<S>,
         transaction_manager: Option<Arc<TransactionManager>>,
         start_cleanup_task: bool,
         external_stats_manager: Option<Arc<StatsManager>>,
+        #[cfg(feature = "qdrant")] shared_vector_manager: Option<Arc<vector_client::VectorManager>>,
     ) -> Arc<Self> {
         let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
         let session_manager = GraphSessionManager::new(
@@ -146,21 +178,26 @@ impl<
 
         #[cfg(feature = "qdrant")]
         let (query_api, vector_api) = if config.is_vector_enabled() {
-            match QueryApi::with_vector_search(
+            // Use shared VectorManager if available, otherwise create a new one
+            let vm = match shared_vector_manager {
+                Some(vm) => vm,
+                None => Arc::new(
+                    VectorManager::new(config.vector_config().clone())
+                        .await
+                        .unwrap_or_else(|_| panic!("Failed to create vector manager")),
+                ),
+            };
+
+            match QueryApi::with_vector_manager(
                 Arc::new(RwLock::new((*storage).clone())),
                 stats_manager.clone(),
-                config.vector_config().clone(),
+                vm.clone(),
                 schema_manager.clone(),
             )
             .await
             {
                 Ok(api) => {
-                    let vector_manager = Arc::new(
-                        VectorManager::new(config.vector_config().clone())
-                            .await
-                            .unwrap_or_else(|_| panic!("Failed to create vector manager")),
-                    );
-                    let vector_api = Arc::new(VectorApi::new(vector_manager.clone()));
+                    let vector_api = Arc::new(VectorApi::new(vm));
                     (Arc::new(RwLock::new(api)), Some(vector_api))
                 }
                 Err(e) => {

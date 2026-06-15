@@ -384,8 +384,8 @@ impl VectorSyncCoordinator {
                     reason: e.to_string(),
                 })?;
 
-            // Create payload index for group_id filtering
-            let _ = self
+            // Create payload index for group_id filtering (best-effort, log on failure)
+            if let Err(e) = self
                 .vector_manager
                 .engine()
                 .create_payload_index(
@@ -393,7 +393,14 @@ impl VectorSyncCoordinator {
                     "group_id",
                     vector_client::types::PayloadSchemaType::Keyword,
                 )
-                .await;
+                .await
+            {
+                tracing::warn!(
+                    "Failed to create payload index for group_id in collection '{}': {}",
+                    collection_name,
+                    e
+                );
+            }
         } else {
             if let Some(existing_meta) = self.vector_manager.get_index_metadata(&collection_name) {
                 if existing_meta.config.vector_size != vector_size
@@ -1041,7 +1048,8 @@ impl VectorSyncCoordinator {
                     reason: e.to_string(),
                 })?;
 
-            let _ = self
+            // Create payload index for group_id filtering (best-effort, log on failure)
+            if let Err(e) = self
                 .vector_manager
                 .engine()
                 .create_payload_index(
@@ -1049,7 +1057,14 @@ impl VectorSyncCoordinator {
                     "group_id",
                     vector_client::types::PayloadSchemaType::Keyword,
                 )
-                .await;
+                .await
+            {
+                tracing::warn!(
+                    "Failed to create payload index for group_id in collection '{}': {}",
+                    collection_name,
+                    e
+                );
+            }
         } else {
             if let Some(existing_meta) = self.vector_manager.get_index_metadata(&collection_name) {
                 if existing_meta.config.vector_size != config.vector_size

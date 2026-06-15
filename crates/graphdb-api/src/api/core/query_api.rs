@@ -181,6 +181,46 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         Ok(Self { pipeline_manager })
     }
 
+    /// Create a new QueryApi instance with an existing shared VectorManager
+    #[cfg(feature = "qdrant")]
+    pub async fn with_vector_manager(
+        storage: Arc<RwLock<S>>,
+        stats_manager: Arc<StatsManager>,
+        vector_manager: Arc<VectorManager>,
+        schema_manager: Option<Arc<SchemaManager>>,
+    ) -> Result<Self, String> {
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
+
+        // Create a VectorSyncCoordinator with the shared VectorManager (no embedding service for query-only use)
+        let handle = tokio::runtime::Handle::current();
+        let vector_coordinator = Arc::new(VectorSyncCoordinator::new(vector_manager, None, handle));
+
+        // Create metadata providers
+        let vector_provider: Arc<dyn MetadataProvider> =
+            Arc::new(VectorIndexMetadataProvider::new(vector_coordinator));
+
+        // Compose with schema provider if schema_manager is available
+        let mut pipeline_manager =
+            QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine);
+
+        if let Some(sm) = schema_manager {
+            let schema_provider = Arc::new(SchemaMetadataProvider::new(sm.clone(), None));
+            let composite = Arc::new(CompositeMetadataProvider::new(vec![
+                schema_provider,
+                vector_provider,
+            ]));
+            let cached = Arc::new(CachedMetadataProvider::new(composite));
+            pipeline_manager = pipeline_manager
+                .with_schema_manager(sm)
+                .with_metadata_provider(cached);
+        } else {
+            let cached = Arc::new(CachedMetadataProvider::new(vector_provider));
+            pipeline_manager = pipeline_manager.with_metadata_provider(cached);
+        }
+
+        Ok(Self { pipeline_manager })
+    }
+
     /// Execute a query with the given query request
     ///
     /// # Parameters

@@ -88,6 +88,21 @@ pub enum MetricType {
     IndexMemoryUsage,
     IndexWriteOps,
     IndexWriteLatencyUs,
+    // Vector metrics
+    VectorSearchOps,
+    VectorSearchErrors,
+    VectorSearchLatencyMs,
+    VectorUpsertOps,
+    VectorUpsertErrors,
+    VectorUpsertLatencyMs,
+    VectorDeleteOps,
+    VectorDeleteErrors,
+    VectorDeleteLatencyMs,
+    VectorBufferFlushOps,
+    VectorBufferFlushLatencyMs,
+    VectorEmbeddingOps,
+    VectorEmbeddingErrors,
+    VectorEmbeddingLatencyMs,
 }
 
 /// metric

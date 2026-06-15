@@ -183,7 +183,9 @@ impl From<vector_client::VectorClientError> for VectorError {
                 VectorError::QdrantError(format!("HTTP {}: {}", status, message))
             }
             vector_client::VectorClientError::QdrantGrpcError(msg) => VectorError::QdrantError(msg),
-            vector_client::VectorClientError::NotSupported(_) => todo!(),
+            vector_client::VectorClientError::NotSupported(op) => {
+                VectorError::ConfigError(format!("Operation not supported: {}", op))
+            }
         }
     }
 }
