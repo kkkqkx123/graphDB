@@ -96,13 +96,13 @@ fn test_vector_collection_name_format() {
     use graphdb::sync::vector_sync::VectorIndexLocation;
 
     let test_cases = vec![
-        (1, "Article", "content", "space_vec_1_Article_content"),
-        (42, "User", "email", "space_vec_42_User_email"),
+        (1, "Article", "content", "space_1"),
+        (42, "User", "email", "space_42"),
         (
             999,
             "Product",
             "description",
-            "space_vec_999_Product_description",
+            "space_999",
         ),
     ];
 
@@ -140,8 +140,9 @@ fn test_naming_consistency_vector_fulltext() {
     assert!(ft_index_id.contains(field));
 
     assert!(vec_collection.contains(&space_id.to_string()));
-    assert!(vec_collection.contains(tag));
-    assert!(vec_collection.contains(field));
+
+    // Vector collection only contains space_id (one collection per space)
+    // Fulltext index has all components in its index_id
 
     // Prefixes should be distinct and consistent
     assert!(
@@ -149,8 +150,8 @@ fn test_naming_consistency_vector_fulltext() {
         "Fulltext should use 'space_ft_' prefix"
     );
     assert!(
-        vec_collection.starts_with("space_vec_"),
-        "Vector should use 'space_vec_' prefix"
+        vec_collection.starts_with("space_"),
+        "Vector should use 'space_' prefix"
     );
 }
 

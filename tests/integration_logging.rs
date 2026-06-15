@@ -13,8 +13,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use graphdb::config::Config;
+#[cfg(all(feature = "qdrant", feature = "embedded"))]
 use graphdb::search::FulltextConfig;
+#[cfg(all(feature = "qdrant", feature = "embedded"))]
 use vector_client::config::VectorClientConfig;
+
 
 /// Test Log Configuration Defaults
 #[test]

@@ -18,7 +18,7 @@ mod tests {
     use tempfile::TempDir;
 
     const FULLTEXT_INDEX_PREFIX: &str = "space_ft";
-    const VECTOR_INDEX_PREFIX: &str = "space_vec";
+    const VECTOR_COLLECTION_PREFIX: &str = "space";
 
     // ==================== Index Naming Tests ====================
 
@@ -32,7 +32,7 @@ mod tests {
         assert!(index_id.starts_with(FULLTEXT_INDEX_PREFIX));
     }
 
-    /// Test vector index naming format: space_vec_{space_id}_{tag}_{field}
+    /// Test vector index naming format: space_{space_id}
     #[cfg(feature = "qdrant")]
     #[test]
     fn test_vector_index_naming_format() {
@@ -41,8 +41,8 @@ mod tests {
         let location = VectorIndexLocation::new(1, "Article", "content");
         let collection_name = location.to_collection_name();
 
-        assert_eq!(collection_name, "space_vec_1_Article_content");
-        assert!(collection_name.starts_with(VECTOR_INDEX_PREFIX));
+        assert_eq!(collection_name, "space_1");
+        assert!(collection_name.starts_with(VECTOR_COLLECTION_PREFIX));
     }
 
     /// Test index naming with special characters in tag/field names
@@ -70,18 +70,13 @@ mod tests {
         let vec_location = VectorIndexLocation::new(space_id, tag, field);
         let vec_collection = vec_location.to_collection_name();
 
-        // Both should contain the same components
-        assert!(ft_index_id.contains(&space_id.to_string()));
-        assert!(ft_index_id.contains(tag));
-        assert!(ft_index_id.contains(field));
-
+        // Vector collection only contains space_id (one collection per space)
         assert!(vec_collection.contains(&space_id.to_string()));
-        assert!(vec_collection.contains(tag));
-        assert!(vec_collection.contains(field));
+        // Tag and field are in group_id payload, not collection name
 
         // Prefixes should be different
         assert!(ft_index_id.starts_with("space_ft_"));
-        assert!(vec_collection.starts_with("space_vec_"));
+        assert!(vec_collection.starts_with("space_"));
     }
 
     // ==================== SpaceInfo Isolation Level Tests ====================
