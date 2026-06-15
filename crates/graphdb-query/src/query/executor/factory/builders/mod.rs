@@ -7,6 +7,7 @@ pub mod control_flow_builder;
 pub mod data_access_builder;
 pub mod data_modification_builder;
 pub mod data_processing_builder;
+#[cfg(feature = "fulltext-search")]
 pub mod fulltext_search_builder;
 pub mod join_builder;
 pub mod set_operation_builder;
@@ -20,6 +21,7 @@ pub use control_flow_builder::ControlFlowBuilder;
 pub use data_access_builder::DataAccessBuilder;
 pub use data_modification_builder::DataModificationBuilder;
 pub use data_processing_builder::DataProcessingBuilder;
+#[cfg(feature = "fulltext-search")]
 pub use fulltext_search_builder::FulltextSearchBuilder;
 pub use join_builder::JoinBuilder;
 pub use set_operation_builder::SetOperationBuilder;

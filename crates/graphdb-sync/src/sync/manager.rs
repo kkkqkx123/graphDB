@@ -3,19 +3,26 @@
 //! Unified synchronization manager using SyncCoordinator.
 
 use crate::core::Value;
+#[cfg(feature = "fulltext-search")]
 use crate::search::SyncConfig;
+#[cfg(feature = "fulltext-search")]
 use crate::sync::coordinator::{ChangeType, CoordinatorError, SyncCoordinator};
+#[cfg(not(feature = "fulltext-search"))]
+use crate::sync::types::ChangeType;
 #[cfg(feature = "qdrant")]
 use crate::sync::vector_sync::VectorSyncCoordinator;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-// Re-export vector_client types for unified API
+#[cfg(feature = "fulltext-search")]
+use crate::sync::coordinator::ChangeContext;
+
 #[cfg(feature = "qdrant")]
 pub use vector_client::{CollectionConfig, SearchResult};
 
 pub struct SyncManager {
-    sync_coordinator: Arc<SyncCoordinator>,
+    #[cfg(feature = "fulltext-search")]
+    sync_coordinator: Option<Arc<SyncCoordinator>>,
     #[cfg(feature = "qdrant")]
     vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
     running: Arc<std::sync::atomic::AtomicBool>,
@@ -27,6 +34,7 @@ pub struct SyncManager {
 impl Clone for SyncManager {
     fn clone(&self) -> Self {
         Self {
+            #[cfg(feature = "fulltext-search")]
             sync_coordinator: self.sync_coordinator.clone(),
             #[cfg(feature = "qdrant")]
             vector_coordinator: self.vector_coordinator.clone(),
@@ -40,6 +48,7 @@ impl Clone for SyncManager {
 impl std::fmt::Debug for SyncManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("SyncManager");
+        #[cfg(feature = "fulltext-search")]
         d.field("sync_coordinator", &self.sync_coordinator);
         #[cfg(feature = "qdrant")]
         d.field("vector_coordinator", &self.vector_coordinator);
@@ -49,9 +58,22 @@ impl std::fmt::Debug for SyncManager {
 }
 
 impl SyncManager {
+    #[cfg(feature = "fulltext-search")]
     pub fn new(sync_coordinator: Arc<SyncCoordinator>) -> Self {
         Self {
-            sync_coordinator,
+            sync_coordinator: Some(sync_coordinator),
+            #[cfg(feature = "qdrant")]
+            vector_coordinator: None,
+            running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            dead_letter_queue: None,
+            handle: Mutex::new(None),
+        }
+    }
+
+    pub fn new_without_fulltext() -> Self {
+        Self {
+            #[cfg(feature = "fulltext-search")]
+            sync_coordinator: None,
             #[cfg(feature = "qdrant")]
             vector_coordinator: None,
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -69,6 +91,7 @@ impl SyncManager {
         self
     }
 
+    #[cfg(feature = "fulltext-search")]
     pub fn with_sync_config(
         sync_coordinator: Arc<SyncCoordinator>,
         _sync_config: SyncConfig,
@@ -92,8 +115,10 @@ impl SyncManager {
         self.running
             .store(true, std::sync::atomic::Ordering::SeqCst);
 
-        // Start background tasks in the coordinator
-        self.sync_coordinator.start_background_tasks().await;
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            coord.start_background_tasks().await;
+        }
 
         Ok(())
     }
@@ -102,16 +127,16 @@ impl SyncManager {
         self.running
             .store(false, std::sync::atomic::Ordering::SeqCst);
 
-        // Stop background tasks in the coordinator
-        self.sync_coordinator.stop_background_tasks().await;
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            coord.stop_background_tasks().await;
+        }
 
-        // Wait for handle to complete
         if let Some(handle) = self.handle.lock().await.take() {
             let _ = handle.await;
         }
     }
 
-    /// Vertex changes with transactions (synchronous buffering)
     pub fn on_vertex_change_with_txn(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -121,11 +146,10 @@ impl SyncManager {
         properties: &[(String, Value)],
         change_type: ChangeType,
     ) -> Result<(), SyncError> {
-        // For each attribute create a context and buffer
         for (field_name, value) in properties {
-            // Buffer full-text index operations
+            #[cfg(feature = "fulltext-search")]
             if let Value::String(text) = value {
-                let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                let ctx = ChangeContext::new_fulltext(
                     space_id,
                     tag_name,
                     field_name,
@@ -133,12 +157,13 @@ impl SyncManager {
                     format!("{}", vertex_id),
                     text.clone(),
                 );
-                self.sync_coordinator
-                    .buffer_operation(txn_id, ctx)
-                    .map_err(SyncError::from)?;
+                if let Some(ref coord) = self.sync_coordinator {
+                    coord
+                        .buffer_operation(txn_id, ctx)
+                        .map_err(SyncError::from)?;
+                }
             }
 
-            // Buffered Vector Indexing Operations
             #[cfg(feature = "qdrant")]
             if let Some(vector) = value.as_vector() {
                 if let Some(ref vector_coord) = self.vector_coordinator {
@@ -163,24 +188,22 @@ impl SyncManager {
         Ok(())
     }
 
-    /// Edge insertion (synchronous buffering)
     pub fn on_edge_insert(
         &self,
         txn_id: crate::core::types::TransactionId,
         space_id: u64,
         edge: &crate::core::Edge,
     ) -> Result<(), SyncError> {
-        // Extracting edge properties
         let props: Vec<(String, Value)> = edge
             .props
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
-        // Buffer full-text index operations for string properties
         for (field_name, value) in &props {
+            #[cfg(feature = "fulltext-search")]
             if let Value::String(text) = value {
-                let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
+                let ctx = ChangeContext::new_fulltext(
                     space_id,
                     &edge.edge_type,
                     field_name,
@@ -188,12 +211,13 @@ impl SyncManager {
                     format!("{}->{}", edge.src, edge.dst),
                     text.clone(),
                 );
-                self.sync_coordinator
-                    .buffer_operation(txn_id, ctx)
-                    .map_err(SyncError::from)?;
+                if let Some(ref coord) = self.sync_coordinator {
+                    coord
+                        .buffer_operation(txn_id, ctx)
+                        .map_err(SyncError::from)?;
+                }
             }
 
-            // Buffer vector index operations for vector properties
             #[cfg(feature = "qdrant")]
             if let Some(vector) = value.as_vector() {
                 if let Some(ref vector_coord) = self.vector_coordinator {
@@ -220,11 +244,6 @@ impl SyncManager {
         Ok(())
     }
 
-    /// Edge deletion (synchronized buffering)
-    ///
-    /// Issues a delete operation for every fulltext and vector index associated
-    /// with this edge type, since we need to remove the edge from
-    /// all indexed field indexes.
     pub fn on_edge_delete(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -235,35 +254,37 @@ impl SyncManager {
     ) -> Result<(), SyncError> {
         let edge_id = format!("{}->{}", src, dst);
 
-        let indexes = self
-            .sync_coordinator
-            .fulltext_manager()
-            .get_space_indexes(space_id)
-            .into_iter()
-            .filter(|m| m.tag_name == edge_type);
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            let indexes = coord
+                .fulltext_manager()
+                .get_space_indexes(space_id)
+                .into_iter()
+                .filter(|m| m.tag_name == edge_type);
 
-        let mut found = false;
-        for metadata in indexes {
-            found = true;
-            let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
-                space_id,
-                edge_type,
-                &metadata.field_name,
-                ChangeType::Delete,
-                edge_id.clone(),
-                String::new(),
-            );
-            self.sync_coordinator
-                .buffer_operation(txn_id, ctx)
-                .map_err(SyncError::from)?;
-        }
+            let mut found = false;
+            for metadata in indexes {
+                found = true;
+                let ctx = ChangeContext::new_fulltext(
+                    space_id,
+                    edge_type,
+                    &metadata.field_name,
+                    ChangeType::Delete,
+                    edge_id.clone(),
+                    String::new(),
+                );
+                coord
+                    .buffer_operation(txn_id, ctx)
+                    .map_err(SyncError::from)?;
+            }
 
-        if !found {
-            tracing::debug!(
-                "Edge delete for {}.{}: no fulltext indexes found, skipping",
-                space_id,
-                edge_type
-            );
+            if !found {
+                tracing::debug!(
+                    "Edge delete for {}.{}: no fulltext indexes found, skipping",
+                    space_id,
+                    edge_type
+                );
+            }
         }
 
         #[cfg(feature = "qdrant")]
@@ -292,10 +313,6 @@ impl SyncManager {
         Ok(())
     }
 
-    /// Edge update (synchronized buffering)
-    ///
-    /// For each indexed field of the edge, issues Delete + Insert operations
-    /// to ensure the fulltext index reflects the updated properties.
     pub fn on_edge_update(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -304,47 +321,50 @@ impl SyncManager {
         props: EdgeProps<'_>,
     ) -> Result<(), SyncError> {
         let edge_id = edge.id();
-        let indexes = self
-            .sync_coordinator
-            .fulltext_manager()
-            .get_space_indexes(space_id)
-            .into_iter()
-            .filter(|m| m.tag_name == edge.edge_type)
-            .collect::<Vec<_>>();
 
-        for metadata in &indexes {
-            let field_name = &metadata.field_name;
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            let indexes = coord
+                .fulltext_manager()
+                .get_space_indexes(space_id)
+                .into_iter()
+                .filter(|m| m.tag_name == edge.edge_type)
+                .collect::<Vec<_>>();
 
-            if let Some((_, Value::String(text))) =
-                props.old.iter().find(|(k, _)| k == field_name)
-            {
-                let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
-                    space_id,
-                    edge.edge_type,
-                    field_name,
-                    ChangeType::Delete,
-                    edge_id.clone(),
-                    text.clone(),
-                );
-                self.sync_coordinator
-                    .buffer_operation(txn_id, ctx)
-                    .map_err(SyncError::from)?;
-            }
+            for metadata in &indexes {
+                let field_name = &metadata.field_name;
 
-            if let Some((_, Value::String(text))) =
-                props.new.iter().find(|(k, _)| k == field_name)
-            {
-                let ctx = crate::sync::coordinator::ChangeContext::new_fulltext(
-                    space_id,
-                    edge.edge_type,
-                    field_name,
-                    ChangeType::Insert,
-                    edge_id.clone(),
-                    text.clone(),
-                );
-                self.sync_coordinator
-                    .buffer_operation(txn_id, ctx)
-                    .map_err(SyncError::from)?;
+                if let Some((_, Value::String(text))) =
+                    props.old.iter().find(|(k, _)| k == field_name)
+                {
+                    let ctx = ChangeContext::new_fulltext(
+                        space_id,
+                        edge.edge_type,
+                        field_name,
+                        ChangeType::Delete,
+                        edge_id.clone(),
+                        text.clone(),
+                    );
+                    coord
+                        .buffer_operation(txn_id, ctx)
+                        .map_err(SyncError::from)?;
+                }
+
+                if let Some((_, Value::String(text))) =
+                    props.new.iter().find(|(k, _)| k == field_name)
+                {
+                    let ctx = ChangeContext::new_fulltext(
+                        space_id,
+                        edge.edge_type,
+                        field_name,
+                        ChangeType::Insert,
+                        edge_id.clone(),
+                        text.clone(),
+                    );
+                    coord
+                        .buffer_operation(txn_id, ctx)
+                        .map_err(SyncError::from)?;
+                }
             }
         }
 
@@ -398,44 +418,7 @@ impl SyncManager {
 
         Ok(())
     }
-}
 
-/// Identifies an edge by its endpoints and type.
-#[derive(Debug, Clone)]
-pub struct EdgeRef<'a> {
-    pub src: &'a Value,
-    pub dst: &'a Value,
-    pub edge_type: &'a str,
-}
-
-impl<'a> EdgeRef<'a> {
-    pub fn new(src: &'a Value, dst: &'a Value, edge_type: &'a str) -> Self {
-        Self {
-            src,
-            dst,
-            edge_type,
-        }
-    }
-
-    pub fn id(&self) -> String {
-        format!("{}->{}", self.src, self.dst)
-    }
-}
-
-/// Property change snapshot for an edge update.
-#[derive(Debug, Clone)]
-pub struct EdgeProps<'a> {
-    pub old: &'a [(String, Value)],
-    pub new: &'a [(String, Value)],
-}
-
-impl<'a> EdgeProps<'a> {
-    pub fn new(old: &'a [(String, Value)], new: &'a [(String, Value)]) -> Self {
-        Self { old, new }
-    }
-}
-
-impl SyncManager {
     #[cfg(feature = "qdrant")]
     pub fn on_vector_change_with_context_buffered(
         &self,
@@ -469,16 +452,22 @@ impl SyncManager {
         Ok(())
     }
 
+    #[cfg(feature = "fulltext-search")]
     pub async fn commit_all(&self) -> Result<(), SyncError> {
-        self.sync_coordinator.commit_all().await?;
+        if let Some(ref coord) = self.sync_coordinator {
+            coord.commit_all().await?;
+        }
         Ok(())
     }
 
+    #[cfg(feature = "fulltext-search")]
     pub async fn prepare_transaction(
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
-        self.sync_coordinator.prepare_transaction(txn_id).await?;
+        if let Some(ref coord) = self.sync_coordinator {
+            coord.prepare_transaction(txn_id).await?;
+        }
         Ok(())
     }
 
@@ -486,10 +475,11 @@ impl SyncManager {
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
-        // Commit fulltext index
-        self.sync_coordinator.commit_transaction(txn_id).await?;
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            coord.commit_transaction(txn_id).await?;
+        }
 
-        // Commit vector index
         #[cfg(feature = "qdrant")]
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord
@@ -505,9 +495,12 @@ impl SyncManager {
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
-        self.sync_coordinator.rollback_transaction(txn_id)?;
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            coord.rollback_transaction(txn_id)
+                .map_err(SyncError::from)?;
+        }
 
-        // Also rollback vector index buffer
         #[cfg(feature = "qdrant")]
         if let Some(ref vector_coord) = self.vector_coordinator {
             vector_coord.rollback_transaction(txn_id).await;
@@ -516,16 +509,7 @@ impl SyncManager {
         Ok(())
     }
 
-    // ===== Synchronous Wrappers for Transaction Operations =====
-    //
-    // These methods provide synchronous access to async transaction operations.
-    // They automatically detect the runtime context and handle appropriately:
-    // - In tokio context: Uses `block_in_place` to avoid blocking the executor
-    // - Outside tokio: Uses `futures::executor::block_on`
-
-    /// Synchronous wrapper for `prepare_transaction`
-    ///
-    /// Automatically detects tokio runtime context and handles appropriately.
+    #[cfg(feature = "fulltext-search")]
     pub fn prepare_transaction_sync(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -533,9 +517,7 @@ impl SyncManager {
         self.execute_sync(|| self.prepare_transaction(txn_id))
     }
 
-    /// Synchronous wrapper for `commit_transaction`
-    ///
-    /// Automatically detects tokio runtime context and handles appropriately.
+    #[cfg(feature = "fulltext-search")]
     pub fn commit_transaction_sync(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -543,9 +525,6 @@ impl SyncManager {
         self.execute_sync(|| self.commit_transaction(txn_id))
     }
 
-    /// Synchronous wrapper for `rollback_transaction`
-    ///
-    /// Automatically detects tokio runtime context and handles appropriately.
     pub fn rollback_transaction_sync(
         &self,
         txn_id: crate::core::types::TransactionId,
@@ -553,7 +532,6 @@ impl SyncManager {
         self.execute_sync(|| self.rollback_transaction(txn_id))
     }
 
-    /// Execute an async operation synchronously with proper runtime detection
     fn execute_sync<F, Fut, T>(&self, f: F) -> Result<T, SyncError>
     where
         F: FnOnce() -> Fut,
@@ -566,7 +544,6 @@ impl SyncManager {
         futures::executor::block_on(f())
     }
 
-    /// Commit vector index transaction
     #[cfg(feature = "qdrant")]
     pub async fn commit_vector_transaction(
         &self,
@@ -581,8 +558,11 @@ impl SyncManager {
         Ok(())
     }
 
+    #[cfg(feature = "fulltext-search")]
     pub fn sync_coordinator(&self) -> &Arc<SyncCoordinator> {
-        &self.sync_coordinator
+        self.sync_coordinator
+            .as_ref()
+            .expect("SyncCoordinator not available without fulltext-search feature")
     }
 
     #[cfg(feature = "qdrant")]
@@ -590,18 +570,19 @@ impl SyncManager {
         self.vector_coordinator.as_ref()
     }
 
-    /// Get the fulltext manager directly
+    #[cfg(feature = "fulltext-search")]
     pub fn fulltext_manager(&self) -> Arc<crate::search::manager::FulltextIndexManager> {
-        self.sync_coordinator.fulltext_manager().clone()
+        self.sync_coordinator
+            .as_ref()
+            .expect("SyncCoordinator not available without fulltext-search feature")
+            .fulltext_manager()
+            .clone()
     }
 
     pub fn is_running(&self) -> bool {
         self.running.load(std::sync::atomic::Ordering::SeqCst)
     }
 
-    // Dead Letter Queue Management API
-
-    /// Get all dead letter entries
     pub fn get_dead_letter_entries(&self) -> Vec<crate::sync::DeadLetterEntry> {
         if let Some(ref dlq) = self.dead_letter_queue {
             dlq.get_all()
@@ -610,7 +591,6 @@ impl SyncManager {
         }
     }
 
-    /// Get unrecovered dead letter entries
     pub fn get_unrecovered_entries(&self) -> Vec<crate::sync::DeadLetterEntry> {
         if let Some(ref dlq) = self.dead_letter_queue {
             dlq.get_unrecovered()
@@ -619,7 +599,6 @@ impl SyncManager {
         }
     }
 
-    /// Get old dead letter entries (older than specified duration)
     pub fn get_old_dead_letter_entries(
         &self,
         age: std::time::Duration,
@@ -631,7 +610,6 @@ impl SyncManager {
         }
     }
 
-    /// Remove a dead letter entry by index
     pub fn remove_dead_letter_entry(&self, index: usize) -> Option<crate::sync::DeadLetterEntry> {
         if let Some(ref dlq) = self.dead_letter_queue {
             dlq.remove(index)
@@ -640,7 +618,6 @@ impl SyncManager {
         }
     }
 
-    /// Get dead letter queue size
     pub fn get_dlq_size(&self) -> usize {
         if let Some(ref dlq) = self.dead_letter_queue {
             dlq.get_all().len()
@@ -649,7 +626,6 @@ impl SyncManager {
         }
     }
 
-    /// Get unrecovered dead letter queue size
     pub fn get_unrecovered_dlq_size(&self) -> usize {
         if let Some(ref dlq) = self.dead_letter_queue {
             dlq.get_unrecovered().len()
@@ -658,9 +634,6 @@ impl SyncManager {
         }
     }
 
-    // ===== Unified Index Management API =====
-
-    /// Check if vector index exists
     #[cfg(feature = "qdrant")]
     pub fn vector_index_exists(&self, space_id: u64, tag_name: &str, field_name: &str) -> bool {
         if let Some(ref vector_coord) = self.vector_coordinator {
@@ -670,7 +643,6 @@ impl SyncManager {
         }
     }
 
-    /// Create vector index
     #[cfg(feature = "qdrant")]
     pub async fn create_vector_index(
         &self,
@@ -692,7 +664,6 @@ impl SyncManager {
         }
     }
 
-    /// Drop vector index
     #[cfg(feature = "qdrant")]
     pub async fn drop_vector_index(
         &self,
@@ -712,7 +683,6 @@ impl SyncManager {
         }
     }
 
-    /// Search vector index
     #[cfg(feature = "qdrant")]
     pub async fn search_vector(
         &self,
@@ -742,11 +712,42 @@ impl SyncManager {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct EdgeRef<'a> {
+    pub src: &'a Value,
+    pub dst: &'a Value,
+    pub edge_type: &'a str,
+}
+
+impl<'a> EdgeRef<'a> {
+    pub fn new(src: &'a Value, dst: &'a Value, edge_type: &'a str) -> Self {
+        Self { src, dst, edge_type }
+    }
+
+    pub fn id(&self) -> String {
+        format!("{}->{}", self.src, self.dst)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EdgeProps<'a> {
+    pub old: &'a [(String, Value)],
+    pub new: &'a [(String, Value)],
+}
+
+impl<'a> EdgeProps<'a> {
+    pub fn new(old: &'a [(String, Value)], new: &'a [(String, Value)]) -> Self {
+        Self { old, new }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
+    #[cfg(feature = "fulltext-search")]
     #[error("Coordinator error: {0}")]
     CoordinatorError(#[from] CoordinatorError),
 
+    #[cfg(feature = "fulltext-search")]
     #[error("Sync coordinator error: {0}")]
     SyncCoordinatorError(#[from] crate::sync::coordinator::SyncCoordinatorError),
 

@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use crate::search::SearchError;
+#[cfg(feature = "fulltext-search")]
 use crate::sync::coordinator::CoordinatorError;
 
 #[derive(Debug, Error)]
@@ -14,6 +15,7 @@ pub enum BatchError {
     #[error("Queue is closed")]
     QueueClosed,
 
+    #[cfg(feature = "fulltext-search")]
     #[error("Coordinator error: {0}")]
     CoordinatorError(#[from] CoordinatorError),
 

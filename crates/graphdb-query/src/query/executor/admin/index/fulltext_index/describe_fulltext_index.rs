@@ -8,6 +8,7 @@ use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::DataSet;
+#[cfg(feature = "fulltext-search")]
 use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 

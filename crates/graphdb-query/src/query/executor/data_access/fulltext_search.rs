@@ -14,6 +14,7 @@ use crate::query::parser::ast::fulltext::{
     SearchStatement, WhereCondition, YieldExpression,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
+#[cfg(feature = "fulltext-search")]
 use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageReader;
 use parking_lot::RwLock;

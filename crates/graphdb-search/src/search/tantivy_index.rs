@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
@@ -14,10 +13,10 @@ use tantivy::IndexWriter;
 use tantivy::TantivyDocument;
 
 #[cfg(feature = "jieba")]
-use graphdb_fulltext_client::JiebaTokenizer;
+use crate::search::jieba_tokenizer::JiebaTokenizer;
 
 use crate::core::Value;
-use crate::search::engine::{ConsistencyState, SearchEngine};
+use crate::search::engine::ConsistencyState;
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
 
@@ -46,10 +45,7 @@ pub struct TantivySearchEngine {
     text_field: Field,
     writer: Arc<Mutex<IndexWriter>>,
     reader: Arc<tantivy::IndexReader>,
-    /// Consistency tracking:
-    ///   0 = Consistent, 1 = Inconsistent, 2 = Rebuilding
     consistency_state: AtomicU8,
-    /// Cached stats to avoid directory I/O on every stats() call.
     cached_doc_count: AtomicU64,
     cached_index_size: AtomicU64,
     last_stats_update: std::sync::Mutex<Option<Instant>>,
@@ -62,9 +58,6 @@ impl std::fmt::Debug for TantivySearchEngine {
 }
 
 impl TantivySearchEngine {
-    /// Execute a writer operation on the blocking thread pool.
-    /// This prevents tantivy's CPU/IO-bound IndexWriter operations
-    /// from starving tokio's async worker threads.
     async fn with_writer<F, T>(&self, f: F) -> Result<T, SearchError>
     where
         F: FnOnce(&mut IndexWriter) -> Result<T, tantivy::TantivyError> + Send + 'static,
@@ -80,7 +73,6 @@ impl TantivySearchEngine {
         .map_err(SearchError::from)
     }
 
-    /// Recompute cached stats from the index reader and directory.
     fn refresh_stats_cache(&self) {
         {
             let searcher = self.reader.searcher();
@@ -119,9 +111,6 @@ impl TantivySearchEngine {
             tantivy::Index::create_in_dir(path, schema.clone())?
         };
 
-        // Register jieba unconditionally for backward compatibility with existing
-        // indexes whose schema may reference "jieba". Tantivy's default TokenizerManager
-        // auto-registers "raw", "default", and "whitespace".
         #[cfg(feature = "jieba")]
         if config.tokenizer == TokenizerKind::Jieba {
             index
@@ -131,9 +120,6 @@ impl TantivySearchEngine {
 
         let writer = index.writer(config.writer_memory_budget)?;
 
-        // Create a cached IndexReader with OnCommitWithDelay policy.
-        // This reader auto-refreshes when meta.json changes (i.e., after a commit),
-        // so we don't need to create a new reader on every search call.
         let reader = index
             .reader_builder()
             .reload_policy(tantivy::ReloadPolicy::OnCommitWithDelay)
@@ -155,19 +141,16 @@ impl TantivySearchEngine {
             last_stats_update: std::sync::Mutex::new(None),
         })
     }
-}
 
-#[async_trait]
-impl SearchEngine for TantivySearchEngine {
-    fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         "tantivy"
     }
 
-    fn version(&self) -> &str {
+    pub fn version(&self) -> &str {
         "0.26.0"
     }
 
-    async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
+    pub async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
         let id_field = self.id_field;
         let text_field = self.text_field;
         let doc_id = doc_id.to_string();
@@ -181,7 +164,7 @@ impl SearchEngine for TantivySearchEngine {
         .await
     }
 
-    async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
+    pub async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
         let id_field = self.id_field;
         let text_field = self.text_field;
         let docs_clone = docs.clone();
@@ -196,7 +179,7 @@ impl SearchEngine for TantivySearchEngine {
         .await
     }
 
-    async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
+    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         if limit == 0 {
             return Ok(Vec::new());
         }
@@ -211,7 +194,6 @@ impl SearchEngine for TantivySearchEngine {
         let top_docs =
             searcher.search(&query, &TopDocs::with_limit(limit).order_by_score())?;
 
-        // Create snippet generator for highlight extraction.
         let snippet_generator =
             tantivy::snippet::SnippetGenerator::create(&searcher, &*query, self.text_field)?;
 
@@ -224,7 +206,6 @@ impl SearchEngine for TantivySearchEngine {
                 .unwrap_or("")
                 .to_string();
 
-            // Generate highlight snippet from the stored text field.
             let highlights = doc
                 .get_first(self.text_field)
                 .and_then(|v| SchemaValue::as_str(&v))
@@ -241,7 +222,7 @@ impl SearchEngine for TantivySearchEngine {
         Ok(results)
     }
 
-    async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
+    pub async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
         let id_field = self.id_field;
         let doc_id = doc_id.to_string();
         self.with_writer(move |writer| {
@@ -251,7 +232,7 @@ impl SearchEngine for TantivySearchEngine {
         .await
     }
 
-    async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
+    pub async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
         let id_field = self.id_field;
         let ids: Vec<String> = doc_ids.into_iter().map(|s| s.to_string()).collect();
         self.with_writer(move |writer| {
@@ -263,7 +244,7 @@ impl SearchEngine for TantivySearchEngine {
         .await
     }
 
-    async fn commit(&self) -> Result<(), SearchError> {
+    pub async fn commit(&self) -> Result<(), SearchError> {
         self.with_writer(move |writer| {
             writer.commit()?;
             Ok(())
@@ -274,18 +255,14 @@ impl SearchEngine for TantivySearchEngine {
         Ok(())
     }
 
-    async fn rollback(&self) -> Result<(), SearchError> {
+    pub async fn rollback(&self) -> Result<(), SearchError> {
         self.with_writer(move |_writer| {
-            // tantivy does not support rollback.
-            // The transaction buffer (TransactionBatchBuffer) provides
-            // in-memory protection before commit. If a commit has already
-            // occurred, the index state is intentionally unchanged.
             Ok(())
         })
         .await
     }
 
-    async fn stats(&self) -> Result<IndexStats, SearchError> {
+    pub async fn stats(&self) -> Result<IndexStats, SearchError> {
         const STATS_CACHE_TTL_SECS: u64 = 5;
 
         let needs_refresh = self
@@ -308,7 +285,7 @@ impl SearchEngine for TantivySearchEngine {
         })
     }
 
-    fn consistency_state(&self) -> ConsistencyState {
+    pub fn consistency_state(&self) -> ConsistencyState {
         match self.consistency_state.load(Ordering::Acquire) {
             0 => ConsistencyState::Consistent,
             1 => ConsistencyState::Inconsistent,
@@ -316,15 +293,15 @@ impl SearchEngine for TantivySearchEngine {
         }
     }
 
-    fn mark_inconsistent(&self) {
+    pub fn mark_inconsistent(&self) {
         self.consistency_state.store(1, Ordering::Release);
     }
 
-    fn mark_consistent(&self) {
+    pub fn mark_consistent(&self) {
         self.consistency_state.store(0, Ordering::Release);
     }
 
-    async fn clear(&self) -> Result<(), SearchError> {
+    pub async fn clear(&self) -> Result<(), SearchError> {
         self.with_writer(move |writer| {
             writer.delete_all_documents()?;
             writer.commit()?;
@@ -333,7 +310,7 @@ impl SearchEngine for TantivySearchEngine {
         .await
     }
 
-    async fn close(&self) -> Result<(), SearchError> {
+    pub async fn close(&self) -> Result<(), SearchError> {
         self.commit().await?;
         Ok(())
     }

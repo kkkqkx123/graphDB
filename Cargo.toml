@@ -10,7 +10,6 @@ members = [
     "crates/graphdb-storage",
     "crates/graphdb-query",
     "crates/graphdb-api",
-    "crates/fulltext-client",
     "crates/vector-client",
     "graphdb-cli",
 ]

@@ -60,6 +60,11 @@ qdrant = [
     "graphdb-sync/qdrant",
     "graphdb-query/qdrant",
 ]
+fulltext-search = [
+    "graphdb-search/fulltext-search",
+    "graphdb-sync/fulltext-search",
+    "graphdb-query/fulltext-search",
+]
 embedded = []
 
 [dev-dependencies]

@@ -13,16 +13,21 @@ use crate::query::executor::admin::AnalyzeExecutor;
 use crate::query::executor::base::VectorManageExecutor;
 use crate::query::executor::base::{
     BaseExecutor, DBResult, EdgeManageExecutor, ExecutionResult, Executor, ExecutorStats,
-    FulltextManageExecutor, IndexManageExecutor, InputExecutor, SpaceManageExecutor, StartExecutor,
-    TagManageExecutor, UserManageExecutor,
+    IndexManageExecutor, InputExecutor, SpaceManageExecutor, StartExecutor, TagManageExecutor,
+    UserManageExecutor,
 };
+#[cfg(feature = "fulltext-search")]
+use crate::query::executor::base::FulltextManageExecutor;
 use crate::query::executor::control_flow::{
     ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor,
 };
 use crate::query::executor::data_access::{
-    FulltextScanExecutor, FulltextSearchExecutor, GetEdgesExecutor, GetNeighborsExecutor,
-    GetPropExecutor, GetVerticesExecutor, IndexScanExecutor, MatchFulltextExecutor,
+    GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor, IndexScanExecutor,
     ScanEdgesExecutor, ScanVerticesExecutor,
+};
+#[cfg(feature = "fulltext-search")]
+use crate::query::executor::data_access::{
+    FulltextScanExecutor, FulltextSearchExecutor, MatchFulltextExecutor,
 };
 #[cfg(feature = "qdrant")]
 use crate::query::executor::data_access::{
@@ -124,6 +129,7 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     EdgeManage(EdgeManageExecutor<S>),
     IndexManage(IndexManageExecutor<S>),
     UserManage(UserManageExecutor<S>),
+    #[cfg(feature = "fulltext-search")]
     FulltextManage(FulltextManageExecutor<S>),
     #[cfg(feature = "qdrant")]
     VectorManage(VectorManageExecutor<S>),
@@ -133,8 +139,11 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     Analyze(AnalyzeExecutor<S>),
 
     // Full-text Search Executors (data access)
+    #[cfg(feature = "fulltext-search")]
     FulltextSearch(FulltextSearchExecutor<S>),
+    #[cfg(feature = "fulltext-search")]
     FulltextLookup(FulltextScanExecutor<S>),
+    #[cfg(feature = "fulltext-search")]
     MatchFulltext(MatchFulltextExecutor<S>),
 
     // Vector Search Executors (data access)
@@ -212,6 +221,7 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::EdgeManage(exec) => ("EdgeManage", exec.name()),
             ExecutorEnum::IndexManage(exec) => ("IndexManage", exec.name()),
             ExecutorEnum::UserManage(exec) => ("UserManage", exec.name()),
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextManage(exec) => ("FulltextManage", exec.name()),
             #[cfg(feature = "qdrant")]
             ExecutorEnum::VectorManage(exec) => ("VectorManage", exec.name()),
@@ -219,8 +229,11 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::ShowStats(exec) => ("ShowStats", exec.name()),
             ExecutorEnum::Analyze(exec) => ("Analyze", exec.name()),
             // Full-text Search Executors (data access)
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextSearch(exec) => ("FulltextSearch", exec.name()),
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextLookup(exec) => ("FulltextLookup", exec.name()),
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::MatchFulltext(exec) => ("MatchFulltext", exec.name()),
             // Vector Search Executors (data access)
             #[cfg(feature = "qdrant")]
@@ -424,6 +437,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::EdgeManage(e) => e.node_type_id(),
             ExecutorEnum::IndexManage(e) => e.node_type_id(),
             ExecutorEnum::UserManage(e) => e.node_type_id(),
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextManage(e) => e.node_type_id(),
             #[cfg(feature = "qdrant")]
             ExecutorEnum::VectorManage(e) => e.node_type_id(),
@@ -434,8 +448,11 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::PipeDelete(_) => "pipe_delete",
             ExecutorEnum::Update(_) => "update",
             // Full-text Search Executors (data access)
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextSearch(_) => "fulltext_search",
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextLookup(_) => "fulltext_lookup",
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::MatchFulltext(_) => "match_fulltext",
             // Vector Search Executors (data access)
             #[cfg(feature = "qdrant")]
@@ -509,6 +526,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::EdgeManage(e) => e.node_type_name(),
             ExecutorEnum::IndexManage(e) => e.node_type_name(),
             ExecutorEnum::UserManage(e) => e.node_type_name(),
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextManage(e) => e.node_type_name(),
             #[cfg(feature = "qdrant")]
             ExecutorEnum::VectorManage(e) => e.node_type_name(),
@@ -519,8 +537,11 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::PipeDelete(_) => "Pipe Delete",
             ExecutorEnum::Update(_) => "Update",
             // Full-text Search Executors (data access)
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextSearch(_) => "Fulltext Search",
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextLookup(_) => "Fulltext Lookup",
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::MatchFulltext(_) => "Match Fulltext",
             // Vector Search Executors (data access)
             #[cfg(feature = "qdrant")]
@@ -594,6 +615,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::EdgeManage(_) => NodeCategory::Admin,
             ExecutorEnum::IndexManage(_) => NodeCategory::Admin,
             ExecutorEnum::UserManage(_) => NodeCategory::Admin,
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextManage(_) => NodeCategory::Admin,
             #[cfg(feature = "qdrant")]
             ExecutorEnum::VectorManage(_) => NodeCategory::Admin,
@@ -604,8 +626,11 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::PipeDelete(_) => NodeCategory::Admin,
             ExecutorEnum::Update(_) => NodeCategory::Admin,
             // Full-text Search Executors (data access)
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextSearch(_) => NodeCategory::Scan,
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::FulltextLookup(_) => NodeCategory::Scan,
+            #[cfg(feature = "fulltext-search")]
             ExecutorEnum::MatchFulltext(_) => NodeCategory::Scan,
             // Vector Search Executors (data access)
             #[cfg(feature = "qdrant")]
@@ -687,6 +712,7 @@ mod macros {
                 ExecutorEnum::EdgeManage(exec) => exec.$method(),
                 ExecutorEnum::IndexManage(exec) => exec.$method(),
                 ExecutorEnum::UserManage(exec) => exec.$method(),
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::FulltextManage(exec) => exec.$method(),
                 #[cfg(feature = "qdrant")]
                 ExecutorEnum::VectorManage(exec) => exec.$method(),
@@ -694,8 +720,11 @@ mod macros {
                 ExecutorEnum::ShowStats(exec) => exec.$method(),
                 ExecutorEnum::Analyze(exec) => exec.$method(),
                 // Full-text Search Executors (data access)
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::FulltextSearch(exec) => exec.$method(),
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::FulltextLookup(exec) => exec.$method(),
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::MatchFulltext(exec) => exec.$method(),
                 // Vector Search Executors (data access)
                 #[cfg(feature = "qdrant")]
@@ -775,6 +804,7 @@ mod macros {
                 ExecutorEnum::EdgeManage(exec) => exec.$method(),
                 ExecutorEnum::IndexManage(exec) => exec.$method(),
                 ExecutorEnum::UserManage(exec) => exec.$method(),
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::FulltextManage(exec) => exec.$method(),
                 #[cfg(feature = "qdrant")]
                 ExecutorEnum::VectorManage(exec) => exec.$method(),
@@ -782,8 +812,11 @@ mod macros {
                 ExecutorEnum::ShowStats(exec) => exec.$method(),
                 ExecutorEnum::Analyze(exec) => exec.$method(),
                 // Full-text Search Executors (data access)
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::FulltextSearch(exec) => exec.$method(),
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::FulltextLookup(exec) => exec.$method(),
+                #[cfg(feature = "fulltext-search")]
                 ExecutorEnum::MatchFulltext(exec) => exec.$method(),
                 // Vector Search Executors (data access)
                 #[cfg(feature = "qdrant")]

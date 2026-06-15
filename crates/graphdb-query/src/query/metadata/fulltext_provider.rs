@@ -4,6 +4,7 @@ use crate::query::metadata::provider::MetadataProviderError;
 use crate::query::metadata::{
     EdgeTypeMetadata, IndexMetadata, IndexType, MetadataProvider, TagMetadata,
 };
+#[cfg(feature = "fulltext-search")]
 use crate::search::manager::FulltextIndexManager;
 
 pub struct FulltextIndexMetadataProvider {

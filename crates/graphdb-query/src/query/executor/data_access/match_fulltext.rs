@@ -13,6 +13,7 @@ use crate::query::parser::ast::fulltext::{
     FulltextMatchCondition, FulltextYieldClause, YieldExpression,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
+#[cfg(feature = "fulltext-search")]
 use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageReader;
 

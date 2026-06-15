@@ -10,6 +10,7 @@ use crate::query::parser::ast::{IndexFieldDef, IndexOptions};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::search::engine::EngineType;
 use crate::search::error::SearchError;
+#[cfg(feature = "fulltext-search")]
 use crate::search::manager::FulltextIndexManager;
 use crate::storage::StorageClient;
 

@@ -43,6 +43,7 @@ impl SyncApi {
     }
 
     /// Get sync coordinator
+    #[cfg(feature = "fulltext-search")]
     pub fn sync_coordinator(&self) -> &Arc<crate::sync::SyncCoordinator> {
         self.sync_manager.sync_coordinator()
     }

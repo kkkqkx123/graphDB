@@ -30,12 +30,15 @@ pub use self::edge::{
 pub use self::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp};
 
 pub use self::index::{
-    AlterFulltextIndexExecutor, CreateEdgeIndexExecutor, CreateFulltextIndexConfig,
-    CreateFulltextIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor,
-    DescTagIndexExecutor, DescribeFulltextIndexExecutor, DropEdgeIndexExecutor,
-    DropFulltextIndexExecutor, DropTagIndexExecutor, RebuildEdgeIndexExecutor,
-    RebuildTagIndexExecutor, ShowEdgeIndexesExecutor, ShowFulltextIndexExecutor,
-    ShowTagIndexStatusExecutor, ShowTagIndexesExecutor,
+    CreateEdgeIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor, DescTagIndexExecutor,
+    DropEdgeIndexExecutor, DropTagIndexExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor,
+    ShowEdgeIndexesExecutor, ShowTagIndexStatusExecutor, ShowTagIndexesExecutor,
+};
+
+#[cfg(feature = "fulltext-search")]
+pub use self::index::{
+    AlterFulltextIndexExecutor, CreateFulltextIndexConfig, CreateFulltextIndexExecutor,
+    DescribeFulltextIndexExecutor, DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
 };
 
 pub use self::user::{

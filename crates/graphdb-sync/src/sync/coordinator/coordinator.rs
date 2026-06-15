@@ -1,3 +1,5 @@
+#![cfg(feature = "fulltext-search")]
+
 use std::sync::Arc;
 use std::time::Instant;
 

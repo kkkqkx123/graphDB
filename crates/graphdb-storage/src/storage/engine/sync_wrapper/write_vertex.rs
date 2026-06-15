@@ -2,7 +2,7 @@ use super::SyncWrapper;
 use crate::core::types::VertexId;
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::{StorageClient, StorageTransactionContextOps};
-use crate::sync::coordinator::ChangeType;
+use crate::sync::types::ChangeType;
 
 impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
     fn detect_changed_properties(

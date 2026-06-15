@@ -33,12 +33,12 @@ pub enum VectorChangeType {
     Delete,
 }
 
-impl From<crate::sync::coordinator::ChangeType> for VectorChangeType {
-    fn from(ct: crate::sync::coordinator::ChangeType) -> Self {
+impl From<crate::sync::types::ChangeType> for VectorChangeType {
+    fn from(ct: crate::sync::types::ChangeType) -> Self {
         match ct {
-            crate::sync::coordinator::ChangeType::Insert
-            | crate::sync::coordinator::ChangeType::Update => VectorChangeType::Insert,
-            crate::sync::coordinator::ChangeType::Delete => VectorChangeType::Delete,
+            crate::sync::types::ChangeType::Insert
+            | crate::sync::types::ChangeType::Update => VectorChangeType::Insert,
+            crate::sync::types::ChangeType::Delete => VectorChangeType::Delete,
         }
     }
 }

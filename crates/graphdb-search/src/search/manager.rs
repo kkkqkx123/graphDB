@@ -6,19 +6,18 @@ use std::sync::Arc;
 use crate::core::metadata::SchemaManager;
 use crate::core::stats::StatsManager;
 use crate::search::config::FulltextConfig;
-use crate::search::engine::{ConsistencyState, EngineType, SearchEngine};
+use crate::search::engine::{ConsistencyState, EngineType};
 use crate::search::error::SearchError;
-#[cfg(feature = "fulltext-search")]
-use crate::search::factory::SearchEngineFactory;
 use crate::search::metadata::{IndexKey, IndexMetadata, IndexStatus};
 use crate::search::metrics::MetricsSearchEngine;
 use crate::search::result::{IndexStats, SearchResult};
+use crate::search::tantivy_index::TantivySearchEngine;
 
 const METADATA_FILE_NAME: &str = "fulltext_metadata.json";
 
 #[derive(Debug)]
 pub struct FulltextIndexManager {
-    engines: DashMap<IndexKey, Arc<dyn SearchEngine>>,
+    engines: DashMap<IndexKey, Arc<TantivySearchEngine>>,
     metadata: DashMap<IndexKey, IndexMetadata>,
     base_path: PathBuf,
     #[cfg(feature = "fulltext-search")]
@@ -109,20 +108,17 @@ impl FulltextIndexManager {
     fn try_restore_bm25_index(
         &self,
         path: &std::path::Path,
-    ) -> Option<(IndexKey, Arc<dyn SearchEngine>, IndexMetadata)> {
+    ) -> Option<(IndexKey, Arc<TantivySearchEngine>, IndexMetadata)> {
         let dir_name = path.file_name()?.to_string_lossy();
         let (space_id, tag_name, field_name) = self.parse_index_id(&dir_name)?;
 
-        let engine = SearchEngineFactory::from_config(
-            EngineType::Bm25,
-            &dir_name,
-            &self.base_path,
-            &self.config,
+        let engine = TantivySearchEngine::open_or_create(
+            &self.base_path.join(&*dir_name),
+            self.config.tantivy.clone(),
         )
         .ok()?;
 
-        let engine = self.wrap_engine(engine, EngineType::Bm25, space_id, &tag_name, &field_name);
-
+        let engine = Arc::new(engine);
         let key = IndexKey::new(space_id, &tag_name, &field_name);
         let metadata = IndexMetadata {
             index_id: dir_name.to_string(),
@@ -160,22 +156,12 @@ impl FulltextIndexManager {
     fn restore_index_from_metadata(&self, metadata: &IndexMetadata) -> Result<(), SearchError> {
         let key = IndexKey::new(metadata.space_id, &metadata.tag_name, &metadata.field_name);
 
-        let engine = SearchEngineFactory::from_config(
-            metadata.engine_type,
-            &metadata.index_id,
-            &self.base_path,
-            &self.config,
+        let engine = TantivySearchEngine::open_or_create(
+            &self.base_path.join(&metadata.index_id),
+            self.config.tantivy.clone(),
         )?;
 
-        let engine = self.wrap_engine(
-            engine,
-            metadata.engine_type,
-            metadata.space_id,
-            &metadata.tag_name,
-            &metadata.field_name,
-        );
-
-        self.engines.insert(key.clone(), engine);
+        self.engines.insert(key.clone(), Arc::new(engine));
         self.metadata.insert(key, metadata.clone());
 
         Ok(())
@@ -226,56 +212,8 @@ impl FulltextIndexManager {
         self.schema_manager = Some(schema_manager);
     }
 
-    /// Inject StatsManager after construction and re-wrap all existing engines.
-    ///
-    /// This is used when StatsManager is created after FulltextIndexManager
-    /// (e.g., during service startup). Existing engines that are not already
-    /// wrapped by MetricsSearchEngine will be re-wrapped to enable metrics collection.
     pub fn set_stats_manager(&self, stats_manager: Arc<StatsManager>) {
         *self.stats_manager.lock() = Some(stats_manager);
-
-        let keys: Vec<IndexKey> = self.engines.iter().map(|e| e.key().clone()).collect();
-        for key in keys {
-            if let Some(metadata) = self.metadata.get(&key) {
-                if let Some((_, engine)) = self.engines.remove(&key) {
-                    if !engine.is_metrics_wrapped() {
-                        let wrapped = self.wrap_engine(
-                            engine,
-                            metadata.engine_type,
-                            metadata.space_id,
-                            &metadata.tag_name,
-                            &metadata.field_name,
-                        );
-                        self.engines.insert(key, wrapped);
-                    } else {
-                        self.engines.insert(key, engine);
-                    }
-                }
-            }
-        }
-    }
-
-    fn wrap_engine(
-        &self,
-        engine: Arc<dyn SearchEngine>,
-        engine_type: EngineType,
-        space_id: u64,
-        tag_name: &str,
-        field_name: &str,
-    ) -> Arc<dyn SearchEngine> {
-        if let Some(ref stats_manager) = *self.stats_manager.lock() {
-            let index_name = format!("{}_{}_{}", space_id, tag_name, field_name);
-            let wrapped = MetricsSearchEngine::new(
-                engine,
-                Arc::clone(stats_manager),
-                engine_type,
-                space_id,
-                index_name,
-            );
-            Arc::new(wrapped)
-        } else {
-            engine
-        }
     }
 
     fn validate_space_exists(&self, space_id: u64) -> Result<(), SearchError> {
@@ -358,7 +296,6 @@ impl FulltextIndexManager {
         field_name: &str,
         engine_type: Option<EngineType>,
     ) -> Result<String, SearchError> {
-        // Use default display name since no user-specified name is provided
         let display_name = format!("idx_{}_{}_{}", space_id, tag_name, field_name);
         self.create_index_with_engine_config(space_id, tag_name, field_name, &display_name, engine_type, None)
             .await
@@ -387,18 +324,14 @@ impl FulltextIndexManager {
 
         #[cfg(feature = "fulltext-search")]
         {
-            let engine_type = engine_type.unwrap_or(self.default_engine);
+            let _engine_type = engine_type.unwrap_or(self.default_engine);
             let storage_path = self.get_space_storage_path(space_id)?;
 
-            let engine = {
-                let engine = SearchEngineFactory::from_config(
-                    engine_type,
-                    &index_id,
-                    &storage_path,
-                    &self.config,
-                )?;
-                self.wrap_engine(engine, engine_type, space_id, tag_name, field_name)
-            };
+            let engine = TantivySearchEngine::open_or_create(
+                &storage_path.join(&index_id),
+                self.config.tantivy.clone(),
+            )?;
+            let engine = Arc::new(engine);
 
             let metadata = IndexMetadata {
                 index_id: index_id.clone(),
@@ -406,7 +339,7 @@ impl FulltextIndexManager {
                 space_id,
                 tag_name: tag_name.to_string(),
                 field_name: field_name.to_string(),
-                engine_type,
+                engine_type: _engine_type,
                 storage_path: storage_path.join(&index_id).to_string_lossy().to_string(),
                 created_at: chrono::Utc::now(),
                 last_updated: chrono::Utc::now(),
@@ -437,9 +370,28 @@ impl FulltextIndexManager {
         space_id: u64,
         tag_name: &str,
         field_name: &str,
-    ) -> Option<Arc<dyn SearchEngine>> {
+    ) -> Option<Arc<TantivySearchEngine>> {
         let key = IndexKey::new(space_id, tag_name, field_name);
         self.engines.get(&key).map(|e| Arc::clone(&*e))
+    }
+
+    pub fn get_metrics_engine(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        field_name: &str,
+    ) -> Option<Arc<MetricsSearchEngine>> {
+        let key = IndexKey::new(space_id, tag_name, field_name);
+        let engine = self.engines.get(&key)?;
+        let stats_manager = self.stats_manager.lock();
+        let sm = stats_manager.as_ref()?;
+        let index_name = format!("{}_{}_{}", space_id, tag_name, field_name);
+        Some(Arc::new(MetricsSearchEngine::new(
+            Arc::clone(&*engine),
+            Arc::clone(sm),
+            space_id,
+            index_name,
+        )))
     }
 
     pub fn get_metadata(
@@ -547,7 +499,6 @@ impl FulltextIndexManager {
             .collect()
     }
 
-    /// 为边属性建立索引
     pub async fn index_edge_property(
         &self,
         space_id: u64,
@@ -561,18 +512,15 @@ impl FulltextIndexManager {
         if let Some(engine) = self.engines.get(&key) {
             engine.index(doc_id, text).await?;
         }
-        // 如果索引不存在，静默忽略（边可能没有配置全文索引）
         Ok(())
     }
 
-    /// 删除边的所有全文索引
     pub async fn delete_edge_index(
         &self,
         space_id: u64,
         edge_type: &str,
         doc_id: &str,
     ) -> Result<(), SearchError> {
-        // 获取该边类型的所有字段索引
         let edge_indexes: Vec<_> = self
             .metadata
             .iter()
@@ -582,17 +530,15 @@ impl FulltextIndexManager {
             .map(|entry| entry.key().clone())
             .collect();
 
-        // 删除每个字段索引中的边文档
         for key in edge_indexes {
             if let Some(engine) = self.engines.get(&key) {
-                engine.delete(doc_id).await.ok(); // 忽略删除失败
+                engine.delete(doc_id).await.ok();
             }
         }
 
         Ok(())
     }
 
-    /// Return all indexes whose consistency state is Inconsistent.
     pub fn get_inconsistent_indexes(&self) -> Vec<IndexMetadata> {
         self.metadata
             .iter()
@@ -605,10 +551,6 @@ impl FulltextIndexManager {
             .collect()
     }
 
-    /// Rebuild an index by clearing all documents and marking it consistent.
-    ///
-    /// After calling this, the index is empty but healthy. The caller
-    /// should re-index all relevant data from the main storage.
     pub async fn rebuild_index(
         &self,
         space_id: u64,
@@ -642,10 +584,6 @@ impl FulltextIndexManager {
         Ok(())
     }
 
-    /// Drop all indexes for a space
-    ///
-    /// This method should be called when dropping a space to ensure
-    /// all associated index data is cleaned up.
     pub async fn drop_space_indexes(&self, space_id: u64) -> Result<(), SearchError> {
         let space_indexes: Vec<(IndexKey, IndexMetadata)> = self
             .metadata

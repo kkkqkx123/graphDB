@@ -112,56 +112,52 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     );
 
     let storage = if config.fulltext.enabled || config.is_vector_enabled() {
-        use crate::search::manager::FulltextIndexManager;
-        use crate::search::FulltextConfig;
-        use crate::sync::{SyncConfig, SyncManager};
+        use crate::sync::SyncManager;
 
-        let (_coordinator, sync_manager) = if config.fulltext.enabled {
-            let manager = Arc::new(
-                FulltextIndexManager::new(config.fulltext.clone())
-                    .expect("Failed to create FulltextIndexManager"),
-            );
+        let sync_manager = if config.fulltext.enabled {
+            #[cfg(feature = "fulltext-search")]
+            {
+                use crate::search::manager::FulltextIndexManager;
 
-            use crate::search::SyncFailurePolicy;
+                let manager = Arc::new(
+                    FulltextIndexManager::new(config.fulltext.clone())
+                        .expect("Failed to create FulltextIndexManager"),
+                );
 
-            let sync_config = SyncConfig {
-                queue_size: 10000,
-                commit_interval_ms: 1000,
-                batch_size: 100,
-                failure_policy: SyncFailurePolicy::FailOpen,
-            };
+                use crate::search::{SyncConfig, SyncFailurePolicy};
 
-            let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
-            let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
-                manager.clone(),
-                batch_config,
-            ));
+                let sync_config = SyncConfig {
+                    queue_size: 10000,
+                    commit_interval_ms: 1000,
+                    batch_size: 100,
+                    failure_policy: SyncFailurePolicy::FailOpen,
+                };
 
-            let sync_manager = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
+                let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
+                let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
+                    manager.clone(),
+                    batch_config,
+                ));
 
-            #[cfg(feature = "qdrant")]
-            let sync_manager = setup_vector_sync(sync_manager, &config).await;
+                let sync_manager = SyncManager::with_sync_config(sync_coordinator, sync_config);
 
-            (sync_coordinator.clone(), Arc::new(sync_manager))
+                #[cfg(feature = "qdrant")]
+                let sync_manager = setup_vector_sync(sync_manager, &config).await;
+
+                Arc::new(sync_manager)
+            }
+            #[cfg(not(feature = "fulltext-search"))]
+            {
+                let sync_manager = SyncManager::new_without_fulltext();
+                #[cfg(feature = "qdrant")]
+                let sync_manager = setup_vector_sync(sync_manager, &config).await;
+                Arc::new(sync_manager)
+            }
         } else {
-            let manager = Arc::new(
-                FulltextIndexManager::new(FulltextConfig::default())
-                    .expect("Failed to create FulltextIndexManager"),
-            );
-
-            let sync_config = SyncConfig::default();
-            let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
-            let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
-                manager.clone(),
-                batch_config,
-            ));
-
-            let sync_manager = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
-
+            let sync_manager = SyncManager::new_without_fulltext();
             #[cfg(feature = "qdrant")]
             let sync_manager = setup_vector_sync(sync_manager, &config).await;
-
-            (sync_coordinator.clone(), Arc::new(sync_manager))
+            Arc::new(sync_manager)
         };
 
         info!("SyncManager initialized");
@@ -200,6 +196,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     info!("Graph service initialized with transaction management");
 
     // Inject StatsManager into FulltextIndexManager to enable search metrics
+    #[cfg(feature = "fulltext-search")]
     if let Some(sync_api) = graph_service.sync_api() {
         let fulltext_manager = sync_api.sync_manager().fulltext_manager();
         let stats_manager = graph_service.get_stats_manager().clone();

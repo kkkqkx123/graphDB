@@ -15,6 +15,7 @@
 use crate::query::executor::admin::edge::{
     AlterEdgeExecutor, CreateEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
 };
+#[cfg(feature = "fulltext-search")]
 use crate::query::executor::admin::index::{
     AlterFulltextIndexExecutor, CreateFulltextIndexExecutor, DescribeFulltextIndexExecutor,
     DropFulltextIndexExecutor, ShowFulltextIndexExecutor,
@@ -193,6 +194,7 @@ define_manage_executor_enum! {
     }
 }
 
+#[cfg(feature = "fulltext-search")]
 define_manage_executor_enum! {
     /// Fulltext index management executor sub-enum
     pub enum FulltextManageExecutor {

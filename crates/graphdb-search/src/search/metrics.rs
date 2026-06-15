@@ -1,62 +1,47 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use async_trait::async_trait;
-
 use crate::core::stats::StatsManager;
-use crate::search::engine::{ConsistencyState, EngineType, SearchEngine};
+use crate::search::engine::ConsistencyState;
 use crate::search::error::SearchError;
 use crate::search::result::{IndexStats, SearchResult};
+use crate::search::tantivy_index::TantivySearchEngine;
 
-/// A decorator that wraps a SearchEngine and records metrics via StatsManager.
-///
-/// This allows transparent instrumentation of search/index/delete operations
-/// without modifying the underlying engine implementations.
 pub struct MetricsSearchEngine {
-    inner: Arc<dyn SearchEngine>,
+    inner: Arc<TantivySearchEngine>,
     stats_manager: Arc<StatsManager>,
-    engine_type: EngineType,
     space_id: u64,
     index_name: String,
 }
 
 impl MetricsSearchEngine {
     pub fn new(
-        inner: Arc<dyn SearchEngine>,
+        inner: Arc<TantivySearchEngine>,
         stats_manager: Arc<StatsManager>,
-        engine_type: EngineType,
         space_id: u64,
         index_name: String,
     ) -> Self {
         Self {
             inner,
             stats_manager,
-            engine_type,
             space_id,
             index_name,
         }
     }
 
-    pub fn into_arc(self) -> Arc<dyn SearchEngine> {
+    pub fn into_arc(self) -> Arc<Self> {
         Arc::new(self)
     }
-}
 
-#[async_trait]
-impl SearchEngine for MetricsSearchEngine {
-    fn name(&self) -> &str {
-        self.inner.name()
+    pub fn name(&self) -> &str {
+        "tantivy"
     }
 
-    fn version(&self) -> &str {
-        self.inner.version()
+    pub fn version(&self) -> &str {
+        "0.26.0"
     }
 
-    fn is_metrics_wrapped(&self) -> bool {
-        true
-    }
-
-    async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
+    pub async fn index(&self, doc_id: &str, content: &str) -> Result<(), SearchError> {
         let start = Instant::now();
         let result = self.inner.index(doc_id, content).await;
         let latency_ms = start.elapsed().as_millis() as u64;
@@ -81,7 +66,7 @@ impl SearchEngine for MetricsSearchEngine {
         result
     }
 
-    async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
+    pub async fn index_batch(&self, docs: Vec<(String, String)>) -> Result<(), SearchError> {
         let start = Instant::now();
         let result = self.inner.index_batch(docs).await;
         let latency_ms = start.elapsed().as_millis() as u64;
@@ -106,7 +91,7 @@ impl SearchEngine for MetricsSearchEngine {
         result
     }
 
-    async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
+    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         let start = Instant::now();
         let result = self.inner.search(query, limit).await;
         let latency_ms = start.elapsed().as_millis() as u64;
@@ -131,7 +116,7 @@ impl SearchEngine for MetricsSearchEngine {
         result
     }
 
-    async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
+    pub async fn delete(&self, doc_id: &str) -> Result<(), SearchError> {
         let start = Instant::now();
         let result = self.inner.delete(doc_id).await;
         let latency_ms = start.elapsed().as_millis() as u64;
@@ -156,7 +141,7 @@ impl SearchEngine for MetricsSearchEngine {
         result
     }
 
-    async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
+    pub async fn delete_batch(&self, doc_ids: Vec<&str>) -> Result<(), SearchError> {
         let start = Instant::now();
         let result = self.inner.delete_batch(doc_ids).await;
         let latency_ms = start.elapsed().as_millis() as u64;
@@ -181,35 +166,35 @@ impl SearchEngine for MetricsSearchEngine {
         result
     }
 
-    async fn commit(&self) -> Result<(), SearchError> {
+    pub async fn commit(&self) -> Result<(), SearchError> {
         self.inner.commit().await
     }
 
-    async fn rollback(&self) -> Result<(), SearchError> {
+    pub async fn rollback(&self) -> Result<(), SearchError> {
         self.inner.rollback().await
     }
 
-    async fn stats(&self) -> Result<IndexStats, SearchError> {
+    pub async fn stats(&self) -> Result<IndexStats, SearchError> {
         self.inner.stats().await
     }
 
-    async fn close(&self) -> Result<(), SearchError> {
+    pub async fn close(&self) -> Result<(), SearchError> {
         self.inner.close().await
     }
 
-    fn consistency_state(&self) -> ConsistencyState {
+    pub fn consistency_state(&self) -> ConsistencyState {
         self.inner.consistency_state()
     }
 
-    fn mark_inconsistent(&self) {
+    pub fn mark_inconsistent(&self) {
         self.inner.mark_inconsistent();
     }
 
-    fn mark_consistent(&self) {
+    pub fn mark_consistent(&self) {
         self.inner.mark_consistent();
     }
 
-    async fn clear(&self) -> Result<(), SearchError> {
+    pub async fn clear(&self) -> Result<(), SearchError> {
         self.inner.clear().await
     }
 }
@@ -217,8 +202,6 @@ impl SearchEngine for MetricsSearchEngine {
 impl std::fmt::Debug for MetricsSearchEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MetricsSearchEngine")
-            .field("inner", &self.inner.name())
-            .field("engine_type", &self.engine_type)
             .field("space_id", &self.space_id)
             .field("index_name", &self.index_name)
             .finish()

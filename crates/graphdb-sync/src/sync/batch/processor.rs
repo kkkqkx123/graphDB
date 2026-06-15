@@ -1,22 +1,22 @@
+#![cfg(feature = "fulltext-search")]
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use dashmap::DashMap;
 use tokio::sync::Mutex;
 
 use super::buffer::BatchBuffer;
 use super::config::BatchConfig;
 use super::error::{BatchError, BatchResult};
 use super::trait_def::BatchProcessor;
-use crate::core::types::TransactionId;
-use crate::search::engine::SearchEngine;
-use crate::sync::types::{IndexOpKey, IndexOperation};
+use crate::search::tantivy_index::TantivySearchEngine;
+use crate::sync::types::IndexOperation;
 
 pub struct FulltextBatchProcessor {
     space_id: u64,
     tag_name: String,
     field_name: String,
-    engine: Arc<dyn SearchEngine>,
+    engine: Arc<TantivySearchEngine>,
     config: BatchConfig,
     buffer: Arc<BatchBuffer>,
     background_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
@@ -41,7 +41,7 @@ impl FulltextBatchProcessor {
         space_id: u64,
         tag_name: String,
         field_name: String,
-        engine: Arc<dyn SearchEngine>,
+        engine: Arc<TantivySearchEngine>,
         config: BatchConfig,
     ) -> Self {
         Self {
@@ -60,7 +60,7 @@ impl FulltextBatchProcessor {
         space_id: u64,
         tag_name: String,
         field_name: String,
-        engine: Arc<dyn SearchEngine>,
+        engine: Arc<TantivySearchEngine>,
     ) -> Self {
         Self {
             space_id,
@@ -101,22 +101,12 @@ impl FulltextBatchProcessor {
         Ok(())
     }
 
-    /// Execute a batch of operations immediately, bypassing the buffer.
-    ///
-    /// This is used for transactional commits where operations should be
-    /// applied directly without additional buffering, eliminating the
-    /// double-buffering between TransactionBatchBuffer and BatchBuffer.
     pub async fn execute_now(&self, operations: Vec<IndexOperation>) -> BatchResult<()> {
         self.execute_now_without_commit(operations).await?;
         self.engine.commit().await.map_err(BatchError::from)?;
         Ok(())
     }
 
-    /// Like `execute_now`, but does NOT commit.
-    ///
-    /// This allows multiple batch processors to accumulate changes
-    /// before a single final commit across all of them, enabling
-    /// atomic multi-index transactional commits.
     pub async fn execute_now_without_commit(
         &self,
         operations: Vec<IndexOperation>,
@@ -150,7 +140,7 @@ impl FulltextBatchProcessor {
         Ok(())
     }
 
-    pub fn engine(&self) -> &Arc<dyn SearchEngine> {
+    pub fn engine(&self) -> &Arc<TantivySearchEngine> {
         &self.engine
     }
 
@@ -320,118 +310,4 @@ impl BatchProcessor for FulltextBatchProcessor {
     }
 }
 
-/// Entry for buffering operations within a transaction
-#[derive(Debug, Default)]
-pub struct TransactionBufferEntry {
-    pub operations: Vec<IndexOperation>,
-}
 
-/// Transaction-aware buffer for index operations
-///
-/// This buffer provides temporary storage for index operations during a transaction.
-/// It supports two-phase commit pattern:
-/// - Phase 1 (prepare): Buffer operations as they are generated
-/// - Phase 2 (commit/rollback): Either clear the buffer (commit) or discard (rollback)
-///
-/// Note: This buffer only stores operations. The actual execution of operations
-/// must be performed by the caller using `take_operations()` to retrieve and execute them.
-pub struct TransactionBatchBuffer {
-    pending: DashMap<TransactionId, DashMap<IndexOpKey, TransactionBufferEntry>>,
-}
-
-impl std::fmt::Debug for TransactionBatchBuffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TransactionBatchBuffer")
-            .field("pending_count", &self.pending.len())
-            .finish_non_exhaustive()
-    }
-}
-
-impl Default for TransactionBatchBuffer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TransactionBatchBuffer {
-    /// Create a new transaction batch buffer
-    pub fn new() -> Self {
-        Self {
-            pending: DashMap::new(),
-        }
-    }
-
-    /// Take all buffered operations for a transaction
-    ///
-    /// This removes the operations from the buffer and returns them.
-    /// The caller is responsible for executing these operations.
-    pub fn take_operations(
-        &self,
-        txn_id: TransactionId,
-    ) -> BatchResult<Vec<(IndexOpKey, Vec<IndexOperation>)>> {
-        if let Some((_, txn_buffer)) = self.pending.remove(&txn_id) {
-            let mut result = Vec::new();
-            for entry in txn_buffer.iter() {
-                let key = entry.key().clone();
-                let ops = entry.value().operations.clone();
-                if !ops.is_empty() {
-                    result.push((key, ops));
-                }
-            }
-            Ok(result)
-        } else {
-            Ok(Vec::new())
-        }
-    }
-
-    /// Buffer an operation for the given transaction
-    pub fn prepare(&self, txn_id: TransactionId, operation: IndexOperation) -> BatchResult<()> {
-        let txn_buffer = self.pending.entry(txn_id).or_default();
-
-        let key = match &operation {
-            IndexOperation::Insert { key, .. }
-            | IndexOperation::Update { key, .. }
-            | IndexOperation::Delete { key, .. } => key.clone(),
-        };
-
-        let mut entry = txn_buffer.entry(key).or_default();
-        entry.operations.push(operation);
-        Ok(())
-    }
-
-    /// Peek at operations without removing them (non-destructive)
-    ///
-    /// Returns a clone of all grouped operations for validation during prepare phase.
-    pub fn peek_operations(
-        &self,
-        txn_id: TransactionId,
-    ) -> BatchResult<Vec<(IndexOpKey, Vec<IndexOperation>)>> {
-        if let Some(txn_buffer) = self.pending.get(&txn_id) {
-            let mut result = Vec::new();
-            for entry in txn_buffer.iter() {
-                let key = entry.key().clone();
-                let ops = entry.value().operations.clone();
-                if !ops.is_empty() {
-                    result.push((key, ops));
-                }
-            }
-            Ok(result)
-        } else {
-            Ok(Vec::new())
-        }
-    }
-
-    /// Rollback the transaction by discarding all buffered operations
-    pub fn rollback(&self, txn_id: TransactionId) -> BatchResult<()> {
-        self.pending.remove(&txn_id);
-        Ok(())
-    }
-
-    /// Get the number of pending operations for a transaction
-    pub fn pending_count(&self, txn_id: TransactionId) -> usize {
-        self.pending
-            .get(&txn_id)
-            .map(|txn_buffer| txn_buffer.iter().map(|e| e.value().operations.len()).sum())
-            .unwrap_or(0)
-    }
-}

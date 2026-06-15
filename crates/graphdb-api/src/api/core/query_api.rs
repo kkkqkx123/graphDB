@@ -7,9 +7,10 @@ use crate::api::core::types::{ExecutionMetadata, QueryRequest, QueryResult, Row}
 use crate::core::metadata::SchemaManager;
 use crate::core::StatsManager;
 use crate::query::metadata::{
-    CachedMetadataProvider, CompositeMetadataProvider, FulltextIndexMetadataProvider,
-    MetadataProvider, SchemaMetadataProvider,
+    CachedMetadataProvider, CompositeMetadataProvider, MetadataProvider, SchemaMetadataProvider,
 };
+#[cfg(feature = "fulltext-search")]
+use crate::query::metadata::FulltextIndexMetadataProvider;
 #[cfg(feature = "qdrant")]
 use crate::query::metadata::VectorIndexMetadataProvider;
 use crate::query::{OptimizerEngine, QueryPipelineManager};
@@ -92,14 +93,17 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let schema_provider: Arc<dyn MetadataProvider> =
             Arc::new(SchemaMetadataProvider::new(schema_manager.clone(), None));
 
-        let fulltext_provider: Arc<dyn MetadataProvider> =
-            Arc::new(FulltextIndexMetadataProvider::new(
-                sync_manager.fulltext_manager(),
-            ));
-
         #[allow(unused_mut)]
-        let mut providers: Vec<Arc<dyn MetadataProvider>> =
-            vec![schema_provider, fulltext_provider];
+        let mut providers: Vec<Arc<dyn MetadataProvider>> = vec![schema_provider];
+
+        #[cfg(feature = "fulltext-search")]
+        {
+            let fulltext_provider: Arc<dyn MetadataProvider> =
+                Arc::new(FulltextIndexMetadataProvider::new(
+                    sync_manager.fulltext_manager(),
+                ));
+            providers.push(fulltext_provider);
+        }
 
         #[cfg(feature = "qdrant")]
         if let Some(vector_coordinator) = sync_manager.vector_coordinator() {

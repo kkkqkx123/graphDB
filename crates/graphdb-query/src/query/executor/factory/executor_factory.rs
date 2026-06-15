@@ -10,9 +10,11 @@ use crate::query::executor::base::ExecutorEnum;
 use crate::query::executor::factory::builders::VectorSearchBuilder;
 use crate::query::executor::factory::builders::{
     AdminBuilder, ControlFlowBuilder, DataAccessBuilder, DataModificationBuilder,
-    DataProcessingBuilder, FulltextSearchBuilder, JoinBuilder, SetOperationBuilder,
-    TransformationBuilder, TraversalBuilder,
+    DataProcessingBuilder, JoinBuilder, SetOperationBuilder, TransformationBuilder,
+    TraversalBuilder,
 };
+#[cfg(feature = "fulltext-search")]
+use crate::query::executor::factory::builders::FulltextSearchBuilder;
 use crate::query::executor::utils::recursion_detector::{
     ExecutorSafetyConfig, PlanValidator, RecursionDetector,
 };
@@ -469,6 +471,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             },
 
             // Manage Executor – Fulltext Index Management (parameterized)
+            #[cfg(feature = "fulltext-search")]
             PlanNodeEnum::FulltextManage(fulltext_node) => match fulltext_node {
                 crate::query::planning::plan::core::nodes::management::manage_node_enums::FulltextManageNode::Create(node) => {
                     FulltextSearchBuilder::build_create_fulltext_index(
@@ -496,6 +499,10 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                     )
                 }
             },
+            #[cfg(not(feature = "fulltext-search"))]
+            PlanNodeEnum::FulltextManage(_) => Err(QueryError::execution(
+                "Fulltext index operations require the fulltext-search feature",
+            )),
 
             // Manage Executor – Vector Index Management (parameterized)
             #[cfg(feature = "qdrant")]
@@ -520,24 +527,33 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::ShowStats(node) => AdminBuilder::build_show_stats(node, storage, context),
 
             // Full-text Search Executors (data access)
+            #[cfg(feature = "fulltext-search")]
             PlanNodeEnum::FulltextSearch(node) => FulltextSearchBuilder::build_fulltext_search(
                 node,
                 storage,
                 context,
                 self.sync_manager.as_ref(),
             ),
+            #[cfg(feature = "fulltext-search")]
             PlanNodeEnum::FulltextLookup(node) => FulltextSearchBuilder::build_fulltext_lookup(
                 node,
                 storage,
                 context,
                 self.sync_manager.as_ref(),
             ),
+            #[cfg(feature = "fulltext-search")]
             PlanNodeEnum::MatchFulltext(node) => FulltextSearchBuilder::build_match_fulltext(
                 node,
                 storage,
                 context,
                 self.sync_manager.as_ref(),
             ),
+            #[cfg(not(feature = "fulltext-search"))]
+            PlanNodeEnum::FulltextSearch(_)
+            | PlanNodeEnum::FulltextLookup(_)
+            | PlanNodeEnum::MatchFulltext(_) => Err(QueryError::execution(
+                "Fulltext search operations require the fulltext-search feature",
+            )),
 
             // Vector Search Executors (data access)
             #[cfg(feature = "qdrant")]

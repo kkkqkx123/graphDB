@@ -62,9 +62,30 @@ fn attach_vector_coordinator(
 
 type InitManagers = (Option<Arc<FulltextIndexManager>>, Option<Arc<SyncManager>>);
 
-/// Full init path when qdrant is enabled but fulltext is not: create a full sync pipeline
-/// just to host the vector coordinator.
-#[cfg(feature = "qdrant")]
+/// Full init path when qdrant is enabled but fulltext is not: create a sync manager
+/// that only hosts the vector coordinator.
+#[cfg(all(feature = "qdrant", not(feature = "fulltext-search")))]
+fn setup_sync_with_vector_only(
+    runtime: &tokio::runtime::Handle,
+) -> CoreResult<InitManagers> {
+    let vector_config = VectorClientConfig::default();
+    if !vector_config.enabled {
+        return Ok((None, None));
+    }
+    let vector_manager = create_vector_manager(&vector_config, runtime)?;
+    let vector_coordinator = Arc::new(crate::sync::vector_sync::VectorSyncCoordinator::new(
+        vector_manager,
+        None,
+        runtime.clone(),
+    ));
+
+    let mut sync = SyncManager::new_without_fulltext();
+    sync = sync.with_vector_coordinator(vector_coordinator);
+    Ok((None, Some(Arc::new(sync))))
+}
+
+/// Full init path when both qdrant and fulltext are enabled.
+#[cfg(all(feature = "qdrant", feature = "fulltext-search"))]
 fn setup_sync_with_vector_only(
     runtime: &tokio::runtime::Handle,
 ) -> CoreResult<InitManagers> {
@@ -205,31 +226,38 @@ impl GraphDatabase<GraphStorage> {
         let fulltext_config = FulltextConfig::default();
 
         let (fulltext_manager, sync_manager) = if fulltext_config.enabled {
-            let manager: Arc<FulltextIndexManager> = Arc::new(
-                FulltextIndexManager::new(fulltext_config.clone())
-                    .map_err(|e| CoreError::Internal(e.to_string()))?,
-            );
+            #[cfg(feature = "fulltext-search")]
+            {
+                let manager: Arc<FulltextIndexManager> = Arc::new(
+                    FulltextIndexManager::new(fulltext_config.clone())
+                        .map_err(|e| CoreError::Internal(e.to_string()))?,
+                );
 
-            let sync_config = SyncConfig {
-                queue_size: fulltext_config.sync.queue_size,
-                commit_interval_ms: fulltext_config.sync.commit_interval_ms,
-                batch_size: fulltext_config.sync.batch_size,
-                failure_policy: SyncFailurePolicy::FailOpen,
-            };
+                let sync_config = SyncConfig {
+                    queue_size: fulltext_config.sync.queue_size,
+                    commit_interval_ms: fulltext_config.sync.commit_interval_ms,
+                    batch_size: fulltext_config.sync.batch_size,
+                    failure_policy: SyncFailurePolicy::FailOpen,
+                };
 
-            let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
-            let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
-                manager.clone(),
-                batch_config,
-            ));
+                let batch_config = crate::sync::batch::BatchConfig::from(sync_config.clone());
+                let sync_coordinator = Arc::new(crate::sync::coordinator::SyncCoordinator::new(
+                    manager.clone(),
+                    batch_config,
+                ));
 
-            let sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
+                let sync = SyncManager::with_sync_config(sync_coordinator.clone(), sync_config);
 
-            #[cfg(feature = "qdrant")]
-            let sync = attach_vector_coordinator(sync, vector_runtime.handle())?;
+                #[cfg(feature = "qdrant")]
+                let sync = attach_vector_coordinator(sync, vector_runtime.handle())?;
 
-            let sync = Arc::new(sync);
-            (Some(manager), Some(sync))
+                let sync = Arc::new(sync);
+                (Some(manager), Some(sync))
+            }
+            #[cfg(not(feature = "fulltext-search"))]
+            {
+                setup_sync_with_vector_only(vector_runtime.handle())?
+            }
         } else {
             setup_sync_with_vector_only(vector_runtime.handle())?
         };
