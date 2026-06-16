@@ -27,7 +27,7 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> StorageWriter fo
             .get_vertex(space, id)?
             .ok_or_else(|| StorageError::node_not_found(*id))?;
 
-        self.inner.delete_vertex(space, id)?;
+        StorageWriter::delete_vertex(&mut self.inner, space, id)?;
         self.sync_delete_vertex(space, id, &vertex)?;
         Ok(())
     }
@@ -38,7 +38,7 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> StorageWriter fo
             .get_vertex(space, id)?
             .ok_or_else(|| StorageError::node_not_found(*id))?;
 
-        self.inner.delete_vertex_with_edges(space, id)?;
+        StorageWriter::delete_vertex_with_edges(&mut self.inner, space, id)?;
         self.sync_delete_vertex(space, id, &vertex)?;
         Ok(())
     }
@@ -78,7 +78,7 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> StorageWriter fo
         edge_type: &str,
         rank: i64,
     ) -> Result<(), StorageError> {
-        let result = self.inner.delete_edge(space, src, dst, edge_type, rank);
+        let result = StorageWriter::delete_edge(&mut self.inner, space, src, dst, edge_type, rank);
         if result.is_ok() {
             self.sync_delete_edge(space, src, dst, edge_type)?;
         }

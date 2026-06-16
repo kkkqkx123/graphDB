@@ -70,6 +70,10 @@ impl std::fmt::Debug for SyncManager {
     }
 }
 
+#[cfg_attr(
+    not(any(feature = "fulltext-search", feature = "qdrant")),
+    allow(unused_variables)
+)]
 impl SyncManager {
     fn next_sync_sequence(&self, txn_id: TransactionId) -> u64 {
         self.txn_sequences

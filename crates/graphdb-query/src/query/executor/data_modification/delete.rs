@@ -197,14 +197,14 @@ impl<S: StorageReader + StorageWriter + StorageSchemaOps + Send + Sync + 'static
                                 ))
                             })?;
                         for edge in edges {
-                            storage
-                                .delete_edge(
-                                    &self.space_name,
-                                    &edge.src,
-                                    &edge.dst,
-                                    &edge.edge_type,
-                                    edge.ranking,
-                                )
+                            StorageWriter::delete_edge(
+                                &mut *storage,
+                                &self.space_name,
+                                &edge.src,
+                                &edge.dst,
+                                &edge.edge_type,
+                                edge.ranking,
+                            )
                                 .map_err(|e| {
                                     crate::core::error::DBError::storage(format!(
                                         "Failed to delete the associated edge: {}",
@@ -215,7 +215,8 @@ impl<S: StorageReader + StorageWriter + StorageSchemaOps + Send + Sync + 'static
                         }
                     }
 
-                    if storage.delete_vertex(&self.space_name, &vid).is_ok() {
+                    if StorageWriter::delete_vertex(&mut *storage, &self.space_name, &vid).is_ok()
+                    {
                         total_deleted += 1;
                     }
                 }
@@ -521,14 +522,14 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                                     ))
                                 })?;
                             for edge in edges {
-                                storage
-                                    .delete_edge(
-                                        &self.space_name,
-                                        &edge.src,
-                                        &edge.dst,
-                                        &edge.edge_type,
-                                        edge.ranking,
-                                    )
+                                StorageWriter::delete_edge(
+                                    &mut *storage,
+                                    &self.space_name,
+                                    &edge.src,
+                                    &edge.dst,
+                                    &edge.edge_type,
+                                    edge.ranking,
+                                )
                                     .map_err(|e| {
                                         DBError::storage(format!(
                                             "Failed to delete the associated edge: {}",
@@ -539,7 +540,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                             }
                         }
 
-                        match storage.delete_vertex(&self.space_name, &vid) {
+                        match StorageWriter::delete_vertex(&mut *storage, &self.space_name, &vid) {
                             Ok(_) => {
                                 total_deleted += 1;
                             }
@@ -592,14 +593,14 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
 
                     for edge in &edges {
                         if edge.src == src_vid && edge.dst == dst_vid {
-                            storage
-                                .delete_edge(
-                                    &self.space_name,
-                                    &src_vid,
-                                    &dst_vid,
-                                    &edge_type,
-                                    edge.ranking,
-                                )
+                            StorageWriter::delete_edge(
+                                &mut *storage,
+                                &self.space_name,
+                                &src_vid,
+                                &dst_vid,
+                                &edge_type,
+                                edge.ranking,
+                            )
                                 .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;

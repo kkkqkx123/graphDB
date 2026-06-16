@@ -12,7 +12,7 @@
 //! `OptimizerEngine` is a global instance that has the same lifecycle as the database instance and is responsible for all functions related to query optimization.
 //!
 //! ```rust
-// Method of creation
+//! // Method of creation
 //! let optimizer_engine = Arc::new(OptimizerEngine::default());
 //! let pipeline = QueryPipelineManager::with_optimizer(
 //!     storage,
@@ -24,6 +24,7 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
 use crate::core::error::{DBError, DBResult, QueryError};
+use crate::core::metadata::index_manager::IndexMetadataManager;
 use crate::core::metadata::SchemaManager;
 use crate::core::{
     ErrorInfo, ErrorType, MetricType, QueryMetrics, QueryPhase, QueryProfile, StatsManager,
@@ -32,7 +33,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
 use crate::query::executor::explain::{ExplainExecutor, ExplainMode, ProfileExecutor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::utils::object_pool::{ObjectPoolConfig, ThreadSafeExecutorPool};
-use crate::query::metadata::{CachedMetadataProvider, MetadataContext, MetadataProvider};
+use crate::query::metadata::MetadataContext;
 use crate::query::optimizer::OptimizerEngine;
 use crate::query::parser::ast::stmt::{ExplainStmt, ProfileStmt};
 use crate::query::parser::Parser;
@@ -43,6 +44,10 @@ use crate::query::QueryContext;
 use crate::query::QueryRequestContext;
 use crate::storage::StorageClient;
 use crate::sync::SyncManager;
+#[cfg(feature = "qdrant")]
+use crate::sync::vector_sync::VectorSyncCoordinator;
+#[cfg(feature = "fulltext-search")]
+use crate::search::manager::FulltextIndexManager;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Instant;
@@ -60,10 +65,16 @@ pub struct QueryPipelineManager<S: StorageClient + 'static> {
     plan_cache: Arc<QueryPlanCache>,
     /// Parameterized Query Processor
     param_handler: ParameterizedQueryHandler,
-    /// Schema manager for validation
+    /// Schema manager for validation and metadata resolution
     schema_manager: Option<Arc<SchemaManager>>,
-    /// Metadata provider for pre-resolving metadata during planning
-    metadata_provider: Option<Arc<dyn MetadataProvider>>,
+    /// Index manager for native index metadata
+    index_manager: Option<Arc<dyn IndexMetadataManager>>,
+    /// Fulltext index manager (feature-gated)
+    #[cfg(feature = "fulltext-search")]
+    fulltext_manager: Option<Arc<FulltextIndexManager>>,
+    /// Vector coordinator for vector search (feature-gated)
+    #[cfg(feature = "qdrant")]
+    vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
@@ -98,7 +109,11 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             plan_cache,
             param_handler,
             schema_manager: None,
-            metadata_provider: None,
+            index_manager: None,
+            #[cfg(feature = "fulltext-search")]
+            fulltext_manager: None,
+            #[cfg(feature = "qdrant")]
+            vector_coordinator: None,
         }
     }
 
@@ -136,7 +151,11 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             plan_cache,
             param_handler,
             schema_manager: None,
-            metadata_provider: None,
+            index_manager: None,
+            #[cfg(feature = "fulltext-search")]
+            fulltext_manager: None,
+            #[cfg(feature = "qdrant")]
+            vector_coordinator: None,
         }
     }
 
@@ -145,26 +164,29 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &self.optimizer_engine
     }
 
-    /// Set schema manager for validation
+    /// Set schema manager for validation and metadata resolution
     pub fn with_schema_manager(mut self, schema_manager: Arc<SchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
 
-    /// Set metadata provider for pre-resolving metadata during planning
-    pub fn with_metadata_provider(mut self, metadata_provider: Arc<dyn MetadataProvider>) -> Self {
-        self.metadata_provider = Some(metadata_provider);
+    /// Set index manager for native index metadata
+    pub fn with_index_manager(mut self, index_manager: Arc<dyn IndexMetadataManager>) -> Self {
+        self.index_manager = Some(index_manager);
         self
     }
 
-    /// Create and set a cached metadata provider with the specified cache size
-    pub fn with_cached_metadata_provider(
-        mut self,
-        inner_provider: Arc<dyn MetadataProvider>,
-        _cache_size: usize,
-    ) -> Self {
-        let cached_provider = Arc::new(CachedMetadataProvider::new(inner_provider));
-        self.metadata_provider = Some(cached_provider);
+    /// Set fulltext manager for fulltext index metadata
+    #[cfg(feature = "fulltext-search")]
+    pub fn with_fulltext_manager(mut self, fulltext_manager: Arc<FulltextIndexManager>) -> Self {
+        self.fulltext_manager = Some(fulltext_manager);
+        self
+    }
+
+    /// Set vector coordinator for vector search metadata
+    #[cfg(feature = "qdrant")]
+    pub fn with_vector_coordinator(mut self, vector_coordinator: Arc<VectorSyncCoordinator>) -> Self {
+        self.vector_coordinator = Some(vector_coordinator);
         self
     }
 
@@ -600,16 +622,11 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let plan = if let Some(mut planner_enum) =
             crate::query::planning::planner::PlannerEnum::from_ast(&validated.ast)
         {
-            // Build metadata context if metadata provider is available
-            let metadata_context = if let Some(ref metadata_provider) = self.metadata_provider {
-                Some(self.build_metadata_context(
-                    validated,
-                    query_context.clone(),
-                    metadata_provider,
-                )?)
-            } else {
-                None
-            };
+            // Build metadata context using direct metadata sources
+            let metadata_context = self.build_metadata_context(
+                validated,
+                query_context.clone(),
+            )?;
 
             // Transform with metadata context if available
             let sub_plan = if let Some(ref ctx) = metadata_context {
@@ -635,63 +652,60 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Ok(plan)
     }
 
-    /// Build metadata context for the given statement
+    /// Build metadata context for the given statement using direct metadata sources
     ///
-    /// This method pre-resolves metadata (indexes, tags, edge types) during the planning phase,
-    /// similar to PostgreSQL's FDW fdw_private mechanism.
+    /// This method pre-resolves metadata (indexes, tags, edge types) during the planning phase.
     fn build_metadata_context(
         &self,
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
-        metadata_provider: &Arc<dyn MetadataProvider>,
-    ) -> DBResult<MetadataContext> {
-        use crate::query::metadata::provider::MetadataProviderError;
+    ) -> DBResult<Option<MetadataContext>> {
         use crate::query::parser::ast::Stmt;
 
         let space_id = qctx.space_id().unwrap_or(0);
         let mut context = MetadataContext::new();
         let stmt = validated.stmt();
+        let mut has_metadata = false;
 
         // Pre-resolve metadata based on statement type
         match stmt {
             Stmt::SearchVector(search) => {
                 // Pre-resolve vector index metadata
-                match metadata_provider.get_index_metadata(space_id, &search.index_name) {
-                    Ok(index_metadata) => {
-                        context.set_index_metadata(search.index_name.clone(), index_metadata);
+                #[cfg(feature = "qdrant")]
+                if let Some(ref vector_coordinator) = self.vector_coordinator {
+                    match self.resolve_vector_index(space_id, &search.index_name, vector_coordinator) {
+                        Ok(index_metadata) => {
+                            context.set_index_metadata(search.index_name.clone(), index_metadata);
+                            has_metadata = true;
+                        }
+                        Err(msg) => {
+                            return Err(DBError::from(QueryError::invalid_query(format!(
+                                "Vector index not found: {}",
+                                msg
+                            ))));
+                        }
                     }
-                    Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Vector index not found: {}",
-                            msg
-                        ))));
-                    }
-                    Err(e) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Failed to get index metadata: {}",
-                            e
-                        ))));
-                    }
+                } else {
+                    return Err(DBError::from(QueryError::invalid_query(
+                        "Vector search not enabled".to_string(),
+                    )));
                 }
             }
             Stmt::LookupVector(lookup) => {
                 // Pre-resolve index metadata for lookup
-                let index_name = &lookup.index_name;
-                match metadata_provider.get_index_metadata(space_id, index_name) {
-                    Ok(index_metadata) => {
-                        context.set_index_metadata(index_name.clone(), index_metadata);
-                    }
-                    Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Vector index not found: {}",
-                            msg
-                        ))));
-                    }
-                    Err(e) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Failed to get index metadata: {}",
-                            e
-                        ))));
+                #[cfg(feature = "qdrant")]
+                if let Some(ref vector_coordinator) = self.vector_coordinator {
+                    match self.resolve_vector_index(space_id, &lookup.index_name, vector_coordinator) {
+                        Ok(index_metadata) => {
+                            context.set_index_metadata(lookup.index_name.clone(), index_metadata);
+                            has_metadata = true;
+                        }
+                        Err(msg) => {
+                            return Err(DBError::from(QueryError::invalid_query(format!(
+                                "Vector index not found: {}",
+                                msg
+                            ))));
+                        }
                     }
                 }
             }
@@ -702,62 +716,56 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Stmt::Search(search) => {
                 // Pre-resolve fulltext index metadata
-                match metadata_provider.get_index_metadata(space_id, &search.index_name) {
-                    Ok(index_metadata) => {
-                        context.set_index_metadata(search.index_name.clone(), index_metadata);
-                    }
-                    Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Fulltext index not found: {}",
-                            msg
-                        ))));
-                    }
-                    Err(e) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Failed to get fulltext index metadata: {}",
-                            e
-                        ))));
-                    }
-                }
-            }
-            Stmt::LookupFulltext(lookup) => {
-                // Pre-resolve fulltext index metadata for lookup
-                match metadata_provider.get_index_metadata(space_id, &lookup.index_name) {
-                    Ok(index_metadata) => {
-                        context.set_index_metadata(lookup.index_name.clone(), index_metadata);
-                    }
-                    Err(MetadataProviderError::NotFound(msg)) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Fulltext index not found: {}",
-                            msg
-                        ))));
-                    }
-                    Err(e) => {
-                        return Err(DBError::from(QueryError::invalid_query(format!(
-                            "Failed to get fulltext index metadata: {}",
-                            e
-                        ))));
-                    }
-                }
-            }
-            Stmt::MatchFulltext(match_stmt) => {
-                // Pre-resolve fulltext index metadata if index is specified
-                if let Some(ref index_name) = match_stmt.fulltext_condition.index_name {
-                    match metadata_provider.get_index_metadata(space_id, index_name) {
+                #[cfg(feature = "fulltext-search")]
+                if let Some(ref fulltext_manager) = self.fulltext_manager {
+                    match self.resolve_fulltext_index(space_id, &search.index_name, fulltext_manager) {
                         Ok(index_metadata) => {
-                            context.set_index_metadata(index_name.clone(), index_metadata);
+                            context.set_index_metadata(search.index_name.clone(), index_metadata);
+                            has_metadata = true;
                         }
-                        Err(MetadataProviderError::NotFound(msg)) => {
+                        Err(msg) => {
                             return Err(DBError::from(QueryError::invalid_query(format!(
                                 "Fulltext index not found: {}",
                                 msg
                             ))));
                         }
-                        Err(e) => {
+                    }
+                }
+            }
+            Stmt::LookupFulltext(lookup) => {
+                // Pre-resolve fulltext index metadata for lookup
+                #[cfg(feature = "fulltext-search")]
+                if let Some(ref fulltext_manager) = self.fulltext_manager {
+                    match self.resolve_fulltext_index(space_id, &lookup.index_name, fulltext_manager) {
+                        Ok(index_metadata) => {
+                            context.set_index_metadata(lookup.index_name.clone(), index_metadata);
+                            has_metadata = true;
+                        }
+                        Err(msg) => {
                             return Err(DBError::from(QueryError::invalid_query(format!(
-                                "Failed to get fulltext index metadata: {}",
-                                e
+                                "Fulltext index not found: {}",
+                                msg
                             ))));
+                        }
+                    }
+                }
+            }
+            Stmt::MatchFulltext(match_stmt) => {
+                // Pre-resolve fulltext index metadata if index is specified
+                #[cfg(feature = "fulltext-search")]
+                if let Some(ref index_name) = match_stmt.fulltext_condition.index_name {
+                    if let Some(ref fulltext_manager) = self.fulltext_manager {
+                        match self.resolve_fulltext_index(space_id, index_name, fulltext_manager) {
+                            Ok(index_metadata) => {
+                                context.set_index_metadata(index_name.clone(), index_metadata);
+                                has_metadata = true;
+                            }
+                            Err(msg) => {
+                                return Err(DBError::from(QueryError::invalid_query(format!(
+                                    "Fulltext index not found: {}",
+                                    msg
+                                ))));
+                            }
                         }
                     }
                 }
@@ -767,51 +775,69 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 let referenced_tags = &validated.validation_info.semantic_info.referenced_tags;
                 let referenced_edges = &validated.validation_info.semantic_info.referenced_edges;
 
-                // Resolve tag metadata and their indexes
-                for tag_name in referenced_tags {
-                    let tag_metadata = metadata_provider
-                        .get_tag_metadata(space_id, tag_name)
-                        .map_err(|e| {
-                            DBError::from(QueryError::invalid_query(format!(
-                                "Tag '{}' not found: {}",
-                                tag_name, e
-                            )))
-                        })?;
-                    context.set_tag_metadata(tag_name.clone(), tag_metadata);
+                // Resolve tag metadata from schema manager
+                if let Some(ref schema_manager) = self.schema_manager {
+                    for tag_name in referenced_tags {
+                        match self.resolve_tag_metadata(space_id, tag_name, schema_manager) {
+                            Ok(tag_metadata) => {
+                                context.set_tag_metadata(tag_name.clone(), tag_metadata);
+                                has_metadata = true;
+                            }
+                            Err(e) => {
+                                return Err(DBError::from(QueryError::invalid_query(format!(
+                                    "Tag '{}' not found: {}",
+                                    tag_name, e
+                                ))));
+                            }
+                        }
+                    }
+
+                    // Resolve edge type metadata
+                    for edge_type in referenced_edges {
+                        match self.resolve_edge_type_metadata(space_id, edge_type, schema_manager) {
+                            Ok(edge_metadata) => {
+                                context.set_edge_type_metadata(edge_type.clone(), edge_metadata);
+                                has_metadata = true;
+                            }
+                            Err(e) => {
+                                return Err(DBError::from(QueryError::invalid_query(format!(
+                                    "Edge type '{}' not found: {}",
+                                    edge_type, e
+                                ))));
+                            }
+                        }
+                    }
                 }
 
-                // Resolve edge type metadata
-                for edge_type in referenced_edges {
-                    let edge_metadata = metadata_provider
-                        .get_edge_type_metadata(space_id, edge_type)
-                        .map_err(|e| {
-                            DBError::from(QueryError::invalid_query(format!(
-                                "Edge type '{}' not found: {}",
-                                edge_type, e
-                            )))
-                        })?;
-                    context.set_edge_type_metadata(edge_type.clone(), edge_metadata);
-                }
-
-                // Resolve all indexes for the space
-                if let Ok(indexes) = metadata_provider.list_indexes(space_id) {
-                    for index in indexes {
-                        context.set_index_metadata(index.index_name.clone(), index);
+                // Resolve all indexes for the space from all sources
+                match self.resolve_all_indexes(space_id) {
+                    Ok(indexes) => {
+                        for index in indexes {
+                            context.set_index_metadata(index.index_name.clone(), index);
+                            has_metadata = true;
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to resolve indexes for space {}: {}", space_id, e);
                     }
                 }
             }
             Stmt::CreateFulltextIndex(create) => {
                 // Pre-resolve tag metadata for the target schema of the fulltext index
+                #[cfg(feature = "fulltext-search")]
                 if !create.schema_name.is_empty() {
-                    match metadata_provider.get_tag_metadata(space_id, &create.schema_name) {
-                        Ok(tag_metadata) => {
-                            context.set_tag_metadata(create.schema_name.clone(), tag_metadata);
-                        }
-                        Err(e) => {
-                            return Err(DBError::from(QueryError::invalid_query(format!(
-                                "Tag '{}' not found: {}",
-                                create.schema_name, e
-                            ))));
+                    if let Some(ref schema_manager) = self.schema_manager {
+                        match self.resolve_tag_metadata(space_id, &create.schema_name, schema_manager) {
+                            Ok(tag_metadata) => {
+                                context.set_tag_metadata(create.schema_name.clone(), tag_metadata);
+                                has_metadata = true;
+                            }
+                            Err(e) => {
+                                return Err(DBError::from(QueryError::invalid_query(format!(
+                                    "Tag '{}' not found: {}",
+                                    create.schema_name, e
+                                ))));
+                            }
                         }
                     }
                 }
@@ -823,7 +849,216 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
         }
 
-        Ok(context)
+        if has_metadata {
+            Ok(Some(context))
+        } else {
+            Ok(None)
+        }
+    }
+
+    // Private helper methods for metadata resolution
+
+    fn resolve_tag_metadata(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        schema_manager: &SchemaManager,
+    ) -> Result<crate::query::metadata::TagMetadata, String> {
+        use crate::query::metadata::{PropertyDefinition, PropertyType};
+
+        let space = schema_manager
+            .get_space_by_id(space_id)
+            .map_err(|e| format!("Failed to get space {}: {}", space_id, e))?
+            .ok_or_else(|| format!("Space {} not found", space_id))?;
+
+        let tag_info = schema_manager
+            .get_tag(&space.space_name, tag_name)
+            .map_err(|e| format!("Failed to get tag '{}': {}", tag_name, e))?
+            .ok_or_else(|| format!("Tag '{}' not found in space {}", tag_name, space_id))?;
+
+        let mut metadata = crate::query::metadata::TagMetadata::new(tag_info.tag_name.clone(), space_id);
+        metadata.properties = tag_info
+            .properties
+            .iter()
+            .map(|prop| PropertyDefinition {
+                name: prop.name.clone(),
+                data_type: PropertyType::from(prop.data_type.clone()),
+                nullable: prop.nullable,
+                default_value: None,
+            })
+            .collect();
+
+        Ok(metadata)
+    }
+
+    fn resolve_edge_type_metadata(
+        &self,
+        space_id: u64,
+        edge_type: &str,
+        schema_manager: &SchemaManager,
+    ) -> Result<crate::query::metadata::EdgeTypeMetadata, String> {
+        use crate::query::metadata::{PropertyDefinition, PropertyType};
+
+        let space = schema_manager
+            .get_space_by_id(space_id)
+            .map_err(|e| format!("Failed to get space {}: {}", space_id, e))?
+            .ok_or_else(|| format!("Space {} not found", space_id))?;
+
+        let edge_info = schema_manager
+            .get_edge_type(&space.space_name, edge_type)
+            .map_err(|e| format!("Failed to get edge type '{}': {}", edge_type, e))?
+            .ok_or_else(|| format!("Edge type '{}' not found in space {}", edge_type, space_id))?;
+
+        let mut metadata = crate::query::metadata::EdgeTypeMetadata::new(edge_info.edge_type_name.clone(), space_id);
+        metadata.properties = edge_info
+            .properties
+            .iter()
+            .map(|prop| PropertyDefinition {
+                name: prop.name.clone(),
+                data_type: PropertyType::from(prop.data_type.clone()),
+                nullable: prop.nullable,
+                default_value: None,
+            })
+            .collect();
+
+        Ok(metadata)
+    }
+
+    #[cfg(feature = "fulltext-search")]
+    fn resolve_fulltext_index(
+        &self,
+        space_id: u64,
+        index_name: &str,
+        fulltext_manager: &FulltextIndexManager,
+    ) -> Result<crate::query::metadata::IndexMetadata, String> {
+        let indexes = fulltext_manager.list_indexes();
+        for index in &indexes {
+            if index.space_id == space_id && index.index_name == index_name {
+                return Ok(crate::query::metadata::IndexMetadata::new(
+                    index.index_name.clone(),
+                    space_id,
+                    index.tag_name.clone(),
+                    index.field_name.clone(),
+                    crate::query::metadata::IndexType::Fulltext,
+                ));
+            }
+        }
+        Err(format!(
+            "Fulltext index '{}' not found in space {}",
+            index_name, space_id
+        ))
+    }
+
+    #[cfg(feature = "qdrant")]
+    fn resolve_vector_index(
+        &self,
+        space_id: u64,
+        index_name: &str,
+        vector_coordinator: &VectorSyncCoordinator,
+    ) -> Result<crate::query::metadata::IndexMetadata, String> {
+        let indexes = vector_coordinator.list_indexes();
+        for idx in &indexes {
+            let expected_collection =
+                format!("space_{}_{}_{}", space_id, idx.tag_name, idx.field_name);
+            if idx.collection_name == index_name
+                || expected_collection == *index_name
+                || idx.index_name.as_deref() == Some(index_name)
+            {
+                return Ok(crate::query::metadata::IndexMetadata::new(
+                    idx.collection_name.clone(),
+                    space_id,
+                    idx.tag_name.clone(),
+                    idx.field_name.clone(),
+                    crate::query::metadata::IndexType::Vector,
+                ));
+            }
+        }
+        Err(format!(
+            "Vector index '{}' not found in space {}",
+            index_name, space_id
+        ))
+    }
+
+    fn resolve_all_indexes(
+        &self,
+        space_id: u64,
+    ) -> Result<Vec<crate::query::metadata::IndexMetadata>, String> {
+        use crate::query::metadata::IndexType;
+
+        let mut indexes = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        // 1. Native indexes from index manager
+        if let Some(ref index_manager) = self.index_manager {
+            if let Ok(tag_indexes) = index_manager.list_tag_indexes(space_id) {
+                for index in tag_indexes {
+                    if seen.insert(index.name.clone()) {
+                        indexes.push(crate::query::metadata::IndexMetadata::new(
+                            index.name,
+                            space_id,
+                            index.schema_name,
+                            index
+                                .fields
+                                .first()
+                                .map(|f| f.name.clone())
+                                .unwrap_or_default(),
+                            IndexType::Native,
+                        ));
+                    }
+                }
+            }
+            if let Ok(edge_indexes) = index_manager.list_edge_indexes(space_id) {
+                for index in edge_indexes {
+                    if seen.insert(index.name.clone()) {
+                        indexes.push(crate::query::metadata::IndexMetadata::new(
+                            index.name,
+                            space_id,
+                            String::new(),
+                            index
+                                .fields
+                                .first()
+                                .map(|f| f.name.clone())
+                                .unwrap_or_default(),
+                            IndexType::Native,
+                        ));
+                    }
+                }
+            }
+        }
+
+        // 2. Fulltext indexes
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref ft) = self.fulltext_manager {
+            for idx in ft.list_indexes() {
+                if idx.space_id == space_id && seen.insert(idx.index_name.clone()) {
+                    indexes.push(crate::query::metadata::IndexMetadata::new(
+                        idx.index_name,
+                        space_id,
+                        idx.tag_name,
+                        idx.field_name,
+                        IndexType::Fulltext,
+                    ));
+                }
+            }
+        }
+
+        // 3. Vector indexes
+        #[cfg(feature = "qdrant")]
+        if let Some(ref vec) = self.vector_coordinator {
+            for idx in vec.list_indexes() {
+                if idx.space_id == space_id && seen.insert(idx.collection_name.clone()) {
+                    indexes.push(crate::query::metadata::IndexMetadata::new(
+                        idx.collection_name.clone(),
+                        space_id,
+                        idx.tag_name.clone(),
+                        idx.field_name.clone(),
+                        IndexType::Vector,
+                    ));
+                }
+            }
+        }
+
+        Ok(indexes)
     }
 
     fn optimize_execution_plan(

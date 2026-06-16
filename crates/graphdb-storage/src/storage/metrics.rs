@@ -132,12 +132,29 @@ impl<S: StorageClient> StorageReader for MetricsStorage<S> {
 impl<S: StorageClient> StorageWriter for MetricsStorage<S> {
     wrap_write!(insert_vertex(self, space: &str, vertex: Vertex) -> Result<VertexId, StorageError>);
     wrap_write!(update_vertex(self, space: &str, vertex: Vertex) -> Result<(), StorageError>);
-    wrap_write!(delete_vertex(self, space: &str, id: &VertexId) -> Result<(), StorageError>);
+    fn delete_vertex(&mut self, space: &str, id: &VertexId) -> Result<(), StorageError> {
+        let start = Instant::now();
+        let result = StorageWriter::delete_vertex(&mut self.inner, space, id);
+        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
     wrap_write!(delete_vertex_with_edges(self, space: &str, id: &VertexId) -> Result<(), StorageError>);
     wrap_write!(batch_insert_vertices(self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<VertexId>, StorageError>);
     wrap_write!(delete_tags(self, space: &str, vertex_id: &VertexId, tag_names: &[String]) -> Result<usize, StorageError>);
     wrap_write!(insert_edge(self, space: &str, edge: Edge) -> Result<(), StorageError>);
-    wrap_write!(delete_edge(self, space: &str, src: &VertexId, dst: &VertexId, edge_type: &str, rank: i64) -> Result<(), StorageError>);
+    fn delete_edge(
+        &mut self,
+        space: &str,
+        src: &VertexId,
+        dst: &VertexId,
+        edge_type: &str,
+        rank: i64,
+    ) -> Result<(), StorageError> {
+        let start = Instant::now();
+        let result = StorageWriter::delete_edge(&mut self.inner, space, src, dst, edge_type, rank);
+        self.record_write(start.elapsed().as_micros() as u64, result.is_ok());
+        result
+    }
     wrap_write!(batch_insert_edges(self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError>);
     wrap_write!(insert_vertex_data(self, space: &str, info: &InsertVertexInfo) -> Result<bool, StorageError>);
     wrap_write!(insert_edge_data(self, space: &str, info: &InsertEdgeInfo) -> Result<bool, StorageError>);
@@ -393,19 +410,19 @@ mod tests {
 
 impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::UndoTarget for MetricsStorage<S> {
     fn delete_vertex_type(&self, label: crate::core::types::LabelId) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.delete_vertex_type(label)
+        crate::transaction::UndoTarget::delete_vertex_type(&self.inner, label)
     }
 
     fn delete_edge_type(&self, edge_key: crate::core::types::EdgeKey) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.delete_edge_type(edge_key)
+        crate::transaction::UndoTarget::delete_edge_type(&self.inner, edge_key)
     }
 
     fn delete_vertex(&self, vertex: crate::core::types::VertexIdentifier, ts: crate::transaction::wal::Timestamp) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.delete_vertex(vertex, ts)
+        crate::transaction::UndoTarget::delete_vertex(&self.inner, vertex, ts)
     }
 
     fn delete_edge(&self, edge_ctx: crate::core::types::EdgeDeletionContext) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.delete_edge(edge_ctx)
+        crate::transaction::UndoTarget::delete_edge(&self.inner, edge_ctx)
     }
 
     fn undo_update_vertex_property(
@@ -415,7 +432,13 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         value: crate::transaction::undo_log::PropertyValue,
         ts: crate::transaction::wal::Timestamp,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.undo_update_vertex_property(vertex, col_id, value, ts)
+        crate::transaction::UndoTarget::undo_update_vertex_property(
+            &self.inner,
+            vertex,
+            col_id,
+            value,
+            ts,
+        )
     }
 
     fn undo_update_edge_property(
@@ -427,15 +450,23 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         value: crate::transaction::undo_log::PropertyValue,
         ts: crate::transaction::wal::Timestamp,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.undo_update_edge_property(edge_id, oe_offset, ie_offset, col_id, value, ts)
+        crate::transaction::UndoTarget::undo_update_edge_property(
+            &self.inner,
+            edge_id,
+            oe_offset,
+            ie_offset,
+            col_id,
+            value,
+            ts,
+        )
     }
 
     fn revert_delete_vertex(&self, vertex: crate::core::types::VertexIdentifier, ts: crate::transaction::wal::Timestamp) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_delete_vertex(vertex, ts)
+        crate::transaction::UndoTarget::revert_delete_vertex(&self.inner, vertex, ts)
     }
 
     fn revert_delete_edge(&self, edge_ctx: crate::core::types::EdgeDeletionContext) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_delete_edge(edge_ctx)
+        crate::transaction::UndoTarget::revert_delete_edge(&self.inner, edge_ctx)
     }
 
     fn revert_delete_vertex_properties(
@@ -443,7 +474,11 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         label_name: &str,
         prop_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_delete_vertex_properties(label_name, prop_names)
+        crate::transaction::UndoTarget::revert_delete_vertex_properties(
+            &self.inner,
+            label_name,
+            prop_names,
+        )
     }
 
     fn revert_delete_edge_properties(
@@ -453,11 +488,17 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         edge_label: &str,
         prop_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_delete_edge_properties(src_label, dst_label, edge_label, prop_names)
+        crate::transaction::UndoTarget::revert_delete_edge_properties(
+            &self.inner,
+            src_label,
+            dst_label,
+            edge_label,
+            prop_names,
+        )
     }
 
     fn revert_delete_vertex_label(&self, label_name: &str) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_delete_vertex_label(label_name)
+        crate::transaction::UndoTarget::revert_delete_vertex_label(&self.inner, label_name)
     }
 
     fn revert_delete_edge_label(
@@ -466,7 +507,12 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         dst_label: &str,
         edge_label: &str,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_delete_edge_label(src_label, dst_label, edge_label)
+        crate::transaction::UndoTarget::revert_delete_edge_label(
+            &self.inner,
+            src_label,
+            dst_label,
+            edge_label,
+        )
     }
 
     fn revert_rename_vertex_properties(
@@ -475,7 +521,12 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         current_names: &[String],
         original_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_rename_vertex_properties(label_name, current_names, original_names)
+        crate::transaction::UndoTarget::revert_rename_vertex_properties(
+            &self.inner,
+            label_name,
+            current_names,
+            original_names,
+        )
     }
 
     fn revert_rename_edge_properties(
@@ -486,6 +537,13 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         current_names: &[String],
         original_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.inner.revert_rename_edge_properties(src_label, dst_label, edge_label, current_names, original_names)
+        crate::transaction::UndoTarget::revert_rename_edge_properties(
+            &self.inner,
+            src_label,
+            dst_label,
+            edge_label,
+            current_names,
+            original_names,
+        )
     }
 }

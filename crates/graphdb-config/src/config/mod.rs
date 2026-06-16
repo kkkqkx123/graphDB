@@ -264,6 +264,7 @@ impl Config {
             .into_owned())
     }
 
+    #[cfg(feature = "server")]
     fn resolve_optional_string_path(
         base_dir: &Path,
         path_value: Option<String>,

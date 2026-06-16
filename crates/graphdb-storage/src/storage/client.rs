@@ -5,6 +5,7 @@ use crate::core::types::{
     SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
+use crate::transaction::UndoTarget;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryStats};
 use std::sync::Arc;
 
@@ -317,6 +318,7 @@ pub trait StorageClient:
     + StoragePersistenceOps
     + StorageRecoveryOps
     + StorageGcOps
+    + UndoTarget
     + Send
     + Sync
     + std::fmt::Debug
@@ -333,6 +335,7 @@ impl<T> StorageClient for T where
         + StoragePersistenceOps
         + StorageRecoveryOps
         + StorageGcOps
+        + UndoTarget
         + Send
         + Sync
         + std::fmt::Debug

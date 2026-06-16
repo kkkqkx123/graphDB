@@ -46,9 +46,11 @@ impl GrpcInterceptor {
         self.request_counter.fetch_add(1, Ordering::Relaxed);
 
         if let Some(ref key) = self.api_key {
-            request
-                .metadata_mut()
-                .insert("api-key", MetadataValue::try_from(key).unwrap());
+            if let Ok(value) = MetadataValue::try_from(key) {
+                request.metadata_mut().insert("api-key", value);
+            } else {
+                warn!("Skipping invalid API key metadata value");
+            }
         }
 
         if self.enable_logging {
@@ -259,6 +261,11 @@ where
         }
     }
 
-    Err(last_error
-        .unwrap_or_else(|| VectorClientError::InternalError("Max retries exceeded".to_string())))
+    if let Some(err) = last_error {
+        Err(err)
+    } else {
+        Err(VectorClientError::InternalError(
+            "Max retries exceeded".to_string(),
+        ))
+    }
 }
