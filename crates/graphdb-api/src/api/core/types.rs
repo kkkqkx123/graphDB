@@ -2,6 +2,7 @@
 //!
 //! Business types that are independent of the transport layer
 
+use crate::core::types::TransactionId;
 use crate::core::Value;
 use std::collections::HashMap;
 
@@ -11,7 +12,7 @@ pub struct QueryRequest {
     pub space_id: Option<u64>,
     pub space_name: Option<String>,
     pub auto_commit: bool,
-    pub transaction_id: Option<u64>,
+    pub transaction_id: Option<TransactionId>,
     pub parameters: Option<HashMap<String, Value>>,
 }
 
@@ -81,6 +82,22 @@ pub struct ExecutionMetadata {
 /// Transaction handler
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TransactionHandle(pub TransactionId);
+
+impl TransactionHandle {
+    pub fn id(&self) -> u64 {
+        self.0.as_u64()
+    }
+
+    pub fn transaction_id(&self) -> TransactionId {
+        self.0
+    }
+}
+
+impl From<u64> for TransactionHandle {
+    fn from(id: u64) -> Self {
+        Self(TransactionId::from(id))
+    }
+}
 
 /// Save Point ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

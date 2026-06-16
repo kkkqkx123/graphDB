@@ -3,7 +3,7 @@
 //! Tests for two-phase commit protocol implementation
 
 use crate::common::sync_helpers::{create_test_vertex, SyncTestHarness};
-use graphdb::core::types::DataType;
+use graphdb::core::types::{DataType, TransactionId};
 use graphdb::core::Value;
 use std::path::Path;
 use std::sync::Arc;
@@ -94,9 +94,9 @@ fn test_2pc_full_protocol() {
         .expect("Failed to create tag");
 
     // Begin transaction
-    let txn_id = harness
+    let txn_id = TransactionId(harness
         .begin_transaction()
-        .expect("Failed to begin transaction");
+        .expect("Failed to begin transaction"));
 
     // Execute multiple operations
     for i in 0..10 {
@@ -198,7 +198,7 @@ fn test_2pc_prepare_failure() {
         .expect("Failed to insert vertex");
 
     // Prepare should succeed in normal case
-    let txn_id = harness.current_txn_id.unwrap();
+    let txn_id = TransactionId(harness.current_txn_id.unwrap());
     let sync_manager = harness.sync_manager.clone();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let prepare_result = rt.block_on(async { sync_manager.prepare_transaction(txn_id).await });

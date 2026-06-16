@@ -116,14 +116,14 @@ impl<
         }
         #[cfg(not(feature = "qdrant"))]
         {
-            return Self::create_service(
+            Self::create_service(
                 config,
                 storage,
                 Some(transaction_manager),
                 true,
                 Some(stats_manager),
             )
-            .await;
+            .await
         }
     }
 

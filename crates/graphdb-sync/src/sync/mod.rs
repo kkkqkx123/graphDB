@@ -26,5 +26,7 @@ pub use coordinator::{
 pub use dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
 pub use manager::{EdgeProps, EdgeRef, SyncError, SyncManager};
 pub use retry::{with_retry, RetryConfig};
+pub use types::{IndexOpKey, IndexOperation};
+
 #[cfg(feature = "qdrant")]
 pub use vector_sync::VectorSyncCoordinator;

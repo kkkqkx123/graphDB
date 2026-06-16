@@ -420,7 +420,7 @@ async fn test_mixed_api_transaction_consistency() {
     // (In real scenario, this would use the same session/transaction mapping)
     let http_req = QueryRequest {
         query: "SELECT 1".to_string(),
-        session_id: txn_id as i64, // Using txn_id as session_id for test
+        session_id: txn_id.0 as i64, // Using txn_id as session_id for test
         parameters: Default::default(),
     };
 

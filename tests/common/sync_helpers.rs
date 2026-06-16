@@ -2,6 +2,7 @@
 //!
 //! Test utilities for sync module integration tests
 
+use graphdb::core::types::TransactionId;
 use graphdb::core::types::VertexId;
 use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::vertex_edge_path::Tag;
@@ -187,7 +188,7 @@ impl SyncTestHarness {
     pub fn commit_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
             self.rt
-                .block_on(self.sync_manager.commit_transaction(txn_id))?;
+                .block_on(self.sync_manager.commit_transaction(TransactionId(txn_id)))?;
         }
         Ok(())
     }
@@ -196,7 +197,7 @@ impl SyncTestHarness {
     pub fn rollback_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
             self.rt
-                .block_on(self.sync_manager.rollback_transaction(txn_id))?;
+                .block_on(self.sync_manager.rollback_transaction(TransactionId(txn_id)))?;
         }
         Ok(())
     }
@@ -248,7 +249,7 @@ impl SyncTestHarness {
         }
 
         let space_id = self.storage.get_space_id(space_name)?;
-        let txn_id = self.current_txn_id.unwrap();
+        let txn_id = TransactionId(self.current_txn_id.unwrap());
 
         let vertex_id = vertex.vid;
         let exists = self.storage.get_vertex(space_name, &vertex_id)?.is_some();
@@ -317,7 +318,7 @@ impl SyncTestHarness {
         }
 
         let space_id = self.storage.get_space_id(space_name)?;
-        let txn_id = self.current_txn_id.unwrap();
+        let txn_id = TransactionId(self.current_txn_id.unwrap());
         let vertex_id = graphdb::core::types::VertexId::from_int64(vid);
         let vid_value = Value::Int(vid as i32);
 

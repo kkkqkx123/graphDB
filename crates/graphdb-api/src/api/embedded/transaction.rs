@@ -402,7 +402,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         txn_manager
             .get_transaction_info(self.txn_handle.0)
             .map(|info| TransactionInfo {
-                id: info.id,
+                id: info.id.0,
                 state: format!("{:?}", info.state),
                 is_read_only: info.is_read_only,
                 elapsed_ms: info.elapsed.as_millis() as u64,
@@ -450,7 +450,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
     /// Get Transaction ID
     pub fn id(&self) -> u64 {
-        self.txn_handle.0
+        self.txn_handle.id()
     }
 
     /// Get transaction handle (for internal use by C API)

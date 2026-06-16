@@ -2,5 +2,5 @@
 //!
 //! Provides a C language interface for GraphDB
 
-#[cfg(feature = "embedded")]
+#[cfg(feature = "c_api")]
 pub use crate::api::embedded::c_api::*;

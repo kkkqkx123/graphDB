@@ -85,7 +85,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         None
     };
     #[cfg(not(feature = "qdrant"))]
-    let vector_manager = None::<Arc<()>>;
+    let _vector_manager = None::<Arc<()>>;
 
     let storage = if config.fulltext.enabled || config.is_vector_enabled() {
         use crate::sync::SyncManager;

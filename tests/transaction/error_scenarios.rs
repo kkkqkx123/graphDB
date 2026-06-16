@@ -11,6 +11,7 @@
 //! - Double commit/rollback attempts
 //! - Shutdown errors
 
+use graphdb::core::types::TransactionId;
 use graphdb::transaction::{
     TransactionError, TransactionErrorKind, TransactionManager, TransactionManagerConfig,
     TransactionOptions, TransactionState,
@@ -23,7 +24,7 @@ use tokio::time::sleep;
 fn test_error_transaction_not_found() {
     let manager = TransactionManager::new(TransactionManagerConfig::default());
 
-    let result = manager.get_context(99999);
+    let result = manager.get_context(TransactionId(99999));
     assert!(result.is_err(), "Expected error");
     let err = result.unwrap_err();
     assert_eq!(
@@ -32,7 +33,7 @@ fn test_error_transaction_not_found() {
         "Expected TransactionNotFound error"
     );
 
-    let result = manager.commit_transaction(99999);
+    let result = manager.commit_transaction(TransactionId(99999));
     assert!(result.is_err(), "Expected error on commit");
     let err = result.unwrap_err();
     assert_eq!(
@@ -41,7 +42,7 @@ fn test_error_transaction_not_found() {
         "Expected TransactionNotFound error on commit"
     );
 
-    let result = manager.abort_transaction(99999);
+    let result = manager.abort_transaction(TransactionId(99999));
     assert!(result.is_err(), "Expected error on abort");
     let err = result.unwrap_err();
     assert_eq!(
@@ -396,7 +397,7 @@ fn test_transaction_state_helpers() {
 /// Test error formatting
 #[test]
 fn test_error_formatting() {
-    let error = TransactionError::transaction_not_found(123);
+    let error = TransactionError::transaction_not_found(TransactionId(123));
     assert!(format!("{}", error).contains("123"));
 
     let error = TransactionError::too_many_transactions();

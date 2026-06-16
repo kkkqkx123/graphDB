@@ -1,7 +1,7 @@
 use axum::{
     http::StatusCode,
     middleware,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use std::time::Duration;
@@ -76,6 +76,18 @@ pub fn create_router<
         .route("/transactions", post(transaction::begin))
         .route("/transactions/{id}/commit", post(transaction::commit))
         .route("/transactions/{id}/rollback", post(transaction::rollback))
+        .route(
+            "/transactions/{id}/savepoints",
+            post(transaction::create_savepoint).get(transaction::get_savepoints),
+        )
+        .route(
+            "/transactions/{id}/savepoints/{sid}/rollback",
+            post(transaction::rollback_to_savepoint),
+        )
+        .route(
+            "/transactions/{id}/savepoints/{sid}",
+            delete(transaction::release_savepoint),
+        )
         // Batch operation of routes
         .route("/batch", post(create_batch))
         .route("/batch/{id}", get(batch_status).delete(delete_batch))

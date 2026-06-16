@@ -177,11 +177,12 @@ winapi = { version = "0.3", features = ["processthreadsapi", "psapi", "sysinfoap
 [features]
 default = ["server"]
 server = ["graphdb-api/server", "graphdb-config/server"]
-fulltext-search = ["graphdb-search/fulltext-search", "graphdb-sync/fulltext-search"]
+fulltext-search = ["graphdb-api/fulltext-search", "graphdb-search/fulltext-search", "graphdb-sync/fulltext-search"]
 jieba = ["graphdb-search/jieba"]
 qdrant = ["graphdb-api/qdrant", "graphdb-config/qdrant", "graphdb-sync/qdrant", "graphdb-query/qdrant"]
 embedded = ["graphdb-api/embedded", "graphdb-config/embedded"]
 grpc = ["graphdb-api/grpc"]
+c_api = ["graphdb-api/c_api"]
 
 [profile.dev]
 opt-level = 0

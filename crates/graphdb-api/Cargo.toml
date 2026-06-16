@@ -65,6 +65,7 @@ fulltext-search = [
     "graphdb-sync/fulltext-search",
     "graphdb-query/fulltext-search",
 ]
+c_api = []
 embedded = []
 
 [dev-dependencies]

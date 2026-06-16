@@ -3,7 +3,7 @@
 //! Tests for SyncManager edge insert/delete/update operations
 
 use crate::common::sync_helpers::{create_test_vertex, SyncTestHarness};
-use graphdb::core::types::{DataType, EdgeTypeInfo, PropertyDef, VertexId};
+use graphdb::core::types::{DataType, EdgeTypeInfo, PropertyDef, TransactionId, VertexId};
 use graphdb::core::Value;
 use graphdb::storage::{StorageReader, StorageSchemaOps, StorageWriter};
 use graphdb::sync::{EdgeProps, EdgeRef};
@@ -75,7 +75,7 @@ fn test_edge_insert_sync_via_manager() {
         .begin_transaction()
         .expect("Failed to begin transaction");
 
-    let txn_id = harness.current_txn_id.unwrap();
+    let txn_id = TransactionId(harness.current_txn_id.unwrap());
 
     let edge = graphdb::core::Edge::new(
         VertexId::from_int64(1),
@@ -185,7 +185,7 @@ fn test_edge_with_fulltext_property_sync() {
         .expect("Failed to insert vertex2");
 
     harness.begin_transaction().expect("Failed to begin txn");
-    let txn_id = harness.current_txn_id.unwrap();
+    let txn_id = TransactionId(harness.current_txn_id.unwrap());
 
     let mut props = HashMap::new();
     props.insert(
@@ -304,7 +304,7 @@ fn test_edge_delete_sync_via_manager() {
         .expect("Failed to insert initial edge");
 
     harness.begin_transaction().expect("Failed to begin txn");
-    let txn_id = harness.current_txn_id.unwrap();
+    let txn_id = TransactionId(harness.current_txn_id.unwrap());
 
     // Delete via storage
     harness
@@ -420,7 +420,7 @@ fn test_edge_update_sync_via_manager() {
         .expect("Failed to insert old edge");
 
     harness.begin_transaction().expect("Failed to begin txn");
-    let txn_id = harness.current_txn_id.unwrap();
+    let txn_id = TransactionId(harness.current_txn_id.unwrap());
 
     // Update edge
     let mut new_props = HashMap::new();
@@ -553,7 +553,7 @@ fn test_edge_delete_no_index_graceful() {
         .expect("Failed to insert edge");
 
     harness.begin_transaction().expect("Failed to begin txn");
-    let txn_id = harness.current_txn_id.unwrap();
+    let txn_id = TransactionId(harness.current_txn_id.unwrap());
 
     // Delete edge via storage
     harness

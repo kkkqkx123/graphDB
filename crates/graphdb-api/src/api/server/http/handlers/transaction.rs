@@ -5,7 +5,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
-use crate::api::core::TransactionHandle;
+use crate::api::core::{SavepointId, TransactionHandle};
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::{
     StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
@@ -14,7 +14,6 @@ use crate::transaction::{DurabilityLevel, IsolationLevel, TransactionOptions};
 
 #[derive(Debug, Deserialize)]
 pub struct BeginTransactionRequest {
-    pub session_id: i64,
     #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
@@ -69,7 +68,7 @@ pub async fn begin<
 
         match txn_api.begin(options) {
             Ok(handle) => Ok::<_, HttpError>(TransactionResponse {
-                transaction_id: handle.0,
+                transaction_id: handle.id(),
                 status: "Active".to_string(),
             }),
             Err(e) => Err(HttpError::InternalError(format!(
@@ -82,11 +81,6 @@ pub async fn begin<
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TransactionActionRequest {
-    pub session_id: i64,
 }
 
 /// Submit the transaction
@@ -102,21 +96,26 @@ pub async fn commit<
 >(
     State(state): State<AppState<S>>,
     Path(txn_id): Path<u64>,
-    Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    let txn_api = state.server.get_txn_api();
-    let handle = TransactionHandle(TransactionId(txn_id));
+    let result = task::spawn_blocking(move || {
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle::from(txn_id);
 
-    match txn_api.commit(handle) {
-        Ok(()) => Ok(JsonResponse(serde_json::json!({
-            "message": "Transaction committed successfully",
-            "transaction_id": txn_id,
-        }))),
-        Err(e) => Err(HttpError::InternalError(format!(
-            "Failed to commit transaction: {}",
-            e
-        ))),
-    }
+        match txn_api.commit(handle) {
+            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
+                "message": "Transaction committed successfully",
+                "transaction_id": txn_id,
+            })),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to commit transaction: {}",
+                e
+            ))),
+        }
+    })
+    .await
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+
+    Ok(JsonResponse(result?))
 }
 
 /// Roll back a transaction
@@ -132,19 +131,194 @@ pub async fn rollback<
 >(
     State(state): State<AppState<S>>,
     Path(txn_id): Path<u64>,
-    Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    let txn_api = state.server.get_txn_api();
-    let handle = TransactionHandle(TransactionId(txn_id));
+    let result = task::spawn_blocking(move || {
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle::from(txn_id);
 
-    match txn_api.rollback(handle) {
-        Ok(()) => Ok(JsonResponse(serde_json::json!({
-            "message": "Transaction rolled back successfully",
-            "transaction_id": txn_id,
-        }))),
-        Err(e) => Err(HttpError::InternalError(format!(
-            "Failed to rollback transaction: {}",
-            e
-        ))),
-    }
+        match txn_api.rollback(handle) {
+            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
+                "message": "Transaction rolled back successfully",
+                "transaction_id": txn_id,
+            })),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to rollback transaction: {}",
+                e
+            ))),
+        }
+    })
+    .await
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+
+    Ok(JsonResponse(result?))
+}
+
+/// ---------------------------------------------------------------------------
+/// Savepoint endpoints
+/// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct CreateSavepointRequest {
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SavepointResponse {
+    pub savepoint_id: u64,
+    pub transaction_id: u64,
+    pub name: Option<String>,
+}
+
+/// Create a savepoint within a transaction
+pub async fn create_savepoint<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
+    State(state): State<AppState<S>>,
+    Path(txn_id): Path<u64>,
+    Json(request): Json<CreateSavepointRequest>,
+) -> Result<JsonResponse<SavepointResponse>, HttpError> {
+    let result = task::spawn_blocking(move || {
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle::from(txn_id);
+
+        match txn_api.create_savepoint(handle, request.name.clone()) {
+            Ok(sp_id) => Ok::<_, HttpError>(SavepointResponse {
+                savepoint_id: sp_id.0,
+                transaction_id: txn_id,
+                name: request.name,
+            }),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to create savepoint: {}",
+                e
+            ))),
+        }
+    })
+    .await
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+
+    Ok(JsonResponse(result?))
+}
+
+/// List all savepoints for a transaction
+pub async fn get_savepoints<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
+    State(state): State<AppState<S>>,
+    Path(txn_id): Path<u64>,
+) -> Result<JsonResponse<Vec<serde_json::Value>>, HttpError> {
+    let result = task::spawn_blocking(move || {
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle::from(txn_id);
+
+        match txn_api.get_savepoints(handle) {
+            Ok(savepoints) => Ok::<_, HttpError>(
+                savepoints
+                    .into_iter()
+                    .map(|sp| {
+                        serde_json::json!({
+                            "id": sp.id,
+                            "name": sp.name,
+                            "created_at": format!("{:?}", sp.created_at),
+                        })
+                    })
+                    .collect(),
+            ),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to list savepoints: {}",
+                e
+            ))),
+        }
+    })
+    .await
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+
+    Ok(JsonResponse(result?))
+}
+
+/// Roll back to a savepoint
+pub async fn rollback_to_savepoint<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
+    State(state): State<AppState<S>>,
+    Path((txn_id, savepoint_id)): Path<(u64, u64)>,
+) -> Result<JsonResponse<serde_json::Value>, HttpError> {
+    let result = task::spawn_blocking(move || {
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle::from(txn_id);
+        let sp_id = SavepointId(savepoint_id);
+
+        match txn_api.rollback_to_savepoint(handle, sp_id) {
+            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
+                "message": "Rolled back to savepoint successfully",
+                "transaction_id": txn_id,
+                "savepoint_id": savepoint_id,
+            })),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to rollback to savepoint: {}",
+                e
+            ))),
+        }
+    })
+    .await
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+
+    Ok(JsonResponse(result?))
+}
+
+/// Release (delete) a savepoint
+pub async fn release_savepoint<
+    S: StorageClient
+        + StorageSchemaContextOps
+        + StorageSyncContextOps
+        + StorageTransactionContextOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+>(
+    State(state): State<AppState<S>>,
+    Path((txn_id, savepoint_id)): Path<(u64, u64)>,
+) -> Result<JsonResponse<serde_json::Value>, HttpError> {
+    let result = task::spawn_blocking(move || {
+        let txn_api = state.server.get_txn_api();
+        let handle = TransactionHandle::from(txn_id);
+        let sp_id = SavepointId(savepoint_id);
+
+        match txn_api.release_savepoint(handle, sp_id) {
+            Ok(()) => Ok::<_, HttpError>(serde_json::json!({
+                "message": "Savepoint released successfully",
+                "transaction_id": txn_id,
+                "savepoint_id": savepoint_id,
+            })),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to release savepoint: {}",
+                e
+            ))),
+        }
+    })
+    .await
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
+
+    Ok(JsonResponse(result?))
 }
