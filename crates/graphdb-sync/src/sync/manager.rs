@@ -3,6 +3,7 @@
 //! Unified synchronization manager using SyncCoordinator.
 
 use crate::core::Value;
+use crate::core::types::{TransactionContextInfo, TransactionId};
 #[cfg(feature = "fulltext-search")]
 use crate::search::SyncConfig;
 #[cfg(feature = "fulltext-search")]
@@ -11,6 +12,8 @@ use crate::sync::coordinator::{ChangeType, CoordinatorError, SyncCoordinator};
 use crate::sync::types::ChangeType;
 #[cfg(feature = "qdrant")]
 use crate::sync::vector_sync::VectorSyncCoordinator;
+use dashmap::DashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -25,6 +28,7 @@ pub struct SyncManager {
     sync_coordinator: Option<Arc<SyncCoordinator>>,
     #[cfg(feature = "qdrant")]
     vector_coordinator: Option<Arc<VectorSyncCoordinator>>,
+    txn_sequences: DashMap<TransactionId, AtomicU64>,
     running: Arc<std::sync::atomic::AtomicBool>,
     dead_letter_queue: Option<Arc<crate::sync::DeadLetterQueue>>,
     #[allow(clippy::type_complexity)]
@@ -33,11 +37,20 @@ pub struct SyncManager {
 
 impl Clone for SyncManager {
     fn clone(&self) -> Self {
+        let txn_sequences = DashMap::new();
+        for entry in self.txn_sequences.iter() {
+            txn_sequences.insert(
+                *entry.key(),
+                AtomicU64::new(entry.value().load(Ordering::Relaxed)),
+            );
+        }
+
         Self {
             #[cfg(feature = "fulltext-search")]
             sync_coordinator: self.sync_coordinator.clone(),
             #[cfg(feature = "qdrant")]
             vector_coordinator: self.vector_coordinator.clone(),
+            txn_sequences,
             running: self.running.clone(),
             dead_letter_queue: self.dead_letter_queue.clone(),
             handle: Mutex::new(None),
@@ -58,12 +71,67 @@ impl std::fmt::Debug for SyncManager {
 }
 
 impl SyncManager {
+    fn next_sync_sequence(&self, txn_id: TransactionId) -> u64 {
+        self.txn_sequences
+            .entry(txn_id)
+            .or_insert_with(|| AtomicU64::new(0))
+            .fetch_add(1, Ordering::SeqCst)
+            + 1
+    }
+
+    pub fn sync_sequence(&self, txn_id: TransactionId) -> u64 {
+        self.txn_sequences
+            .get(&txn_id)
+            .map(|entry| entry.load(Ordering::SeqCst))
+            .unwrap_or(0)
+    }
+
+    pub fn attach_transaction_context(
+        &self,
+        txn_id: TransactionId,
+    ) -> TransactionContextInfo {
+        TransactionContextInfo::new(
+            txn_id,
+            0,
+            false,
+            self.sync_sequence(txn_id),
+        )
+    }
+
+    pub fn rollback_transaction_to_sequence_sync(
+        &self,
+        txn_id: TransactionId,
+        sequence: u64,
+    ) -> Result<(), SyncError> {
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            coord
+                .truncate_transaction(txn_id, sequence)
+                .map_err(SyncError::from)?;
+        }
+
+        #[cfg(feature = "qdrant")]
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            vector_coord
+                .truncate_transaction(txn_id, sequence)
+                .map_err(|e| SyncError::VectorError(e.to_string()))?;
+        }
+
+        self.txn_sequences
+            .entry(txn_id)
+            .and_modify(|current| current.store(sequence, Ordering::SeqCst))
+            .or_insert_with(|| AtomicU64::new(sequence));
+
+        Ok(())
+    }
+
     #[cfg(feature = "fulltext-search")]
     pub fn new(sync_coordinator: Arc<SyncCoordinator>) -> Self {
         Self {
             sync_coordinator: Some(sync_coordinator),
             #[cfg(feature = "qdrant")]
             vector_coordinator: None,
+            txn_sequences: DashMap::new(),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             dead_letter_queue: None,
             handle: Mutex::new(None),
@@ -76,6 +144,7 @@ impl SyncManager {
             sync_coordinator: None,
             #[cfg(feature = "qdrant")]
             vector_coordinator: None,
+            txn_sequences: DashMap::new(),
             running: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             dead_letter_queue: None,
             handle: Mutex::new(None),
@@ -139,13 +208,14 @@ impl SyncManager {
 
     pub fn on_vertex_change_with_txn(
         &self,
-        txn_id: crate::core::types::TransactionId,
+        txn_id: TransactionId,
         space_id: u64,
         tag_name: &str,
         vertex_id: &Value,
         properties: &[(String, Value)],
         change_type: ChangeType,
     ) -> Result<(), SyncError> {
+        let sequence = self.next_sync_sequence(txn_id);
         for (field_name, value) in properties {
             #[cfg(feature = "fulltext-search")]
             if let Value::String(text) = value {
@@ -159,7 +229,7 @@ impl SyncManager {
                 );
                 if let Some(ref coord) = self.sync_coordinator {
                     coord
-                        .buffer_operation(txn_id, ctx)
+                        .buffer_operation_with_sequence(txn_id, sequence, ctx)
                         .map_err(SyncError::from)?;
                 }
             }
@@ -179,7 +249,58 @@ impl SyncManager {
                         },
                     );
                     vector_coord
-                        .buffer_vector_change(txn_id, ctx)
+                        .buffer_vector_change_with_sequence(txn_id, sequence, ctx)
+                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn on_vertex_change_direct(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        vertex_id: &crate::core::Value,
+        properties: &[(String, crate::core::Value)],
+        change_type: ChangeType,
+    ) -> Result<(), SyncError> {
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            for (field_name, value) in properties {
+                if let crate::core::Value::String(text) = value {
+                    let ctx = ChangeContext::new_fulltext(
+                        space_id,
+                        tag_name,
+                        field_name,
+                        change_type,
+                        format!("{}", vertex_id),
+                        text.clone(),
+                    );
+                    coord.on_change(ctx).await.map_err(SyncError::from)?;
+                }
+            }
+        }
+
+        #[cfg(feature = "qdrant")]
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            for (field_name, value) in properties {
+                if let Some(vector) = value.as_vector() {
+                    let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                        space_id,
+                        tag_name,
+                        field_name,
+                        crate::sync::vector_sync::VectorChangeType::from(change_type),
+                        crate::sync::vector_sync::VectorPointData {
+                            id: format!("{}", vertex_id),
+                            vector: vector.clone(),
+                            payload: std::collections::HashMap::new(),
+                        },
+                    );
+                    vector_coord
+                        .on_vector_change(ctx)
+                        .await
                         .map_err(|e| SyncError::VectorError(e.to_string()))?;
                 }
             }
@@ -190,10 +311,11 @@ impl SyncManager {
 
     pub fn on_edge_insert(
         &self,
-        txn_id: crate::core::types::TransactionId,
+        txn_id: TransactionId,
         space_id: u64,
         edge: &crate::core::Edge,
     ) -> Result<(), SyncError> {
+        let sequence = self.next_sync_sequence(txn_id);
         let props: Vec<(String, Value)> = edge
             .props
             .iter()
@@ -213,7 +335,7 @@ impl SyncManager {
                 );
                 if let Some(ref coord) = self.sync_coordinator {
                     coord
-                        .buffer_operation(txn_id, ctx)
+                        .buffer_operation_with_sequence(txn_id, sequence, ctx)
                         .map_err(SyncError::from)?;
                 }
             }
@@ -234,7 +356,7 @@ impl SyncManager {
                             },
                         );
                         vector_coord
-                            .buffer_vector_change(txn_id, ctx)
+                            .buffer_vector_change_with_sequence(txn_id, sequence, ctx)
                             .map_err(|e| SyncError::VectorError(e.to_string()))?;
                     }
                 }
@@ -246,12 +368,13 @@ impl SyncManager {
 
     pub fn on_edge_delete(
         &self,
-        txn_id: crate::core::types::TransactionId,
+        txn_id: TransactionId,
         space_id: u64,
         src: &Value,
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), SyncError> {
+        let sequence = self.next_sync_sequence(txn_id);
         let edge_id = format!("{}->{}", src, dst);
 
         #[cfg(feature = "fulltext-search")]
@@ -274,7 +397,7 @@ impl SyncManager {
                     String::new(),
                 );
                 coord
-                    .buffer_operation(txn_id, ctx)
+                    .buffer_operation_with_sequence(txn_id, sequence, ctx)
                     .map_err(SyncError::from)?;
             }
 
@@ -304,7 +427,7 @@ impl SyncManager {
                         },
                     );
                     vector_coord
-                        .buffer_vector_change(txn_id, ctx)
+                        .buffer_vector_change_with_sequence(txn_id, sequence, ctx)
                         .map_err(|e| SyncError::VectorError(e.to_string()))?;
                 }
             }
@@ -313,13 +436,162 @@ impl SyncManager {
         Ok(())
     }
 
+    pub async fn on_edge_insert_direct(
+        &self,
+        space_id: u64,
+        edge: &crate::core::Edge,
+    ) -> Result<(), SyncError> {
+        let props: Vec<(String, crate::core::Value)> = edge
+            .props
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            for (field_name, value) in &props {
+                if let crate::core::Value::String(text) = value {
+                    let ctx = ChangeContext::new_fulltext(
+                        space_id,
+                        &edge.edge_type,
+                        field_name,
+                        ChangeType::Insert,
+                        format!("{}->{}", edge.src, edge.dst),
+                        text.clone(),
+                    );
+                    coord.on_change(ctx).await.map_err(SyncError::from)?;
+                }
+            }
+        }
+
+        #[cfg(feature = "qdrant")]
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            for (field_name, value) in &props {
+                if let Some(vector) = value.as_vector() {
+                    if vector_coord.index_exists(space_id, &edge.edge_type, field_name) {
+                        let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                            space_id,
+                            &edge.edge_type,
+                            field_name,
+                            crate::sync::vector_sync::VectorChangeType::from(ChangeType::Insert),
+                            crate::sync::vector_sync::VectorPointData {
+                                id: format!("{}->{}", edge.src, edge.dst),
+                                vector: vector.clone(),
+                                payload: std::collections::HashMap::new(),
+                            },
+                        );
+                        vector_coord
+                            .on_vector_change(ctx)
+                            .await
+                            .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn on_edge_delete_direct(
+        &self,
+        space_id: u64,
+        src: &crate::core::Value,
+        dst: &crate::core::Value,
+        edge_type: &str,
+    ) -> Result<(), SyncError> {
+        let edge_id = format!("{}->{}", src, dst);
+
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            let indexes = coord
+                .fulltext_manager()
+                .get_space_indexes(space_id)
+                .into_iter()
+                .filter(|m| m.tag_name == edge_type);
+
+            for metadata in indexes {
+                let ctx = ChangeContext::new_fulltext(
+                    space_id,
+                    edge_type,
+                    &metadata.field_name,
+                    ChangeType::Delete,
+                    edge_id.clone(),
+                    String::new(),
+                );
+                coord.on_change(ctx).await.map_err(SyncError::from)?;
+            }
+        }
+
+        #[cfg(feature = "qdrant")]
+        if let Some(ref vector_coord) = self.vector_coordinator {
+            let vector_indexes = vector_coord.list_indexes();
+            for idx in vector_indexes {
+                if idx.space_id == space_id && idx.tag_name == edge_type {
+                    let ctx = crate::sync::vector_sync::VectorChangeContext::new(
+                        space_id,
+                        edge_type,
+                        &idx.field_name,
+                        crate::sync::vector_sync::VectorChangeType::Delete,
+                        crate::sync::vector_sync::VectorPointData {
+                            id: edge_id.clone(),
+                            vector: Vec::new(),
+                            payload: std::collections::HashMap::new(),
+                        },
+                    );
+                    vector_coord
+                        .on_vector_change(ctx)
+                        .await
+                        .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn on_vertex_change_direct_sync(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        vertex_id: &crate::core::Value,
+        properties: &[(String, crate::core::Value)],
+        change_type: ChangeType,
+    ) -> Result<(), SyncError> {
+        self.execute_sync(|| self.on_vertex_change_direct(
+            space_id,
+            tag_name,
+            vertex_id,
+            properties,
+            change_type,
+        ))
+    }
+
+    pub fn on_edge_insert_direct_sync(
+        &self,
+        space_id: u64,
+        edge: &crate::core::Edge,
+    ) -> Result<(), SyncError> {
+        self.execute_sync(|| self.on_edge_insert_direct(space_id, edge))
+    }
+
+    pub fn on_edge_delete_direct_sync(
+        &self,
+        space_id: u64,
+        src: &crate::core::Value,
+        dst: &crate::core::Value,
+        edge_type: &str,
+    ) -> Result<(), SyncError> {
+        self.execute_sync(|| self.on_edge_delete_direct(space_id, src, dst, edge_type))
+    }
+
     pub fn on_edge_update(
         &self,
-        txn_id: crate::core::types::TransactionId,
+        txn_id: TransactionId,
         space_id: u64,
         edge: EdgeRef<'_>,
         props: EdgeProps<'_>,
     ) -> Result<(), SyncError> {
+        let sequence = self.next_sync_sequence(txn_id);
         let edge_id = edge.id();
 
         #[cfg(feature = "fulltext-search")]
@@ -346,7 +618,7 @@ impl SyncManager {
                         text.clone(),
                     );
                     coord
-                        .buffer_operation(txn_id, ctx)
+                        .buffer_operation_with_sequence(txn_id, sequence, ctx)
                         .map_err(SyncError::from)?;
                 }
 
@@ -362,7 +634,7 @@ impl SyncManager {
                         text.clone(),
                     );
                     coord
-                        .buffer_operation(txn_id, ctx)
+                        .buffer_operation_with_sequence(txn_id, sequence, ctx)
                         .map_err(SyncError::from)?;
                 }
             }
@@ -388,7 +660,7 @@ impl SyncManager {
                                 },
                             );
                             vector_coord
-                                .buffer_vector_change(txn_id, ctx)
+                                .buffer_vector_change_with_sequence(txn_id, sequence, ctx)
                                 .map_err(|e| SyncError::VectorError(e.to_string()))?;
                         }
                     }
@@ -408,7 +680,7 @@ impl SyncManager {
                                 },
                             );
                             vector_coord
-                                .buffer_vector_change(txn_id, ctx)
+                                .buffer_vector_change_with_sequence(txn_id, sequence, ctx)
                                 .map_err(|e| SyncError::VectorError(e.to_string()))?;
                         }
                     }
@@ -495,19 +767,7 @@ impl SyncManager {
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
-        #[cfg(feature = "fulltext-search")]
-        if let Some(ref coord) = self.sync_coordinator {
-            coord
-                .rollback_transaction(txn_id)
-                .map_err(SyncError::from)?;
-        }
-
-        #[cfg(feature = "qdrant")]
-        if let Some(ref vector_coord) = self.vector_coordinator {
-            vector_coord.rollback_transaction(txn_id).await;
-        }
-
-        Ok(())
+        self.rollback_transaction_to_sequence_sync(txn_id, 0)
     }
 
     #[cfg(feature = "fulltext-search")]
@@ -518,7 +778,6 @@ impl SyncManager {
         self.execute_sync(|| self.prepare_transaction(txn_id))
     }
 
-    #[cfg(feature = "fulltext-search")]
     pub fn commit_transaction_sync(
         &self,
         txn_id: crate::core::types::TransactionId,

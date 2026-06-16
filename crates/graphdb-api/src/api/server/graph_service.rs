@@ -439,6 +439,7 @@ impl<
                 ctx.id,
                 ctx.start_timestamp,
                 ctx.read_only,
+                0,
             ));
             self.storage.set_transaction_context(Some(ctx_info));
         }
@@ -827,19 +828,16 @@ impl<
                 .as_ref()
                 .ok_or("Transaction manager not initialized")?;
 
-            let context = txn_manager
+            let savepoint_info = txn_manager
                 .get_context(txn_id)
-                .map_err(|e| format!("Failed to get transaction context: {}", e))?;
-
-            // Try to find the save point by using its name.
-            let savepoint_info = context
+                .map_err(|e| format!("Failed to get transaction context: {}", e))?
                 .find_savepoint_by_name(savepoint_name)
                 .ok_or_else(|| format!("Savepoint '{}' does not exist", savepoint_name))?;
 
-            // Perform a rollback to savepoint.
-            // Note: Full savepoint rollback with undo requires storage access.
-            // For now, we just truncate the operation log.
-            context.truncate_operation_log(savepoint_info.operation_log_index);
+            let storage = &*self.storage;
+            txn_manager
+                .rollback_to_savepoint(txn_id, savepoint_info.id, storage)
+                .map_err(|e| format!("Failed to rollback to savepoint: {}", e))?;
             info!(
                 "Session {} rolled back transaction {} to savepoint {}",
                 session.id(),
@@ -899,7 +897,7 @@ impl<
             .get_context(txn_id)
             .map_err(|e| format!("Failed to get transaction context: {}", e))?;
 
-        let savepoint_id = context.create_savepoint(Some(savepoint_name.to_string()));
+        let savepoint_id = context.create_savepoint(Some(savepoint_name.to_string()), 0);
 
         info!(
             "Session {} created savepoint {} in transaction {} (ID: {})",

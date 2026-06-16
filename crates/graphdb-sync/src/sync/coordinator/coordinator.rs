@@ -192,6 +192,15 @@ impl SyncCoordinator {
         txn_id: crate::core::types::TransactionId,
         ctx: ChangeContext,
     ) -> Result<(), SyncCoordinatorError> {
+        self.buffer_operation_with_sequence(txn_id, 0, ctx)
+    }
+
+    pub fn buffer_operation_with_sequence(
+        &self,
+        txn_id: crate::core::types::TransactionId,
+        sequence: u64,
+        ctx: ChangeContext,
+    ) -> Result<(), SyncCoordinatorError> {
         // Creating Index Operations
         let operation = self.create_operation(&ctx)?;
 
@@ -204,7 +213,7 @@ impl SyncCoordinator {
 
         // Adding operations to the buffer
         buffer
-            .prepare(txn_id, operation)
+            .prepare_with_sequence(txn_id, sequence, operation)
             .map_err(SyncCoordinatorError::BatchError)?;
 
         if let Some(ref sm) = self.stats_manager {
@@ -217,6 +226,13 @@ impl SyncCoordinator {
         }
 
         Ok(())
+    }
+
+    pub fn current_sequence(&self, txn_id: crate::core::types::TransactionId) -> u64 {
+        self.transaction_buffers
+            .get(&txn_id)
+            .map(|buffer| buffer.pending_sequence(txn_id))
+            .unwrap_or(0)
     }
 
     /// Get the count of buffered operations for a transaction
@@ -429,6 +445,19 @@ impl SyncCoordinator {
             buffer.rollback(txn_id)?;
         }
         self.transaction_buffers.remove(&txn_id);
+        Ok(())
+    }
+
+    pub fn truncate_transaction(
+        &self,
+        txn_id: crate::core::types::TransactionId,
+        sequence: u64,
+    ) -> Result<(), SyncCoordinatorError> {
+        if let Some(buffer) = self.transaction_buffers.get(&txn_id) {
+            buffer
+                .truncate_operations(txn_id, sequence)
+                .map_err(SyncCoordinatorError::BatchError)?;
+        }
         Ok(())
     }
 

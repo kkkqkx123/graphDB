@@ -73,7 +73,7 @@ pub(crate) struct GraphDatabaseInner<S: StorageClient + Clone + 'static> {
     pub(crate) vector_runtime: Arc<tokio::runtime::Runtime>,
 }
 
-impl<S: StorageClient + Clone + 'static> Session<S> {
+impl<S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoTarget> Session<S> {
     /// Create a new session.
     pub(crate) fn new(db: Arc<GraphDatabaseInner<S>>) -> Self {
         Self {
@@ -568,17 +568,11 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         txn_handle: &crate::api::core::TransactionHandle,
         savepoint: crate::api::core::SavepointId,
     ) -> CoreResult<()> {
-        let context = self
-            .txn_manager()
-            .get_context(txn_handle.0)
-            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
-
-        let savepoint_info = context
-            .find_savepoint_by_id(savepoint.0)
-            .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
-
-        context.truncate_operation_log(savepoint_info.operation_log_index);
-        Ok(())
+        let txn_manager = self.txn_manager();
+        let mut storage = self.storage_mut();
+        txn_manager
+            .rollback_to_savepoint(txn_handle.0, savepoint.0, &mut *storage)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
     /// Vector search - search for similar vectors

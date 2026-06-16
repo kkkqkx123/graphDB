@@ -9,9 +9,10 @@
 mod compact;
 mod ops;
 mod recovery;
-mod undo;
+pub mod undo;
 
 pub use ops::{
     AddEdgeParams, DeleteEdgeParams, DeleteEdgeTypeParams, EdgeTypeLabelParams,
     RevertDeleteEdgeParams, TransactionOps, UpdateEdgePropertyUndoParams,
 };
+pub use crate::core::types::UndoTarget;

@@ -260,10 +260,12 @@ impl GraphDatabase<GraphStorage> {
         // Create shared StatsManager for all components (before TransactionManager to enable wiring)
         let stats_manager = Arc::new(StatsManager::new());
 
-        let txn_manager = Arc::new(TransactionManager::with_stats_manager(
-            txn_manager_config,
-            stats_manager.clone(),
-        ));
+        let mut txn_manager =
+            TransactionManager::with_stats_manager(txn_manager_config, stats_manager.clone());
+        if let Some(ref sync) = sync_manager {
+            txn_manager = txn_manager.with_sync_manager(sync.clone());
+        }
+        let txn_manager = Arc::new(txn_manager);
 
         let query_api = if let Some(ref sync) = sync_manager {
             Arc::new(RwLock::new(QueryApi::with_sync_manager(
@@ -432,7 +434,11 @@ impl GraphDatabase<MockStorage> {
         let storage = Arc::new(RwLock::new(storage));
 
         let txn_manager_config = TransactionManagerConfig::default();
-        let txn_manager = Arc::new(TransactionManager::new(txn_manager_config));
+        let mut txn_manager = TransactionManager::new(txn_manager_config);
+        if let Some(ref sync) = sync_manager {
+            txn_manager = txn_manager.with_sync_manager(sync.clone());
+        }
+        let txn_manager = Arc::new(txn_manager);
 
         let stats_manager = Arc::new(StatsManager::new());
         let query_api = Arc::new(RwLock::new(QueryApi::new(

@@ -87,7 +87,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     #[cfg(not(feature = "qdrant"))]
     let _vector_manager = None::<Arc<()>>;
 
-    let storage = if config.fulltext.enabled || config.is_vector_enabled() {
+    let sync_manager = if config.fulltext.enabled || config.is_vector_enabled() {
         use crate::sync::SyncManager;
 
         let sync_manager = if config.fulltext.enabled {
@@ -151,7 +151,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                     sync_manager
                 };
 
-                Arc::new(sync_manager)
+                Some(Arc::new(sync_manager))
             }
             #[cfg(not(feature = "fulltext-search"))]
             {
@@ -191,7 +191,7 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                     sync_manager
                 };
 
-                Arc::new(sync_manager)
+                Some(Arc::new(sync_manager))
             }
         } else {
             let sync_manager = SyncManager::new_without_fulltext();
@@ -230,14 +230,21 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
                 sync_manager
             };
 
-            Arc::new(sync_manager)
+            Some(Arc::new(sync_manager))
         };
 
-        info!("SyncManager initialized");
+        if sync_manager.is_some() {
+            info!("SyncManager initialized");
+        }
 
-        let sync_storage = SyncWrapper::with_sync_manager((*inner_storage).clone(), sync_manager);
+        sync_manager
+    } else {
+        None
+    };
+
+    let storage = if let Some(ref sync_manager) = sync_manager {
+        let sync_storage = SyncWrapper::with_sync_manager((*inner_storage).clone(), sync_manager.clone());
         info!("Sync enabled for fulltext and vector indexes");
-
         Arc::new(sync_storage)
     } else {
         let sync_storage = SyncWrapper::new((*inner_storage).clone());
@@ -252,10 +259,12 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
         write_lock_timeout: std::time::Duration::from_secs(10),
     };
 
-    let transaction_manager = Arc::new(TransactionManager::with_stats_manager(
-        txn_config,
-        stats_manager.clone(),
-    ));
+    let mut transaction_manager =
+        TransactionManager::with_stats_manager(txn_config, stats_manager.clone());
+    if let Some(ref sync_manager) = sync_manager {
+        transaction_manager = transaction_manager.with_sync_manager(sync_manager.clone());
+    }
+    let transaction_manager = Arc::new(transaction_manager);
     info!("Transaction manager initialized with StatsManager");
 
     // Create GraphService with shared VectorManager to avoid duplicate initialization

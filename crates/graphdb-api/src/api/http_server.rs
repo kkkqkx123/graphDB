@@ -10,6 +10,7 @@ use crate::core::error::DBResult;
 use crate::storage::{
     StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
 };
+use crate::storage::UndoTarget;
 
 use super::shutdown::async_shutdown_signal;
 
@@ -19,6 +20,7 @@ pub async fn start_http_server<
         + StorageSchemaContextOps
         + StorageSyncContextOps
         + StorageTransactionContextOps
+        + UndoTarget
         + Clone
         + Send
         + Sync

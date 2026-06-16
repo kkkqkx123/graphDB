@@ -92,11 +92,10 @@ impl TransactionApi {
         handle: TransactionHandle,
         name: Option<String>,
     ) -> CoreResult<SavepointId> {
-        let context = self
-            .txn_manager
-            .get_context(handle.0)
-            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
-        Ok(SavepointId(context.create_savepoint(name)))
+        self.txn_manager
+            .create_savepoint(handle.0, name)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
+            .map(SavepointId)
     }
 
     /// Rollback to a savepoint
@@ -104,22 +103,16 @@ impl TransactionApi {
     /// # Parameters
     /// - `handle`: transaction handle
     /// - `savepoint_id`: savepoint ID to rollback to
+    /// - `storage`: reference to storage for undo operations
     pub fn rollback_to_savepoint(
         &self,
         handle: TransactionHandle,
         savepoint_id: SavepointId,
+        storage: &impl graphdb_storage::storage::UndoTarget,
     ) -> CoreResult<()> {
-        let context = self
-            .txn_manager
-            .get_context(handle.0)
-            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
-
-        let savepoint_info = context
-            .find_savepoint_by_id(savepoint_id.0)
-            .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
-
-        context.truncate_operation_log(savepoint_info.operation_log_index);
-        Ok(())
+        self.txn_manager
+            .rollback_to_savepoint(handle.0, savepoint_id.0, storage)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
     /// Release a savepoint

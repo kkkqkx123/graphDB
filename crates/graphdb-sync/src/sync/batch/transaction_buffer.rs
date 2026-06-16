@@ -6,7 +6,13 @@ use crate::sync::types::{IndexOpKey, IndexOperation};
 
 #[derive(Debug, Default)]
 pub struct TransactionBufferEntry {
-    pub operations: Vec<IndexOperation>,
+    pub operations: Vec<SequencedIndexOperation>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SequencedIndexOperation {
+    pub sequence: u64,
+    pub operation: IndexOperation,
 }
 
 pub struct TransactionBatchBuffer {
@@ -42,7 +48,13 @@ impl TransactionBatchBuffer {
             let mut result = Vec::new();
             for entry in txn_buffer.iter() {
                 let key = entry.key().clone();
-                let ops = entry.value().operations.clone();
+                let ops = entry
+                    .value()
+                    .operations
+                    .iter()
+                    .cloned()
+                    .map(|op| op.operation)
+                    .collect::<Vec<_>>();
                 if !ops.is_empty() {
                     result.push((key, ops));
                 }
@@ -54,6 +66,15 @@ impl TransactionBatchBuffer {
     }
 
     pub fn prepare(&self, txn_id: TransactionId, operation: IndexOperation) -> BatchResult<()> {
+        self.prepare_with_sequence(txn_id, 0, operation)
+    }
+
+    pub fn prepare_with_sequence(
+        &self,
+        txn_id: TransactionId,
+        sequence: u64,
+        operation: IndexOperation,
+    ) -> BatchResult<()> {
         let txn_buffer = self.pending.entry(txn_id).or_default();
 
         let key = match &operation {
@@ -63,7 +84,9 @@ impl TransactionBatchBuffer {
         };
 
         let mut entry = txn_buffer.entry(key).or_default();
-        entry.operations.push(operation);
+        entry
+            .operations
+            .push(SequencedIndexOperation { sequence, operation });
         Ok(())
     }
 
@@ -75,7 +98,13 @@ impl TransactionBatchBuffer {
             let mut result = Vec::new();
             for entry in txn_buffer.iter() {
                 let key = entry.key().clone();
-                let ops = entry.value().operations.clone();
+                let ops = entry
+                    .value()
+                    .operations
+                    .iter()
+                    .cloned()
+                    .map(|op| op.operation)
+                    .collect::<Vec<_>>();
                 if !ops.is_empty() {
                     result.push((key, ops));
                 }
@@ -91,10 +120,43 @@ impl TransactionBatchBuffer {
         Ok(())
     }
 
+    pub fn truncate_operations(&self, txn_id: TransactionId, sequence: u64) -> BatchResult<()> {
+        if let Some(txn_buffer) = self.pending.get_mut(&txn_id) {
+            let keys: Vec<IndexOpKey> = txn_buffer.iter().map(|entry| entry.key().clone()).collect();
+
+            for key in keys {
+                if let Some(mut entry) = txn_buffer.get_mut(&key) {
+                    entry.operations.retain(|op| op.sequence <= sequence);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn pending_sequence(&self, txn_id: TransactionId) -> u64 {
+        self.pending
+            .get(&txn_id)
+            .and_then(|txn_buffer| {
+                txn_buffer
+                    .iter()
+                    .flat_map(|entry| {
+                        let ops = entry.value().operations.clone();
+                        ops.into_iter().map(|op| op.sequence)
+                    })
+                    .max()
+            })
+            .unwrap_or(0)
+    }
+
     pub fn pending_count(&self, txn_id: TransactionId) -> usize {
         self.pending
             .get(&txn_id)
-            .map(|txn_buffer| txn_buffer.iter().map(|e| e.value().operations.len()).sum())
+            .map(|txn_buffer| {
+                txn_buffer
+                    .iter()
+                    .map(|e| e.value().operations.len())
+                    .sum()
+            })
             .unwrap_or(0)
     }
 }

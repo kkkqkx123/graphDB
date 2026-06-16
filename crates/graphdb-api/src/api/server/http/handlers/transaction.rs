@@ -249,12 +249,13 @@ pub async fn get_savepoints<
     Ok(JsonResponse(result?))
 }
 
-/// Roll back to a savepoint
+/// Roll back to savepoint
 pub async fn rollback_to_savepoint<
     S: StorageClient
         + StorageSchemaContextOps
         + StorageSyncContextOps
         + StorageTransactionContextOps
+        + graphdb_storage::storage::UndoTarget
         + Clone
         + Send
         + Sync
@@ -267,8 +268,11 @@ pub async fn rollback_to_savepoint<
         let txn_api = state.server.get_txn_api();
         let handle = TransactionHandle::from(txn_id);
         let sp_id = SavepointId(savepoint_id);
+        let storage = state.server.get_storage();
+        let storage_guard = storage.read();
+        let storage_ref = &*storage_guard;
 
-        match txn_api.rollback_to_savepoint(handle, sp_id) {
+        match txn_api.rollback_to_savepoint(handle, sp_id, storage_ref) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
                 "message": "Rolled back to savepoint successfully",
                 "transaction_id": txn_id,

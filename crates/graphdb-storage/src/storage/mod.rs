@@ -31,6 +31,7 @@ pub use client::{
 pub use engine::graph_storage::GraphStorage;
 pub use engine::persistence_coordinator::{CheckpointStats, SnapshotStats};
 pub use engine::sync_wrapper::SyncWrapper;
+pub use engine::transaction::UndoTarget;
 pub use metrics::MetricsStorage;
 
 pub use crate::core::StorageError;

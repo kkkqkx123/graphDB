@@ -68,18 +68,32 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
             }
 
             let vid_value = Value::from(vertex.vid);
-            sync_manager
-                .on_vertex_change_with_txn(
-                    txn_id,
-                    space_id,
-                    &tag.name,
-                    &vid_value,
-                    &props,
-                    ChangeType::Insert,
-                )
-                .map_err(|e| {
-                    StorageError::db_error(format!("Failed to sync vertex insert: {}", e))
-                })?;
+            if let Some(txn_id) = txn_id {
+                sync_manager
+                    .on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        &tag.name,
+                        &vid_value,
+                        &props,
+                        ChangeType::Insert,
+                    )
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync vertex insert: {}", e))
+                    })?;
+            } else {
+                sync_manager
+                    .on_vertex_change_direct_sync(
+                        space_id,
+                        &tag.name,
+                        &vid_value,
+                        &props,
+                        ChangeType::Insert,
+                    )
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync vertex insert: {}", e))
+                    })?;
+            }
         }
 
         Ok(())
@@ -110,18 +124,32 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
             }
 
             let vid_value = Value::from(new_vertex.vid);
-            sync_manager
-                .on_vertex_change_with_txn(
-                    txn_id,
-                    space_id,
-                    &tag.name,
-                    &vid_value,
-                    &changed_props,
-                    ChangeType::Update,
-                )
-                .map_err(|e| {
-                    StorageError::db_error(format!("Failed to sync vertex update: {}", e))
-                })?;
+            if let Some(txn_id) = txn_id {
+                sync_manager
+                    .on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        &tag.name,
+                        &vid_value,
+                        &changed_props,
+                        ChangeType::Update,
+                    )
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync vertex update: {}", e))
+                    })?;
+            } else {
+                sync_manager
+                    .on_vertex_change_direct_sync(
+                        space_id,
+                        &tag.name,
+                        &vid_value,
+                        &changed_props,
+                        ChangeType::Update,
+                    )
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync vertex update: {}", e))
+                    })?;
+            }
         }
 
         Ok(())
@@ -156,18 +184,32 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
                 continue;
             }
 
-            sync_manager
-                .on_vertex_change_with_txn(
-                    txn_id,
-                    space_id,
-                    &tag.name,
-                    &id_value,
-                    &props,
-                    ChangeType::Delete,
-                )
-                .map_err(|e| {
-                    StorageError::db_error(format!("Failed to sync vertex delete: {}", e))
-                })?;
+            if let Some(txn_id) = txn_id {
+                sync_manager
+                    .on_vertex_change_with_txn(
+                        txn_id,
+                        space_id,
+                        &tag.name,
+                        &id_value,
+                        &props,
+                        ChangeType::Delete,
+                    )
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync vertex delete: {}", e))
+                    })?;
+            } else {
+                sync_manager
+                    .on_vertex_change_direct_sync(
+                        space_id,
+                        &tag.name,
+                        &id_value,
+                        &props,
+                        ChangeType::Delete,
+                    )
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync vertex delete: {}", e))
+                    })?;
+            }
         }
 
         Ok(())
@@ -202,18 +244,35 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
                 }
 
                 let vid_value = Value::from(vertex.vid);
-                sync_manager
-                    .on_vertex_change_with_txn(
-                        txn_id,
-                        space_id,
-                        &tag.name,
-                        &vid_value,
-                        &props,
-                        ChangeType::Insert,
-                    )
-                    .map_err(|e| {
-                        StorageError::db_error(format!("Failed to sync vertex insert: {}", e))
-                    })?;
+                if let Some(txn_id) = txn_id {
+                    sync_manager
+                        .on_vertex_change_with_txn(
+                            txn_id,
+                            space_id,
+                            &tag.name,
+                            &vid_value,
+                            &props,
+                            ChangeType::Insert,
+                        )
+                        .map_err(|e| {
+                            StorageError::db_error(format!("Failed to sync vertex insert: {}", e))
+                        })?;
+                } else {
+                    sync_manager
+                        .on_vertex_change_direct_sync(
+                            space_id,
+                            &tag.name,
+                            &vid_value,
+                            &props,
+                            ChangeType::Insert,
+                        )
+                        .map_err(|e| {
+                            StorageError::db_error(format!(
+                                "Failed to sync vertex insert: {}",
+                                e
+                            ))
+                        })?;
+                }
             }
         }
 

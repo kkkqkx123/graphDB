@@ -15,6 +15,7 @@ use tower_http::{
 use crate::storage::{
     StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
 };
+use crate::storage::UndoTarget;
 
 #[cfg(feature = "qdrant")]
 use super::handlers::vector;
@@ -53,6 +54,7 @@ pub fn create_router<
         + StorageSchemaContextOps
         + StorageSyncContextOps
         + StorageTransactionContextOps
+        + UndoTarget
         + Clone
         + Send
         + Sync

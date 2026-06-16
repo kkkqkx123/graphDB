@@ -20,9 +20,15 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
         let space_id = self.inner.get_space_id(space)?;
         let txn_id = self.get_current_txn_id();
 
-        sync_manager
-            .on_edge_insert(txn_id, space_id, edge)
-            .map_err(|e| StorageError::db_error(format!("Failed to sync edge insert: {}", e)))
+        if let Some(txn_id) = txn_id {
+            sync_manager
+                .on_edge_insert(txn_id, space_id, edge)
+                .map_err(|e| StorageError::db_error(format!("Failed to sync edge insert: {}", e)))
+        } else {
+            sync_manager
+                .on_edge_insert_direct_sync(space_id, edge)
+                .map_err(|e| StorageError::db_error(format!("Failed to sync edge insert: {}", e)))
+        }
     }
 
     pub(super) fn sync_delete_edge(
@@ -45,9 +51,15 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
         let src_value = Value::from(*src);
         let dst_value = Value::from(*dst);
 
-        sync_manager
-            .on_edge_delete(txn_id, space_id, &src_value, &dst_value, edge_type)
-            .map_err(|e| StorageError::db_error(format!("Failed to sync edge delete: {}", e)))
+        if let Some(txn_id) = txn_id {
+            sync_manager
+                .on_edge_delete(txn_id, space_id, &src_value, &dst_value, edge_type)
+                .map_err(|e| StorageError::db_error(format!("Failed to sync edge delete: {}", e)))
+        } else {
+            sync_manager
+                .on_edge_delete_direct_sync(space_id, &src_value, &dst_value, edge_type)
+                .map_err(|e| StorageError::db_error(format!("Failed to sync edge delete: {}", e)))
+        }
     }
 
     pub(super) fn sync_batch_insert_edges(
@@ -67,11 +79,19 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
         let txn_id = self.get_current_txn_id();
 
         for edge in edges {
-            sync_manager
-                .on_edge_insert(txn_id, space_id, edge)
-                .map_err(|e| {
-                    StorageError::db_error(format!("Failed to sync edge insert: {}", e))
-                })?;
+            if let Some(txn_id) = txn_id {
+                sync_manager
+                    .on_edge_insert(txn_id, space_id, edge)
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync edge insert: {}", e))
+                    })?;
+            } else {
+                sync_manager
+                    .on_edge_insert_direct_sync(space_id, edge)
+                    .map_err(|e| {
+                        StorageError::db_error(format!("Failed to sync edge insert: {}", e))
+                    })?;
+            }
         }
 
         Ok(())

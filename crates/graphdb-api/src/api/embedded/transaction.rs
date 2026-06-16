@@ -162,7 +162,7 @@ pub struct Transaction<'sess, S: StorageClient + Clone + 'static> {
     rolled_back: bool,
 }
 
-impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
+impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoTarget> Transaction<'sess, S> {
     /// Creating a new transaction
     pub(crate) fn new(session: &'sess Session<S>, txn_handle: TransactionHandle) -> Self {
         Self {
@@ -325,18 +325,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn rollback_to_savepoint(&self, savepoint_id: SavepointId) -> CoreResult<()> {
         self.check_active()?;
 
-        let context = self
-            .session
-            .txn_manager()
-            .get_context(self.txn_handle.0)
-            .map_err(|e| CoreError::TransactionFailed(e.to_string()))?;
-
-        let savepoint_info = context
-            .find_savepoint_by_id(savepoint_id)
-            .ok_or_else(|| CoreError::TransactionFailed("Savepoint not found".to_string()))?;
-
-        context.truncate_operation_log(savepoint_info.operation_log_index);
-        Ok(())
+        let txn_manager = self.session.txn_manager();
+        let mut storage = self.session.storage_mut();
+        txn_manager
+            .rollback_to_savepoint(self.txn_handle.0, savepoint_id, &mut *storage)
+            .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
     /// Release the save point.

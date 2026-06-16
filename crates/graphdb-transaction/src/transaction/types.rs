@@ -101,6 +101,8 @@ pub struct SavepointInfo {
     pub created_at: std::time::Instant,
     /// Corresponding operation log index
     pub operation_log_index: usize,
+    /// Snapshot of the transaction-local sync sequence at savepoint creation
+    pub sync_sequence: u64,
 }
 
 /// Operation Log

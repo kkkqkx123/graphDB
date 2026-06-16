@@ -18,6 +18,7 @@ use super::types::*;
 use super::undo_log::UndoTarget;
 use crate::core::mvcc::{VersionManager, VersionManagerConfig};
 use crate::core::stats::StatsManager;
+use crate::sync::SyncManager;
 
 /// Transaction Manager
 ///
@@ -40,6 +41,8 @@ pub struct TransactionManager {
     monitor: TransactionMonitor,
     /// Transaction cleaner for expired transaction cleanup
     cleaner: TransactionCleaner,
+    /// Optional sync manager for index cleanup and commit coordination
+    sync_manager: Option<Arc<SyncManager>>,
 }
 
 impl TransactionManager {
@@ -59,6 +62,7 @@ impl TransactionManager {
             shutdown_flag: AtomicU64::new(0),
             monitor,
             cleaner,
+            sync_manager: None,
         }
     }
 
@@ -81,6 +85,7 @@ impl TransactionManager {
             shutdown_flag: AtomicU64::new(0),
             monitor,
             cleaner,
+            sync_manager: None,
         }
     }
 
@@ -103,7 +108,20 @@ impl TransactionManager {
             shutdown_flag: AtomicU64::new(0),
             monitor,
             cleaner,
+            sync_manager: None,
         }
+    }
+
+    /// Attach a sync manager after construction.
+    pub fn set_sync_manager(&mut self, sync_manager: Arc<SyncManager>) {
+        self.cleaner = TransactionCleaner::new(Some(sync_manager.clone()), Arc::clone(&self.stats));
+        self.sync_manager = Some(sync_manager);
+    }
+
+    /// Attach a sync manager so transaction completion can clean up index buffers.
+    pub fn with_sync_manager(mut self, sync_manager: Arc<SyncManager>) -> Self {
+        self.set_sync_manager(sync_manager);
+        self
     }
 
     /// Get the version manager
@@ -305,6 +323,15 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Committed)?;
 
+        if let Some(ref sync_manager) = self.sync_manager {
+            if let Err(e) = sync_manager.commit_transaction_sync(txn_id) {
+                return Err(TransactionError::sync_failed(format!(
+                    "Failed to commit sync data for transaction {}: {}",
+                    txn_id, e
+                )));
+            }
+        }
+
         self.stats.record_txn_commit();
 
         Ok(())
@@ -388,6 +415,15 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Aborted)?;
 
+        if let Some(ref sync_manager) = self.sync_manager {
+            if let Err(e) = sync_manager.rollback_transaction_sync(context.id) {
+                return Err(TransactionError::sync_failed(format!(
+                    "Failed to rollback sync data for transaction {}: {}",
+                    context.id, e
+                )));
+            }
+        }
+
         self.stats.record_txn_rollback();
 
         Ok(())
@@ -444,7 +480,12 @@ impl TransactionManager {
         name: Option<String>,
     ) -> Result<SavepointId, TransactionError> {
         let context = self.get_context(txn_id)?;
-        Ok(context.create_savepoint(name))
+        let sync_sequence = self
+            .sync_manager
+            .as_ref()
+            .map(|manager| manager.sync_sequence(txn_id))
+            .unwrap_or(0);
+        Ok(context.create_savepoint(name, sync_sequence))
     }
 
     /// Get savepoint info
@@ -468,10 +509,24 @@ impl TransactionManager {
         &self,
         txn_id: TransactionId,
         id: SavepointId,
-        target: &mut T,
+        target: &T,
     ) -> Result<(), TransactionError> {
         let context = self.get_context(txn_id)?;
-        context.rollback_to_savepoint(id, target)
+        let savepoint = context
+            .get_savepoint(id)
+            .ok_or(TransactionError::savepoint_not_found(id))?;
+
+        if let Some(sync_manager) = self.sync_manager.as_ref() {
+            sync_manager
+                .rollback_transaction_to_sequence_sync(txn_id, savepoint.sync_sequence)
+                .map_err(|e| TransactionError::sync_failed(e.to_string()))?;
+        }
+
+        context
+            .rollback_to_savepoint(id, target)
+            .map_err(|e| TransactionError::rollback_failed(e.to_string()))?;
+
+        Ok(())
     }
 
     /// Get all active savepoints for transaction
@@ -597,5 +652,37 @@ mod tests {
         manager.shutdown();
 
         assert!(!manager.is_transaction_active(txn_id));
+    }
+
+    #[test]
+    fn test_transaction_manager_with_sync_manager() {
+        use crate::sync::SyncManager;
+
+        let sync_manager = Arc::new(SyncManager::new_without_fulltext());
+        let manager =
+            TransactionManager::new(TransactionManagerConfig::default()).with_sync_manager(sync_manager);
+
+        assert!(manager.sync_manager.is_some());
+    }
+
+    #[test]
+    fn test_rollback_to_savepoint_rejected_with_sync_manager() {
+        use crate::sync::SyncManager;
+
+        let sync_manager = Arc::new(SyncManager::new_without_fulltext());
+        let manager =
+            TransactionManager::new(TransactionManagerConfig::default()).with_sync_manager(sync_manager);
+
+        let txn_id = manager
+            .begin_insert_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
+        let sp_id = manager
+            .create_savepoint(txn_id, Some("sp".to_string()))
+            .expect("Failed to create savepoint");
+
+        let mut dummy = ();
+        let result = manager.rollback_to_savepoint(txn_id, sp_id, &mut dummy);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), TransactionErrorKind::SavepointFailed);
     }
 }

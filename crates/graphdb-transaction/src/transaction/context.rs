@@ -90,6 +90,7 @@ impl SavepointManager {
         &mut self,
         name: Option<String>,
         operation_log_index: usize,
+        sync_sequence: u64,
     ) -> SavepointId {
         let id = self.next_id;
         self.next_id += 1;
@@ -98,6 +99,7 @@ impl SavepointManager {
             name,
             created_at: Instant::now(),
             operation_log_index,
+            sync_sequence,
         };
         self.savepoints.insert(id, info);
         id
@@ -391,10 +393,10 @@ impl TransactionContext {
     }
 
     /// Create savepoint
-    pub fn create_savepoint(&self, name: Option<String>) -> SavepointId {
+    pub fn create_savepoint(&self, name: Option<String>, sync_sequence: u64) -> SavepointId {
         let operation_log_index = self.operation_log_len();
         let mut manager = self.savepoint_manager.write();
-        manager.create_savepoint(name, operation_log_index)
+        manager.create_savepoint(name, operation_log_index, sync_sequence)
     }
 
     /// Get savepoint info
@@ -524,6 +526,7 @@ impl TransactionContext {
             undo_logs.clear();
         }
     }
+
 }
 
 #[cfg(test)]

@@ -142,12 +142,17 @@ impl VectorChangeContext {
 #[derive(Debug, Clone)]
 pub struct PendingVectorUpdate {
     pub txn_id: TransactionId,
+    pub sequence: u64,
     pub context: VectorChangeContext,
 }
 
 impl PendingVectorUpdate {
-    pub fn new(txn_id: TransactionId, context: VectorChangeContext) -> Self {
-        Self { txn_id, context }
+    pub fn new(txn_id: TransactionId, sequence: u64, context: VectorChangeContext) -> Self {
+        Self {
+            txn_id,
+            sequence,
+            context,
+        }
     }
 }
 
@@ -229,6 +234,24 @@ impl VectorTransactionBuffer {
             .unwrap_or_default()
     }
 
+    pub fn take_updates_after_sequence(
+        &self,
+        txn_id: TransactionId,
+        sequence: u64,
+    ) -> Vec<PendingVectorUpdate> {
+        if let Some(mut buffer) = self.buffers.get_mut(&txn_id) {
+            buffer.retain(|update| update.sequence <= sequence);
+            return buffer.clone();
+        }
+        Vec::new()
+    }
+
+    pub fn truncate_updates(&self, txn_id: TransactionId, sequence: u64) {
+        if let Some(mut buffer) = self.buffers.get_mut(&txn_id) {
+            buffer.retain(|update| update.sequence <= sequence);
+        }
+    }
+
     /// Check if there are pending updates
     pub fn has_pending_updates(&self, txn_id: TransactionId) -> bool {
         if let Some(buffer) = self.buffers.get(&txn_id) {
@@ -241,6 +264,13 @@ impl VectorTransactionBuffer {
     /// Cleanup buffer for a transaction
     pub fn cleanup(&self, txn_id: TransactionId) {
         self.buffers.remove(&txn_id);
+    }
+
+    pub fn pending_sequence(&self, txn_id: TransactionId) -> u64 {
+        self.buffers
+            .get(&txn_id)
+            .and_then(|buffer| buffer.iter().map(|update| update.sequence).max())
+            .unwrap_or(0)
     }
 }
 
@@ -672,8 +702,17 @@ impl VectorSyncCoordinator {
         txn_id: TransactionId,
         ctx: VectorChangeContext,
     ) -> Result<(), VectorCoordinatorError> {
+        self.buffer_vector_change_with_sequence(txn_id, 0, ctx)
+    }
+
+    pub fn buffer_vector_change_with_sequence(
+        &self,
+        txn_id: TransactionId,
+        sequence: u64,
+        ctx: VectorChangeContext,
+    ) -> Result<(), VectorCoordinatorError> {
         if let Some(ref buffer) = self.transaction_buffer {
-            let update = PendingVectorUpdate::new(txn_id, ctx);
+            let update = PendingVectorUpdate::new(txn_id, sequence, ctx);
             buffer.add_update(txn_id, update).map_err(|e| {
                 VectorCoordinatorError::BufferError(format!(
                     "Failed to buffer vector update: {}",
@@ -761,6 +800,17 @@ impl VectorSyncCoordinator {
             buffer.cleanup(txn_id);
             debug!("Rolled back vector updates for transaction {:?}", txn_id);
         }
+    }
+
+    pub fn truncate_transaction(
+        &self,
+        txn_id: TransactionId,
+        sequence: u64,
+    ) -> Result<(), VectorCoordinatorError> {
+        if let Some(ref buffer) = self.transaction_buffer {
+            buffer.truncate_updates(txn_id, sequence);
+        }
+        Ok(())
     }
 
     /// Handle batch vector changes
