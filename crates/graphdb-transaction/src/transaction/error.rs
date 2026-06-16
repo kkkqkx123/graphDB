@@ -29,6 +29,7 @@ pub enum TransactionErrorKind {
     InvalidStateTransition,
     InvalidStateForCommit,
     InvalidStateForAbort,
+    InvalidStateForExecution,
     TransactionTimeout,
     TransactionExpired,
     RollbackFailed,
@@ -56,6 +57,7 @@ impl TransactionErrorKind {
             TransactionErrorKind::InvalidStateTransition => "invalid_state_transition",
             TransactionErrorKind::InvalidStateForCommit => "invalid_state_for_commit",
             TransactionErrorKind::InvalidStateForAbort => "invalid_state_for_abort",
+            TransactionErrorKind::InvalidStateForExecution => "invalid_state_for_execution",
             TransactionErrorKind::TransactionTimeout => "transaction_timeout",
             TransactionErrorKind::TransactionExpired => "transaction_expired",
             TransactionErrorKind::RollbackFailed => "rollback_failed",
@@ -177,6 +179,13 @@ impl TransactionError {
         Self::new(
             TransactionErrorKind::InvalidStateForAbort,
             format!("Invalid state for abort: {}", state),
+        )
+    }
+
+    pub fn invalid_state_for_execution(state: TransactionState) -> Self {
+        Self::new(
+            TransactionErrorKind::InvalidStateForExecution,
+            format!("Transaction not active, current state: {}", state),
         )
     }
 

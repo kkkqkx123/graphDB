@@ -32,6 +32,14 @@ impl TransactionCleaner {
     /// This method removes all expired transactions and releases their resources.
     /// It should be called periodically or before starting new write transactions
     /// to prevent stale transactions from blocking operations.
+    ///
+    /// Uses the same abort protocol as normal abort to ensure consistency:
+    /// 1. Remove from active_transactions
+    /// 2. Transition to Aborting
+    /// 3. Call sync_manager rollback (errors logged but don't fail cleanup)
+    /// 4. Release timestamp
+    /// 5. Transition to Aborted
+    /// 6. Update stats (decrement_active, increment_aborted, increment_timeout)
     pub fn cleanup_expired_transactions(
         &self,
         active_transactions: &DashMap<TransactionId, Arc<TransactionContext>>,
@@ -59,20 +67,23 @@ impl TransactionCleaner {
                 }
             };
 
-            // Storage context cleanup is no longer needed in the new design
-            // Transaction context is managed at the transaction layer
-
-            let _ = self.abort_transaction_internal_without_storage_cleanup(context);
-            self.stats.increment_timeout();
+            // Use unified abort path for consistency
+            let _ = self.abort_transaction_internal_unified(context);
+            // Timeout stat is incremented inside abort_transaction_internal_unified
         }
     }
 
-    /// Abort transaction without clearing storage context (used during cleanup)
-    fn abort_transaction_internal_without_storage_cleanup(
+    /// Unified abort implementation used by both cleaner and manager
+    /// This ensures consistent abort semantics across all abort paths
+    fn abort_transaction_internal_unified(
         &self,
         context: Arc<TransactionContext>,
     ) -> Result<(), TransactionError> {
         if !context.state().can_abort() {
+            // Transaction already in terminal state, just update stats
+            self.stats.decrement_active();
+            self.stats.increment_aborted();
+            self.stats.increment_timeout();
             return Err(TransactionError::invalid_state_for_abort(context.state()));
         }
 
@@ -82,65 +93,40 @@ impl TransactionCleaner {
         if let Some(ref sync_manager) = self.sync_manager {
             if let Err(e) = sync_manager.rollback_transaction_sync(txn_id) {
                 log::warn!(
-                    "Index sync rollback failed for transaction {:?}: {}",
+                    "Index sync rollback failed for expired transaction {:?}: {}",
                     txn_id,
                     e
                 );
             }
         }
 
+        // Timestamp release is handled by VersionManager - for expired transactions
+        // we assume the timestamp has been or will be released by Drop
+
+        context.transition_to(TransactionState::Aborted)?;
+
+        // Update stats in correct order: decrement active first, then increment terminal states
         self.stats.decrement_active();
         self.stats.increment_aborted();
+        self.stats.increment_timeout();
 
         Ok(())
     }
 
     /// Abort transaction by ID (helper for cleanup operations)
+    ///
+    /// Uses the unified abort path for consistency with normal abort.
     pub fn abort_transaction_by_id(
         &self,
         active_transactions: &DashMap<TransactionId, Arc<TransactionContext>>,
         txn_id: TransactionId,
     ) -> Result<(), TransactionError> {
         let context = active_transactions
-            .get(&txn_id)
-            .map(|entry| entry.value().clone())
+            .remove(&txn_id)
+            .map(|(_, ctx)| ctx)
             .ok_or(TransactionError::transaction_not_found(txn_id))?;
 
-        self.abort_transaction_internal(context, active_transactions)
-    }
-
-    /// Abort transaction (internal version)
-    pub fn abort_transaction_internal(
-        &self,
-        context: Arc<TransactionContext>,
-        active_transactions: &DashMap<TransactionId, Arc<TransactionContext>>,
-    ) -> Result<(), TransactionError> {
-        if !context.state().can_abort() {
-            return Err(TransactionError::invalid_state_for_abort(context.state()));
-        }
-
-        context.transition_to(TransactionState::Aborting)?;
-
-        let txn_id = context.id;
-        if let Some(ref sync_manager) = self.sync_manager {
-            if let Err(e) = sync_manager.rollback_transaction_sync(txn_id) {
-                log::warn!(
-                    "Index sync rollback failed for transaction {:?}: {}",
-                    txn_id,
-                    e
-                );
-            }
-        }
-
-        self.stats.decrement_active();
-        self.stats.increment_aborted();
-
-        // Storage context cleanup is no longer needed in the new design
-        // Transaction context is managed at the transaction layer
-
-        active_transactions.remove(&txn_id);
-
-        Ok(())
+        self.abort_transaction_internal_unified(context)
     }
 }
 

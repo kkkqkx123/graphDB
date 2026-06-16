@@ -759,19 +759,22 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
 
     /// Abort the update transaction
     pub fn abort(mut self) -> UpdateTransactionResult<()> {
-        self.revert_changes();
+        self.revert_changes()?;
         self.release();
         Ok(())
     }
 
     /// Revert all changes made by this transaction
-    fn revert_changes(&mut self) {
+    fn revert_changes(&mut self) -> UpdateTransactionResult<()> {
         let ts = self.timestamp;
         while let Some(log) = self.undo_logs.pop() {
             if let Err(e) = log.undo(self.graph, ts) {
-                log::error!("Failed to undo operation: {}", e);
+                return Err(UpdateTransactionError::WalError(format!(
+                    "Failed to undo operation: {}", e
+                )));
             }
         }
+        Ok(())
     }
 
     /// Apply pending deletions

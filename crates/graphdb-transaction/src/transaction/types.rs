@@ -99,6 +99,9 @@ pub struct SavepointInfo {
     pub id: SavepointId,
     pub name: Option<String>,
     pub created_at: std::time::Instant,
+    /// Explicit creation sequence number (independent from ID)
+    /// This ensures stable ordering for rollback-to-savepoint semantics
+    pub sequence: u64,
     /// Corresponding operation log index
     pub operation_log_index: usize,
     /// Snapshot of the transaction-local sync sequence at savepoint creation

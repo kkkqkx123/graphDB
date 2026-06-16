@@ -76,6 +76,7 @@ impl fmt::Debug for TransactionContext {
 pub(crate) struct SavepointManager {
     savepoints: HashMap<SavepointId, SavepointInfo>,
     next_id: SavepointId,
+    next_sequence: u64,
 }
 
 impl SavepointManager {
@@ -83,6 +84,7 @@ impl SavepointManager {
         Self {
             savepoints: HashMap::new(),
             next_id: 1,
+            next_sequence: 1,
         }
     }
 
@@ -94,10 +96,13 @@ impl SavepointManager {
     ) -> SavepointId {
         let id = self.next_id;
         self.next_id += 1;
+        let sequence = self.next_sequence;
+        self.next_sequence += 1;
         let info = SavepointInfo {
             id,
             name,
             created_at: Instant::now(),
+            sequence,
             operation_log_index,
             sync_sequence,
         };
@@ -297,7 +302,7 @@ impl TransactionContext {
         let state = self.state.load();
 
         if !state.can_execute() {
-            return Err(TransactionError::invalid_state_for_commit(state));
+            return Err(TransactionError::invalid_state_for_execution(state));
         }
 
         if self.is_expired() {
@@ -462,11 +467,15 @@ impl TransactionContext {
 
         {
             let mut manager = self.savepoint_manager.write();
+            // Delete savepoints created AFTER the target savepoint using
+            // explicit sequence number (not ID). This ensures stable ordering
+            // even if IDs are not assigned in strict creation order.
+            let target_sequence = savepoint_info.sequence;
             let savepoints_to_remove: Vec<SavepointId> = manager
                 .savepoints
-                .keys()
-                .filter(|&&k| k > id)
-                .copied()
+                .iter()
+                .filter(|(_, sp)| sp.sequence > target_sequence)
+                .map(|(&id, _)| id)
                 .collect();
 
             for sp_id in savepoints_to_remove {
@@ -568,7 +577,7 @@ mod tests {
         let config = TransactionConfig::default();
         let ctx = TransactionContext::new(TransactionId(1), 1, config);
 
-        let sp_id = ctx.create_savepoint(Some("test".to_string()));
+        let sp_id = ctx.create_savepoint(Some("test".to_string()), 0);
         assert!(ctx.get_savepoint(sp_id).is_some());
 
         let sp = ctx.get_savepoint(sp_id).unwrap();

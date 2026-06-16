@@ -327,7 +327,7 @@ fn test_savepoint_creation() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
+    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()), 0);
     assert_eq!(savepoint_id, 1);
 
     let savepoint_info = ctx.get_savepoint(savepoint_id);
@@ -345,9 +345,9 @@ fn test_multiple_savepoints() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
-    let sp2 = ctx.create_savepoint(Some("sp2".to_string()));
-    let sp3 = ctx.create_savepoint(Some("sp3".to_string()));
+    let sp1 = ctx.create_savepoint(Some("sp1".to_string()), 0);
+    let sp2 = ctx.create_savepoint(Some("sp2".to_string()), 0);
+    let sp3 = ctx.create_savepoint(Some("sp3".to_string()), 0);
 
     assert_eq!(sp1, 1);
     assert_eq!(sp2, 2);
@@ -366,7 +366,7 @@ fn test_rollback_to_savepoint() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
+    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()), 0);
 
     let mock_target = MockUndoTarget;
     let result = ctx.rollback_to_savepoint(savepoint_id, &mock_target);
@@ -398,7 +398,7 @@ fn test_release_savepoint() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
+    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()), 0);
 
     let result = ctx.release_savepoint(savepoint_id);
     assert!(result.is_ok());
@@ -429,7 +429,7 @@ fn test_savepoint_with_operations() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
+    let sp1 = ctx.create_savepoint(Some("sp1".to_string()), 0);
 
     let log1 = OperationLog::InsertVertex {
         space: "test".to_string(),
@@ -445,7 +445,7 @@ fn test_savepoint_with_operations() {
     };
     ctx.add_operation_log(log2);
 
-    let _sp2 = ctx.create_savepoint(Some("sp2".to_string()));
+    let _sp2 = ctx.create_savepoint(Some("sp2".to_string()), 0);
 
     assert_eq!(ctx.operation_log_len(), 2);
 
@@ -464,9 +464,9 @@ fn test_find_savepoint_by_name() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    ctx.create_savepoint(Some("sp1".to_string()));
-    ctx.create_savepoint(Some("sp2".to_string()));
-    ctx.create_savepoint(None);
+ctx.create_savepoint(Some("sp1".to_string()), 0);
+ctx.create_savepoint(Some("sp2".to_string()), 0);
+ctx.create_savepoint(None, 0);
 
     let found = ctx.find_savepoint_by_name("sp1");
     assert!(found.is_some());
@@ -488,9 +488,9 @@ fn test_get_all_savepoints() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-    ctx.create_savepoint(Some("sp1".to_string()));
-    ctx.create_savepoint(Some("sp2".to_string()));
-    ctx.create_savepoint(None);
+ctx.create_savepoint(Some("sp1".to_string()), 0);
+ctx.create_savepoint(Some("sp2".to_string()), 0);
+ctx.create_savepoint(None, 0);
 
     let all_sp = ctx.get_all_savepoints();
     assert_eq!(all_sp.len(), 3);
@@ -510,7 +510,7 @@ fn test_clear() {
         previous_state: None,
     });
     ctx.record_table_modification("vertices");
-    ctx.create_savepoint(Some("sp1".to_string()));
+ctx.create_savepoint(Some("sp1".to_string()), 0);
 
     ctx.clear();
 
