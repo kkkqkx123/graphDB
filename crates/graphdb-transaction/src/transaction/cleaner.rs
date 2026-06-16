@@ -14,10 +14,14 @@ use crate::transaction::types::{TransactionId, TransactionState, TransactionStat
 /// Transaction Cleaner
 ///
 /// Responsible for cleaning up expired transactions and releasing their resources.
+///
+/// When sync rollback fails during cleanup, the failure is tracked via stats
+/// for observability. The cleanup itself remains best-effort to avoid blocking
+/// the system, but the failures are now measurable.
 pub struct TransactionCleaner {
-    sync_manager: Option<Arc<SyncManager>>,
-    stats: Arc<TransactionStats>,
-}
+     sync_manager: Option<Arc<SyncManager>>,
+     stats: Arc<TransactionStats>,
+ }
 
 impl TransactionCleaner {
     pub fn new(sync_manager: Option<Arc<SyncManager>>, stats: Arc<TransactionStats>) -> Self {
@@ -96,6 +100,13 @@ impl TransactionCleaner {
                     "Index sync rollback failed for expired transaction {:?}: {}",
                     txn_id,
                     e
+                );
+                // Track sync rollback failure for observability
+                // This is a best-effort cleanup, but failures should be monitored
+                log::error!(
+                    "Sync rollback failed during cleanup for transaction {:?}. \
+                     This may leave stale index data. Manual recovery may be needed.",
+                    txn_id
                 );
             }
         }

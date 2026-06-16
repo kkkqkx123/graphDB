@@ -747,13 +747,22 @@ impl SyncManager {
         Ok(())
     }
 
+    /// Commit transaction: flush buffered operations to external indexes.
+    ///
+    /// Uses a commit order that minimizes inconsistency on partial failure:
+    /// 1. Validate both coordinators (prepare phase)
+    /// 2. Commit vector first (external system, harder to recover from)
+    /// 3. Commit fulltext second (local system, easier to rebuild)
+    /// 4. If vector fails, fulltext buffer is still intact for rollback.
+    /// 5. If fulltext fails after vector succeeds, vector is committed but
+    ///    fulltext can be rebuilt from storage.
     pub async fn commit_transaction(
         &self,
         txn_id: crate::core::types::TransactionId,
     ) -> Result<(), SyncError> {
         #[cfg(feature = "fulltext-search")]
         if let Some(ref coord) = self.sync_coordinator {
-            coord.commit_transaction(txn_id).await?;
+            coord.prepare_transaction(txn_id).await?;
         }
 
         #[cfg(feature = "qdrant")]
@@ -761,8 +770,37 @@ impl SyncManager {
             vector_coord
                 .commit_transaction(txn_id)
                 .await
-                .map_err(|e| SyncError::VectorError(e.to_string()))?;
+                .map_err(|e| {
+                    // Vector commit failed — fulltext buffer is still intact.
+                    // Rollback fulltext buffer so it can be re-applied on retry.
+                    #[cfg(feature = "fulltext-search")]
+                    if let Some(ref coord) = self.sync_coordinator {
+                        if let Err(rollback_err) = coord.rollback_transaction(txn_id) {
+                            tracing::error!(
+                                "Fulltext rollback also failed after vector commit failure for txn {:?}: {}",
+                                txn_id, rollback_err
+                            );
+                        }
+                    }
+                    SyncError::VectorError(e.to_string())
+                })?;
         }
+
+        #[cfg(feature = "fulltext-search")]
+        if let Some(ref coord) = self.sync_coordinator {
+            if let Err(e) = coord.commit_transaction(txn_id).await {
+                // Fulltext commit failed after vector succeeded.
+                // Vector data is already committed. Fulltext can be rebuilt from storage.
+                tracing::error!(
+                    "Fulltext commit failed after vector commit succeeded for txn {:?}: {}. \
+                     Vector data is committed; fulltext index needs rebuild.",
+                    txn_id, e
+                );
+                return Err(SyncError::from(e));
+            }
+        }
+
+        self.txn_sequences.remove(&txn_id);
 
         Ok(())
     }

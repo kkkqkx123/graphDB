@@ -105,10 +105,26 @@ impl VectorIndexLocation {
         }
     }
 
+    /// Generate collection name from this index location.
+    ///
+    /// **ARCHITECTURAL NOTE**: This uses space-level collection granularity.
+    /// All vector indexes within the same space share a single physical collection,
+    /// with logical isolation via the `group_id` field in the payload.
+    ///
+    /// **Implications**:
+    /// - Different (tag, field) combinations in the same space cannot have different
+    ///   vector dimensions or distance metrics.
+    /// - Deletion by vertex_id removes all vectors for that vertex across all
+    ///   (tag, field) combinations in the space.
+    /// - This is a deliberate design choice for resource efficiency. If finer
+    ///   isolation is needed, change this to use (space_id, tag_name, field_name)
+    ///   as the collection name.
     pub fn to_collection_name(&self) -> String {
         format!("{}_{}", VECTOR_INDEX_PREFIX, self.space_id)
     }
 
+    /// Generate group ID for logical isolation within a space-level collection.
+    /// This is used as a filter condition in vector searches.
     pub fn group_id(&self) -> String {
         format!("{}_{}", self.tag_name, self.field_name)
     }
@@ -234,14 +250,26 @@ impl VectorTransactionBuffer {
             .unwrap_or_default()
     }
 
+    /// Get and remove updates with sequence number greater than the given sequence.
+    /// This is used for rollback operations where you want to remove operations
+    /// that occurred after a specific savepoint sequence.
     pub fn take_updates_after_sequence(
         &self,
         txn_id: TransactionId,
         sequence: u64,
     ) -> Vec<PendingVectorUpdate> {
         if let Some(mut buffer) = self.buffers.get_mut(&txn_id) {
-            buffer.retain(|update| update.sequence <= sequence);
-            return buffer.clone();
+            // Split into two groups: keep (<= sequence) and take (> sequence)
+            let mut to_take = Vec::new();
+            buffer.retain(|update| {
+                if update.sequence > sequence {
+                    to_take.push(update.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+            return to_take;
         }
         Vec::new()
     }

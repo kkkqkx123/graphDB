@@ -287,17 +287,21 @@ impl TransactionManager {
             .unwrap_or(false)
     }
 
-    /// Commit transaction
-///
-/// Follows atomic commit protocol:
-/// 1. Check state and timeout (transaction still active)
-/// 2. Transition to Committing (marks in-progress, prevents concurrent operations)
-/// 3. Call sync_manager (external coordination) - if this fails, transaction stays in Committing state for retry
-/// 4. Release timestamp
-/// 5. Remove from active_transactions (only after all steps succeed)
-/// 6. Transition to Committed
-/// 7. Update stats
-pub fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
+/// Commit transaction
+    ///
+    /// Follows atomic commit protocol:
+    /// 1. Check state and timeout (transaction still active)
+    /// 2. Transition to Committing (marks in-progress, prevents concurrent operations)
+    /// 3. Call sync_manager (external coordination) - if this fails, transaction stays in Committing state for retry
+    ///    NOTE: sync_manager.commit() is called BEFORE storage-level timestamp release, ensuring that
+    ///    if sync fails, the transaction remains in Committing state and can be retried or rolled back.
+    ///    This guarantees storage and index consistency: a transaction is only visible after ALL
+    ///    side effects (storage + sync) have been committed.
+    /// 4. Release timestamp
+    /// 5. Remove from active_transactions (only after all steps succeed)
+    /// 6. Transition to Committed
+    /// 7. Update stats
+    pub fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
         let context = {
             let entry = self
                 .active_transactions

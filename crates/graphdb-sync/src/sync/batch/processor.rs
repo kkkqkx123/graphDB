@@ -156,23 +156,31 @@ impl FulltextBatchProcessor {
     }
 
     async fn execute_batch(&self, key: &(u64, String, String)) -> BatchResult<()> {
-        let entry = self.buffer.drain_all(key);
+        let entry = self.buffer.peek_entry(key);
+
+        if entry.deletes.is_empty() && entry.inserts.is_empty() {
+            self.buffer.update_commit_time(key);
+            return Ok(());
+        }
 
         if !entry.deletes.is_empty() {
             let ids: Vec<&str> = entry.deletes.iter().map(|s| s.as_str()).collect();
             self.engine
                 .delete_batch(ids)
                 .await
-                .map_err(BatchError::from)?;
+                .map_err(|e| {
+                    self.buffer.re_enqueue(key, entry.clone());
+                    BatchError::from(e)
+                })?;
         }
 
         if !entry.inserts.is_empty() {
             let items: Vec<(String, String)> = entry
                 .inserts
-                .into_iter()
+                .iter()
                 .filter_map(|op| match op {
-                    IndexOperation::Insert { id, text, .. } => Some((id, text)),
-                    IndexOperation::Update { id, text, .. } => Some((id, text)),
+                    IndexOperation::Insert { id, text, .. } => Some((id.clone(), text.clone())),
+                    IndexOperation::Update { id, text, .. } => Some((id.clone(), text.clone())),
                     _ => None,
                 })
                 .collect();
@@ -181,11 +189,19 @@ impl FulltextBatchProcessor {
                 self.engine
                     .index_batch(items)
                     .await
-                    .map_err(BatchError::from)?;
+                    .map_err(|e| {
+                        self.buffer.re_enqueue(key, entry.clone());
+                        BatchError::from(e)
+                    })?;
             }
         }
 
-        self.engine.commit().await.map_err(BatchError::from)?;
+        self.engine.commit().await.map_err(|e| {
+            self.buffer.re_enqueue(key, entry.clone());
+            BatchError::from(e)
+        })?;
+
+        self.buffer.drain_all(key);
         self.buffer.update_commit_time(key);
 
         Ok(())

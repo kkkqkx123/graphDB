@@ -74,25 +74,33 @@ impl SyncCoordinator {
     ) -> Option<Arc<FulltextProcessor>> {
         let key = (space_id, tag_name.to_string(), field_name.to_string());
 
-        if let Some(processor) = self.fulltext_processors.get(&key) {
-            return Some(processor.clone());
-        }
+        // Use entry API for atomic get-or-create to avoid race conditions
+        // where concurrent requests for the same (space, tag, field) could
+        // cause duplicate processor creation and multiple background tasks.
+        let processor = match self.fulltext_processors.entry(key.clone()) {
+            dashmap::mapref::entry::Entry::Occupied(entry) => {
+                return Some(entry.get().clone());
+            }
+            dashmap::mapref::entry::Entry::Vacant(entry) => {
+                let engine = self
+                    .fulltext_manager
+                    .get_engine(space_id, tag_name, field_name)?;
 
-        let engine = self
-            .fulltext_manager
-            .get_engine(space_id, tag_name, field_name)?;
+                let processor = Arc::new(FulltextBatchProcessor::new(
+                    space_id,
+                    tag_name.to_string(),
+                    field_name.to_string(),
+                    engine,
+                    self.config.clone(),
+                ));
 
-        let processor = Arc::new(FulltextBatchProcessor::new(
-            space_id,
-            tag_name.to_string(),
-            field_name.to_string(),
-            engine,
-            self.config.clone(),
-        ));
+                entry.insert(processor.clone());
+                processor
+            }
+        };
 
-        self.fulltext_processors
-            .insert(key.clone(), processor.clone());
-
+        // Only spawn background task if we are the thread that created the processor.
+        // Other threads will find the existing entry via the Occupied path above.
         let proc_clone = processor.clone();
         tokio::spawn(async move {
             proc_clone.start_background_task().await;

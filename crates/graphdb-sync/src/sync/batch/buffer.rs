@@ -5,7 +5,7 @@ use crate::sync::types::IndexOperation;
 
 type IndexKey = (u64, String, String);
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct BufferEntry {
     pub inserts: Vec<IndexOperation>,
     pub deletes: Vec<String>,
@@ -65,6 +65,25 @@ impl BatchBuffer {
 
     pub fn drain_all(&self, key: &IndexKey) -> BufferEntry {
         self.buffers.remove(key).map(|(_, v)| v).unwrap_or_default()
+    }
+
+    pub fn peek_entry(&self, key: &IndexKey) -> BufferEntry {
+        self.buffers
+            .get(key)
+            .map(|entry| BufferEntry {
+                inserts: entry.inserts.clone(),
+                deletes: entry.deletes.clone(),
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn re_enqueue(&self, key: &IndexKey, entry: BufferEntry) {
+        if entry.inserts.is_empty() && entry.deletes.is_empty() {
+            return;
+        }
+        let mut buffer = self.buffers.entry(key.clone()).or_default();
+        buffer.inserts.extend(entry.inserts);
+        buffer.deletes.extend(entry.deletes);
     }
 
     pub fn count(&self, key: &IndexKey) -> usize {
