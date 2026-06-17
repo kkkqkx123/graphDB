@@ -381,3 +381,264 @@ impl Default for UserParser {
         Self::new()
     }
 }
+
+// ==================== Unit Tests ====================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::parser::Parser;
+
+    #[test]
+    fn test_parse_create_user_unicode_username() {
+        let query = "CREATE USER 用户 WITH PASSWORD 'password'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Unicode username should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_create_user_unicode_password() {
+        let query = "CREATE USER testuser WITH PASSWORD '密码123'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Unicode password should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_create_user_special_chars_username() {
+        let query = "CREATE USER user_123_test WITH PASSWORD 'password'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Username with numbers and underscores should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_create_user_special_chars_password() {
+        let query = "CREATE USER user WITH PASSWORD 'P@$$w0rd!#%&*'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Password with special chars should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_create_user_with_all_roles() {
+        for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
+            let query = format!("CREATE USER testuser WITH PASSWORD 'pass' WITH ROLE {}", role);
+            let mut parser = Parser::new(&query);
+            let result = parser.parse();
+            assert!(
+                result.is_ok(),
+                "CREATE USER with role {} should parse: {:?}",
+                role,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_create_user_case_insensitive_keywords() {
+        let query = "create user testuser with password 'pass'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Lowercase keywords should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_alter_user_unicode() {
+        let query = "ALTER USER 用户 WITH PASSWORD '新密码'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "ALTER USER with unicode should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_drop_user_unicode() {
+        let query = "DROP USER 用户";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "DROP USER with unicode should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_change_password_unicode() {
+        let query = "CHANGE PASSWORD 用户 '旧密码' TO '新密码'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "CHANGE PASSWORD with unicode should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_grant_unicode() {
+        let query = "GRANT ADMIN ON 空间 TO 用户";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "GRANT with unicode should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_revoke_unicode() {
+        let query = "REVOKE ADMIN ON 空间 FROM 用户";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "REVOKE with unicode should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_describe_user_unicode() {
+        let query = "DESCRIBE USER 用户";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "DESCRIBE USER with unicode should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_show_roles_with_unicode_space() {
+        let query = "SHOW ROLES IN 空间";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "SHOW ROLES IN with unicode space should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_create_user_long_username() {
+        let long_username = "a".repeat(255);
+        let query = format!("CREATE USER {} WITH PASSWORD 'pass'", long_username);
+        let mut parser = Parser::new(&query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Long username should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_create_user_long_password() {
+        let long_password = "a".repeat(1000);
+        let query = format!("CREATE USER user WITH PASSWORD '{}'", long_password);
+        let mut parser = Parser::new(&query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Long password should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_create_user_empty_like_password() {
+        let query = "CREATE USER user WITH PASSWORD 'a'";
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Single char password should parse: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_grant_case_insensitive_role() {
+        for role_case in ["ADMIN", "Admin", "admin"] {
+            let query = format!("GRANT {} ON space TO user", role_case);
+            let mut parser = Parser::new(&query);
+            let result = parser.parse();
+            assert!(
+                result.is_ok(),
+                "GRANT with role case {} should parse: {:?}",
+                role_case,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_show_roles_with_and_without_space() {
+        let query1 = "SHOW ROLES";
+        let query2 = "SHOW ROLES IN myspace";
+
+        let mut parser1 = Parser::new(query1);
+        let result1 = parser1.parse();
+        assert!(
+            result1.is_ok(),
+            "SHOW ROLES without space should parse: {:?}",
+            result1.err()
+        );
+
+        let mut parser2 = Parser::new(query2);
+        let result2 = parser2.parse();
+        assert!(
+            result2.is_ok(),
+            "SHOW ROLES with space should parse: {:?}",
+            result2.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_whitespace_handling() {
+        let queries = vec![
+            "CREATE  USER  user  WITH  PASSWORD  'pass'",
+            "CREATE\tUSER\tuser\tWITH\tPASSWORD\t'pass'",
+            "CREATE\nUSER\nuser\nWITH\nPASSWORD\n'pass'",
+        ];
+
+        for query in queries {
+            let mut parser = Parser::new(query);
+            let result = parser.parse();
+            assert!(
+                result.is_ok(),
+                "Query with extra whitespace should parse: {:?}",
+                result.err()
+            );
+        }
+    }
+}

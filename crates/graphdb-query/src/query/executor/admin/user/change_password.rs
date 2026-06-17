@@ -174,4 +174,96 @@ mod tests {
         assert_eq!(executor.description(), "Changes a user's password");
         assert!(executor.stats().num_rows == 0);
     }
+
+    // ==================== Password Handling Unit Tests ====================
+
+    #[test]
+    fn test_password_info_creation() {
+        let password_info = PasswordInfo {
+            username: Some("testuser".to_string()),
+            old_password: "oldpass123".to_string(),
+            new_password: "newpass456".to_string(),
+        };
+
+        assert_eq!(password_info.username, Some("testuser".to_string()));
+        assert_eq!(password_info.old_password, "oldpass123");
+        assert_eq!(password_info.new_password, "newpass456");
+    }
+
+    #[test]
+    fn test_password_with_unicode() {
+        let storage = Arc::new(RwLock::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ChangePasswordExecutor::new(
+            4,
+            storage,
+            Some("unicode_user".to_string()),
+            "中文密码123".to_string(),
+            "新密码456".to_string(),
+            expr_context,
+        );
+
+        let result = executor.execute();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_password_with_special_chars() {
+        let storage = Arc::new(RwLock::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ChangePasswordExecutor::new(
+            5,
+            storage,
+            Some("special_user".to_string()),
+            "P@$$w0rd!2024".to_string(),
+            "N3w!P@$$w0rd#2024".to_string(),
+            expr_context,
+        );
+
+        let result = executor.execute();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_password_none_username() {
+        let storage = Arc::new(RwLock::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ChangePasswordExecutor::new(
+            6,
+            storage,
+            None,
+            "oldpass".to_string(),
+            "newpass".to_string(),
+            expr_context,
+        );
+
+        let result = executor.execute();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_executor_accessor_methods() {
+        let storage = Arc::new(RwLock::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = ChangePasswordExecutor::new(
+            7,
+            storage,
+            Some("accessor_test".to_string()),
+            "old".to_string(),
+            "new".to_string(),
+            expr_context,
+        );
+
+        assert_eq!(executor.id(), 7);
+        assert_eq!(executor.name(), "ChangePasswordExecutor");
+        assert!(executor.description().contains("password"));
+    }
 }

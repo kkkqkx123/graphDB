@@ -1043,3 +1043,357 @@ impl Default for ShowRolesValidator {
         Self::new()
     }
 }
+
+// ==================== Unit Tests ====================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== CreateUserValidator Tests ====================
+
+    #[test]
+    fn test_create_user_validator_new() {
+        let validator = CreateUserValidator::new();
+        assert_eq!(validator.username, "");
+        assert_eq!(validator.password, "");
+        assert_eq!(validator.role, None);
+        assert!(!validator.if_not_exists);
+    }
+
+    #[test]
+    fn test_validate_role_valid_roles() {
+        assert!(CreateUserValidator::validate_role("GOD").is_ok());
+        assert!(CreateUserValidator::validate_role("ADMIN").is_ok());
+        assert!(CreateUserValidator::validate_role("DBA").is_ok());
+        assert!(CreateUserValidator::validate_role("USER").is_ok());
+        assert!(CreateUserValidator::validate_role("GUEST").is_ok());
+    }
+
+    #[test]
+    fn test_validate_role_case_insensitive() {
+        assert!(CreateUserValidator::validate_role("god").is_ok());
+        assert!(CreateUserValidator::validate_role("Admin").is_ok());
+        assert!(CreateUserValidator::validate_role("dba").is_ok());
+    }
+
+    #[test]
+    fn test_validate_role_invalid() {
+        assert!(CreateUserValidator::validate_role("SUPERUSER").is_err());
+        assert!(CreateUserValidator::validate_role("ROOT").is_err());
+        assert!(CreateUserValidator::validate_role("INVALID").is_err());
+    }
+
+    #[test]
+    fn test_create_user_validator_empty_username() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "".to_string(),
+            password: "pass123".to_string(),
+            role: None,
+            if_not_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_err());
+    }
+
+    #[test]
+    fn test_create_user_validator_empty_password() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: "".to_string(),
+            role: None,
+            if_not_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_err());
+    }
+
+    #[test]
+    fn test_create_user_validator_valid_basic() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: "pass123".to_string(),
+            role: None,
+            if_not_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_create_user_validator_with_valid_role() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: "pass123".to_string(),
+            role: Some("ADMIN".to_string()),
+            if_not_exists: true,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_create_user_validator_with_invalid_role() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: "pass123".to_string(),
+            role: Some("INVALID_ROLE".to_string()),
+            if_not_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_err());
+    }
+
+    #[test]
+    fn test_create_user_validator_unicode_username() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "用户名".to_string(),
+            password: "pass123".to_string(),
+            role: None,
+            if_not_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_create_user_validator_special_chars_password() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: "P@$$w0rd!2024#特殊".to_string(),
+            role: None,
+            if_not_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_validated_user_result() {
+        let mut validator = CreateUserValidator::new();
+        let stmt = CreateUserStmt {
+            span: Default::default(),
+            username: "alice".to_string(),
+            password: "pass".to_string(),
+            role: Some("DBA".to_string()),
+            if_not_exists: false,
+        };
+        validator.validate_impl(&stmt).unwrap();
+        let result = validator.validated_result();
+        assert_eq!(result.username, "alice");
+        assert_eq!(result.role, Some("DBA".to_string()));
+    }
+
+    // ==================== DropUserValidator Tests ====================
+
+    #[test]
+    fn test_drop_user_validator_new() {
+        let validator = DropUserValidator::new();
+        assert_eq!(validator.username, "");
+        assert!(!validator.if_exists);
+    }
+
+    #[test]
+    fn test_drop_user_validator_empty_username() {
+        let mut validator = DropUserValidator::new();
+        let stmt = DropUserStmt {
+            span: Default::default(),
+            username: "".to_string(),
+            if_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_err());
+    }
+
+    #[test]
+    fn test_drop_user_validator_valid() {
+        let mut validator = DropUserValidator::new();
+        let stmt = DropUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            if_exists: true,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_drop_user_validator_unicode_username() {
+        let mut validator = DropUserValidator::new();
+        let stmt = DropUserStmt {
+            span: Default::default(),
+            username: "用户".to_string(),
+            if_exists: false,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    // ==================== AlterUserValidator Tests ====================
+
+    #[test]
+    fn test_alter_user_validator_new() {
+        let validator = AlterUserValidator::new();
+        assert_eq!(validator.username, "");
+        assert_eq!(validator.password, None);
+        assert_eq!(validator.new_role, None);
+    }
+
+    #[test]
+    fn test_alter_user_validator_empty_username() {
+        let mut validator = AlterUserValidator::new();
+        let stmt = AlterUserStmt {
+            span: Default::default(),
+            username: "".to_string(),
+            password: Some("newpass".to_string()),
+            new_role: None,
+            is_locked: None,
+        };
+        assert!(validator.validate_impl(&stmt).is_err());
+    }
+
+    #[test]
+    fn test_alter_user_validator_valid_password_change() {
+        let mut validator = AlterUserValidator::new();
+        let stmt = AlterUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: Some("newpass123".to_string()),
+            new_role: None,
+            is_locked: None,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_alter_user_validator_valid_role_change() {
+        let mut validator = AlterUserValidator::new();
+        let stmt = AlterUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: None,
+            new_role: Some("ADMIN".to_string()),
+            is_locked: None,
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_alter_user_validator_invalid_role() {
+        let mut validator = AlterUserValidator::new();
+        let stmt = AlterUserStmt {
+            span: Default::default(),
+            username: "testuser".to_string(),
+            password: None,
+            new_role: Some("INVALID".to_string()),
+            is_locked: None,
+        };
+        assert!(validator.validate_impl(&stmt).is_err());
+    }
+
+    // ==================== ChangePasswordValidator Tests ====================
+
+    #[test]
+    fn test_change_password_validator_new() {
+        let validator = ChangePasswordValidator::new();
+        assert_eq!(validator.username, None);
+        assert_eq!(validator.old_password, "");
+        assert_eq!(validator.new_password, "");
+    }
+
+    #[test]
+    fn test_change_password_validator_empty_passwords() {
+        let mut validator = ChangePasswordValidator::new();
+        let stmt = ChangePasswordStmt {
+            span: Default::default(),
+            username: Some("testuser".to_string()),
+            old_password: "".to_string(),
+            new_password: "newpass".to_string(),
+        };
+        assert!(validator.validate_impl(&stmt).is_err());
+    }
+
+    #[test]
+    fn test_change_password_validator_valid() {
+        let mut validator = ChangePasswordValidator::new();
+        let stmt = ChangePasswordStmt {
+            span: Default::default(),
+            username: Some("testuser".to_string()),
+            old_password: "oldpass".to_string(),
+            new_password: "newpass".to_string(),
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_change_password_validator_unicode_passwords() {
+        let mut validator = ChangePasswordValidator::new();
+        let stmt = ChangePasswordStmt {
+            span: Default::default(),
+            username: Some("testuser".to_string()),
+            old_password: "旧密码123".to_string(),
+            new_password: "新密码456".to_string(),
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    // ==================== GrantValidator Tests ====================
+
+    #[test]
+    fn test_grant_validator_new() {
+        let validator = GrantValidator::new();
+        assert_eq!(validator.username, "");
+        assert_eq!(validator.space, "");
+    }
+
+    #[test]
+    fn test_grant_validator_valid() {
+        let mut validator = GrantValidator::new();
+        let stmt = GrantStmt {
+            span: Default::default(),
+            role: "ADMIN".to_string(),
+            space: "test_space".to_string(),
+            username: "testuser".to_string(),
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+
+    #[test]
+    fn test_grant_validator_all_role_types() {
+        for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
+            let mut validator = GrantValidator::new();
+            let stmt = GrantStmt {
+                span: Default::default(),
+                role: role.to_string(),
+                space: "space".to_string(),
+                username: "user".to_string(),
+            };
+            assert!(validator.validate_impl(&stmt).is_ok());
+        }
+    }
+
+    // ==================== RevokeValidator Tests ====================
+
+    #[test]
+    fn test_revoke_validator_new() {
+        let validator = RevokeValidator::new();
+        assert_eq!(validator.username, "");
+        assert_eq!(validator.space, "");
+    }
+
+    #[test]
+    fn test_revoke_validator_valid() {
+        let mut validator = RevokeValidator::new();
+        let stmt = RevokeStmt {
+            span: Default::default(),
+            role: "ADMIN".to_string(),
+            space: "test_space".to_string(),
+            username: "testuser".to_string(),
+        };
+        assert!(validator.validate_impl(&stmt).is_ok());
+    }
+}

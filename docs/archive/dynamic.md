@@ -52,6 +52,18 @@
 - **分析**: 项目使用 `ExecutorEnum` 枚举替代了传统的 `Box<dyn Executor<S>>`，实现了执行器的静态分发。所有执行器类型都包含在此枚举中，通过为枚举实现 `Executor` trait，可以统一处理所有执行器类型。这种设计避免了动态分发的性能开销，符合项目编码标准中"优先选择确定性类型"的要求。
 - **状态**: ✅ 已优化
 
+#### 1.7 Vector Client Engine (向量客户端引擎)
+
+- **文件**: `crates/vector-client/src/api/client/client_impl.rs`, `crates/vector-client/src/engine/mod.rs`
+- **代码**: `pub engine: Arc<dyn VectorEngine>`
+- **分析**: VectorClient 需要在运行时支持多个引擎实现（DisabledEngine、QdrantGrpcEngine、QdrantEngine）。虽然当前仅支持 Qdrant 引擎（通过不同的协议：gRPC 或 HTTP），但这些实现通过 Cargo 特性标志有条件地编译。使用 `dyn VectorEngine` 的好处：
+  1. **运行时引擎选择**：根据特性标志和配置在运行时选择引擎，无需多个不同的 VectorClient 类型
+  2. **禁用状态支持**：当向量功能禁用时，使用 DisabledEngine 返回错误，提供一致的接口
+  3. **未来扩展性**：如果后续支持其他向量数据库（Milvus、Weaviate 等），无需修改 VectorClient 代码
+  4. **性能影响最小**：向量操作主要是网络 I/O（gRPC/HTTP 调用），虚函数调用的开销相对可忽略（< 1%）
+  5. **设计简洁**：避免编译时特性组合导致的代码复杂度爆炸
+- **维持理由**: ✅ 保留 - 运行时多态的需求大于性能开销
+
 ### 2. 存储层抽象
 
 #### 2.1 存储客户端
@@ -163,6 +175,7 @@
 | `Arc<dyn Fn() -> T>`                               | 对象池工厂     | 工厂函数类型多样                 |
 | `Box<dyn FnOnce() + Send>`                         | 线程任务       | 闭包类型编译时无法确定           |
 | `Arc<dyn SearchEngine>`                            | 搜索引擎抽象   | I/O 密集型操作，扩展性优先       |
+| `Arc<dyn VectorEngine>`                            | 向量引擎抽象   | 运行时多态，支持多协议（gRPC/HTTP）和禁用状态 |
 
 ### 已优化的 dyn 使用
 

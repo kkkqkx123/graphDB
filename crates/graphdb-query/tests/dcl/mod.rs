@@ -15,3 +15,11 @@ mod common;
 mod permission;
 mod role;
 mod user_management;
+
+// Advanced integration tests
+mod cascade_operations;
+mod concurrent_operations;
+mod cross_operation_consistency;
+mod edge_cases;
+mod security_tests;
+mod transaction_consistency;
