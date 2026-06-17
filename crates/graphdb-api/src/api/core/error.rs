@@ -136,3 +136,9 @@ impl From<crate::core::error::DBError> for CoreError {
         }
     }
 }
+
+impl From<crate::transaction::TransactionError> for CoreError {
+    fn from(err: crate::transaction::TransactionError) -> Self {
+        CoreError::TransactionFailed(err.to_string())
+    }
+}

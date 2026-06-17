@@ -249,9 +249,11 @@ impl GraphDatabase<GraphStorage> {
             }
             #[cfg(not(feature = "fulltext-search"))]
             {
+                #[cfg(feature = "qdrant")]
                 setup_sync_with_vector_only(vector_runtime.handle())?
             }
         } else {
+            #[cfg(feature = "qdrant")]
             setup_sync_with_vector_only(vector_runtime.handle())?
         };
 

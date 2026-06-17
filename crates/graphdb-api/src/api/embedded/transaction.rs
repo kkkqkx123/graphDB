@@ -189,7 +189,13 @@ impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoT
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
         self.check_active()?;
 
-        let ctx = QueryRequest {
+        let txn_manager = self.session.txn_manager();
+        let ctx = txn_manager.get_context(self.txn_handle.0)?;
+        ctx.check_timeouts().map_err(|e| {
+            CoreError::TransactionFailed(format!("Transaction timeout: {}", e))
+        })?;
+
+        let query_ctx = QueryRequest {
             space_id: self.session.space_id(),
             space_name: self.session.space_name().map(|s| s.to_string()),
             auto_commit: false,
@@ -198,7 +204,8 @@ impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoT
         };
 
         let mut query_api = self.session.query_api_mut();
-        let result = query_api.execute(query, ctx)?;
+        let result = query_api.execute(query, query_ctx)?;
+        ctx.update_activity();
         Ok(QueryResult::from_core(result))
     }
 
@@ -218,7 +225,13 @@ impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoT
     ) -> CoreResult<QueryResult> {
         self.check_active()?;
 
-        let ctx = QueryRequest {
+        let txn_manager = self.session.txn_manager();
+        let ctx = txn_manager.get_context(self.txn_handle.0)?;
+        ctx.check_timeouts().map_err(|e| {
+            CoreError::TransactionFailed(format!("Transaction timeout: {}", e))
+        })?;
+
+        let query_ctx = QueryRequest {
             space_id: self.session.space_id(),
             space_name: self.session.space_name().map(|s| s.to_string()),
             auto_commit: false,
@@ -227,7 +240,8 @@ impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoT
         };
 
         let mut query_api = self.session.query_api_mut();
-        let result = query_api.execute(query, ctx)?;
+        let result = query_api.execute(query, query_ctx)?;
+        ctx.update_activity();
         Ok(QueryResult::from_core(result))
     }
 
@@ -242,8 +256,13 @@ impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoT
     pub fn commit(mut self) -> CoreResult<()> {
         self.check_active()?;
 
-        self.session
-            .txn_manager()
+        let txn_manager = self.session.txn_manager();
+        let ctx = txn_manager.get_context(self.txn_handle.0)?;
+        ctx.check_timeouts().map_err(|e| {
+            CoreError::TransactionFailed(format!("Transaction timeout: {}", e))
+        })?;
+
+        txn_manager
             .commit_transaction(self.txn_handle.0)
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         self.committed = true;
@@ -261,10 +280,16 @@ impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoT
     pub fn rollback(mut self) -> CoreResult<()> {
         self.check_active()?;
 
-        self.session
-            .txn_manager()
+        let txn_manager = self.session.txn_manager();
+        let ctx = txn_manager.get_context(self.txn_handle.0)?;
+        ctx.check_timeouts().map_err(|e| {
+            CoreError::TransactionFailed(format!("Transaction timeout: {}", e))
+        })?;
+
+        txn_manager
             .abort_transaction(self.txn_handle.0)
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
+
         self.rolled_back = true;
         Ok(())
     }
