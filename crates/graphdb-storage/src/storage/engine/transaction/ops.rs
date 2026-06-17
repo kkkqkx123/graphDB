@@ -343,7 +343,12 @@ impl TransactionOps {
 
         let value = property_value_to_value(old_value);
         table
-            .update_property_by_id(vid.as_int64().unwrap_or(0) as u32, col_id.0 as i32, &value, ts)
+            .update_property_by_id(
+                vid.as_int64().unwrap_or(0) as u32,
+                col_id.0 as i32,
+                &value,
+                ts,
+            )
             .map_err(|e| UndoLogError::UndoFailed(e.to_string()))?;
         Ok(())
     }

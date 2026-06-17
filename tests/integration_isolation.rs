@@ -9,9 +9,9 @@
 mod common;
 
 use graphdb::core::types::{IsolationLevel, SpaceInfo};
-use graphdb::search::{EngineType, FulltextConfig};
 #[cfg(feature = "fulltext-search")]
 use graphdb::search::FulltextIndexManager;
+use graphdb::search::{EngineType, FulltextConfig};
 use std::path::PathBuf;
 use tempfile::TempDir;
 

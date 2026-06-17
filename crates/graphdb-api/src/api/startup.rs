@@ -243,7 +243,8 @@ pub async fn start_service_with_config(config: Config) -> DBResult<()> {
     };
 
     let storage = if let Some(ref sync_manager) = sync_manager {
-        let sync_storage = SyncWrapper::with_sync_manager((*inner_storage).clone(), sync_manager.clone());
+        let sync_storage =
+            SyncWrapper::with_sync_manager((*inner_storage).clone(), sync_manager.clone());
         info!("Sync enabled for fulltext and vector indexes");
         Arc::new(sync_storage)
     } else {

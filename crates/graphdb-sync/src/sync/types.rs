@@ -89,19 +89,11 @@ impl IndexOperation {
 
 #[deprecated(note = "Use IndexOperation::new_fulltext() instead")]
 impl IndexOperation {
-    pub fn insert(
-        key: IndexOpKey,
-        id: impl Into<String>,
-        text: impl Into<String>,
-    ) -> Self {
+    pub fn insert(key: IndexOpKey, id: impl Into<String>, text: impl Into<String>) -> Self {
         Self::new_fulltext(key, ChangeType::Insert, id, Some(text.into()))
     }
 
-    pub fn update(
-        key: IndexOpKey,
-        id: impl Into<String>,
-        text: impl Into<String>,
-    ) -> Self {
+    pub fn update(key: IndexOpKey, id: impl Into<String>, text: impl Into<String>) -> Self {
         Self::new_fulltext(key, ChangeType::Update, id, Some(text.into()))
     }
 

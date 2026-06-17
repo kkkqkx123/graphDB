@@ -205,18 +205,17 @@ impl<S: StorageReader + StorageWriter + StorageSchemaOps + Send + Sync + 'static
                                 &edge.edge_type,
                                 edge.ranking,
                             )
-                                .map_err(|e| {
-                                    crate::core::error::DBError::storage(format!(
-                                        "Failed to delete the associated edge: {}",
-                                        e
-                                    ))
-                                })?;
+                            .map_err(|e| {
+                                crate::core::error::DBError::storage(format!(
+                                    "Failed to delete the associated edge: {}",
+                                    e
+                                ))
+                            })?;
                             total_deleted += 1;
                         }
                     }
 
-                    if StorageWriter::delete_vertex(&mut *storage, &self.space_name, &vid).is_ok()
-                    {
+                    if StorageWriter::delete_vertex(&mut *storage, &self.space_name, &vid).is_ok() {
                         total_deleted += 1;
                     }
                 }
@@ -530,12 +529,12 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                                     &edge.edge_type,
                                     edge.ranking,
                                 )
-                                    .map_err(|e| {
-                                        DBError::storage(format!(
-                                            "Failed to delete the associated edge: {}",
-                                            e
-                                        ))
-                                    })?;
+                                .map_err(|e| {
+                                    DBError::storage(format!(
+                                        "Failed to delete the associated edge: {}",
+                                        e
+                                    ))
+                                })?;
                                 total_deleted += 1;
                             }
                         }
@@ -601,7 +600,7 @@ impl<S: StorageClient + Send + Sync + 'static> PipeDeleteExecutor<S> {
                                 &edge_type,
                                 edge.ranking,
                             )
-                                .map_err(DBError::from)?;
+                            .map_err(DBError::from)?;
                             total_deleted += 1;
                             break;
                         }

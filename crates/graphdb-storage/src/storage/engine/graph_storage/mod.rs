@@ -612,19 +612,32 @@ impl StorageGcOps for GraphStorage {
 }
 
 impl crate::transaction::UndoTarget for GraphStorage {
-    fn delete_vertex_type(&self, label: crate::core::types::LabelId) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_vertex_type(
+        &self,
+        label: crate::core::types::LabelId,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::core::types::UndoTarget::delete_vertex_type(&*self.ctx, label)
     }
 
-    fn delete_edge_type(&self, edge_key: crate::core::types::EdgeKey) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_edge_type(
+        &self,
+        edge_key: crate::core::types::EdgeKey,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::core::types::UndoTarget::delete_edge_type(&*self.ctx, edge_key)
     }
 
-    fn delete_vertex(&self, vertex: crate::core::types::VertexIdentifier, ts: crate::transaction::wal::Timestamp) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_vertex(
+        &self,
+        vertex: crate::core::types::VertexIdentifier,
+        ts: crate::transaction::wal::Timestamp,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::core::types::UndoTarget::delete_vertex(&*self.ctx, vertex, ts)
     }
 
-    fn delete_edge(&self, edge_ctx: crate::core::types::EdgeDeletionContext) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_edge(
+        &self,
+        edge_ctx: crate::core::types::EdgeDeletionContext,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::core::types::UndoTarget::delete_edge(&*self.ctx, edge_ctx)
     }
 
@@ -635,7 +648,9 @@ impl crate::transaction::UndoTarget for GraphStorage {
         value: crate::transaction::undo_log::PropertyValue,
         ts: crate::transaction::wal::Timestamp,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        crate::core::types::UndoTarget::undo_update_vertex_property(&*self.ctx, vertex, col_id, value, ts)
+        crate::core::types::UndoTarget::undo_update_vertex_property(
+            &*self.ctx, vertex, col_id, value, ts,
+        )
     }
 
     fn undo_update_edge_property(
@@ -647,14 +662,23 @@ impl crate::transaction::UndoTarget for GraphStorage {
         value: crate::transaction::undo_log::PropertyValue,
         ts: crate::transaction::wal::Timestamp,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        crate::core::types::UndoTarget::undo_update_edge_property(&*self.ctx, edge_id, oe_offset, ie_offset, col_id, value, ts)
+        crate::core::types::UndoTarget::undo_update_edge_property(
+            &*self.ctx, edge_id, oe_offset, ie_offset, col_id, value, ts,
+        )
     }
 
-    fn revert_delete_vertex(&self, vertex: crate::core::types::VertexIdentifier, ts: crate::transaction::wal::Timestamp) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn revert_delete_vertex(
+        &self,
+        vertex: crate::core::types::VertexIdentifier,
+        ts: crate::transaction::wal::Timestamp,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::core::types::UndoTarget::revert_delete_vertex(&*self.ctx, vertex, ts)
     }
 
-    fn revert_delete_edge(&self, edge_ctx: crate::core::types::EdgeDeletionContext) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn revert_delete_edge(
+        &self,
+        edge_ctx: crate::core::types::EdgeDeletionContext,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::core::types::UndoTarget::revert_delete_edge(&*self.ctx, edge_ctx)
     }
 
@@ -663,7 +687,9 @@ impl crate::transaction::UndoTarget for GraphStorage {
         label_name: &str,
         prop_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        crate::core::types::UndoTarget::revert_delete_vertex_properties(&*self.ctx, label_name, prop_names)
+        crate::core::types::UndoTarget::revert_delete_vertex_properties(
+            &*self.ctx, label_name, prop_names,
+        )
     }
 
     fn revert_delete_edge_properties(
@@ -673,10 +699,15 @@ impl crate::transaction::UndoTarget for GraphStorage {
         edge_label: &str,
         prop_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        crate::core::types::UndoTarget::revert_delete_edge_properties(&*self.ctx, src_label, dst_label, edge_label, prop_names)
+        crate::core::types::UndoTarget::revert_delete_edge_properties(
+            &*self.ctx, src_label, dst_label, edge_label, prop_names,
+        )
     }
 
-    fn revert_delete_vertex_label(&self, label_name: &str) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn revert_delete_vertex_label(
+        &self,
+        label_name: &str,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::core::types::UndoTarget::revert_delete_vertex_label(&*self.ctx, label_name)
     }
 
@@ -686,7 +717,9 @@ impl crate::transaction::UndoTarget for GraphStorage {
         dst_label: &str,
         edge_label: &str,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        crate::core::types::UndoTarget::revert_delete_edge_label(&*self.ctx, src_label, dst_label, edge_label)
+        crate::core::types::UndoTarget::revert_delete_edge_label(
+            &*self.ctx, src_label, dst_label, edge_label,
+        )
     }
 
     fn revert_rename_vertex_properties(
@@ -695,7 +728,12 @@ impl crate::transaction::UndoTarget for GraphStorage {
         current_names: &[String],
         original_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        crate::core::types::UndoTarget::revert_rename_vertex_properties(&*self.ctx, label, current_names, original_names)
+        crate::core::types::UndoTarget::revert_rename_vertex_properties(
+            &*self.ctx,
+            label,
+            current_names,
+            original_names,
+        )
     }
 
     fn revert_rename_edge_properties(
@@ -706,6 +744,13 @@ impl crate::transaction::UndoTarget for GraphStorage {
         current_names: &[String],
         original_names: &[String],
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        crate::core::types::UndoTarget::revert_rename_edge_properties(&*self.ctx, src_label, dst_label, edge_label, current_names, original_names)
+        crate::core::types::UndoTarget::revert_rename_edge_properties(
+            &*self.ctx,
+            src_label,
+            dst_label,
+            edge_label,
+            current_names,
+            original_names,
+        )
     }
 }

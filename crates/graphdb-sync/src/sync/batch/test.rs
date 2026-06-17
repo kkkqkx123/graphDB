@@ -63,7 +63,12 @@ mod buffer_tests {
     #[test]
     fn test_index_operation_new_fulltext() {
         let key = test_key();
-        let op = IndexOperation::new_fulltext(key.clone(), ChangeType::Insert, "1", Some("text".to_string()));
+        let op = IndexOperation::new_fulltext(
+            key.clone(),
+            ChangeType::Insert,
+            "1",
+            Some("text".to_string()),
+        );
 
         assert_eq!(op.key, key);
         assert_eq!(op.change_type, ChangeType::Insert);

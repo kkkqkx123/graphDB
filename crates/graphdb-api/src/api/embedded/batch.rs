@@ -141,7 +141,9 @@ impl From<crate::api::core::BatchItemType> for BatchItemType {
     }
 }
 
-impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoTarget> BatchInserter<'sess, S> {
+impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoTarget>
+    BatchInserter<'sess, S>
+{
     /// Creating a new batch inserter
     pub(crate) fn new(session: &'sess Session<S>, batch_size: usize) -> Self {
         let config = BatchConfig::new().with_batch_size(batch_size);

@@ -92,6 +92,7 @@ impl SavepointManager {
         &mut self,
         name: Option<String>,
         operation_log_index: usize,
+        undo_log_index: usize,
         sync_sequence: u64,
     ) -> SavepointId {
         let id = self.next_id;
@@ -104,6 +105,7 @@ impl SavepointManager {
             created_at: Instant::now(),
             sequence,
             operation_log_index,
+            undo_log_index,
             sync_sequence,
         };
         self.savepoints.insert(id, info);
@@ -271,25 +273,30 @@ impl TransactionContext {
 
     /// State transition
     pub fn transition_to(&self, new_state: TransactionState) -> Result<(), TransactionError> {
-        let current = self.state.load();
+        loop {
+            let current = self.state.load();
 
-        let valid_transition = matches!(
-            (current, new_state),
-            (
-                TransactionState::Active,
-                TransactionState::Committing | TransactionState::Aborting
-            ) | (TransactionState::Committing, TransactionState::Committed)
-                | (TransactionState::Aborting, TransactionState::Aborted)
-        );
+            let valid_transition = matches!(
+                (current, new_state),
+                (
+                    TransactionState::Active,
+                    TransactionState::Committing | TransactionState::Aborting
+                ) | (TransactionState::Committing, TransactionState::Committed)
+                    | (TransactionState::Committing, TransactionState::Aborted)
+                    | (TransactionState::Aborting, TransactionState::Committed)
+                    | (TransactionState::Aborting, TransactionState::Aborted)
+            );
 
-        if !valid_transition {
-            return Err(TransactionError::invalid_state_transition(
-                current, new_state,
-            ));
+            if !valid_transition {
+                return Err(TransactionError::invalid_state_transition(
+                    current, new_state,
+                ));
+            }
+
+            if self.state.compare_exchange(current, new_state).is_ok() {
+                return Ok(());
+            }
         }
-
-        self.state.store(new_state);
-        Ok(())
     }
 
     /// Whether to enable two-phase commit
@@ -400,8 +407,9 @@ impl TransactionContext {
     /// Create savepoint
     pub fn create_savepoint(&self, name: Option<String>, sync_sequence: u64) -> SavepointId {
         let operation_log_index = self.operation_log_len();
+        let undo_log_index = self.undo_log_len();
         let mut manager = self.savepoint_manager.write();
-        manager.create_savepoint(name, operation_log_index, sync_sequence)
+        manager.create_savepoint(name, operation_log_index, undo_log_index, sync_sequence)
     }
 
     /// Get savepoint info
@@ -484,7 +492,11 @@ impl TransactionContext {
         }
 
         rollback
-            .execute_undo_rollback(target, self.start_timestamp)
+            .execute_undo_rollback_from_index(
+                target,
+                self.start_timestamp,
+                savepoint_info.undo_log_index,
+            )
             .map_err(|e| TransactionError::rollback_failed(e.to_string()))?;
 
         Ok(())
@@ -519,6 +531,18 @@ impl TransactionContext {
             .map_err(|e| TransactionError::rollback_failed(e.to_string()))
     }
 
+    /// Execute undo logs starting from a specific index.
+    pub fn execute_undo_logs_from_index<T: UndoTarget + ?Sized>(
+        &self,
+        target: &T,
+        start_index: usize,
+    ) -> Result<(), TransactionError> {
+        let mut undo_logs = self.undo_logs.write();
+        undo_logs
+            .execute_undo_from_index(target, self.start_timestamp, start_index)
+            .map_err(|e| TransactionError::rollback_failed(e.to_string()))
+    }
+
     /// Clear all state
     pub fn clear(&self) {
         self.clear_operation_log();
@@ -535,7 +559,6 @@ impl TransactionContext {
             undo_logs.clear();
         }
     }
-
 }
 
 #[cfg(test)]

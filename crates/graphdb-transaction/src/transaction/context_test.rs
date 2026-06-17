@@ -11,7 +11,7 @@ use crate::transaction::context::TransactionContext;
 use crate::transaction::types::{
     DurabilityLevel, OperationLog, TransactionConfig, TransactionId, TransactionState,
 };
-use crate::transaction::undo_log::PropertyValue;
+use crate::transaction::undo_log::{InsertVertexUndo, PropertyValue, UndoLogEntry};
 use crate::transaction::undo_log::{UndoLogResult, UndoTarget};
 use crate::transaction::TransactionErrorKind;
 
@@ -457,6 +457,33 @@ fn test_savepoint_with_operations() {
 }
 
 #[test]
+fn test_savepoint_rollback_preserves_prefix_state() {
+    let txn_id = TransactionId(1);
+    let timeout = Duration::from_secs(30);
+    let config = create_default_config(timeout);
+
+    let ctx = TransactionContext::new(txn_id, 1, config);
+
+    ctx.add_undo_log(UndoLogEntry::InsertVertex(InsertVertexUndo {
+        v_label: 1,
+        vid: crate::transaction::VertexId::from_int64(1),
+    }));
+
+    let sp1 = ctx.create_savepoint(Some("sp1".to_string()), 0);
+
+    ctx.add_undo_log(UndoLogEntry::InsertVertex(InsertVertexUndo {
+        v_label: 1,
+        vid: crate::transaction::VertexId::from_int64(2),
+    }));
+
+    let mock_target = MockUndoTarget;
+    let result = ctx.rollback_to_savepoint(sp1, &mock_target);
+    assert!(result.is_ok());
+
+    assert_eq!(ctx.undo_log_len(), 1);
+}
+
+#[test]
 fn test_find_savepoint_by_name() {
     let txn_id = TransactionId(1);
     let timeout = Duration::from_secs(30);
@@ -464,9 +491,9 @@ fn test_find_savepoint_by_name() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-ctx.create_savepoint(Some("sp1".to_string()), 0);
-ctx.create_savepoint(Some("sp2".to_string()), 0);
-ctx.create_savepoint(None, 0);
+    ctx.create_savepoint(Some("sp1".to_string()), 0);
+    ctx.create_savepoint(Some("sp2".to_string()), 0);
+    ctx.create_savepoint(None, 0);
 
     let found = ctx.find_savepoint_by_name("sp1");
     assert!(found.is_some());
@@ -488,9 +515,9 @@ fn test_get_all_savepoints() {
 
     let ctx = TransactionContext::new(txn_id, 1, config);
 
-ctx.create_savepoint(Some("sp1".to_string()), 0);
-ctx.create_savepoint(Some("sp2".to_string()), 0);
-ctx.create_savepoint(None, 0);
+    ctx.create_savepoint(Some("sp1".to_string()), 0);
+    ctx.create_savepoint(Some("sp2".to_string()), 0);
+    ctx.create_savepoint(None, 0);
 
     let all_sp = ctx.get_all_savepoints();
     assert_eq!(all_sp.len(), 3);
@@ -510,7 +537,7 @@ fn test_clear() {
         previous_state: None,
     });
     ctx.record_table_modification("vertices");
-ctx.create_savepoint(Some("sp1".to_string()), 0);
+    ctx.create_savepoint(Some("sp1".to_string()), 0);
 
     ctx.clear();
 

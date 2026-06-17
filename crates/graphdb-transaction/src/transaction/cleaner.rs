@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
+use crate::core::mvcc::VersionManager;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::error::TransactionError;
@@ -19,14 +20,20 @@ use crate::transaction::types::{TransactionId, TransactionState, TransactionStat
 /// for observability. The cleanup itself remains best-effort to avoid blocking
 /// the system, but the failures are now measurable.
 pub struct TransactionCleaner {
-     sync_manager: Option<Arc<SyncManager>>,
-     stats: Arc<TransactionStats>,
- }
+    sync_manager: Option<Arc<SyncManager>>,
+    version_manager: Arc<VersionManager>,
+    stats: Arc<TransactionStats>,
+}
 
 impl TransactionCleaner {
-    pub fn new(sync_manager: Option<Arc<SyncManager>>, stats: Arc<TransactionStats>) -> Self {
+    pub fn new(
+        sync_manager: Option<Arc<SyncManager>>,
+        version_manager: Arc<VersionManager>,
+        stats: Arc<TransactionStats>,
+    ) -> Self {
         Self {
             sync_manager,
+            version_manager,
             stats,
         }
     }
@@ -111,8 +118,12 @@ impl TransactionCleaner {
             }
         }
 
-        // Timestamp release is handled by VersionManager - for expired transactions
-        // we assume the timestamp has been or will be released by Drop
+        if context.read_only {
+            self.version_manager.release_read_timestamp();
+        } else {
+            self.version_manager
+                .release_insert_timestamp(context.timestamp());
+        }
 
         context.transition_to(TransactionState::Aborted)?;
 
@@ -143,6 +154,10 @@ impl TransactionCleaner {
 
 impl Default for TransactionCleaner {
     fn default() -> Self {
-        Self::new(None, Arc::new(TransactionStats::new()))
+        Self::new(
+            None,
+            Arc::new(VersionManager::new()),
+            Arc::new(TransactionStats::new()),
+        )
     }
 }

@@ -483,6 +483,7 @@ fn test_cleanup_expired_transactions() {
     manager.cleanup_expired_transactions();
 
     assert!(!manager.is_transaction_active(txn1));
+    assert_eq!(manager.pending_count(), 0);
 }
 
 #[test]

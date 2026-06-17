@@ -600,11 +600,9 @@ impl SyncCoordinator {
         operation: &IndexOperation,
     ) -> Result<(), SyncCoordinatorError> {
         let key = &operation.key;
-        if let Some(processor) = self.get_or_create_fulltext_processor(
-            key.space_id,
-            &key.tag_name,
-            &key.field_name,
-        ) {
+        if let Some(processor) =
+            self.get_or_create_fulltext_processor(key.space_id, &key.tag_name, &key.field_name)
+        {
             match operation.change_type {
                 ChangeType::Insert => {
                     processor.add(operation.clone()).await.map_err(|e| {

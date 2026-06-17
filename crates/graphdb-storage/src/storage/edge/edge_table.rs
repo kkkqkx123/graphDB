@@ -7,10 +7,10 @@ use super::{
     Csr, CsrBase, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsrTrait,
     MutableCsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
 };
+use crate::core::types::EdgeId;
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::persistence::{read_header, section, write_header_to, HEADER_SIZE};
 use crate::storage::types::{PropertyId, StoragePropertyDef};
-use crate::core::types::EdgeId;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -417,13 +417,10 @@ impl EdgeTable {
             return Err(StorageError::storage_not_open());
         }
 
-        let reverted = self
-            .out_csr
-            .revert_delete_by_offset(src, oe_offset, ts);
+        let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset, ts);
 
         if reverted && self.schema.ie_strategy != EdgeStrategy::None {
-            self.in_csr
-                .revert_delete_by_offset(dst, ie_offset, ts);
+            self.in_csr.revert_delete_by_offset(dst, ie_offset, ts);
         }
 
         Ok(reverted)

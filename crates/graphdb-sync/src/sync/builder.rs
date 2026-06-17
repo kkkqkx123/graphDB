@@ -74,7 +74,6 @@ impl SyncManagerBuilder {
 pub struct SyncCoordinatorBuilder {
     fulltext_manager: Option<Arc<crate::search::manager::FulltextIndexManager>>,
     config: Option<crate::sync::batch::BatchConfig>,
-    dead_letter_queue: Option<Arc<DeadLetterQueue>>,
     stats_manager: Option<Arc<crate::core::stats::StatsManager>>,
 }
 
@@ -91,7 +90,6 @@ impl SyncCoordinatorBuilder {
         Self {
             fulltext_manager: None,
             config: None,
-            dead_letter_queue: None,
             stats_manager: None,
         }
     }
@@ -162,10 +160,7 @@ impl VectorCoordinatorBuilder {
         self
     }
 
-    pub fn with_embedding_service(
-        mut self,
-        service: Arc<vector_client::EmbeddingService>,
-    ) -> Self {
+    pub fn with_embedding_service(mut self, service: Arc<vector_client::EmbeddingService>) -> Self {
         self.embedding_service = Some(service);
         self
     }
@@ -180,8 +175,7 @@ impl VectorCoordinatorBuilder {
             crate::sync::SyncError::Internal("VectorManager is required".to_string())
         })?;
         let handle = self.runtime_handle.unwrap_or_else(|| {
-            tokio::runtime::Handle::try_current()
-                .expect("No tokio runtime available")
+            tokio::runtime::Handle::try_current().expect("No tokio runtime available")
         });
 
         Ok(Arc::new(VectorSyncCoordinator::new(

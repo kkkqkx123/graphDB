@@ -94,9 +94,11 @@ fn test_2pc_full_protocol() {
         .expect("Failed to create tag");
 
     // Begin transaction
-    let txn_id = TransactionId(harness
-        .begin_transaction()
-        .expect("Failed to begin transaction"));
+    let txn_id = TransactionId(
+        harness
+            .begin_transaction()
+            .expect("Failed to begin transaction"),
+    );
 
     // Execute multiple operations
     for i in 0..10 {

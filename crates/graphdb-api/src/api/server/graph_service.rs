@@ -60,10 +60,10 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
 impl<
         S: StorageClient
             + StorageSchemaContextOps
-        + StorageSyncContextOps
-        + StorageTransactionContextOps
-        + Clone
-        + 'static,
+            + StorageSyncContextOps
+            + StorageTransactionContextOps
+            + Clone
+            + 'static,
     > GraphService<S>
 {
     /// Create a new GraphService (without a transaction manager, for use in a production environment).

@@ -198,8 +198,10 @@ impl SyncTestHarness {
     /// Rollback current transaction
     pub fn rollback_transaction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(txn_id) = self.current_txn_id.take() {
-            self.rt
-                .block_on(self.sync_manager.rollback_transaction(TransactionId(txn_id)))?;
+            self.rt.block_on(
+                self.sync_manager
+                    .rollback_transaction(TransactionId(txn_id)),
+            )?;
         }
         Ok(())
     }

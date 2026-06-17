@@ -81,9 +81,10 @@ impl TransactionBatchBuffer {
         let key = operation.key.clone();
 
         let mut entry = txn_buffer.entry(key).or_default();
-        entry
-            .operations
-            .push(SequencedIndexOperation { sequence, operation });
+        entry.operations.push(SequencedIndexOperation {
+            sequence,
+            operation,
+        });
         Ok(())
     }
 
@@ -119,7 +120,8 @@ impl TransactionBatchBuffer {
 
     pub fn truncate_operations(&self, txn_id: TransactionId, sequence: u64) -> BatchResult<()> {
         if let Some(txn_buffer) = self.pending.get_mut(&txn_id) {
-            let keys: Vec<IndexOpKey> = txn_buffer.iter().map(|entry| entry.key().clone()).collect();
+            let keys: Vec<IndexOpKey> =
+                txn_buffer.iter().map(|entry| entry.key().clone()).collect();
 
             for key in keys {
                 if let Some(mut entry) = txn_buffer.get_mut(&key) {
@@ -148,12 +150,7 @@ impl TransactionBatchBuffer {
     pub fn pending_count(&self, txn_id: TransactionId) -> usize {
         self.pending
             .get(&txn_id)
-            .map(|txn_buffer| {
-                txn_buffer
-                    .iter()
-                    .map(|e| e.value().operations.len())
-                    .sum()
-            })
+            .map(|txn_buffer| txn_buffer.iter().map(|e| e.value().operations.len()).sum())
             .unwrap_or(0)
     }
 }

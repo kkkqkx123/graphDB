@@ -658,6 +658,27 @@ impl UndoLogManager {
         }
         Ok(())
     }
+
+    pub fn execute_undo_from_index<T: UndoTarget + ?Sized>(
+        &mut self,
+        graph: &T,
+        ts: Timestamp,
+        start_index: usize,
+    ) -> UndoLogResult<()> {
+        if start_index > self.logs.len() {
+            return Err(UndoLogError::UndoFailed(format!(
+                "Invalid undo log rollback index: {}, undo log length: {}",
+                start_index,
+                self.logs.len()
+            )));
+        }
+
+        let mut tail = self.logs.split_off(start_index);
+        while let Some(log) = tail.pop() {
+            log.undo(graph, ts)?;
+        }
+        Ok(())
+    }
 }
 
 impl Default for UndoLogManager {
@@ -797,6 +818,21 @@ mod tests {
         manager.execute_undo(&target, 1).expect("Undo failed");
 
         assert!(manager.is_empty());
+    }
+
+    #[test]
+    fn test_execute_undo_from_index_keeps_prefix() {
+        let mut manager = UndoLogManager::new();
+        manager.add_insert_vertex(1, VertexId::from_int64(1));
+        manager.add_insert_vertex(1, VertexId::from_int64(2));
+        manager.add_insert_vertex(1, VertexId::from_int64(3));
+
+        let target = MockUndoTarget;
+        manager
+            .execute_undo_from_index(&target, 1, 1)
+            .expect("Undo from index failed");
+
+        assert_eq!(manager.len(), 1);
     }
 
     #[test]

@@ -2,8 +2,8 @@
 //!
 //! Unified synchronization manager using SyncCoordinator.
 
-use crate::core::Value;
 use crate::core::types::{TransactionContextInfo, TransactionId};
+use crate::core::Value;
 #[cfg(feature = "fulltext-search")]
 use crate::search::SyncConfig;
 #[cfg(feature = "fulltext-search")]
@@ -90,16 +90,8 @@ impl SyncManager {
             .unwrap_or(0)
     }
 
-    pub fn attach_transaction_context(
-        &self,
-        txn_id: TransactionId,
-    ) -> TransactionContextInfo {
-        TransactionContextInfo::new(
-            txn_id,
-            0,
-            false,
-            self.sync_sequence(txn_id),
-        )
+    pub fn attach_transaction_context(&self, txn_id: TransactionId) -> TransactionContextInfo {
+        TransactionContextInfo::new(txn_id, 0, false, self.sync_sequence(txn_id))
     }
 
     pub fn rollback_transaction_to_sequence_sync(
@@ -561,13 +553,9 @@ impl SyncManager {
         properties: &[(String, crate::core::Value)],
         change_type: ChangeType,
     ) -> Result<(), SyncError> {
-        self.execute_sync(|| self.on_vertex_change_direct(
-            space_id,
-            tag_name,
-            vertex_id,
-            properties,
-            change_type,
-        ))
+        self.execute_sync(|| {
+            self.on_vertex_change_direct(space_id, tag_name, vertex_id, properties, change_type)
+        })
     }
 
     pub fn on_edge_insert_direct_sync(
@@ -794,7 +782,8 @@ impl SyncManager {
                 tracing::error!(
                     "Fulltext commit failed after vector commit succeeded for txn {:?}: {}. \
                      Vector data is committed; fulltext index needs rebuild.",
-                    txn_id, e
+                    txn_id,
+                    e
                 );
                 return Err(SyncError::from(e));
             }

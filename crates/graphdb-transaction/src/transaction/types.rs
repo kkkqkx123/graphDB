@@ -104,6 +104,8 @@ pub struct SavepointInfo {
     pub sequence: u64,
     /// Corresponding operation log index
     pub operation_log_index: usize,
+    /// Corresponding undo log index
+    pub undo_log_index: usize,
     /// Snapshot of the transaction-local sync sequence at savepoint creation
     pub sync_sequence: u64,
 }

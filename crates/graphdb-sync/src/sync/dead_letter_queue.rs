@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::sync::types::{ChangeType, IndexOperation};
+use crate::sync::types::{IndexOperation};
 
 /// Dead letter queue entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -270,12 +270,7 @@ mod tests {
     }
 
     fn create_test_delete_operation(id: &str) -> IndexOperation {
-        IndexOperation::new_fulltext(
-            create_test_index_key(),
-            ChangeType::Delete,
-            id,
-            None,
-        )
+        IndexOperation::new_fulltext(create_test_index_key(), ChangeType::Delete, id, None)
     }
 
     fn create_test_entry(error: &str, retry_attempts: u32) -> DeadLetterEntry {

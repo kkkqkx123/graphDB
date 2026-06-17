@@ -170,13 +170,10 @@ impl FulltextBatchProcessor {
 
         if !entry.deletes.is_empty() {
             let ids: Vec<&str> = entry.deletes.iter().map(|s| s.as_str()).collect();
-            self.engine
-                .delete_batch(ids)
-                .await
-                .map_err(|e| {
-                    self.buffer.re_enqueue(key, entry.clone());
-                    BatchError::from(e)
-                })?;
+            self.engine.delete_batch(ids).await.map_err(|e| {
+                self.buffer.re_enqueue(key, entry.clone());
+                BatchError::from(e)
+            })?;
         }
 
         if !entry.inserts.is_empty() {
@@ -192,13 +189,10 @@ impl FulltextBatchProcessor {
                 .collect();
 
             if !items.is_empty() {
-                self.engine
-                    .index_batch(items)
-                    .await
-                    .map_err(|e| {
-                        self.buffer.re_enqueue(key, entry.clone());
-                        BatchError::from(e)
-                    })?;
+                self.engine.index_batch(items).await.map_err(|e| {
+                    self.buffer.re_enqueue(key, entry.clone());
+                    BatchError::from(e)
+                })?;
             }
         }
 

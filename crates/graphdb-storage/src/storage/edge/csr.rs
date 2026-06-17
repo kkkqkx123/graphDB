@@ -166,7 +166,8 @@ impl Csr {
         }
         new_offsets[self.vertex_capacity] = cumsum;
 
-        let mut new_edges = vec![ImmutableNbr::new(VertexId::from_int64(0), EdgeId(0), 0); src_list.len()];
+        let mut new_edges =
+            vec![ImmutableNbr::new(VertexId::from_int64(0), EdgeId(0), 0); src_list.len()];
         let mut current_pos = new_offsets.clone();
         for i in 0..src_list.len() {
             let src = src_list[i] as usize;

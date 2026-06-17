@@ -253,11 +253,17 @@ impl StorageSyncContextOps for MockStorage {
 }
 
 impl UndoTarget for MockStorage {
-    fn delete_vertex_type(&self, label: LabelId) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_vertex_type(
+        &self,
+        label: LabelId,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         self.graph.delete_vertex_type(label)
     }
 
-    fn delete_edge_type(&self, edge_key: crate::core::types::EdgeKey) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_edge_type(
+        &self,
+        edge_key: crate::core::types::EdgeKey,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         self.graph.delete_edge_type(edge_key)
     }
 

@@ -50,8 +50,9 @@ impl TransactionManager {
     pub fn new(config: TransactionManagerConfig) -> Self {
         let stats = Arc::new(TransactionStats::new());
         let monitor = TransactionMonitor::new(Arc::clone(&stats));
-        let cleaner = TransactionCleaner::new(None, Arc::clone(&stats));
         let version_manager = Arc::new(VersionManager::new());
+        let cleaner =
+            TransactionCleaner::new(None, Arc::clone(&version_manager), Arc::clone(&stats));
 
         Self {
             version_manager,
@@ -73,8 +74,9 @@ impl TransactionManager {
     ) -> Self {
         let stats = Arc::new(TransactionStats::new());
         let monitor = TransactionMonitor::new(Arc::clone(&stats));
-        let cleaner = TransactionCleaner::new(None, Arc::clone(&stats));
         let version_manager = Arc::new(VersionManager::with_config(vm_config));
+        let cleaner =
+            TransactionCleaner::new(None, Arc::clone(&version_manager), Arc::clone(&stats));
 
         Self {
             version_manager,
@@ -96,8 +98,9 @@ impl TransactionManager {
     ) -> Self {
         let stats = Arc::new(TransactionStats::with_stats_manager(stats_manager));
         let monitor = TransactionMonitor::new(Arc::clone(&stats));
-        let cleaner = TransactionCleaner::new(None, Arc::clone(&stats));
         let version_manager = Arc::new(VersionManager::new());
+        let cleaner =
+            TransactionCleaner::new(None, Arc::clone(&version_manager), Arc::clone(&stats));
 
         Self {
             version_manager,
@@ -114,7 +117,11 @@ impl TransactionManager {
 
     /// Attach a sync manager after construction.
     pub fn set_sync_manager(&mut self, sync_manager: Arc<SyncManager>) {
-        self.cleaner = TransactionCleaner::new(Some(sync_manager.clone()), Arc::clone(&self.stats));
+        self.cleaner = TransactionCleaner::new(
+            Some(sync_manager.clone()),
+            Arc::clone(&self.version_manager),
+            Arc::clone(&self.stats),
+        );
         self.sync_manager = Some(sync_manager);
     }
 
@@ -287,16 +294,16 @@ impl TransactionManager {
             .unwrap_or(false)
     }
 
-/// Commit transaction
+    /// Commit transaction
     ///
     /// Follows atomic commit protocol:
     /// 1. Check state and timeout (transaction still active)
     /// 2. Transition to Committing (marks in-progress, prevents concurrent operations)
-    /// 3. Call sync_manager (external coordination) - if this fails, transaction stays in Committing state for retry
+    /// 3. Call sync_manager (external coordination) - if this fails, the transaction is terminated
+    ///    and resources are released. The current state machine does not support retrying a
+    ///    commit from Committing.
     ///    NOTE: sync_manager.commit() is called BEFORE storage-level timestamp release, ensuring that
-    ///    if sync fails, the transaction remains in Committing state and can be retried or rolled back.
-    ///    This guarantees storage and index consistency: a transaction is only visible after ALL
-    ///    side effects (storage + sync) have been committed.
+    ///    storage and index visibility change together.
     /// 4. Release timestamp
     /// 5. Remove from active_transactions (only after all steps succeed)
     /// 6. Transition to Committed
@@ -317,6 +324,7 @@ impl TransactionManager {
 
             if ctx.is_expired() {
                 self.stats.increment_timeout();
+                self.rollback_context_timestamp(&ctx);
                 self.active_transactions.remove(&txn_id);
                 return Err(TransactionError::transaction_timeout());
             }
@@ -328,7 +336,14 @@ impl TransactionManager {
 
         if let Some(ref sync_manager) = self.sync_manager {
             if let Err(e) = sync_manager.commit_transaction_sync(txn_id) {
-                log::warn!("Sync commit failed for transaction {}, leaving in Committing state for potential retry: {}", txn_id, e);
+                log::warn!(
+                    "Sync commit failed for transaction {}, aborting transaction: {}",
+                    txn_id,
+                    e
+                );
+                self.rollback_context_timestamp(&context);
+                self.active_transactions.remove(&txn_id);
+                let _ = context.transition_to(TransactionState::Aborted);
                 return Err(TransactionError::sync_failed(format!(
                     "Failed to commit sync data for transaction {}: {}",
                     txn_id, e
@@ -366,7 +381,8 @@ impl TransactionManager {
     /// Follows atomic abort protocol:
     /// 1. Check state (transaction still active)
     /// 2. Transition to Aborting
-    /// 3. Call sync_manager rollback (if sync fails, stays in Aborting for retry)
+    /// 3. Call sync_manager rollback. If it fails, the transaction is terminated and resources
+    ///    are released.
     /// 4. Release timestamp
     /// 5. Remove from active_transactions (only after all steps succeed)
     /// 6. Transition to Aborted
@@ -396,7 +412,8 @@ impl TransactionManager {
     /// 1. Check state (transaction still active)
     /// 2. Execute undo log rollback
     /// 3. Transition to Aborting
-    /// 4. Call sync_manager rollback
+    /// 4. Call sync_manager rollback. If it fails, the transaction is terminated and resources
+    ///    are released.
     /// 5. Release timestamp
     /// 6. Remove from active_transactions
     /// 7. Transition to Aborted
@@ -435,7 +452,8 @@ impl TransactionManager {
     ///
     /// Atomic abort protocol:
     /// 1. Transition to Aborting (marks in-progress)
-    /// 2. Call sync_manager rollback - if this fails, stays in Aborting for retry
+    /// 2. Call sync_manager rollback. If it fails, the transaction is terminated and resources
+    ///    are released.
     /// 3. Release timestamp
     /// 4. Remove from active_transactions (only after all steps succeed)
     /// 5. Transition to Aborted
@@ -448,7 +466,14 @@ impl TransactionManager {
 
         if let Some(ref sync_manager) = self.sync_manager {
             if let Err(e) = sync_manager.rollback_transaction_sync(context.id) {
-                log::warn!("Sync rollback failed for transaction {}, leaving in Aborting state for potential retry: {}", context.id, e);
+                log::warn!(
+                    "Sync rollback failed for transaction {}, aborting transaction: {}",
+                    context.id,
+                    e
+                );
+                self.rollback_context_timestamp(context);
+                self.active_transactions.remove(&context.id);
+                let _ = context.transition_to(TransactionState::Aborted);
                 return Err(TransactionError::sync_failed(format!(
                     "Failed to rollback sync data for transaction {}: {}",
                     context.id, e
@@ -470,6 +495,15 @@ impl TransactionManager {
         self.stats.record_txn_rollback();
 
         Ok(())
+    }
+
+    fn rollback_context_timestamp(&self, context: &TransactionContext) {
+        if context.read_only {
+            self.version_manager.release_read_timestamp();
+        } else {
+            self.version_manager
+                .release_insert_timestamp(context.timestamp());
+        }
     }
 
     /// Get active transaction list
@@ -610,8 +644,10 @@ impl TransactionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::{
+        ColumnId, EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier,
+    };
     use crate::transaction::undo_log::{PropertyValue, UndoLogResult, UndoTarget};
-    use crate::core::types::{ColumnId, EdgeDeletionContext, EdgeIdentifier, EdgeKey, VertexIdentifier};
 
     #[test]
     fn test_transaction_manager_basic() {
@@ -704,8 +740,8 @@ mod tests {
         use crate::sync::SyncManager;
 
         let sync_manager = Arc::new(SyncManager::new_without_fulltext());
-        let manager =
-            TransactionManager::new(TransactionManagerConfig::default()).with_sync_manager(sync_manager);
+        let manager = TransactionManager::new(TransactionManagerConfig::default())
+            .with_sync_manager(sync_manager);
 
         assert!(manager.sync_manager.is_some());
     }
@@ -716,25 +752,102 @@ mod tests {
 
         struct MockUndoTarget;
         impl UndoTarget for MockUndoTarget {
-            fn delete_vertex_type(&self, _label: crate::transaction::LabelId) -> UndoLogResult<()> { Ok(()) }
-            fn delete_edge_type(&self, _edge_key: EdgeKey) -> UndoLogResult<()> { Ok(()) }
-            fn delete_vertex(&self, _vertex: VertexIdentifier, _ts: crate::transaction::Timestamp) -> UndoLogResult<()> { Ok(()) }
-            fn delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> { Ok(()) }
-            fn undo_update_vertex_property(&self, _vertex: VertexIdentifier, _col_id: ColumnId, _value: PropertyValue, _ts: crate::transaction::Timestamp) -> UndoLogResult<()> { Ok(()) }
-            fn undo_update_edge_property(&self, _edge_id: EdgeIdentifier, _oe_offset: i32, _ie_offset: i32, _col_id: ColumnId, _value: PropertyValue, _ts: crate::transaction::Timestamp) -> UndoLogResult<()> { Ok(()) }
-            fn revert_delete_vertex(&self, _vertex: VertexIdentifier, _ts: crate::transaction::Timestamp) -> UndoLogResult<()> { Ok(()) }
-            fn revert_delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> { Ok(()) }
-            fn revert_delete_vertex_properties(&self, _label_name: &str, _prop_names: &[String]) -> UndoLogResult<()> { Ok(()) }
-            fn revert_delete_edge_properties(&self, _src_label: &str, _dst_label: &str, _edge_label: &str, _prop_names: &[String]) -> UndoLogResult<()> { Ok(()) }
-            fn revert_delete_vertex_label(&self, _label_name: &str) -> UndoLogResult<()> { Ok(()) }
-            fn revert_delete_edge_label(&self, _src_label: &str, _dst_label: &str, _edge_label: &str) -> UndoLogResult<()> { Ok(()) }
-            fn revert_rename_vertex_properties(&self, _label_name: &str, _current_names: &[String], _original_names: &[String]) -> UndoLogResult<()> { Ok(()) }
-            fn revert_rename_edge_properties(&self, _src_label: &str, _dst_label: &str, _edge_label: &str, _current_names: &[String], _original_names: &[String]) -> UndoLogResult<()> { Ok(()) }
+            fn delete_vertex_type(&self, _label: crate::transaction::LabelId) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn delete_edge_type(&self, _edge_key: EdgeKey) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn delete_vertex(
+                &self,
+                _vertex: VertexIdentifier,
+                _ts: crate::transaction::Timestamp,
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn undo_update_vertex_property(
+                &self,
+                _vertex: VertexIdentifier,
+                _col_id: ColumnId,
+                _value: PropertyValue,
+                _ts: crate::transaction::Timestamp,
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn undo_update_edge_property(
+                &self,
+                _edge_id: EdgeIdentifier,
+                _oe_offset: i32,
+                _ie_offset: i32,
+                _col_id: ColumnId,
+                _value: PropertyValue,
+                _ts: crate::transaction::Timestamp,
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_delete_vertex(
+                &self,
+                _vertex: VertexIdentifier,
+                _ts: crate::transaction::Timestamp,
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_delete_edge(&self, _edge_ctx: EdgeDeletionContext) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_delete_vertex_properties(
+                &self,
+                _label_name: &str,
+                _prop_names: &[String],
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_delete_edge_properties(
+                &self,
+                _src_label: &str,
+                _dst_label: &str,
+                _edge_label: &str,
+                _prop_names: &[String],
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_delete_vertex_label(&self, _label_name: &str) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_delete_edge_label(
+                &self,
+                _src_label: &str,
+                _dst_label: &str,
+                _edge_label: &str,
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_rename_vertex_properties(
+                &self,
+                _label_name: &str,
+                _current_names: &[String],
+                _original_names: &[String],
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
+            fn revert_rename_edge_properties(
+                &self,
+                _src_label: &str,
+                _dst_label: &str,
+                _edge_label: &str,
+                _current_names: &[String],
+                _original_names: &[String],
+            ) -> UndoLogResult<()> {
+                Ok(())
+            }
         }
 
         let sync_manager = Arc::new(SyncManager::new_without_fulltext());
-        let manager =
-            TransactionManager::new(TransactionManagerConfig::default()).with_sync_manager(sync_manager);
+        let manager = TransactionManager::new(TransactionManagerConfig::default())
+            .with_sync_manager(sync_manager);
 
         let txn_id = manager
             .begin_insert_transaction(TransactionOptions::default())

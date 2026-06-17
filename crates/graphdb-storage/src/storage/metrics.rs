@@ -408,20 +408,35 @@ mod tests {
     }
 }
 
-impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::UndoTarget for MetricsStorage<S> {
-    fn delete_vertex_type(&self, label: crate::core::types::LabelId) -> crate::transaction::undo_log::UndoLogResult<()> {
+impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::UndoTarget
+    for MetricsStorage<S>
+{
+    fn delete_vertex_type(
+        &self,
+        label: crate::core::types::LabelId,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::transaction::UndoTarget::delete_vertex_type(&self.inner, label)
     }
 
-    fn delete_edge_type(&self, edge_key: crate::core::types::EdgeKey) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_edge_type(
+        &self,
+        edge_key: crate::core::types::EdgeKey,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::transaction::UndoTarget::delete_edge_type(&self.inner, edge_key)
     }
 
-    fn delete_vertex(&self, vertex: crate::core::types::VertexIdentifier, ts: crate::transaction::wal::Timestamp) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_vertex(
+        &self,
+        vertex: crate::core::types::VertexIdentifier,
+        ts: crate::transaction::wal::Timestamp,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::transaction::UndoTarget::delete_vertex(&self.inner, vertex, ts)
     }
 
-    fn delete_edge(&self, edge_ctx: crate::core::types::EdgeDeletionContext) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn delete_edge(
+        &self,
+        edge_ctx: crate::core::types::EdgeDeletionContext,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::transaction::UndoTarget::delete_edge(&self.inner, edge_ctx)
     }
 
@@ -461,11 +476,18 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         )
     }
 
-    fn revert_delete_vertex(&self, vertex: crate::core::types::VertexIdentifier, ts: crate::transaction::wal::Timestamp) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn revert_delete_vertex(
+        &self,
+        vertex: crate::core::types::VertexIdentifier,
+        ts: crate::transaction::wal::Timestamp,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::transaction::UndoTarget::revert_delete_vertex(&self.inner, vertex, ts)
     }
 
-    fn revert_delete_edge(&self, edge_ctx: crate::core::types::EdgeDeletionContext) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn revert_delete_edge(
+        &self,
+        edge_ctx: crate::core::types::EdgeDeletionContext,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::transaction::UndoTarget::revert_delete_edge(&self.inner, edge_ctx)
     }
 
@@ -497,7 +519,10 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
         )
     }
 
-    fn revert_delete_vertex_label(&self, label_name: &str) -> crate::transaction::undo_log::UndoLogResult<()> {
+    fn revert_delete_vertex_label(
+        &self,
+        label_name: &str,
+    ) -> crate::transaction::undo_log::UndoLogResult<()> {
         crate::transaction::UndoTarget::revert_delete_vertex_label(&self.inner, label_name)
     }
 

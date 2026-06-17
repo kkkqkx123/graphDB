@@ -234,7 +234,10 @@ impl VertexId {
         let len = bytes.len();
         let mut data = [0u8; VERTEX_ID_MAX_SIZE];
         data[..len].copy_from_slice(bytes);
-        Ok(VertexId { data, len: len as u8 })
+        Ok(VertexId {
+            data,
+            len: len as u8,
+        })
     }
 
     /// Create from a string, truncating silently if too long.
@@ -367,7 +370,9 @@ impl TryFrom<&Value> for VertexId {
         match value {
             Value::Int(i) => Ok(Self::from_int64(*i as i64)),
             Value::BigInt(i) => Ok(Self::from_int64(*i)),
-            Value::String(s) => Self::try_from_string(s).map_err(crate::core::StorageError::invalid_input),
+            Value::String(s) => {
+                Self::try_from_string(s).map_err(crate::core::StorageError::invalid_input)
+            }
             Value::Vertex(v) => Ok(v.vid),
             _ => Err(crate::core::StorageError::invalid_input(
                 "Cannot convert Value to VertexId",

@@ -40,12 +40,26 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
 /// This is the primary rollback mechanism for NeuG architecture.
 pub(crate) trait UndoLogContext {
     fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &T) -> Result<(), StorageError>;
+    fn execute_undo_logs_from_index<T: UndoTarget + ?Sized>(
+        &self,
+        target: &T,
+        start_index: usize,
+    ) -> Result<(), StorageError>;
     fn clear_undo_logs(&self);
 }
 
 impl UndoLogContext for crate::transaction::context::TransactionContext {
     fn execute_undo_logs<T: UndoTarget + ?Sized>(&self, target: &T) -> Result<(), StorageError> {
         self.execute_undo_logs(target)
+            .map_err(|e| StorageError::db_error(e.to_string()))
+    }
+
+    fn execute_undo_logs_from_index<T: UndoTarget + ?Sized>(
+        &self,
+        target: &T,
+        start_index: usize,
+    ) -> Result<(), StorageError> {
+        self.execute_undo_logs_from_index(target, start_index)
             .map_err(|e| StorageError::db_error(e.to_string()))
     }
 
@@ -93,12 +107,13 @@ impl<'a, T: OperationLogContext + UndoLogContext> CombinedRollback<'a, T> {
         Self { ctx }
     }
 
-    pub fn execute_undo_rollback<U: UndoTarget + ?Sized>(
+    pub fn execute_undo_rollback_from_index<U: UndoTarget + ?Sized>(
         &self,
         target: &U,
         _ts: Timestamp,
+        start_index: usize,
     ) -> Result<(), StorageError> {
-        self.ctx.execute_undo_logs(target)
+        self.ctx.execute_undo_logs_from_index(target, start_index)
     }
 
     pub fn rollback_operation_log_to_index(&self, index: usize) -> Result<(), StorageError> {
@@ -259,6 +274,15 @@ mod tests {
             Ok(())
         }
 
+        fn execute_undo_logs_from_index<T: UndoTarget + ?Sized>(
+            &self,
+            _target: &T,
+            _start_index: usize,
+        ) -> Result<(), StorageError> {
+            self.logs.borrow_mut().clear();
+            Ok(())
+        }
+
         fn clear_undo_logs(&self) {
             self.logs.borrow_mut().clear();
         }
@@ -296,8 +320,12 @@ mod tests {
         });
         assert!(undo.description().contains("RemoveEdgeUndo"));
 
-        let undo =
-            RollbackHelper::create_update_vertex_prop_undo(1, 100, ColumnId(0), PropertyValue::Int(42));
+        let undo = RollbackHelper::create_update_vertex_prop_undo(
+            1,
+            100,
+            ColumnId(0),
+            PropertyValue::Int(42),
+        );
         assert!(undo.description().contains("UpdateVertexPropUndo"));
     }
 }

@@ -641,7 +641,12 @@ impl MutableCsr {
             let prop_offset = read_u32_le(data, &mut offset)?;
             let timestamp = read_u32_le(data, &mut offset)?;
 
-            nbr_list.push(Nbr::new(neighbor, EdgeId(raw_edge_id), prop_offset, timestamp));
+            nbr_list.push(Nbr::new(
+                neighbor,
+                EdgeId(raw_edge_id),
+                prop_offset,
+                timestamp,
+            ));
         }
 
         self.vertex_capacity = vertex_capacity;

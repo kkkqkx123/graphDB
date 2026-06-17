@@ -770,7 +770,8 @@ impl<'a, T: UpdateTarget + ?Sized> UpdateTransaction<'a, T> {
         while let Some(log) = self.undo_logs.pop() {
             if let Err(e) = log.undo(self.graph, ts) {
                 return Err(UpdateTransactionError::WalError(format!(
-                    "Failed to undo operation: {}", e
+                    "Failed to undo operation: {}",
+                    e
                 )));
             }
         }

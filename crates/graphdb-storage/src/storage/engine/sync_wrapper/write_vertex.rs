@@ -267,10 +267,7 @@ impl<S: StorageClient + StorageTransactionContextOps + 'static> SyncWrapper<S> {
                             ChangeType::Insert,
                         )
                         .map_err(|e| {
-                            StorageError::db_error(format!(
-                                "Failed to sync vertex insert: {}",
-                                e
-                            ))
+                            StorageError::db_error(format!("Failed to sync vertex insert: {}", e))
                         })?;
                 }
             }
