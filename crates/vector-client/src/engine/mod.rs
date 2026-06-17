@@ -17,6 +17,137 @@ pub mod grpc;
 #[cfg(feature = "qdrant-grpc")]
 pub use grpc::QdrantGrpcEngine;
 
+#[derive(Debug)]
+pub struct DisabledEngine;
+
+#[async_trait]
+impl VectorEngine for DisabledEngine {
+    fn name(&self) -> &str {
+        "disabled"
+    }
+    fn version(&self) -> &str {
+        "0.0"
+    }
+
+    async fn health_check(&self) -> Result<HealthStatus> {
+        Ok(HealthStatus::unhealthy(
+            "disabled",
+            "0.0",
+            "Engine disabled",
+        ))
+    }
+
+    async fn create_collection(&self, _name: &str, _config: CollectionConfig) -> Result<()> {
+        self.err().await
+    }
+    async fn delete_collection(&self, _name: &str) -> Result<()> {
+        self.err().await
+    }
+    async fn collection_exists(&self, _name: &str) -> Result<bool> {
+        self.err().await
+    }
+    async fn collection_info(&self, _name: &str) -> Result<CollectionInfo> {
+        self.err().await
+    }
+    async fn upsert(&self, _collection: &str, _point: VectorPoint) -> Result<UpsertResult> {
+        self.err().await
+    }
+    async fn upsert_batch(
+        &self,
+        _collection: &str,
+        _points: Vec<VectorPoint>,
+    ) -> Result<UpsertResult> {
+        self.err().await
+    }
+    async fn delete(&self, _collection: &str, _point_id: &str) -> Result<DeleteResult> {
+        self.err().await
+    }
+    async fn delete_batch(&self, _collection: &str, _point_ids: Vec<&str>) -> Result<DeleteResult> {
+        self.err().await
+    }
+    async fn delete_by_filter(
+        &self,
+        _collection: &str,
+        _filter: VectorFilter,
+    ) -> Result<DeleteResult> {
+        self.err().await
+    }
+    async fn search(&self, _collection: &str, _query: SearchQuery) -> Result<Vec<SearchResult>> {
+        self.err().await
+    }
+    async fn search_batch(
+        &self,
+        _collection: &str,
+        _queries: Vec<SearchQuery>,
+    ) -> Result<Vec<Vec<SearchResult>>> {
+        self.err().await
+    }
+    async fn get(&self, _collection: &str, _point_id: &str) -> Result<Option<VectorPoint>> {
+        self.err().await
+    }
+    async fn get_batch(
+        &self,
+        _collection: &str,
+        _point_ids: Vec<&str>,
+    ) -> Result<Vec<Option<VectorPoint>>> {
+        self.err().await
+    }
+    async fn count(&self, _collection: &str) -> Result<u64> {
+        self.err().await
+    }
+    async fn set_payload(
+        &self,
+        _collection: &str,
+        _point_ids: Vec<&str>,
+        _payload: Payload,
+    ) -> Result<()> {
+        self.err().await
+    }
+    async fn delete_payload(
+        &self,
+        _collection: &str,
+        _point_ids: Vec<&str>,
+        _keys: Vec<&str>,
+    ) -> Result<()> {
+        self.err().await
+    }
+    async fn scroll(
+        &self,
+        _collection: &str,
+        _limit: usize,
+        _offset: Option<&str>,
+        _with_payload: Option<bool>,
+        _with_vector: Option<bool>,
+    ) -> Result<(Vec<VectorPoint>, Option<String>)> {
+        self.err().await
+    }
+    async fn create_payload_index(
+        &self,
+        _collection: &str,
+        _field: &str,
+        _schema: PayloadSchemaType,
+    ) -> Result<()> {
+        self.err().await
+    }
+    async fn delete_payload_index(&self, _collection: &str, _field: &str) -> Result<()> {
+        self.err().await
+    }
+    async fn list_payload_indexes(
+        &self,
+        _collection: &str,
+    ) -> Result<Vec<(String, PayloadSchemaType)>> {
+        self.err().await
+    }
+}
+
+impl DisabledEngine {
+    async fn err<T>(&self) -> Result<T> {
+        Err(VectorClientError::EngineNotAvailable(
+            "vector engine disabled".to_string(),
+        ))
+    }
+}
+
 #[async_trait]
 pub trait VectorEngine: Send + Sync + std::fmt::Debug {
     fn name(&self) -> &str;

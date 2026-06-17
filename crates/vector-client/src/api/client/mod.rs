@@ -1,4 +1,3 @@
-#[path = "client.rs"]
 mod client_impl;
 mod core;
 

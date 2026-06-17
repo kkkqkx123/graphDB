@@ -2,6 +2,10 @@ use crate::engine::VectorEngine;
 use crate::error::Result;
 use crate::types::*;
 
+pub type CollectionApiDyn<'a> = CollectionApi<'a, dyn VectorEngine>;
+pub type PointApiDyn<'a> = PointApi<'a, dyn VectorEngine>;
+pub type SearchApiDyn<'a> = SearchApi<'a, dyn VectorEngine>;
+
 pub struct CollectionApi<'a, E: VectorEngine + ?Sized> {
     engine: &'a E,
 }
