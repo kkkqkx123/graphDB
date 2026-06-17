@@ -9,7 +9,9 @@
 mod common;
 
 use graphdb::core::types::{IsolationLevel, SpaceInfo};
-use graphdb::search::{EngineType, FulltextConfig, FulltextIndexManager};
+use graphdb::search::{EngineType, FulltextConfig};
+#[cfg(feature = "fulltext-search")]
+use graphdb::search::FulltextIndexManager;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -153,6 +155,7 @@ fn test_naming_consistency_vector_fulltext() {
 // ==================== Storage Path Integration Tests ====================
 
 /// Test index storage path with Shared isolation
+#[cfg(feature = "fulltext-search")]
 #[tokio::test]
 async fn test_shared_isolation_storage_path() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -186,6 +189,7 @@ async fn test_shared_isolation_storage_path() {
 }
 
 /// Test index storage path with Directory isolation
+#[cfg(feature = "fulltext-search")]
 #[tokio::test]
 async fn test_directory_isolation_storage_path() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -230,6 +234,7 @@ async fn test_directory_isolation_storage_path() {
 // ==================== Cross-Space Isolation Tests ====================
 
 /// Test that indexes from different spaces are properly isolated
+#[cfg(feature = "fulltext-search")]
 #[tokio::test]
 async fn test_cross_space_index_isolation() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -262,6 +267,7 @@ async fn test_cross_space_index_isolation() {
 }
 
 /// Test dropping one space's indexes doesn't affect other spaces
+#[cfg(feature = "fulltext-search")]
 #[tokio::test]
 async fn test_drop_space_isolation() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -384,6 +390,7 @@ async fn test_custom_path_auto_creation() {
 // ==================== Metadata Consistency Tests ====================
 
 /// Test index metadata contains correct space information
+#[cfg(feature = "fulltext-search")]
 #[tokio::test]
 async fn test_index_metadata_space_info() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -416,6 +423,7 @@ async fn test_index_metadata_space_info() {
 }
 
 /// Test listing space indexes returns correct metadata
+#[cfg(feature = "fulltext-search")]
 #[tokio::test]
 async fn test_list_space_indexes() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");

@@ -673,18 +673,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 // Pre-resolve vector index metadata
                 #[cfg(feature = "qdrant")]
                 if let Some(ref vector_coordinator) = self.vector_coordinator {
-                    match self.resolve_vector_index(space_id, &search.index_name, vector_coordinator) {
-                        Ok(index_metadata) => {
-                            context.set_index_metadata(search.index_name.clone(), index_metadata);
-                            has_metadata = true;
-                        }
-                        Err(msg) => {
-                            return Err(DBError::from(QueryError::invalid_query(format!(
-                                "Vector index not found: {}",
-                                msg
-                            ))));
-                        }
-                    }
+                     match self.resolve_vector_index(space_id, &search.index_name, vector_coordinator) {
+                         Ok(index_metadata) => {
+                             context.set_index_metadata(search.index_name.clone(), index_metadata);
+                             has_metadata = true;
+                         }
+                         Err(msg) => {
+                             return Err(DBError::from(QueryError::invalid_query(format!(
+                                 "Vector index not found: {}",
+                                 msg
+                             ))));
+                         }
+                     }
                 } else {
                     return Err(DBError::from(QueryError::invalid_query(
                         "Vector search not enabled".to_string(),
@@ -696,16 +696,16 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 #[cfg(feature = "qdrant")]
                 if let Some(ref vector_coordinator) = self.vector_coordinator {
                     match self.resolve_vector_index(space_id, &lookup.index_name, vector_coordinator) {
-                        Ok(index_metadata) => {
-                            context.set_index_metadata(lookup.index_name.clone(), index_metadata);
-                            has_metadata = true;
-                        }
-                        Err(msg) => {
-                            return Err(DBError::from(QueryError::invalid_query(format!(
-                                "Vector index not found: {}",
-                                msg
-                            ))));
-                        }
+                         Ok(index_metadata) => {
+                             context.set_index_metadata(lookup.index_name.clone(), index_metadata);
+                             has_metadata = true;
+                         }
+                         Err(msg) => {
+                             return Err(DBError::from(QueryError::invalid_query(format!(
+                                 "Vector index not found: {}",
+                                 msg
+                             ))));
+                         }
                     }
                 }
             }
@@ -719,16 +719,16 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 #[cfg(feature = "fulltext-search")]
                 if let Some(ref fulltext_manager) = self.fulltext_manager {
                     match self.resolve_fulltext_index(space_id, &search.index_name, fulltext_manager) {
-                        Ok(index_metadata) => {
-                            context.set_index_metadata(search.index_name.clone(), index_metadata);
-                            has_metadata = true;
-                        }
-                        Err(msg) => {
-                            return Err(DBError::from(QueryError::invalid_query(format!(
-                                "Fulltext index not found: {}",
-                                msg
-                            ))));
-                        }
+                         Ok(index_metadata) => {
+                             context.set_index_metadata(search.index_name.clone(), index_metadata);
+                             has_metadata = true;
+                         }
+                         Err(msg) => {
+                             return Err(DBError::from(QueryError::invalid_query(format!(
+                                 "Fulltext index not found: {}",
+                                 msg
+                             ))));
+                         }
                     }
                 }
             }
@@ -737,16 +737,16 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 #[cfg(feature = "fulltext-search")]
                 if let Some(ref fulltext_manager) = self.fulltext_manager {
                     match self.resolve_fulltext_index(space_id, &lookup.index_name, fulltext_manager) {
-                        Ok(index_metadata) => {
-                            context.set_index_metadata(lookup.index_name.clone(), index_metadata);
-                            has_metadata = true;
-                        }
-                        Err(msg) => {
-                            return Err(DBError::from(QueryError::invalid_query(format!(
-                                "Fulltext index not found: {}",
-                                msg
-                            ))));
-                        }
+                         Ok(index_metadata) => {
+                             context.set_index_metadata(lookup.index_name.clone(), index_metadata);
+                             has_metadata = true;
+                         }
+                         Err(msg) => {
+                             return Err(DBError::from(QueryError::invalid_query(format!(
+                                 "Fulltext index not found: {}",
+                                 msg
+                             ))));
+                         }
                     }
                 }
             }
@@ -756,17 +756,17 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 if let Some(ref index_name) = match_stmt.fulltext_condition.index_name {
                     if let Some(ref fulltext_manager) = self.fulltext_manager {
                         match self.resolve_fulltext_index(space_id, index_name, fulltext_manager) {
-                            Ok(index_metadata) => {
-                                context.set_index_metadata(index_name.clone(), index_metadata);
-                                has_metadata = true;
-                            }
-                            Err(msg) => {
-                                return Err(DBError::from(QueryError::invalid_query(format!(
-                                    "Fulltext index not found: {}",
-                                    msg
-                                ))));
-                            }
-                        }
+                             Ok(index_metadata) => {
+                                 context.set_index_metadata(index_name.clone(), index_metadata);
+                                 has_metadata = true;
+                             }
+                             Err(msg) => {
+                                 return Err(DBError::from(QueryError::invalid_query(format!(
+                                     "Fulltext index not found: {}",
+                                     msg
+                                 ))));
+                             }
+                         }
                     }
                 }
             }
@@ -1080,7 +1080,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let mut plan_executor =
             PlanExecutor::with_object_pool(self.executor_factory.clone(), self.object_pool.clone());
 
-        // Get expression context from query context
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         let storage = self.executor_factory.storage.clone().ok_or_else(|| {

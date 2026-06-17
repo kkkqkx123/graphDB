@@ -9,12 +9,16 @@ use graphdb::api::core::CoreResult;
 use graphdb::core::metadata::SchemaManager;
 use graphdb::core::StatsManager;
 use graphdb::core::Value;
-use graphdb::search::{FulltextConfig, FulltextIndexManager};
 use graphdb::storage::{GraphStorage, StorageSchemaContextOps};
-use graphdb::sync::{SyncConfig, SyncManager};
+use graphdb::sync::SyncManager;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use tempfile::TempDir;
+
+#[cfg(feature = "fulltext-search")]
+use graphdb::search::{FulltextConfig, FulltextIndexManager};
+#[cfg(feature = "fulltext-search")]
+use graphdb::sync::SyncConfig;
 
 #[cfg(feature = "qdrant")]
 use vector_client::{HealthStatus, VectorClientConfig, VectorManager};
@@ -38,25 +42,31 @@ pub struct TestDb {
 }
 
 fn create_sync_manager() -> Arc<SyncManager> {
-    let fulltext_temp_dir = tempfile::tempdir().expect("Failed to create fulltext temp dir");
-    let fulltext_config = FulltextConfig {
-        index_path: fulltext_temp_dir.path().to_path_buf(),
-        ..Default::default()
-    };
-    let manager = Arc::new(
-        FulltextIndexManager::new(fulltext_config).expect("Failed to create fulltext manager"),
-    );
-    // TempDir is intentionally leaked so the directory lives for the process lifetime
-    // (Tantivy lock files must remain accessible for the duration of all tests)
-    std::mem::forget(fulltext_temp_dir);
-    let sync_config = SyncConfig::default();
-    let batch_config = graphdb::sync::batch::BatchConfig::from(sync_config.clone());
-    let sync_coordinator = Arc::new(graphdb::sync::coordinator::SyncCoordinator::new(
-        manager,
-        batch_config,
-    ));
+    #[cfg(feature = "fulltext-search")]
+    let sync_manager = {
+        let fulltext_temp_dir = tempfile::tempdir().expect("Failed to create fulltext temp dir");
+        let fulltext_config = FulltextConfig {
+            index_path: fulltext_temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let manager = Arc::new(
+            FulltextIndexManager::new(fulltext_config).expect("Failed to create fulltext manager"),
+        );
+        // TempDir is intentionally leaked so the directory lives for the process lifetime
+        // (Tantivy lock files must remain accessible for the duration of all tests)
+        std::mem::forget(fulltext_temp_dir);
+        let sync_config = SyncConfig::default();
+        let batch_config = graphdb::sync::batch::BatchConfig::from(sync_config.clone());
+        let sync_coordinator = Arc::new(graphdb::sync::coordinator::SyncCoordinator::new(
+            manager,
+            batch_config,
+        ));
 
-    let sync_manager = SyncManager::with_sync_config(sync_coordinator, sync_config);
+        SyncManager::with_sync_config(sync_coordinator, sync_config)
+    };
+
+    #[cfg(not(feature = "fulltext-search"))]
+    let sync_manager = SyncManager::new_without_fulltext();
 
     #[cfg(feature = "qdrant")]
     let sync_manager = {

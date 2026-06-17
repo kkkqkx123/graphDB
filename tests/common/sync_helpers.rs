@@ -2,6 +2,8 @@
 //!
 //! Test utilities for sync module integration tests
 
+#![cfg(feature = "fulltext-search")]
+
 use graphdb::core::types::TransactionId;
 use graphdb::core::types::VertexId;
 use graphdb::core::types::{DataType, PropertyDef, SpaceInfo, TagInfo};

@@ -147,11 +147,6 @@ name = "graphdb-server"
 path = "src/main.rs"
 required-features = ["server"]
 
-[[bin]]
-name = "graphdb-e2e"
-path = "src/bin/graphdb-e2e.rs"
-required-features = ["server", "fulltext-search", "qdrant"]
-
 [dependencies]
 graphdb-core = { path = "crates/graphdb-core" }
 graphdb-config = { path = "crates/graphdb-config" }

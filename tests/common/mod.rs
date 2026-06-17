@@ -7,9 +7,11 @@
 pub mod assertions;
 pub mod data_fixtures;
 pub mod debug_helpers;
+#[cfg(feature = "fulltext-search")]
 pub mod fulltext_helpers;
 pub mod query_helpers;
 pub mod storage_helpers;
+#[cfg(feature = "fulltext-search")]
 pub mod sync_helpers;
 pub mod test_scenario;
 pub mod transaction_helpers;
