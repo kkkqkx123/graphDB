@@ -5,12 +5,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use super::buffer::BatchBuffer;
+use super::buffer::OpBatchBuffer;
 use super::config::BatchConfig;
 use super::error::{BatchError, BatchResult};
 use super::trait_def::BatchProcessor;
 use crate::search::tantivy_index::TantivySearchEngine;
-use crate::sync::types::IndexOperation;
+use crate::sync::types::{ChangeType, IndexOperation};
 
 pub struct FulltextBatchProcessor {
     space_id: u64,
@@ -18,7 +18,7 @@ pub struct FulltextBatchProcessor {
     field_name: String,
     engine: Arc<TantivySearchEngine>,
     config: BatchConfig,
-    buffer: Arc<BatchBuffer>,
+    buffer: Arc<OpBatchBuffer>,
     background_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     immediate_mode: bool,
 }
@@ -50,7 +50,7 @@ impl FulltextBatchProcessor {
             field_name,
             engine,
             config,
-            buffer: Arc::new(BatchBuffer::new()),
+            buffer: Arc::new(OpBatchBuffer::new()),
             background_task: Mutex::new(None),
             immediate_mode: false,
         }
@@ -68,7 +68,7 @@ impl FulltextBatchProcessor {
             field_name,
             engine,
             config: BatchConfig::default(),
-            buffer: Arc::new(BatchBuffer::new()),
+            buffer: Arc::new(OpBatchBuffer::new()),
             background_task: Mutex::new(None),
             immediate_mode: true,
         }
@@ -83,16 +83,18 @@ impl FulltextBatchProcessor {
     }
 
     async fn execute_immediate(&self, operation: IndexOperation) -> BatchResult<()> {
-        match operation {
-            IndexOperation::Insert { id, text, .. } | IndexOperation::Update { id, text, .. } => {
-                self.engine
-                    .index_batch(vec![(id, text)])
-                    .await
-                    .map_err(BatchError::from)?;
+        match operation.change_type {
+            ChangeType::Insert | ChangeType::Update => {
+                if let Some(text) = operation.text() {
+                    self.engine
+                        .index_batch(vec![(operation.id.clone(), text.to_string())])
+                        .await
+                        .map_err(BatchError::from)?;
+                }
             }
-            IndexOperation::Delete { id, .. } => {
+            ChangeType::Delete => {
                 self.engine
-                    .delete_batch(vec![id.as_str()])
+                    .delete_batch(vec![operation.id.as_str()])
                     .await
                     .map_err(BatchError::from)?;
             }
@@ -115,10 +117,13 @@ impl FulltextBatchProcessor {
         let mut items = Vec::new();
 
         for op in operations {
-            match op {
-                IndexOperation::Delete { id, .. } => deletes.push(id),
-                IndexOperation::Insert { id, text, .. }
-                | IndexOperation::Update { id, text, .. } => items.push((id, text)),
+            match op.change_type {
+                ChangeType::Delete => deletes.push(op.id.clone()),
+                ChangeType::Insert | ChangeType::Update => {
+                    if let Some(text) = op.text() {
+                        items.push((op.id.clone(), text.to_string()));
+                    }
+                }
             }
         }
 
@@ -144,7 +149,7 @@ impl FulltextBatchProcessor {
         &self.engine
     }
 
-    pub fn buffer(&self) -> &Arc<BatchBuffer> {
+    pub fn buffer(&self) -> &Arc<OpBatchBuffer> {
         &self.buffer
     }
 
@@ -178,9 +183,10 @@ impl FulltextBatchProcessor {
             let items: Vec<(String, String)> = entry
                 .inserts
                 .iter()
-                .filter_map(|op| match op {
-                    IndexOperation::Insert { id, text, .. } => Some((id.clone(), text.clone())),
-                    IndexOperation::Update { id, text, .. } => Some((id.clone(), text.clone())),
+                .filter_map(|op| match op.change_type {
+                    ChangeType::Insert | ChangeType::Update => {
+                        op.text().map(|text| (op.id.clone(), text.to_string()))
+                    }
                     _ => None,
                 })
                 .collect();
@@ -227,12 +233,12 @@ impl BatchProcessor for FulltextBatchProcessor {
 
         let key = self.location();
 
-        match &operation {
-            IndexOperation::Insert { .. } | IndexOperation::Update { .. } => {
+        match &operation.change_type {
+            ChangeType::Insert | ChangeType::Update => {
                 self.buffer.add_insert(&key, operation);
             }
-            IndexOperation::Delete { id, .. } => {
-                self.buffer.add_delete(&key, id.clone());
+            ChangeType::Delete => {
+                self.buffer.add_delete(&key, operation.id.clone());
             }
         }
 
@@ -254,12 +260,12 @@ impl BatchProcessor for FulltextBatchProcessor {
         let key = self.location();
 
         for operation in operations {
-            match &operation {
-                IndexOperation::Insert { .. } | IndexOperation::Update { .. } => {
+            match &operation.change_type {
+                ChangeType::Insert | ChangeType::Update => {
                     self.buffer.add_insert(&key, operation);
                 }
-                IndexOperation::Delete { id, .. } => {
-                    self.buffer.add_delete(&key, id.clone());
+                ChangeType::Delete => {
+                    self.buffer.add_delete(&key, operation.id.clone());
                 }
             }
         }

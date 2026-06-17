@@ -24,32 +24,88 @@ impl IndexOpKey {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum IndexType {
+    Fulltext,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum IndexOperation {
-    Insert {
-        key: IndexOpKey,
-        id: String,
-        text: String,
-    },
-    Delete {
-        key: IndexOpKey,
-        id: String,
-    },
-    Update {
-        key: IndexOpKey,
-        id: String,
-        text: String,
-    },
+pub enum IndexData {
+    Fulltext(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexOperation {
+    pub key: IndexOpKey,
+    pub index_type: IndexType,
+    pub change_type: ChangeType,
+    pub id: String,
+    pub data: Option<IndexData>,
 }
 
 impl IndexOperation {
-    pub fn extract_index_key(&self) -> Option<(u64, String, String)> {
-        match self {
-            IndexOperation::Insert { key, .. }
-            | IndexOperation::Update { key, .. }
-            | IndexOperation::Delete { key, .. } => {
-                Some((key.space_id, key.tag_name.clone(), key.field_name.clone()))
-            }
+    pub fn new_fulltext(
+        key: IndexOpKey,
+        change_type: ChangeType,
+        id: impl Into<String>,
+        text: Option<String>,
+    ) -> Self {
+        Self {
+            key,
+            index_type: IndexType::Fulltext,
+            change_type,
+            id: id.into(),
+            data: text.map(IndexData::Fulltext),
         }
+    }
+
+    pub fn extract_index_key(&self) -> (u64, String, String) {
+        (
+            self.key.space_id,
+            self.key.tag_name.clone(),
+            self.key.field_name.clone(),
+        )
+    }
+
+    pub fn space_id(&self) -> u64 {
+        self.key.space_id
+    }
+
+    pub fn tag_name(&self) -> &str {
+        &self.key.tag_name
+    }
+
+    pub fn field_name(&self) -> &str {
+        &self.key.field_name
+    }
+
+    pub fn text(&self) -> Option<&str> {
+        match &self.data {
+            Some(IndexData::Fulltext(text)) => Some(text),
+            None => None,
+        }
+    }
+}
+
+#[deprecated(note = "Use IndexOperation::new_fulltext() instead")]
+impl IndexOperation {
+    pub fn insert(
+        key: IndexOpKey,
+        id: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Self {
+        Self::new_fulltext(key, ChangeType::Insert, id, Some(text.into()))
+    }
+
+    pub fn update(
+        key: IndexOpKey,
+        id: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Self {
+        Self::new_fulltext(key, ChangeType::Update, id, Some(text.into()))
+    }
+
+    pub fn delete(key: IndexOpKey, id: impl Into<String>) -> Self {
+        Self::new_fulltext(key, ChangeType::Delete, id, None)
     }
 }

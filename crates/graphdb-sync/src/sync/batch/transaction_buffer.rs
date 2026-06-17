@@ -1,5 +1,6 @@
 use dashmap::DashMap;
 
+use super::trait_def::BatchBuffer;
 use crate::core::types::TransactionId;
 use crate::sync::batch::error::BatchResult;
 use crate::sync::types::{IndexOpKey, IndexOperation};
@@ -77,11 +78,7 @@ impl TransactionBatchBuffer {
     ) -> BatchResult<()> {
         let txn_buffer = self.pending.entry(txn_id).or_default();
 
-        let key = match &operation {
-            IndexOperation::Insert { key, .. }
-            | IndexOperation::Update { key, .. }
-            | IndexOperation::Delete { key, .. } => key.clone(),
-        };
+        let key = operation.key.clone();
 
         let mut entry = txn_buffer.entry(key).or_default();
         entry
@@ -158,5 +155,85 @@ impl TransactionBatchBuffer {
                     .sum()
             })
             .unwrap_or(0)
+    }
+}
+
+impl TransactionBatchBuffer {
+    pub fn add_operation(&self, txn_id: TransactionId, key: &IndexOpKey, value: IndexOperation) {
+        let txn_buffer = self.pending.entry(txn_id).or_default();
+        let mut entry = txn_buffer.entry(key.clone()).or_default();
+        entry.operations.push(SequencedIndexOperation {
+            sequence: 0,
+            operation: value,
+        });
+    }
+}
+
+impl BatchBuffer<IndexOpKey, IndexOperation> for TransactionBatchBuffer {
+    fn add(&self, key: &IndexOpKey, value: IndexOperation) {
+        self.add_operation(TransactionId::new(0), key, value);
+    }
+
+    fn drain(&self, key: &IndexOpKey) -> Vec<IndexOperation> {
+        if let Some(txn_buffer) = self.pending.get(&TransactionId::new(0)) {
+            if let Some(entry) = txn_buffer.get(key) {
+                return entry
+                    .operations
+                    .iter()
+                    .map(|op| op.operation.clone())
+                    .collect();
+            }
+        }
+        Vec::new()
+    }
+
+    fn peek(&self, key: &IndexOpKey) -> Vec<IndexOperation> {
+        if let Some(txn_buffer) = self.pending.get(&TransactionId::new(0)) {
+            if let Some(entry) = txn_buffer.get(key) {
+                return entry
+                    .operations
+                    .iter()
+                    .map(|op| op.operation.clone())
+                    .collect();
+            }
+        }
+        Vec::new()
+    }
+
+    fn count(&self, key: &IndexOpKey) -> usize {
+        if let Some(txn_buffer) = self.pending.get(&TransactionId::new(0)) {
+            if let Some(entry) = txn_buffer.get(key) {
+                return entry.operations.len();
+            }
+        }
+        0
+    }
+
+    fn is_empty(&self, key: &IndexOpKey) -> bool {
+        self.count(key) == 0
+    }
+
+    fn keys(&self) -> Vec<IndexOpKey> {
+        if let Some(txn_buffer) = self.pending.get(&TransactionId::new(0)) {
+            return txn_buffer.iter().map(|e| e.key().clone()).collect();
+        }
+        Vec::new()
+    }
+
+    fn clear(&self) {
+        self.pending.clear();
+    }
+
+    fn total_count(&self) -> usize {
+        self.pending
+            .iter()
+            .map(|txn_buffer| {
+                txn_buffer
+                    .value()
+                    .iter()
+                    .map(|e| e.value().operations.len())
+                    .sum::<usize>()
+            })
+            .sum()
     }
 }

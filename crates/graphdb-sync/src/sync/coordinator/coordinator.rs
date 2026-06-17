@@ -141,24 +141,18 @@ impl SyncCoordinator {
         let ChangeData::Fulltext(ref text) = ctx.data;
         let key = IndexOpKey::new(ctx.space_id, &ctx.tag_name, &ctx.field_name);
 
-        let operation = match ctx.change_type {
-            ChangeType::Insert => IndexOperation::Insert {
-                key,
-                id: ctx.vertex_id.clone(),
-                text: text.clone(),
-            },
-            ChangeType::Update => IndexOperation::Update {
-                key,
-                id: ctx.vertex_id.clone(),
-                text: text.clone(),
-            },
-            ChangeType::Delete => IndexOperation::Delete {
-                key,
-                id: ctx.vertex_id.clone(),
-            },
+        let text = if ctx.change_type == ChangeType::Delete {
+            None
+        } else {
+            Some(text.clone())
         };
 
-        Ok(operation)
+        Ok(IndexOperation::new_fulltext(
+            key,
+            ctx.change_type,
+            ctx.vertex_id.clone(),
+            text,
+        ))
     }
 
     pub async fn on_vertex_change(
@@ -576,11 +570,7 @@ impl SyncCoordinator {
         let mut result = RecoveryResult::default();
 
         for (index, entry) in entries.iter().enumerate() {
-            let matches = match &entry.operation {
-                IndexOperation::Insert { key, .. }
-                | IndexOperation::Update { key, .. }
-                | IndexOperation::Delete { key, .. } => *key == target_key,
-            };
+            let matches = entry.operation.key == target_key;
 
             if matches {
                 result.total += 1;
@@ -609,13 +599,14 @@ impl SyncCoordinator {
         &self,
         operation: &IndexOperation,
     ) -> Result<(), SyncCoordinatorError> {
-        match operation {
-            IndexOperation::Insert { key, .. } => {
-                if let Some(processor) = self.get_or_create_fulltext_processor(
-                    key.space_id,
-                    &key.tag_name,
-                    &key.field_name,
-                ) {
+        let key = &operation.key;
+        if let Some(processor) = self.get_or_create_fulltext_processor(
+            key.space_id,
+            &key.tag_name,
+            &key.field_name,
+        ) {
+            match operation.change_type {
+                ChangeType::Insert => {
                     processor.add(operation.clone()).await.map_err(|e| {
                         SyncCoordinatorError::BatchError(
                             crate::sync::batch::BatchError::InvalidOperation(format!(
@@ -625,32 +616,7 @@ impl SyncCoordinator {
                         )
                     })?;
                 }
-            }
-            IndexOperation::Update { key, .. } => {
-                if let Some(processor) = self.get_or_create_fulltext_processor(
-                    key.space_id,
-                    &key.tag_name,
-                    &key.field_name,
-                ) {
-                    processor
-                        .execute_now(vec![operation.clone()])
-                        .await
-                        .map_err(|e| {
-                            SyncCoordinatorError::BatchError(
-                                crate::sync::batch::BatchError::InvalidOperation(format!(
-                                    "Recovery failed: {:?}",
-                                    e
-                                )),
-                            )
-                        })?;
-                }
-            }
-            IndexOperation::Delete { key, .. } => {
-                if let Some(processor) = self.get_or_create_fulltext_processor(
-                    key.space_id,
-                    &key.tag_name,
-                    &key.field_name,
-                ) {
+                ChangeType::Update | ChangeType::Delete => {
                     processor
                         .execute_now(vec![operation.clone()])
                         .await

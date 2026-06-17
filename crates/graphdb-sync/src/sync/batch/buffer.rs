@@ -1,6 +1,7 @@
 use dashmap::DashMap;
 use std::time::Instant;
 
+use super::trait_def::BatchBuffer;
 use crate::sync::types::IndexOperation;
 
 type IndexKey = (u64, String, String);
@@ -12,18 +13,18 @@ pub struct BufferEntry {
 }
 
 #[derive(Debug)]
-pub struct BatchBuffer {
+pub struct OpBatchBuffer {
     buffers: DashMap<IndexKey, BufferEntry>,
     last_commit: DashMap<IndexKey, Instant>,
 }
 
-impl Default for BatchBuffer {
+impl Default for OpBatchBuffer {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl BatchBuffer {
+impl OpBatchBuffer {
     pub fn new() -> Self {
         Self {
             buffers: DashMap::new(),
@@ -130,5 +131,39 @@ impl BatchBuffer {
 
     pub fn remove(&self, key: &IndexKey) -> Option<BufferEntry> {
         self.buffers.remove(key).map(|(_, v)| v)
+    }
+}
+
+impl BatchBuffer<IndexKey, IndexOperation> for OpBatchBuffer {
+    fn add(&self, key: &IndexKey, value: IndexOperation) {
+        self.add_insert(key, value);
+    }
+
+    fn drain(&self, key: &IndexKey) -> Vec<IndexOperation> {
+        self.drain_inserts(key)
+    }
+
+    fn peek(&self, key: &IndexKey) -> Vec<IndexOperation> {
+        self.peek_entry(key).inserts
+    }
+
+    fn count(&self, key: &IndexKey) -> usize {
+        self.insert_count(key)
+    }
+
+    fn is_empty(&self, key: &IndexKey) -> bool {
+        self.insert_count(key) == 0
+    }
+
+    fn keys(&self) -> Vec<IndexKey> {
+        self.keys()
+    }
+
+    fn clear(&self) {
+        self.clear();
+    }
+
+    fn total_count(&self) -> usize {
+        self.total_count()
     }
 }

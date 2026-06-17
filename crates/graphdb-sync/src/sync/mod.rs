@@ -1,4 +1,5 @@
 pub mod batch;
+pub mod builder;
 pub mod circuit_breaker;
 #[cfg(feature = "fulltext-search")]
 pub mod coordinator;

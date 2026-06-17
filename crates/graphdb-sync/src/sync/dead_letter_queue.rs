@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::sync::types::IndexOperation;
+use crate::sync::types::{ChangeType, IndexOperation};
 
 /// Dead letter queue entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -252,30 +252,30 @@ mod tests {
     }
 
     fn create_test_operation() -> IndexOperation {
-        IndexOperation::Insert {
-            key: IndexOpKey {
-                space_id: 1,
-                tag_name: "test_tag".to_string(),
-                field_name: "test_field".to_string(),
-            },
-            id: "test_id".to_string(),
-            text: "test".to_string(),
-        }
+        IndexOperation::new_fulltext(
+            IndexOpKey::new(1, "test_tag", "test_field"),
+            ChangeType::Insert,
+            "test_id",
+            Some("test".to_string()),
+        )
     }
 
     fn create_test_insert_operation(id: &str, text: &str) -> IndexOperation {
-        IndexOperation::Insert {
-            key: create_test_index_key(),
-            id: id.to_string(),
-            text: text.to_string(),
-        }
+        IndexOperation::new_fulltext(
+            create_test_index_key(),
+            ChangeType::Insert,
+            id,
+            Some(text.to_string()),
+        )
     }
 
     fn create_test_delete_operation(id: &str) -> IndexOperation {
-        IndexOperation::Delete {
-            key: create_test_index_key(),
-            id: id.to_string(),
-        }
+        IndexOperation::new_fulltext(
+            create_test_index_key(),
+            ChangeType::Delete,
+            id,
+            None,
+        )
     }
 
     fn create_test_entry(error: &str, retry_attempts: u32) -> DeadLetterEntry {
@@ -612,11 +612,11 @@ mod tests {
 
         let all_entries = dlq.get_all();
         assert!(
-            matches!(all_entries[0].operation, IndexOperation::Insert { .. }),
+            matches!(all_entries[0].operation.change_type, ChangeType::Insert),
             "First entry should be Insert operation"
         );
         assert!(
-            matches!(all_entries[1].operation, IndexOperation::Delete { .. }),
+            matches!(all_entries[1].operation.change_type, ChangeType::Delete),
             "Second entry should be Delete operation"
         );
     }
