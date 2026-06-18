@@ -1,10 +1,10 @@
 //! Property Table for Edges
 //!
-//! Stores edge properties using a columnar internal layout with row-oriented API.
-//! This design reuses the Column infrastructure from vertex::column_store while
-//! presenting a row-level access pattern that edges require.
+//! Stores edge properties using columnar storage for all values.
+//! All property values (regardless of size) are stored using the same columnar format
+//! that vertex properties use, ensuring consistency and enabling compression
+//! and predicate pushdown for all columns.
 
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::core::{DataType, DateValue, NullType, StorageError, StorageResult, Value};
@@ -13,10 +13,6 @@ use crate::storage::naming::NameIndexer;
 use crate::storage::persistence::{read_header, read_u32_le, read_u64_le, section, write_header};
 use crate::storage::types::PropertyId;
 use crate::storage::vertex::column_store::Column;
-
-#[path = "overflow_store.rs"]
-mod overflow_store;
-pub use overflow_store::OverflowStore;
 
 /// Check that at least `needed` bytes remain in data starting at offset
 fn check_remaining(data: &[u8], offset: usize, needed: usize) -> StorageResult<()> {
@@ -36,9 +32,6 @@ fn check_remaining(data: &[u8], offset: usize, needed: usize) -> StorageResult<(
 
 /// Sentinel value meaning "no properties"
 pub const PROP_OFFSET_NONE: u32 = 0;
-
-/// Threshold for overflow storage (values larger than this go to overflow store)
-pub const OVERFLOW_THRESHOLD: usize = 256;
 
 /// Default row group size (similar to DuckDB's 2048 rows)
 pub const DEFAULT_ROW_GROUP_SIZE: usize = 2048;
@@ -108,7 +101,6 @@ pub struct PropertyTable {
     columns: Vec<Column>,
     row_count: usize,
     free_list: Vec<u32>,
-    overflow_store: OverflowStore,
     row_groups: Vec<RowGroup>,
     row_group_size: usize,
 }
@@ -121,7 +113,6 @@ impl PropertyTable {
             columns: Vec::new(),
             row_count: 0,
             free_list: Vec::new(),
-            overflow_store: OverflowStore::new(),
             row_groups: Vec::new(),
             row_group_size: DEFAULT_ROW_GROUP_SIZE,
         }
@@ -134,7 +125,6 @@ impl PropertyTable {
             columns: Vec::new(),
             row_count: 0,
             free_list: Vec::with_capacity(capacity),
-            overflow_store: OverflowStore::new(),
             row_groups: Vec::new(),
             row_group_size: DEFAULT_ROW_GROUP_SIZE,
         }
@@ -177,12 +167,6 @@ impl PropertyTable {
             .iter()
             .position(|prop| prop.name == name)
             .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
-
-        for row_idx in 0..self.row_count {
-            self.overflow_store.remove(index, row_idx);
-        }
-
-        self.overflow_store.remap_column_indices(index);
 
         self.schema.remove(index);
         self.columns.remove(index);
@@ -307,10 +291,6 @@ impl PropertyTable {
         Ok(())
     }
 
-    fn should_use_overflow(&self, value: &Value) -> bool {
-        value.to_bytes().len() > OVERFLOW_THRESHOLD
-    }
-
     pub fn insert(&mut self, values: &[(String, Value)]) -> StorageResult<u32> {
         let offset = if let Some(free) = self.free_list.pop() {
             // Clear all columns for this reused offset to prevent stale data
@@ -342,7 +322,6 @@ impl PropertyTable {
         }
 
         for col_idx in 0..self.columns.len() {
-            self.overflow_store.remove(col_idx, row_idx);
             let col = &self.columns[col_idx];
             if col.nullable {
                 let _ = self.columns[col_idx].set(row_idx, None);
@@ -403,13 +382,7 @@ impl PropertyTable {
             if let Some(col_idx) = self.name_indexer.get_id(name) {
                 let col_idx = col_idx.as_usize();
                 if col_idx < self.columns.len() {
-                    if self.should_use_overflow(value) {
-                        self.overflow_store.remove(col_idx, row_idx);
-                        self.overflow_store.store(col_idx, row_idx, value);
-                    } else {
-                        self.overflow_store.remove(col_idx, row_idx);
-                        self.columns[col_idx].set(row_idx, Some(value))?;
-                    }
+                    self.columns[col_idx].set(row_idx, Some(value))?;
                 }
             }
         }
@@ -427,14 +400,8 @@ impl PropertyTable {
             self.columns
                 .iter()
                 .enumerate()
-                .map(|(col_idx, col)| {
-                    let value = col.get(row_idx);
-                    let resolved_value = if value.is_none() {
-                        self.overflow_store.retrieve(col_idx, row_idx)
-                    } else {
-                        value
-                    };
-                    (col.name.clone(), resolved_value)
+                .map(|(_, col)| {
+                    (col.name.clone(), col.get(row_idx))
                 })
                 .collect(),
         )
@@ -459,19 +426,7 @@ impl PropertyTable {
         }
 
         if col_idx < self.columns.len() {
-            if let Some(ref v) = value {
-                if self.should_use_overflow(v) {
-                    self.overflow_store.remove(col_idx, row_idx);
-                    self.overflow_store.store(col_idx, row_idx, v);
-                    self.columns[col_idx].set(row_idx, None)?;
-                } else {
-                    self.overflow_store.remove(col_idx, row_idx);
-                    self.columns[col_idx].set(row_idx, Some(v))?;
-                }
-            } else {
-                self.overflow_store.remove(col_idx, row_idx);
-                self.columns[col_idx].set(row_idx, None)?;
-            }
+            self.columns[col_idx].set(row_idx, value.as_ref())?;
         }
 
         Ok(())
@@ -497,19 +452,7 @@ impl PropertyTable {
             )));
         }
 
-        if let Some(ref v) = value {
-            if self.should_use_overflow(v) {
-                self.overflow_store.remove(col_idx, row_idx);
-                self.overflow_store.store(col_idx, row_idx, v);
-                self.columns[col_idx].set(row_idx, None)?;
-            } else {
-                self.overflow_store.remove(col_idx, row_idx);
-                self.columns[col_idx].set(row_idx, Some(v))?;
-            }
-        } else {
-            self.overflow_store.remove(col_idx, row_idx);
-            self.columns[col_idx].set(row_idx, None)?;
-        }
+        self.columns[col_idx].set(row_idx, value.as_ref())?;
 
         Ok(())
     }
@@ -524,7 +467,6 @@ impl PropertyTable {
         }
 
         for col_idx in 0..self.columns.len() {
-            self.overflow_store.remove(col_idx, row_idx);
             let _ = self.columns[col_idx].set(row_idx, None);
         }
         self.free_list.push(offset);
@@ -602,10 +544,6 @@ impl PropertyTable {
         for off in &self.free_list {
             result.extend_from_slice(&off.to_le_bytes());
         }
-
-        let overflow_data = self.overflow_store.dump();
-        result.extend_from_slice(&(overflow_data.len() as u64).to_le_bytes());
-        result.extend_from_slice(&overflow_data);
 
         result.extend_from_slice(&(self.row_groups.len() as u32).to_le_bytes());
         for rg in &self.row_groups {
@@ -811,13 +749,6 @@ impl PropertyTable {
             self.free_list.push(read_u32_le(data, &mut offset)?);
         }
 
-        let overflow_len = read_u64_le(data, &mut offset)? as usize;
-        if overflow_len > 0 {
-            check_remaining(data, offset, overflow_len)?;
-            self.overflow_store
-                .load(&data[offset..offset + overflow_len])?;
-        }
-
         // Build row_groups from loaded headers
         self.row_groups.clear();
         for (start_row, end_row) in &loaded_row_groups {
@@ -864,9 +795,7 @@ impl PropertyTable {
             let old_offset = prop_index_to_offset(old_row_idx);
             if valid_offsets.contains(&old_offset) {
                 for (col_idx, col) in self.columns.iter().enumerate() {
-                    let value = col
-                        .get(old_row_idx)
-                        .or_else(|| self.overflow_store.retrieve(col_idx, old_row_idx));
+                    let value = col.get(old_row_idx);
                     let _ = new_columns[col_idx].set(new_row_count, value.as_ref());
                 }
                 new_row_count += 1;
@@ -876,7 +805,6 @@ impl PropertyTable {
         self.columns = new_columns;
         self.row_count = new_row_count;
         self.free_list.clear();
-        self.overflow_store.clear();
 
         self.row_groups.clear();
         let mut group_start = 0;
@@ -894,7 +822,6 @@ impl PropertyTable {
         for col in &self.columns {
             total += col.used_memory_size();
         }
-        total += self.overflow_store.memory_size();
         total + std::mem::size_of::<Self>()
     }
 }

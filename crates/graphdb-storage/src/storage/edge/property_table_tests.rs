@@ -200,7 +200,9 @@ fn test_property_table_update_single_property() {
     );
 }
 
-/// Test: Verify handling of overflow boundary values (255, 256, 257 bytes)
+/// Test: Verify handling of large values
+/// Previously, values > 256 bytes went to overflow store. Now all values use columnar storage,
+/// so this test verifies large values work correctly with unified column storage.
 #[test]
 fn test_property_table_overflow_boundary_values() {
     let mut table = PropertyTable::new();

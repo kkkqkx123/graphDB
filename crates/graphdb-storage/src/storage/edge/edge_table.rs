@@ -277,7 +277,7 @@ impl EdgeTable {
 
         if self.schema.oe_strategy == EdgeStrategy::None {
             return Err(StorageError::invalid_operation(
-                "Edge strategy is None".to_string(),
+                "Cannot insert edge: out-edge strategy is None".to_string(),
             ));
         }
 
@@ -327,10 +327,10 @@ impl EdgeTable {
             )));
         }
 
-        if self.schema.ie_strategy != EdgeStrategy::None
-            && !self
-                .in_csr
-                .insert_edge(dst, src_key, edge_id, prop_offset, ts)
+        // in_csr.insert_edge safely returns false if strategy is None
+        if !self
+            .in_csr
+            .insert_edge(dst, src_key, edge_id, prop_offset, ts)
         {
             self.out_csr.delete_edge(src, edge_id, ts);
             self.properties.delete(prop_offset);
@@ -361,10 +361,7 @@ impl EdgeTable {
             let edge_id = nbr.edge_id;
 
             self.out_csr.delete_edge(src, edge_id, ts);
-
-            if self.schema.ie_strategy != EdgeStrategy::None {
-                self.in_csr.delete_edge_by_dst(dst, src_key, ts);
-            }
+            self.in_csr.delete_edge_by_dst(dst, src_key, ts);
 
             return Ok(true);
         }
@@ -393,10 +390,7 @@ impl EdgeTable {
         let dst_key = Self::edge_endpoint_key(dst, rank);
         if self.out_csr.get_edge(src, dst_key, ts).is_some() {
             self.out_csr.delete_edge_by_offset(src, oe_offset, ts);
-
-            if self.schema.ie_strategy != EdgeStrategy::None {
-                self.in_csr.delete_edge_by_offset(dst, ie_offset, ts);
-            }
+            self.in_csr.delete_edge_by_offset(dst, ie_offset, ts);
 
             return Ok(true);
         }
@@ -419,7 +413,7 @@ impl EdgeTable {
 
         let reverted = self.out_csr.revert_delete_by_offset(src, oe_offset, ts);
 
-        if reverted && self.schema.ie_strategy != EdgeStrategy::None {
+        if reverted {
             self.in_csr.revert_delete_by_offset(dst, ie_offset, ts);
         }
 
@@ -628,20 +622,18 @@ impl EdgeTable {
                 Some(params.value.clone()),
             )?;
 
-            if self.schema.ie_strategy != EdgeStrategy::None {
-                let src_key = Self::edge_endpoint_key(params.src, params.rank);
-                if let Some(ie_nbr) = self.merged_get_edge(
-                    &self.in_csr,
-                    &self.in_segments,
-                    params.dst,
-                    src_key,
-                    params.ts,
-                ) {
-                    assert_eq!(
-                        nbr.prop_offset, ie_nbr.prop_offset,
-                        "out_csr and in_csr should share the same prop_offset"
-                    );
-                }
+            let src_key = Self::edge_endpoint_key(params.src, params.rank);
+            if let Some(ie_nbr) = self.merged_get_edge(
+                &self.in_csr,
+                &self.in_segments,
+                params.dst,
+                src_key,
+                params.ts,
+            ) {
+                assert_eq!(
+                    nbr.prop_offset, ie_nbr.prop_offset,
+                    "out_csr and in_csr should share the same prop_offset"
+                );
             }
             return Ok(true);
         }
@@ -996,11 +988,7 @@ impl EdgeTable {
 
     pub fn freeze_csr(&mut self, ts: Timestamp) -> usize {
         let out_frozen = Self::freeze_delta(&mut self.out_csr, &mut self.out_segments, ts);
-        let in_frozen = if self.schema.ie_strategy != EdgeStrategy::None {
-            Self::freeze_delta(&mut self.in_csr, &mut self.in_segments, ts)
-        } else {
-            0
-        };
+        let in_frozen = Self::freeze_delta(&mut self.in_csr, &mut self.in_segments, ts);
         out_frozen + in_frozen
     }
 
@@ -1065,21 +1053,19 @@ impl EdgeTable {
             }
         }
 
-        if self.schema.ie_strategy != EdgeStrategy::None {
-            for (_, nbr) in self.in_csr.iter(ts) {
-                if nbr.prop_offset > 0 {
-                    valid_offsets.insert(nbr.prop_offset);
-                }
+        for (_, nbr) in self.in_csr.iter(ts) {
+            if nbr.prop_offset > 0 {
+                valid_offsets.insert(nbr.prop_offset);
             }
+        }
 
-            for segment in &self.in_segments {
-                for (_, nbr) in segment.csr.iter() {
-                    if nbr.timestamp <= ts
-                        && !self.is_tombstoned(nbr.edge_id, ts)
-                        && nbr.prop_offset > 0
-                    {
-                        valid_offsets.insert(nbr.prop_offset);
-                    }
+        for segment in &self.in_segments {
+            for (_, nbr) in segment.csr.iter() {
+                if nbr.timestamp <= ts
+                    && !self.is_tombstoned(nbr.edge_id, ts)
+                    && nbr.prop_offset > 0
+                {
+                    valid_offsets.insert(nbr.prop_offset);
                 }
             }
         }

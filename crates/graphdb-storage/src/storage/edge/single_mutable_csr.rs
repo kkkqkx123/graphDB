@@ -160,7 +160,7 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn delete_edge(&mut self, src: u32, ts: Timestamp) -> bool {
+    pub fn delete_edge(&mut self, src: u32, _edge_id: EdgeId, ts: Timestamp) -> bool {
         let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
@@ -176,10 +176,6 @@ impl SingleMutableCsr {
         nbr.timestamp = INVALID_TIMESTAMP;
         self.edge_count.fetch_sub(1, Ordering::Relaxed);
         true
-    }
-
-    pub fn delete_edge_by_id(&mut self, src: u32, _edge_id: EdgeId, ts: Timestamp) -> bool {
-        self.delete_edge(src, ts)
     }
 
     pub fn delete_edge_by_dst(&mut self, src: u32, dst: VertexId, ts: Timestamp) -> bool {
@@ -200,11 +196,31 @@ impl SingleMutableCsr {
         true
     }
 
+    pub fn get_edge(&self, src: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
+        let src_idx = src as usize;
+
+        if src_idx >= self.vertex_capacity {
+            return None;
+        }
+
+        let nbr = &self.nbr_list[src_idx];
+
+        if nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
+            return None;
+        }
+
+        if nbr.neighbor == dst {
+            Some(*nbr)
+        } else {
+            None
+        }
+    }
+
     pub fn delete_edge_by_offset(&mut self, src: u32, _offset: i32, ts: Timestamp) -> bool {
         if _offset != 0 {
             return false;
         }
-        self.delete_edge(src, ts)
+        self.delete_edge(src, INVALID_EDGE_ID, ts)
     }
 
     pub fn revert_delete_by_offset(&mut self, src: u32, _offset: i32, ts: Timestamp) -> bool {
@@ -229,7 +245,23 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn get_edge(&self, src: u32, ts: Timestamp) -> Option<Nbr> {
+    pub fn edges_of(&self, src: u32, ts: Timestamp) -> Vec<Nbr> {
+        let src_idx = src as usize;
+
+        if src_idx >= self.vertex_capacity {
+            return Vec::new();
+        }
+
+        let nbr = &self.nbr_list[src_idx];
+
+        if nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
+            return Vec::new();
+        }
+
+        vec![*nbr]
+    }
+
+    fn get_edge_any_dst(&self, src: u32, ts: Timestamp) -> Option<Nbr> {
         let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
@@ -243,19 +275,6 @@ impl SingleMutableCsr {
         }
 
         Some(*nbr)
-    }
-
-    pub fn get_edge_by_dst(&self, src: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
-        let edge = self.get_edge(src, ts)?;
-        if edge.neighbor == dst {
-            Some(edge)
-        } else {
-            None
-        }
-    }
-
-    pub fn edges_of(&self, src: u32, ts: Timestamp) -> Vec<Nbr> {
-        self.get_edge(src, ts).map_or(Vec::new(), |nbr| vec![nbr])
     }
 
     pub fn clear(&mut self) {
@@ -365,7 +384,7 @@ impl<'a> Iterator for SingleMutableCsrIterator<'a> {
             let vid = self.current_vertex;
             self.current_vertex += 1;
 
-            if let Some(nbr) = self.csr.get_edge(vid as u32, self.ts) {
+            if let Some(nbr) = self.csr.get_edge_any_dst(vid as u32, self.ts) {
                 return Some((VertexId::from_int64(vid as i64), nbr));
             }
         }
@@ -403,8 +422,8 @@ impl MutableCsrTrait for SingleMutableCsr {
         SingleMutableCsr::insert_edge(self, src, dst, edge_id, prop_offset, ts)
     }
 
-    fn delete_edge(&mut self, src: u32, _edge_id: EdgeId, ts: Timestamp) -> bool {
-        SingleMutableCsr::delete_edge(self, src, ts)
+    fn delete_edge(&mut self, src: u32, edge_id: EdgeId, ts: Timestamp) -> bool {
+        SingleMutableCsr::delete_edge(self, src, edge_id, ts)
     }
 
     fn delete_edge_by_dst(&mut self, src: u32, dst: VertexId, ts: Timestamp) -> bool {
@@ -420,7 +439,7 @@ impl MutableCsrTrait for SingleMutableCsr {
     }
 
     fn get_edge(&self, src: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
-        SingleMutableCsr::get_edge_by_dst(self, src, dst, ts)
+        SingleMutableCsr::get_edge(self, src, dst, ts)
     }
 
     fn edges_of(&self, src: u32, ts: Timestamp) -> Vec<Nbr> {
