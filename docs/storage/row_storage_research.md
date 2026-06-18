@@ -2,19 +2,13 @@
 
 > Analysis date: 2026-05-17
 > Research method: Context7 MCP queries on PostgreSQL, MySQL, SQLite, DuckDB, RocksDB
-> Purpose: Inform PropertyTable redesign decisions for edge property storage
+> Purpose: Inform edge property storage design decisions
 
 ---
 
-## 1. Introduction
+## 1. Database Row Storage Designs
 
-The current `PropertyTable` in `src/storage/edge/` implements simple row-oriented storage for edge properties. This document researches how mainstream databases implement row storage, and extracts design principles applicable to our edge property storage.
-
----
-
-## 2. Database Row Storage Designs
-
-### 2.1 PostgreSQL — Heap Storage
+### 1.1 PostgreSQL — Heap Storage
 
 **Core Design Principles:**
 
@@ -24,16 +18,7 @@ The current `PropertyTable` in `src/storage/edge/` implements simple row-oriente
 - **MVCC via tuple versioning**: Each tuple has `xmin`/`xmax` fields recording which transaction created/deleted it.
 - **Free space map (FSM)**: Tracks available space on each page for reuse.
 
-**Relevance to PropertyTable:**
-
-| PostgreSQL Concept | Current PropertyTable | Potential Improvement |
-|---|---|---|
-| TOAST for large values | No overflow handling | Add overflow page for large property values |
-| FSM for space reuse | Free list (simplified FSM) | Similar, but could add size awareness |
-| MVCC per tuple | No per-record MVCC | Consider adding version metadata |
-| HOT for same-page updates | Always modify in place | Similar behavior |
-
-### 2.2 MySQL InnoDB — Row Formats
+### 1.2 MySQL InnoDB — Row Formats
 
 **Core Design Principles:**
 
@@ -50,15 +35,7 @@ The current `PropertyTable` in `src/storage/edge/` implements simple row-oriente
 - Off-page storage for long values via overflow pages
 - Per-page compression for COMPRESSED format
 
-**Relevance to PropertyTable:**
-
-| MySQL InnoDB Concept | Current PropertyTable | Potential Improvement |
-|---|---|---|
-| Multiple row formats | Single format | Consider format variants for different schema types |
-| Off-page overflow | No overflow handling | Implement TOAST-like overflow for large values |
-| Page-level compression | No compression | Consider block/page-level compression for PropertyTable |
-
-### 2.3 SQLite — B-tree Record Format
+### 1.3 SQLite — B-tree Record Format
 
 **Core Design Principles:**
 
@@ -86,16 +63,7 @@ The current `PropertyTable` in `src/storage/edge/` implements simple row-oriente
 - NULL and zero values consume 0 bytes (type code only)
 - Schema-on-read (manifest typing) enables flexible type handling
 
-**Relevance to PropertyTable:**
-
-| SQLite Concept | Current PropertyTable | Potential Improvement |
-|---|---|---|
-| Serial type codes | `Vec<Option<Value>>` rows | Use compact type-length encoding for property values |
-| Varint for small ints | Standard Value encoding | Apply varint-style compact encoding for edge properties |
-| Zero-byte NULL | Full Option<Value> overhead | Store NULL as special type tag without value data |
-| Varint encoding | No encoding | Compact schema IDs and type metadata |
-
-### 2.4 DuckDB — Columnar Storage
+### 1.4 DuckDB — Columnar Storage
 
 **Core Design Principles:**
 
@@ -114,15 +82,7 @@ The current `PropertyTable` in `src/storage/edge/` implements simple row-oriente
 - **Min-max indexes**: Automatic per-segment statistics for pruning
 - **Persistent compression**: Enabled by default for on-disk databases
 
-**Relevance to PropertyTable:**
-
-| DuckDB Concept | Current PropertyTable | Potential Improvement |
-|---|---|---|
-| Row groups | All edges in single table | Partition edges into row groups for scan efficiency |
-| Lightweight compression | None | Apply per-type compression (RLE, BitPacking) to edge properties |
-| Min-max indexes | No statistics | Add min-max chunk metadata for property filters |
-
-### 2.5 RocksDB — LSM Tree Key-Value
+### 1.5 RocksDB — LSM Tree Key-Value
 
 **Core Design Principles:**
 
@@ -135,19 +95,11 @@ The current `PropertyTable` in `src/storage/edge/` implements simple row-oriente
 - **Column families**: Isolated key-value namespaces within same DB
 - **Compression per level**: Different compression algorithms for different LSM levels
 
-**Relevance to PropertyTable:**
-
-| RocksDB Concept | Current PropertyTable | Potential Improvement |
-|---|---|---|
-| Block-based storage | Sequential Vec<PropertyRow> | Consider page/block organization for better cache behavior |
-| Bloom filters | None | Add filtering for offset lookups if query pattern warrants it |
-| Column families | Separate namespace per edge type | Keep current single-table approach |
-
 ---
 
-## 3. Synthesis: Design Principles for Edge Property Storage
+## 2. Key Takeaways
 
-### 3.1 Column-Oriented Internal Layout with Row-Oriented API
+### 2.1 Column-Oriented Internal Layout
 
 All researched databases use some form of internal data organization that separates concerns:
 
@@ -158,13 +110,7 @@ All researched databases use some form of internal data organization that separa
 | SQLite | B-tree with record encoding | Row |
 | DuckDB | Columnar with row groups | Row |
 
-**Recommendation for PropertyTable:**
-Adopt a column-oriented internal layout while preserving row-oriented API. This is feasible because:
-- Edge properties are append-heavy (insert edge, then read/update by row)
-- Per-type compression is more efficient than row-level encoding
-- `Nbr` already carries `prop_offset` for random access by offset
-
-### 3.2 Compact Value Representation
+### 2.2 Compact Value Representation
 
 SQLite's serial type codes and varint encoding demonstrate that value metadata (type, length) can be stored compactly:
 
@@ -174,15 +120,7 @@ SQLite's serial type codes and varint encoding demonstrate that value metadata (
 | Compact NULL | 0 bytes payload (vs Option<Value> overhead) | Low |
 | Type prefix bytes | 1 byte header per value (vs full type tag) | Medium |
 
-### 3.3 Off-Page / Overflow for Large Values
-
-Both PostgreSQL (TOAST) and MySQL InnoDB (off-page) handle oversized values by moving them outside the main storage:
-
-- Edge properties exceeding a threshold (e.g., 256 bytes) → overflow page
-- Main row contains only a pointer (offset + length) to the overflow data
-- Avoids degrading adjacency list scan performance for large blobs
-
-### 3.4 Compression Considerations
+### 2.3 Compression Considerations
 
 DuckDB's compression research shows significant savings from lightweight per-type compression:
 
@@ -193,7 +131,7 @@ DuckDB's compression research shows significant savings from lightweight per-typ
 | Dictionary | Repeated strings (URLs, categories) | 3-10x |
 | FSST | Short text properties | 2-5x |
 
-### 3.5 MVCC Considerations
+### 2.4 MVCC Considerations
 
 PostgreSQL and MySQL embed version metadata per tuple (row). For edge properties:
 
@@ -203,49 +141,7 @@ PostgreSQL and MySQL embed version metadata per tuple (row). For edge properties
 
 ---
 
-## 4. Proposed PropertyTable Architecture
-
-```
-PropertyTable
-│
-├── Schema: Vec<PropertyDef>
-├── Columns: Vec<CompressedColumn>
-│   ├── Column 0 (prop_id=0): Double → [BitPacking encoding]
-│   ├── Column 1 (prop_id=1): String → [Dictionary encoding]
-│   └── Column 2 (prop_id=2): Int   → [Varint encoding]
-│
-├── RowCount: u32
-│
-├── FreeList: Vec<u32>  (preserved for offset reuse)
-│
-├── OverflowStore (for large values > 256 bytes)
-│   └── offset → overflow data
-│
-└── Operations:
-    ├── get(offset) → Vec<(String, Option<Value>)>
-    ├── set(offset, props) → Result
-    ├── insert(props) → u32 (offset)
-    ├── delete(offset)
-    ├── scan() → impl Iterator
-    └── compact(valid_offsets)
-```
-
-### 4.1 Reuse of Existing Infrastructure
-
-- The `Column` and encoding types from `vertex::column_store` can be reused directly
-- Each compressed column tracks its own encoding via `Codec::Encoder`
-- `PropertyTable` wraps the column array and presents row-level get/set/insert/delete
-
-### 4.2 Migration Path
-
-1. **Phase 1**: Replace current `Vec<PropertyRow>` with columnar internals behind same API
-2. **Phase 2**: Add overflow store for large values
-3. **Phase 3**: Add per-column compression encoding selection
-4. **Phase 4**: Add contiguous segment compaction (row groups)
-
----
-
-## 5. References
+## 3. References
 
 - PostgreSQL Documentation: [Database Physical Storage](https://www.postgresql.org/docs/current/storage-page-layout.html)
 - PostgreSQL TOAST: [The Oversized-Attribute Storage Technique](https://www.postgresql.org/docs/current/storage-toast.html)
