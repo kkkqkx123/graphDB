@@ -138,6 +138,7 @@ pub fn create_multi_tag_vertex(
 }
 
 /// Create a KNOWS edge between two vertices.
+#[allow(dead_code)]
 pub fn create_knows_edge(src: i64, dst: i64, since: i32) -> Edge {
     Edge::new(
         VertexId::from_int64(src),
@@ -151,6 +152,7 @@ pub fn create_knows_edge(src: i64, dst: i64, since: i32) -> Edge {
 }
 
 /// Setup basic schema and return space_id.
+#[allow(dead_code)]
 pub fn setup_basic_schema(storage: &mut GraphStorage) -> u64 {
     let space_id = create_space(storage, "test_space");
     create_person_tag(storage, "test_space");
@@ -193,6 +195,7 @@ pub fn create_person_name_index(storage: &mut GraphStorage, space: &str) {
 }
 
 /// Insert test data: Alice (30) and Bob (25) with a KNOWS edge.
+#[allow(dead_code)]
 pub fn insert_test_data(storage: &mut GraphStorage, space: &str) {
     let alice = create_person_vertex(1, "Alice", 30);
     let bob = create_person_vertex(2, "Bob", 25);

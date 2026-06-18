@@ -399,8 +399,7 @@ impl PropertyTable {
         Some(
             self.columns
                 .iter()
-                .enumerate()
-                .map(|(_, col)| {
+                .map(|col| {
                     (col.name.clone(), col.get(row_idx))
                 })
                 .collect(),

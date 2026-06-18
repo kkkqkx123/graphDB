@@ -335,6 +335,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_value_to_string() {
         assert_eq!(value_to_string(&Value::SmallInt(42)), "42");
         assert_eq!(value_to_string(&Value::Int(100)), "100");

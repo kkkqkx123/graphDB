@@ -28,7 +28,6 @@ pub mod section {
     pub const EDGE_PROPERTIES: u32 = 0x0204;
 
     pub const PROPERTY_TABLE: u32 = 0x0301;
-    pub const OVERFLOW_STORE: u32 = 0x0302;
 }
 
 /// Write a persistence header (magic + version + section_id) into a buffer

@@ -190,9 +190,6 @@ impl FsstEncoder {
         let mut result = Vec::with_capacity(encoded.len() * 2);
 
         for &code in encoded {
-            if code == 0 {
-                continue;
-            }
             if let Some(symbol) = self.table.get_by_code(code) {
                 result.extend_from_slice(symbol);
             } else {
@@ -251,9 +248,9 @@ impl FsstColumn {
         self.encoder.decode_to_string(&self.encoded_data[row_idx])
     }
 
-    pub fn set(&mut self, row_idx: usize, value: Option<&str>) {
+    pub fn set(&mut self, row_idx: usize, value: Option<&str>) -> crate::core::StorageResult<()> {
         if row_idx >= self.encoded_data.len() {
-            return;
+            return Err(crate::core::StorageError::invalid_offset(row_idx as u32));
         }
 
         match value {
@@ -266,6 +263,7 @@ impl FsstColumn {
                 self.null_bitmap.set(row_idx, true);
             }
         }
+        Ok(())
     }
 
     pub fn len(&self) -> usize {
@@ -394,11 +392,39 @@ mod tests {
         let strings = vec![Some("hello world")];
         let mut column = build_fsst_column(&strings, 100);
 
-        column.set(0, Some("hello rust"));
+        column.set(0, Some("hello rust")).unwrap();
         assert_eq!(column.get(0), Some("hello rust".to_string()));
 
-        column.set(0, None);
+        column.set(0, None).unwrap();
         assert!(column.null_bitmap.is_null(0));
+    }
+
+    #[test]
+    fn test_fsst_column_set_out_of_bounds() {
+        let strings = vec![Some("hello world")];
+        let mut column = build_fsst_column(&strings, 100);
+
+        let result = column.set(5, Some("test"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fsst_decode_zero_byte() {
+        let encoder = FsstEncoder::new();
+        let input: Vec<u8> = vec![0x00, 0x01, 0x00, 0x02];
+        let decoded = encoder.decode(&input);
+        assert_eq!(decoded, input);
+    }
+
+    #[test]
+    fn test_fsst_encode_decode_with_zero_bytes() {
+        let strings = vec!["ab", "cd"];
+        let encoder = FsstEncoder::train(&strings, 100);
+
+        let input = "a\x00b";
+        let encoded = encoder.encode(input);
+        let decoded = encoder.decode(&encoded);
+        assert_eq!(decoded, input.as_bytes());
     }
 
     #[test]

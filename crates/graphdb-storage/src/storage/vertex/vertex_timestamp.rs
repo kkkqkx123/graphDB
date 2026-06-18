@@ -241,7 +241,7 @@ mod tests {
 
         // Simulate inserting vertices with increasing timestamps
         for i in 0..10 {
-            let ts = 100 + (i as u32);
+            let ts = 100 + i;
             vts.insert(i, ts);
             assert!(ts > last_ts, "Timestamps should be monotonically increasing");
             last_ts = ts;

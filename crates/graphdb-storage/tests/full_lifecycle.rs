@@ -31,7 +31,7 @@ fn test_schema_vertex_edge_full_lifecycle() {
 
     // Insert data
     common::insert_test_data(&mut storage, "test_space");
-    common::verify_test_data(&mut storage, "test_space");
+    common::verify_test_data(&storage, "test_space");
 
     // Space metadata
     assert!(storage.space_exists("test_space"));

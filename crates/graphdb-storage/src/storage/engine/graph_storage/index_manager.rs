@@ -107,8 +107,7 @@ mod tests {
     use crate::storage::engine::graph_storage::context::GraphStorageContext;
 
     fn setup_context() -> GraphStorageContext {
-        let ctx = GraphStorageContext::new();
-        ctx
+        GraphStorageContext::new()
     }
 
     #[test]

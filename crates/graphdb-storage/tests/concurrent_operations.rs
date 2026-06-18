@@ -131,7 +131,7 @@ fn test_concurrent_edge_creation_same_target() {
                 let src_vid = (thread_id * 10 + edge_idx) as i64 + 2;
                 let dst_vid = 1i64;
 
-                let edge = common::create_knows_edge(src_vid, dst_vid, 2020 + edge_idx as i32);
+                let edge = common::create_knows_edge(src_vid, dst_vid, 2020 + edge_idx);
 
                 let mut st = storage.lock().unwrap();
                 let result = st.insert_edge("test_space", edge);
@@ -150,7 +150,7 @@ fn test_concurrent_edge_creation_same_target() {
     // Verify data consistency
     let st = storage.lock().unwrap();
     let all_vertices = st.scan_vertices("test_space").unwrap();
-    assert!(all_vertices.len() > 0, "Should have vertices after concurrent operations");
+    assert!(!all_vertices.is_empty(), "Should have vertices after concurrent operations");
 }
 
 /// Test: Concurrent index lookup while data is being inserted

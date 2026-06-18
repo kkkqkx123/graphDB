@@ -217,9 +217,6 @@ impl DeferredWalOps {
         self.deletes.lock().drain(..).collect()
     }
 
-    fn is_empty(&self) -> bool {
-        self.edges.lock().is_empty() && self.deletes.lock().is_empty()
-    }
 }
 
 #[derive(Clone)]
@@ -390,10 +387,6 @@ impl GraphStorageContext {
         self.runtime.deferred_wal_ops.drain_deletes()
     }
 
-    /// Check if there are any deferred operations.
-    pub(crate) fn has_deferred_ops(&self) -> bool {
-        !self.runtime.deferred_wal_ops.is_empty()
-    }
 
     pub(crate) fn is_open_flag(&self) -> &AtomicBool {
         &self.persistent.is_open

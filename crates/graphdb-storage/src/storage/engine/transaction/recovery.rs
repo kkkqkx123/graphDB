@@ -1126,7 +1126,7 @@ mod tests {
         );
         assert!(vertex.properties.iter().all(|(name, _)| name != "age"));
 
-        let _edge_offset = ctx
+        ctx
             .insert_edge(InsertEdgeParams {
                 edge_label: lives_in_label,
                 src_label: person_label,

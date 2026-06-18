@@ -49,6 +49,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::useless_vec)]
     fn test_add_vertex_int_id() {
         let mut vertex_tables: HashMap<LabelId, VertexTable> = HashMap::new();
         vertex_tables.insert(0, create_vertex_table(0, "Person"));
@@ -73,6 +74,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::useless_vec)]
     fn test_add_vertex_string_id() {
         let mut vertex_tables: HashMap<LabelId, VertexTable> = HashMap::new();
         vertex_tables.insert(0, create_vertex_table(0, "Person"));
@@ -290,10 +292,10 @@ mod tests {
         )
         .unwrap();
 
-        assert!(vertex_tables.get(&1).is_none());
-        assert!(vertex_label_names.get("Employee").is_none());
+        assert!(!vertex_tables.contains_key(&1));
+        assert!(!vertex_label_names.contains_key("Employee"));
         // WORKS_AT edge type should be removed because its src or dst label is gone
-        assert!(edge_label_names.get("WORKS_AT").is_none());
+        assert!(!edge_label_names.contains_key("WORKS_AT"));
         // KNOWS (0,0,0) should still exist since neither src=0 nor dst=0 was removed
         assert!(edge_tables.contains_key(&EdgeTableKey::new(0, 0, 0)));
     }
@@ -321,8 +323,8 @@ mod tests {
 
         TransactionOps::delete_edge_type(&mut edge_tables, &mut edge_label_names, params).unwrap();
 
-        assert!(edge_label_names.get("KNOWS").is_none());
-        assert!(edge_tables.get(&EdgeTableKey::new(0, 1, 0)).is_none());
+        assert!(!edge_label_names.contains_key("KNOWS"));
+        assert!(!edge_tables.contains_key(&EdgeTableKey::new(0, 1, 0)));
     }
 
     #[test]
@@ -376,8 +378,7 @@ mod tests {
             edge_label: 0,
             rank: 0,
         };
-        let _offset =
-            TransactionOps::add_edge(&mut edge_tables, &vertex_tables, add_params, &[], 1).unwrap();
+        TransactionOps::add_edge(&mut edge_tables, &vertex_tables, add_params, &[], 1).unwrap();
 
         let del_params = DeleteEdgeParams {
             src_label: 0,

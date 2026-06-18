@@ -71,9 +71,7 @@ impl CsrBase for MutableCsrVariant {
     fn dump(&self) -> Vec<u8> {
         match self {
             MutableCsrVariant::None => {
-                let mut result = Vec::new();
-                result.push(0u8);
-                result
+                vec![0u8]
             }
             MutableCsrVariant::Multiple(csr) => {
                 let mut result = vec![1u8];

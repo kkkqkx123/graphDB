@@ -214,7 +214,7 @@ fn test_property_table_overflow_boundary_values() {
         let value = format!("x-{}", "a".repeat(*size));
         let offset = table
             .insert(&[("data".to_string(), Value::String(value.clone()))])
-            .expect(&format!("insert at size {} should succeed", size));
+            .unwrap_or_else(|_| panic!("insert at size {} should succeed", size));
         offsets.push((offset, value));
     }
 
@@ -268,7 +268,7 @@ fn test_property_table_multiple_sequential_updates() {
     for i in 1..=5 {
         table
             .set_property(offset, "counter", Some(Value::Int(i)))
-            .expect(&format!("update {} should succeed", i));
+            .unwrap_or_else(|_| panic!("update {} should succeed", i));
 
         let props = table.get(offset).expect("row should be visible");
         assert_eq!(

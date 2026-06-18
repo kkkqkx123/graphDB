@@ -132,12 +132,12 @@ impl ColumnEncoding {
             )),
             Self::Fsst(col) => match value {
                 Some(Value::String(s)) => {
-                    col.set(row_idx, Some(s.as_str()));
+                    col.set(row_idx, Some(s.as_str()))?;
                     Ok(())
                 }
                 Some(v) => Err(StorageError::type_mismatch(DataType::String, v.data_type())),
                 None => {
-                    col.set(row_idx, None);
+                    col.set(row_idx, None)?;
                     Ok(())
                 }
             },

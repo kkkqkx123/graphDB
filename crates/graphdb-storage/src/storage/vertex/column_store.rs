@@ -1692,7 +1692,7 @@ mod tests {
         let mut col = Column::new("data".to_string(), 0, DataType::String, false);
 
         // Test different sizes around potential boundaries
-        let sizes = vec![255, 256, 257, 1000, 10000];
+        let sizes = [255, 256, 257, 1000, 10000];
         for (idx, size) in sizes.iter().enumerate() {
             let value = format!("x-{}", "a".repeat(*size));
             col.set(idx, Some(&Value::String(value.clone())))
@@ -1744,12 +1744,12 @@ mod tests {
     #[test]
     fn test_column_float_precision() {
         let mut col_f = Column::new("float_val".to_string(), 0, DataType::Float, false);
-        let f_value = 3.14159f32;
+        let f_value = 1.5_f32;
         col_f.set(0, Some(&Value::Float(f_value))).unwrap();
         assert_eq!(col_f.get(0), Some(Value::Float(f_value)));
 
         let mut col_d = Column::new("double_val".to_string(), 0, DataType::Double, false);
-        let d_value = 3.14159265358979f64;
+        let d_value = std::f64::consts::PI;
         col_d.set(0, Some(&Value::Double(d_value))).unwrap();
         assert_eq!(col_d.get(0), Some(Value::Double(d_value)));
     }
@@ -1805,7 +1805,7 @@ mod tests {
     fn test_column_low_cardinality_strings() {
         let mut col = Column::new("category".to_string(), 0, DataType::String, false);
 
-        let categories = vec!["A", "B", "C", "A", "B", "C"];
+        let categories = ["A", "B", "C", "A", "B", "C"];
 
         // Insert low cardinality strings
         for (i, category) in categories.iter().enumerate() {
@@ -1843,7 +1843,7 @@ mod tests {
     fn test_column_long_strings_compression() {
         let mut col = Column::new("description".to_string(), 0, DataType::String, false);
 
-        let long_strings = vec![
+        let long_strings = [
             "The quick brown fox jumps over the lazy dog",
             "A Rust programming language feature",
             "GraphDB storage compression techniques",
@@ -1901,7 +1901,7 @@ mod tests {
     fn test_column_special_characters() {
         let mut col = Column::new("special".to_string(), 0, DataType::String, false);
 
-        let special_strings = vec![
+        let special_strings = [
             "\n\t\r",                    // Whitespace
             "\\\"'",                      // Quotes and backslash
             "你好世界🌍",                   // Unicode and emoji

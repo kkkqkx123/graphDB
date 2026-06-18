@@ -361,53 +361,6 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use crate::core::stats::{MetricType, StatsManager};
-    use crate::core::types::VertexId;
-    use crate::storage::{
-        GraphStorage, MetricsStorage, MockStorage, StoragePersistenceOps, StorageReader,
-        StorageWriter,
-    };
-
-    #[test]
-    fn records_read_and_write_metrics() {
-        let stats_manager = Arc::new(StatsManager::new());
-        let inner = MockStorage::new().expect("Failed to create MockStorage");
-        let mut storage = MetricsStorage::new(inner, stats_manager.clone());
-
-        storage
-            .get_vertex("test", &VertexId::from_int64(1))
-            .expect("Failed to read vertex");
-        storage
-            .batch_insert_edges("test", Vec::new())
-            .expect("Failed to write edges");
-
-        assert_eq!(stats_manager.get_value(MetricType::StorageReadOps), Some(1));
-        assert_eq!(
-            stats_manager.get_value(MetricType::StorageWriteOps),
-            Some(1)
-        );
-    }
-
-    #[test]
-    fn delegates_admin_checkpoint_operations() {
-        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let inner = GraphStorage::new_with_path(temp_dir.path().to_path_buf())
-            .expect("Failed to create GraphStorage");
-        let stats_manager = Arc::new(StatsManager::new());
-        let storage = MetricsStorage::new(inner, stats_manager);
-
-        let checkpoint = storage
-            .create_checkpoint()
-            .expect("checkpoint should succeed");
-
-        assert!(checkpoint.is_some());
-    }
-}
-
 impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::UndoTarget
     for MetricsStorage<S>
 {
@@ -570,5 +523,52 @@ impl<S: crate::transaction::UndoTarget + StorageClient> crate::transaction::Undo
             current_names,
             original_names,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::core::stats::{MetricType, StatsManager};
+    use crate::core::types::VertexId;
+    use crate::storage::{
+        GraphStorage, MetricsStorage, MockStorage, StoragePersistenceOps, StorageReader,
+        StorageWriter,
+    };
+
+    #[test]
+    fn records_read_and_write_metrics() {
+        let stats_manager = Arc::new(StatsManager::new());
+        let inner = MockStorage::new().expect("Failed to create MockStorage");
+        let mut storage = MetricsStorage::new(inner, stats_manager.clone());
+
+        storage
+            .get_vertex("test", &VertexId::from_int64(1))
+            .expect("Failed to read vertex");
+        storage
+            .batch_insert_edges("test", Vec::new())
+            .expect("Failed to write edges");
+
+        assert_eq!(stats_manager.get_value(MetricType::StorageReadOps), Some(1));
+        assert_eq!(
+            stats_manager.get_value(MetricType::StorageWriteOps),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn delegates_admin_checkpoint_operations() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let inner = GraphStorage::new_with_path(temp_dir.path().to_path_buf())
+            .expect("Failed to create GraphStorage");
+        let stats_manager = Arc::new(StatsManager::new());
+        let storage = MetricsStorage::new(inner, stats_manager);
+
+        let checkpoint = storage
+            .create_checkpoint()
+            .expect("checkpoint should succeed");
+
+        assert!(checkpoint.is_some());
     }
 }

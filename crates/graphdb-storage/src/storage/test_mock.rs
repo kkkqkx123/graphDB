@@ -284,9 +284,9 @@ impl UndoTarget for MockStorage {
         let params = crate::storage::engine::params::EdgeOperationParams {
             edge_label: edge_id.edge_label,
             src_label: edge_id.src_label,
-            src_id: edge_id.src_vid.clone(),
+            src_id: edge_id.src_vid,
             dst_label: edge_id.dst_label,
-            dst_id: edge_id.dst_vid.clone(),
+            dst_id: edge_id.dst_vid,
             rank: edge_id.rank,
         };
         self.graph.delete_edge(&params, edge_ctx.timestamp)

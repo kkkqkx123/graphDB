@@ -29,7 +29,7 @@ fn test_insert_and_get() {
     let schema = create_test_schema();
     let mut table = EdgeTable::new(schema).unwrap();
 
-    let _edge_offset = table
+    table
         .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
         .unwrap();
 
@@ -271,15 +271,15 @@ fn test_flush_load_roundtrip() {
     let mut table = EdgeTable::new(schema).unwrap();
 
     let ts = 100u32;
-    let _edge_id_1 = table
+    table
         .insert_edge(1, 2, 0, &[("weight".to_string(), Value::Double(1.5))], ts)
         .unwrap();
 
-    let _edge_id_2 = table
+    table
         .insert_edge(1, 3, 0, &[("weight".to_string(), Value::Double(2.5))], ts)
         .unwrap();
 
-    let _edge_id_3 = table
+    table
         .insert_edge(2, 3, 0, &[("weight".to_string(), Value::Double(3.5))], ts)
         .unwrap();
 
