@@ -30,7 +30,7 @@ async fn test_vector_transaction_buffer_basic() {
         },
     );
 
-    let update = PendingVectorUpdate::new(txn_id, context);
+    let update = PendingVectorUpdate::new(txn_id, 0, context);
 
     // Add update to buffer
     buffer.add_update(txn_id, update).unwrap();
@@ -67,7 +67,7 @@ async fn test_vector_transaction_buffer_cleanup() {
             },
         );
 
-        let update = PendingVectorUpdate::new(txn_id, context);
+        let update = PendingVectorUpdate::new(txn_id, 0, context);
         buffer.add_update(txn_id, update).unwrap();
     }
 
@@ -226,7 +226,7 @@ async fn test_vector_transaction_buffer_size_limit() {
             },
         );
 
-        let update = PendingVectorUpdate::new(txn_id, context);
+        let update = PendingVectorUpdate::new(txn_id, 0, context);
         buffer.add_update(txn_id, update).unwrap();
     }
 
@@ -243,7 +243,7 @@ async fn test_vector_transaction_buffer_size_limit() {
         },
     );
 
-    let update = PendingVectorUpdate::new(txn_id, context);
+    let update = PendingVectorUpdate::new(txn_id, 0, context);
     let result = buffer.add_update(txn_id, update);
 
     assert!(result.is_err());
@@ -270,7 +270,7 @@ async fn test_vector_transaction_multiple_transactions() {
             },
         );
 
-        let update = PendingVectorUpdate::new(txn_id, context);
+        let update = PendingVectorUpdate::new(txn_id, 0, context);
         buffer.add_update(txn_id, update).unwrap();
     }
 
@@ -313,7 +313,7 @@ async fn test_vector_buffer_cleanup() {
                 },
             );
 
-            let update = PendingVectorUpdate::new(txn_id, context);
+            let update = PendingVectorUpdate::new(txn_id, 0, context);
             buffer.add_update(txn_id, update).unwrap();
         }
     }

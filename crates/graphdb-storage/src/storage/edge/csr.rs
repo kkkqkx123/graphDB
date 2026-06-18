@@ -347,7 +347,7 @@ mod tests {
         csr.batch_put_edges_with_timestamps(
             &[0u32, 0, 1, 2],
             &[1, 2, 3, 0].map(|v| VertexId::from_int64(v as i64)),
-            &[0, 1, 2, 3],
+            &[EdgeId(0), EdgeId(1), EdgeId(2), EdgeId(3)],
             &[0, 1, 2, 3],
             &[100, 100, 100, 100],
         );
@@ -370,7 +370,7 @@ mod tests {
         csr.batch_put_edges_with_timestamps(
             &[0u32, 1, 2],
             &[1, 2, 3].map(VertexId::from_int64),
-            &[0, 1, 2],
+            &[EdgeId(0), EdgeId(1), EdgeId(2)],
             &[0, 0, 0],
             &[100, 100, 100],
         );
@@ -386,7 +386,7 @@ mod tests {
         csr1.batch_put_edges_with_timestamps(
             &[0u32, 0, 1, 2],
             &[1, 2, 3, 0].map(|v| VertexId::from_int64(v as i64)),
-            &[0, 1, 2, 3],
+            &[EdgeId(0), EdgeId(1), EdgeId(2), EdgeId(3)],
             &[0, 1, 2, 3],
             &[100, 100, 100, 100],
         );
@@ -410,14 +410,14 @@ mod tests {
         csr.batch_put_edges_with_timestamps(
             &[0u32, 0],
             &[1, 2].map(VertexId::from_int64),
-            &[100, 101],
+            &[EdgeId(100), EdgeId(101)],
             &[0, 1],
             &[100, 100],
         );
 
         let edge = csr.get_edge(0, VertexId::from_int64(1));
         assert!(edge.is_some());
-        assert_eq!(edge.unwrap().edge_id, 100);
+        assert_eq!(edge.unwrap().edge_id, EdgeId(100));
 
         let edge = csr.get_edge(0, VertexId::from_int64(3));
         assert!(edge.is_none());

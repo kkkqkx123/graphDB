@@ -369,12 +369,12 @@ mod tests {
         assert!(!client_session.has_active_transaction());
         assert!(client_session.is_auto_commit());
 
-        client_session.bind_transaction(1001);
+        client_session.bind_transaction(crate::transaction::TransactionId(1001));
         assert_eq!(
             client_session
                 .current_transaction()
                 .expect("current_transaction should exist"),
-            1001
+            crate::transaction::TransactionId(1001)
         );
         assert!(client_session.has_active_transaction());
 

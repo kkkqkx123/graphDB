@@ -8,6 +8,7 @@ use crate::common::sync_helpers::SyncTestHarness;
 use graphdb::core::{types::DataType, Value};
 use graphdb::storage::StorageWriter;
 use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
+use graphdb::sync::types::{ChangeType, IndexData, IndexType};
 
 /// TC-260: Complete sync and verify
 #[test]
@@ -146,10 +147,12 @@ fn test_dead_letter_queue_operations() {
 
     for i in 0..15 {
         let entry = DeadLetterEntry::new(
-            graphdb::sync::IndexOperation::Insert {
+            graphdb::sync::IndexOperation {
                 key: graphdb::sync::IndexOpKey::new(1, "Document", "title"),
+                index_type: IndexType::Fulltext,
+                change_type: ChangeType::Insert,
                 id: format!("test_id_{}", i),
-                text: format!("Test{}", i),
+                data: Some(IndexData::Fulltext(format!("Test{}", i))),
             },
             "Test failure".to_string(),
             3,

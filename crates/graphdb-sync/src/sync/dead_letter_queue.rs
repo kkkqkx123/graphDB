@@ -241,7 +241,7 @@ pub struct DeadLetterQueueStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sync::types::{IndexOpKey, IndexOperation};
+    use crate::sync::types::{ChangeType, IndexOpKey, IndexOperation};
 
     fn create_test_index_key() -> IndexOpKey {
         IndexOpKey {

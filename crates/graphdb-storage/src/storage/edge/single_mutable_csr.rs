@@ -444,9 +444,9 @@ mod tests {
     fn test_basic_operations() {
         let mut csr = SingleMutableCsr::with_capacity(10);
 
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 100));
-        assert!(!csr.insert_edge(0u32, VertexId::from_int64(2), 101, 1, 99));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), 102, 1, 101));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 100));
+        assert!(!csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 1, 99));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(102), 1, 101));
 
         assert_eq!(csr.edge_count(), 1);
     }
@@ -456,9 +456,9 @@ mod tests {
         let mut csr1 = SingleMutableCsr::with_capacity(10);
 
         // Use insert_edge to populate data
-        csr1.insert_edge(0u32, VertexId::from_int64(10), 100, 0, 100);
-        csr1.insert_edge(1u32, VertexId::from_int64(20), 101, 0, 100);
-        csr1.insert_edge(2u32, VertexId::from_int64(30), 102, 0, 100);
+        csr1.insert_edge(0u32, VertexId::from_int64(10), EdgeId(100), 0, 100);
+        csr1.insert_edge(1u32, VertexId::from_int64(20), EdgeId(101), 0, 100);
+        csr1.insert_edge(2u32, VertexId::from_int64(30), EdgeId(102), 0, 100);
 
         let data = csr1.dump();
 

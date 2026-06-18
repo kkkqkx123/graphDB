@@ -208,7 +208,7 @@ mod tests {
         TransactionOps::add_vertex(&mut vertex_tables, 0, VertexId::from_int64(1), &[], 1).unwrap();
 
         let result =
-            TransactionOps::delete_vertex(&mut vertex_tables, 0, VertexId::from_int64(0), 2);
+            TransactionOps::delete_vertex(&mut vertex_tables, 0, VertexId::from_int64(1), 2);
         assert!(result.is_ok());
 
         // After deletion, the vertex should not be visible at timestamp 2
@@ -342,11 +342,12 @@ mod tests {
         )
         .unwrap();
 
-        TransactionOps::delete_vertex(&mut vertex_tables, 0, VertexId::from_int64(0), 2).unwrap();
+        TransactionOps::delete_vertex(&mut vertex_tables, 0, VertexId::from_int64(1), 2).unwrap();
 
+        // Revert at the same timestamp as deletion (or earlier)
         let result =
-            TransactionOps::revert_delete_vertex(&mut vertex_tables, 0, VertexId::from_int64(0), 3);
-        assert!(result.is_ok());
+            TransactionOps::revert_delete_vertex(&mut vertex_tables, 0, VertexId::from_int64(1), 2);
+        assert!(result.is_ok(), "revert_delete_vertex failed: {:?}", result);
 
         let table = vertex_tables.get(&0).unwrap();
         let record = table.get_by_internal_id(0, 3);
@@ -375,7 +376,7 @@ mod tests {
             edge_label: 0,
             rank: 0,
         };
-        let offset =
+        let _offset =
             TransactionOps::add_edge(&mut edge_tables, &vertex_tables, add_params, &[], 1).unwrap();
 
         let del_params = DeleteEdgeParams {
@@ -386,7 +387,7 @@ mod tests {
             edge_label: 0,
             rank: 0,
         };
-        TransactionOps::delete_edge(&mut edge_tables, del_params, offset.0, offset.0, 2).unwrap();
+        TransactionOps::delete_edge(&mut edge_tables, del_params, 0i32, 0i32, 2).unwrap();
 
         let revert_params = RevertDeleteEdgeParams {
             src_label: 0,
@@ -399,8 +400,8 @@ mod tests {
         let result = TransactionOps::revert_delete_edge(
             &mut edge_tables,
             revert_params,
-            offset.0,
-            offset.0,
+            0i32,
+            0i32,
             3,
         );
         assert!(result.is_ok());

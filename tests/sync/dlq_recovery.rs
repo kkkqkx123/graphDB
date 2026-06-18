@@ -5,7 +5,7 @@
 use crate::common::sync_helpers::SyncTestHarness;
 use graphdb::core::types::DataType;
 use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
-use graphdb::sync::types::{IndexOpKey, IndexOperation};
+use graphdb::sync::types::{ChangeType, IndexData, IndexOpKey, IndexOperation, IndexType};
 
 /// TC-310: Dead letter queue recovery flow
 ///
@@ -36,10 +36,12 @@ fn test_dlq_recovery_flow() {
     // Add entries to DLQ directly (simulating failed sync operations)
     for i in 0..3 {
         let entry = DeadLetterEntry::new(
-            IndexOperation::Insert {
+            IndexOperation {
                 key: IndexOpKey::new(1, "Person".to_string(), "name".to_string()),
+                index_type: IndexType::Fulltext,
+                change_type: ChangeType::Insert,
                 id: format!("doc_{}", i),
-                text: format!("RecoveryTest{}", i),
+                data: Some(IndexData::Fulltext(format!("RecoveryTest{}", i))),
             },
             "Simulated failure".to_string(),
             3,
@@ -90,18 +92,23 @@ fn test_dlq_retry_flow() {
 
     // Add entries with mixed types
     dlq.add(DeadLetterEntry::new(
-        IndexOperation::Insert {
+        IndexOperation {
             key: IndexOpKey::new(1, "Person", "name"),
+            index_type: IndexType::Fulltext,
+            change_type: ChangeType::Insert,
             id: "retry_1".to_string(),
-            text: "RetryTest1".to_string(),
+            data: Some(IndexData::Fulltext("RetryTest1".to_string())),
         },
         "Insert failed".to_string(),
         2,
     ));
     dlq.add(DeadLetterEntry::new(
-        IndexOperation::Delete {
+        IndexOperation {
             key: IndexOpKey::new(1, "Person", "name"),
+            index_type: IndexType::Fulltext,
+            change_type: ChangeType::Delete,
             id: "retry_2".to_string(),
+            data: None,
         },
         "Delete failed".to_string(),
         2,
@@ -146,10 +153,12 @@ fn test_dlq_recovery_with_limit() {
 
     for i in 0..5 {
         dlq.add(DeadLetterEntry::new(
-            IndexOperation::Insert {
+            IndexOperation {
                 key: IndexOpKey::new(1, "Person", "name"),
+                index_type: IndexType::Fulltext,
+                change_type: ChangeType::Insert,
                 id: format!("limit_{}", i),
-                text: format!("LimitTest{}", i),
+                data: Some(IndexData::Fulltext(format!("LimitTest{}", i))),
             },
             "Failure".to_string(),
             2,
@@ -189,19 +198,23 @@ fn test_recover_operations_for_specific_index() {
 
     // Add entries for different indexes
     dlq.add(DeadLetterEntry::new(
-        IndexOperation::Insert {
+        IndexOperation {
             key: IndexOpKey::new(1, "Person", "name"),
+            index_type: IndexType::Fulltext,
+            change_type: ChangeType::Insert,
             id: "p1".to_string(),
-            text: "Alice".to_string(),
+            data: Some(IndexData::Fulltext("Alice".to_string())),
         },
         "Fail".to_string(),
         2,
     ));
     dlq.add(DeadLetterEntry::new(
-        IndexOperation::Insert {
+        IndexOperation {
             key: IndexOpKey::new(1, "Person", "email"),
+            index_type: IndexType::Fulltext,
+            change_type: ChangeType::Insert,
             id: "e1".to_string(),
-            text: "alice@test.com".to_string(),
+            data: Some(IndexData::Fulltext("alice@test.com".to_string())),
         },
         "Fail".to_string(),
         2,
@@ -249,10 +262,12 @@ fn test_dlq_stats_verification() {
 
     for i in 0..5 {
         dlq.add(DeadLetterEntry::new(
-            IndexOperation::Insert {
+            IndexOperation {
                 key: IndexOpKey::new(1, "Test", "field"),
+                index_type: IndexType::Fulltext,
+                change_type: ChangeType::Insert,
                 id: format!("doc_{}", i),
-                text: format!("content_{}", i),
+                data: Some(IndexData::Fulltext(format!("content_{}", i))),
             },
             "test error".to_string(),
             3,

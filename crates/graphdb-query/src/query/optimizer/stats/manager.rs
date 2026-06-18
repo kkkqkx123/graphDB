@@ -291,8 +291,8 @@ mod tests {
     fn test_add_property_statistics() {
         let manager = StatisticsManager::new();
         let mut prop_stats = PropertyStatistics::new(
-            Some("person".to_string()),
             "age".to_string(),
+            Some("person".to_string()),
         );
         prop_stats.distinct_values = 100;
 

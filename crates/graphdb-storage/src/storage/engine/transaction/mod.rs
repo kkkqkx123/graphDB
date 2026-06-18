@@ -8,6 +8,8 @@
 
 mod compact;
 mod ops;
+#[cfg(test)]
+mod ops_test;
 mod recovery;
 pub mod undo;
 

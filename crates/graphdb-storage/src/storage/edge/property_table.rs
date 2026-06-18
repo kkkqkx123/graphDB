@@ -1366,4 +1366,155 @@ mod tests {
         assert!(props.iter().all(|(name, _)| name != "weight"));
         assert!(props.iter().all(|(name, _)| name != "since"));
     }
+
+    // ==================== P0 Priority Tests ====================
+
+    /// Test: Verify property update for single property
+    #[test]
+    fn test_property_table_update_single_property() {
+        let mut table = PropertyTable::new();
+        table.add_property("name".to_string(), DataType::String, false);
+        table.add_property("age".to_string(), DataType::Int, false);
+
+        let offset = table
+            .insert(&[
+                ("name".to_string(), Value::String("Alice".to_string())),
+                ("age".to_string(), Value::Int(30)),
+            ])
+            .unwrap();
+
+        // Update only age property
+        table
+            .set_property(offset, "age", Some(Value::Int(31)))
+            .expect("property update should succeed");
+
+        let props = table.get(offset).expect("row should be visible");
+        assert_eq!(
+            props
+                .iter()
+                .find(|(n, _)| n == "age")
+                .and_then(|(_, v)| v.clone()),
+            Some(Value::Int(31))
+        );
+        assert_eq!(
+            props
+                .iter()
+                .find(|(n, _)| n == "name")
+                .and_then(|(_, v)| v.clone()),
+            Some(Value::String("Alice".to_string()))
+        );
+    }
+
+    /// Test: Verify handling of overflow boundary values (255, 256, 257 bytes)
+    #[test]
+    fn test_property_table_overflow_boundary_values() {
+        let mut table = PropertyTable::new();
+        table.add_property("data".to_string(), DataType::String, false);
+
+        // Test values at overflow boundary
+        let sizes = vec![255, 256, 257];
+        let mut offsets = vec![];
+        for size in &sizes {
+            let value = format!("x-{}", "a".repeat(*size));
+            let offset = table
+                .insert(&[("data".to_string(), Value::String(value.clone()))])
+                .expect(&format!("insert at size {} should succeed", size));
+            offsets.push((offset, value));
+        }
+
+        // Verify all values are correctly stored and retrieved
+        for (offset, expected_value) in offsets {
+            let props = table.get(offset).expect("row should be visible");
+            assert_eq!(
+                props
+                    .iter()
+                    .find(|(n, _)| n == "data")
+                    .and_then(|(_, v)| v.clone()),
+                Some(Value::String(expected_value))
+            );
+        }
+    }
+
+    /// Test: Verify property update with null values
+    #[test]
+    fn test_property_table_update_to_null() {
+        let mut table = PropertyTable::new();
+        table.add_property("optional".to_string(), DataType::String, true);
+
+        let offset = table
+            .insert(&[("optional".to_string(), Value::String("value".to_string()))])
+            .unwrap();
+
+        // Update to null
+        table
+            .set_property(offset, "optional", None)
+            .expect("setting to null should succeed");
+
+        let props = table.get(offset).expect("row should be visible");
+        assert!(props
+            .iter()
+            .find(|(n, _)| n == "optional")
+            .and_then(|(_, v)| v.clone())
+            .is_none());
+    }
+
+    /// Test: Verify multiple property updates
+    #[test]
+    fn test_property_table_multiple_sequential_updates() {
+        let mut table = PropertyTable::new();
+        table.add_property("counter".to_string(), DataType::Int, false);
+
+        let offset = table
+            .insert(&[("counter".to_string(), Value::Int(0))])
+            .unwrap();
+
+        // Perform multiple updates
+        for i in 1..=5 {
+            table
+                .set_property(offset, "counter", Some(Value::Int(i)))
+                .expect(&format!("update {} should succeed", i));
+
+            let props = table.get(offset).expect("row should be visible");
+            assert_eq!(
+                props
+                    .iter()
+                    .find(|(n, _)| n == "counter")
+                    .and_then(|(_, v)| v.clone()),
+                Some(Value::Int(i))
+            );
+        }
+    }
+
+    /// Test: Verify property offset reuse after deletion
+    #[test]
+    fn test_property_table_offset_reuse() {
+        let mut table = PropertyTable::new();
+        table.add_property("value".to_string(), DataType::Int, false);
+
+        let _offset1 = table
+            .insert(&[("value".to_string(), Value::Int(100))])
+            .unwrap();
+
+        let offset2 = table
+            .insert(&[("value".to_string(), Value::Int(200))])
+            .unwrap();
+
+        // Mark offset1 as deleted via compact
+        table.compact(&[offset2].iter().cloned().collect());
+
+        // New insertion might reuse offset1
+        let offset3 = table
+            .insert(&[("value".to_string(), Value::Int(300))])
+            .unwrap();
+
+        // Verify the new value is stored
+        let props = table.get(offset3).expect("row should be visible");
+        assert_eq!(
+            props
+                .iter()
+                .find(|(n, _)| n == "value")
+                .and_then(|(_, v)| v.clone()),
+            Some(Value::Int(300))
+        );
+    }
 }

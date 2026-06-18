@@ -91,7 +91,7 @@ async fn test_pending_update_with_change_types() {
             payload: std::collections::HashMap::new(),
         },
     );
-    let insert_update = PendingVectorUpdate::new(txn_id, insert_ctx);
+    let insert_update = PendingVectorUpdate::new(txn_id, 0, insert_ctx);
     assert!(matches!(
         insert_update.context.change_type,
         VectorChangeType::Insert
@@ -109,7 +109,7 @@ async fn test_pending_update_with_change_types() {
             payload: std::collections::HashMap::new(),
         },
     );
-    let delete_update = PendingVectorUpdate::new(txn_id, delete_ctx);
+    let delete_update = PendingVectorUpdate::new(txn_id, 0, delete_ctx);
     assert!(matches!(
         delete_update.context.change_type,
         VectorChangeType::Delete
@@ -242,7 +242,7 @@ async fn test_different_dimensions_in_buffer() {
         },
     );
     buffer
-        .add_update(txn_id, PendingVectorUpdate::new(txn_id, ctx_3d))
+        .add_update(txn_id, PendingVectorUpdate::new(txn_id, 0, ctx_3d))
         .unwrap();
 
     let ctx_128d = VectorChangeContext::new(
@@ -257,7 +257,7 @@ async fn test_different_dimensions_in_buffer() {
         },
     );
     buffer
-        .add_update(txn_id, PendingVectorUpdate::new(txn_id, ctx_128d))
+        .add_update(txn_id, PendingVectorUpdate::new(txn_id, 0, ctx_128d))
         .unwrap();
 
     let updates = buffer.take_updates(txn_id);

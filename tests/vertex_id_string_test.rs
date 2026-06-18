@@ -1,4 +1,4 @@
-use graphdb::api::embedded::{DatabaseConfig, GraphDatabase, TransactionConfig};
+use graphdb::api::embedded::{GraphDatabase, TransactionConfig};
 use std::time::Duration;
 
 #[test]
@@ -15,7 +15,7 @@ fn test_string_vertex_id_insert_and_query() {
     txn.execute("INSERT VERTEX user(name) VALUES \"alice\":(\"Alice Smith\")").expect("Insert with string ID should succeed");
 
     let result = txn.execute("MATCH (v:user) WHERE v.name == \"Alice Smith\" RETURN v").expect("Query should succeed");
-    assert!(result.len() > 0, "Should find the inserted vertex");
+    assert!(!result.is_empty(), "Should find the inserted vertex");
 
     txn.commit().expect("Commit should succeed");
 }
@@ -37,7 +37,7 @@ fn test_string_vertex_id_delete_and_rollback() {
     txn.rollback().expect("Rollback should succeed");
 
     let txn2 = session.begin_transaction_with_config(config).expect("Failed to begin second transaction");
-    let result = txn2.execute("MATCH (v:user) WHERE v.name == \"Alice Smith\" RETURN v").expect("Query should succeed after rollback");
+    let _result = txn2.execute("MATCH (v:user) WHERE v.name == \"Alice Smith\" RETURN v").expect("Query should succeed after rollback");
 
     txn2.commit().expect("Commit should succeed");
 }
@@ -59,7 +59,7 @@ fn test_string_vertex_id_update_and_rollback() {
     txn.rollback().expect("Rollback should succeed");
 
     let txn2 = session.begin_transaction_with_config(config).expect("Failed to begin second transaction");
-    let result = txn2.execute("MATCH (v:user) WHERE v.name == \"Alice Smith\" RETURN v.age").expect("Query should succeed after rollback");
+    let _result = txn2.execute("MATCH (v:user) WHERE v.name == \"Alice Smith\" RETURN v.age").expect("Query should succeed after rollback");
 
     txn2.commit().expect("Commit should succeed");
 }

@@ -446,7 +446,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let executor =
-            SubgraphExecutor::new(1, storage, vec![VertexId::from("a")], config, expr_context);
+            SubgraphExecutor::new(1, storage, vec![VertexId::from_string("a")], config, expr_context);
 
         assert_eq!(executor.start_vids.len(), 1);
         assert_eq!(executor.config.steps, 2);
@@ -460,15 +460,15 @@ mod tests {
         // Add some vertices.
         result
             .vertices
-            .insert(VertexId::from("a"), Vertex::with_vid(VertexId::from("a")));
+            .insert(VertexId::from_string("a"), Vertex::with_vid(VertexId::from_string("a")));
         result
             .vertices
-            .insert(VertexId::from("b"), Vertex::with_vid(VertexId::from("b")));
+            .insert(VertexId::from_string("b"), Vertex::with_vid(VertexId::from_string("b")));
 
         // Add an edge.
         let edge = Edge::new(
-            VertexId::from("a"),
-            VertexId::from("b"),
+            VertexId::from_string("a"),
+            VertexId::from_string("b"),
             "knows".to_string(),
             0,
             HashMap::new(),

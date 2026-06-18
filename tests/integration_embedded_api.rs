@@ -371,7 +371,7 @@ fn test_transaction_handle() {
 
     let txn = session.begin_transaction().expect("开始事务失败");
     let handle = txn.handle();
-    assert_eq!(handle.0, txn.id());
+    assert_eq!(handle.0 .0, txn.id());
 }
 
 #[test]

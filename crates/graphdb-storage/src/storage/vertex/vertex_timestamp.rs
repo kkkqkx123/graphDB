@@ -42,7 +42,7 @@ impl VertexTimestamp {
 
     pub fn revert_remove(&mut self, index: u32, ts: Timestamp) -> bool {
         let idx = index as usize;
-        if idx < self.end_ts.len() && self.end_ts[idx] != MAX_TIMESTAMP && ts >= self.end_ts[idx] {
+        if idx < self.end_ts.len() && self.end_ts[idx] != MAX_TIMESTAMP && ts <= self.end_ts[idx] {
             self.end_ts[idx] = MAX_TIMESTAMP;
             return true;
         }
@@ -213,5 +213,172 @@ mod tests {
 
         assert_eq!(vts.valid_count(150), 3);
         assert_eq!(vts.valid_count(250), 2);
+    }
+
+    // ==================== P0 Priority Tests ====================
+
+    /// Test: Verify timestamp range boundaries for visibility
+    #[test]
+    fn test_timestamp_boundary_conditions() {
+        let mut vts = VertexTimestamp::new();
+
+        vts.insert(0, 100);  // Created at ts=100
+        vts.remove(0, 200);  // Deleted at ts=200
+
+        // Verify visibility boundaries: [100, 200)
+        assert!(!vts.is_valid(0, 99), "Not visible before start");
+        assert!(vts.is_valid(0, 100), "Visible at start");
+        assert!(vts.is_valid(0, 150), "Visible in middle");
+        assert!(!vts.is_valid(0, 200), "Not visible at delete timestamp");
+        assert!(!vts.is_valid(0, 201), "Not visible after delete");
+    }
+
+    /// Test: Verify monotonic timestamp assignment
+    #[test]
+    fn test_timestamp_monotonic_increase() {
+        let mut vts = VertexTimestamp::new();
+        let mut last_ts = 0u32;
+
+        // Simulate inserting vertices with increasing timestamps
+        for i in 0..10 {
+            let ts = 100 + (i as u32);
+            vts.insert(i, ts);
+            assert!(ts > last_ts, "Timestamps should be monotonically increasing");
+            last_ts = ts;
+        }
+    }
+
+    /// Test: Verify revert_remove restores visibility correctly
+    #[test]
+    fn test_revert_remove_restores_full_visibility() {
+        let mut vts = VertexTimestamp::new();
+
+        vts.insert(0, 100);
+        vts.remove(0, 200);
+
+        // Verify it's deleted
+        assert!(!vts.is_valid(0, 250));
+
+        // Revert the deletion
+        assert!(vts.revert_remove(0, 200));
+
+        // Verify it's visible again for all future timestamps up to MAX_TIMESTAMP-1
+        assert!(vts.is_valid(0, 200));
+        assert!(vts.is_valid(0, 1000));
+        assert!(vts.is_valid(0, u32::MAX - 2));
+    }
+
+    /// Test: Verify revert_remove with incorrect timestamp
+    #[test]
+    fn test_revert_remove_with_wrong_timestamp() {
+        let mut vts = VertexTimestamp::new();
+
+        vts.insert(0, 100);
+        vts.remove(0, 200);
+
+        // Try to revert with wrong timestamp (too late)
+        let result = vts.revert_remove(0, 300);
+        assert!(!result, "Revert should fail if timestamp > deletion timestamp");
+
+        // Verify vertex is still deleted
+        assert!(!vts.is_valid(0, 250));
+    }
+
+    /// Test: Verify version compaction removes deleted vertices
+    #[test]
+    fn test_compaction_removes_deleted_versions() {
+        let mut vts = VertexTimestamp::new();
+
+        vts.insert(0, 100);
+        vts.insert(1, 101);
+        vts.insert(2, 102);
+        vts.remove(0, 200);  // v0 deleted
+        // v1 remains active
+        vts.remove(2, 200);  // v2 deleted
+
+        let initial_count = vts.start_ts.len();
+        assert_eq!(initial_count, 3);
+
+        // Compact (remove inactive versions)
+        vts.compact();
+
+        // After compaction, only active vertex (1) should remain, moved to index 0
+        assert_eq!(vts.start_ts.len(), 1);
+        assert!(vts.is_valid(0, 150));
+    }
+
+    /// Test: Verify multiple insertions and deletions
+    #[test]
+    fn test_multiple_insert_delete_cycles() {
+        let mut vts = VertexTimestamp::new();
+
+        // First cycle
+        vts.insert(0, 100);
+        assert!(vts.is_valid(0, 150));
+        vts.remove(0, 200);
+        assert!(!vts.is_valid(0, 250));
+
+        // Revert and try again
+        vts.revert_remove(0, 200);
+        assert!(vts.is_valid(0, 250));
+
+        // Delete again with higher timestamp
+        vts.remove(0, 300);
+        assert!(vts.is_valid(0, 250));
+        assert!(!vts.is_valid(0, 350));
+    }
+
+    /// Test: Verify start and end timestamp getters
+    #[test]
+    fn test_timestamp_getters() {
+        let mut vts = VertexTimestamp::new();
+
+        vts.insert(0, 100);
+        vts.insert(1, 200);
+        vts.remove(1, 300);
+
+        assert_eq!(vts.get_start_ts(0), Some(100));
+        assert_eq!(vts.get_end_ts(0), None);  // Not deleted
+
+        assert_eq!(vts.get_start_ts(1), Some(200));
+        assert_eq!(vts.get_end_ts(1), Some(300));  // Deleted at 300
+    }
+
+    /// Test: Verify behavior with u32::MAX timestamp
+    #[test]
+    fn test_max_timestamp_handling() {
+        let mut vts = VertexTimestamp::new();
+
+        // Insert at u32::MAX - 2 (highest valid value before MAX_TIMESTAMP)
+        vts.insert(0, u32::MAX - 2);
+        assert!(vts.is_valid(0, u32::MAX - 2));
+        assert!(!vts.is_valid(0, u32::MAX - 1));
+
+        // Deletion at u32::MAX - 1
+        vts.remove(0, u32::MAX - 1);
+        assert!(vts.is_valid(0, u32::MAX - 2));
+        assert!(!vts.is_valid(0, u32::MAX - 1));
+    }
+
+    /// Test: Verify iter_deleted returns correct deleted vertices
+    #[test]
+    fn test_iter_deleted() {
+        let mut vts = VertexTimestamp::new();
+
+        vts.insert(0, 100);
+        vts.insert(1, 101);
+        vts.insert(2, 102);
+        vts.remove(0, 200);
+        vts.remove(2, 150);
+
+        // At ts=160, vertex 2 should be marked as deleted but 0 not yet
+        let deleted_at_160: Vec<u32> = vts.iter_deleted(160).collect();
+        assert_eq!(deleted_at_160, vec![2]);
+
+        // At ts=300, both should be deleted
+        let deleted_at_300: Vec<u32> = vts.iter_deleted(300).collect();
+        assert!(deleted_at_300.contains(&0));
+        assert!(deleted_at_300.contains(&2));
+        assert!(!deleted_at_300.contains(&1));
     }
 }

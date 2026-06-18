@@ -258,8 +258,14 @@ impl TransactionOps {
             .get_mut(&label)
             .ok_or(UndoLogError::LabelNotFound(label))?;
 
-        let internal_id = Self::resolve_vertex_id(table, vid, ts)
-            .ok_or(UndoLogError::VertexNotFound(vid))?;
+        let internal_id = if let Some(int_id) = vid.as_int64() {
+            table.get_internal_id_by_i64_raw(int_id)
+        } else if let Some(str_id) = vid.as_str() {
+            table.get_internal_id_raw(str_id)
+        } else {
+            None
+        }
+        .ok_or(UndoLogError::VertexNotFound(vid))?;
 
         table
             .revert_delete(internal_id, ts)
@@ -632,5 +638,4 @@ impl TransactionOps {
     }
 }
 
-#[cfg(test)]
-mod ops_test;
+

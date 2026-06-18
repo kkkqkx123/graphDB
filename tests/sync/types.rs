@@ -23,31 +23,39 @@ fn test_index_key_structure() {
 /// TC-221: Index operation types
 #[test]
 fn test_index_operation_types() {
+    use graphdb::sync::types::{ChangeType, IndexData, IndexType};
     use graphdb::sync::{IndexOpKey, IndexOperation};
 
-    let insert_op = IndexOperation::Insert {
+    let insert_op = IndexOperation {
         key: IndexOpKey::new(1, "tag", "field"),
+        index_type: IndexType::Fulltext,
+        change_type: ChangeType::Insert,
         id: "doc1".to_string(),
-        text: "test content".to_string(),
+        data: Some(IndexData::Fulltext("test content".to_string())),
     };
 
     let key = insert_op.extract_index_key();
-    assert_eq!(key, Some((1, "tag".to_string(), "field".to_string())));
+    assert_eq!(key, (1, "tag".to_string(), "field".to_string()));
 
-    let delete_op = IndexOperation::Delete {
+    let delete_op = IndexOperation {
         key: IndexOpKey::new(2, "tag2", "field2"),
+        index_type: IndexType::Fulltext,
+        change_type: ChangeType::Delete,
         id: "doc2".to_string(),
+        data: None,
     };
     let key = delete_op.extract_index_key();
-    assert_eq!(key, Some((2, "tag2".to_string(), "field2".to_string())));
+    assert_eq!(key, (2, "tag2".to_string(), "field2".to_string()));
 
-    let update_op = IndexOperation::Update {
+    let update_op = IndexOperation {
         key: IndexOpKey::new(3, "tag3", "field3"),
+        index_type: IndexType::Fulltext,
+        change_type: ChangeType::Update,
         id: "doc3".to_string(),
-        text: "updated content".to_string(),
+        data: Some(IndexData::Fulltext("updated content".to_string())),
     };
     let key = update_op.extract_index_key();
-    assert_eq!(key, Some((3, "tag3".to_string(), "field3".to_string())));
+    assert_eq!(key, (3, "tag3".to_string(), "field3".to_string()));
 }
 
 /// TC-223: Fulltext error types
@@ -110,15 +118,18 @@ fn test_dead_letter_entry() {
     use graphdb::sync::dead_letter_queue::{
         DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig,
     };
+    use graphdb::sync::types::{ChangeType, IndexData, IndexType};
     use graphdb::sync::{IndexOpKey, IndexOperation};
 
     let dlq = DeadLetterQueue::new(DeadLetterQueueConfig::default());
 
     let entry = DeadLetterEntry::new(
-        IndexOperation::Insert {
+        IndexOperation {
             key: IndexOpKey::new(1, "Document", "title"),
+            index_type: IndexType::Fulltext,
+            change_type: ChangeType::Insert,
             id: "test_id".to_string(),
-            text: "Test".to_string(),
+            data: Some(IndexData::Fulltext("Test".to_string())),
         },
         "Test failure".to_string(),
         3,

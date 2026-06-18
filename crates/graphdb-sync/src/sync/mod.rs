@@ -30,4 +30,7 @@ pub use retry::{with_retry, RetryConfig};
 pub use types::{IndexOpKey, IndexOperation};
 
 #[cfg(feature = "qdrant")]
-pub use vector_sync::VectorSyncCoordinator;
+pub use vector_sync::{
+    PendingVectorUpdate, VectorChangeContext, VectorChangeType, VectorIndexLocation,
+    VectorPointData, VectorSyncCoordinator, VectorTransactionBuffer, VectorTransactionBufferConfig,
+};

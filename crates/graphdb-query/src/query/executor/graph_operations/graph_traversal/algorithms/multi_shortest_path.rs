@@ -535,64 +535,64 @@ mod tests {
 
     #[test]
     fn test_termination_map_creation() {
-        let start_vids = vec![VertexId::from("a"), VertexId::from("b")];
-        let end_vids = vec![VertexId::from("c"), VertexId::from("d")];
+        let start_vids = vec![VertexId::from_string("a"), VertexId::from_string("b")];
+        let end_vids = vec![VertexId::from_string("c"), VertexId::from_string("d")];
 
         let map = create_termination_map(&start_vids, &end_vids);
 
         assert_eq!(map.len(), 2);
-        assert!(map.contains_key(&VertexId::from("a")));
-        assert!(map.contains_key(&VertexId::from("b")));
+        assert!(map.contains_key(&VertexId::from_string("a")));
+        assert!(map.contains_key(&VertexId::from_string("b")));
 
         let a_pairs = map
-            .get(&VertexId::from("a"))
+            .get(&VertexId::from_string("a"))
             .expect("Failed to get pairs for 'a'");
         assert_eq!(a_pairs.len(), 2);
     }
 
     #[test]
     fn test_mark_path_found() {
-        let start_vids = vec![VertexId::from("a")];
-        let end_vids = vec![VertexId::from("b")];
+        let start_vids = vec![VertexId::from_string("a")];
+        let end_vids = vec![VertexId::from_string("b")];
 
         let mut map = create_termination_map(&start_vids, &end_vids);
 
         assert!(mark_path_found(
             &mut map,
-            &VertexId::from("a"),
-            &VertexId::from("b")
+            &VertexId::from_string("a"),
+            &VertexId::from_string("b")
         ));
 
         let pairs = map
-            .get(&VertexId::from("a"))
+            .get(&VertexId::from_string("a"))
             .expect("Failed to get pairs for 'a'");
         assert!(!pairs[0].1); // “The word ‘found’ should be marked as ‘false’.”
     }
 
     #[test]
     fn test_cleanup_termination_map() {
-        let start_vids = vec![VertexId::from("a")];
-        let end_vids = vec![VertexId::from("b"), VertexId::from("c")];
+        let start_vids = vec![VertexId::from_string("a")];
+        let end_vids = vec![VertexId::from_string("b"), VertexId::from_string("c")];
 
         let mut map = create_termination_map(&start_vids, &end_vids);
-        mark_path_found(&mut map, &VertexId::from("a"), &VertexId::from("b"));
+        mark_path_found(&mut map, &VertexId::from_string("a"), &VertexId::from_string("b"));
         cleanup_termination_map(&mut map);
 
         assert_eq!(map.len(), 1);
         let pairs = map
-            .get(&VertexId::from("a"))
+            .get(&VertexId::from_string("a"))
             .expect("Failed to get pairs for 'a'");
         assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0].0, VertexId::from("c"));
+        assert_eq!(pairs[0].0, VertexId::from_string("c"));
     }
 
     #[test]
     fn test_create_paths() {
-        let path = Path::new(Vertex::with_vid(VertexId::from("a")));
+        let path = Path::new(Vertex::with_vid(VertexId::from_string("a")));
 
         let edge = Edge::new(
-            VertexId::from("a"),
-            VertexId::from("b"),
+            VertexId::from_string("a"),
+            VertexId::from_string("b"),
             "edge".to_string(),
             0,
             HashMap::new(),
@@ -612,7 +612,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let config = MultiShortestPathConfig {
-            start_vids: vec![VertexId::from("a")],
+            start_vids: vec![VertexId::from_string("a")],
             direction: EdgeDirection::Out,
             edge_types: None,
             max_steps: 10,
@@ -624,16 +624,16 @@ mod tests {
 
         // Create a path
         let path = Path {
-            src: Box::new(Vertex::with_vid(VertexId::from("a"))),
+            src: Box::new(Vertex::with_vid(VertexId::from_string("a"))),
             steps: vec![
                 Step::new(
-                    Vertex::with_vid(VertexId::from("b")),
+                    Vertex::with_vid(VertexId::from_string("b")),
                     "e".to_string(),
                     "e".to_string(),
                     0,
                 ),
                 Step::new(
-                    Vertex::with_vid(VertexId::from("c")),
+                    Vertex::with_vid(VertexId::from_string("c")),
                     "e".to_string(),
                     "e".to_string(),
                     0,

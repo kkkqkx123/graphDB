@@ -9,6 +9,7 @@ use graphdb::search::SyncFailurePolicy;
 use graphdb::sync::batch::BatchConfig;
 use graphdb::sync::coordinator::SyncCoordinator;
 use graphdb::sync::dead_letter_queue::{DeadLetterEntry, DeadLetterQueue, DeadLetterQueueConfig};
+use graphdb::sync::types::{ChangeType, IndexData, IndexType};
 use std::sync::Arc;
 
 /// TC-060: Failed sync to dead letter queue
@@ -89,10 +90,12 @@ fn test_dead_letter_queue_recovery() {
     // Add entries up to limit
     for i in 0..15 {
         let entry = DeadLetterEntry::new(
-            graphdb::sync::IndexOperation::Insert {
+            graphdb::sync::IndexOperation {
                 key: graphdb::sync::IndexOpKey::new(1, "Person", "name"),
+                index_type: IndexType::Fulltext,
+                change_type: ChangeType::Insert,
                 id: format!("test_id_{}", i),
-                text: format!("Test{}", i),
+                data: Some(IndexData::Fulltext(format!("Test{}", i))),
             },
             "Test failure".to_string(),
             3,

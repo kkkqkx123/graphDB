@@ -1,4 +1,4 @@
-use graphdb::api::embedded::{DatabaseConfig, GraphDatabase, TransactionConfig};
+use graphdb::api::embedded::{GraphDatabase, TransactionConfig};
 use std::time::Duration;
 
 #[test]

@@ -1347,7 +1347,7 @@ mod tests {
     fn test_grant_validator_new() {
         let validator = GrantValidator::new();
         assert_eq!(validator.username, "");
-        assert_eq!(validator.space, "");
+        assert_eq!(validator.space_name, "");
     }
 
     #[test]
@@ -1355,8 +1355,8 @@ mod tests {
         let mut validator = GrantValidator::new();
         let stmt = GrantStmt {
             span: Default::default(),
-            role: "ADMIN".to_string(),
-            space: "test_space".to_string(),
+            role: RoleType::Admin,
+            space_name: "test_space".to_string(),
             username: "testuser".to_string(),
         };
         assert!(validator.validate_impl(&stmt).is_ok());
@@ -1364,12 +1364,12 @@ mod tests {
 
     #[test]
     fn test_grant_validator_all_role_types() {
-        for role in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
+        for role_str in ["GOD", "ADMIN", "DBA", "USER", "GUEST"] {
             let mut validator = GrantValidator::new();
             let stmt = GrantStmt {
                 span: Default::default(),
-                role: role.to_string(),
-                space: "space".to_string(),
+                role: role_str.parse().unwrap(),
+                space_name: "space".to_string(),
                 username: "user".to_string(),
             };
             assert!(validator.validate_impl(&stmt).is_ok());
@@ -1382,7 +1382,7 @@ mod tests {
     fn test_revoke_validator_new() {
         let validator = RevokeValidator::new();
         assert_eq!(validator.username, "");
-        assert_eq!(validator.space, "");
+        assert_eq!(validator.space_name, "");
     }
 
     #[test]
@@ -1390,8 +1390,8 @@ mod tests {
         let mut validator = RevokeValidator::new();
         let stmt = RevokeStmt {
             span: Default::default(),
-            role: "ADMIN".to_string(),
-            space: "test_space".to_string(),
+            role: RoleType::Admin,
+            space_name: "test_space".to_string(),
             username: "testuser".to_string(),
         };
         assert!(validator.validate_impl(&stmt).is_ok());

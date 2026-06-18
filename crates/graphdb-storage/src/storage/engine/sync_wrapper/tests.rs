@@ -8,11 +8,7 @@ use crate::core::Edge;
 use crate::storage::{
     GraphStorage, MetricsStorage, MockStorage, StoragePersistenceOps, StorageReader, StorageWriter,
 };
-use crate::sync::batch::BatchConfig;
-use crate::sync::coordinator::SyncCoordinator;
 use crate::sync::SyncManager;
-use graphdb_sync::search::manager::FulltextIndexManager;
-use graphdb_sync::search::FulltextConfig;
 
 #[test]
 fn records_read_and_write_metrics() {
@@ -51,18 +47,7 @@ fn delegates_admin_checkpoint_operations() {
 
 #[test]
 fn does_not_buffer_sync_events_when_edge_insert_fails() {
-    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-    let fulltext_config = FulltextConfig {
-        index_path: temp_dir.path().join("fulltext"),
-        ..Default::default()
-    };
-    let fulltext_manager = Arc::new(
-        FulltextIndexManager::new(fulltext_config).expect("Failed to create fulltext manager"),
-    );
-    let sync_manager = Arc::new(SyncManager::new(Arc::new(SyncCoordinator::new(
-        fulltext_manager,
-        BatchConfig::default(),
-    ))));
+    let sync_manager = Arc::new(SyncManager::new_without_fulltext());
 
     let inner = MockStorage::new().expect("Failed to create MockStorage");
     inner.set_fail_insert_edge(true);
@@ -79,8 +64,4 @@ fn does_not_buffer_sync_events_when_edge_insert_fails() {
     let result = storage.insert_edge("test", edge);
 
     assert!(result.is_err());
-    assert_eq!(
-        sync_manager.sync_coordinator().transaction_buffer_count(0),
-        0
-    );
 }

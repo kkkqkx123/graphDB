@@ -104,7 +104,7 @@ impl<
     ) -> Arc<Self> {
         #[cfg(feature = "qdrant")]
         {
-            return Self::create_service(
+            Self::create_service(
                 config,
                 storage,
                 Some(transaction_manager),
@@ -112,7 +112,7 @@ impl<
                 Some(stats_manager),
                 None,
             )
-            .await;
+            .await
         }
         #[cfg(not(feature = "qdrant"))]
         {

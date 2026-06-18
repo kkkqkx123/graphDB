@@ -569,9 +569,9 @@ impl<S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoTarget> 
         savepoint: crate::api::core::SavepointId,
     ) -> CoreResult<()> {
         let txn_manager = self.txn_manager();
-        let mut storage = self.storage_mut();
+        let storage = self.storage_mut();
         txn_manager
-            .rollback_to_savepoint(txn_handle.0, savepoint.0, &mut *storage)
+            .rollback_to_savepoint(txn_handle.0, savepoint.0, &*storage)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 

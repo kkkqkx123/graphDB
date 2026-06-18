@@ -903,11 +903,11 @@ mod tests {
     fn test_basic_insert_and_query() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), 101, 0, 1));
-        assert!(csr.insert_edge(1u32, VertexId::from_int64(3), 102, 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 0, 1));
+        assert!(csr.insert_edge(1u32, VertexId::from_int64(3), EdgeId(102), 0, 1));
 
-        assert!(!csr.insert_edge(0u32, VertexId::from_int64(1), 103, 0, 1));
+        assert!(!csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(103), 0, 1));
 
         assert_eq!(csr.edge_count(), 3);
     }
@@ -916,10 +916,10 @@ mod tests {
     fn test_delete_edge() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1);
-        csr.insert_edge(0u32, VertexId::from_int64(2), 101, 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 0, 1);
 
-        assert!(csr.delete_edge(0u32, 100, 2));
+        assert!(csr.delete_edge(0u32, EdgeId(100), 2));
 
         assert_eq!(csr.edge_count(), 1);
     }
@@ -928,9 +928,9 @@ mod tests {
     fn test_dump_and_load() {
         let mut csr1 = MutableCsr::with_capacity(10, 100);
 
-        csr1.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1);
-        csr1.insert_edge(0u32, VertexId::from_int64(2), 101, 0, 1);
-        csr1.insert_edge(1u32, VertexId::from_int64(3), 102, 0, 1);
+        csr1.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1);
+        csr1.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 0, 1);
+        csr1.insert_edge(1u32, VertexId::from_int64(3), EdgeId(102), 0, 1);
 
         let data = csr1.dump();
 
@@ -945,8 +945,8 @@ mod tests {
     fn test_resize() {
         let mut csr = MutableCsr::with_capacity(2, 10);
 
-        csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1);
-        csr.insert_edge(100u32, VertexId::from_int64(1), 101, 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1);
+        csr.insert_edge(100u32, VertexId::from_int64(1), EdgeId(101), 0, 1);
 
         assert!(csr.vertex_capacity() >= 101);
     }
@@ -955,9 +955,9 @@ mod tests {
     fn test_iterator() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1);
-        csr.insert_edge(0u32, VertexId::from_int64(2), 101, 0, 1);
-        csr.insert_edge(1u32, VertexId::from_int64(3), 102, 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 0, 1);
+        csr.insert_edge(1u32, VertexId::from_int64(3), EdgeId(102), 0, 1);
 
         let edges: Vec<_> = csr.iter(1).collect();
         assert_eq!(edges.len(), 3);
@@ -967,20 +967,20 @@ mod tests {
     fn test_overflow_insert() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), 101, 0, 1));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(3), 102, 0, 1));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(4), 103, 0, 1));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(5), 104, 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(3), EdgeId(102), 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(4), EdgeId(103), 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(5), EdgeId(104), 0, 1));
 
         assert_eq!(csr.edge_count(), 5);
 
         let edges = csr.edges_of(0u32, 1);
         assert_eq!(edges.len(), 5);
 
-        assert!(!csr.insert_edge(0u32, VertexId::from_int64(5), 105, 0, 1));
+        assert!(!csr.insert_edge(0u32, VertexId::from_int64(5), EdgeId(105), 0, 1));
 
-        assert!(csr.delete_edge(0u32, 104, 2));
+        assert!(csr.delete_edge(0u32, EdgeId(104), 2));
     }
 
     #[test]
@@ -989,7 +989,7 @@ mod tests {
 
         for i in 1..=6 {
             let dst = VertexId::from_int64(i as i64);
-            csr1.insert_edge(0u32, dst, i as u64, 0, 1);
+            csr1.insert_edge(0u32, dst, EdgeId(i as u64), 0, 1);
         }
 
         let data = csr1.dump();
@@ -1008,12 +1008,12 @@ mod tests {
 
         for i in 1..=6 {
             let dst = VertexId::from_int64(i as i64);
-            csr.insert_edge(0u32, dst, i as u64, 0, 1);
+            csr.insert_edge(0u32, dst, EdgeId(i as u64), 0, 1);
         }
 
-        csr.delete_edge(0u32, 3, 5);
-        csr.delete_edge(0u32, 5, 5);
-        csr.delete_edge(0u32, 6, 5);
+        csr.delete_edge(0u32, EdgeId(3), 5);
+        csr.delete_edge(0u32, EdgeId(5), 5);
+        csr.delete_edge(0u32, EdgeId(6), 5);
 
         let removed = csr.compact_with_ts(3, 0.25);
         assert_eq!(removed, 3);
@@ -1030,7 +1030,7 @@ mod tests {
 
         for i in 1..=6 {
             let dst = VertexId::from_int64(i as i64);
-            csr.insert_edge(0u32, dst, i as u64, 0, 1);
+            csr.insert_edge(0u32, dst, EdgeId(i as u64), 0, 1);
         }
 
         let all_edges: Vec<_> = csr.iter(1).collect();
@@ -1044,7 +1044,7 @@ mod tests {
         for v in 0..3u32 {
             for i in 0..6 {
                 let dst = VertexId::from_int64((v * 100 + i + 1) as i64);
-                csr.insert_edge(v, dst, v as u64 * 10 + i as u64, 0, 1);
+                csr.insert_edge(v, dst, EdgeId(v as u64 * 10 + i as u64), 0, 1);
             }
         }
 

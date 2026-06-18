@@ -353,9 +353,9 @@ impl<'sess, S: StorageClient + Clone + 'static + graphdb_storage::storage::UndoT
         self.check_active()?;
 
         let txn_manager = self.session.txn_manager();
-        let mut storage = self.session.storage_mut();
+        let storage = self.session.storage_mut();
         txn_manager
-            .rollback_to_savepoint(self.txn_handle.0, savepoint_id, &mut *storage)
+            .rollback_to_savepoint(self.txn_handle.0, savepoint_id, &*storage)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 

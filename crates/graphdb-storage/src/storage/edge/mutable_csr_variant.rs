@@ -160,7 +160,7 @@ mod tests {
     fn test_multiple_csr_variant() {
         let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
 
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
@@ -168,14 +168,14 @@ mod tests {
     fn test_single_csr_variant() {
         let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::Single, 10, 100).unwrap();
 
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1));
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
         assert_eq!(csr.edge_count(), 1);
     }
 
     #[test]
     fn test_clone() {
         let mut csr1 = MutableCsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
-        csr1.insert_edge(0u32, VertexId::from_int64(1), 100, 0, 1);
+        csr1.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1);
 
         let csr2 = csr1.clone();
         assert_eq!(csr2.edge_count(), 1);

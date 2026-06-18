@@ -1619,4 +1619,156 @@ mod tests {
         assert!(restored.is_null(2));
         assert_eq!(restored.len(), 3);
     }
+
+    // ==================== P0 Priority Tests ====================
+
+    /// Test: Verify large property values (>256 bytes) are handled correctly
+    #[test]
+    fn test_column_set_large_string_property() {
+        let mut col = Column::new("description".to_string(), 0, DataType::String, false);
+
+        // Create a string larger than typical storage boundaries
+        let large_value = "a".repeat(1000);
+        col.set(0, Some(&Value::String(large_value.clone())))
+            .unwrap();
+        col.set(1, Some(&Value::String("short".to_string())))
+            .unwrap();
+
+        assert_eq!(col.get(0), Some(Value::String(large_value)));
+        assert_eq!(col.get(1), Some(Value::String("short".to_string())));
+        assert_eq!(col.len(), 2);
+    }
+
+    /// Test: Verify updating single property doesn't affect others
+    #[test]
+    fn test_column_store_update_single_property_preserves_others() {
+        let mut store = ColumnStore::new();
+        store.add_column("name".to_string(), DataType::String, false);
+        store.add_column("age".to_string(), DataType::Int, false);
+        store.add_column("city".to_string(), DataType::String, false);
+
+        // Insert initial row
+        store
+            .set(
+                0,
+                &[
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(30)),
+                    ("city".to_string(), Value::String("NYC".to_string())),
+                ],
+            )
+            .unwrap();
+
+        // Update only the age property
+        store
+            .set(
+                0,
+                &[
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(31)),
+                    ("city".to_string(), Value::String("NYC".to_string())),
+                ],
+            )
+            .unwrap();
+
+        // Verify all properties are correct
+        assert_eq!(
+            store.get_column("name").and_then(|col| col.get(0)),
+            Some(Value::String("Alice".to_string()))
+        );
+        assert_eq!(
+            store.get_column("age").and_then(|col| col.get(0)),
+            Some(Value::Int(31))
+        );
+        assert_eq!(
+            store.get_column("city").and_then(|col| col.get(0)),
+            Some(Value::String("NYC".to_string()))
+        );
+    }
+
+    /// Test: Verify very large property values can be stored and retrieved
+    #[test]
+    fn test_column_large_string_roundtrip() {
+        let mut col = Column::new("data".to_string(), 0, DataType::String, false);
+
+        // Test different sizes around potential boundaries
+        let sizes = vec![255, 256, 257, 1000, 10000];
+        for (idx, size) in sizes.iter().enumerate() {
+            let value = format!("x-{}", "a".repeat(*size));
+            col.set(idx, Some(&Value::String(value.clone())))
+                .unwrap();
+            assert_eq!(col.get(idx), Some(Value::String(value)), "Failed at size {}", size);
+        }
+    }
+
+    /// Test: Verify string column with mixed null and non-null values
+    #[test]
+    fn test_column_string_with_nulls() {
+        let mut col = Column::new("text".to_string(), 0, DataType::String, true);
+
+        col.set(0, Some(&Value::String("hello".to_string())))
+            .unwrap();
+        col.set(1, None).unwrap();
+        col.set(2, Some(&Value::String("world".to_string())))
+            .unwrap();
+        col.set(3, None).unwrap();
+
+        assert_eq!(col.get(0), Some(Value::String("hello".to_string())));
+        assert!(col.is_null(1));
+        assert_eq!(col.get(2), Some(Value::String("world".to_string())));
+        assert!(col.is_null(3));
+        assert_eq!(col.null_count(), 2);
+    }
+
+    /// Test: Verify integer column type conversions and boundaries
+    #[test]
+    fn test_column_integer_types_boundaries() {
+        let mut col_small = Column::new("small".to_string(), 0, DataType::SmallInt, false);
+        col_small
+            .set(0, Some(&Value::SmallInt(i16::MAX)))
+            .unwrap();
+        col_small
+            .set(1, Some(&Value::SmallInt(i16::MIN)))
+            .unwrap();
+        assert_eq!(col_small.get(0), Some(Value::SmallInt(i16::MAX)));
+        assert_eq!(col_small.get(1), Some(Value::SmallInt(i16::MIN)));
+
+        let mut col_big = Column::new("big".to_string(), 0, DataType::BigInt, false);
+        col_big.set(0, Some(&Value::BigInt(i64::MAX))).unwrap();
+        col_big.set(1, Some(&Value::BigInt(i64::MIN))).unwrap();
+        assert_eq!(col_big.get(0), Some(Value::BigInt(i64::MAX)));
+        assert_eq!(col_big.get(1), Some(Value::BigInt(i64::MIN)));
+    }
+
+    /// Test: Verify float/double precision preservation
+    #[test]
+    fn test_column_float_precision() {
+        let mut col_f = Column::new("float_val".to_string(), 0, DataType::Float, false);
+        let f_value = 3.14159f32;
+        col_f.set(0, Some(&Value::Float(f_value))).unwrap();
+        assert_eq!(col_f.get(0), Some(Value::Float(f_value)));
+
+        let mut col_d = Column::new("double_val".to_string(), 0, DataType::Double, false);
+        let d_value = 3.14159265358979f64;
+        col_d.set(0, Some(&Value::Double(d_value))).unwrap();
+        assert_eq!(col_d.get(0), Some(Value::Double(d_value)));
+    }
+
+    /// Test: Verify column resize operation maintains data integrity
+    #[test]
+    fn test_column_resize_maintains_data() {
+        let mut col = Column::new("num".to_string(), 0, DataType::Int, false);
+        col.set(0, Some(&Value::Int(10))).unwrap();
+        col.set(1, Some(&Value::Int(20))).unwrap();
+        col.set(2, Some(&Value::Int(30))).unwrap();
+
+        // Simulate resize operation
+        col.resize(5);
+        assert_eq!(col.len(), 5);
+
+        // Verify original data is intact
+        assert_eq!(col.get(0), Some(Value::Int(10)));
+        assert_eq!(col.get(1), Some(Value::Int(20)));
+        assert_eq!(col.get(2), Some(Value::Int(30)));
+    }
 }

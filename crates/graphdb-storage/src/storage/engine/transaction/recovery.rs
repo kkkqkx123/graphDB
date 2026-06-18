@@ -1038,7 +1038,7 @@ mod tests {
         );
         assert!(vertex.properties.iter().all(|(name, _)| name != "age"));
 
-        let edge_offset = ctx
+        let _edge_offset = ctx
             .insert_edge(InsertEdgeParams {
                 edge_label: lives_in_label,
                 src_label: person_label,
@@ -1064,7 +1064,6 @@ mod tests {
                 5,
             )
             .expect("Inserted edge should be visible");
-        assert!(!edge_offset.is_none());
         assert_eq!(
             edge.properties
                 .iter()

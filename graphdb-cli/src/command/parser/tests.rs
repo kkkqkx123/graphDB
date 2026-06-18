@@ -648,10 +648,9 @@ fn test_history_action_enum() {
 
  #[test]
  fn test_parse_meta_command_dump() {
-     let result = crate::command::parser::parse_command("\\dump mydb /backup/dump");
-     assert!(result.is_ok());
-     match result.unwrap() {
-         Command::MetaCommand(MetaCommand::Dump { database, output_path, format, compress }) => {
+      let result = crate::command::parser::parse_command("\\dump mydb /backup/dump");
+      match result {
+          Command::MetaCommand(MetaCommand::Dump { database, output_path, format, compress }) => {
              assert_eq!(database, "mydb");
              assert_eq!(output_path, "/backup/dump");
              assert_eq!(format, "binary");
@@ -663,10 +662,9 @@ fn test_history_action_enum() {
 
  #[test]
  fn test_parse_meta_command_dump_jsonl() {
-     let result = crate::command::parser::parse_command("\\dump mydb /backup/dump --format jsonl --no-compress");
-     assert!(result.is_ok());
-     match result.unwrap() {
-         Command::MetaCommand(MetaCommand::Dump { format, compress, .. }) => {
+      let result = crate::command::parser::parse_command("\\dump mydb /backup/dump --format jsonl --no-compress");
+      match result {
+          Command::MetaCommand(MetaCommand::Dump { format, compress, .. }) => {
              assert_eq!(format, "jsonl");
              assert!(!compress);
          }
@@ -676,10 +674,9 @@ fn test_history_action_enum() {
 
  #[test]
  fn test_parse_meta_command_restore() {
-     let result = crate::command::parser::parse_command("\\restore /backup/dump mydb --overwrite");
-     assert!(result.is_ok());
-     match result.unwrap() {
-         Command::MetaCommand(MetaCommand::Restore { source_path, database, overwrite, strict }) => {
+      let result = crate::command::parser::parse_command("\\restore /backup/dump mydb --overwrite");
+      match result {
+          Command::MetaCommand(MetaCommand::Restore { source_path, database, overwrite, strict }) => {
              assert_eq!(source_path, "/backup/dump");
              assert_eq!(database, "mydb");
              assert!(overwrite);
