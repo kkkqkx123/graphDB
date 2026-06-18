@@ -257,3 +257,200 @@ mod plan_enumeration {
             .assert_success();
     }
 }
+
+// ==================== Subquery Unnesting Tests ====================
+
+mod subquery_unnesting {
+    use super::*;
+
+    #[test]
+    fn test_simple_subquery_unnesting() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_subquery_simple")
+            .exec_ddl("CREATE TAG person(name STRING, age INT)")
+            .assert_success()
+            .query("MATCH (n:person) WHERE n.age IN (SELECT age FROM person WHERE name = 'Alice') RETURN n")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_subquery_with_aggregation() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_subquery_agg")
+            .exec_ddl("CREATE TAG employee(salary INT, department STRING)")
+            .assert_success()
+            .query("MATCH (e:employee) WHERE e.salary > (MATCH (m:employee) RETURN avg(m.salary)) RETURN e")
+            .assert_success();
+    }
+}
+
+// ==================== Materialization Decision Tests ====================
+
+mod materialization_decisions {
+    use super::*;
+
+    #[test]
+    fn test_materialization_for_nested_loop() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_materialize_loop")
+            .exec_ddl("CREATE TAG person(name STRING)")
+            .exec_ddl("CREATE TAG company(name STRING)")
+            .exec_ddl("CREATE EDGE works_at()")
+            .assert_success()
+            .query("MATCH (p:person)-[:works_at]->(c:company), (p)-[:works_at]->(c2:company) RETURN p, c, c2")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_materialization_memory_constraint() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_materialize_memory")
+            .exec_ddl("CREATE TAG person(name STRING, data STRING)")
+            .exec_ddl("CREATE TAG company(name STRING)")
+            .exec_ddl("CREATE EDGE works_at()")
+            .assert_success()
+            .query("MATCH (p:person)-[:works_at]->(c:company) RETURN p, c LIMIT 1000")
+            .assert_success();
+    }
+}
+
+// ==================== Expression Precomputation Tests ====================
+
+mod expression_precomputation {
+    use super::*;
+
+    #[test]
+    fn test_deterministic_expression_precomputation() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_precompute_det")
+            .exec_ddl("CREATE TAG product(name STRING, price INT)")
+            .assert_success()
+            .query("MATCH (p:product) RETURN p.name, p.price * 100 + 50 AS computed_value")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_complex_expression_precomputation() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_precompute_complex")
+            .exec_ddl("CREATE TAG employee(salary INT, bonus_rate DOUBLE, years INT)")
+            .assert_success()
+            .query("MATCH (e:employee) RETURN e.salary, (e.salary * e.bonus_rate) + (e.years * 1000) AS total_comp")
+            .assert_success();
+    }
+}
+
+// ==================== TopN Optimization Tests ====================
+
+mod topn_optimization {
+    use super::*;
+
+    #[test]
+    fn test_topn_with_index() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_topn_index")
+            .exec_ddl("CREATE TAG employee(name STRING, salary INT)")
+            .exec_ddl("CREATE TAG INDEX idx_salary ON employee(salary)")
+            .assert_success()
+            .query("MATCH (e:employee) RETURN e.name ORDER BY e.salary DESC LIMIT 5")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_topn_without_index() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_topn_no_index")
+            .exec_ddl("CREATE TAG employee(name STRING, salary INT)")
+            .assert_success()
+            .query("MATCH (e:employee) RETURN e.name ORDER BY e.salary DESC LIMIT 10")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_topn_with_multiple_columns() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_topn_multi")
+            .exec_ddl("CREATE TAG employee(department STRING, salary INT, hire_date STRING)")
+            .assert_success()
+            .query("MATCH (e:employee) RETURN e.department, e.salary ORDER BY e.department, e.salary DESC LIMIT 20")
+            .assert_success();
+    }
+}
+
+// ==================== Bidirectional Traversal Tests ====================
+
+mod bidirectional_traversal {
+    use super::*;
+
+    #[test]
+    fn test_bidirectional_simple() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_bidi_simple")
+            .exec_ddl("CREATE TAG person(name STRING)")
+            .exec_ddl("CREATE EDGE connected()")
+            .assert_success()
+            .query("MATCH (a:person)-[:connected]-(b:person) RETURN a, b")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_bidirectional_with_selective_filter() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_bidi_filter")
+            .exec_ddl("CREATE TAG person(age INT)")
+            .exec_ddl("CREATE EDGE connected()")
+            .assert_success()
+            .query("MATCH (a:person)-[:connected]-(b:person) WHERE a.age > 30 RETURN a, b")
+            .assert_success();
+    }
+}
+
+// ==================== Aggregate Strategy Selection ====================
+
+mod aggregate_strategy {
+    use super::*;
+
+    #[test]
+    fn test_hash_aggregate() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_hash_agg")
+            .exec_ddl("CREATE TAG transaction(category STRING, amount INT)")
+            .assert_success()
+            .query("MATCH (t:transaction) RETURN t.category, sum(t.amount) GROUP BY t.category")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_sort_aggregate() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_sort_agg")
+            .exec_ddl("CREATE TAG sales(region STRING, amount INT)")
+            .assert_success()
+            .query("MATCH (s:sales) RETURN s.region, max(s.amount) GROUP BY s.region ORDER BY s.region")
+            .assert_success();
+    }
+
+    #[test]
+    fn test_multiple_aggregates() {
+        TestScenario::new()
+            .expect("Failed to create test scenario")
+            .setup_space("test_multi_agg")
+            .exec_ddl("CREATE TAG payment(category STRING, amount INT)")
+            .assert_success()
+            .query("MATCH (p:payment) RETURN p.category, count(p), sum(p.amount), avg(p.amount), min(p.amount), max(p.amount) GROUP BY p.category")
+            .assert_success();
+    }
+}

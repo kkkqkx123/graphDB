@@ -179,3 +179,280 @@ impl Clone for StatisticsManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::optimizer::stats::edge::EdgeTypeStatistics;
+    use crate::query::optimizer::stats::property::PropertyStatistics;
+
+    #[test]
+    fn test_statistics_manager_creation() {
+        let manager = StatisticsManager::new();
+        assert_eq!(manager.get_all_tags().len(), 0);
+        assert_eq!(manager.get_all_edge_types().len(), 0);
+    }
+
+    #[test]
+    fn test_statistics_manager_default() {
+        let manager = StatisticsManager::default();
+        assert_eq!(manager.get_all_tags().len(), 0);
+    }
+
+    #[test]
+    fn test_register_and_get_tag_id() {
+        let manager = StatisticsManager::new();
+        manager.register_tag_id(1, "person".to_string());
+
+        assert_eq!(
+            manager.get_tag_name_by_id(1),
+            Some("person".to_string())
+        );
+        assert_eq!(manager.get_tag_name_by_id(2), None);
+    }
+
+    #[test]
+    fn test_add_tag_statistics() {
+        let manager = StatisticsManager::new();
+        let mut stats = TagStatistics::new("person".to_string());
+        stats.vertex_count = 1000;
+        stats.avg_out_degree = 5.5;
+        stats.avg_in_degree = 3.2;
+
+        manager.update_tag_stats(stats.clone());
+
+        let retrieved = manager.get_tag_stats("person").expect("Tag stats not found");
+        assert_eq!(retrieved.vertex_count, 1000);
+        assert_eq!(retrieved.avg_out_degree, 5.5);
+        assert_eq!(retrieved.avg_in_degree, 3.2);
+    }
+
+    #[test]
+    fn test_get_vertex_count() {
+        let manager = StatisticsManager::new();
+        let mut stats = TagStatistics::new("company".to_string());
+        stats.vertex_count = 500;
+        manager.update_tag_stats(stats);
+
+        assert_eq!(manager.get_vertex_count("company"), 500);
+        assert_eq!(manager.get_vertex_count("nonexistent"), 0);
+    }
+
+    #[test]
+    fn test_get_tag_stats_by_id() {
+        let manager = StatisticsManager::new();
+        manager.register_tag_id(10, "product".to_string());
+
+        let mut stats = TagStatistics::new("product".to_string());
+        stats.vertex_count = 2000;
+        manager.update_tag_stats(stats);
+
+        let retrieved = manager.get_tag_stats_by_id(10).expect("Tag stats not found");
+        assert_eq!(retrieved.vertex_count, 2000);
+    }
+
+    #[test]
+    fn test_get_vertex_count_by_id() {
+        let manager = StatisticsManager::new();
+        manager.register_tag_id(5, "category".to_string());
+
+        let mut stats = TagStatistics::new("category".to_string());
+        stats.vertex_count = 100;
+        manager.update_tag_stats(stats);
+
+        assert_eq!(manager.get_vertex_count_by_id(5), 100);
+        assert_eq!(manager.get_vertex_count_by_id(999), 0);
+    }
+
+    #[test]
+    fn test_add_edge_statistics() {
+        let manager = StatisticsManager::new();
+        let mut edge_stats = EdgeTypeStatistics::new("follows".to_string());
+        edge_stats.edge_count = 5000;
+
+        manager.update_edge_stats(edge_stats.clone());
+
+        let retrieved = manager.get_edge_stats("follows").expect("Edge stats not found");
+        assert_eq!(retrieved.edge_count, 5000);
+    }
+
+    #[test]
+    fn test_get_edge_count() {
+        let manager = StatisticsManager::new();
+        let mut edge_stats = EdgeTypeStatistics::new("works_at".to_string());
+        edge_stats.edge_count = 3000;
+        manager.update_edge_stats(edge_stats);
+
+        assert_eq!(manager.get_edge_count("works_at"), 3000);
+        assert_eq!(manager.get_edge_count("nonexistent"), 0);
+    }
+
+    #[test]
+    fn test_add_property_statistics() {
+        let manager = StatisticsManager::new();
+        let mut prop_stats = PropertyStatistics::new(
+            Some("person".to_string()),
+            "age".to_string(),
+        );
+        prop_stats.distinct_values = 100;
+
+        manager.update_property_stats(prop_stats);
+
+        let retrieved = manager
+            .get_property_stats(Some("person"), "age")
+            .expect("Property stats not found");
+        assert_eq!(retrieved.distinct_values, 100);
+    }
+
+    #[test]
+    fn test_multiple_tags_statistics() {
+        let manager = StatisticsManager::new();
+
+        let mut person_stats = TagStatistics::new("person".to_string());
+        person_stats.vertex_count = 1000;
+        manager.update_tag_stats(person_stats);
+
+        let mut company_stats = TagStatistics::new("company".to_string());
+        company_stats.vertex_count = 500;
+        manager.update_tag_stats(company_stats);
+
+        assert_eq!(manager.get_vertex_count("person"), 1000);
+        assert_eq!(manager.get_vertex_count("company"), 500);
+
+        let all_tags = manager.get_all_tags();
+        assert_eq!(all_tags.len(), 2);
+        assert!(all_tags.contains(&"person".to_string()));
+        assert!(all_tags.contains(&"company".to_string()));
+    }
+
+    #[test]
+    fn test_statistics_update_overwrite() {
+        let manager = StatisticsManager::new();
+
+        let mut stats1 = TagStatistics::new("person".to_string());
+        stats1.vertex_count = 1000;
+        manager.update_tag_stats(stats1);
+
+        let mut stats2 = TagStatistics::new("person".to_string());
+        stats2.vertex_count = 2000;
+        manager.update_tag_stats(stats2);
+
+        assert_eq!(manager.get_vertex_count("person"), 2000);
+    }
+
+    #[test]
+    fn test_clear_all_statistics() {
+        let manager = StatisticsManager::new();
+
+        let mut person_stats = TagStatistics::new("person".to_string());
+        person_stats.vertex_count = 1000;
+        manager.update_tag_stats(person_stats);
+
+        let mut edge_stats = EdgeTypeStatistics::new("follows".to_string());
+        edge_stats.edge_count = 5000;
+        manager.update_edge_stats(edge_stats);
+
+        assert_eq!(manager.get_all_tags().len(), 1);
+        assert_eq!(manager.get_all_edge_types().len(), 1);
+
+        manager.clear_all();
+
+        assert_eq!(manager.get_all_tags().len(), 0);
+        assert_eq!(manager.get_all_edge_types().len(), 0);
+        assert_eq!(manager.get_vertex_count("person"), 0);
+        assert_eq!(manager.get_edge_count("follows"), 0);
+    }
+
+    #[test]
+    fn test_statistics_manager_clone() {
+        let manager = StatisticsManager::new();
+
+        let mut stats = TagStatistics::new("person".to_string());
+        stats.vertex_count = 1000;
+        manager.update_tag_stats(stats);
+
+        let cloned = manager.clone();
+        assert_eq!(cloned.get_vertex_count("person"), 1000);
+
+        let mut new_stats = TagStatistics::new("company".to_string());
+        new_stats.vertex_count = 500;
+        cloned.update_tag_stats(new_stats);
+
+        assert_eq!(manager.get_vertex_count("company"), 500);
+    }
+
+    #[test]
+    fn test_property_combination_statistics() {
+        let manager = StatisticsManager::new();
+        let props = vec!["city".to_string(), "age".to_string()];
+        let key = format!("person.{}", props.join("."));
+        let mut combo_stats = PropertyCombinationStats::new(
+            key.clone(),
+            Some("person".to_string()),
+            props.clone(),
+        );
+        combo_stats.combined_distinct_values = 50;
+
+        manager.update_property_combo_stats(combo_stats);
+
+        let retrieved = manager
+            .get_property_combo_stats("person", &props)
+            .expect("Combo stats not found");
+        assert_eq!(retrieved.combined_distinct_values, 50);
+    }
+
+    #[test]
+    fn test_get_combined_cardinality() {
+        let manager = StatisticsManager::new();
+        let props = vec!["city".to_string(), "age".to_string()];
+        let key = format!("person.{}", props.join("."));
+        let mut combo_stats = PropertyCombinationStats::new(
+            key.clone(),
+            Some("person".to_string()),
+            props.clone(),
+        );
+        combo_stats.combined_distinct_values = 75;
+
+        manager.update_property_combo_stats(combo_stats);
+
+        let cardinality = manager
+            .get_combined_cardinality(Some("person"), &props)
+            .expect("Combined cardinality not found");
+        assert_eq!(cardinality, 75);
+    }
+
+    #[test]
+    fn test_property_stats_without_tag() {
+        let manager = StatisticsManager::new();
+        let mut prop_stats = PropertyStatistics::new("global_prop".to_string(), None);
+        prop_stats.distinct_values = 200;
+
+        manager.update_property_stats(prop_stats);
+
+        let retrieved = manager
+            .get_property_stats(None, "global_prop")
+            .expect("Property stats not found");
+        assert_eq!(retrieved.distinct_values, 200);
+    }
+
+    #[test]
+    fn test_multiple_edge_types() {
+        let manager = StatisticsManager::new();
+
+        let mut follows = EdgeTypeStatistics::new("follows".to_string());
+        follows.edge_count = 5000;
+        manager.update_edge_stats(follows);
+
+        let mut works_at = EdgeTypeStatistics::new("works_at".to_string());
+        works_at.edge_count = 3000;
+        manager.update_edge_stats(works_at);
+
+        assert_eq!(manager.get_edge_count("follows"), 5000);
+        assert_eq!(manager.get_edge_count("works_at"), 3000);
+
+        let all_edge_types = manager.get_all_edge_types();
+        assert_eq!(all_edge_types.len(), 2);
+        assert!(all_edge_types.contains(&"follows".to_string()));
+        assert!(all_edge_types.contains(&"works_at".to_string()));
+    }
+}

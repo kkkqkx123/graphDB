@@ -272,14 +272,26 @@ impl UndoTarget for MockStorage {
         vertex: crate::core::types::VertexIdentifier,
         ts: crate::transaction::wal::Timestamp,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.graph.delete_vertex(vertex, ts)
+        self.graph.delete_vertex(vertex.label, &vertex.vid.to_string(), ts)
+            .map_err(|e| crate::transaction::undo_log::UndoLogError::UndoFailed(e.to_string()))
     }
 
     fn delete_edge(
         &self,
         edge_ctx: crate::core::types::EdgeDeletionContext,
     ) -> crate::transaction::undo_log::UndoLogResult<()> {
-        self.graph.delete_edge(edge_ctx)
+        let edge_id = &edge_ctx.edge_id;
+        let params = crate::storage::engine::params::EdgeOperationParams {
+            edge_label: edge_id.edge_label,
+            src_label: edge_id.src_label,
+            src_id: edge_id.src_vid.clone(),
+            dst_label: edge_id.dst_label,
+            dst_id: edge_id.dst_vid.clone(),
+            rank: edge_id.rank,
+        };
+        self.graph.delete_edge(&params, edge_ctx.timestamp)
+            .map(|_| ())
+            .map_err(|e| crate::transaction::undo_log::UndoLogError::UndoFailed(e.to_string()))
     }
 
     fn undo_update_vertex_property(
