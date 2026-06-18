@@ -166,11 +166,168 @@ pub fn parse_copy(arg: &str) -> Result<MetaCommand, String> {
         i += 1;
     }
 
-    Ok(MetaCommand::Copy {
-        direction,
-        target,
-        file_path,
-        streaming,
-        chunk_size,
+     Ok(MetaCommand::Copy {
+         direction,
+         target,
+         file_path,
+         streaming,
+         chunk_size,
+     })
+ }
+
+ pub fn parse_dump(arg: &str) -> Result<MetaCommand, String> {
+     let parts: Vec<&str> = arg.split_whitespace().collect();
+     if parts.len() < 2 {
+         return Err("Usage: \\dump <database> <output_path> [--format binary|jsonl] [--no-compress]".to_string());
+     }
+     let database = parts[0].to_string();
+     let output_path = parts[1].to_string();
+     let mut format = "binary".to_string();
+     let mut compress = true;
+     let mut i = 2;
+     while i < parts.len() {
+         match parts[i] {
+             "--format" | "-f" => {
+                 i += 1;
+                 if i >= parts.len() {
+                     return Err("Missing value for --format".to_string());
+                 }
+                 format = parts[i].to_string();
+             }
+             "--no-compress" => {
+                 compress = false;
+             }
+             _ => {}
+         }
+         i += 1;
+     }
+     Ok(MetaCommand::Dump {
+         database,
+         output_path,
+         format,
+         compress,
+     })
+ }
+
+ pub fn parse_restore(arg: &str) -> Result<MetaCommand, String> {
+     let parts: Vec<&str> = arg.split_whitespace().collect();
+     if parts.len() < 2 {
+         return Err("Usage: \\restore <source_path> <database> [--overwrite] [--strict]".to_string());
+     }
+     let source_path = parts[0].to_string();
+     let database = parts[1].to_string();
+     let mut overwrite = false;
+     let mut strict = false;
+     let mut i = 2;
+     while i < parts.len() {
+         match parts[i] {
+             "--overwrite" => {
+                 overwrite = true;
+             }
+             "--strict" => {
+                 strict = true;
+             }
+             _ => {}
+         }
+         i += 1;
+     }
+     Ok(MetaCommand::Restore {
+         source_path,
+         database,
+         overwrite,
+         strict,
+     })
+ }
+
+pub fn parse_export_space(arg: &str) -> Result<MetaCommand, String> {
+    let parts: Vec<&str> = arg.split_whitespace().collect();
+    if parts.len() < 3 {
+        return Err("Usage: \\export-space <space_name> <output_path> [--format csv|json|jsonl] [--tags t1,t2] [--edges e1,e2]".to_string());
+    }
+
+    let space_name = parts[0].to_string();
+    let output_path = parts[1].to_string();
+    let mut format = "csv".to_string();
+    let mut tags = None;
+    let mut edge_types = None;
+
+    let mut i = 2;
+    while i < parts.len() {
+        match parts[i] {
+            "--format" | "-f" => {
+                i += 1;
+                if i >= parts.len() {
+                    return Err("Missing value for --format".to_string());
+                }
+                format = parts[i].to_string();
+            }
+            "--tags" | "-t" => {
+                i += 1;
+                if i >= parts.len() {
+                    return Err("Missing value for --tags".to_string());
+                }
+                tags = Some(parts[i].to_string());
+            }
+            "--edges" | "-e" => {
+                i += 1;
+                if i >= parts.len() {
+                    return Err("Missing value for --edges".to_string());
+                }
+                edge_types = Some(parts[i].to_string());
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    Ok(MetaCommand::ExportSpace {
+        space_name,
+        output_path,
+        format,
+        tags,
+        edge_types,
     })
 }
+
+pub fn parse_export_schema(arg: &str) -> Result<MetaCommand, String> {
+    let parts: Vec<&str> = arg.split_whitespace().collect();
+    if parts.len() < 2 {
+        return Err("Usage: \\export-schema <output_path> [--format json|yaml]".to_string());
+    }
+
+    let output_path = parts[0].to_string();
+    let mut format = "json".to_string();
+
+    let mut i = 1;
+    while i < parts.len() {
+        match parts[i] {
+            "--format" | "-f" => {
+                i += 1;
+                if i >= parts.len() {
+                    return Err("Missing value for --format".to_string());
+                }
+                format = parts[i].to_string();
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    Ok(MetaCommand::ExportSchema {
+        output_path,
+        format,
+    })
+}
+
+pub fn parse_import_schema(arg: &str) -> Result<MetaCommand, String> {
+    if arg.is_empty() {
+        return Err("Usage: \\import-schema <file_path>".to_string());
+    }
+
+    Ok(MetaCommand::ImportSchema {
+        file_path: arg.to_string(),
+    })
+}
+
+
+

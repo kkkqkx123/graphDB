@@ -28,8 +28,10 @@ use super::{
             execute as execute_batch, status as batch_status,
         },
         config::{get as get_config, get_key, reset_key, update as update_config, update_key},
+
         function::{info as function_info, list, register, unregister},
         health, query, schema,
+
         session::{create as create_session, delete_session, get_session},
         statistics::{database, queries, search as search_stats, session, system},
         stream::execute_stream,
@@ -95,8 +97,12 @@ pub fn create_router<
         .route("/batch/{id}", get(batch_status).delete(delete_batch))
         .route("/batch/{id}/items", post(add_items))
         .route("/batch/{id}/execute", post(execute_batch))
-        .route("/batch/{id}/cancel", post(cancel_batch))
-        // Statistical information routing
+         .route("/batch/{id}/cancel", post(cancel_batch))
+         // Import/Export routes
+         .route("/import", post(super::handlers::import::import_file))
+         .route("/import/{id}", get(super::handlers::import::import_status))
+         .route("/export", get(super::handlers::export::export_data))
+         // Statistical information routing
         .route("/statistics/sessions/{id}", get(session))
         .route("/statistics/queries", get(queries))
         .route("/statistics/database", get(database))

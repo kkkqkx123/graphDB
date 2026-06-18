@@ -27,13 +27,13 @@ tracing.workspace = true
 parking_lot.workspace = true
 dashmap.workspace = true
 chrono.workspace = true
-uuid.workspace = true
+uuid = { workspace = true, features = ["v4"] }
 regex.workspace = true
 sysinfo.workspace = true
 num_cpus.workspace = true
 bcrypt.workspace = true
 
-axum = { workspace = true, optional = true }
+axum = { workspace = true, optional = true, features = ["multipart"] }
 tower = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true }
 http = { workspace = true, optional = true }

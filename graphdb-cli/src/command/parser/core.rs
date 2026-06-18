@@ -82,6 +82,11 @@ fn parse_meta_command(input: &str) -> Result<MetaCommand, String> {
         "import" => crate::command::parser::meta::io::parse_import(arg),
         "export" => crate::command::parser::meta::io::parse_export(arg),
         "copy" => crate::command::parser::meta::io::parse_copy(arg),
+        "dump" => crate::command::parser::meta::io::parse_dump(arg),
+        "restore" => crate::command::parser::meta::io::parse_restore(arg),
+        "export-space" => crate::command::parser::meta::io::parse_export_space(arg),
+        "export-schema" => crate::command::parser::meta::io::parse_export_schema(arg),
+        "import-schema" => crate::command::parser::meta::io::parse_import_schema(arg),
         _ => Err(format!("Unknown command: \\ {}", cmd)),
     }
 }

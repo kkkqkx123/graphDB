@@ -1,8 +1,10 @@
 pub mod auth;
 pub mod batch;
 pub mod config;
+pub mod export;
 pub mod function;
 pub mod health;
+pub mod import;
 pub mod query;
 pub mod query_types;
 pub mod schema;
@@ -35,6 +37,8 @@ pub use statistics::{database, queries, search as search_stats, session, system}
 pub use stream::{execute_stream, StreamQueryRequest};
 pub use sync::status;
 pub use transaction::{begin, commit, rollback};
+pub use export::{export_data, ExportQuery};
+pub use import::{import_file, import_status, ImportResponse, ImportStatusResponse};
 #[cfg(feature = "qdrant")]
 pub use vector::{
     count, create_index, drop_index, get_index_info, get_vector, list_indexes, search,

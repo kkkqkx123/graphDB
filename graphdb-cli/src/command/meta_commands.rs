@@ -118,9 +118,29 @@ fn show_general_help() -> String {
         "  {:25} {}\n",
         "\\export <fmt> <file> <query> [opts]", "Export query results to file"
     ));
+     output.push_str(&format!(
+         "  {:25} {}\n",
+         "\\copy <target> from|to <file> [opts]", "Copy data to/from file"
+     ));
     output.push_str(&format!(
         "  {:25} {}\n",
-        "\\copy <target> from|to <file> [opts]", "Copy data to/from file"
+        "\\export-space <sp> <path>", "Export full space (by tag/edge-type)"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\export-schema <path>", "Export schema definitions to file"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\import-schema <file>", "Import schema definitions from file"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}\n",
+        "\\dump <db> <path>", "Dump database to directory"
+    ));
+    output.push_str(&format!(
+        "  {:25} {}",
+        "\\restore <path> <db>", "Restore database from dump"
     ));
 
     output.push_str(&format!("\n{}\n", "Query Buffer".yellow().bold()));
@@ -303,20 +323,69 @@ fn show_topic_help(topic: &str) -> String {
             s.push_str("  \\import jsonl edges.jsonl edge friend 50\n");
             s
         }
-        "copy" => {
-            let mut s = String::new();
-            s.push_str("Copy data to/from file\n\n");
-            s.push_str("Syntax:\n");
-            s.push_str("  \\copy <target> from|to <file> [options]\n\n");
-            s.push_str("Options:\n");
-            s.push_str("  --stream, -s          - Enable streaming export (for 'to' direction)\n");
-            s.push_str("  --chunk-size <n>, -c  - Set chunk size for streaming\n\n");
-            s.push_str("Examples:\n");
-            s.push_str("  \\copy person from 'data.csv'\n");
-            s.push_str("  \\copy person to 'output.csv' --stream\n");
-            s.push_str("  \\copy person to 'output.json' -s -c 500\n");
-            s
-        }
+         "copy" => {
+             let mut s = String::new();
+             s.push_str("Copy data to/from file\n\n");
+             s.push_str("Syntax:\n");
+             s.push_str("  \\copy <target> from|to <file> [options]\n\n");
+             s.push_str("Options:\n");
+             s.push_str("  --stream, -s          - Enable streaming export (for 'to' direction)\n");
+             s.push_str("  --chunk-size <n>, -c  - Set chunk size for streaming\n\n");
+             s.push_str("Examples:\n");
+             s.push_str("  \\copy person from 'data.csv'\n");
+             s.push_str("  \\copy person to 'output.csv' --stream\n");
+             s.push_str("  \\copy person to 'output.json' -s -c 500\n");
+             s
+         }
+          "export-space" => {
+              r#"\export-space <space_name> <output_path> [--format csv|json|jsonl] [--tags t1,t2] [--edges e1,e2]
+
+Export a full space's data, organized by tags and edge types.
+  --format csv|json|jsonl   Output format (default: csv)
+  --tags t1,t2             Export specific tags only (comma-separated)
+  --edges e1,e2            Export specific edge types only (comma-separated)
+
+Example:
+  \export-space mydb /backup/mydb_export --format csv
+  \export-space mydb /backup/mydb_export --tags Person,Company"#.to_string()
+          }
+          "export-schema" => {
+              r#"\export-schema <output_path> [--format json|yaml]
+
+Export schema definitions (tags, edge types) of the current space.
+  --format json|yaml       Output format (default: json)
+
+Example:
+  \export-schema /backup/mydb_schema.json"#.to_string()
+          }
+          "import-schema" => {
+              r#"\import-schema <file_path>
+
+Import schema definitions from a file.
+
+Example:
+  \import-schema /backup/mydb_schema.json"#.to_string()
+          }
+          "dump" => {
+              r#"\dump <database> <output_path> [--format binary|jsonl] [--no-compress]
+
+Dump a database to a directory.
+  --format binary|jsonl   Output format (default: binary)
+  --no-compress           Disable compression
+
+Example:
+  \dump mydb /backup/mydb_dump"#.to_string()
+          }
+          "restore" => {
+              r#"\restore <source_path> <database> [--overwrite] [--strict]
+
+Restore a database from a dump directory.
+  --overwrite    Overwrite existing data
+  --strict       Strict mode (fail on schema conflicts)
+
+Example:
+  \restore /backup/mydb_dump mydb --overwrite"#.to_string()
+          }
         "variables" | "set" => {
             let mut s = String::new();
             s.push_str("Variable Management\n\n");

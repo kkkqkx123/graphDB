@@ -135,6 +135,32 @@ pub enum MetaCommand {
         streaming: bool,
         chunk_size: Option<usize>,
     },
+    Dump {
+        database: String,
+        output_path: String,
+        format: String,
+        compress: bool,
+    },
+    Restore {
+        source_path: String,
+        database: String,
+        overwrite: bool,
+        strict: bool,
+    },
+    ExportSpace {
+        space_name: String,
+        output_path: String,
+        format: String,
+        tags: Option<String>,
+        edge_types: Option<String>,
+    },
+    ExportSchema {
+        output_path: String,
+        format: String,
+    },
+    ImportSchema {
+        file_path: String,
+    },
 }
 
 #[derive(Debug, Clone)]

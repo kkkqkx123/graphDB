@@ -12,5 +12,6 @@ pub mod typed_path;
 
 pub use error::HttpError;
 pub use handlers::query_types::{QueryRequest, QueryResponse};
+pub use handlers::{ExportQuery, ImportResponse, ImportStatusResponse};
 pub use server::HttpServer;
 pub use state::AppState;
