@@ -183,10 +183,50 @@ impl GraphStoragePersistent {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
+/// Deferred WAL operations for two-phase recovery.
+/// Used to handle edge operations that depend on vertex existence.
+struct DeferredWalOps {
+    /// Deferred edge insertions (InsertEdgeRedo, Timestamp)
+    edges: Arc<Mutex<Vec<(crate::transaction::wal::types::InsertEdgeRedo, Timestamp)>>>,
+    /// Deferred edge deletions (DeleteEdgeRedo, Timestamp)
+    deletes: Arc<Mutex<Vec<(crate::transaction::wal::types::DeleteEdgeRedo, Timestamp)>>>,
+}
+
+impl DeferredWalOps {
+    fn new() -> Self {
+        Self {
+            edges: Arc::new(Mutex::new(Vec::new())),
+            deletes: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn push_edge(&self, edge: crate::transaction::wal::types::InsertEdgeRedo, ts: Timestamp) {
+        self.edges.lock().push((edge, ts));
+    }
+
+    fn push_delete(&self, delete: crate::transaction::wal::types::DeleteEdgeRedo, ts: Timestamp) {
+        self.deletes.lock().push((delete, ts));
+    }
+
+    fn drain_edges(&self) -> Vec<(crate::transaction::wal::types::InsertEdgeRedo, Timestamp)> {
+        self.edges.lock().drain(..).collect()
+    }
+
+    fn drain_deletes(&self) -> Vec<(crate::transaction::wal::types::DeleteEdgeRedo, Timestamp)> {
+        self.deletes.lock().drain(..).collect()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.edges.lock().is_empty() && self.deletes.lock().is_empty()
+    }
+}
+
+#[derive(Clone)]
 struct GraphStorageRuntime {
     current_txn_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
     index_gc_manager: Option<Arc<IndexGcManager>>,
+    deferred_wal_ops: DeferredWalOps,
 }
 
 impl GraphStorageRuntime {
@@ -194,6 +234,7 @@ impl GraphStorageRuntime {
         Self {
             current_txn_context: Arc::new(RwLock::new(None)),
             index_gc_manager: None,
+            deferred_wal_ops: DeferredWalOps::new(),
         }
     }
 
@@ -209,6 +250,7 @@ impl GraphStorageRuntime {
         Self {
             current_txn_context: self.current_txn_context.clone(),
             index_gc_manager: Some(Arc::new(gc_manager)),
+            deferred_wal_ops: self.deferred_wal_ops.clone(),
         }
     }
 
@@ -314,6 +356,43 @@ impl GraphStorageContext {
         }
 
         Ok(())
+    }
+
+    /// Defer an edge insertion for phase-2 recovery.
+    pub(crate) fn defer_edge_insert(
+        &self,
+        edge: crate::transaction::wal::types::InsertEdgeRedo,
+        ts: Timestamp,
+    ) {
+        self.runtime.deferred_wal_ops.push_edge(edge, ts);
+    }
+
+    /// Defer an edge deletion for phase-2 recovery.
+    pub(crate) fn defer_edge_delete(
+        &self,
+        delete: crate::transaction::wal::types::DeleteEdgeRedo,
+        ts: Timestamp,
+    ) {
+        self.runtime.deferred_wal_ops.push_delete(delete, ts);
+    }
+
+    /// Get all deferred edge insertions for phase-2 recovery.
+    pub(crate) fn take_deferred_edge_inserts(
+        &self,
+    ) -> Vec<(crate::transaction::wal::types::InsertEdgeRedo, Timestamp)> {
+        self.runtime.deferred_wal_ops.drain_edges()
+    }
+
+    /// Get all deferred edge deletions for phase-2 recovery.
+    pub(crate) fn take_deferred_edge_deletes(
+        &self,
+    ) -> Vec<(crate::transaction::wal::types::DeleteEdgeRedo, Timestamp)> {
+        self.runtime.deferred_wal_ops.drain_deletes()
+    }
+
+    /// Check if there are any deferred operations.
+    pub(crate) fn has_deferred_ops(&self) -> bool {
+        !self.runtime.deferred_wal_ops.is_empty()
     }
 
     pub(crate) fn is_open_flag(&self) -> &AtomicBool {

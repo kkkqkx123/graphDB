@@ -361,6 +361,9 @@ pub(crate) fn recover_from_wal(ctx: &GraphStorageContext) -> StorageResult<Recov
 
     let stats = manager.recover_with_applier(ctx)?;
 
+    // Phase 2: Replay deferred edge operations (two-phase recovery)
+    ctx.replay_deferred_edges()?;
+
     // Set the WAL writer's LSN to the last replayed position so that
     // create_checkpoint records the correct LSN instead of the fresh WAL's 0.
     if let Some(persistence) = ctx.persistence() {
@@ -402,6 +405,9 @@ pub(crate) fn recover_from_wal_with_config(
     let mut manager = RecoveryManager::new(config);
 
     let stats = manager.recover_with_applier(ctx)?;
+
+    // Phase 2: Replay deferred edge operations (two-phase recovery)
+    ctx.replay_deferred_edges()?;
 
     // Set the WAL writer's LSN to the last replayed position so that
     // create_checkpoint records the correct LSN instead of the fresh WAL's 0.

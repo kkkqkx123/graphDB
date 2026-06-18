@@ -57,77 +57,61 @@ impl RecoveryApplier for GraphStorageContext {
     }
 
     fn replay_insert_edge(&self, redo: &InsertEdgeRedo, ts: Timestamp) -> StorageResult<()> {
-        let (src_internal, dst_internal) = {
+        // Check if endpoints exist
+        let endpoints_exist = {
             let vertex_tables = self.data_store().vertex_tables().read();
-            let src_table = vertex_tables.get(&redo.src_label).ok_or_else(|| {
-                StorageError::db_error(format!(
-                    "Source vertex label not found during recovery: label={}",
-                    redo.src_label
-                ))
-            })?;
-            let dst_table = vertex_tables.get(&redo.dst_label).ok_or_else(|| {
-                StorageError::db_error(format!(
-                    "Destination vertex label not found during recovery: label={}",
-                    redo.dst_label
-                ))
-            })?;
+            let src_exists = vertex_tables.contains_key(&redo.src_label)
+                && TransactionOps::resolve_vertex_id(
+                    vertex_tables.get(&redo.src_label).unwrap(),
+                    redo.src_vid,
+                    ts,
+                )
+                .is_some();
 
-            let src_internal = TransactionOps::resolve_vertex_id(src_table, redo.src_vid, ts)
-                .ok_or_else(|| {
-                    StorageError::db_error(format!(
-                        "Source vertex not found during recovery: label={}, vid={:?}",
-                        redo.src_label, redo.src_vid
-                    ))
-                })?;
-            let dst_internal = TransactionOps::resolve_vertex_id(dst_table, redo.dst_vid, ts)
-                .ok_or_else(|| {
-                    StorageError::db_error(format!(
-                        "Destination vertex not found during recovery: label={}, vid={:?}",
-                        redo.dst_label, redo.dst_vid
-                    ))
-                })?;
-            (src_internal, dst_internal)
+            let dst_exists = vertex_tables.contains_key(&redo.dst_label)
+                && TransactionOps::resolve_vertex_id(
+                    vertex_tables.get(&redo.dst_label).unwrap(),
+                    redo.dst_vid,
+                    ts,
+                )
+                .is_some();
+
+            src_exists && dst_exists
         };
 
-        let params = AddEdgeParams {
-            src_label: redo.src_label,
-            src_vid: src_internal,
-            dst_label: redo.dst_label,
-            dst_vid: dst_internal,
-            edge_label: redo.edge_label,
-            rank: redo.rank,
-        };
-
-        {
-            let vertex_tables = self.data_store().vertex_tables().read();
-            let mut edge_tables = self.data_store().edge_tables().write();
-
-            // Idempotent replay: if the edge already exists, it was persisted before
-            // the crash (data was flushed past this WAL entry). Skip silently.
-            if let Err(e) = TransactionOps::add_edge(
-                &mut edge_tables,
-                &vertex_tables,
-                params,
-                &redo.properties,
-                ts,
-            ) {
-                use crate::transaction::insert_transaction::InsertTransactionError;
-                match &e {
-                    InsertTransactionError::SchemaError(msg) if msg.contains("already exists") => {
-                        // edge already present — idempotent, skip
-                    }
-                    _ => {
-                        return Err(StorageError::db_error(format!(
-                            "Failed to replay insert edge: {}",
-                            e
-                        )));
-                    }
-                }
-            }
+        // If endpoints don't exist, defer this edge to phase 2
+        if !endpoints_exist {
+            self.defer_edge_insert(redo.clone(), ts);
+            return Ok(());
         }
 
-        self.mark_edge_modified(redo.edge_label);
-        Ok(())
+        // Endpoints exist, proceed with insertion
+        self.do_replay_insert_edge(redo, ts)
+    }
+
+    fn replay_delete_edge(&self, redo: &DeleteEdgeRedo, ts: Timestamp) -> StorageResult<()> {
+        // Check if endpoints exist
+        let endpoints_exist = {
+            let vertex_tables = self.data_store().vertex_tables().read();
+            let src_exists = vertex_tables.contains_key(&redo.src_label)
+                && resolve_external_vid(&vertex_tables, redo.src_label, redo.src_vid, ts)
+                    .is_some();
+
+            let dst_exists = vertex_tables.contains_key(&redo.dst_label)
+                && resolve_external_vid(&vertex_tables, redo.dst_label, redo.dst_vid, ts)
+                    .is_some();
+
+            src_exists && dst_exists
+        };
+
+        // If endpoints don't exist, defer this deletion to phase 2
+        if !endpoints_exist {
+            self.defer_edge_delete(redo.clone(), ts);
+            return Ok(());
+        }
+
+        // Endpoints exist, proceed with deletion
+        self.do_replay_delete_edge(redo, ts)
     }
 
     fn replay_update_vertex_prop(
@@ -221,45 +205,7 @@ impl RecoveryApplier for GraphStorageContext {
         Ok(())
     }
 
-    fn replay_delete_edge(&self, redo: &DeleteEdgeRedo, ts: Timestamp) -> StorageResult<()> {
-        let key = crate::storage::engine::data_store::EdgeTableKey::new(
-            redo.src_label,
-            redo.dst_label,
-            redo.edge_label,
-        );
 
-        let (src_internal, dst_internal) =
-            {
-                let vertex_tables = self.data_store().vertex_tables().read();
-                let src_internal =
-                    resolve_external_vid(&vertex_tables, redo.src_label, redo.src_vid, ts)
-                        .ok_or_else(|| {
-                            StorageError::db_error(format!(
-                        "Source vertex not found during delete-edge recovery: label={}, vid={:?}",
-                        redo.src_label, redo.src_vid
-                    ))
-                        })?;
-                let dst_internal =
-                    resolve_external_vid(&vertex_tables, redo.dst_label, redo.dst_vid, ts)
-                        .ok_or_else(|| {
-                            StorageError::db_error(format!(
-                    "Destination vertex not found during delete-edge recovery: label={}, vid={:?}",
-                    redo.dst_label, redo.dst_vid
-                ))
-                        })?;
-                (src_internal, dst_internal)
-            };
-
-        {
-            let mut edge_tables = self.data_store().edge_tables().write();
-            if let Some(table) = edge_tables.get_mut(&key) {
-                let _ = table.delete_edge(src_internal, dst_internal, redo.rank, ts)?;
-            }
-        }
-
-        self.mark_edge_modified(redo.edge_label);
-        Ok(())
-    }
 
     // ========================================================================
     // Schema Operations
@@ -688,6 +634,129 @@ fn resolve_external_vid(
 }
 
 impl GraphStorageContext {
+    /// Perform actual edge insertion after checking endpoints exist.
+    /// This is called from phase 1 if endpoints exist, or from phase 2 if they don't.
+    pub(crate) fn do_replay_insert_edge(
+        &self,
+        redo: &InsertEdgeRedo,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        let (src_internal, dst_internal) = {
+            let vertex_tables = self.data_store().vertex_tables().read();
+            let src_table = vertex_tables.get(&redo.src_label).ok_or_else(|| {
+                StorageError::db_error(format!(
+                    "Source vertex label not found during recovery: label={}",
+                    redo.src_label
+                ))
+            })?;
+            let dst_table = vertex_tables.get(&redo.dst_label).ok_or_else(|| {
+                StorageError::db_error(format!(
+                    "Destination vertex label not found during recovery: label={}",
+                    redo.dst_label
+                ))
+            })?;
+
+            let src_internal = TransactionOps::resolve_vertex_id(src_table, redo.src_vid, ts)
+                .ok_or_else(|| {
+                    StorageError::db_error(format!(
+                        "Source vertex not found during recovery: label={}, vid={:?}",
+                        redo.src_label, redo.src_vid
+                    ))
+                })?;
+            let dst_internal = TransactionOps::resolve_vertex_id(dst_table, redo.dst_vid, ts)
+                .ok_or_else(|| {
+                    StorageError::db_error(format!(
+                        "Destination vertex not found during recovery: label={}, vid={:?}",
+                        redo.dst_label, redo.dst_vid
+                    ))
+                })?;
+            (src_internal, dst_internal)
+        };
+
+        let params = AddEdgeParams {
+            src_label: redo.src_label,
+            src_vid: src_internal,
+            dst_label: redo.dst_label,
+            dst_vid: dst_internal,
+            edge_label: redo.edge_label,
+            rank: redo.rank,
+        };
+
+        {
+            let vertex_tables = self.data_store().vertex_tables().read();
+            let mut edge_tables = self.data_store().edge_tables().write();
+
+            if let Err(e) = TransactionOps::add_edge(
+                &mut edge_tables,
+                &vertex_tables,
+                params,
+                &redo.properties,
+                ts,
+            ) {
+                use crate::transaction::insert_transaction::InsertTransactionError;
+                match &e {
+                    InsertTransactionError::SchemaError(msg) if msg.contains("already exists") => {
+                        // edge already present — idempotent, skip
+                    }
+                    _ => {
+                        return Err(StorageError::db_error(format!(
+                            "Failed to replay insert edge: {}",
+                            e
+                        )));
+                    }
+                }
+            }
+        }
+
+        self.mark_edge_modified(redo.edge_label);
+        Ok(())
+    }
+
+    /// Perform actual edge deletion after checking endpoints exist.
+    /// This is called from phase 1 if endpoints exist, or from phase 2 if they don't.
+    pub(crate) fn do_replay_delete_edge(
+        &self,
+        redo: &DeleteEdgeRedo,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        let key = crate::storage::engine::data_store::EdgeTableKey::new(
+            redo.src_label,
+            redo.dst_label,
+            redo.edge_label,
+        );
+
+        let (src_internal, dst_internal) = {
+            let vertex_tables = self.data_store().vertex_tables().read();
+            let src_internal =
+                resolve_external_vid(&vertex_tables, redo.src_label, redo.src_vid, ts)
+                    .ok_or_else(|| {
+                        StorageError::db_error(format!(
+                        "Source vertex not found during delete-edge recovery: label={}, vid={:?}",
+                        redo.src_label, redo.src_vid
+                    ))
+                    })?;
+            let dst_internal =
+                resolve_external_vid(&vertex_tables, redo.dst_label, redo.dst_vid, ts)
+                    .ok_or_else(|| {
+                        StorageError::db_error(format!(
+                    "Destination vertex not found during delete-edge recovery: label={}, vid={:?}",
+                    redo.dst_label, redo.dst_vid
+                ))
+                    })?;
+            (src_internal, dst_internal)
+        };
+
+        {
+            let mut edge_tables = self.data_store().edge_tables().write();
+            if let Some(table) = edge_tables.get_mut(&key) {
+                let _ = table.delete_edge(src_internal, dst_internal, redo.rank, ts)?;
+            }
+        }
+
+        self.mark_edge_modified(redo.edge_label);
+        Ok(())
+    }
+
     /// Replay vertex index updates after a vertex insert recovery.
     /// Ensures indexes are consistent with data even if the original
     /// write crashed between the data-write and index-update steps.
@@ -750,6 +819,24 @@ impl GraphStorageContext {
         Ok(())
     }
 
+    /// Execute phase-2 recovery: replay all deferred edge operations.
+    /// This must be called after all vertices have been recovered.
+    pub(crate) fn replay_deferred_edges(&self) -> StorageResult<()> {
+        // Replay deferred edge insertions
+        let deferred_inserts = self.take_deferred_edge_inserts();
+        for (redo, ts) in deferred_inserts {
+            self.do_replay_insert_edge(&redo, ts)?;
+        }
+
+        // Replay deferred edge deletions
+        let deferred_deletes = self.take_deferred_edge_deletes();
+        for (redo, ts) in deferred_deletes {
+            self.do_replay_delete_edge(&redo, ts)?;
+        }
+
+        Ok(())
+    }
+
     fn ensure_recovery_space(&self, space_name: &str) -> StorageResult<()> {
         if self.schema_manager().get_space(space_name)?.is_some() {
             return Ok(());
@@ -760,6 +847,7 @@ impl GraphStorageContext {
         Ok(())
     }
 }
+
 
 fn vertex_type_storage_name(space_id: u64, tag_name: &str) -> String {
     format!("space_{space_id}:tag:{tag_name}")

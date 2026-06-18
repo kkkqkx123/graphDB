@@ -1771,4 +1771,165 @@ mod tests {
         assert_eq!(col.get(1), Some(Value::Int(20)));
         assert_eq!(col.get(2), Some(Value::Int(30)));
     }
+
+    // ==================== P0 Priority Encoding Tests ====================
+
+    /// Test: Column with repetitive integer values (RLE compression eligible)
+    #[test]
+    fn test_column_repetitive_integer_values() {
+        let mut col = Column::new("status".to_string(), 0, DataType::Int, false);
+
+        // Insert repetitive values that could benefit from RLE
+        for i in 0..100 {
+            let value = match i % 3 {
+                0 => Value::Int(1),
+                1 => Value::Int(2),
+                _ => Value::Int(3),
+            };
+            col.set(i, Some(&value)).unwrap();
+        }
+
+        // Verify all values are stored correctly
+        for i in 0..100 {
+            let expected = match i % 3 {
+                0 => Value::Int(1),
+                1 => Value::Int(2),
+                _ => Value::Int(3),
+            };
+            assert_eq!(col.get(i), Some(expected));
+        }
+    }
+
+    /// Test: String column with low cardinality (Dictionary compression eligible)
+    #[test]
+    fn test_column_low_cardinality_strings() {
+        let mut col = Column::new("category".to_string(), 0, DataType::String, false);
+
+        let categories = vec!["A", "B", "C", "A", "B", "C"];
+
+        // Insert low cardinality strings
+        for (i, category) in categories.iter().enumerate() {
+            col.set(i, Some(&Value::String(category.to_string())))
+                .unwrap();
+        }
+
+        // Verify all values are stored and retrievable
+        for (i, expected_category) in categories.iter().enumerate() {
+            let value = col.get(i);
+            assert_eq!(value, Some(Value::String(expected_category.to_string())));
+        }
+    }
+
+    /// Test: Numeric column suitable for bitpacking
+    #[test]
+    fn test_column_small_range_integers() {
+        let mut col = Column::new("priority".to_string(), 0, DataType::Int, false);
+
+        // Insert values with small range [0-15] - good for bitpacking
+        for i in 0..256 {
+            let value = Value::Int((i % 16) as i32);
+            col.set(i, Some(&value)).unwrap();
+        }
+
+        // Verify all values are correctly preserved
+        for i in 0..256 {
+            let expected = Value::Int((i % 16) as i32);
+            assert_eq!(col.get(i), Some(expected));
+        }
+    }
+
+    /// Test: Long string column suitable for FSST compression
+    #[test]
+    fn test_column_long_strings_compression() {
+        let mut col = Column::new("description".to_string(), 0, DataType::String, false);
+
+        let long_strings = vec![
+            "The quick brown fox jumps over the lazy dog",
+            "A Rust programming language feature",
+            "GraphDB storage compression techniques",
+            "The quick brown fox jumps over the lazy dog", // Repetition
+            "Efficient data compression algorithms",
+        ];
+
+        // Insert long strings
+        for (i, s) in long_strings.iter().enumerate() {
+            col.set(i, Some(&Value::String(s.to_string())))
+                .unwrap();
+        }
+
+        // Verify retrieval works correctly
+        for (i, expected_str) in long_strings.iter().enumerate() {
+            assert_eq!(
+                col.get(i),
+                Some(Value::String(expected_str.to_string()))
+            );
+        }
+    }
+
+    /// Test: i64 boundary values
+    #[test]
+    fn test_column_i64_boundaries() {
+        let mut col = Column::new("bigint_val".to_string(), 0, DataType::BigInt, false);
+
+        // Test MAX and MIN values
+        col.set(0, Some(&Value::BigInt(i64::MAX))).unwrap();
+        col.set(1, Some(&Value::BigInt(i64::MIN))).unwrap();
+        col.set(2, Some(&Value::BigInt(0))).unwrap();
+
+        assert_eq!(col.get(0), Some(Value::BigInt(i64::MAX)));
+        assert_eq!(col.get(1), Some(Value::BigInt(i64::MIN)));
+        assert_eq!(col.get(2), Some(Value::BigInt(0)));
+    }
+
+    /// Test: Empty string handling
+    #[test]
+    fn test_column_empty_string() {
+        let mut col = Column::new("text".to_string(), 0, DataType::String, false);
+
+        // Test empty string
+        col.set(0, Some(&Value::String("".to_string())))
+            .unwrap();
+        col.set(1, Some(&Value::String("normal".to_string())))
+            .unwrap();
+
+        assert_eq!(col.get(0), Some(Value::String("".to_string())));
+        assert_eq!(col.get(1), Some(Value::String("normal".to_string())));
+    }
+
+    /// Test: Special characters in strings
+    #[test]
+    fn test_column_special_characters() {
+        let mut col = Column::new("special".to_string(), 0, DataType::String, false);
+
+        let special_strings = vec![
+            "\n\t\r",                    // Whitespace
+            "\\\"'",                      // Quotes and backslash
+            "你好世界🌍",                   // Unicode and emoji
+            "\0null",                     // Control character
+        ];
+
+        for (idx, s) in special_strings.iter().enumerate() {
+            col.set(idx, Some(&Value::String(s.to_string())))
+                .unwrap();
+            assert_eq!(col.get(idx), Some(Value::String(s.to_string())));
+        }
+    }
+
+    /// Test: Float special values
+    #[test]
+    fn test_column_float_special_values() {
+        let mut col = Column::new("float_val".to_string(), 0, DataType::Float, false);
+
+        // Test normal, zero, negative
+        col.set(0, Some(&Value::Float(0.0))).unwrap();
+        col.set(1, Some(&Value::Float(-1.5))).unwrap();
+        col.set(2, Some(&Value::Float(f32::MAX))).unwrap();
+        col.set(3, Some(&Value::Float(f32::MIN))).unwrap();
+
+        assert_eq!(col.get(0), Some(Value::Float(0.0)));
+        assert_eq!(col.get(1), Some(Value::Float(-1.5)));
+        assert_eq!(col.get(2), Some(Value::Float(f32::MAX)));
+        assert_eq!(col.get(3), Some(Value::Float(f32::MIN)));
+    }
 }
+

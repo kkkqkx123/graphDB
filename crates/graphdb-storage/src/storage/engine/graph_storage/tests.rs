@@ -1315,4 +1315,68 @@ mod tests {
         assert_eq!(edges[0].src, VertexId::from_string("x"));
         assert_eq!(edges[0].dst, VertexId::from_string("y"));
     }
+
+    #[test]
+    fn test_vertex_idempotent_delete() {
+        let mut storage = create_test_storage();
+        setup_space(&mut storage);
+        setup_person_tag(&mut storage);
+
+        // Insert test data
+        let alice = Vertex::new(
+            VertexId::from_int64(1),
+            vec![Tag::new(
+                "Person".to_string(),
+                vec![("name".to_string(), Value::String("Alice".to_string()))].into_iter().collect(),
+            )],
+        );
+        storage.insert_vertex("test_space", alice).unwrap();
+
+        // First deletion should succeed
+        let result1 = storage.delete_vertex("test_space", &VertexId::from_int64(1));
+        assert!(result1.is_ok(), "First delete should succeed");
+
+        // Second deletion of same vertex should also succeed (idempotent)
+        let result2 = storage.delete_vertex("test_space", &VertexId::from_int64(1));
+        assert!(result2.is_ok(), "Second delete should succeed (idempotent)");
+
+        // Delete non-existent vertex should not error
+        let result3 = storage.delete_vertex("test_space", &VertexId::from_int64(99999));
+        assert!(result3.is_ok(), "Delete non-existent should be idempotent");
+    }
+
+    #[test]
+    fn test_vertex_with_boundary_properties() {
+        let mut storage = create_test_storage();
+        setup_space(&mut storage);
+        setup_person_tag(&mut storage);
+
+        // Create vertex with boundary values
+        let mut props = std::collections::HashMap::new();
+        props.insert("name".to_string(), Value::String("".to_string())); // Empty string
+        props.insert("age".to_string(), Value::BigInt(i64::MAX)); // Max int
+
+        let vertex = Vertex {
+            vid: VertexId::from_int64(1),
+            id: 0,
+            tags: vec![Tag::new("Person".to_string(), props.clone())],
+            properties: props,
+        };
+
+        storage.insert_vertex("test_space", vertex).unwrap();
+
+        let retrieved = storage
+            .get_vertex("test_space", &VertexId::from_int64(1))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            retrieved.properties.get("name"),
+            Some(&Value::String("".to_string()))
+        );
+        assert_eq!(
+            retrieved.properties.get("age"),
+            Some(&Value::BigInt(i64::MAX))
+        );
+    }
 }
