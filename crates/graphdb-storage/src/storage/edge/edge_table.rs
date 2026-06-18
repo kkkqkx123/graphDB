@@ -630,10 +630,14 @@ impl EdgeTable {
                 src_key,
                 params.ts,
             ) {
-                assert_eq!(
-                    nbr.prop_offset, ie_nbr.prop_offset,
-                    "out_csr and in_csr should share the same prop_offset"
-                );
+                if nbr.prop_offset != ie_nbr.prop_offset {
+                    return Err(StorageError::data_corruption(
+                        format!(
+                            "property offset mismatch: out_csr={}, in_csr={} at edge ({}, {})",
+                            nbr.prop_offset, ie_nbr.prop_offset, params.src, params.dst
+                        ),
+                    ));
+                }
             }
             return Ok(true);
         }
@@ -1019,12 +1023,12 @@ impl EdgeTable {
             .iter()
             .map(|(_, nbr)| nbr.timestamp)
             .min()
-            .unwrap_or(ts);
+            .unwrap_or(0);
         let max_ts = entries
             .iter()
             .map(|(_, nbr)| nbr.timestamp)
             .max()
-            .unwrap_or(ts);
+            .unwrap_or(0);
         let csr = Csr::from_nbr_entries(&entries, vertex_capacity);
         let frozen = entries.len();
 

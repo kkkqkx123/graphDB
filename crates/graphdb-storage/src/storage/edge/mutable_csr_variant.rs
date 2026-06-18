@@ -21,7 +21,7 @@ use super::{
 pub enum MutableCsrVariant {
     Multiple(MutableCsr),
     Single(SingleMutableCsr),
-    None,
+    None { vertex_capacity: usize },  // Store capacity even for None variant
 }
 
 impl MutableCsrVariant {
@@ -38,13 +38,13 @@ impl MutableCsrVariant {
             EdgeStrategy::Single => Ok(MutableCsrVariant::Single(SingleMutableCsr::with_capacity(
                 vertex_capacity,
             ))),
-            EdgeStrategy::None => Ok(MutableCsrVariant::None),
+            EdgeStrategy::None => Ok(MutableCsrVariant::None { vertex_capacity }),
         }
     }
 
     pub fn clear(&mut self) {
         match self {
-            MutableCsrVariant::None => {},
+            MutableCsrVariant::None { .. } => {},
             MutableCsrVariant::Multiple(csr) => csr.clear(),
             MutableCsrVariant::Single(csr) => csr.clear(),
         }
@@ -54,7 +54,7 @@ impl MutableCsrVariant {
 impl CsrBase for MutableCsrVariant {
     fn vertex_capacity(&self) -> usize {
         match self {
-            MutableCsrVariant::None => 0,
+            MutableCsrVariant::None { vertex_capacity } => *vertex_capacity,
             MutableCsrVariant::Multiple(csr) => csr.vertex_capacity(),
             MutableCsrVariant::Single(csr) => csr.vertex_capacity(),
         }
@@ -62,7 +62,7 @@ impl CsrBase for MutableCsrVariant {
 
     fn edge_count(&self) -> u64 {
         match self {
-            MutableCsrVariant::None => 0,
+            MutableCsrVariant::None { .. } => 0,
             MutableCsrVariant::Multiple(csr) => csr.edge_count(),
             MutableCsrVariant::Single(csr) => csr.edge_count(),
         }
@@ -70,8 +70,10 @@ impl CsrBase for MutableCsrVariant {
 
     fn dump(&self) -> Vec<u8> {
         match self {
-            MutableCsrVariant::None => {
-                vec![0u8]
+            MutableCsrVariant::None { vertex_capacity } => {
+                let mut result = vec![0u8];
+                result.extend((*vertex_capacity as u64).to_le_bytes());
+                result
             }
             MutableCsrVariant::Multiple(csr) => {
                 let mut result = vec![1u8];
@@ -95,7 +97,15 @@ impl CsrBase for MutableCsrVariant {
 
         match data[0] {
             0 => {
-                *self = MutableCsrVariant::None;
+                if data.len() < 9 {
+                    return Err(crate::core::StorageError::deserialize_error(
+                        "Cannot load None CSR variant: data too short",
+                    ));
+                }
+                let vertex_capacity = u64::from_le_bytes([
+                    data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
+                ]) as usize;
+                *self = MutableCsrVariant::None { vertex_capacity };
                 Ok(())
             }
             1 => {
@@ -127,7 +137,7 @@ impl MutableCsrTrait for MutableCsrVariant {
         ts: Timestamp,
     ) -> bool {
         match self {
-            MutableCsrVariant::None => false,
+            MutableCsrVariant::None { .. } => false,
             MutableCsrVariant::Multiple(csr) => {
                 csr.insert_edge(src_vid, dst, edge_id, prop_offset, ts)
             }
@@ -139,7 +149,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn delete_edge(&mut self, src_vid: u32, edge_id: EdgeId, ts: Timestamp) -> bool {
         match self {
-            MutableCsrVariant::None => false,
+            MutableCsrVariant::None { .. } => false,
             MutableCsrVariant::Multiple(csr) => csr.delete_edge(src_vid, edge_id, ts),
             MutableCsrVariant::Single(csr) => csr.delete_edge(src_vid, edge_id, ts),
         }
@@ -147,7 +157,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn delete_edge_by_dst(&mut self, src_vid: u32, dst: VertexId, ts: Timestamp) -> bool {
         match self {
-            MutableCsrVariant::None => false,
+            MutableCsrVariant::None { .. } => false,
             MutableCsrVariant::Multiple(csr) => csr.delete_edge_by_dst(src_vid, dst, ts),
             MutableCsrVariant::Single(csr) => csr.delete_edge_by_dst(src_vid, dst, ts),
         }
@@ -155,7 +165,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn delete_edge_by_offset(&mut self, src_vid: u32, offset: i32, ts: Timestamp) -> bool {
         match self {
-            MutableCsrVariant::None => false,
+            MutableCsrVariant::None { .. } => false,
             MutableCsrVariant::Multiple(csr) => csr.delete_edge_by_offset(src_vid, offset, ts),
             MutableCsrVariant::Single(csr) => csr.delete_edge_by_offset(src_vid, offset, ts),
         }
@@ -163,7 +173,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn revert_delete_by_offset(&mut self, src_vid: u32, offset: i32, ts: Timestamp) -> bool {
         match self {
-            MutableCsrVariant::None => false,
+            MutableCsrVariant::None { .. } => false,
             MutableCsrVariant::Multiple(csr) => {
                 csr.revert_delete_by_offset(src_vid, offset, ts)
             }
@@ -173,7 +183,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn get_edge(&self, src_vid: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
         match self {
-            MutableCsrVariant::None => None,
+            MutableCsrVariant::None { .. } => None,
             MutableCsrVariant::Multiple(csr) => csr.get_edge(src_vid, dst, ts),
             MutableCsrVariant::Single(csr) => csr.get_edge(src_vid, dst, ts),
         }
@@ -181,7 +191,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn edges_of(&self, src_vid: u32, ts: Timestamp) -> Vec<Nbr> {
         match self {
-            MutableCsrVariant::None => Vec::new(),
+            MutableCsrVariant::None { .. } => Vec::new(),
             MutableCsrVariant::Multiple(csr) => csr.edges_of(src_vid, ts),
             MutableCsrVariant::Single(csr) => csr.edges_of(src_vid, ts),
         }
@@ -189,7 +199,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         match self {
-            MutableCsrVariant::None => 0,
+            MutableCsrVariant::None { .. } => 0,
             MutableCsrVariant::Multiple(csr) => csr.compact_with_ts(ts, reserve_ratio),
             MutableCsrVariant::Single(csr) => csr.compact_with_ts(ts, reserve_ratio),
         }
@@ -197,7 +207,7 @@ impl MutableCsrTrait for MutableCsrVariant {
 
     fn used_memory_size(&self) -> usize {
         match self {
-            MutableCsrVariant::None => std::mem::size_of::<Self>(),
+            MutableCsrVariant::None { .. } => std::mem::size_of::<Self>(),
             MutableCsrVariant::Multiple(csr) => csr.used_memory_size(),
             MutableCsrVariant::Single(csr) => csr.used_memory_size(),
         }
@@ -209,7 +219,7 @@ impl MutableCsrVariant {
         match self {
             MutableCsrVariant::Multiple(csr) => CsrIterator::Multiple(csr.iter(ts)),
             MutableCsrVariant::Single(csr) => CsrIterator::Single(csr.iter(ts)),
-            MutableCsrVariant::None => CsrIterator::None,
+            MutableCsrVariant::None { .. } => CsrIterator::None,
         }
     }
 }
@@ -256,8 +266,8 @@ mod tests {
     fn test_none_csr_variant() {
         let mut csr = MutableCsrVariant::from_strategy(EdgeStrategy::None, 10, 100).unwrap();
 
-        // None variant should return 0 for all queries
-        assert_eq!(csr.vertex_capacity(), 0);
+        // None variant should return the configured vertex capacity
+        assert_eq!(csr.vertex_capacity(), 10);
         assert_eq!(csr.edge_count(), 0);
         assert!(csr.edges_of(0, 1).is_empty());
 

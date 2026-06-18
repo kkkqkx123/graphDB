@@ -111,6 +111,10 @@ impl MutableCsr {
         let vertex_cap = vertex_capacity.max(1);
         let edge_cap = edge_capacity.max(vertex_cap * DEFAULT_VERTEX_DEGREE);
 
+        // Use DEFAULT_VERTEX_DEGREE for compatibility unless specifically tuned
+        // Future optimization: could add a separate factory method for adaptive capacity
+        let initial_primary = DEFAULT_VERTEX_DEGREE;
+
         let mut nbr_list = Vec::with_capacity(edge_cap);
         let mut adj_offsets = Vec::with_capacity(vertex_cap);
         let mut primary_capacities = Vec::with_capacity(vertex_cap);
@@ -118,8 +122,8 @@ impl MutableCsr {
         let mut offset = 0usize;
         for _ in 0..vertex_cap {
             adj_offsets.push(offset as u32);
-            primary_capacities.push(DEFAULT_VERTEX_DEGREE as u32);
-            offset += DEFAULT_VERTEX_DEGREE;
+            primary_capacities.push(initial_primary as u32);
+            offset += initial_primary;
         }
 
         nbr_list.resize(
@@ -158,15 +162,22 @@ impl MutableCsr {
         let old_capacity = self.vertex_capacity;
         let additional = new_vertex_capacity - old_capacity;
 
+        // Use consistent primary capacity for new vertices
+        let current_primary = if self.vertex_capacity > 0 {
+            self.primary_capacities[0] as usize
+        } else {
+            DEFAULT_VERTEX_DEGREE
+        };
+
         let mut new_total_capacity = self.total_edge_capacity;
         for _ in 0..additional {
             self.adj_offsets.push(new_total_capacity as u32);
-            self.primary_capacities.push(DEFAULT_VERTEX_DEGREE as u32);
+            self.primary_capacities.push(current_primary as u32);
             self.degrees.push(0);
             self.overflow_starts.push(NO_OVERFLOW);
             self.overflow_counts.push(0);
             self.overflow_capacities.push(0);
-            new_total_capacity += DEFAULT_VERTEX_DEGREE;
+            new_total_capacity += current_primary;
         }
 
         self.nbr_list.resize(

@@ -7,6 +7,37 @@
 //! - "Spouse" relationship (one-to-one)
 //! - "Current employer" relationship
 //! - Any single-edge semantic relationship
+//!
+//! ⚠️  CONCURRENCY LIMITATION:
+//! ================================
+//! This CSR does NOT support concurrent updates at the same timestamp.
+//!
+//! - Each vertex can have at most 1 effective edge.
+//! - Newer timestamps overwrite older ones automatically.
+//! - If two updates arrive with the same (or non-monotonic) timestamp,
+//!   the later one will be SILENTLY REJECTED.
+//!
+//! Example of problematic scenario:
+//! ```ignore
+//! T1: insert_edge(v0, dst=v1, ts=100) ✓ succeeds
+//! T2: insert_edge(v0, dst=v1, ts=99)  ✗ rejected (99 < 100)
+//! T3: insert_edge(v0, dst=v1, ts=100) ✗ rejected (100 == 100, not strictly greater)
+//! ```
+//!
+//! WHEN TO USE:
+//! - Strictly one-to-one relationships where updates are ordered by global timestamp.
+//! - Systems where timestamp monotonicity is guaranteed by upstream layers (WAL, MVCC).
+//!
+//! WHEN NOT TO USE:
+//! - Distributed systems with concurrent writes from multiple clients.
+//! - Scenarios requiring multiple historical versions (use MutableCsr instead).
+//! - Cases where updates may arrive out-of-order or with equal timestamps.
+//!
+//! RECOMMENDED WORKAROUNDS:
+//! 1. If concurrent writes are needed, use MutableCsr (accepts multiple edges).
+//! 2. If single-edge semantics with multi-value support is needed,
+//!    consider a new MultiSingleMutableCsr variant (under design).
+//! 3. Ensure timestamp ordering at the upper layer (WAL, transaction log).
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -160,7 +191,7 @@ impl SingleMutableCsr {
         true
     }
 
-    pub fn delete_edge(&mut self, src: u32, _edge_id: EdgeId, ts: Timestamp) -> bool {
+    pub fn delete_edge(&mut self, src: u32, edge_id: EdgeId, ts: Timestamp) -> bool {
         let src_idx = src as usize;
 
         if src_idx >= self.vertex_capacity {
@@ -170,6 +201,11 @@ impl SingleMutableCsr {
         let nbr = &mut self.nbr_list[src_idx];
 
         if nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
+            return false;
+        }
+
+        // SingleMutableCsr: each vertex has at most one edge, so verify edge_id matches
+        if edge_id.0 != u64::MAX && nbr.edge_id != edge_id {
             return false;
         }
 
@@ -216,11 +252,21 @@ impl SingleMutableCsr {
         }
     }
 
-    pub fn delete_edge_by_offset(&mut self, src: u32, _offset: i32, ts: Timestamp) -> bool {
-        if _offset != 0 {
+    pub fn delete_edge_by_offset(&mut self, src: u32, offset: i32, ts: Timestamp) -> bool {
+        if offset != 0 {
             return false;
         }
-        self.delete_edge(src, INVALID_EDGE_ID, ts)
+
+        let src_idx = src as usize;
+        if src_idx >= self.vertex_capacity {
+            return false;
+        }
+
+        let nbr = &self.nbr_list[src_idx];
+        let edge_id = nbr.edge_id;
+
+        // Call delete_edge with the actual edge_id for validation
+        self.delete_edge(src, edge_id, ts)
     }
 
     pub fn revert_delete_by_offset(&mut self, src: u32, _offset: i32, ts: Timestamp) -> bool {
