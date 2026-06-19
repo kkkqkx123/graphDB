@@ -673,6 +673,28 @@ impl EdgeTable {
         EdgeTableScanIterator::new(self, ts)
     }
 
+    /// Conditionally compact CSR before serialization if fragmentation exceeds threshold.
+    /// Call this before `flush()` to reduce serialization size.
+    ///
+    /// # Arguments
+    /// - `ts`: Timestamp for visibility filtering during compaction
+    /// - `threshold`: Fragmentation ratio limit (default recommendation: 2.0)
+    ///
+    /// # Example
+    /// ```ignore
+    /// table.maybe_compact_for_flush(current_ts, 2.0);
+    /// table.flush(&path, compression)?;
+    /// ```
+    pub fn maybe_compact_for_flush(&mut self, ts: Timestamp, threshold: f32) {
+        const RESERVE_RATIO: f32 = 0.25;
+        if self.out_csr.fragmentation_ratio() > threshold {
+            self.out_csr.compact_with_ts(ts, RESERVE_RATIO);
+        }
+        if self.in_csr.fragmentation_ratio() > threshold {
+            self.in_csr.compact_with_ts(ts, RESERVE_RATIO);
+        }
+    }
+
     pub fn flush<P: AsRef<Path>>(
         &self,
         path: P,

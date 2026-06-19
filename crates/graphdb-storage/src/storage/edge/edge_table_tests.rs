@@ -372,3 +372,66 @@ fn test_flush_load_preserves_segments_and_tombstones() {
 
     let _ = fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_maybe_compact_for_flush_reduces_fragmentation() {
+    use std::fs;
+
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    const NUM_EDGES: u32 = 50;
+    for i in 1..=NUM_EDGES {
+        let weight = i as f64 * 1.5;
+        table
+            .insert_edge(
+                1,
+                i,
+                0,
+                &[("weight".to_string(), Value::Double(weight))],
+                100 + i,
+            )
+            .expect("insert_edge should work");
+    }
+
+    let fragmentation_before = table.out_csr.fragmentation_ratio();
+    assert!(
+        fragmentation_before > 1.0,
+        "Setup failed: expected fragmentation"
+    );
+
+    let temp_dir = std::env::temp_dir().join("edge_table_test_auto_compact");
+    let _ = fs::remove_dir_all(&temp_dir);
+
+    let ts = 100 + NUM_EDGES + 100;
+
+    table.maybe_compact_for_flush(ts, 1.0);
+    let fragmentation_after = table.out_csr.fragmentation_ratio();
+    assert!(
+        fragmentation_after < fragmentation_before,
+        "Compaction should reduce fragmentation: before={}, after={}",
+        fragmentation_before,
+        fragmentation_after
+    );
+
+    table
+        .flush(
+            &temp_dir,
+            crate::storage::compression::CompressionType::Zstd { level: 3 },
+        )
+        .expect("flush should succeed after compaction");
+
+    let mut loaded_table = EdgeTable::new(create_test_schema()).unwrap();
+    loaded_table.load(&temp_dir).expect("load should succeed");
+
+    for i in 1..=NUM_EDGES {
+        assert!(
+            loaded_table.has_edge(1, i, 0, ts),
+            "Edge from {} to {} should exist after load",
+            1,
+            i
+        );
+    }
+
+    let _ = fs::remove_dir_all(&temp_dir);
+}

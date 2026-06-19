@@ -1364,7 +1364,8 @@ impl GraphStorageContext {
         fs::create_dir_all(&edge_dir)?;
 
         {
-            let edge_tables = self.persistent.data_store.edge_tables().read();
+            let ts = self.get_read_timestamp();
+            let mut edge_tables = self.persistent.data_store.edge_tables().write();
             for (
                 EdgeTableKey {
                     src_label,
@@ -1372,10 +1373,11 @@ impl GraphStorageContext {
                     edge_label,
                 },
                 table,
-            ) in &*edge_tables
+            ) in edge_tables.iter_mut()
             {
                 let table_dir =
                     edge_dir.join(format!("{}_{}_{}", src_label, dst_label, edge_label));
+                table.maybe_compact_for_flush(ts, 2.0);
                 table.flush(&table_dir, compression)?;
             }
         }

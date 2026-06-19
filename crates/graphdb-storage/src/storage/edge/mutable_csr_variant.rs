@@ -49,6 +49,35 @@ impl MutableCsrVariant {
             MutableCsrVariant::Single(csr) => csr.clear(),
         }
     }
+
+    /// Conditionally compact if fragmentation exceeds threshold
+    ///
+    /// Only applicable to `Multiple` variant; no-op for others.
+    /// See `MutableCsr::fragmentation_ratio()` for interpretation.
+    ///
+    /// # Arguments
+    /// - `threshold`: Fragmentation ratio limit (e.g., 2.5)
+    /// - `ts`: Timestamp for visibility filtering
+    /// - `reserve_ratio`: Reserve capacity ratio (e.g., 0.25)
+    pub fn maybe_compact(&mut self, threshold: f32, ts: Timestamp, reserve_ratio: f32) {
+        if let MutableCsrVariant::Multiple(csr) = self {
+            if csr.should_compact(threshold) {
+                csr.compact_with_ts(ts, reserve_ratio);
+            }
+        }
+    }
+
+    /// Get fragmentation ratio for diagnostics
+    ///
+    /// Returns:
+    /// - `Multiple(ratio)`: Fragmentation ratio of the CSR
+    /// - `Single/None`: 0.0 (no fragmentation)
+    pub fn fragmentation_ratio(&self) -> f32 {
+        match self {
+            MutableCsrVariant::Multiple(csr) => csr.fragmentation_ratio(),
+            _ => 0.0,
+        }
+    }
 }
 
 impl CsrBase for MutableCsrVariant {

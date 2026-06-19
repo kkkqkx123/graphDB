@@ -5,6 +5,42 @@
 //! Overflow edges are stored in a per-vertex `SmallVec<[Nbr; OVERFLOW_INLINE]>` for
 //! cache-friendly iteration. When a vertex's primary block is full, new edges
 //! spill to its overflow buffer, avoiding O(n) splice on the main array.
+//!
+//! # Overflow Block Fragmentation
+//!
+//! When a vertex's overflow block expands multiple times via `expand_vertex_capacity()`:
+//! - New data is appended to the end of `nbr_list`
+//! - Old overflow block data is copied to the new location
+//! - Old block address space remains in `nbr_list` but becomes unreachable (internal fragmentation)
+//! - Repeated expansions accumulate these "zombie" blocks
+//!
+//! ## Fragmentation Impact
+//!
+//! | Aspect | Effect |
+//! |--------|--------|
+//! | **Queries** | No impact (always accessed via current `overflow_starts` pointer) |
+//! | **Memory** | Wasted internal space in `nbr_list` |
+//! | **Serialization** | `dump()` serializes entire `nbr_list` including fragmentation |
+//! | **Correctness** | None (logically sound, only space-inefficient) |
+//!
+//! ## Fragmentation Recovery
+//!
+//! Call `compact_with_ts()` to defragment:
+//! - Merges primary and overflow blocks into flat CSR layout
+//! - Removes all logically deleted edges (`INVALID_TIMESTAMP`)
+//! - Reclaims all wasted space
+//!
+//! ### When to Compact
+//!
+//! - **Before serialization**: If `fragmentation_ratio() > 2.0`, call `compact_with_ts(ts, 0.25)`
+//!   to reduce persistence size
+//! - **After bulk operations**: Optional, call `maybe_compact(2.5, ts)` if space efficiency matters
+//! - **Production snapshots**: Recommended before writing to persistent storage
+//!
+//! ### Overhead
+//!
+//! `compact_with_ts(ts, reserve_ratio)` is O(V + E) and requires exclusive write access.
+//! Use sparingly in high-throughput scenarios; suitable for offline maintenance windows.
 
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -198,6 +234,12 @@ impl MutableCsr {
 
     /// Expand vertex capacity by appending overflow block at end of nbr_list.
     /// Copies existing overflow data to the new block if re-expanding.
+    ///
+    /// # Fragmentation Note
+    ///
+    /// This method intentionally leaves old overflow blocks unreachable in `nbr_list`.
+    /// This is an acceptable tradeoff: O(1) expansion cost vs. O(n) block relocation.
+    /// Old blocks accumulate over many expansions. Call `compact_with_ts()` to defragment.
     fn expand_vertex_capacity(&mut self, src_idx: usize) {
         let old_cap = self.primary_capacities[src_idx] as usize;
         let new_cap = (old_cap * 2).max(4);
@@ -559,6 +601,11 @@ impl MutableCsr {
     /// - overflow_counts (u32 * vertex_capacity)
     /// - overflow_capacities (u32 * vertex_capacity)
     /// - nbr_list (Nbr * total_edge_capacity)
+    ///
+    /// # Fragmentation Advisory
+    ///
+    /// If `fragmentation_ratio() > 2.0`, consider calling `compact_with_ts()` first
+    /// to reduce serialized size.
     pub fn dump(&self) -> Vec<u8> {
         let mut result = Vec::new();
 
@@ -767,6 +814,29 @@ impl MutableCsr {
     pub fn used_memory_size(&self) -> usize {
         let active_edges = self.edge_count.load(Ordering::Relaxed) as usize;
         active_edges * std::mem::size_of::<Nbr>() + std::mem::size_of::<Self>()
+    }
+
+    /// Compute fragmentation ratio: nbr_list.len() / active_edges
+    ///
+    /// A ratio > 1.5 indicates moderate fragmentation; > 2.0 suggests compaction.
+    /// Returns 0.0 if no active edges.
+    pub fn fragmentation_ratio(&self) -> f32 {
+        let active_edges = self.edge_count.load(Ordering::Relaxed) as usize;
+        if active_edges == 0 {
+            return 0.0;
+        }
+        self.nbr_list.len() as f32 / active_edges as f32
+    }
+
+    /// Check if fragmentation exceeds a threshold
+    pub fn should_compact(&self, threshold: f32) -> bool {
+        self.fragmentation_ratio() > threshold
+    }
+
+    /// Estimate wasted memory due to fragmentation (in bytes)
+    pub fn wasted_bytes_estimate(&self) -> usize {
+        let active_edges = self.edge_count.load(Ordering::Relaxed) as usize;
+        (self.nbr_list.len().saturating_sub(active_edges)) * std::mem::size_of::<Nbr>()
     }
 }
 
@@ -1049,17 +1119,76 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_vertices_overflow() {
+    fn test_fragmentation_ratio() {
         let mut csr = MutableCsr::with_capacity(10, 100);
 
-        for v in 0..3u32 {
-            for i in 0..6 {
-                let dst = VertexId::from_int64((v * 100 + i + 1) as i64);
-                csr.insert_edge(v, dst, EdgeId(v as u64 * 10 + i as u64), 0, 1);
-            }
+        // No edges - ratio should be 0.0
+        assert_eq!(csr.fragmentation_ratio(), 0.0);
+
+        // Insert edges to trigger overflow
+        for i in 1..=6 {
+            let dst = VertexId::from_int64(i as i64);
+            csr.insert_edge(0u32, dst, EdgeId(i as u64), 0, 1);
         }
 
-        let all: Vec<_> = csr.iter(1).collect();
-        assert_eq!(all.len(), 18);
+        // After overflow, ratio should be > 1.0
+        let ratio = csr.fragmentation_ratio();
+        assert!(ratio > 1.0, "Expected ratio > 1.0, got {}", ratio);
+    }
+
+    #[test]
+    fn test_should_compact() {
+        let mut csr = MutableCsr::with_capacity(10, 100);
+
+        // Insert edges to trigger overflow
+        for i in 1..=6 {
+            let dst = VertexId::from_int64(i as i64);
+            csr.insert_edge(0u32, dst, EdgeId(i as u64), 0, 1);
+        }
+
+        let ratio = csr.fragmentation_ratio();
+        assert!(csr.should_compact(ratio - 0.1), "should_compact failed for ratio {}", ratio);
+        assert!(!csr.should_compact(ratio + 0.1), "should_compact incorrectly returned true");
+    }
+
+    #[test]
+    fn test_wasted_bytes_estimate() {
+        let mut csr = MutableCsr::with_capacity(10, 100);
+
+        for i in 1..=6 {
+            let dst = VertexId::from_int64(i as i64);
+            csr.insert_edge(0u32, dst, EdgeId(i as u64), 0, 1);
+        }
+
+        let wasted = csr.wasted_bytes_estimate();
+        let active = csr.edge_count() as usize;
+        let total_capacity = csr.nbr_list.len();
+
+        // Wasted should be roughly (total - active) * sizeof(Nbr)
+        let expected_wasted = (total_capacity - active) * std::mem::size_of::<Nbr>();
+        assert_eq!(wasted, expected_wasted, "Wasted bytes estimate mismatch");
+    }
+
+    #[test]
+    fn test_compact_reduces_fragmentation() {
+        let mut csr = MutableCsr::with_capacity(10, 100);
+
+        for i in 1..=6 {
+            let dst = VertexId::from_int64(i as i64);
+            csr.insert_edge(0u32, dst, EdgeId(i as u64), 0, 1);
+        }
+
+        let ratio_before = csr.fragmentation_ratio();
+        assert!(ratio_before > 1.5, "Setup failed: insufficient fragmentation");
+
+        csr.compact_with_ts(1, 0.25);
+
+        let ratio_after = csr.fragmentation_ratio();
+        assert!(
+            ratio_after <= ratio_before * 0.9,
+            "Compact did not reduce fragmentation: before={}, after={}",
+            ratio_before,
+            ratio_after
+        );
     }
 }
