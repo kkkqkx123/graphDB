@@ -47,7 +47,7 @@ pub use csr::Csr;
 pub use csr_trait::{CsrBase, MutableCsrTrait};
 pub use csr_variant::CsrVariant;
 pub use edge_id_index::{EdgeIdIndex, EdgeLocation};
-pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
+pub use edge_table::{EdgeTable, ExportedEdgeSnapshot, UpdateEdgePropertyByOffsetParams};
 pub use fragmentation_stats::FragmentationStats;
 pub use immutable_csr::ImmutableCsr;
 pub use labeled_mutable_csr::{LabeledMutableCsr, LabeledMutableCsrIterator};

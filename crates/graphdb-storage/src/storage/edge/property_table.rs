@@ -94,7 +94,7 @@ impl RowGroup {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PropertyTable {
     schema: Vec<PropertySchema>,
     name_indexer: NameIndexer,

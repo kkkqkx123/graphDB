@@ -134,6 +134,104 @@ impl ImmutableCsr {
         }
     }
 
+    /// Create immutable snapshot from MutableCsr
+    pub fn from_mutable_snapshot(mutable: &MutableCsr, ts: Timestamp) -> StorageResult<Self> {
+        Ok(Self::from_snapshot(mutable, ts))
+    }
+
+    /// Create immutable snapshot from SingleMutableCsr
+    pub fn from_single_snapshot(
+        single: &super::SingleMutableCsr,
+        ts: Timestamp,
+    ) -> StorageResult<Self> {
+        let vertex_capacity = single.vertex_capacity();
+        let mut vertex_edges: Vec<Vec<Nbr>> = vec![Vec::new(); vertex_capacity];
+
+        for src_idx in 0..vertex_capacity {
+            let edges = single.edges_of(src_idx as u32, ts);
+            vertex_edges[src_idx] = edges;
+        }
+
+        let mut nbr_list = Vec::new();
+        let mut adj_offsets = Vec::with_capacity(vertex_capacity);
+        let mut degrees = Vec::with_capacity(vertex_capacity);
+
+        for edges in &vertex_edges {
+            adj_offsets.push(nbr_list.len() as u32);
+            degrees.push(edges.len() as u32);
+            nbr_list.extend_from_slice(edges);
+        }
+
+        Ok(Self {
+            nbr_list: nbr_list.into_boxed_slice(),
+            adj_offsets: adj_offsets.into_boxed_slice(),
+            degrees: degrees.into_boxed_slice(),
+            vertex_capacity,
+        })
+    }
+
+    /// Create immutable snapshot from MultiSingleMutableCsr
+    pub fn from_multi_single_snapshot(
+        multi_single: &super::MultiSingleMutableCsr,
+        ts: Timestamp,
+    ) -> StorageResult<Self> {
+        let vertex_capacity = multi_single.vertex_capacity();
+        let mut vertex_edges: Vec<Vec<Nbr>> = vec![Vec::new(); vertex_capacity];
+
+        for src_idx in 0..vertex_capacity {
+            let edges = multi_single.edges_of(src_idx as u32, ts);
+            vertex_edges[src_idx] = edges;
+        }
+
+        let mut nbr_list = Vec::new();
+        let mut adj_offsets = Vec::with_capacity(vertex_capacity);
+        let mut degrees = Vec::with_capacity(vertex_capacity);
+
+        for edges in &vertex_edges {
+            adj_offsets.push(nbr_list.len() as u32);
+            degrees.push(edges.len() as u32);
+            nbr_list.extend_from_slice(edges);
+        }
+
+        Ok(Self {
+            nbr_list: nbr_list.into_boxed_slice(),
+            adj_offsets: adj_offsets.into_boxed_slice(),
+            degrees: degrees.into_boxed_slice(),
+            vertex_capacity,
+        })
+    }
+
+    /// Create immutable snapshot from LabeledMutableCsr
+    pub fn from_labeled_snapshot(
+        labeled: &super::LabeledMutableCsr,
+        ts: Timestamp,
+    ) -> StorageResult<Self> {
+        let vertex_capacity = labeled.vertex_capacity();
+        let mut vertex_edges: Vec<Vec<Nbr>> = vec![Vec::new(); vertex_capacity];
+
+        for src_idx in 0..vertex_capacity {
+            let edges = labeled.edges_of(src_idx as u32, ts);
+            vertex_edges[src_idx] = edges;
+        }
+
+        let mut nbr_list = Vec::new();
+        let mut adj_offsets = Vec::with_capacity(vertex_capacity);
+        let mut degrees = Vec::with_capacity(vertex_capacity);
+
+        for edges in &vertex_edges {
+            adj_offsets.push(nbr_list.len() as u32);
+            degrees.push(edges.len() as u32);
+            nbr_list.extend_from_slice(edges);
+        }
+
+        Ok(Self {
+            nbr_list: nbr_list.into_boxed_slice(),
+            adj_offsets: adj_offsets.into_boxed_slice(),
+            degrees: degrees.into_boxed_slice(),
+            vertex_capacity,
+        })
+    }
+
     /// Create a builder for batch construction
     pub fn builder(vertex_capacity: usize) -> ImmutableCsrBuilder {
         ImmutableCsrBuilder::new(vertex_capacity)

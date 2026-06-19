@@ -150,8 +150,8 @@ impl VertexTable {
             .collect();
 
         let vid = match external_id {
-            IdKey::Int(i) => VertexId::from_int64(*i),
-            IdKey::Text(s) => VertexId::from_string(s),
+            IdKey::Int(i) => VertexId::from_int64(i),
+            IdKey::Text(s) => VertexId::from_string(&s),
         };
 
         Some(VertexRecord {
@@ -322,7 +322,7 @@ impl VertexTable {
         if !self.is_open || !self.timestamps.is_valid(internal_id, ts) {
             return None;
         }
-        self.id_indexer.get_key(internal_id).cloned()
+        self.id_indexer.get_key(internal_id)
     }
 
     /// Lookup external ID from internal ID without timestamp check.
@@ -331,7 +331,7 @@ impl VertexTable {
         if !self.is_open {
             return None;
         }
-        self.id_indexer.get_key(internal_id).cloned()
+        self.id_indexer.get_key(internal_id)
     }
 
     pub fn total_count(&self) -> usize {
@@ -882,7 +882,7 @@ impl VertexTable {
         let mut removed_keys = Vec::with_capacity(deleted_ids.len());
 
         for id in &deleted_ids {
-            if let Some(key) = self.id_indexer.get_key(*id).cloned() {
+            if let Some(key) = self.id_indexer.get_key(*id) {
                 self.id_indexer.remove(&key);
                 removed_keys.push(key);
             }

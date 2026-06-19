@@ -435,3 +435,119 @@ fn test_maybe_compact_for_flush_reduces_fragmentation() {
 
     let _ = fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_export_snapshot_basic() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let ts1: Timestamp = 100;
+    let ts2: Timestamp = 200;
+
+    table
+        .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], ts1)
+        .unwrap();
+    table
+        .insert_edge(0, 2, 0, &[("weight".to_string(), Value::Double(2.5))], ts1)
+        .unwrap();
+
+    let snapshot = table.export_snapshot(ts1).unwrap();
+    assert_eq!(snapshot.snapshot_ts, ts1);
+    assert_eq!(snapshot.label, 0);
+
+    let out_edges = snapshot.out_csr.edges_of_ref(0);
+    assert_eq!(out_edges.len(), 2);
+
+    table
+        .insert_edge(0, 3, 0, &[("weight".to_string(), Value::Double(3.5))], ts2)
+        .unwrap();
+
+    let snapshot_ts1 = table.export_snapshot(ts1).unwrap();
+    assert_eq!(snapshot_ts1.out_csr.edges_of_ref(0).len(), 2);
+
+    let snapshot_ts2 = table.export_snapshot(ts2).unwrap();
+    assert_eq!(snapshot_ts2.out_csr.edges_of_ref(0).len(), 3);
+}
+
+#[test]
+fn test_export_snapshot_time_travel() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let ts1: Timestamp = 50;
+    let ts2: Timestamp = 100;
+    let ts3: Timestamp = 150;
+
+    table
+        .insert_edge(1, 2, 0, &[("weight".to_string(), Value::Double(1.0))], ts1)
+        .unwrap();
+    table
+        .insert_edge(1, 3, 0, &[("weight".to_string(), Value::Double(2.0))], ts2)
+        .unwrap();
+    table
+        .insert_edge(1, 4, 0, &[("weight".to_string(), Value::Double(3.0))], ts3)
+        .unwrap();
+
+    let snap_before_ts1 = table.export_snapshot(ts1 - 1).unwrap();
+    assert_eq!(snap_before_ts1.out_csr.edges_of_ref(1).len(), 0);
+
+    let snap_at_ts1 = table.export_snapshot(ts1).unwrap();
+    assert_eq!(snap_at_ts1.out_csr.edges_of_ref(1).len(), 1);
+
+    let snap_at_ts2 = table.export_snapshot(ts2).unwrap();
+    assert_eq!(snap_at_ts2.out_csr.edges_of_ref(1).len(), 2);
+
+    let snap_at_ts3 = table.export_snapshot(ts3).unwrap();
+    assert_eq!(snap_at_ts3.out_csr.edges_of_ref(1).len(), 3);
+}
+
+#[test]
+fn test_export_snapshot_frozen_consistency() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let ts1: Timestamp = 100;
+    let ts2: Timestamp = 200;
+
+    table
+        .insert_edge(5, 10, 0, &[("weight".to_string(), Value::Double(1.0))], ts1)
+        .unwrap();
+    table
+        .insert_edge(5, 11, 0, &[("weight".to_string(), Value::Double(2.0))], ts1)
+        .unwrap();
+
+    table.freeze_csr_only(ts1);
+
+    table
+        .insert_edge(5, 12, 0, &[("weight".to_string(), Value::Double(3.0))], ts2)
+        .unwrap();
+
+    let snapshot = table.export_snapshot(ts1).unwrap();
+    assert_eq!(snapshot.out_csr.edges_of_ref(5).len(), 2);
+
+    let snapshot_ts2 = table.export_snapshot(ts2).unwrap();
+    assert_eq!(snapshot_ts2.out_csr.edges_of_ref(5).len(), 3);
+}
+
+#[test]
+fn test_snapshot_simple_debug() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let ts1: Timestamp = 100;
+
+    table
+        .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.0))], ts1)
+        .unwrap();
+
+    let out_edges_before = table.out_edges(0, ts1);
+    assert_eq!(out_edges_before.len(), 1);
+
+    let snapshot = table.export_snapshot(ts1).unwrap();
+    
+    assert_eq!(snapshot.out_csr.edge_count(), 1);
+    assert_eq!(snapshot.out_csr.edges_of_ref(0).len(), 1);
+    
+    let edges = snapshot.get_out_edges(0);
+    assert_eq!(edges.len(), 1);
+}

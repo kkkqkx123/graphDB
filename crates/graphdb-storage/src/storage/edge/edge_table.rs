@@ -5,7 +5,7 @@
 
 use super::{
     Csr, CsrBase, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsrTrait,
-    CsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
+    CsrVariant, ImmutableCsr, Nbr, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::types::EdgeId;
 use crate::core::{DataType, StorageError, StorageResult, Value};
@@ -54,6 +54,61 @@ impl CsrSegment {
             min_ts,
             max_ts,
         }
+    }
+}
+
+/// Exported read-only snapshot of an edge table at a specific timestamp.
+///
+/// Suitable for:
+/// - Backup and restore operations
+/// - Time-travel queries (historical data)
+/// - Cross-node replication
+/// - Snapshot isolation in transactions
+#[derive(Debug, Clone)]
+pub struct ExportedEdgeSnapshot {
+    /// Timestamp of this snapshot
+    pub snapshot_ts: Timestamp,
+    /// Edge label identifier
+    pub label: LabelId,
+    /// Read-only outgoing edges
+    pub out_csr: ImmutableCsr,
+    /// Read-only incoming edges
+    pub in_csr: ImmutableCsr,
+    /// Edge properties (cloned for independence)
+    pub properties: PropertyTable,
+    /// Edge schema metadata
+    pub schema: EdgeSchema,
+}
+
+impl ExportedEdgeSnapshot {
+    /// Get outgoing edges from a source vertex (snapshot isolation)
+    ///
+    /// Returns edges as they existed at snapshot_ts.
+    /// No timestamp filtering needed - snapshot is already filtered.
+    pub fn get_out_edges(&self, src: u32) -> Vec<Nbr> {
+        self.out_csr.edges_of(src)
+    }
+
+    /// Get incoming edges to a destination vertex (snapshot isolation)
+    ///
+    /// Returns edges as they existed at snapshot_ts.
+    pub fn get_in_edges(&self, dst: u32) -> Vec<Nbr> {
+        self.in_csr.edges_of(dst)
+    }
+
+    /// Get a specific edge in the snapshot (if it exists)
+    pub fn get_edge(&self, src: u32, dst: VertexId) -> Option<Nbr> {
+        self.out_csr.get_edge(src, dst, 0)  // timestamp=0 since already filtered
+    }
+
+    /// Check if an edge exists in this snapshot
+    pub fn has_edge(&self, src: u32, dst: VertexId) -> bool {
+        self.get_edge(src, dst).is_some()
+    }
+
+    /// Get edge count for a vertex
+    pub fn degree(&self, src: u32) -> usize {
+        self.out_csr.edges_of(src).len()
     }
 }
 
@@ -1054,6 +1109,120 @@ impl EdgeTable {
 
         self.compact_properties(ts);
         removed
+    }
+
+    /// Export a read-only snapshot of this edge table at the given timestamp.
+    ///
+    /// Creates an immutable copy of all edges visible at `ts`, combining:
+    /// - Mutable delta (out_csr, in_csr) - most recent edges
+    /// - Historical segments (out_segments, in_segments) - older edges
+    ///
+    /// # Algorithm
+    /// 1. Collect edges from segments in reverse order (oldest to newest)
+    /// 2. Merge with mutable CSR edges (delta overwrites segment versions)
+    /// 3. Build immutable CSR for both out and in edges
+    /// 4. Return snapshot with properties and schema
+    ///
+    /// # Performance
+    /// - Time: O(V + E) - linear scan of vertices and edges
+    /// - Space: O(E) - temporary buffer for edge collection
+    ///
+    /// # Arguments
+    /// - `ts`: Timestamp to snapshot (only edges with create_ts <= ts are included)
+    ///
+    /// # Returns
+    /// A frozen snapshot suitable for backup, analysis, or time-travel queries
+    pub fn export_snapshot(&self, ts: Timestamp) -> StorageResult<ExportedEdgeSnapshot> {
+        // Collect edges for both directions
+        let out_edges = self.collect_edges_for_snapshot(&self.out_csr, &self.out_segments, ts)?;
+        let in_edges = self.collect_edges_for_snapshot(&self.in_csr, &self.in_segments, ts)?;
+
+        // Build immutable CSRs from collected edges
+        let out_csr = Self::build_immutable_csr_from_edges(out_edges, self.out_csr.vertex_capacity())?;
+        let in_csr = Self::build_immutable_csr_from_edges(in_edges, self.in_csr.vertex_capacity())?;
+
+        Ok(ExportedEdgeSnapshot {
+            snapshot_ts: ts,
+            label: self.label,
+            out_csr,
+            in_csr,
+            properties: self.properties.clone(),
+            schema: self.schema.clone(),
+        })
+    }
+
+    /// Collect edges visible at timestamp from delta and segments.
+    ///
+    /// Merges edges from:
+    /// 1. Historical segments (in reverse order for proper time ordering)
+    /// 2. Mutable delta CSR (overrides segment versions)
+    ///
+    /// Uses HashMap deduplication to handle edges updated in both segments and delta.
+    fn collect_edges_for_snapshot(
+        &self,
+        delta: &CsrVariant,
+        segments: &[CsrSegment],
+        ts: Timestamp,
+    ) -> StorageResult<Vec<(u32, Nbr)>> {
+        use std::collections::HashMap;
+
+        // Dedup map: (src_vid, edge_id) -> (src_vid, nbr)
+        // This ensures latest version of each edge is used
+        let mut edge_map: HashMap<(u32, EdgeId), (u32, Nbr)> = HashMap::new();
+
+        // Step 1: Collect from segments in reverse order (older first, newer last)
+        for segment in segments.iter().rev() {
+            if segment.min_ts > ts {
+                continue;  // This segment is in the future, skip
+            }
+
+            for (src, immutable_nbr) in segment.csr.iter() {
+                if immutable_nbr.timestamp > ts {
+                    continue;  // Edge created after ts, skip
+                }
+
+                let src_u32 = src.as_int64().unwrap_or(0) as u32;
+                let nbr = Nbr::new(
+                    immutable_nbr.neighbor,
+                    immutable_nbr.edge_id,
+                    immutable_nbr.prop_offset,
+                    immutable_nbr.timestamp,
+                );
+                edge_map.insert((src_u32, immutable_nbr.edge_id), (src_u32, nbr));
+            }
+        }
+
+        // Step 2: Collect from mutable CSR delta (overrides segment versions)
+        for (src, nbr) in delta.iter(ts) {
+            let src_u32 = src.as_int64().unwrap_or(0) as u32;
+            edge_map.insert((src_u32, nbr.edge_id), (src_u32, nbr));
+        }
+
+        // Step 3: Convert to sorted vector
+        let mut edges: Vec<_> = edge_map.into_values().collect();
+        edges.sort_by_key(|(src, _)| *src);
+
+        Ok(edges)
+    }
+
+    /// Build an immutable CSR from a list of edges.
+    ///
+    /// Edges must be sorted by source vertex for correct offset computation.
+    fn build_immutable_csr_from_edges(
+        edges: Vec<(u32, Nbr)>,
+        vertex_capacity: usize,
+    ) -> StorageResult<ImmutableCsr> {
+        if edges.is_empty() {
+            return Ok(ImmutableCsr::builder(vertex_capacity).build());
+        }
+
+        let mut builder = ImmutableCsr::builder(vertex_capacity);
+
+        for (src, nbr) in edges {
+            builder.batch_put_edge(src, nbr.neighbor, nbr.edge_id, nbr.prop_offset);
+        }
+
+        Ok(builder.build())
     }
 
     fn freeze_delta(
