@@ -2,7 +2,7 @@ use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo, PropertyDef,
-    SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
+    SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId, CompactConfig,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryStats};
@@ -230,7 +230,7 @@ pub trait StoragePersistenceOps: Send + Sync + std::fmt::Debug {
 
     fn snapshot_stats(&self) -> crate::storage::SnapshotStats;
 
-    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> StorageResult<()>;
+    fn compact(&self, config: &CompactConfig) -> StorageResult<()>;
 
     fn save_data(&self) -> StorageResult<()> {
         self.flush()

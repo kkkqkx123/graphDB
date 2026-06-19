@@ -213,7 +213,7 @@ impl StoragePersistenceOps for MockStorage {
         Default::default()
     }
 
-    fn compact(&self, _compact_csr: bool, _reserve_ratio: f32) -> crate::core::StorageResult<()> {
+    fn compact(&self, _config: &crate::core::types::CompactConfig) -> crate::core::StorageResult<()> {
         Ok(())
     }
 

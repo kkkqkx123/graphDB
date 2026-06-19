@@ -271,8 +271,8 @@ impl<S: StorageClient> StoragePersistenceOps for MetricsStorage<S> {
         self.inner.snapshot_stats()
     }
 
-    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> crate::core::StorageResult<()> {
-        self.inner.compact(compact_csr, reserve_ratio)
+    fn compact(&self, config: &crate::core::types::CompactConfig) -> crate::core::StorageResult<()> {
+        self.inner.compact(config)
     }
 
     fn auto_flush_if_needed(&self) -> crate::core::StorageResult<bool> {

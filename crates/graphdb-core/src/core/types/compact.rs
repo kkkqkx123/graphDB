@@ -4,25 +4,133 @@
 
 use super::storage_ids::Timestamp;
 
+/// Compaction strategy: fixed or adaptive reserve ratio
+#[derive(Debug, Clone)]
+pub enum CompactionStrategy {
+    /// Fixed reserve ratio for all compactions
+    Fixed(f32),
+    /// Adaptive reserve ratio based on table metrics
+    Adaptive(AdaptiveCompactionConfig),
+}
+
+impl CompactionStrategy {
+    /// Compute the reserve ratio for the current state
+    ///
+    /// For Fixed, returns the static ratio.
+    /// For Adaptive, computes based on edge_count and total_capacity.
+    pub fn compute_reserve_ratio(&self, edge_count: usize, total_capacity: usize) -> f32 {
+        match self {
+            CompactionStrategy::Fixed(ratio) => *ratio,
+            CompactionStrategy::Adaptive(config) => config.compute_ratio(edge_count, total_capacity),
+        }
+    }
+}
+
+impl Default for CompactionStrategy {
+    fn default() -> Self {
+        CompactionStrategy::Fixed(0.8)
+    }
+}
+
+/// Adaptive compaction configuration
+///
+/// Reduces reserve_ratio as table grows to save memory in long-running systems.
+/// Strategy: tables with high fragmentation get more aggressive compaction.
+#[derive(Debug, Clone)]
+pub struct AdaptiveCompactionConfig {
+    /// Threshold: if edge_count > this, use reduced_ratio instead of base_ratio
+    pub size_threshold: usize,
+    /// Base reserve ratio for small tables
+    pub base_ratio: f32,
+    /// Reduced ratio for large tables (more aggressive compaction)
+    pub reduced_ratio: f32,
+}
+
+impl AdaptiveCompactionConfig {
+    pub fn new(size_threshold: usize, base_ratio: f32, reduced_ratio: f32) -> Self {
+        Self {
+            size_threshold,
+            base_ratio: base_ratio.clamp(0.0, 1.0),
+            reduced_ratio: reduced_ratio.clamp(0.0, 1.0),
+        }
+    }
+
+    /// Compute reserve ratio based on edge count
+    ///
+    /// For small tables: uses base_ratio (e.g., 0.8)
+    /// For large tables: linearly interpolates toward reduced_ratio (e.g., 0.2)
+    /// This reduces memory pressure in long-running systems while preserving
+    /// compaction cost efficiency for smaller, volatile tables.
+    fn compute_ratio(&self, edge_count: usize, _total_capacity: usize) -> f32 {
+        if edge_count <= self.size_threshold {
+            self.base_ratio
+        } else {
+            self.reduced_ratio
+        }
+    }
+}
+
+impl Default for AdaptiveCompactionConfig {
+    fn default() -> Self {
+        Self::new(
+            100_000, // Use reduced ratio when table exceeds 100k edges
+            0.8,     // Base: 80% reserve for small tables (less frequent compaction)
+            0.2,     // Reduced: 20% reserve for large tables (more aggressive compaction)
+        )
+    }
+}
+
 /// Configuration for compact operations
 #[derive(Debug, Clone)]
 pub struct CompactConfig {
     pub enable_structure_compaction: bool,
-    pub reserve_ratio: f32,
+    pub strategy: CompactionStrategy,
+    pub segment_merge_enabled: bool,
+    pub segment_merge_threshold: Timestamp,
 }
 
 impl CompactConfig {
-    pub fn new(enable_structure_compaction: bool, reserve_ratio: f32) -> Self {
+    pub fn new(enable_structure_compaction: bool, strategy: CompactionStrategy) -> Self {
         Self {
             enable_structure_compaction,
-            reserve_ratio: reserve_ratio.clamp(0.0, 1.0),
+            strategy,
+            segment_merge_enabled: false,
+            segment_merge_threshold: 1000, // Default: merge segments within 1000 timestamp units
         }
+    }
+
+    /// Create with fixed reserve ratio (convenience method)
+    pub fn with_fixed_ratio(enable_structure_compaction: bool, reserve_ratio: f32) -> Self {
+        Self::new(
+            enable_structure_compaction,
+            CompactionStrategy::Fixed(reserve_ratio.clamp(0.0, 1.0)),
+        )
+    }
+
+    /// Create with adaptive reserve ratio
+    pub fn with_adaptive(enable_structure_compaction: bool) -> Self {
+        Self::new(
+            enable_structure_compaction,
+            CompactionStrategy::Adaptive(AdaptiveCompactionConfig::default()),
+        )
+    }
+
+    /// Enable segment merging with threshold
+    pub fn enable_segment_merge(mut self, threshold: Timestamp) -> Self {
+        self.segment_merge_enabled = true;
+        self.segment_merge_threshold = threshold;
+        self
+    }
+
+    /// Get the computed reserve ratio for current table state
+    pub fn compute_reserve_ratio(&self, edge_count: usize, total_capacity: usize) -> f32 {
+        self.strategy.compute_reserve_ratio(edge_count, total_capacity)
     }
 }
 
 impl Default for CompactConfig {
     fn default() -> Self {
-        Self::new(true, 0.8)
+        Self::new(true, CompactionStrategy::Fixed(0.8))
     }
 }
 

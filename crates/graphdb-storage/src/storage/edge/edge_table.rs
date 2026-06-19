@@ -9,6 +9,7 @@ use super::{
 };
 use crate::core::types::EdgeId;
 use crate::core::{DataType, StorageError, StorageResult, Value};
+use crate::core::types::CompactConfig;
 use crate::storage::persistence::{read_header, section, write_header_to, HEADER_SIZE};
 use crate::storage::types::{PropertyId, StoragePropertyDef};
 use std::collections::{HashMap, HashSet};
@@ -1009,7 +1010,7 @@ impl EdgeTable {
     ///
     /// Removes overflow block fragmentation and edges with timestamps > ts.
     /// Does NOT freeze delta to immutable segments.
-    /// See `freeze_csr_only()` and `compact_and_freeze()` for related operations.
+    /// See `freeze_csr_only()` and `compact_and_freeze_with_config()` for related operations.
     pub fn compact_csr_only(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
         self.out_csr.compact_with_ts(ts, reserve_ratio)
             + self.in_csr.compact_with_ts(ts, reserve_ratio)
@@ -1021,31 +1022,38 @@ impl EdgeTable {
     /// timestamp range [min_ts, max_ts] for time-travel queries.
     /// Clears mutable delta after freezing.
     /// Does NOT perform physical compaction.
-    /// See `compact_csr_only()` and `compact_and_freeze()` for related operations.
+    /// See `compact_csr_only()` and `compact_and_freeze_with_config()` for related operations.
     pub fn freeze_csr_only(&mut self, ts: Timestamp) -> usize {
         let out_frozen = Self::freeze_delta(&mut self.out_csr, &mut self.out_segments, ts);
         let in_frozen = Self::freeze_delta(&mut self.in_csr, &mut self.in_segments, ts);
         out_frozen + in_frozen
     }
 
-    /// Compact and freeze in sequence (typical maintenance operation).
+    /// Compact and freeze in sequence with adaptive configuration.
     ///
     /// Combines physical compaction (space reclamation) with logical versioning:
-    /// 1. Compact: eliminate overflow fragmentation and remove old edges
-    /// 2. Freeze: convert to immutable segment with timestamp range
-    /// 3. Cleanup: remove orphaned properties
+    /// 1. Compute reserve_ratio dynamically based on table metrics and strategy
+    /// 2. Compact: eliminate overflow fragmentation and remove old edges
+    /// 3. Freeze: convert to immutable segment with timestamp range
+    /// 4. Merge: optionally combine nearby segments to reduce lookup overhead
+    /// 5. Cleanup: remove orphaned properties
     ///
-    /// This is the preferred method for checkpoint maintenance.
-    /// For fine-grained control, use `compact_csr_only()` and `freeze_csr_only()` separately.
-    pub fn compact_and_freeze(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+    /// Supports both fixed and adaptive reserve_ratio strategies.
+    /// Optionally enables segment merging if configured.
+    /// This is the preferred method for production checkpoint maintenance.
+    pub fn compact_and_freeze_with_config(&mut self, ts: Timestamp, config: &CompactConfig) -> usize {
+        let edge_count = self.edge_count() as usize;
+        let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
+
         let removed = self.compact_csr_only(ts, reserve_ratio);
         self.freeze_csr_only(ts);
+
+        if config.segment_merge_enabled {
+            self.merge_segments(config.segment_merge_threshold);
+        }
+
         self.compact_properties(ts);
         removed
-    }
-
-    pub fn freeze_csr(&mut self, ts: Timestamp) -> usize {
-        self.freeze_csr_only(ts)
     }
 
     fn freeze_delta(
@@ -1088,6 +1096,103 @@ impl EdgeTable {
         segments.push(CsrSegment::new(csr, min_ts, max_ts));
         delta.clear();
         frozen
+    }
+
+    /// Merge CSR segments to reduce timestamp range lookup overhead.
+    ///
+    /// Segments with timestamp ranges within `threshold` are merged into a single segment.
+    /// This reduces:
+    /// - Timestamp range checks per query (fewer segments to scan)
+    /// - Segment metadata overhead (fewer CsrSegment objects)
+    ///
+    /// Returns the number of segments removed (before - after).
+    pub fn merge_segments(&mut self, threshold: Timestamp) -> usize {
+        let before = self.out_segments.len() + self.in_segments.len();
+        Self::merge_segments_in_place(&mut self.out_segments, threshold);
+        Self::merge_segments_in_place(&mut self.in_segments, threshold);
+        let after = self.out_segments.len() + self.in_segments.len();
+        before.saturating_sub(after)
+    }
+
+    fn merge_segments_in_place(segments: &mut Vec<CsrSegment>, threshold: Timestamp) {
+        if segments.len() <= 1 {
+            return;
+        }
+
+        let mut merged = Vec::new();
+        let mut current_entries = Vec::new();
+        let mut current_min_ts = segments[0].min_ts;
+        let mut current_max_ts = segments[0].max_ts;
+
+        for segment in segments.drain(..) {
+            // Check if this segment should merge with current accumulation
+            let gap = if segment.min_ts > current_max_ts {
+                segment.min_ts - current_max_ts
+            } else if current_max_ts > segment.min_ts {
+                0
+            } else {
+                segment.min_ts - current_max_ts
+            };
+
+            if gap <= threshold && !current_entries.is_empty() {
+                // Merge: accumulate this segment's edges
+                for (src, immutable_nbr) in segment.csr.iter() {
+                    let src_u32 = src.as_int64().unwrap_or(0) as u32;
+                    let nbr = Nbr::new(
+                        immutable_nbr.neighbor,
+                        immutable_nbr.edge_id,
+                        immutable_nbr.prop_offset,
+                        immutable_nbr.timestamp,
+                    );
+                    current_entries.push((src_u32, nbr));
+                }
+                current_min_ts = current_min_ts.min(segment.min_ts);
+                current_max_ts = current_max_ts.max(segment.max_ts);
+            } else {
+                // No merge: flush current accumulation and start new one
+                if !current_entries.is_empty() {
+                    let vertex_capacity = current_entries
+                        .iter()
+                        .map(|(src, _)| *src as usize + 1)
+                        .max()
+                        .unwrap_or(1024)
+                        .max(1024);
+
+                    let merged_csr = Csr::from_nbr_entries(&current_entries, vertex_capacity);
+                    merged.push(CsrSegment::new(merged_csr, current_min_ts, current_max_ts));
+                    current_entries.clear();
+                }
+
+                // Start new accumulation with current segment
+                for (src, immutable_nbr) in segment.csr.iter() {
+                    let src_u32 = src.as_int64().unwrap_or(0) as u32;
+                    let nbr = Nbr::new(
+                        immutable_nbr.neighbor,
+                        immutable_nbr.edge_id,
+                        immutable_nbr.prop_offset,
+                        immutable_nbr.timestamp,
+                    );
+                    current_entries.push((src_u32, nbr));
+                }
+                current_min_ts = segment.min_ts;
+                current_max_ts = segment.max_ts;
+            }
+        }
+
+        // Flush remaining accumulation
+        if !current_entries.is_empty() {
+            let vertex_capacity = current_entries
+                .iter()
+                .map(|(src, _)| *src as usize + 1)
+                .max()
+                .unwrap_or(1024)
+                .max(1024);
+
+            let merged_csr = Csr::from_nbr_entries(&current_entries, vertex_capacity);
+            merged.push(CsrSegment::new(merged_csr, current_min_ts, current_max_ts));
+        }
+
+        *segments = merged;
     }
 
     pub fn compact_properties(&mut self, ts: Timestamp) {

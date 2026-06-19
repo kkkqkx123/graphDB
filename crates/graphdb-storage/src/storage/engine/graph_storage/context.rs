@@ -1516,7 +1516,7 @@ impl GraphStorageContext {
             if config.enable_structure_compaction {
                 for &key in &edge_keys {
                     let table = edge_tables.get_mut(&key).expect("edge key must exist");
-                    let removed = table.compact_and_freeze(ts, config.reserve_ratio);
+                    let removed = table.compact_and_freeze_with_config(ts, config);
                     total_edges_removed += removed;
                 }
 

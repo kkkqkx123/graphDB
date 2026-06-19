@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::core::types::CompactTarget;
+use crate::core::types::{CompactTarget, CompactConfig};
 use crate::core::{StorageError, StorageResult};
 use crate::storage::engine::paths::StoragePaths;
 use crate::storage::engine::persistence_coordinator::{
@@ -259,8 +259,7 @@ pub(crate) fn auto_checkpoint_if_needed(
 
 pub(crate) fn compact_transactional(
     ctx: &GraphStorageContext,
-    compact_csr: bool,
-    reserve_ratio: f32,
+    config: &CompactConfig,
 ) -> StorageResult<()> {
     let persistence = ctx.persistence().as_ref().ok_or_else(|| {
         StorageError::db_error("Persistence not available for transactional compaction".to_string())
@@ -285,16 +284,15 @@ pub(crate) fn compact_transactional(
         ctx,
         version_manager,
         &mut *wal_writer_guard,
-        compact_csr,
-        reserve_ratio,
+        config,
     )
     .map_err(|e| StorageError::db_error(format!("Failed to create compact transaction: {}", e)))?;
 
     let before_stats = txn.storage_stats();
     log::info!(
-        "Starting transactional compaction: compact_csr={}, reserve_ratio={:.2}, size={}/{}",
-        compact_csr,
-        reserve_ratio,
+        "Starting transactional compaction: enable_structure_compaction={}, config={{ segment_merge_enabled: {} }}, size={}/{}",
+        config.enable_structure_compaction,
+        config.segment_merge_enabled,
         before_stats.used_size,
         before_stats.total_size
     );

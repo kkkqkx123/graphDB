@@ -26,7 +26,7 @@ use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo, PropertyDef,
-    SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
+    SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId, CompactConfig,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::PersistenceConfig;
@@ -523,8 +523,8 @@ impl StoragePersistenceOps for GraphStorage {
         persistence::snapshot_stats(&self.ctx)
     }
 
-    fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> StorageResult<()> {
-        persistence::compact_transactional(&self.ctx, compact_csr, reserve_ratio)
+    fn compact(&self, config: &CompactConfig) -> StorageResult<()> {
+        persistence::compact_transactional(&self.ctx, config)
     }
 
     fn save_data(&self) -> StorageResult<()> {

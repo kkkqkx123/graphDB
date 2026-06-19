@@ -87,7 +87,7 @@ fn test_freeze_csr_preserves_reads() {
         .unwrap();
 
     let before = table.scan(150);
-    let frozen = table.freeze_csr(150);
+    let frozen = table.freeze_csr_only(150);
     let after = table.scan(150);
 
     assert_eq!(frozen, 4);
@@ -104,7 +104,7 @@ fn test_delete_base_segment_uses_tombstone() {
     let mut table = EdgeTable::new(schema).unwrap();
 
     table.insert_edge(0, 1, 0, &[], 100).unwrap();
-    table.freeze_csr(150);
+    table.freeze_csr_only(150);
 
     assert!(table.delete_edge(0, 1, 0, 200).unwrap());
     assert!(table.has_edge(0, 1, 0, 150));
@@ -348,7 +348,7 @@ fn test_flush_load_preserves_segments_and_tombstones() {
     table
         .insert_edge(1, 3, 0, &[("weight".to_string(), Value::Double(2.5))], 110)
         .unwrap();
-    table.freeze_csr(150);
+    table.freeze_csr_only(150);
     table.delete_edge(1, 2, 0, 200).unwrap();
 
     let temp_dir = std::env::temp_dir().join("edge_table_test_segments_tombstones");

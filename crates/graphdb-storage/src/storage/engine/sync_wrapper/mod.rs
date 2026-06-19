@@ -436,7 +436,7 @@ impl<S: StorageClient + 'static> StoragePersistenceOps for SyncWrapper<S> {
         fn verify_snapshot(&self, snapshot_id: u64) -> crate::core::StorageResult<bool>;
         fn cleanup_snapshots(&self) -> crate::core::StorageResult<usize>;
         fn snapshot_stats(&self) -> crate::storage::SnapshotStats;
-        fn compact(&self, compact_csr: bool, reserve_ratio: f32) -> crate::core::StorageResult<()>;
+        fn compact(&self, config: &crate::core::types::CompactConfig) -> crate::core::StorageResult<()>;
         fn auto_flush_if_needed(&self) -> crate::core::StorageResult<bool>;
         fn auto_checkpoint_if_needed(&self) -> crate::core::StorageResult<Option<crate::storage::CheckpointStats>>;
         fn should_flush(&self) -> bool;

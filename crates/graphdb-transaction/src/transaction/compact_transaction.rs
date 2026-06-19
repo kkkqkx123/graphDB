@@ -9,7 +9,7 @@ use super::wal::types::WalHeader;
 use super::wal::writer::WalWriter;
 use super::wal::Timestamp;
 use crate::core::mvcc::{VersionManager, VersionManagerError};
-use crate::core::types::{CompactConfig, CompactError, CompactStats, CompactTarget};
+use crate::core::types::{CompactConfig, CompactError, CompactStats, CompactTarget, CompactionStrategy};
 
 /// Compact transaction error
 #[derive(Debug, Clone, thiserror::Error)]
@@ -66,24 +66,21 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
     /// * `graph` - The graph to compact
     /// * `version_manager` - Version manager for timestamp management
     /// * `wal_writer` - WAL writer for logging
-    /// * `compact_csr` - Whether to compact CSR structures
-    /// * `reserve_ratio` - Ratio of space to reserve (0.0 - 1.0)
+    /// * `config` - Compaction configuration with strategy and merge settings
     pub fn new(
         graph: &'a T,
         version_manager: &'a VersionManager,
         wal_writer: &'a mut dyn WalWriter,
-        compact_csr: bool,
-        reserve_ratio: f32,
+        config: &CompactConfig,
     ) -> CompactTransactionResult<Self> {
         let timestamp = version_manager.acquire_update_timestamp()?;
         let wal_buffer = vec![0; WalHeader::SIZE];
-        let config = CompactConfig::new(compact_csr, reserve_ratio);
 
         Ok(Self {
             graph,
             version_manager,
             wal_writer,
-            config,
+            config: config.clone(),
             timestamp,
             wal_buffer,
         })
@@ -99,7 +96,14 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
     }
 
     pub fn reserve_ratio(&self) -> f32 {
-        self.config.reserve_ratio
+        match &self.config.strategy {
+            CompactionStrategy::Fixed(ratio) => *ratio,
+            CompactionStrategy::Adaptive(adaptive) => {
+                // For transaction context, return base_ratio as an estimate
+                // Actual ratio is computed at graph storage level with real metrics
+                adaptive.base_ratio
+            }
+        }
     }
 
     pub fn storage_stats(&self) -> CompactStats {
@@ -184,7 +188,8 @@ mod tests {
         let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
+        let config = CompactConfig::with_fixed_ratio(true, 0.8);
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, &config)
             .expect("Failed to create compact transaction");
 
         assert!(txn.timestamp() >= 1);
@@ -198,7 +203,8 @@ mod tests {
         let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
+        let config = CompactConfig::with_fixed_ratio(true, 0.8);
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, &config)
             .expect("Failed to create compact transaction");
 
         txn.commit().expect("Commit failed");
@@ -212,7 +218,8 @@ mod tests {
         let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
+        let config = CompactConfig::with_fixed_ratio(true, 0.8);
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, &config)
             .expect("Failed to create compact transaction");
 
         txn.abort().expect("Abort failed");
@@ -226,7 +233,8 @@ mod tests {
         let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 1.5)
+        let config = CompactConfig::with_fixed_ratio(true, 1.5);
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, &config)
             .expect("Failed to create compact transaction");
 
         assert!((txn.reserve_ratio() - 1.0).abs() < 0.001);
@@ -238,7 +246,8 @@ mod tests {
         let target = MockCompactTarget;
         let mut wal = DummyWalWriter::new();
 
-        let txn = CompactTransaction::new(&target, &vm, &mut wal, true, 0.8)
+        let config = CompactConfig::with_fixed_ratio(true, 0.8);
+        let txn = CompactTransaction::new(&target, &vm, &mut wal, &config)
             .expect("Failed to create compact transaction");
 
         let stats = txn.storage_stats();
