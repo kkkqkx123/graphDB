@@ -587,6 +587,14 @@ impl MutableCsr {
         MutableCsrIterator::new(self, ts)
     }
 
+    /// Create iterator over edges of a specific vertex at the given timestamp
+    ///
+    /// This returns an iterator of references to neighbors without allocating a Vec.
+    /// Use this for efficient vertex neighbor traversal in hot paths.
+    pub fn edges_iter(&self, src_vid: u32, ts: Timestamp) -> VertexEdgesIter<'_> {
+        VertexEdgesIter::new(self, src_vid, ts)
+    }
+
     /// Dump to bytes
     ///
     /// Format:
@@ -902,6 +910,91 @@ impl MutableCsr {
 impl Default for MutableCsr {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Iterator over edges of a single vertex in MutableCsr.
+///
+/// Yields references to valid neighbors at a specific timestamp,
+/// without allocating intermediate storage.
+pub struct VertexEdgesIter<'a> {
+    csr: &'a MutableCsr,
+    ts: Timestamp,
+    primary_idx: usize,
+    primary_end: usize,
+    overflow_idx: usize,
+    overflow_end: usize,
+    in_overflow: bool,
+}
+
+impl<'a> VertexEdgesIter<'a> {
+    /// Create iterator for all edges of a vertex at the given timestamp
+    pub fn new(csr: &'a MutableCsr, src_vid: u32, ts: Timestamp) -> Self {
+        let src_idx = src_vid as usize;
+        if src_idx >= csr.vertex_capacity {
+            return Self {
+                csr,
+                ts,
+                primary_idx: 0,
+                primary_end: 0,
+                overflow_idx: 0,
+                overflow_end: 0,
+                in_overflow: false,
+            };
+        }
+
+        let degree = csr.degrees[src_idx] as usize;
+        let offset = csr.adj_offsets[src_idx] as usize;
+        let (overflow_idx, overflow_end) = if csr.overflow_starts[src_idx] != NO_OVERFLOW {
+            let start = csr.overflow_starts[src_idx] as usize;
+            let count = csr.overflow_counts[src_idx] as usize;
+            (start, start + count)
+        } else {
+            (0, 0)
+        };
+
+        Self {
+            csr,
+            ts,
+            primary_idx: offset,
+            primary_end: offset + degree,
+            overflow_idx,
+            overflow_end,
+            in_overflow: false,
+        }
+    }
+}
+
+impl<'a> Iterator for VertexEdgesIter<'a> {
+    type Item = &'a Nbr;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Scan primary block
+        while self.primary_idx < self.primary_end {
+            let nbr = &self.csr.nbr_list[self.primary_idx];
+            self.primary_idx += 1;
+            if nbr.is_valid_at(self.ts) {
+                return Some(nbr);
+            }
+        }
+
+        // Transition to overflow if not already there
+        if !self.in_overflow && self.overflow_end > self.overflow_idx {
+            self.in_overflow = true;
+        }
+
+        // Scan overflow block
+        if self.in_overflow {
+            while self.overflow_idx < self.overflow_end {
+                let nbr = &self.csr.nbr_list[self.overflow_idx];
+                self.overflow_idx += 1;
+                if nbr.is_valid_at(self.ts) {
+                    return Some(nbr);
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -1249,5 +1342,49 @@ mod tests {
             ratio_before,
             ratio_after
         );
+    }
+
+    #[test]
+    fn test_vertex_edges_iter_no_allocation() {
+        let mut csr = MutableCsr::with_capacity(10, 100);
+
+        // Insert multiple edges for vertex 0
+        csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(3), EdgeId(102), 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(4), EdgeId(103), 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(5), EdgeId(104), 0, 1);
+
+        // Test edges_iter yields same neighbors as edges_of without allocation
+        let iter_neighbors: Vec<_> = csr.edges_iter(0u32, 1).map(|nbr| nbr.neighbor).collect();
+        let vec_neighbors: Vec<_> = csr.edges_of(0u32, 1).iter().map(|nbr| nbr.neighbor).collect();
+
+        assert_eq!(iter_neighbors.len(), vec_neighbors.len());
+        assert_eq!(iter_neighbors, vec_neighbors);
+    }
+
+    #[test]
+    fn test_vertex_edges_iter_respects_timestamp() {
+        let mut csr = MutableCsr::with_capacity(10, 100);
+
+        csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1);
+        csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 0, 2);
+        csr.insert_edge(0u32, VertexId::from_int64(3), EdgeId(102), 0, 3);
+
+        // Delete the second edge at ts=2
+        csr.delete_edge(0u32, EdgeId(101), 2);
+
+        // At ts=1, only first edge should be visible
+        let edges_ts1: Vec<_> = csr.edges_iter(0u32, 1).collect();
+        assert_eq!(edges_ts1.len(), 1);
+        assert_eq!(edges_ts1[0].edge_id, EdgeId(100));
+
+        // At ts=2, first two edges are visible (but second is deleted)
+        let edges_ts2: Vec<_> = csr.edges_iter(0u32, 2).collect();
+        assert_eq!(edges_ts2.len(), 1);
+
+        // At ts=3, all three are visible (but second is deleted)
+        let edges_ts3: Vec<_> = csr.edges_iter(0u32, 3).collect();
+        assert_eq!(edges_ts3.len(), 2);
     }
 }

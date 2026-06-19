@@ -51,7 +51,7 @@ pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
 pub use fragmentation_stats::FragmentationStats;
 pub use immutable_csr::ImmutableCsr;
 pub use labeled_mutable_csr::{LabeledMutableCsr, LabeledMutableCsrIterator};
-pub use mutable_csr::{MutableCsr, MutableCsrIterator};
+pub use mutable_csr::{MutableCsr, MutableCsrIterator, VertexEdgesIter};
 pub use multi_single_mutable_csr::{MultiSingleMutableCsr, MultiSingleMutableCsrIterator};
 pub use property_table::PropertyTable;
 pub use single_mutable_csr::{SingleMutableCsr, SingleMutableCsrIterator};

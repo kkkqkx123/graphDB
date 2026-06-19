@@ -71,6 +71,16 @@ impl CsrVariant {
             EdgeStrategy::Single => Ok(CsrVariant::Single(SingleMutableCsr::with_capacity(
                 vertex_capacity,
             ))),
+            EdgeStrategy::MultiSingle { max_edges } => {
+                Ok(CsrVariant::MultiSingle(MultiSingleMutableCsr::with_capacity(
+                    vertex_capacity,
+                    max_edges,
+                )))
+            }
+            EdgeStrategy::Labeled => Ok(CsrVariant::Labeled(LabeledMutableCsr::with_capacity(
+                vertex_capacity,
+                edge_capacity,
+            ))),
             EdgeStrategy::None => Ok(CsrVariant::None { vertex_capacity }),
         }
     }
@@ -414,7 +424,15 @@ mod tests {
 
     #[test]
     fn test_multi_single_csr_variant() {
-        let mut csr = CsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
+        let mut csr = CsrVariant::from_strategy(EdgeStrategy::MultiSingle { max_edges: 4 }, 10, 100).unwrap();
+
+        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
+        assert_eq!(csr.edge_count(), 1);
+    }
+
+    #[test]
+    fn test_labeled_csr_variant() {
+        let mut csr = CsrVariant::from_strategy(EdgeStrategy::Labeled, 10, 100).unwrap();
 
         assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
         assert_eq!(csr.edge_count(), 1);
