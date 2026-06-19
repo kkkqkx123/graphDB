@@ -103,6 +103,13 @@ pub enum MetricType {
     VectorEmbeddingOps,
     VectorEmbeddingErrors,
     VectorEmbeddingLatencyMs,
+    // CSR (Compressed Sparse Row) metrics
+    CsrInsertions,
+    CsrDeletions,
+    CsrOverflowExpansions,
+    CsrCompactions,
+    CsrEdgesCompacted,
+    CsrBytesAllocated,
 }
 
 /// metric
@@ -959,6 +966,40 @@ impl StatsManager {
 
     pub fn set_index_memory_usage(&self, bytes: u64) {
         self.set_value(MetricType::IndexMemoryUsage, bytes);
+    }
+
+    // ========== CSR (Compressed Sparse Row) Metrics ==========
+
+    /// Record a CSR edge insertion
+    pub fn record_csr_insertion(&self) {
+        self.add_value(MetricType::CsrInsertions);
+    }
+
+    /// Record a CSR edge deletion
+    pub fn record_csr_deletion(&self) {
+        self.add_value(MetricType::CsrDeletions);
+    }
+
+    /// Record a CSR overflow expansion (vertex capacity increase)
+    pub fn record_csr_overflow_expansion(&self) {
+        self.add_value(MetricType::CsrOverflowExpansions);
+    }
+
+    /// Record a CSR compaction operation
+    /// edges_removed: number of deleted edges actually removed
+    pub fn record_csr_compaction(&self, edges_removed: u64) {
+        self.add_value(MetricType::CsrCompactions);
+        self.add_value_with_amount(MetricType::CsrEdgesCompacted, edges_removed);
+    }
+
+    /// Record CSR memory allocation
+    pub fn record_csr_allocation(&self, bytes: u64) {
+        self.add_value_with_amount(MetricType::CsrBytesAllocated, bytes);
+    }
+
+    /// Set current CSR allocated bytes (snapshot of current state)
+    pub fn set_csr_bytes_allocated(&self, bytes: u64) {
+        self.set_value(MetricType::CsrBytesAllocated, bytes);
     }
 }
 
