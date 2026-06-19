@@ -5,7 +5,7 @@
 
 use super::{
     Csr, CsrBase, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsrTrait,
-    MutableCsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
+    CsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
 };
 use crate::core::types::EdgeId;
 use crate::core::{DataType, StorageError, StorageResult, Value};
@@ -63,8 +63,8 @@ pub struct EdgeTable {
     src_label: LabelId,
     dst_label: LabelId,
     schema: EdgeSchema,
-    out_csr: MutableCsrVariant,
-    in_csr: MutableCsrVariant,
+    out_csr: CsrVariant,
+    in_csr: CsrVariant,
     out_segments: Vec<CsrSegment>,
     in_segments: Vec<CsrSegment>,
     tombstones: HashMap<EdgeId, Timestamp>,
@@ -79,12 +79,12 @@ impl EdgeTable {
     }
 
     pub fn with_config(schema: EdgeSchema, config: EdgeTableConfig) -> StorageResult<Self> {
-        let out_csr = MutableCsrVariant::from_strategy(
+        let out_csr = CsrVariant::from_strategy(
             schema.oe_strategy,
             config.initial_vertex_capacity,
             config.initial_edge_capacity,
         )?;
-        let in_csr = MutableCsrVariant::from_strategy(
+        let in_csr = CsrVariant::from_strategy(
             schema.ie_strategy,
             config.initial_vertex_capacity,
             config.initial_edge_capacity,
@@ -195,7 +195,7 @@ impl EdgeTable {
 
     fn merged_edges_of(
         &self,
-        delta: &MutableCsrVariant,
+        delta: &CsrVariant,
         segments: &[CsrSegment],
         src: u32,
         ts: Timestamp,
@@ -220,7 +220,7 @@ impl EdgeTable {
 
     fn merged_get_edge(
         &self,
-        delta: &MutableCsrVariant,
+        delta: &CsrVariant,
         segments: &[CsrSegment],
         src: u32,
         dst: VertexId,
@@ -766,7 +766,7 @@ impl EdgeTable {
 
     fn flush_csr(
         &self,
-        csr: &MutableCsrVariant,
+        csr: &CsrVariant,
         segments: &[CsrSegment],
         path: &Path,
         section_id: u32,
@@ -914,7 +914,7 @@ impl EdgeTable {
     }
 
     fn load_csr_static(
-        csr: &mut MutableCsrVariant,
+        csr: &mut CsrVariant,
         segments: &mut Vec<CsrSegment>,
         path: &Path,
     ) -> StorageResult<()> {
@@ -1005,21 +1005,51 @@ impl EdgeTable {
         Ok(())
     }
 
-    pub fn compact_csr(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
-        let removed = self.out_csr.compact_with_ts(ts, reserve_ratio)
-            + self.in_csr.compact_with_ts(ts, reserve_ratio);
-        self.freeze_csr(ts);
-        removed
+    /// Compact CSR only (physical space reclamation + timestamp filtering).
+    ///
+    /// Removes overflow block fragmentation and edges with timestamps > ts.
+    /// Does NOT freeze delta to immutable segments.
+    /// See `freeze_csr_only()` and `compact_and_freeze()` for related operations.
+    pub fn compact_csr_only(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+        self.out_csr.compact_with_ts(ts, reserve_ratio)
+            + self.in_csr.compact_with_ts(ts, reserve_ratio)
     }
 
-    pub fn freeze_csr(&mut self, ts: Timestamp) -> usize {
+    /// Freeze CSR only (convert mutable delta to immutable segment).
+    ///
+    /// Converts visible edges (ts <= query_ts) to immutable CSR and records
+    /// timestamp range [min_ts, max_ts] for time-travel queries.
+    /// Clears mutable delta after freezing.
+    /// Does NOT perform physical compaction.
+    /// See `compact_csr_only()` and `compact_and_freeze()` for related operations.
+    pub fn freeze_csr_only(&mut self, ts: Timestamp) -> usize {
         let out_frozen = Self::freeze_delta(&mut self.out_csr, &mut self.out_segments, ts);
         let in_frozen = Self::freeze_delta(&mut self.in_csr, &mut self.in_segments, ts);
         out_frozen + in_frozen
     }
 
+    /// Compact and freeze in sequence (typical maintenance operation).
+    ///
+    /// Combines physical compaction (space reclamation) with logical versioning:
+    /// 1. Compact: eliminate overflow fragmentation and remove old edges
+    /// 2. Freeze: convert to immutable segment with timestamp range
+    /// 3. Cleanup: remove orphaned properties
+    ///
+    /// This is the preferred method for checkpoint maintenance.
+    /// For fine-grained control, use `compact_csr_only()` and `freeze_csr_only()` separately.
+    pub fn compact_and_freeze(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+        let removed = self.compact_csr_only(ts, reserve_ratio);
+        self.freeze_csr_only(ts);
+        self.compact_properties(ts);
+        removed
+    }
+
+    pub fn freeze_csr(&mut self, ts: Timestamp) -> usize {
+        self.freeze_csr_only(ts)
+    }
+
     fn freeze_delta(
-        delta: &mut MutableCsrVariant,
+        delta: &mut CsrVariant,
         segments: &mut Vec<CsrSegment>,
         ts: Timestamp,
     ) -> usize {
@@ -1035,12 +1065,13 @@ impl EdgeTable {
             return 0;
         }
 
-        let vertex_capacity = entries
-            .iter()
-            .map(|(src, _)| *src as usize + 1)
-            .max()
-            .unwrap_or_else(|| delta.vertex_capacity())
-            .max(delta.vertex_capacity());
+        // Use delta's capacity directly instead of computing from max vertex id.
+        // This avoids creating sparse offset/degree arrays when entries only reference
+        // a small set of vertices (e.g., entries from vertices 5000-5002, but delta.capacity = 10000).
+        // Reusing the original capacity is more memory-efficient for long-running systems
+        // with many freezes.
+        let vertex_capacity = delta.vertex_capacity();
+
         let min_ts = entries
             .iter()
             .map(|(_, nbr)| nbr.timestamp)

@@ -203,12 +203,12 @@ pub fn compact_with_ts(&mut self, _ts: Timestamp, _reserve_ratio: f32) -> usize 
 
 ---
 
-## 5. MutableCsrVariant 集成
+## 5. CsrVariant 集成
 
 ### Enum 扩展
 
 ```rust
-pub enum MutableCsrVariant {
+pub enum CsrVariant {
     Multiple(MutableCsr),                // 通用多边（原有）
     Single(SingleMutableCsr),            // 严格单边（原有）
     MultiSingle(MultiSingleMutableCsr),  // ← 新增
@@ -219,7 +219,7 @@ pub enum MutableCsrVariant {
 ### 切换逻辑
 
 ```rust
-impl MutableCsrVariant {
+impl CsrVariant {
     pub fn from_strategy(
         strategy: EdgeStrategy,
         vertex_capacity: usize,
@@ -227,20 +227,20 @@ impl MutableCsrVariant {
     ) -> StorageResult<Self> {
         match strategy {
             EdgeStrategy::None => {
-                Ok(MutableCsrVariant::None { vertex_capacity })
+                Ok(CsrVariant::None { vertex_capacity })
             }
             EdgeStrategy::Single => {
-                Ok(MutableCsrVariant::Single(
+                Ok(CsrVariant::Single(
                     SingleMutableCsr::with_capacity(vertex_capacity)
                 ))
             }
             EdgeStrategy::MultiSingle => {  // ← 新增
-                Ok(MutableCsrVariant::MultiSingle(
+                Ok(CsrVariant::MultiSingle(
                     MultiSingleMutableCsr::with_capacity(vertex_capacity)
                 ))
             }
             EdgeStrategy::Multiple => {
-                Ok(MutableCsrVariant::Multiple(
+                Ok(CsrVariant::Multiple(
                     MutableCsr::with_capacity(vertex_capacity, edge_capacity)
                 ))
             }
@@ -339,7 +339,7 @@ fn test_delete_with_timestamp() {
 // edge_table.rs
 pub fn insert_edge(&mut self, src: VertexId, dst: VertexId, ...) {
     // 现有逻辑：match self.out_csr { ... }
-    // 自动适配所有 MutableCsrVariant，无需特殊处理
+    // 自动适配所有 CsrVariant，无需特殊处理
     self.out_csr.insert_edge(src_idx, dst, edge_id, prop_offset, ts);
 }
 ```
@@ -357,7 +357,7 @@ pub fn insert_edge(&mut self, src: VertexId, dst: VertexId, ...) {
 
 ### Phase 2：集成（~2h）
 - [ ] 扩展 `EdgeStrategy` 枚举
-- [ ] 更新 `MutableCsrVariant` 
+- [ ] 更新 `CsrVariant` 
 - [ ] 集成到 `EdgeTable`
 
 ### Phase 3：测试（~3h）

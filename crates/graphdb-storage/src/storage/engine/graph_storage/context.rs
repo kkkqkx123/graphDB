@@ -1516,7 +1516,7 @@ impl GraphStorageContext {
             if config.enable_structure_compaction {
                 for &key in &edge_keys {
                     let table = edge_tables.get_mut(&key).expect("edge key must exist");
-                    let removed = table.compact_csr(ts, config.reserve_ratio);
+                    let removed = table.compact_and_freeze(ts, config.reserve_ratio);
                     total_edges_removed += removed;
                 }
 
@@ -1524,11 +1524,13 @@ impl GraphStorageContext {
                     "Compacted CSR structures: {} edges removed",
                     total_edges_removed
                 );
-            }
-
-            for &key in &edge_keys {
-                let table = edge_tables.get_mut(&key).expect("edge key must exist");
-                table.compact_properties(ts);
+            } else {
+                // If not compacting structure, still freeze mutable CSR for consistency
+                for &key in &edge_keys {
+                    let table = edge_tables.get_mut(&key).expect("edge key must exist");
+                    table.freeze_csr_only(ts);
+                    table.compact_properties(ts);
+                }
             }
         }
 

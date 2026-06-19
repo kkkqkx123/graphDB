@@ -198,7 +198,7 @@ pub fn wasted_bytes_estimate(&self) -> usize
 - `fragmentation_ratio() > 2.0` 表示严重碎片，建议紧凑
 - `wasted_bytes_estimate()` 用于监控和决策
 
-#### 3.2 添加包装方法到 `MutableCsrVariant`
+#### 3.2 添加包装方法到 `CsrVariant`
 
 ```rust
 /// 条件紧凑：若碎片率超过阈值则执行

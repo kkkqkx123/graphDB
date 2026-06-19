@@ -6,7 +6,7 @@
 //!
 //! - `MutableCsr`: Mutable CSR supporting dynamic edge operations
 //! - `SingleMutableCsr`: Optimized mutable CSR for single-edge scenarios
-//! - `MutableCsrVariant`: Enum wrapper for runtime CSR selection
+//! - `CsrVariant`: Enum wrapper for runtime CSR selection (supports both mutable and immutable)
 //! - `EdgeTable`: Edge table combining out/in CSRs and property storage
 //! - `PropertyTable`: Edge property storage
 //!
@@ -27,9 +27,10 @@
 
 pub mod csr;
 pub mod csr_trait;
+pub mod csr_variant;
 pub mod edge_table;
+pub mod immutable_csr;
 pub mod mutable_csr;
-pub mod mutable_csr_variant;
 pub mod property_table;
 pub mod single_mutable_csr;
 
@@ -40,9 +41,10 @@ use crate::storage::types::StoragePropertyDef;
 pub use crate::core::types::EdgeStrategy;
 pub use csr::Csr;
 pub use csr_trait::{CsrBase, MutableCsrTrait};
+pub use csr_variant::CsrVariant;
 pub use edge_table::{EdgeTable, UpdateEdgePropertyByOffsetParams};
+pub use immutable_csr::ImmutableCsr;
 pub use mutable_csr::{MutableCsr, MutableCsrIterator};
-pub use mutable_csr_variant::MutableCsrVariant;
 pub use property_table::PropertyTable;
 pub use single_mutable_csr::{SingleMutableCsr, SingleMutableCsrIterator};
 
