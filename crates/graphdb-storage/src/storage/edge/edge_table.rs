@@ -1082,12 +1082,12 @@ impl EdgeTable {
 
         let min_ts = entries
             .iter()
-            .map(|(_, nbr)| nbr.timestamp)
+            .map(|(_, nbr)| nbr.create_ts)
             .min()
             .unwrap_or(0);
         let max_ts = entries
             .iter()
-            .map(|(_, nbr)| nbr.timestamp)
+            .map(|(_, nbr)| nbr.create_ts)
             .max()
             .unwrap_or(0);
         let csr = Csr::from_nbr_entries(&entries, vertex_capacity);

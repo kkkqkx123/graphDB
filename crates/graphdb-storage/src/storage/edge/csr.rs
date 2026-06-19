@@ -122,7 +122,7 @@ impl Csr {
         let dst_list: Vec<_> = entries.iter().map(|(_, nbr)| nbr.neighbor).collect();
         let edge_ids: Vec<_> = entries.iter().map(|(_, nbr)| nbr.edge_id).collect();
         let prop_offsets: Vec<_> = entries.iter().map(|(_, nbr)| nbr.prop_offset).collect();
-        let timestamps: Vec<_> = entries.iter().map(|(_, nbr)| nbr.timestamp).collect();
+        let timestamps: Vec<_> = entries.iter().map(|(_, nbr)| nbr.create_ts).collect();
         csr.batch_put_edges_with_timestamps(
             &src_list,
             &dst_list,

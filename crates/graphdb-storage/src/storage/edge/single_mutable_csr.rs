@@ -109,11 +109,12 @@ impl SingleMutableCsr {
     pub fn with_capacity(vertex_capacity: usize) -> Self {
         let vertex_cap = vertex_capacity.max(1);
         let nbr_list = vec![
-            Nbr::new(
+            Nbr::with_delete_ts(
                 VertexId::from_int64(0),
                 INVALID_EDGE_ID,
                 0,
-                INVALID_TIMESTAMP
+                INVALID_TIMESTAMP,
+                0
             );
             vertex_cap
         ];
@@ -174,17 +175,19 @@ impl SingleMutableCsr {
 
         let nbr = &mut self.nbr_list[src_idx];
 
-        if nbr.timestamp != INVALID_TIMESTAMP && ts <= nbr.timestamp {
+        // Reject if there's an active edge with newer or equal timestamp
+        if nbr.delete_ts == u32::MAX && ts <= nbr.create_ts {
             return false;
         }
 
-        let was_deleted = nbr.timestamp == INVALID_TIMESTAMP;
+        let was_empty = nbr.delete_ts < u32::MAX;
         nbr.neighbor = dst;
         nbr.edge_id = edge_id;
         nbr.prop_offset = prop_offset;
-        nbr.timestamp = ts;
+        nbr.create_ts = ts;
+        nbr.delete_ts = u32::MAX;
 
-        if was_deleted {
+        if was_empty {
             self.edge_count.fetch_add(1, Ordering::Relaxed);
         }
 
@@ -200,16 +203,15 @@ impl SingleMutableCsr {
 
         let nbr = &mut self.nbr_list[src_idx];
 
-        if nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
+        if nbr.delete_ts < u32::MAX || nbr.create_ts > ts {
             return false;
         }
 
-        // SingleMutableCsr: each vertex has at most one edge, so verify edge_id matches
         if edge_id.0 != u64::MAX && nbr.edge_id != edge_id {
             return false;
         }
 
-        nbr.timestamp = INVALID_TIMESTAMP;
+        nbr.delete_ts = ts;
         self.edge_count.fetch_sub(1, Ordering::Relaxed);
         true
     }
@@ -223,11 +225,11 @@ impl SingleMutableCsr {
 
         let nbr = &mut self.nbr_list[src_idx];
 
-        if nbr.neighbor != dst || nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
+        if nbr.neighbor != dst || nbr.delete_ts < u32::MAX || nbr.create_ts > ts {
             return false;
         }
 
-        nbr.timestamp = INVALID_TIMESTAMP;
+        nbr.delete_ts = ts;
         self.edge_count.fetch_sub(1, Ordering::Relaxed);
         true
     }
@@ -241,7 +243,7 @@ impl SingleMutableCsr {
 
         let nbr = &self.nbr_list[src_idx];
 
-        if nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
+        if !nbr.is_valid_at(ts) {
             return None;
         }
 
@@ -282,11 +284,11 @@ impl SingleMutableCsr {
 
         let nbr = &mut self.nbr_list[src_idx];
 
-        if nbr.timestamp != INVALID_TIMESTAMP {
+        if nbr.delete_ts == u32::MAX {
             return false;
         }
 
-        nbr.timestamp = ts;
+        nbr.delete_ts = u32::MAX;
         self.edge_count.fetch_add(1, Ordering::Relaxed);
         true
     }
@@ -300,7 +302,7 @@ impl SingleMutableCsr {
 
         let nbr = &self.nbr_list[src_idx];
 
-        if nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
+        if !nbr.is_valid_at(ts) {
             return Vec::new();
         }
 
@@ -316,11 +318,11 @@ impl SingleMutableCsr {
 
         let nbr = &self.nbr_list[src_idx];
 
-        if nbr.timestamp == INVALID_TIMESTAMP || nbr.timestamp > ts {
-            return None;
+        if nbr.is_valid_at(ts) {
+            Some(*nbr)
+        } else {
+            None
         }
-
-        Some(*nbr)
     }
 
     pub fn clear(&mut self) {
@@ -351,7 +353,8 @@ impl SingleMutableCsr {
             write_vertex_id(&mut result, nbr.neighbor);
             result.extend_from_slice(&nbr.edge_id.to_le_bytes());
             result.extend_from_slice(&nbr.prop_offset.to_le_bytes());
-            result.extend_from_slice(&nbr.timestamp.to_le_bytes());
+            result.extend_from_slice(&nbr.create_ts.to_le_bytes());
+            result.extend_from_slice(&nbr.delete_ts.to_le_bytes());
         }
 
         result
@@ -378,13 +381,15 @@ impl SingleMutableCsr {
             let neighbor = read_vertex_id(data, &mut offset)?;
             let raw_edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
-            let timestamp = read_u32_le(data, &mut offset)?;
+            let create_ts = read_u32_le(data, &mut offset)?;
+            let delete_ts = read_u32_le(data, &mut offset)?;
 
-            nbr_list.push(Nbr::new(
+            nbr_list.push(Nbr::with_delete_ts(
                 neighbor,
                 EdgeId(raw_edge_id),
                 prop_offset,
-                timestamp,
+                create_ts,
+                delete_ts,
             ));
         }
 

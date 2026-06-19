@@ -286,7 +286,7 @@ impl MutableCsr {
         let base = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &self.nbr_list[base + i];
-            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP {
+            if nbr.neighbor == dst && nbr.delete_ts == u32::MAX {
                 return false;
             }
         }
@@ -295,7 +295,7 @@ impl MutableCsr {
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
-                if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP {
+                if nbr.neighbor == dst && nbr.delete_ts == u32::MAX {
                     return false;
                 }
             }
@@ -361,8 +361,8 @@ impl MutableCsr {
         let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
-            if nbr.edge_id == edge_id && nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
-                nbr.timestamp = INVALID_TIMESTAMP;
+            if nbr.edge_id == edge_id && nbr.delete_ts == u32::MAX && nbr.create_ts <= ts {
+                nbr.delete_ts = ts;
                 self.edge_count.fetch_sub(1, Ordering::Relaxed);
                 return true;
             }
@@ -372,8 +372,8 @@ impl MutableCsr {
         if let Some(idx) = self.scan_overflow_for_edge_id(src_idx, edge_id) {
             let o_start = self.overflow_starts[src_idx] as usize;
             let nbr = &mut self.nbr_list[o_start + idx];
-            if nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
-                nbr.timestamp = INVALID_TIMESTAMP;
+            if nbr.delete_ts == u32::MAX && nbr.create_ts <= ts {
+                nbr.delete_ts = ts;
                 self.edge_count.fetch_sub(1, Ordering::Relaxed);
                 return true;
             }
@@ -396,8 +396,8 @@ impl MutableCsr {
         let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &mut self.nbr_list[offset + i];
-            if nbr.neighbor == dst && nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
-                nbr.timestamp = INVALID_TIMESTAMP;
+            if nbr.neighbor == dst && nbr.delete_ts == u32::MAX && nbr.create_ts <= ts {
+                nbr.delete_ts = ts;
                 self.edge_count.fetch_sub(1, Ordering::Relaxed);
                 deleted = true;
             }
@@ -409,8 +409,8 @@ impl MutableCsr {
             let o_start = self.overflow_starts[src_idx] as usize;
             for idx in indices {
                 let nbr = &mut self.nbr_list[o_start + idx];
-                if nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
-                    nbr.timestamp = INVALID_TIMESTAMP;
+                if nbr.delete_ts == u32::MAX && nbr.create_ts <= ts {
+                    nbr.delete_ts = ts;
                     self.edge_count.fetch_sub(1, Ordering::Relaxed);
                     deleted = true;
                 }
@@ -438,8 +438,8 @@ impl MutableCsr {
         }
 
         let nbr = &mut self.nbr_list[idx];
-        if nbr.timestamp != INVALID_TIMESTAMP && nbr.timestamp <= ts {
-            nbr.timestamp = INVALID_TIMESTAMP;
+        if nbr.delete_ts == u32::MAX && nbr.create_ts <= ts {
+            nbr.delete_ts = ts;
             self.edge_count.fetch_sub(1, Ordering::Relaxed);
             return true;
         }
@@ -464,8 +464,8 @@ impl MutableCsr {
         }
 
         let nbr = &mut self.nbr_list[idx];
-        if nbr.timestamp == INVALID_TIMESTAMP {
-            nbr.timestamp = ts;
+        if nbr.delete_ts < u32::MAX {
+            nbr.delete_ts = u32::MAX;
             self.edge_count.fetch_add(1, Ordering::Relaxed);
             return true;
         }
@@ -488,7 +488,7 @@ impl MutableCsr {
 
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
-            if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+            if nbr.is_valid_at(ts) {
                 result.push(*nbr);
             }
         }
@@ -498,7 +498,7 @@ impl MutableCsr {
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
-                if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+                if nbr.is_valid_at(ts) {
                     result.push(*nbr);
                 }
             }
@@ -513,7 +513,7 @@ impl MutableCsr {
         let mut count = 0;
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
-            if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+            if nbr.is_valid_at(ts) {
                 count += 1;
             }
         }
@@ -529,7 +529,7 @@ impl MutableCsr {
         let mut count = 0;
         for i in 0..o_count {
             let nbr = &self.nbr_list[o_start + i];
-            if nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+            if nbr.is_valid_at(ts) {
                 count += 1;
             }
         }
@@ -548,7 +548,7 @@ impl MutableCsr {
         let offset = self.adj_offsets[src_idx] as usize;
         for i in 0..degree {
             let nbr = &self.nbr_list[offset + i];
-            if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP {
+            if nbr.neighbor == dst && nbr.is_valid_at(ts) {
                 return Some(*nbr);
             }
         }
@@ -559,8 +559,7 @@ impl MutableCsr {
             let o_count = self.overflow_counts[src_idx] as usize;
             for i in 0..o_count {
                 let nbr = &self.nbr_list[o_start + i];
-                if nbr.neighbor == dst && nbr.timestamp <= ts && nbr.timestamp != INVALID_TIMESTAMP
-                {
+                if nbr.neighbor == dst && nbr.is_valid_at(ts) {
                     return Some(*nbr);
                 }
             }
@@ -641,7 +640,8 @@ impl MutableCsr {
             write_vertex_id(&mut result, nbr.neighbor);
             result.extend_from_slice(&nbr.edge_id.to_le_bytes());
             result.extend_from_slice(&nbr.prop_offset.to_le_bytes());
-            result.extend_from_slice(&nbr.timestamp.to_le_bytes());
+            result.extend_from_slice(&nbr.create_ts.to_le_bytes());
+            result.extend_from_slice(&nbr.delete_ts.to_le_bytes());
         }
 
         result
@@ -697,13 +697,15 @@ impl MutableCsr {
             let neighbor = read_vertex_id(data, &mut offset)?;
             let raw_edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
-            let timestamp = read_u32_le(data, &mut offset)?;
+            let create_ts = read_u32_le(data, &mut offset)?;
+            let delete_ts = read_u32_le(data, &mut offset)?;
 
-            nbr_list.push(Nbr::new(
+            nbr_list.push(Nbr::with_delete_ts(
                 neighbor,
                 EdgeId(raw_edge_id),
                 prop_offset,
-                timestamp,
+                create_ts,
+                delete_ts,
             ));
         }
 
@@ -723,7 +725,10 @@ impl MutableCsr {
 
     /// Compact CSR by removing deleted edges and reclaiming space.
     /// Merges overflow back into primary, restoring flat CSR layout.
-    pub fn compact_with_ts(&mut self, ts: u32, reserve_ratio: f32) -> usize {
+    ///
+    /// Removes all edges marked as deleted (delete_ts < u32::MAX).
+    /// The ts parameter reserves space for future edges.
+    pub fn compact_with_ts(&mut self, _ts: u32, reserve_ratio: f32) -> usize {
         // Phase 1: compact individual vertex data (primary + overflow)
         // and compute new layout.
         let mut new_offsets = Vec::with_capacity(self.vertex_capacity);
@@ -738,23 +743,23 @@ impl MutableCsr {
 
             new_offsets.push(new_edges.len());
 
-            // Collect valid edges from primary
+            // Collect active edges from primary (not deleted)
             for i in 0..degree {
                 let nbr = &self.nbr_list[start + i];
-                if nbr.timestamp <= ts {
+                if nbr.delete_ts == u32::MAX {
                     new_edges.push(*nbr);
                 } else {
                     removed_count += 1;
                 }
             }
 
-            // Collect valid edges from overflow
+            // Collect active edges from overflow
             if self.overflow_starts[vid] != NO_OVERFLOW {
                 let o_start = self.overflow_starts[vid] as usize;
                 let o_count = self.overflow_counts[vid] as usize;
                 for i in 0..o_count {
                     let nbr = &self.nbr_list[o_start + i];
-                    if nbr.timestamp <= ts {
+                    if nbr.delete_ts == u32::MAX {
                         new_edges.push(*nbr);
                     } else {
                         removed_count += 1;
@@ -838,6 +843,60 @@ impl MutableCsr {
         let active_edges = self.edge_count.load(Ordering::Relaxed) as usize;
         (self.nbr_list.len().saturating_sub(active_edges)) * std::mem::size_of::<Nbr>()
     }
+
+    /// Get detailed fragmentation statistics
+    pub fn get_fragmentation_stats(&self) -> super::FragmentationStats {
+        let active_edges = self.edge_count.load(Ordering::Relaxed) as usize;
+
+        // Count zombie blocks
+        let mut zombie_blocks = 0;
+        let mut total_wasted = 0;
+
+        for vid in 0..self.vertex_capacity {
+            if self.overflow_starts[vid] != NO_OVERFLOW {
+                // Count overflow blocks and estimate waste
+                let old_primary_cap = self.primary_capacities[vid] as usize;
+                let primary_degree = self.degrees[vid] as usize;
+
+                // Wasted in primary
+                if primary_degree < old_primary_cap {
+                    total_wasted += old_primary_cap - primary_degree;
+                    zombie_blocks += 1;
+                }
+            }
+        }
+
+        super::FragmentationStats {
+            total_capacity: self.nbr_list.len(),
+            reachable_edges: active_edges,
+            zombie_blocks,
+            wasted_capacity: total_wasted,
+        }
+    }
+
+    /// Check if compaction should be triggered based on fragmentation ratio
+    ///
+    /// Returns true if fragmentation_ratio() >= threshold
+    pub fn should_compact_with_threshold(&self, threshold: f32) -> bool {
+        self.fragmentation_ratio() >= threshold
+    }
+
+    /// Compact and return detailed statistics about the operation
+    pub fn compact_with_stats(&mut self, ts: u32, reserve_ratio: f32) -> super::CompactionReport {
+        let stats_before = self.get_fragmentation_stats();
+        let removed = self.compact_with_ts(ts, reserve_ratio);
+        let stats_after = self.get_fragmentation_stats();
+
+        let reclaimed_bytes = (stats_before.total_capacity as i64 - stats_after.total_capacity as i64)
+            .max(0) as usize;
+
+        super::CompactionReport {
+            removed_edges: removed,
+            reclaimed_bytes,
+            old_fragmentation_ratio: stats_before.fragmentation_ratio(),
+            new_fragmentation_ratio: stats_after.fragmentation_ratio(),
+        }
+    }
 }
 
 impl Default for MutableCsr {
@@ -881,7 +940,7 @@ impl<'a> Iterator for MutableCsrIterator<'a> {
                 while self.current_edge < degree {
                     let nbr = self.csr.nbr_list[offset + self.current_edge];
                     self.current_edge += 1;
-                    if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
+                    if nbr.is_valid_at(self.ts) {
                         return Some((VertexId::from_int64(self.current_vertex as i64), nbr));
                     }
                 }
@@ -897,7 +956,7 @@ impl<'a> Iterator for MutableCsrIterator<'a> {
                 while self.overflow_idx < o_count {
                     let nbr = self.csr.nbr_list[o_start + self.overflow_idx];
                     self.overflow_idx += 1;
-                    if nbr.timestamp <= self.ts && nbr.timestamp != INVALID_TIMESTAMP {
+                    if nbr.is_valid_at(self.ts) {
                         return Some((VertexId::from_int64(self.current_vertex as i64), nbr));
                     }
                 }

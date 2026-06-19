@@ -215,7 +215,8 @@ impl ImmutableCsr {
             write_vertex_id(&mut result, nbr.neighbor);
             result.extend_from_slice(&nbr.edge_id.to_le_bytes());
             result.extend_from_slice(&nbr.prop_offset.to_le_bytes());
-            result.extend_from_slice(&nbr.timestamp.to_le_bytes());
+            result.extend_from_slice(&nbr.create_ts.to_le_bytes());
+            result.extend_from_slice(&nbr.delete_ts.to_le_bytes());
         }
 
         result
@@ -248,13 +249,15 @@ impl ImmutableCsr {
             let neighbor = read_vertex_id(data, &mut offset)?;
             let raw_edge_id = read_u64_le(data, &mut offset)?;
             let prop_offset = read_u32_le(data, &mut offset)?;
-            let timestamp = read_u32_le(data, &mut offset)?;
+            let create_ts = read_u32_le(data, &mut offset)?;
+            let delete_ts = read_u32_le(data, &mut offset)?;
 
-            nbr_list.push(Nbr::new(
+            nbr_list.push(Nbr::with_delete_ts(
                 neighbor,
                 EdgeId(raw_edge_id),
                 prop_offset,
-                timestamp,
+                create_ts,
+                delete_ts,
             ));
         }
 
