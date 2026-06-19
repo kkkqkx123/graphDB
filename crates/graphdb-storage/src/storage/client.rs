@@ -2,9 +2,11 @@ use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
     EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo, PropertyDef,
-    SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId, CompactConfig,
+    SpaceInfo, TagInfo, Timestamp, UpdateInfo, UserAlterInfo, UserInfo, VertexId, CompactConfig,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
+use crate::storage::engine::background_freeze::FreezeStats;
+use crate::storage::engine::graph_storage::context::ExportedEdgeSnapshotRecord;
 use crate::transaction::wal::recovery::{RecoveryConfig, RecoveryStats};
 use crate::transaction::UndoTarget;
 use std::sync::Arc;
@@ -340,6 +342,13 @@ impl<T> StorageClient for T where
         + Sync
         + std::fmt::Debug
 {
+}
+
+/// Snapshot export and background freeze operations.
+pub trait StorageSnapshotOps: Send + Sync + std::fmt::Debug {
+    fn export_snapshot(&self, ts: Timestamp) -> StorageResult<Vec<ExportedEdgeSnapshotRecord>>;
+    fn get_freeze_stats(&self) -> Option<FreezeStats>;
+    fn trigger_background_freeze(&self) -> StorageResult<()>;
 }
 
 /// Storing statistical information

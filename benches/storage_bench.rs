@@ -16,6 +16,7 @@ fn create_benchmark_group<'a>(
     group
 }
 
+#[allow(dead_code)]
 fn setup_benchmark_database() -> String {
     let db_name = format!("bench_storage_{}", std::process::id());
     db_name

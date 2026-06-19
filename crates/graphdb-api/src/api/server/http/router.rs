@@ -14,7 +14,8 @@ use tower_http::{
 
 use crate::storage::UndoTarget;
 use crate::storage::{
-    StorageClient, StorageSchemaContextOps, StorageSyncContextOps, StorageTransactionContextOps,
+    StorageClient, StorageSchemaContextOps, StorageSnapshotOps, StorageSyncContextOps,
+    StorageTransactionContextOps,
 };
 
 #[cfg(feature = "qdrant")]
@@ -33,7 +34,7 @@ use super::{
         health, query, schema,
 
         session::{create as create_session, delete_session, get_session},
-        statistics::{database, queries, search as search_stats, session, system},
+        statistics::{database, freeze_stats, queries, search as search_stats, session, system, trigger_freeze},
         stream::execute_stream,
         sync, transaction,
     },
@@ -54,6 +55,7 @@ use super::{
 pub fn create_router<
     S: StorageClient
         + StorageSchemaContextOps
+        + StorageSnapshotOps
         + StorageSyncContextOps
         + StorageTransactionContextOps
         + UndoTarget
@@ -107,7 +109,8 @@ pub fn create_router<
         .route("/statistics/queries", get(queries))
         .route("/statistics/database", get(database))
         .route("/statistics/system", get(system))
-        .route("/statistics/search", get(search_stats))
+         .route("/statistics/search", get(search_stats))
+         .route("/statistics/freeze", get(freeze_stats).post(trigger_freeze))
         // Configure management routing.
         .route("/config", get(get_config).put(update_config))
         .route(

@@ -176,6 +176,67 @@ impl TransactionManager {
         Ok(txn_id)
     }
 
+    /// Start a snapshot read transaction at a specific timestamp.
+    ///
+    /// This creates a read-only transaction that sees a consistent snapshot
+    /// of the database as of the given timestamp. Useful for:
+    /// - Time-travel queries (historical data)
+    /// - Consistent backup operations
+    /// - Cross-node replication
+    ///
+    /// # Arguments
+    /// - `snapshot_ts`: The timestamp to read from (must be <= current write timestamp)
+    /// - `options`: Transaction options (timeout, etc.)
+    pub fn begin_snapshot_read(
+        &self,
+        snapshot_ts: u32,
+        options: TransactionOptions,
+    ) -> Result<TransactionId, TransactionError> {
+        if self.shutdown_flag.load(Ordering::SeqCst) != 0 {
+            return Err(TransactionError::internal(
+                "Transaction manager is shutdown".to_string(),
+            ));
+        }
+
+        self.cleanup_expired_transactions();
+
+        let active_count = self.active_transactions.len();
+        if active_count >= self.config.max_concurrent_transactions {
+            return Err(TransactionError::too_many_transactions());
+        }
+
+        let current_write_ts = self.version_manager.next_write_timestamp();
+        if snapshot_ts > current_write_ts.saturating_sub(1) {
+            return Err(TransactionError::internal(format!(
+                "Snapshot timestamp {} is too recent (max: {})",
+                snapshot_ts,
+                current_write_ts.saturating_sub(1)
+            )));
+        }
+
+        let txn_id = TransactionId(self.id_generator.fetch_add(1, Ordering::SeqCst));
+        let timestamp = self.version_manager.acquire_read_timestamp();
+        let timeout = options.timeout.unwrap_or(self.config.default_timeout);
+
+        let config = TransactionConfig {
+            timeout,
+            durability: DurabilityLevel::Async,
+            isolation_level: IsolationLevel::RepeatableRead,
+            query_timeout: options.query_timeout,
+            statement_timeout: options.statement_timeout,
+            idle_timeout: options.idle_timeout,
+            two_phase_commit: false,
+        };
+
+        let mut context = TransactionContext::new_readonly(txn_id, timestamp, config);
+        context.set_snapshot_timestamp(snapshot_ts);
+
+        self.active_transactions.insert(txn_id, Arc::new(context));
+        self.stats.record_txn_begin();
+
+        Ok(txn_id)
+    }
+
     /// Start a new insert transaction
     pub fn begin_insert_transaction(
         &self,

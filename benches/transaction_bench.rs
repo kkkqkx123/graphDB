@@ -17,6 +17,7 @@ fn create_benchmark_group<'a>(
 }
 
 /// Generate GQL for transaction benchmark setup
+#[allow(dead_code)]
 fn generate_gql_for_transaction_bench(vertex_count: usize) -> String {
     let mut gql = String::new();
     gql.push_str(&format!("CREATE SPACE IF NOT EXISTS bench_txn{} (vid_type=STRING)\n", vertex_count));
@@ -96,7 +97,9 @@ fn bench_mvcc_version_management(c: &mut Criterion) {
             |b, _| {
                 // Simulate MVCC version chain traversal
                 b.iter(|| {
-                    black_box((0..*version_count).map(|v| v as i32).sum::<i32>())
+                    #[allow(clippy::unnecessary_cast)]
+                    let result = black_box((0..*version_count).map(|v| v as i32).sum::<i32>());
+                    result
                 });
             },
         );

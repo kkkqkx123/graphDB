@@ -144,7 +144,7 @@ impl DataGenerator {
         content.push_str("    timestamp: INT\n");
         content.push_str(")\n\n");
 
-        let keywords = vec!["performance", "database", "query", "optimization", "benchmark"];
+        let keywords = ["performance", "database", "query", "optimization", "benchmark"];
 
         for i in 0..document_count {
             let keyword = keywords[i % keywords.len()];

@@ -15,7 +15,8 @@ use crate::core::types::{
 use crate::core::UserStorage;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeTable;
-use crate::storage::edge::{EdgeRecord, EdgeStrategy};
+use crate::storage::edge::{EdgeRecord, EdgeStrategy, ExportedEdgeSnapshot};
+use crate::storage::engine::background_freeze::{BackgroundFreezeConfig, BackgroundFreezeManager, FreezeStats};
 use crate::storage::engine::cache_manager::CacheManager;
 use crate::storage::engine::config::PropertyGraphConfig;
 use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
@@ -223,6 +224,7 @@ impl DeferredWalOps {
 struct GraphStorageRuntime {
     current_txn_context: Arc<RwLock<Option<Arc<TransactionContextInfo>>>>,
     index_gc_manager: Option<Arc<IndexGcManager>>,
+    background_freeze_manager: Option<Arc<BackgroundFreezeManager>>,
     deferred_wal_ops: DeferredWalOps,
 }
 
@@ -231,6 +233,7 @@ impl GraphStorageRuntime {
         Self {
             current_txn_context: Arc::new(RwLock::new(None)),
             index_gc_manager: None,
+            background_freeze_manager: None,
             deferred_wal_ops: DeferredWalOps::new(),
         }
     }
@@ -247,6 +250,19 @@ impl GraphStorageRuntime {
         Self {
             current_txn_context: self.current_txn_context.clone(),
             index_gc_manager: Some(Arc::new(gc_manager)),
+            background_freeze_manager: self.background_freeze_manager.clone(),
+            deferred_wal_ops: self.deferred_wal_ops.clone(),
+        }
+    }
+
+    fn with_background_freeze(
+        &self,
+        manager: Arc<BackgroundFreezeManager>,
+    ) -> Self {
+        Self {
+            current_txn_context: self.current_txn_context.clone(),
+            index_gc_manager: self.index_gc_manager.clone(),
+            background_freeze_manager: Some(manager),
             deferred_wal_ops: self.deferred_wal_ops.clone(),
         }
     }
@@ -330,10 +346,29 @@ impl GraphStorageContext {
         self
     }
 
+    pub fn with_background_freeze(
+        &self,
+        manager: Arc<BackgroundFreezeManager>,
+    ) -> Self {
+        let runtime = self.runtime.with_background_freeze(manager);
+        Self {
+            persistent: self.persistent.clone(),
+            runtime,
+        }
+    }
+
     // ── Internal accessors for sub-modules ──
 
     pub(crate) fn data_store(&self) -> &GraphDataStore {
         &self.persistent.data_store
+    }
+
+    pub(crate) fn data_store_arc(&self) -> Arc<GraphDataStore> {
+        Arc::clone(&self.persistent.data_store)
+    }
+
+    pub(crate) fn freeze_config(&self) -> &BackgroundFreezeConfig {
+        &self.persistent.config.background_freeze
     }
 
     pub(crate) fn append_wal_redo<T: Serialize>(
@@ -1599,6 +1634,70 @@ impl GraphStorageContext {
         self.persistent.index_data_manager.write().gc_tombstones(ts)
     }
 
+    // ── Snapshot Export ──
+
+    pub fn export_snapshot(&self, ts: Timestamp) -> StorageResult<Vec<ExportedEdgeSnapshotRecord>> {
+        let edge_tables = self.persistent.data_store.edge_tables().read();
+        let mut results = Vec::with_capacity(edge_tables.len());
+        for (
+            EdgeTableKey {
+                src_label,
+                dst_label,
+                edge_label,
+            },
+            table,
+        ) in edge_tables.iter()
+        {
+            let snapshot = table.export_snapshot(ts)?;
+            results.push(ExportedEdgeSnapshotRecord {
+                src_label: *src_label,
+                dst_label: *dst_label,
+                edge_label: *edge_label,
+                snapshot,
+            });
+        }
+        Ok(results)
+    }
+
+    // ── Freeze Stats ──
+
+    pub fn get_freeze_stats(&self) -> Option<FreezeStats> {
+        self.runtime
+            .background_freeze_manager
+            .as_ref()
+            .map(|m| m.get_stats())
+    }
+
+    pub fn trigger_background_freeze(&self) -> StorageResult<()> {
+            let config = CompactConfig::with_fixed_ratio(true, 2.0)
+                .enable_segment_merge(self.persistent.config.background_freeze.segment_merge_threshold);
+        let ts = u32::MAX;
+        let mut total_frozen = 0u64;
+        let mut any_frozen = false;
+        let start = std::time::Instant::now();
+
+        {
+            let mut edge_tables = self.persistent.data_store.edge_tables().write();
+            for table in edge_tables.values_mut() {
+                let delta_edges = table.delta_edge_count();
+                if delta_edges >= self.persistent.config.background_freeze.delta_edge_threshold {
+                    let frozen = table.compact_and_freeze_with_config(ts, &config);
+                    total_frozen += frozen as u64;
+                    any_frozen = true;
+                }
+            }
+        }
+
+        if any_frozen {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            if let Some(ref manager) = self.runtime.background_freeze_manager {
+                manager.record_freeze(total_frozen, duration_ms);
+            }
+        }
+
+        Ok(())
+    }
+
     // ── Helper Methods ──
 
     fn resolve_internal_id(
@@ -1708,6 +1807,14 @@ impl std::fmt::Debug for GraphStorageContext {
             .field("db_path", &self.persistent.layout.db_path())
             .finish()
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportedEdgeSnapshotRecord {
+    pub src_label: LabelId,
+    pub dst_label: LabelId,
+    pub edge_label: LabelId,
+    pub snapshot: ExportedEdgeSnapshot,
 }
 
 impl Default for GraphStorageContext {

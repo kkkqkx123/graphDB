@@ -25,8 +25,8 @@ mod test_mock;
 
 pub use client::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
-    StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
-    StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
+    StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageSnapshotOps,
+    StorageStats, StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
 pub use engine::graph_storage::GraphStorage;
 pub use engine::persistence_coordinator::{CheckpointStats, SnapshotStats};

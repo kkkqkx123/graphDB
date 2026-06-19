@@ -143,7 +143,7 @@ fn bench_authentication_overhead(c: &mut Criterion) {
     group.bench_function("check_permissions", |b| {
         b.iter(|| {
             // Simulate permission checking
-            let permissions = vec!["read", "write", "delete"];
+            let permissions = ["read", "write", "delete"];
             black_box(permissions.len())
         });
     });

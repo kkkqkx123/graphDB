@@ -9,7 +9,7 @@ use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
     StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps,
-    StorageSyncContextOps, StorageTransactionContextOps,
+    StorageSnapshotOps, StorageSyncContextOps, StorageTransactionContextOps,
 };
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -490,5 +490,16 @@ impl<S: StorageClient + 'static> StorageGcOps for SyncWrapper<S> {
 
     forward_storage_methods!(inner;
         fn stop_index_gc(&self);
+    );
+}
+
+impl<S: crate::storage::client::StorageClient + StorageSnapshotOps + 'static> crate::storage::client::StorageSnapshotOps for SyncWrapper<S> {
+    forward_storage_methods!(inner;
+        fn export_snapshot(&self, ts: crate::core::types::Timestamp) -> crate::core::StorageResult<Vec<crate::storage::engine::graph_storage::context::ExportedEdgeSnapshotRecord>>;
+        fn get_freeze_stats(&self) -> Option<crate::storage::engine::background_freeze::FreezeStats>;
+    );
+
+    forward_storage_methods!(inner;
+        fn trigger_background_freeze(&self) -> crate::core::StorageResult<()>;
     );
 }

@@ -10,8 +10,8 @@ use crate::core::types::{
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::{
     StorageAdmin, StorageAuthOps, StorageClient, StorageGcOps, StoragePersistenceOps,
-    StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageStats,
-    StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
+    StorageReader, StorageRecoveryOps, StorageSchemaContextOps, StorageSchemaOps, StorageSnapshotOps,
+    StorageStats, StorageSyncContextOps, StorageTransactionContextOps, StorageWriter,
 };
 use crate::sync::SyncManager;
 
@@ -358,6 +358,20 @@ where
             inner: self.inner.clone(),
             stats_manager: self.stats_manager.clone(),
         }
+    }
+}
+
+impl<S: crate::storage::client::StorageClient + StorageSnapshotOps + 'static> crate::storage::client::StorageSnapshotOps for MetricsStorage<S> {
+    fn export_snapshot(&self, ts: crate::core::types::Timestamp) -> crate::core::StorageResult<Vec<crate::storage::engine::graph_storage::context::ExportedEdgeSnapshotRecord>> {
+        self.inner.export_snapshot(ts)
+    }
+
+    fn get_freeze_stats(&self) -> Option<crate::storage::engine::background_freeze::FreezeStats> {
+        self.inner.get_freeze_stats()
+    }
+
+    fn trigger_background_freeze(&self) -> crate::core::StorageResult<()> {
+        self.inner.trigger_background_freeze()
     }
 }
 

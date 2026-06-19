@@ -27,6 +27,8 @@ pub struct TransactionContext {
     state: AtomicCell<TransactionState>,
     /// Start timestamp (MVCC)
     pub start_timestamp: Timestamp,
+    /// Snapshot timestamp for time-travel reads (None = use start_timestamp)
+    pub snapshot_timestamp: Option<Timestamp>,
     /// Start time (for timeout tracking)
     pub start_time: Instant,
     /// Timeout duration
@@ -65,6 +67,7 @@ impl fmt::Debug for TransactionContext {
             .field("id", &self.id)
             .field("state", &self.state.load())
             .field("start_timestamp", &self.start_timestamp)
+            .field("snapshot_timestamp", &self.snapshot_timestamp)
             .field("read_only", &self.read_only)
             .field("isolation_level", &self.isolation_level)
             .field("durability", &self.durability)
@@ -140,6 +143,7 @@ impl TransactionContext {
             id,
             state: AtomicCell::new(TransactionState::Active),
             start_timestamp,
+            snapshot_timestamp: None,
             start_time: now,
             timeout: config.timeout,
             read_only: false,
@@ -169,6 +173,7 @@ impl TransactionContext {
             id,
             state: AtomicCell::new(TransactionState::Active),
             start_timestamp,
+            snapshot_timestamp: None,
             start_time: now,
             timeout: config.timeout,
             read_only: true,
@@ -195,6 +200,16 @@ impl TransactionContext {
     /// Get the MVCC timestamp
     pub fn timestamp(&self) -> Timestamp {
         self.start_timestamp
+    }
+
+    /// Get the effective snapshot timestamp for reads
+    pub fn effective_snapshot_timestamp(&self) -> Timestamp {
+        self.snapshot_timestamp.unwrap_or(self.start_timestamp)
+    }
+
+    /// Set the snapshot timestamp for time-travel reads
+    pub fn set_snapshot_timestamp(&mut self, ts: Timestamp) {
+        self.snapshot_timestamp = Some(ts);
     }
 
     /// Check if transaction has expired

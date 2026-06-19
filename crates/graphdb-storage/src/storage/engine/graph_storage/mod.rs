@@ -4,7 +4,7 @@
 //! This module acts as an adapter layer between the high-level StorageClient API
 //! and the low-level storage engine.
 
-mod context;
+pub mod context;
 mod index_engine;
 mod index_manager;
 mod ops;
@@ -25,10 +25,12 @@ use std::sync::Arc;
 use crate::core::metadata::SchemaManager;
 use crate::core::types::TransactionContextInfo;
 use crate::core::types::{
-    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo, PropertyDef,
-    SpaceInfo, TagInfo, UpdateInfo, UserAlterInfo, UserInfo, VertexId, CompactConfig,
+    CompactConfig, EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, LabelId, PasswordInfo,
+    PropertyDef, SpaceInfo, TagInfo, Timestamp, UpdateInfo, UserAlterInfo, UserInfo, VertexId,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
+use crate::storage::engine::background_freeze::{BackgroundFreezeManager, FreezeStats};
+use crate::storage::engine::graph_storage::context::ExportedEdgeSnapshotRecord;
 use crate::storage::engine::PersistenceConfig;
 use crate::storage::index::IndexGcConfig;
 use crate::storage::{
@@ -99,6 +101,27 @@ impl GraphStorage {
 
     pub fn is_persistence_enabled(&self) -> bool {
         self.ctx.is_persistence_enabled()
+    }
+
+    pub fn with_background_freeze(mut self) -> Self {
+        let data_store_arc = self.ctx.data_store_arc();
+        let freeze_config = self.ctx.freeze_config().clone();
+        let manager = Arc::new(BackgroundFreezeManager::new(data_store_arc, freeze_config));
+        let new_ctx = (*self.ctx).clone().with_background_freeze(Arc::clone(&manager));
+        self.ctx = Arc::new(new_ctx);
+        self
+    }
+
+    pub fn export_snapshot(&self, ts: Timestamp) -> StorageResult<Vec<ExportedEdgeSnapshotRecord>> {
+        self.ctx.export_snapshot(ts)
+    }
+
+    pub fn get_freeze_stats(&self) -> Option<FreezeStats> {
+        self.ctx.get_freeze_stats()
+    }
+
+    pub fn trigger_background_freeze(&self) -> StorageResult<()> {
+        self.ctx.trigger_background_freeze()
     }
 }
 
@@ -608,6 +631,20 @@ impl StorageGcOps for GraphStorage {
 
     fn stop_index_gc(&self) {
         self.ctx.stop_index_gc();
+    }
+}
+
+impl crate::storage::client::StorageSnapshotOps for GraphStorage {
+    fn export_snapshot(&self, ts: Timestamp) -> StorageResult<Vec<ExportedEdgeSnapshotRecord>> {
+        self.ctx.export_snapshot(ts)
+    }
+
+    fn get_freeze_stats(&self) -> Option<FreezeStats> {
+        self.ctx.get_freeze_stats()
+    }
+
+    fn trigger_background_freeze(&self) -> StorageResult<()> {
+        self.ctx.trigger_background_freeze()
     }
 }
 

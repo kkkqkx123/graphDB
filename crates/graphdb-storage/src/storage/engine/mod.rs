@@ -18,7 +18,6 @@ mod data_store_test;
 #[cfg(test)]
 mod persistence_test;
 
-pub use background_freeze::{BackgroundFreezeConfig, BackgroundFreezeManager, FreezeStats};
 pub use params::{EdgeOperationParams, InsertEdgeParams};
 pub use persistence_coordinator::PersistenceConfig;
 pub use wal_manager::WalManager;
