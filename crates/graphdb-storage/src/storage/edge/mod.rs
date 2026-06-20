@@ -36,6 +36,7 @@ pub mod mutable_csr;
 pub mod multi_single_mutable_csr;
 pub mod property_table;
 pub mod single_mutable_csr;
+pub mod bloom_filter;
 
 use crate::core::types::{EdgeId, LabelId, Timestamp, VertexId, INVALID_TIMESTAMP};
 use crate::core::{Edge, Value};

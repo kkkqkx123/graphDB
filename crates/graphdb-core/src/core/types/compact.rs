@@ -86,7 +86,16 @@ pub struct CompactConfig {
     pub enable_structure_compaction: bool,
     pub strategy: CompactionStrategy,
     pub segment_merge_enabled: bool,
+    /// Merge segments within this timestamp range
     pub segment_merge_threshold: Timestamp,
+    /// Maximum total size (bytes) before triggering segment merge
+    /// Default 8MB if segments exceed this, they'll be merged to reduce fragmentation
+    pub segment_merge_size_threshold: usize,
+    /// Enable adaptive merge strategy based on tombstone pressure
+    pub adaptive_merge_enabled: bool,
+    /// Tombstone memory threshold (bytes) to trigger aggressive merge
+    /// Default 50MB: when tombstone memory exceeds this, use 50% of normal size threshold
+    pub tombstone_memory_threshold: usize,
 }
 
 impl CompactConfig {
@@ -95,7 +104,10 @@ impl CompactConfig {
             enable_structure_compaction,
             strategy,
             segment_merge_enabled: false,
-            segment_merge_threshold: 1000, // Default: merge segments within 1000 timestamp units
+            segment_merge_threshold: 1000,         // Default: merge segments within 1000 timestamp units
+            segment_merge_size_threshold: 8388608, // Default: 8MB
+            adaptive_merge_enabled: false,
+            tombstone_memory_threshold: 52428800,  // Default: 50MB
         }
     }
 
@@ -115,11 +127,40 @@ impl CompactConfig {
         )
     }
 
-    /// Enable segment merging with threshold
-    pub fn enable_segment_merge(mut self, threshold: Timestamp) -> Self {
+    /// Enable segment merging with time and size thresholds
+    pub fn enable_segment_merge(mut self, time_threshold: Timestamp) -> Self {
         self.segment_merge_enabled = true;
-        self.segment_merge_threshold = threshold;
+        self.segment_merge_threshold = time_threshold;
         self
+    }
+
+    /// Set size threshold for segment merging (in bytes)
+    pub fn with_segment_size_threshold(mut self, size_bytes: usize) -> Self {
+        self.segment_merge_size_threshold = size_bytes;
+        self
+    }
+
+    /// Enable adaptive merge strategy based on tombstone pressure
+    ///
+    /// When tombstone memory exceeds the threshold, merge size is reduced to 50%
+    /// of the normal size threshold, triggering more frequent merges to clean up
+    /// tombstones faster.
+    pub fn enable_adaptive_merge(mut self, tombstone_memory_threshold: usize) -> Self {
+        self.adaptive_merge_enabled = true;
+        self.tombstone_memory_threshold = tombstone_memory_threshold;
+        self
+    }
+
+    /// Compute effective merge size threshold based on tombstone pressure
+    ///
+    /// If adaptive merge is enabled and tombstone memory exceeds threshold,
+    /// returns 50% of the normal size threshold for more aggressive merging.
+    pub fn compute_merge_size_threshold(&self, current_tombstone_memory: usize) -> usize {
+        if self.adaptive_merge_enabled && current_tombstone_memory > self.tombstone_memory_threshold {
+            self.segment_merge_size_threshold / 2
+        } else {
+            self.segment_merge_size_threshold
+        }
     }
 
     /// Get the computed reserve ratio for current table state

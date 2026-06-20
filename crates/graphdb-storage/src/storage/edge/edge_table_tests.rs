@@ -977,4 +977,133 @@ fn test_tombstone_stats_accuracy() {
     );
 }
 
+#[test]
+fn test_mvcc_metrics_gc_count() {
+    use crate::core::stats::{MetricType, StatsManager};
+    use std::sync::Arc;
+
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let stats_manager = Arc::new(StatsManager::new());
+    table.set_stats_manager(stats_manager.clone());
+
+    // Insert edges with different timestamps
+    for i in 0..5 {
+        table
+            .insert_edge(
+                0,
+                1,
+                i as i64,
+                &[("weight".to_string(), Value::Double(i as f64))],
+                i as u32,
+            )
+            .unwrap();
+    }
+
+    // Delete edges (creates tombstones)
+    table.delete_edge(0, 1, 0, 2).unwrap();
+    table.delete_edge(0, 1, 1, 3).unwrap();
+
+    // Register snapshots
+    table.register_active_snapshot(1);
+    table.register_active_snapshot(4);
+
+    let initial_gc_count = stats_manager.get_value(MetricType::TombstoneGCCount).unwrap_or(0);
+
+    // GC tombstones
+    let _ = table.gc_tombstones(2);
+
+    let after_gc_count = stats_manager.get_value(MetricType::TombstoneGCCount).unwrap_or(0);
+    assert_eq!(
+        after_gc_count, initial_gc_count + 1,
+        "GC count should increment after gc_tombstones"
+    );
+}
+
+#[test]
+fn test_mvcc_metrics_tombstone_count() {
+    use crate::core::stats::{MetricType, StatsManager};
+    use std::sync::Arc;
+
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let stats_manager = Arc::new(StatsManager::new());
+    table.set_stats_manager(stats_manager.clone());
+
+    // Insert edges
+    for i in 0..5 {
+        table
+            .insert_edge(
+                0,
+                1,
+                i as i64,
+                &[("weight".to_string(), Value::Double(i as f64))],
+                i as u32,
+            )
+            .unwrap();
+    }
+
+    // Freeze to move edges to segments (so tombstones will be created on delete)
+    table.freeze_csr_only(5);
+
+    // Now delete edges from segments (this creates tombstones)
+    table.delete_edge(0, 1, 0, 10).unwrap();
+    table.delete_edge(0, 1, 1, 11).unwrap();
+    table.delete_edge(0, 1, 2, 12).unwrap();
+
+    // Verify tombstones were created
+    let tom_stats = table.tombstone_stats();
+    assert_eq!(tom_stats.count, 3, "Should have 3 tombstones created");
+
+    // Record stats (simulating what compact_and_freeze_with_config does)
+    stats_manager.record_tombstone_stats(
+        tom_stats.count as u64,
+        tom_stats.memory_bytes as u64,
+        tom_stats.oldest_delete_ts,
+        tom_stats.newest_delete_ts,
+        1, // active_snapshots count
+    );
+
+    let tombstone_count =
+        stats_manager.get_value(MetricType::TombstoneCount).unwrap_or(0);
+    assert_eq!(tombstone_count, 3, "Tombstone count should be recorded as 3");
+
+    let tombstone_memory =
+        stats_manager.get_value(MetricType::TombstoneMemoryBytes).unwrap_or(0);
+    assert!(tombstone_memory > 0, "Tombstone memory should be recorded");
+}
+
+#[test]
+fn test_mvcc_metrics_active_snapshots() {
+    use crate::core::stats::{MetricType, StatsManager};
+    use std::sync::Arc;
+
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let stats_manager = Arc::new(StatsManager::new());
+    table.set_stats_manager(stats_manager.clone());
+
+    // Register and unregister snapshots
+    table.register_active_snapshot(1);
+    let count1 = stats_manager
+        .get_value(MetricType::TombstoneActiveSnapshots)
+        .unwrap_or(0);
+    assert_eq!(count1, 1, "Should have 1 active snapshot");
+
+    table.register_active_snapshot(2);
+    let count2 = stats_manager
+        .get_value(MetricType::TombstoneActiveSnapshots)
+        .unwrap_or(0);
+    assert_eq!(count2, 2, "Should have 2 active snapshots");
+
+    table.unregister_active_snapshot(1);
+    let count3 = stats_manager
+        .get_value(MetricType::TombstoneActiveSnapshots)
+        .unwrap_or(0);
+    assert_eq!(count3, 1, "Should have 1 active snapshot after unregister");
+}
+
 

@@ -161,7 +161,10 @@ pub fn create_edge_type(
         ie_strategy,
     };
 
-    let table = EdgeTable::new(schema)?;
+    let mut table = EdgeTable::new(schema)?;
+    if let Some(stats) = ctx.stats_manager() {
+        table.set_stats_manager(stats.clone());
+    }
     let key = EdgeTableKey::new(src_label, dst_label, label_id);
     ctx.data_store().edge_tables().write().insert(key, table);
     edge_label_names.insert(name.to_string(), label_id);
@@ -223,7 +226,10 @@ pub fn create_edge_type_with_id(
         ie_strategy: params.ie_strategy,
     };
 
-    let table = EdgeTable::new(schema)?;
+    let mut table = EdgeTable::new(schema)?;
+    if let Some(stats) = ctx.stats_manager() {
+        table.set_stats_manager(stats.clone());
+    }
     let key = EdgeTableKey::new(params.src_label, params.dst_label, label_id);
     ctx.data_store().edge_tables().write().insert(key, table);
     edge_label_names.insert(params.name.to_string(), label_id);

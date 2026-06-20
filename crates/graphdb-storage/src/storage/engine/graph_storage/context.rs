@@ -12,6 +12,7 @@ use crate::core::types::{
     CompactConfig, LabelId, TableId, TableTracker, TableTrackerConfig, Timestamp,
     TransactionContextInfo, VertexId,
 };
+use crate::core::stats::StatsManager;
 use crate::core::UserStorage;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeTable;
@@ -94,6 +95,7 @@ struct GraphStoragePersistent {
     user_storage: Arc<UserStorage>,
     persistence: Option<Arc<RwLock<PersistenceCoordinator>>>,
     layout: GraphStorageLayout,
+    stats_manager: Option<Arc<StatsManager>>,
 }
 
 impl GraphStoragePersistent {
@@ -140,6 +142,7 @@ impl GraphStoragePersistent {
             user_storage: Arc::new(UserStorage::new()),
             persistence: None,
             layout: GraphStorageLayout::new(),
+            stats_manager: None,
         }
     }
 
@@ -180,6 +183,7 @@ impl GraphStoragePersistent {
             user_storage,
             persistence: Some(persistence),
             layout: GraphStorageLayout::new_with_path(path),
+            stats_manager: None,
         })
     }
 }
@@ -357,6 +361,15 @@ impl GraphStorageContext {
         }
     }
 
+    /// Set the StatsManager for recording MVCC metrics to EdgeTable instances.
+    ///
+    /// This should be called once after creating the GraphStorageContext,
+    /// typically at startup time. The stats manager will be injected into all
+    /// EdgeTable instances for automatic metrics recording.
+    pub fn set_stats_manager(&mut self, stats: Arc<StatsManager>) {
+        self.persistent.stats_manager = Some(stats);
+    }
+
     // ── Internal accessors for sub-modules ──
 
     pub(crate) fn data_store(&self) -> &GraphDataStore {
@@ -449,6 +462,10 @@ impl GraphStorageContext {
 
     pub(crate) fn persistence(&self) -> &Option<Arc<RwLock<PersistenceCoordinator>>> {
         &self.persistent.persistence
+    }
+
+    pub(crate) fn stats_manager(&self) -> Option<&Arc<StatsManager>> {
+        self.persistent.stats_manager.as_ref()
     }
 
     pub(crate) fn work_dir(&self) -> &Option<PathBuf> {
@@ -1110,7 +1127,11 @@ impl GraphStorageContext {
                 s.dst_label = actual_dst_label;
                 s
             };
-            edge_tables.insert(key, EdgeTable::new(edge_schema)?);
+            let mut new_table = EdgeTable::new(edge_schema)?;
+            if let Some(stats) = &self.persistent.stats_manager {
+                new_table.set_stats_manager(stats.clone());
+            }
+            edge_tables.insert(key, new_table);
             edge_tables.get_mut(&key).unwrap()
         };
 
@@ -1480,6 +1501,9 @@ impl GraphStorageContext {
                                     let key = EdgeTableKey::new(src_label, dst_label, edge_label);
                                     if let Some(table) = edge_tables.get_mut(&key) {
                                         table.load(&path)?;
+                                        if let Some(stats) = &self.persistent.stats_manager {
+                                            table.set_stats_manager(stats.clone());
+                                        }
                                     }
                                 }
                             }

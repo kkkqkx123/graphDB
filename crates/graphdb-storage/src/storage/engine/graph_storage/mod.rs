@@ -31,6 +31,7 @@ use crate::core::types::{
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, StorageResult, Value, Vertex};
 use crate::storage::engine::background_freeze::{BackgroundFreezeManager, FreezeStats};
 use crate::storage::engine::graph_storage::context::ExportedEdgeSnapshotRecord;
+use crate::core::stats::StatsManager;
 use crate::storage::engine::PersistenceConfig;
 use crate::storage::index::IndexGcConfig;
 use crate::storage::{
@@ -96,6 +97,18 @@ impl GraphStorage {
     pub fn with_index_gc(mut self, config: IndexGcConfig) -> Self {
         let new_ctx = Arc::new((*self.ctx).clone().with_index_gc(config));
         self.ctx = new_ctx;
+        self
+    }
+
+    /// Set the StatsManager for recording MVCC metrics.
+    ///
+    /// This injects the stats manager into the GraphStorageContext,
+    /// which will then automatically pass it to all EdgeTable instances
+    /// for automatic metrics recording.
+    pub fn set_stats_manager(mut self, stats: Arc<StatsManager>) -> Self {
+        let mut ctx = (*self.ctx).clone();
+        ctx.set_stats_manager(stats);
+        self.ctx = Arc::new(ctx);
         self
     }
 

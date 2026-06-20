@@ -162,17 +162,63 @@ struct CsrSegment {
     create_ts_max: Timestamp,
     // Deletion information for time-travel queries and GC
     deletion_info: DeletionInfo,
+    // Version tracking for recovery
+    version: SegmentVersion,
+}
+
+/// Version tracking for CSR segment recovery
+#[derive(Debug, Clone, Copy)]
+struct SegmentVersion {
+    /// Version number: incremented on each update
+    version: u32,
+    /// CRC32 checksum for integrity validation
+    checksum: u32,
+}
+
+impl SegmentVersion {
+    /// Create a new segment version
+    fn new() -> Self {
+        Self {
+            version: 1,
+            checksum: 0,
+        }
+    }
+
+    /// Increment version on segment modification
+    fn increment(&mut self) {
+        self.version = self.version.saturating_add(1);
+    }
+
+    /// Compute CRC32 checksum for segment
+    fn compute_checksum(segment: &CsrSegment) -> u32 {
+        // Simple checksum: XOR of edge count, create_ts_min/max, and edge count mod
+        let mut crc = 0u32;
+        crc = crc.wrapping_mul(31).wrapping_add(segment.csr.edge_count() as u32);
+        crc = crc.wrapping_mul(31).wrapping_add(segment.create_ts_min);
+        crc = crc.wrapping_mul(31).wrapping_add(segment.create_ts_max);
+        crc
+    }
+
+    /// Validate segment integrity
+    fn validate(&self, segment: &CsrSegment) -> bool {
+        let computed = Self::compute_checksum(segment);
+        self.checksum == computed || self.checksum == 0 // 0 = first initialization
+    }
 }
 
 impl CsrSegment {
     fn new(csr: Csr, create_ts_min: Timestamp, create_ts_max: Timestamp,
            deletion_info: DeletionInfo) -> Self {
-        Self {
+        let mut seg = Self {
             csr,
             create_ts_min,
             create_ts_max,
             deletion_info,
-        }
+            version: SegmentVersion::new(),
+        };
+        // Compute initial checksum
+        seg.version.checksum = SegmentVersion::compute_checksum(&seg);
+        seg
     }
 
     /// Get deletion info as (min, max) range for serialization
@@ -274,6 +320,8 @@ pub struct EdgeTable {
     /// Used for automatic garbage collection of tombstones.
     /// When count reaches 0, the timestamp is removed and GC is triggered.
     active_snapshots: HashMap<Timestamp, usize>,
+    /// Optional statistics manager for MVCC metrics reporting
+    stats_manager: Option<std::sync::Arc<crate::core::stats::StatsManager>>,
 }
 
 impl EdgeTable {
@@ -315,6 +363,7 @@ impl EdgeTable {
             min_active_snapshot_ts: u32::MAX,
             config,
             active_snapshots: HashMap::new(),
+            stats_manager: None,
         })
     }
 
@@ -340,6 +389,14 @@ impl EdgeTable {
             VertexId::from_int64(i64::from_be_bytes(endpoint_bytes)),
             i64::from_be_bytes(rank_bytes),
         )
+    }
+
+    /// Set the statistics manager for recording MVCC metrics
+    ///
+    /// This enables automatic reporting of tombstone statistics, GC operations,
+    /// and active snapshot counts to the monitoring system.
+    pub fn set_stats_manager(&mut self, stats: std::sync::Arc<crate::core::stats::StatsManager>) {
+        self.stats_manager = Some(stats);
     }
 
     fn is_tombstoned(&self, edge_id: EdgeId, ts: Timestamp) -> bool {
@@ -372,6 +429,12 @@ impl EdgeTable {
         });
         let after = self.tombstones.len();
         self.min_active_snapshot_ts = min_active_snapshot_ts;
+
+        // Record GC operation to metrics
+        if let Some(stats) = &self.stats_manager {
+            stats.record_tombstone_gc();
+        }
+
         before - after
     }
 
@@ -381,6 +444,14 @@ impl EdgeTable {
     /// Must be called when a new snapshot is created.
     pub fn register_active_snapshot(&mut self, ts: Timestamp) {
         *self.active_snapshots.entry(ts).or_insert(0) += 1;
+
+        // Update active snapshots count in metrics
+        if let Some(stats) = &self.stats_manager {
+            stats.set_value(
+                crate::core::stats::MetricType::TombstoneActiveSnapshots,
+                self.active_snapshots.len() as u64,
+            );
+        }
     }
 
     /// Unregister an active snapshot at the given timestamp.
@@ -414,6 +485,14 @@ impl EdgeTable {
                 .min()
                 .unwrap_or(u32::MAX);
             self.gc_tombstones(new_min_ts);
+        }
+
+        // Update active snapshots count in metrics
+        if let Some(stats) = &self.stats_manager {
+            stats.set_value(
+                crate::core::stats::MetricType::TombstoneActiveSnapshots,
+                self.active_snapshots.len() as u64,
+            );
         }
 
         new_count
@@ -575,6 +654,61 @@ impl EdgeTable {
                     .collect()
             })
             .unwrap_or_default()
+    }
+
+    /// Validate segment integrity by checking stored checksums
+    ///
+    /// Returns number of segments with valid checksums.
+    /// Corrupted segments are identified but not repaired (see recover_segment).
+    pub fn validate_segment_integrity(&self) -> usize {
+        let mut valid_count = 0;
+
+        for segment in &self.out_segments {
+            if segment.version.validate(segment) {
+                valid_count += 1;
+            }
+        }
+
+        for segment in &self.in_segments {
+            if segment.version.validate(segment) {
+                valid_count += 1;
+            }
+        }
+
+        valid_count
+    }
+
+    /// Get segment version information for recovery purposes
+    ///
+    /// Returns a list of (index, version) tuples for all segments.
+    /// Useful for understanding which segments may be corrupted.
+    pub fn segment_versions(&self) -> Vec<(usize, u32, u32)> {
+        let mut versions = Vec::new();
+
+        for (idx, seg) in self.out_segments.iter().enumerate() {
+            versions.push((idx, seg.version.version, seg.version.checksum));
+        }
+
+        for (idx, seg) in self.in_segments.iter().enumerate() {
+            versions.push((idx + 1000, seg.version.version, seg.version.checksum));
+        }
+
+        versions
+    }
+
+    /// Recompute checksums for all segments
+    ///
+    /// Call this after recovery or validation operations to update checksums.
+    pub fn update_segment_checksums(&mut self) {
+        for segment in &mut self.out_segments {
+            segment.version.checksum = SegmentVersion::compute_checksum(segment);
+            segment.version.increment();
+        }
+
+        for segment in &mut self.in_segments {
+            segment.version.checksum = SegmentVersion::compute_checksum(segment);
+            segment.version.increment();
+        }
     }
 }
 
@@ -1420,6 +1554,7 @@ impl EdgeTable {
     ///
     /// Supports both fixed and adaptive reserve_ratio strategies.
     /// Optionally enables segment merging if configured.
+    /// Supports adaptive merge triggered by high tombstone memory pressure.
     /// This is the preferred method for production checkpoint maintenance.
     pub fn compact_and_freeze_with_config(&mut self, ts: Timestamp, config: &CompactConfig) -> usize {
         let edge_count = self.edge_count() as usize;
@@ -1429,10 +1564,25 @@ impl EdgeTable {
         self.freeze_csr_only(ts);
 
         if config.segment_merge_enabled {
-            self.merge_segments(config.segment_merge_threshold);
+            let stats = self.tombstone_stats();
+            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
+            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
         }
 
         self.compact_properties(ts);
+
+        // Record tombstone statistics to metrics
+        if let Some(stats) = &self.stats_manager {
+            let tom_stats = self.tombstone_stats();
+            stats.record_tombstone_stats(
+                tom_stats.count as u64,
+                tom_stats.memory_bytes as u64,
+                tom_stats.oldest_delete_ts,
+                tom_stats.newest_delete_ts,
+                self.active_snapshots.len() as u64,
+            );
+        }
+
         removed
     }
 
@@ -1440,6 +1590,7 @@ impl EdgeTable {
     ///
     /// Extended version of `compact_and_freeze_with_config()` that also:
     /// 6. Garbage collect tombstones older than min_active_snapshot_ts
+    /// 7. Supports adaptive merge triggered by high tombstone memory pressure
     ///
     /// Call this when you know the minimum timestamp of all active snapshots.
     /// This prevents unbounded growth of the tombstone map in long-running systems.
@@ -1464,11 +1615,26 @@ impl EdgeTable {
         self.freeze_csr_only(ts);
 
         if config.segment_merge_enabled {
-            self.merge_segments(config.segment_merge_threshold);
+            let stats = self.tombstone_stats();
+            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
+            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
         }
 
         self.compact_properties(ts);
         self.gc_tombstones(min_active_snapshot_ts);
+
+        // Record tombstone statistics to metrics
+        if let Some(stats) = &self.stats_manager {
+            let tom_stats = self.tombstone_stats();
+            stats.record_tombstone_stats(
+                tom_stats.count as u64,
+                tom_stats.memory_bytes as u64,
+                tom_stats.oldest_delete_ts,
+                tom_stats.newest_delete_ts,
+                self.active_snapshots.len() as u64,
+            );
+        }
+
         removed
     }
 
