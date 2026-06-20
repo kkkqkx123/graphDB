@@ -110,6 +110,13 @@ pub enum MetricType {
     CsrCompactions,
     CsrEdgesCompacted,
     CsrBytesAllocated,
+    // MVCC Tombstone metrics
+    TombstoneCount,
+    TombstoneMemoryBytes,
+    TombstoneGCCount,
+    TombstoneOldestTsMin,
+    TombstoneNewestTsMax,
+    TombstoneActiveSnapshots,
 }
 
 /// metric
@@ -1000,6 +1007,32 @@ impl StatsManager {
     /// Set current CSR allocated bytes (snapshot of current state)
     pub fn set_csr_bytes_allocated(&self, bytes: u64) {
         self.set_value(MetricType::CsrBytesAllocated, bytes);
+    }
+
+    /// Record tombstone statistics for MVCC observability
+    pub fn record_tombstone_stats(
+        &self,
+        count: u64,
+        memory_bytes: u64,
+        oldest_ts_min: Option<u32>,
+        newest_ts_max: Option<u32>,
+        active_snapshots: u64,
+    ) {
+        self.set_value(MetricType::TombstoneCount, count);
+        self.set_value(MetricType::TombstoneMemoryBytes, memory_bytes);
+        self.set_value(MetricType::TombstoneActiveSnapshots, active_snapshots);
+
+        if let Some(ts) = oldest_ts_min {
+            self.set_value(MetricType::TombstoneOldestTsMin, ts as u64);
+        }
+        if let Some(ts) = newest_ts_max {
+            self.set_value(MetricType::TombstoneNewestTsMax, ts as u64);
+        }
+    }
+
+    /// Increment tombstone garbage collection counter
+    pub fn record_tombstone_gc(&self) {
+        self.add_value(MetricType::TombstoneGCCount);
     }
 }
 

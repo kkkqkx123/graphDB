@@ -544,10 +544,437 @@ fn test_snapshot_simple_debug() {
     assert_eq!(out_edges_before.len(), 1);
 
     let snapshot = table.export_snapshot(ts1).unwrap();
-    
+
     assert_eq!(snapshot.out_csr.edge_count(), 1);
     assert_eq!(snapshot.out_csr.edges_of_ref(0).len(), 1);
-    
+
     let edges = snapshot.get_out_edges(0);
     assert_eq!(edges.len(), 1);
 }
+
+#[test]
+fn test_gc_tombstones_basic() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert 3 edges
+    table.insert_edge(0, 1, 0, &[], 100).unwrap();
+    table.insert_edge(0, 2, 0, &[], 100).unwrap();
+    table.insert_edge(0, 3, 0, &[], 100).unwrap();
+
+    // Manually insert tombstones (simulating deletions that already happened)
+    table.tombstones.insert(EdgeId(0), 200);
+    table.tombstones.insert(EdgeId(1), 250);
+    table.tombstones.insert(EdgeId(2), 300);
+
+    assert_eq!(table.tombstones.len(), 3);
+
+    // GC with min_snapshot_ts=220 should remove tombstone for delete_ts < 220
+    let removed = table.gc_tombstones(220);
+    assert_eq!(removed, 1);
+    assert_eq!(table.tombstones.len(), 2);
+
+    // GC with min_snapshot_ts=260 should remove tombstone for delete_ts < 260
+    let removed = table.gc_tombstones(260);
+    assert_eq!(removed, 1);
+    assert_eq!(table.tombstones.len(), 1);
+
+    // GC with min_snapshot_ts=310 should remove all tombstones
+    let removed = table.gc_tombstones(310);
+    assert_eq!(removed, 1);
+    assert_eq!(table.tombstones.len(), 0);
+}
+
+#[test]
+fn test_gc_tombstones_preserves_active_snapshots() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Manually set up a tombstone with delete_ts=200
+    table.tombstones.insert(EdgeId(0), 200);
+    assert_eq!(table.tombstones.len(), 1);
+
+    // GC with min_snapshot_ts=151 (< 200)
+    // Should keep the tombstone because an older snapshot might need it
+    let removed = table.gc_tombstones(151);
+    assert_eq!(removed, 0, "Tombstone with delete_ts=200 should be preserved when min_snapshot_ts=151");
+    assert_eq!(table.tombstones.len(), 1);
+
+    // GC with min_snapshot_ts=201 (> 200)
+    // Now we can safely remove it
+    let removed = table.gc_tombstones(201);
+    assert_eq!(removed, 1);
+    assert_eq!(table.tombstones.len(), 0);
+}
+
+#[test]
+fn test_tombstones_gc_multiple_edges() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Manually insert multiple tombstones at different delete times
+    for i in 0..10 {
+        table.tombstones.insert(EdgeId(i), 100 + (i as u32 * 10));
+    }
+
+    assert_eq!(table.tombstones.len(), 10);
+
+    // GC with min_snapshot_ts=150 should remove edges deleted at 100-140
+    let removed = table.gc_tombstones(150);
+    assert_eq!(removed, 5);
+    assert_eq!(table.tombstones.len(), 5);
+
+    // Verify that remaining tombstones have delete_ts >= 150
+    for &delete_ts in table.tombstones.values() {
+        assert!(delete_ts >= 150, "Remaining tombstone should have delete_ts >= 150, got {}", delete_ts);
+    }
+}
+
+#[test]
+fn test_aggressive_merge_triggered_at_max_segments() {
+    let mut config = EdgeTableConfig::default();
+    config.max_segments_per_direction = 3;  // Set low limit for testing
+    let max_segments = config.max_segments_per_direction;
+    let schema = create_test_schema();
+    let mut table = EdgeTable::with_config(schema, config).unwrap();
+
+    // Create and freeze enough segments to exceed the limit
+    for t in 0..5 {
+        for src in 0..10 {
+            table.insert_edge(src as u32, src as u32 + 1, t as i64, &[], t as u32).unwrap();
+        }
+        table.freeze_csr_only(t as u32);
+    }
+
+    // After freeze, segments should be reduced due to aggressive merge
+    // Total segments (out + in) should be <= max_segments_per_direction * 2
+    let total_segments = table.out_segments.len() + table.in_segments.len();
+    assert!(
+        total_segments <= max_segments * 2,
+        "Total segments {} should not exceed max limit {}",
+        total_segments,
+        max_segments * 2
+    );
+}
+
+#[test]
+fn test_aggressive_merge_preserves_correctness() {
+    let mut config = EdgeTableConfig::default();
+    config.max_segments_per_direction = 2;
+    let schema = create_test_schema();
+    let mut table = EdgeTable::with_config(schema, config).unwrap();
+
+    // Insert edges at different timestamps with different ranks to avoid duplicates
+    for t in 0..4 {
+        for src in 0..5 {
+            let dst = src + 1;
+            table.insert_edge(src as u32, dst as u32, t as i64, &[], t as u32).unwrap();
+        }
+        table.freeze_csr_only(t as u32);
+    }
+
+    // Verify export_snapshot still works correctly (this is the key test for correctness)
+    let snapshot = table.export_snapshot(u32::MAX).unwrap();
+    for src in 0..5 {
+        let edges = snapshot.get_out_edges(src as u32);
+        assert!(!edges.is_empty(), "Snapshot should contain edges from {}", src);
+    }
+
+    // Also verify segments have edges
+    let total_edges: usize = table.out_segments.iter().map(|s| s.csr.edge_count() as usize).sum();
+    assert!(total_edges > 0, "Segments should contain edges after aggressive merge");
+}
+
+#[test]
+fn test_version_in_meta() {
+    use tempfile::TempDir;
+
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema.clone()).unwrap();
+
+    // Insert an edge
+    table.insert_edge(0, 1, 0, &[], 0).unwrap();
+    table.freeze_csr_only(0);
+
+    // Flush to temp directory
+    let temp_dir = TempDir::new().unwrap();
+    table.flush(temp_dir.path(), crate::storage::compression::CompressionType::Zstd { level: 0 }).unwrap();
+
+    // Load it back and verify it works (testing that version is correctly written and read)
+    let mut table2 = EdgeTable::new(schema).unwrap();
+    let result = table2.load(temp_dir.path());
+
+    // Should load successfully, which means version was correctly written and read
+    assert!(result.is_ok(), "Should be able to load table with version info");
+
+    // Verify edge is still there
+    let snapshot = table2.export_snapshot(u32::MAX).unwrap();
+    assert!(!snapshot.get_out_edges(0).is_empty(), "Edge should be present after loading");
+}
+
+#[test]
+fn test_merge_metrics_basic() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert edges to create multiple segments
+    for i in 0..5 {
+        table.insert_edge(i, i + 1, 0, &[], 100 + i).unwrap();
+    }
+
+    // Freeze to create segments
+    table.freeze_csr_only(105);
+
+    for i in 5..10 {
+        table.insert_edge(i, i + 1, 0, &[], 110 + i).unwrap();
+    }
+
+    table.freeze_csr_only(120);
+
+    // Perform merge and collect metrics
+    let result = table.merge_segments_with_config(50, 8 * 1024 * 1024);
+    let metrics = result.metrics;
+
+    // Verify metrics structure has expected values
+    assert!(metrics.segments_before > 0, "Should have segments before merge");
+    assert!(metrics.segments_after <= metrics.segments_before, "Should have fewer segments after merge");
+    assert!(metrics.edges_merged > 0, "Should have merged some edges");
+    assert!(metrics.duration_ms < 1_000_000, "Duration should be reasonable");
+
+    // Log the metrics for inspection
+    metrics.log();
+}
+
+#[test]
+fn test_merge_metrics_edge_count_accuracy() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert a known number of edges (using different destinations to avoid duplicates)
+    let edge_count = 20;
+    for i in 0..edge_count {
+        let src = i % 5;
+        let dst = (i / 5) + 5; // 5-9 range to avoid duplication with later edges
+        table.insert_edge(src, dst, 0, &[], 100 + (i as u32)).unwrap();
+    }
+
+    table.freeze_csr_only(100 + edge_count as u32);
+
+    // Insert more edges with different source/destination pattern
+    for i in 0..10 {
+        let src = (i + 10) % 5;
+        let dst = 20 + i;
+        table.insert_edge(src, dst, 0, &[], 200 + (i as u32)).unwrap();
+    }
+
+    table.freeze_csr_only(210);
+
+    // Merge and verify edge count
+    let result = table.merge_segments_with_config(500, 8 * 1024 * 1024);
+    let metrics = result.metrics;
+
+    // The edges_merged should reflect all edges that were part of the merge
+    assert!(
+        metrics.edges_merged >= 20,
+        "Should have merged at least 20 edges, got {}",
+        metrics.edges_merged
+    );
+}
+
+#[test]
+fn test_merge_metrics_performance_tracking() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Create a scenario with many edges (using different destinations)
+    for i in 0..100 {
+        let src = i % 20;
+        let dst = 100 + (i / 20) * 20 + i % 20; // Unique destinations
+        table.insert_edge(src, dst, 0, &[], 1000 + (i as u32)).unwrap();
+    }
+
+    table.freeze_csr_only(1100);
+
+    // Second batch with different destination ranges
+    for i in 0..50 {
+        let src = (i + 5) % 20;
+        let dst = 500 + i; // Non-overlapping destinations
+        table.insert_edge(src, dst, 0, &[], 2000 + (i as u32)).unwrap();
+    }
+
+    table.freeze_csr_only(2050);
+
+    // Perform merge and check timing
+    let result = table.merge_segments_with_config(100, 8 * 1024 * 1024);
+    let metrics = result.metrics;
+
+    // Metrics should be well-formed
+    assert!(metrics.segments_before > 0);
+    assert!(metrics.edges_merged > 0);
+    // Duration may be 0 or very small for small test data, so we just check it's reasonable
+    assert!(metrics.duration_ms < 1000, "Merge should complete quickly");
+
+    println!(
+        "Merge metrics - segments: {} -> {}, edges: {}, duration: {}ms",
+        metrics.segments_before, metrics.segments_after, metrics.edges_merged, metrics.duration_ms
+    );
+}
+
+#[test]
+fn test_segment_size_estimation() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert edges before freeze
+    for i in 0..50 {
+        table
+            .insert_edge(i % 10, 100 + i, 0, &[], 1000 + i as u32)
+            .unwrap();
+    }
+
+    // Freeze to create segments
+    table.freeze_csr_only(1100);
+
+    // Check that segments have meaningful size estimates
+    let total_bytes = table.segments_total_bytes();
+    assert!(
+        total_bytes > 0,
+        "Total segment size should be greater than zero"
+    );
+
+    // Size should be roughly proportional to edge count
+    // Conservative estimate: each edge is at least 20 bytes in CSR
+    assert!(total_bytes >= 50 * 20, "Size estimate too small");
+
+    println!("Total segment size: {} bytes", total_bytes);
+}
+
+#[test]
+fn test_auto_gc_with_snapshot_lifecycle() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Create initial edges and tombstone
+    table
+        .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
+        .unwrap();
+
+    // Freeze to move edges to segments
+    table.freeze_csr_only(125);
+
+    // Now delete to create tombstone
+    table.delete_edge(0, 1, 0, 150).unwrap();
+
+    let stats_before = table.tombstone_stats();
+    assert_eq!(stats_before.count, 1, "Should have 1 tombstone");
+
+    // Register multiple snapshots with reference counting
+    table.register_active_snapshot(100);
+    table.register_active_snapshot(100);  // Register twice at same timestamp
+    table.register_active_snapshot(120);
+
+    // Unregister one reference at 100 - should still have 1 ref
+    let count_after_first = table.unregister_active_snapshot(100);
+    assert_eq!(count_after_first, 1, "Should still have 1 ref for ts 100");
+
+    let stats_after_first_unregister = table.tombstone_stats();
+    assert_eq!(
+        stats_after_first_unregister.count, 1,
+        "Tombstone should not be cleaned yet"
+    );
+
+    // Unregister the second reference at 100 - should trigger GC
+    let count_after_second = table.unregister_active_snapshot(100);
+    assert_eq!(count_after_second, 0, "Should have 0 refs for ts 100 after removal");
+
+    // Unregister the snapshot at 120
+    let count_120 = table.unregister_active_snapshot(120);
+    assert_eq!(count_120, 0, "Should have 0 refs for ts 120");
+
+    let stats_after_gc = table.tombstone_stats();
+    assert_eq!(
+        stats_after_gc.count, 0,
+        "Tombstone should be cleaned after all snapshots unregistered"
+    );
+}
+
+#[test]
+fn test_deletion_info_segment_skip_optimization() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Create edges at timestamp 100
+    for i in 0..10 {
+        table
+            .insert_edge(0, i, 0, &[("weight".to_string(), Value::Double(1.0))], 100)
+            .unwrap();
+    }
+
+    // Freeze to create first segment
+    table.freeze_csr_only(100);
+
+    // Delete all edges at timestamp 200
+    for i in 0..10 {
+        table.delete_edge(0, i, 0, 200).unwrap();
+    }
+
+    // Freeze to create second segment with deletion info
+    table.freeze_csr_only(200);
+
+    // Register snapshot at timestamp 150 (after creation but before deletion)
+    table.register_active_snapshot(150);
+
+    // Query at 150 should find edges (because they haven't been deleted yet)
+    let edges_at_150 = table.out_edges(0, 150);
+    assert_eq!(edges_at_150.len(), 10, "Should find all edges at timestamp 150");
+
+    // Query at 250 should find no edges (all deleted)
+    let edges_at_250 = table.out_edges(0, 250);
+    assert_eq!(
+        edges_at_250.len(),
+        0,
+        "Should find no edges at timestamp 250 (all deleted)"
+    );
+
+    // Clean up snapshot
+    table.unregister_active_snapshot(150);
+}
+
+#[test]
+fn test_tombstone_stats_accuracy() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Create edges at different timestamps
+    table
+        .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.0))], 50)
+        .unwrap();
+    table
+        .insert_edge(0, 2, 0, &[("weight".to_string(), Value::Double(2.0))], 100)
+        .unwrap();
+    table
+        .insert_edge(0, 3, 0, &[("weight".to_string(), Value::Double(3.0))], 150)
+        .unwrap();
+
+    // Freeze to move edges to segments
+    table.freeze_csr_only(160);
+
+    // Delete at different timestamps
+    table.delete_edge(0, 1, 0, 200).unwrap();
+    table.delete_edge(0, 2, 0, 250).unwrap();
+    table.delete_edge(0, 3, 0, 300).unwrap();
+
+    let stats = table.tombstone_stats();
+    assert_eq!(stats.count, 3, "Should have 3 tombstones");
+    assert!(stats.memory_bytes > 0, "Memory estimate should be positive");
+    assert_eq!(
+        stats.oldest_delete_ts, Some(200),
+        "Oldest deletion should be at 200"
+    );
+    assert_eq!(
+        stats.newest_delete_ts, Some(300),
+        "Newest deletion should be at 300"
+    );
+}
+
+
