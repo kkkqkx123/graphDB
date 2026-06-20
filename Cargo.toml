@@ -226,7 +226,3 @@ harness = false
 [[bench]]
 name = "end_to_end_bench"
 harness = false
-
-[[bench]]
-name = "p4_conflict_detection_bench"
-harness = false

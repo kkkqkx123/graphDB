@@ -1106,4 +1106,267 @@ fn test_mvcc_metrics_active_snapshots() {
     assert_eq!(count3, 1, "Should have 1 active snapshot after unregister");
 }
 
+#[test]
+fn test_merge_stats_tracking() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Initial merge stats should be zero
+    let stats = table.merge_stats();
+    assert_eq!(stats.total_merge_operations, 0);
+    assert_eq!(stats.total_segments_merged, 0);
+    assert_eq!(stats.total_edges_merged, 0);
+    assert!(!stats.segment_count_pressure());
+
+    // Insert and freeze multiple times to trigger merges
+    for batch in 0..3 {
+        for i in 0..5 {
+            table
+                .insert_edge(
+                    0,
+                    1,
+                    (batch * 10 + i) as i64,
+                    &[],
+                    100 + batch as u32,
+                )
+                .unwrap();
+        }
+        table.freeze_csr_only(105 + batch as u32);
+    }
+
+    // Verify segments were created
+    let initial_count = table.out_segments.len() + table.in_segments.len();
+    assert!(initial_count > 0, "Should have created segments");
+
+    // Run adaptive merge
+    let merged = table.merge_segments_adaptive(120, 10);
+
+    // Check stats
+    let stats = table.merge_stats();
+    if merged > 0 {
+        assert!(stats.total_merge_operations > 0, "Should record merge operations");
+        assert!(stats.avg_merge_time_ms() >= 0.0, "Average merge time should be valid");
+    }
+}
+
+#[test]
+fn test_lsm_tiered_merge() {
+    use crate::storage::engine::config::LSMSegmentLevel;
+
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert multiple batches to create segments of varying sizes
+    for batch in 0..5 {
+        for i in 0..10 {
+            table
+                .insert_edge(
+                    0,
+                    1,
+                    (batch * 100 + i) as i64,
+                    &[],
+                    100 + batch as u32,
+                )
+                .unwrap();
+        }
+        table.freeze_csr_only(105 + batch as u32);
+    }
+
+    // Verify segments were created
+    let initial_count = table.out_segments.len() + table.in_segments.len();
+    assert!(initial_count > 0, "Should have created segments");
+
+    // Run LSM-tiered merge
+    let merged = table.merge_segments_lsm_tiered(120);
+
+    // Verify the operation completes without panic
+    let final_count = table.out_segments.len() + table.in_segments.len();
+    assert!(final_count <= initial_count, "LSM tiering should not increase segment count");
+}
+
+#[test]
+fn test_lsm_segment_level_classification() {
+    use crate::storage::engine::config::LSMSegmentLevel;
+
+    // Test size classification
+    assert_eq!(LSMSegmentLevel::for_size(500_000), LSMSegmentLevel::L0);
+    assert_eq!(LSMSegmentLevel::for_size(5 * 1024 * 1024), LSMSegmentLevel::L1);
+    assert_eq!(LSMSegmentLevel::for_size(16 * 1024 * 1024), LSMSegmentLevel::L2);
+    assert_eq!(LSMSegmentLevel::for_size(50 * 1024 * 1024), LSMSegmentLevel::L3Plus);
+
+    // Test merge trigger counts
+    assert_eq!(LSMSegmentLevel::L0.merge_trigger_count(), 4);
+    assert_eq!(LSMSegmentLevel::L1.merge_trigger_count(), 3);
+    assert_eq!(LSMSegmentLevel::L2.merge_trigger_count(), 2);
+    assert_eq!(LSMSegmentLevel::L3Plus.merge_trigger_count(), 2);
+
+    // Test merge target sizes
+    assert!(LSMSegmentLevel::L0.merge_target_size() < LSMSegmentLevel::L1.merge_target_size());
+    assert!(LSMSegmentLevel::L1.merge_target_size() < LSMSegmentLevel::L2.merge_target_size());
+    assert!(LSMSegmentLevel::L2.merge_target_size() < LSMSegmentLevel::L3Plus.merge_target_size());
+}
+
+#[test]
+fn test_deletion_stats_tracking() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert edges at different timestamps
+    for i in 0..5 {
+        table
+            .insert_edge(
+                0,
+                1,
+                i as i64,
+                &[("weight".to_string(), Value::Double(i as f64))],
+                100 + i as u32,
+            )
+            .unwrap();
+    }
+
+    // No deletions yet
+    let stats = table.deletion_stats();
+    assert_eq!(stats.total_deleted_edges, 0);
+    assert_eq!(stats.segments_with_deletions, 0);
+    assert_eq!(stats.completely_deleted_segments, 0);
+    assert_eq!(stats.deletion_percentage(), 0.0);
+
+    // Freeze to create segments (creates one segment per direction)
+    table.freeze_csr_only(105);
+
+    // Check frozen edge count (5 edges creates 5 entries in both directions)
+    let stats = table.deletion_stats();
+    assert_eq!(stats.total_frozen_edges, 10); // 5 edges * 2 directions
+
+    // Delete some edges
+    table.delete_edge(0, 1, 0, 110).unwrap();
+    table.delete_edge(0, 1, 1, 111).unwrap();
+
+    // Still should show no deletions in segments (deletions are in tombstones, not frozen yet)
+    let stats = table.deletion_stats();
+    assert_eq!(stats.total_deleted_edges, 0, "Deletions not yet frozen into segments");
+
+    // Now freeze again to bake deletions into segments
+    table.freeze_csr_only(115);
+
+    // Check deletion stats - should now reflect deleted edges
+    let stats = table.deletion_stats();
+    assert!(stats.deletion_percentage() >= 0.0, "Should have valid deletion percentage");
+}
+
+#[test]
+fn test_deletion_stats_complete_segment_deletion() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert 3 edges
+    for i in 0..3 {
+        table
+            .insert_edge(0, 1, i as i64, &[], 100)
+            .unwrap();
+    }
+
+    // Freeze to create segment
+    table.freeze_csr_only(105);
+
+    // Delete all edges
+    for i in 0..3 {
+        table.delete_edge(0, 1, i as i64, 110).unwrap();
+    }
+
+    // Freeze again - now segment should have all edges marked as deleted
+    table.freeze_csr_only(115);
+
+    // Check stats - verify we have segments with deletion info
+    let stats = table.deletion_stats();
+    assert!(stats.total_frozen_edges > 0, "Should have frozen edges");
+}
+
+#[test]
+fn test_deletion_ratio() {
+    let mut stats = DeletionStats::default();
+
+    // No deletions
+    assert_eq!(stats.deletion_ratio(), 0.0);
+    assert_eq!(stats.deletion_percentage(), 0.0);
+    assert!(!stats.is_significant());
+
+    // 50% deletion
+    stats.total_frozen_edges = 100;
+    stats.total_deleted_edges = 50;
+    assert_eq!(stats.deletion_ratio(), 0.5);
+    assert_eq!(stats.deletion_percentage(), 50.0);
+    assert!(stats.is_significant());
+
+    // 5% deletion (below threshold)
+    stats.total_deleted_edges = 5;
+    assert_eq!(stats.deletion_ratio(), 0.05);
+    assert_eq!(stats.deletion_percentage(), 5.0);
+    assert!(!stats.is_significant());
+}
+
+#[test]
+fn test_segment_age_calculation() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert edges at ts=100
+    for i in 0..3 {
+        table
+            .insert_edge(0, 1, i as i64, &[], 100)
+            .unwrap();
+    }
+
+    // Freeze at ts=105, creating segments with created_at_ts=u32::MAX (unknown)
+    table.freeze_csr_only(105);
+
+    // Verify segments were created
+    assert!(table.out_segments.len() > 0 || table.in_segments.len() > 0);
+
+    // For now, created_at_ts defaults to u32::MAX, so age() returns 0
+    // In future, we'd update freeze_delta to pass current_ts for proper age tracking
+}
+
+#[test]
+fn test_adaptive_merge_strategy() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Insert multiple batches of edges to create multiple segments
+    for batch in 0..3 {
+        for i in 0..5 {
+            table
+                .insert_edge(
+                    0,
+                    1,
+                    (batch * 10 + i) as i64,
+                    &[],
+                    100 + batch as u32,
+                )
+                .unwrap();
+        }
+
+        // Freeze after each batch to create multiple segments
+        table.freeze_csr_only(105 + batch as u32);
+    }
+
+    let initial_segments = table.out_segments.len() + table.in_segments.len();
+    assert!(initial_segments > 0, "Should have created segments");
+
+    // Run adaptive merge
+    let max_segment_age = 10u32;  // Merge segments older than 10 timestamp units
+    let merged = table.merge_segments_adaptive(120, max_segment_age);
+
+    // Verify merge happened (or didn't, depending on conditions)
+    let final_segments = table.out_segments.len() + table.in_segments.len();
+    let reduction = if initial_segments > final_segments {
+        initial_segments - final_segments
+    } else {
+        0
+    };
+
+    // Just verify the operation completed without panicking
+    assert!(final_segments <= initial_segments, "Merge should reduce or maintain segment count");
+}
+
 

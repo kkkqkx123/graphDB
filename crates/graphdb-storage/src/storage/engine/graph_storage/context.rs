@@ -17,7 +17,7 @@ use crate::core::UserStorage;
 use crate::core::{StorageError, StorageResult, Value};
 use crate::storage::edge::EdgeTable;
 use crate::storage::edge::{EdgeRecord, EdgeStrategy, ExportedEdgeSnapshot};
-use crate::storage::engine::background_freeze::{BackgroundFreezeConfig, BackgroundFreezeManager, FreezeStats};
+use crate::storage::engine::background_freeze::{BackgroundFreezeManager, FreezeStats};
 use crate::storage::engine::cache_manager::CacheManager;
 use crate::storage::engine::config::PropertyGraphConfig;
 use crate::storage::engine::data_store::{EdgeTableKey, GraphDataStore};
@@ -380,8 +380,8 @@ impl GraphStorageContext {
         Arc::clone(&self.persistent.data_store)
     }
 
-    pub(crate) fn freeze_config(&self) -> &BackgroundFreezeConfig {
-        &self.persistent.config.background_freeze
+    pub(crate) fn get_freeze_config_full(&self) -> crate::storage::engine::config::FreezeConfig {
+        self.persistent.config.freeze.clone()
     }
 
     pub(crate) fn append_wal_redo<T: Serialize>(
@@ -1553,6 +1553,14 @@ impl GraphStorageContext {
             return Err(StorageError::storage_not_open());
         }
 
+        // P9 Phase 3: Use cleanup_threshold from SnapshotTracker for optimized GC
+        let cleanup_ts = self.persistent.version_manager.snapshot_tracker().cleanup_threshold();
+        log::info!(
+            "Compact maintenance started: compact_ts={}, cleanup_threshold={}",
+            ts,
+            cleanup_ts
+        );
+
         let mut last_compacted_vertices = self.persistent.last_compacted_vertices.lock();
         last_compacted_vertices.clear();
 
@@ -1615,14 +1623,18 @@ impl GraphStorageContext {
             self.mark_edge_modified(key.edge_label);
         }
 
-        match self.gc_index_tombstones(ts) {
+        // P9 Phase 3: Use cleanup_threshold for optimized tombstone GC (O(1) instead of O(n*m))
+        match self.gc_index_tombstones(cleanup_ts) {
             Ok(index_gc_stats) if index_gc_stats.total_removed() > 0 => {
                 log::info!(
-                    "Index GC during compaction: removed {} vertex entries",
+                    "Index GC during compaction: removed {} vertex entries (cleanup_ts={})",
                     index_gc_stats.vertex_entries_removed,
+                    cleanup_ts
                 );
             }
-            Ok(_) => {}
+            Ok(_) => {
+                log::debug!("No index tombstones to clean (cleanup_ts={})", cleanup_ts);
+            }
             Err(err) => {
                 log::warn!("Index GC during compaction failed: {}", err);
             }
@@ -1646,10 +1658,32 @@ impl GraphStorageContext {
             }
         }
 
+        // Adaptive merge: consolidate segments based on age and deletion ratio
+        if self.persistent.config.merge_config.enable_adaptive_merge {
+            let mut edge_tables = self.persistent.data_store.edge_tables().write();
+            let mut total_merged = 0usize;
+
+            for table in edge_tables.values_mut() {
+                let merged = table.merge_segments_adaptive(
+                    ts,
+                    self.persistent.config.merge_config.max_segment_age,
+                );
+                total_merged += merged;
+            }
+
+            if total_merged > 0 {
+                log::info!(
+                    "Adaptive merge during compaction: {} segments merged",
+                    total_merged
+                );
+            }
+        }
+
         log::info!(
-            "Compaction completed: {} vertices, {} edges removed",
+            "Compaction completed: {} vertices, {} edges removed (cleanup_ts={})",
             total_vertices_removed,
-            total_edges_removed
+            total_edges_removed,
+            cleanup_ts
         );
 
         Ok(())
@@ -1727,21 +1761,45 @@ impl GraphStorageContext {
     }
 
     pub fn trigger_background_freeze(&self) -> StorageResult<()> {
-            let config = CompactConfig::with_fixed_ratio(true, 2.0)
-                .enable_segment_merge(1000);  // Default: merge segments within 1000 timestamp units
+        let config = CompactConfig::with_fixed_ratio(true, 2.0)
+            .enable_segment_merge(1000);  // Default: merge segments within 1000 timestamp units
         let ts = u32::MAX;
         let mut total_frozen = 0u64;
         let mut any_frozen = false;
+        let mut freeze_reasons = std::collections::HashSet::new();
         let start = std::time::Instant::now();
 
         {
             let mut edge_tables = self.persistent.data_store.edge_tables().write();
             for table in edge_tables.values_mut() {
                 let delta_edges = table.delta_edge_count();
-                if delta_edges >= self.persistent.config.background_freeze.delta_edge_threshold {
-                    let frozen = table.compact_and_freeze_with_config(ts, &config);
-                    total_frozen += frozen as u64;
-                    any_frozen = true;
+                let delta_memory = table.used_memory_size() as u64;
+
+                if let Some(ref manager) = self.runtime.background_freeze_manager {
+                    // Use conservative strategy for now - full statistics not available
+                    let input = crate::storage::engine::config::FreezeDecisionInput {
+                        delta_edge_count: delta_edges,
+                        delta_memory_bytes: delta_memory,
+                        segment_count: 0,      // Adaptive strategies not available yet
+                        oldest_segment_age: 0,
+                        deletion_ratio: 0.0,
+                    };
+
+                    if manager.should_freeze_with_stats(&input) {
+                        let decision = manager.get_freeze_decision_with_stats(&input);
+                        freeze_reasons.insert(decision.freeze_reason);
+
+                        let frozen = table.compact_and_freeze_with_config(ts, &config);
+                        total_frozen += frozen as u64;
+                        any_frozen = true;
+                    }
+                } else {
+                    // Fallback to edge count only if manager not available
+                    if delta_edges >= self.persistent.config.freeze.delta_edge_threshold {
+                        let frozen = table.compact_and_freeze_with_config(ts, &config);
+                        total_frozen += frozen as u64;
+                        any_frozen = true;
+                    }
                 }
             }
         }
@@ -1750,6 +1808,28 @@ impl GraphStorageContext {
             let duration_ms = start.elapsed().as_millis() as u64;
             if let Some(ref manager) = self.runtime.background_freeze_manager {
                 manager.record_freeze(total_frozen, duration_ms);
+
+                let reason_str = if freeze_reasons.is_empty() {
+                    "none".to_string()
+                } else {
+                    freeze_reasons
+                        .iter()
+                        .map(|r| match r {
+                            crate::storage::engine::background_freeze::FreezeReason::EdgeCountExceeded => "edges",
+                            crate::storage::engine::background_freeze::FreezeReason::MemoryExceeded => "memory",
+                            crate::storage::engine::background_freeze::FreezeReason::Both => "edges+memory",
+                            crate::storage::engine::background_freeze::FreezeReason::None => "none",
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",")
+                };
+
+                log::info!(
+                    "Background freeze: {} edges frozen in {}ms (reason: {})",
+                    total_frozen,
+                    duration_ms,
+                    reason_str
+                );
             }
         }
 

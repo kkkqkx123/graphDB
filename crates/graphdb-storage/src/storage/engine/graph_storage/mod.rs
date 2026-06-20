@@ -117,8 +117,8 @@ impl GraphStorage {
     }
 
     pub fn with_background_freeze(mut self) -> Self {
-        let freeze_config = self.ctx.freeze_config().clone();
-        let manager = Arc::new(BackgroundFreezeManager::new(freeze_config));
+        let freeze_config = self.ctx.get_freeze_config_full();
+        let manager = Arc::new(BackgroundFreezeManager::from_config(freeze_config));
         let new_ctx = (*self.ctx).clone().with_background_freeze(Arc::clone(&manager));
         self.ctx = Arc::new(new_ctx);
         self

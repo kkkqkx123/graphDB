@@ -15,8 +15,6 @@ use super::rollback::CombinedRollback;
 use super::types::*;
 use super::undo_log::{UndoLogEntry, UndoLogManager, UndoTarget};
 use super::wal::Timestamp;
-use crate::core::types::EdgeIdentifier;
-use crate::core::types::VertexId;
 
 /// Transaction Context
 ///
@@ -323,20 +321,6 @@ impl TransactionContext {
     /// Whether to enable two-phase commit
     pub fn is_two_phase_enabled(&self) -> bool {
         self.two_phase_enabled
-    }
-
-    /// Record a vertex write for conflict detection
-    pub(crate) fn record_vertex_write(&self, vid: VertexId) {
-        if !self.read_only {
-            self.write_set.lock().record_vertex(vid);
-        }
-    }
-
-    /// Record an edge write for conflict detection
-    pub(crate) fn record_edge_write(&self, edge: EdgeIdentifier) {
-        if !self.read_only {
-            self.write_set.lock().record_edge(edge);
-        }
     }
 
     /// Get the write set for this transaction

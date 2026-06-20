@@ -56,7 +56,17 @@ impl<'a> Parser<'a> {
         self.ctx.set_compat_mode(enabled);
     }
 
+    /// Parse a complete statement and return the AST with expression context.
+    ///
+    /// Each call to `parse()` resets the expression context to ensure isolated parsing sessions.
+    /// This prevents semantic information from previous parses from polluting subsequent ones.
+    /// For parsing multiple independent queries, either create a new Parser instance for each,
+    /// or call parse() multiple times on the same instance (each call gets a fresh context).
     pub fn parse(&mut self) -> Result<ParserResult, crate::query::parser::core::error::ParseError> {
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        self.ctx.set_expression_context(expr_context.clone());
+        self.expr_context = expr_context;
+
         let stmt = self.parse_statement()?;
         let ast = Ast::new(stmt, self.expr_context.clone());
         Ok(ParserResult { ast: Arc::new(ast) })

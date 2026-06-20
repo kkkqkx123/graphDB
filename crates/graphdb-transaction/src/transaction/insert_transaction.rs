@@ -13,7 +13,7 @@ use super::read_transaction::RELEASED_TIMESTAMP;
 use super::wal::types::{InsertEdgeRedo, InsertVertexRedo, WalHeader, WalOpType};
 use super::wal::writer::WalWriter;
 use super::wal::{EdgeId, LabelId, Timestamp};
-use crate::core::mvcc::{VersionManager, VersionManagerError};
+use super::mvcc::{VersionManager, VersionManagerError};
 use crate::core::types::VertexId;
 
 /// Insert transaction error

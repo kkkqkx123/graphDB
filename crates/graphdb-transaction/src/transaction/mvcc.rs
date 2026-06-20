@@ -16,6 +16,7 @@ use std::time::{Duration, Instant};
 use parking_lot::{Condvar, Mutex, RwLock};
 
 use crate::core::types::Timestamp;
+use super::snapshot_tracker::SnapshotTracker;
 
 const RING_BUF_SIZE: u32 = 1024 * 1024;
 const RING_INDEX_MASK: u32 = RING_BUF_SIZE - 1;
@@ -153,6 +154,7 @@ pub struct VersionManager {
     lock: Mutex<()>,
     condvar: Condvar,
     config: VersionManagerConfig,
+    snapshot_tracker: Arc<SnapshotTracker>,
 }
 
 impl VersionManager {
@@ -172,6 +174,7 @@ impl VersionManager {
             lock: Mutex::new(()),
             condvar: Condvar::new(),
             config,
+            snapshot_tracker: Arc::new(SnapshotTracker::new()),
         }
     }
 
@@ -221,7 +224,15 @@ impl VersionManager {
                     continue;
                 }
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
-                return self.read_ts.load(Ordering::SeqCst);
+                let ts = self.read_ts.load(Ordering::SeqCst);
+                drop(guard);
+                if let Err(e) = self.snapshot_tracker.add_snapshot(ts) {
+                    log::error!("Failed to track read snapshot {}: {}", ts, e);
+                    self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+                    self.condvar.notify_all();
+                    panic!("Critical: Failed to track snapshot for timestamp {}", ts);
+                }
+                return ts;
             }
             self.condvar.wait(&mut guard);
         }
@@ -251,7 +262,14 @@ impl VersionManager {
                     continue;
                 }
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
-                return Some(self.read_ts.load(Ordering::SeqCst));
+                let ts = self.read_ts.load(Ordering::SeqCst);
+                drop(guard);
+                if let Err(e) = self.snapshot_tracker.add_snapshot(ts) {
+                    log::error!("Failed to track read snapshot {}: {}", ts, e);
+                    self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+                    return None;
+                }
+                return Some(ts);
             }
 
             let elapsed = start.elapsed();
@@ -268,6 +286,11 @@ impl VersionManager {
     }
 
     pub fn release_read_timestamp(&self) {
+        let ts = self.read_ts.load(Ordering::SeqCst);
+        if let Err(e) = self.snapshot_tracker.release_snapshot(ts) {
+            log::error!("Failed to release snapshot {}: {}", ts, e);
+            // Continue anyway - we still need to decrement pending_reqs
+        }
         self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
         self.condvar.notify_all();
     }
@@ -298,7 +321,15 @@ impl VersionManager {
                 }
 
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
-                return self.write_ts.fetch_add(1, Ordering::SeqCst);
+                let ts = self.write_ts.fetch_add(1, Ordering::SeqCst);
+                drop(guard);
+                if let Err(e) = self.snapshot_tracker.add_snapshot(ts) {
+                    log::error!("Failed to track insert snapshot {}: {}", ts, e);
+                    self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+                    self.condvar.notify_all();
+                    panic!("Critical: Failed to track snapshot for timestamp {}", ts);
+                }
+                return ts;
             }
             self.condvar.wait(&mut guard);
         }
@@ -337,7 +368,14 @@ impl VersionManager {
                 }
 
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
-                return Some(self.write_ts.fetch_add(1, Ordering::SeqCst));
+                let ts = self.write_ts.fetch_add(1, Ordering::SeqCst);
+                drop(guard);
+                if let Err(e) = self.snapshot_tracker.add_snapshot(ts) {
+                    log::error!("Failed to track insert snapshot {}: {}", ts, e);
+                    self.pending_reqs.fetch_sub(1, Ordering::SeqCst);
+                    return None;
+                }
+                return Some(ts);
             }
 
             let elapsed = start.elapsed();
@@ -354,6 +392,7 @@ impl VersionManager {
     }
 
     pub fn release_insert_timestamp(&self, ts: Timestamp) {
+        let _ = self.snapshot_tracker.release_snapshot(ts);
         let _guard = self.lock.lock();
 
         let current_read_ts = self.read_ts.load(Ordering::SeqCst);
@@ -439,10 +478,14 @@ impl VersionManager {
             }
         }
 
-        Ok(self.write_ts.fetch_add(1, Ordering::SeqCst))
+        let ts = self.write_ts.fetch_add(1, Ordering::SeqCst);
+        drop(guard);
+        let _ = self.snapshot_tracker.add_snapshot(ts);
+        Ok(ts)
     }
 
     pub fn release_update_timestamp(&self, ts: Timestamp) {
+        let _ = self.snapshot_tracker.release_snapshot(ts);
         let _guard = self.lock.lock();
 
         if ts == self.read_ts.load(Ordering::SeqCst) + 1 {
@@ -465,6 +508,7 @@ impl VersionManager {
             .compare_exchange(expected, ts, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
         {
+            let _ = self.snapshot_tracker.release_snapshot(expected);
             self.pending_reqs
                 .fetch_add(self.thread_num.load(Ordering::SeqCst), Ordering::SeqCst);
             self.pending_update_reqs.store(0, Ordering::SeqCst);
@@ -489,6 +533,11 @@ impl VersionManager {
     pub fn get_safe_gc_timestamp_with_margin(&self, margin: Timestamp) -> Timestamp {
         let read_ts = self.read_ts.load(Ordering::SeqCst);
         read_ts.saturating_sub(margin)
+    }
+
+    /// Get the snapshot tracker for explicit snapshot management
+    pub fn snapshot_tracker(&self) -> &SnapshotTracker {
+        &self.snapshot_tracker
     }
 }
 
@@ -695,5 +744,31 @@ mod tests {
         let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
         let unique: HashSet<_> = results.into_iter().collect();
         assert_eq!(unique.len(), 10);
+    }
+
+    #[test]
+    fn test_snapshot_tracker_cleanup_threshold() {
+        let vm = Arc::new(VersionManager::new());
+        let tracker = vm.snapshot_tracker();
+
+        // Add multiple snapshots via insert timestamps
+        let ts1 = vm.acquire_insert_timestamp();
+        let ts2 = vm.acquire_insert_timestamp();
+        let ts3 = vm.acquire_insert_timestamp();
+
+        // Cleanup threshold should be minimum active
+        assert_eq!(tracker.cleanup_threshold(), ts1);
+
+        // Release first
+        vm.release_insert_timestamp(ts1);
+        assert_eq!(tracker.cleanup_threshold(), ts2);
+
+        // Release second
+        vm.release_insert_timestamp(ts2);
+        assert_eq!(tracker.cleanup_threshold(), ts3);
+
+        // Release last
+        vm.release_insert_timestamp(ts3);
+        assert_eq!(tracker.cleanup_threshold(), u32::MAX);  // No active snapshots
     }
 }

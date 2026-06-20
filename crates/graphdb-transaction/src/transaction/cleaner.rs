@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::core::mvcc::VersionManager;
+use super::mvcc::VersionManager;
 use crate::sync::SyncManager;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::error::TransactionError;

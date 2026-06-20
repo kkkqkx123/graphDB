@@ -8,7 +8,7 @@ use super::read_transaction::RELEASED_TIMESTAMP;
 use super::wal::types::WalHeader;
 use super::wal::writer::WalWriter;
 use super::wal::Timestamp;
-use crate::core::mvcc::{VersionManager, VersionManagerError};
+use super::mvcc::{VersionManager, VersionManagerError};
 use crate::core::types::{CompactConfig, CompactError, CompactStats, CompactTarget, CompactionStrategy};
 
 /// Compact transaction error

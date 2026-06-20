@@ -38,7 +38,7 @@
 //! handle.join().unwrap();
 //! ```
 
-use crate::core::mvcc::VersionManager;
+use crate::transaction::VersionManager;
 use crate::core::types::Timestamp;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -286,7 +286,7 @@ impl Clone for IndexGcManager {
 mod tests {
     use std::sync::Arc;
 
-    use crate::core::mvcc::VersionManager;
+    use crate::transaction::VersionManager;
     use crate::storage::index::*;
 
     #[test]

@@ -40,8 +40,10 @@ pub mod error;
 pub mod insert_transaction;
 pub mod manager;
 pub mod monitor;
+pub mod mvcc;
 pub mod read_transaction;
 pub mod rollback;
+pub mod snapshot_tracker;
 pub mod types;
 pub mod undo_log;
 pub mod update_transaction;
@@ -54,10 +56,11 @@ pub mod manager_test;
 #[cfg(test)]
 pub mod conflict_integration_test;
 
-pub use crate::core::mvcc::{
+pub use self::mvcc::{
     InsertTimestampGuard, ReadTimestampGuard, UpdateTimestampGuard, VersionManager,
     VersionManagerConfig, VersionManagerError, VersionManagerResult,
 };
+pub use self::snapshot_tracker::SnapshotTracker;
 pub use crate::core::types::CompactTarget;
 pub use cleaner::TransactionCleaner;
 pub use compact_transaction::{

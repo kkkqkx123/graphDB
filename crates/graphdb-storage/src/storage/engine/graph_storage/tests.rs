@@ -1385,17 +1385,53 @@ mod tests {
 
     #[test]
     fn test_background_freeze_manager_basics() {
-        use crate::storage::engine::background_freeze::{BackgroundFreezeConfig, BackgroundFreezeManager};
+        use crate::storage::engine::background_freeze::{BackgroundFreezeManager};
+        use crate::storage::engine::config::{FreezeConfig, FreezeDecisionInput, FreezeStrategyType};
 
-        let config = BackgroundFreezeConfig {
+        let config = FreezeConfig {
+            strategy: FreezeStrategyType::Conservative,
             delta_edge_threshold: 1000,
+            delta_memory_threshold_bytes: 256 * 1024 * 1024,
+            max_segment_age: u32::MAX,
+            deletion_threshold: 0.5,
+            max_segment_size_bytes: 8 * 1024 * 1024,
+            adaptive_segment_threshold: 50,
+            adaptive_maximum_segments: 150,
+            lsm_segment_pressure_threshold: 200,
         };
-        let manager = BackgroundFreezeManager::new(config);
+        let manager = BackgroundFreezeManager::from_config(config);
 
-        // Test should_freeze decision
-        assert!(!manager.should_freeze(500));
-        assert!(manager.should_freeze(1000));
-        assert!(manager.should_freeze(1500));
+        // Test should_freeze decision (only edge count threshold)
+        let input1 = FreezeDecisionInput {
+            delta_edge_count: 500,
+            delta_memory_bytes: 100 * 1024 * 1024,
+            segment_count: 50,
+            oldest_segment_age: 1000,
+            deletion_ratio: 0.1,
+        };
+        assert!(!manager.should_freeze_with_stats(&input1));
+
+        let input2 = FreezeDecisionInput {
+            delta_edge_count: 1000,
+            ..input1
+        };
+        assert!(manager.should_freeze_with_stats(&input2));
+
+        let input3 = FreezeDecisionInput {
+            delta_edge_count: 1500,
+            ..input1
+        };
+        assert!(manager.should_freeze_with_stats(&input3));
+
+        // Test should_freeze with memory threshold exceeded
+        let input4 = FreezeDecisionInput {
+            delta_edge_count: 500,
+            delta_memory_bytes: 300 * 1024 * 1024,
+            segment_count: 50,
+            oldest_segment_age: 1000,
+            deletion_ratio: 0.1,
+        };
+        assert!(manager.should_freeze_with_stats(&input4));
 
         // Test record_freeze
         manager.record_freeze(100, 50);
@@ -1477,5 +1513,106 @@ mod tests {
             "Freeze should succeed: {:?}",
             result.err()
         );
+    }
+
+    #[test]
+    fn test_p9_phase3_cleanup_threshold_gc_integration() {
+        // Test that compaction uses cleanup_threshold from SnapshotTracker (P9 Phase 3)
+        let (_, mut storage) = create_persistent_storage();
+        let _space_id = setup_space(&mut storage);
+        let _person_tag = setup_person_tag(&mut storage);
+        let _knows_edge = setup_knows_edge(&mut storage);
+
+        // Create vertices
+        let alice = VertexId::from_int64(1);
+        let bob = VertexId::from_int64(2);
+
+        // Insert vertices
+        let v1 = Vertex {
+            vid: alice.clone(),
+            id: 0,
+            tags: vec![Tag::new(
+                "Person".to_string(),
+                [("name".to_string(), Value::String("Alice".to_string()))]
+                    .iter()
+                    .cloned()
+                    .collect(),
+            )],
+            properties: [("name".to_string(), Value::String("Alice".to_string()))]
+                .iter()
+                .cloned()
+                .collect(),
+        };
+
+        storage.insert_vertex("test_space", v1).unwrap();
+
+        // Verify SnapshotTracker is accessible through VersionManager
+        let version_manager = storage.ctx.version_manager().clone();
+        let snapshot_tracker = version_manager.snapshot_tracker();
+
+        // Before any snapshots, cleanup_threshold should be MAX
+        let initial_threshold = snapshot_tracker.cleanup_threshold();
+        assert_eq!(initial_threshold, u32::MAX, "Initial cleanup_threshold should be u32::MAX");
+
+        // Acquire a read timestamp (creates a snapshot)
+        let read_ts = version_manager.acquire_read_timestamp();
+        assert!(read_ts > 0, "Read timestamp should be valid");
+
+        // Now cleanup_threshold should equal the read timestamp
+        let threshold_with_active = snapshot_tracker.cleanup_threshold();
+        assert_eq!(threshold_with_active, read_ts,
+            "cleanup_threshold should equal active read timestamp");
+
+        // Release the read timestamp
+        version_manager.release_read_timestamp();
+
+        // After releasing, cleanup_threshold should be MAX again
+        let final_threshold = snapshot_tracker.cleanup_threshold();
+        assert_eq!(final_threshold, u32::MAX, "Final cleanup_threshold should be u32::MAX after releasing");
+
+        // Verify compaction works (it uses cleanup_threshold internally)
+        let result = storage.compact(&Default::default());
+        assert!(result.is_ok(), "Compaction should succeed with cleanup_threshold: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_snapshot_tracker_cleanup_threshold_multiple_readers() {
+        // Test cleanup_threshold with multiple concurrent read transactions
+        let storage = create_test_storage();
+        let version_manager = storage.ctx.version_manager().clone();
+        let snapshot_tracker = version_manager.snapshot_tracker();
+
+        // Initially, no active snapshots
+        assert_eq!(snapshot_tracker.cleanup_threshold(), u32::MAX);
+        assert_eq!(snapshot_tracker.active_count(), 0);
+
+        // Acquire multiple read timestamps
+        let ts1 = version_manager.acquire_read_timestamp();
+        let ts2 = version_manager.acquire_read_timestamp();
+        let ts3 = version_manager.acquire_read_timestamp();
+
+        // All should use the same read_ts (due to MVCC design)
+        assert_eq!(ts1, ts2);
+        assert_eq!(ts2, ts3);
+
+        // cleanup_threshold should be the minimum active
+        assert_eq!(snapshot_tracker.cleanup_threshold(), ts1);
+
+        // Reference count should be 3
+        assert_eq!(snapshot_tracker.ref_count(ts1), Some(3));
+
+        // Release one
+        version_manager.release_read_timestamp();
+        assert_eq!(snapshot_tracker.ref_count(ts1), Some(2));
+        assert_eq!(snapshot_tracker.cleanup_threshold(), ts1);  // Still active
+
+        // Release another
+        version_manager.release_read_timestamp();
+        assert_eq!(snapshot_tracker.ref_count(ts1), Some(1));
+
+        // Release the last one
+        version_manager.release_read_timestamp();
+        assert_eq!(snapshot_tracker.active_count(), 0);
+        assert_eq!(snapshot_tracker.cleanup_threshold(), u32::MAX);
     }
 }

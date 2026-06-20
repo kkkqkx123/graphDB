@@ -16,7 +16,7 @@ use super::monitor::TransactionMonitor;
 use super::rollback::UndoLogRollback;
 use super::types::*;
 use super::undo_log::UndoTarget;
-use crate::core::mvcc::{VersionManager, VersionManagerConfig};
+use super::mvcc::{VersionManager, VersionManagerConfig};
 use crate::core::stats::StatsManager;
 use crate::sync::SyncManager;
 

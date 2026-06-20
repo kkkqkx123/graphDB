@@ -22,7 +22,7 @@ use super::wal::types::{
 };
 use super::wal::writer::WalWriter;
 use super::wal::{ColumnId, LabelId, Timestamp, VertexId};
-use crate::core::mvcc::{VersionManager, VersionManagerError};
+use super::mvcc::{VersionManager, VersionManagerError};
 
 /// Result type for vertex deletion including related edge information
 type DeleteVertexResult = Vec<(LabelId, LabelId, LabelId, Vec<RelatedEdgeInfo>)>;

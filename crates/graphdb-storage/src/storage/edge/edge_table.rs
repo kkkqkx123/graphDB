@@ -15,6 +15,7 @@ use crate::storage::types::{PropertyId, StoragePropertyDef};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Instant;
+use std::sync::Arc;
 
 // Version of the edge table metadata format for compatibility management
 const EDGE_META_VERSION: u32 = 2;
@@ -38,6 +39,105 @@ impl TombstoneStats {
     /// Estimate memory usage: EdgeId(u64) + Timestamp(u32) = 12 bytes per entry
     fn estimate_memory(count: usize) -> usize {
         count * std::mem::size_of::<(EdgeId, Timestamp)>()
+    }
+}
+
+/// Statistics about deletions across all segments for observability.
+///
+/// Tracks deletion patterns to help identify when segments have significant
+/// deletion activity, useful for deciding when to merge or gc segments.
+#[derive(Debug, Clone, Default)]
+pub struct DeletionStats {
+    /// Total edges deleted across all segments
+    pub total_deleted_edges: u64,
+    /// Total edges frozen (for percentage calculation)
+    pub total_frozen_edges: u64,
+    /// Number of segments with some deletions
+    pub segments_with_deletions: usize,
+    /// Number of segments where all edges are deleted (complete deletion)
+    pub completely_deleted_segments: usize,
+    /// Oldest deletion timestamp across all segments
+    pub oldest_deletion_ts: Option<Timestamp>,
+    /// Newest deletion timestamp across all segments
+    pub newest_deletion_ts: Option<Timestamp>,
+}
+
+impl DeletionStats {
+    /// Get deletion percentage as a ratio (0.0 to 1.0)
+    pub fn deletion_ratio(&self) -> f64 {
+        if self.total_frozen_edges == 0 {
+            0.0
+        } else {
+            self.total_deleted_edges as f64 / self.total_frozen_edges as f64
+        }
+    }
+
+    /// Get deletion percentage (0-100)
+    pub fn deletion_percentage(&self) -> f64 {
+        self.deletion_ratio() * 100.0
+    }
+
+    /// Check if deletions are significant (>10%)
+    pub fn is_significant(&self) -> bool {
+        self.deletion_ratio() > 0.1
+    }
+}
+
+/// Statistics about segment merge operations for observability and monitoring.
+///
+/// Tracks merge activity to understand segment consolidation patterns and
+/// evaluate merge strategy effectiveness.
+#[derive(Debug, Clone, Default)]
+pub struct MergeStats {
+    /// Total number of merge operations performed
+    pub total_merge_operations: u64,
+    /// Total number of segments merged (sum of all merge operations)
+    pub total_segments_merged: u64,
+    /// Total number of edges involved in merges
+    pub total_edges_merged: u64,
+    /// Total time spent on merge operations (milliseconds)
+    pub total_merge_time_ms: u64,
+    /// Current number of segments
+    pub current_segment_count: usize,
+    /// Maximum segment count reached
+    pub max_segment_count: usize,
+}
+
+impl MergeStats {
+    /// Get average merge time per operation (milliseconds)
+    pub fn avg_merge_time_ms(&self) -> f64 {
+        if self.total_merge_operations == 0 {
+            0.0
+        } else {
+            self.total_merge_time_ms as f64 / self.total_merge_operations as f64
+        }
+    }
+
+    /// Get average segments merged per operation
+    pub fn avg_segments_per_merge(&self) -> f64 {
+        if self.total_merge_operations == 0 {
+            0.0
+        } else {
+            self.total_segments_merged as f64 / self.total_merge_operations as f64
+        }
+    }
+
+    /// Get average edges merged per operation
+    pub fn avg_edges_per_merge(&self) -> f64 {
+        if self.total_merge_operations == 0 {
+            0.0
+        } else {
+            self.total_edges_merged as f64 / self.total_merge_operations as f64
+        }
+    }
+
+    /// Check if segment count is growing too fast (>80% of max)
+    pub fn segment_count_pressure(&self) -> bool {
+        if self.max_segment_count == 0 {
+            false
+        } else {
+            (self.current_segment_count as f64 / self.max_segment_count as f64) > 0.8
+        }
     }
 }
 
@@ -206,6 +306,8 @@ struct CsrSegment {
     deletion_info: DeletionInfo,
     // Version tracking for recovery
     version: SegmentVersion,
+    // Timestamp when this segment was created (for adaptive merge decisions)
+    created_at_ts: Timestamp,
 }
 
 /// Version tracking for CSR segment recovery
@@ -251,16 +353,46 @@ impl SegmentVersion {
 impl CsrSegment {
     fn new(csr: Csr, create_ts_min: Timestamp, create_ts_max: Timestamp,
            deletion_info: DeletionInfo) -> Self {
+        Self::with_creation_ts(csr, create_ts_min, create_ts_max, deletion_info, u32::MAX)
+    }
+
+    fn with_creation_ts(csr: Csr, create_ts_min: Timestamp, create_ts_max: Timestamp,
+                        deletion_info: DeletionInfo, created_at_ts: Timestamp) -> Self {
         let mut seg = Self {
             csr,
             create_ts_min,
             create_ts_max,
             deletion_info,
             version: SegmentVersion::new(),
+            created_at_ts,
         };
         // Compute initial checksum
         seg.version.checksum = SegmentVersion::compute_checksum(&seg);
         seg
+    }
+
+    /// Calculate age of this segment in timestamp units
+    fn age(&self, current_ts: Timestamp) -> u32 {
+        if self.created_at_ts == u32::MAX {
+            0  // Unknown age
+        } else {
+            current_ts.saturating_sub(self.created_at_ts)
+        }
+    }
+
+    /// Get deletion percentage (0.0-1.0) of this segment
+    fn deletion_ratio(&self) -> f64 {
+        let edge_count = self.csr.edge_count();
+        if edge_count == 0 {
+            0.0
+        } else {
+            match self.deletion_info {
+                DeletionInfo::NoDeletes => 0.0,
+                DeletionInfo::HasDeletes { deleted_count, .. } => {
+                    (deleted_count as f64) / (edge_count as f64)
+                }
+            }
+        }
     }
 
     /// Get deletion info as (min, max) range for serialization
@@ -365,6 +497,8 @@ pub struct EdgeTable {
     active_snapshots: HashMap<Timestamp, usize>,
     /// Optional statistics manager for MVCC metrics reporting
     stats_manager: Option<std::sync::Arc<crate::core::stats::StatsManager>>,
+    /// Merge statistics for monitoring and observability
+    merge_stats: Arc<parking_lot::Mutex<MergeStats>>,
 }
 
 impl EdgeTable {
@@ -407,6 +541,7 @@ impl EdgeTable {
             config,
             active_snapshots: HashMap::new(),
             stats_manager: None,
+            merge_stats: Arc::new(parking_lot::Mutex::new(MergeStats::default())),
         })
     }
 
@@ -555,6 +690,59 @@ impl EdgeTable {
         }
     }
 
+    /// Calculate deletion statistics across all segments.
+    ///
+    /// Analyzes segments to provide insights into deletion patterns:
+    /// - How many edges have been deleted vs. frozen
+    /// - Which segments have complete deletion (all edges deleted)
+    /// - Deletion timestamp range
+    ///
+    /// Used for observability and merge decisions.
+    pub fn deletion_stats(&self) -> DeletionStats {
+        let mut stats = DeletionStats::default();
+
+        let mut total_edge_count = 0u64;
+        let mut total_deleted_count = 0u64;
+
+        for segment in self.out_segments.iter().chain(self.in_segments.iter()) {
+            let edge_count = segment.csr.edge_count();
+            total_edge_count += edge_count;
+
+            match segment.deletion_info {
+                DeletionInfo::NoDeletes => {
+                    // No deletions in this segment
+                }
+                DeletionInfo::HasDeletes { min_ts, max_ts, deleted_count } => {
+                    total_deleted_count += deleted_count as u64;
+                    stats.segments_with_deletions += 1;
+
+                    // Track complete deletion segments
+                    if (deleted_count as u64) == edge_count {
+                        stats.completely_deleted_segments += 1;
+                    }
+
+                    // Track oldest and newest deletion timestamps
+                    if let Some(ref mut oldest) = stats.oldest_deletion_ts {
+                        *oldest = (*oldest).min(min_ts);
+                    } else {
+                        stats.oldest_deletion_ts = Some(min_ts);
+                    }
+
+                    if let Some(ref mut newest) = stats.newest_deletion_ts {
+                        *newest = (*newest).max(max_ts);
+                    } else {
+                        stats.newest_deletion_ts = Some(max_ts);
+                    }
+                }
+            }
+        }
+
+        stats.total_frozen_edges = total_edge_count;
+        stats.total_deleted_edges = total_deleted_count;
+
+        stats
+    }
+
     /// Calculate total memory used by all segments in both directions
     ///
     /// Used for merge heuristics and observability to understand
@@ -582,6 +770,29 @@ impl EdgeTable {
             .copied()
             .min()
             .unwrap_or(u32::MAX)
+    }
+
+    /// Get current merge statistics
+    pub fn merge_stats(&self) -> MergeStats {
+        let mut stats = self.merge_stats.lock().clone();
+        // Update current segment count
+        stats.current_segment_count = self.out_segments.len() + self.in_segments.len();
+        stats
+    }
+
+    /// Record a merge operation (internal use by merge algorithms)
+    pub(crate) fn record_merge(&self, segments_merged: usize, edges_merged: u64, duration_ms: u64) {
+        let mut stats = self.merge_stats.lock();
+        stats.total_merge_operations += 1;
+        stats.total_segments_merged += segments_merged as u64;
+        stats.total_edges_merged += edges_merged;
+        stats.total_merge_time_ms += duration_ms;
+
+        let current_count = self.out_segments.len() + self.in_segments.len();
+        stats.current_segment_count = current_count;
+        if current_count > stats.max_segment_count {
+            stats.max_segment_count = current_count;
+        }
     }
 
     fn base_get_edge(
@@ -1993,19 +2204,302 @@ impl EdgeTable {
         frozen
     }
 
-    /// Merge CSR segments to reduce timestamp range lookup overhead.
-    /// Merge CSR segments with time threshold (uses 8MB size limit).
+    /// LSM-style tiered merge strategy
     ///
-    /// Segments with timestamp ranges within `threshold` are merged into a single segment.
-    /// This reduces:
-    /// - Timestamp range checks per query (fewer segments to scan)
-    /// - Segment metadata overhead (fewer CsrSegment objects)
+    /// Organizes segments into levels based on size and merges within/across levels:
+    /// - L0: < 1MB (fresh from freeze)
+    /// - L1: 1-8MB
+    /// - L2: 8-32MB
+    /// - L3+: > 32MB
     ///
-    /// Returns the number of segments removed (before - after).
-    pub fn merge_segments(&mut self, threshold: Timestamp) -> usize {
-        let result = self.merge_segments_with_config(threshold, 8 * 1024 * 1024);
-        result.segments_reduced
+    /// When a level has too many segments, merges them up to the next level.
+    /// This prevents unbounded segment count while keeping query performance good.
+    pub fn merge_segments_lsm_tiered(&mut self, current_ts: Timestamp) -> usize {
+        use crate::storage::engine::config::LSMSegmentLevel;
+
+        let mut total_merged = 0usize;
+        let start = std::time::Instant::now();
+
+        // Process both directions
+        for segments in [&mut self.out_segments, &mut self.in_segments].iter_mut() {
+            // Group segments by level
+            let mut levels: std::collections::BTreeMap<LSMSegmentLevel, Vec<usize>> =
+                std::collections::BTreeMap::new();
+
+            for (idx, segment) in segments.iter().enumerate() {
+                let size = segment.estimated_bytes();
+                let level = LSMSegmentLevel::for_size(size);
+                levels.entry(level).or_insert_with(Vec::new).push(idx);
+            }
+
+            // Check each level for merge triggers
+            for (level, indices) in &levels {
+                if indices.len() >= level.merge_trigger_count() {
+                    // Merge segments in this level
+                    let merged = Self::merge_selected_segments(
+                        segments,
+                        indices.clone(),
+                        current_ts,
+                        level.merge_target_size(),
+                    );
+                    total_merged += merged;
+                }
+            }
+        }
+
+        if total_merged > 0 {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            let edges_merged = (total_merged as u64 * 1000).min(self.edge_count() as u64);
+            self.record_merge(total_merged, edges_merged, duration_ms);
+        }
+
+        total_merged
     }
+
+    /// Helper: merge selected segments by indices
+    fn merge_selected_segments(
+        segments: &mut Vec<CsrSegment>,
+        indices: Vec<usize>,
+        current_ts: Timestamp,
+        _target_size: usize,
+    ) -> usize {
+        if indices.len() <= 1 {
+            return 0;
+        }
+
+        // Sort indices in reverse to avoid index shifting on removal
+        let mut sorted_indices = indices;
+        sorted_indices.sort_by(|a, b| b.cmp(a));
+        let merge_count = sorted_indices.len();
+
+        let mut merged_entries = Vec::new();
+        let mut min_create_ts = u32::MAX;
+        let mut max_create_ts = 0u32;
+        let mut merged_deletion_info = DeletionInfo::NoDeletes;
+
+        // Collect edges from all selected segments
+        for idx in &sorted_indices {
+            let seg = &segments[*idx];
+            min_create_ts = min_create_ts.min(seg.create_ts_min);
+            max_create_ts = max_create_ts.max(seg.create_ts_max);
+            merged_deletion_info = merged_deletion_info.merge(&seg.deletion_info);
+
+            for (src, immutable_nbr) in seg.csr.iter() {
+                let src_u32 = src.as_int64().unwrap_or(0) as u32;
+                let nbr = Nbr::new(
+                    immutable_nbr.neighbor,
+                    immutable_nbr.edge_id,
+                    immutable_nbr.prop_offset,
+                    immutable_nbr.timestamp,
+                );
+                merged_entries.push((src_u32, nbr));
+            }
+        }
+
+        // Create merged segment if there are entries
+        if !merged_entries.is_empty() {
+            let vertex_capacity = merged_entries
+                .iter()
+                .map(|(src, _)| *src as usize + 1)
+                .max()
+                .unwrap_or(1024)
+                .max(1024);
+
+            let merged_csr = Csr::from_nbr_entries(&merged_entries, vertex_capacity);
+            let merged_segment = CsrSegment::with_creation_ts(
+                merged_csr,
+                min_create_ts,
+                max_create_ts,
+                merged_deletion_info,
+                current_ts,
+            );
+
+            // Remove old segments
+            for idx in sorted_indices {
+                segments.remove(idx);
+            }
+
+            // Add merged segment
+            segments.push(merged_segment);
+
+            merge_count  // Return number of merged segments
+        } else {
+            0
+        }
+    }
+
+
+    ///
+    /// Prioritizes merging:
+    /// 1. Older segments (age > threshold)
+    /// 2. Segments with high deletion ratio (>30%)
+    /// 3. Segments that can fit together
+    ///
+    /// This prevents accumulation of small segments while respecting
+    /// size constraints and deletion patterns.
+    pub fn merge_segments_adaptive(&mut self, current_ts: Timestamp, max_segment_age: Timestamp) -> usize {
+        let size_threshold = 8 * 1024 * 1024;  // 8MB per direction
+        let deletion_threshold = 0.3;  // 30% deletion ratio
+        let start = std::time::Instant::now();
+
+        let out_reduced = Self::merge_segments_adaptive_impl(
+            &mut self.out_segments,
+            current_ts,
+            max_segment_age,
+            deletion_threshold,
+            size_threshold,
+        );
+
+        let in_reduced = Self::merge_segments_adaptive_impl(
+            &mut self.in_segments,
+            current_ts,
+            max_segment_age,
+            deletion_threshold,
+            size_threshold,
+        );
+
+        let total_reduced = out_reduced + in_reduced;
+        if total_reduced > 0 {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            // Estimate edges merged (rough estimate: reduced segments × avg edges per segment)
+            let avg_edges_per_segment = if total_reduced > 0 {
+                let total_edges = self.edge_count();
+                (total_edges as u64 / (total_reduced as u64).max(1)).max(100)
+            } else {
+                100
+            };
+            self.record_merge(total_reduced, total_reduced as u64 * avg_edges_per_segment, duration_ms);
+        }
+
+        total_reduced
+    }
+
+    /// Implementation of adaptive merge for a single direction
+    fn merge_segments_adaptive_impl(
+        segments: &mut Vec<CsrSegment>,
+        current_ts: Timestamp,
+        max_segment_age: Timestamp,
+        deletion_threshold: f64,
+        size_threshold: usize,
+    ) -> usize {
+        if segments.len() <= 1 {
+            return 0;
+        }
+
+        // Compute merge priority score for each segment
+        let mut scored_segments: Vec<_> = segments
+            .iter()
+            .enumerate()
+            .map(|(idx, seg)| {
+                let age = seg.age(current_ts);
+                let deletion_ratio = seg.deletion_ratio();
+
+                // Priority score: higher = should merge sooner
+                // Older segments and high-deletion segments get higher scores
+                let age_score = if age > max_segment_age {
+                    100.0
+                } else {
+                    (age as f64 / max_segment_age as f64) * 100.0
+                };
+
+                let deletion_score = if deletion_ratio > deletion_threshold {
+                    (deletion_ratio / 0.5) * 100.0  // Scale to 100+ for high deletion
+                } else {
+                    deletion_ratio * 100.0
+                };
+
+                let score = (age_score + deletion_score) / 2.0;
+                (idx, score, seg.csr.edge_count())
+            })
+            .collect();
+
+        // Sort by priority score (highest first)
+        scored_segments.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Greedily merge high-priority segments
+        let mut to_merge = Vec::new();
+        let mut current_size = 0usize;
+
+        for (idx, _score, edge_count) in scored_segments {
+            let estimated_size = (current_size / 30) + (edge_count as usize);
+
+            if !to_merge.is_empty() && estimated_size > size_threshold {
+                break;  // Can't fit more segments
+            }
+
+            to_merge.push(idx);
+            current_size += edge_count as usize * 30;
+        }
+
+        if to_merge.len() <= 1 {
+            return 0;  // Nothing to merge
+        }
+
+        // Sort indices to merge them in order
+        to_merge.sort();
+
+        // Perform the merge: collect edges from all marked segments
+        let mut merged_entries = Vec::new();
+        let mut min_create_ts = u32::MAX;
+        let mut max_create_ts = 0u32;
+        let mut merged_deletion_info = DeletionInfo::NoDeletes;
+
+        let mut to_remove = Vec::new();
+
+        for (remove_idx, idx) in to_merge.iter().enumerate() {
+            let seg = &segments[*idx];
+            min_create_ts = min_create_ts.min(seg.create_ts_min);
+            max_create_ts = max_create_ts.max(seg.create_ts_max);
+            merged_deletion_info = merged_deletion_info.merge(&seg.deletion_info);
+
+            for (src, immutable_nbr) in seg.csr.iter() {
+                let src_u32 = src.as_int64().unwrap_or(0) as u32;
+                let nbr = Nbr::new(
+                    immutable_nbr.neighbor,
+                    immutable_nbr.edge_id,
+                    immutable_nbr.prop_offset,
+                    immutable_nbr.timestamp,
+                );
+                merged_entries.push((src_u32, nbr));
+            }
+
+            to_remove.push(*idx);
+        }
+
+        // Create merged segment
+        if !merged_entries.is_empty() {
+            let vertex_capacity = merged_entries
+                .iter()
+                .map(|(src, _)| *src as usize + 1)
+                .max()
+                .unwrap_or(1024)
+                .max(1024);
+
+            let merged_csr = Csr::from_nbr_entries(&merged_entries, vertex_capacity);
+            let merged_segment = CsrSegment::with_creation_ts(
+                merged_csr,
+                min_create_ts,
+                max_create_ts,
+                merged_deletion_info,
+                current_ts,
+            );
+
+            // Remove old segments (in reverse order to avoid index shifting)
+            to_remove.sort_by(|a, b| b.cmp(a));
+            for idx in to_remove {
+                segments.remove(idx);
+            }
+
+            // Add merged segment
+            segments.push(merged_segment);
+
+            to_merge.len()
+        } else {
+            0
+        }
+    }
+
+
 
     /// Merge CSR segments with time and size thresholds, returning merge metrics.
     ///

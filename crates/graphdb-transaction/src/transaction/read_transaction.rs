@@ -5,7 +5,7 @@
 //! the transaction was started.
 
 use super::wal::{LabelId, Timestamp, VertexId};
-use crate::core::mvcc::{VersionManager, VersionManagerError};
+use super::mvcc::{VersionManager, VersionManagerError};
 
 /// Released timestamp sentinel value (0 means timestamp has been released)
 /// Note: distinct from core's RELEASED_TIMESTAMP (u32::MAX)
