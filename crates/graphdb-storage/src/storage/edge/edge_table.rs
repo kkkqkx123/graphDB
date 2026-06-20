@@ -43,16 +43,26 @@ pub struct UpdateEdgePropertyByOffsetParams {
 #[derive(Debug)]
 struct CsrSegment {
     csr: Csr,
-    min_ts: Timestamp,
-    max_ts: Timestamp,
+    // Edge creation time range: [create_ts_min, create_ts_max]
+    // All edges were created within this range
+    create_ts_min: Timestamp,
+    create_ts_max: Timestamp,
+    // Edge deletion time range: [delete_ts_min, delete_ts_max]
+    // For time-travel queries: an edge is visible if create_ts <= query_ts < delete_ts
+    // Use u32::MAX for delete_ts_max if no edges are deleted
+    delete_ts_min: Timestamp,
+    delete_ts_max: Timestamp,
 }
 
 impl CsrSegment {
-    fn new(csr: Csr, min_ts: Timestamp, max_ts: Timestamp) -> Self {
+    fn new(csr: Csr, create_ts_min: Timestamp, create_ts_max: Timestamp,
+           delete_ts_min: Timestamp, delete_ts_max: Timestamp) -> Self {
         Self {
             csr,
-            min_ts,
-            max_ts,
+            create_ts_min,
+            create_ts_max,
+            delete_ts_min,
+            delete_ts_max,
         }
     }
 }
@@ -206,7 +216,13 @@ impl EdgeTable {
         ts: Timestamp,
     ) -> Option<Nbr> {
         for segment in segments.iter().rev() {
-            if segment.min_ts > ts {
+            if segment.create_ts_min > ts {
+                continue;
+            }
+
+            // Time-travel optimization: skip segment if all edges were deleted before query_ts
+            // If segment.delete_ts_max <= ts, all deletions happened before/at ts, so skip
+            if segment.delete_ts_max != u32::MAX && segment.delete_ts_max <= ts {
                 continue;
             }
 
@@ -230,7 +246,13 @@ impl EdgeTable {
     fn base_edges_of(&self, segments: &[CsrSegment], src: u32, ts: Timestamp) -> Vec<Nbr> {
         let mut edges = Vec::new();
         for segment in segments.iter().rev() {
-            if segment.min_ts > ts {
+            if segment.create_ts_min > ts {
+                continue;
+            }
+
+            // Time-travel optimization: skip segment if all edges were deleted before query_ts
+            // If segment.delete_ts_max <= ts, all deletions happened before/at ts, so skip
+            if segment.delete_ts_max != u32::MAX && segment.delete_ts_max <= ts {
                 continue;
             }
 
@@ -559,6 +581,12 @@ impl EdgeTable {
                 .sum::<u64>()
     }
 
+    /// Get count of edges in mutable delta only (excluding frozen segments).
+    /// Used by background freeze to decide when to trigger freezing.
+    pub fn delta_edge_count(&self) -> u64 {
+        self.out_csr.edge_count() + self.in_csr.edge_count()
+    }
+
     pub fn scan(&self, ts: Timestamp) -> Vec<EdgeRecord> {
         if !self.is_open {
             return Vec::new();
@@ -839,8 +867,10 @@ impl EdgeTable {
         file.write_all(&data)?;
         file.write_all(&(segments.len() as u64).to_le_bytes())?;
         for segment in segments {
-            file.write_all(&segment.min_ts.to_le_bytes())?;
-            file.write_all(&segment.max_ts.to_le_bytes())?;
+            file.write_all(&segment.create_ts_min.to_le_bytes())?;
+            file.write_all(&segment.create_ts_max.to_le_bytes())?;
+            file.write_all(&segment.delete_ts_min.to_le_bytes())?;
+            file.write_all(&segment.delete_ts_max.to_le_bytes())?;
             let data = segment.csr.dump();
             file.write_all(&(data.len() as u64).to_le_bytes())?;
             file.write_all(&data)?;
@@ -1007,13 +1037,21 @@ impl EdgeTable {
         cursor.read_exact(&mut segment_count_bytes)?;
         let segment_count = u64::from_le_bytes(segment_count_bytes) as usize;
         for _ in 0..segment_count {
-            let mut min_ts_bytes = [0u8; 4];
-            cursor.read_exact(&mut min_ts_bytes)?;
-            let min_ts = u32::from_le_bytes(min_ts_bytes);
+            let mut create_ts_min_bytes = [0u8; 4];
+            cursor.read_exact(&mut create_ts_min_bytes)?;
+            let create_ts_min = u32::from_le_bytes(create_ts_min_bytes);
 
-            let mut max_ts_bytes = [0u8; 4];
-            cursor.read_exact(&mut max_ts_bytes)?;
-            let max_ts = u32::from_le_bytes(max_ts_bytes);
+            let mut create_ts_max_bytes = [0u8; 4];
+            cursor.read_exact(&mut create_ts_max_bytes)?;
+            let create_ts_max = u32::from_le_bytes(create_ts_max_bytes);
+
+            let mut delete_ts_min_bytes = [0u8; 4];
+            cursor.read_exact(&mut delete_ts_min_bytes)?;
+            let delete_ts_min = u32::from_le_bytes(delete_ts_min_bytes);
+
+            let mut delete_ts_max_bytes = [0u8; 4];
+            cursor.read_exact(&mut delete_ts_max_bytes)?;
+            let delete_ts_max = u32::from_le_bytes(delete_ts_max_bytes);
 
             let mut segment_len_bytes = [0u8; 8];
             cursor.read_exact(&mut segment_len_bytes)?;
@@ -1024,7 +1062,13 @@ impl EdgeTable {
 
             let mut segment_csr = Csr::new();
             segment_csr.load(&segment_data)?;
-            segments.push(CsrSegment::new(segment_csr, min_ts, max_ts));
+            segments.push(CsrSegment::new(
+                segment_csr,
+                create_ts_min,
+                create_ts_max,
+                delete_ts_min,
+                delete_ts_max,
+            ));
         }
 
         Ok(())
@@ -1074,13 +1118,14 @@ impl EdgeTable {
     /// Freeze CSR only (convert mutable delta to immutable segment).
     ///
     /// Converts visible edges (ts <= query_ts) to immutable CSR and records
-    /// timestamp range [min_ts, max_ts] for time-travel queries.
+    /// timestamp ranges [create_ts_min, create_ts_max] and [delete_ts_min, delete_ts_max]
+    /// for time-travel queries and MVCC support.
     /// Clears mutable delta after freezing.
     /// Does NOT perform physical compaction.
     /// See `compact_csr_only()` and `compact_and_freeze_with_config()` for related operations.
     pub fn freeze_csr_only(&mut self, ts: Timestamp) -> usize {
-        let out_frozen = Self::freeze_delta(&mut self.out_csr, &mut self.out_segments, ts);
-        let in_frozen = Self::freeze_delta(&mut self.in_csr, &mut self.in_segments, ts);
+        let out_frozen = Self::freeze_delta(&mut self.out_csr, &mut self.out_segments, ts, &self.tombstones);
+        let in_frozen = Self::freeze_delta(&mut self.in_csr, &mut self.in_segments, ts, &self.tombstones);
         out_frozen + in_frozen
     }
 
@@ -1117,25 +1162,34 @@ impl EdgeTable {
     /// - Mutable delta (out_csr, in_csr) - most recent edges
     /// - Historical segments (out_segments, in_segments) - older edges
     ///
+    /// # MVCC Semantics
+    /// An edge is visible at timestamp `ts` if and only if:
+    /// - create_ts <= ts  (edge has been created by timestamp)
+    /// - delete_ts > ts   (edge has NOT been deleted by timestamp, or never deleted)
+    ///
+    /// This provides consistent snapshot isolation: each snapshot is a frozen point-in-time
+    /// view where all edges are fully consistent with respect to the transaction at timestamp ts.
+    ///
     /// # Algorithm
     /// 1. Collect edges from segments in reverse order (oldest to newest)
-    /// 2. Merge with mutable CSR edges (delta overwrites segment versions)
-    /// 3. Build immutable CSR for both out and in edges
-    /// 4. Return snapshot with properties and schema
+    /// 2. Apply MVCC visibility filter: keep only edges where create_ts <= ts < delete_ts
+    /// 3. Merge with mutable CSR edges (delta overwrites segment versions)
+    /// 4. Build immutable CSR for both out and in edges
+    /// 5. Return snapshot with properties and schema
     ///
     /// # Performance
     /// - Time: O(V + E) - linear scan of vertices and edges
     /// - Space: O(E) - temporary buffer for edge collection
     ///
     /// # Arguments
-    /// - `ts`: Timestamp to snapshot (only edges with create_ts <= ts are included)
+    /// - `ts`: Timestamp to snapshot (snapshot isolation point)
     ///
     /// # Returns
     /// A frozen snapshot suitable for backup, analysis, or time-travel queries
     pub fn export_snapshot(&self, ts: Timestamp) -> StorageResult<ExportedEdgeSnapshot> {
-        // Collect edges for both directions
-        let out_edges = self.collect_edges_for_snapshot(&self.out_csr, &self.out_segments, ts)?;
-        let in_edges = self.collect_edges_for_snapshot(&self.in_csr, &self.in_segments, ts)?;
+        // Collect edges for both directions with MVCC visibility filtering
+        let out_edges = self.collect_edges_for_snapshot_mvcc(&self.out_csr, &self.out_segments, ts)?;
+        let in_edges = self.collect_edges_for_snapshot_mvcc(&self.in_csr, &self.in_segments, ts)?;
 
         // Build immutable CSRs from collected edges
         let out_csr = Self::build_immutable_csr_from_edges(out_edges, self.out_csr.vertex_capacity())?;
@@ -1151,14 +1205,18 @@ impl EdgeTable {
         })
     }
 
-    /// Collect edges visible at timestamp from delta and segments.
+    /// Collect edges visible at timestamp from delta and segments with MVCC filtering.
+    ///
+    /// MVCC visibility rule: An edge is included if:
+    /// - create_ts <= ts  (edge has been created by timestamp)
+    /// - delete_ts > ts   (edge has not been deleted by timestamp, or u32::MAX if never deleted)
     ///
     /// Merges edges from:
     /// 1. Historical segments (in reverse order for proper time ordering)
-    /// 2. Mutable delta CSR (overrides segment versions)
+    /// 2. Mutable delta CSR (overrides segment versions with MVCC filtering)
     ///
     /// Uses HashMap deduplication to handle edges updated in both segments and delta.
-    fn collect_edges_for_snapshot(
+    fn collect_edges_for_snapshot_mvcc(
         &self,
         delta: &CsrVariant,
         segments: &[CsrSegment],
@@ -1172,13 +1230,32 @@ impl EdgeTable {
 
         // Step 1: Collect from segments in reverse order (older first, newer last)
         for segment in segments.iter().rev() {
-            if segment.min_ts > ts {
-                continue;  // This segment is in the future, skip
+            // Skip segment if created in the future
+            if segment.create_ts_min > ts {
+                continue;
             }
 
             for (src, immutable_nbr) in segment.csr.iter() {
+                // Skip edge if created after ts
                 if immutable_nbr.timestamp > ts {
-                    continue;  // Edge created after ts, skip
+                    continue;
+                }
+
+                // MVCC filter: check if edge was deleted by timestamp ts
+                // If edge is in tombstones, it was logically deleted
+                if let Some(&delete_ts) = self.tombstones.get(&immutable_nbr.edge_id) {
+                    // Edge is deleted at delete_ts; only include if delete_ts > ts
+                    if delete_ts <= ts {
+                        continue;  // Edge was already deleted by ts
+                    }
+                } else {
+                    // Edge not in tombstones; check segment's delete_ts range as hint
+                    // If segment.delete_ts_max <= ts, segment might have many deleted edges
+                    // (This is advisory; actual delete status is in tombstones map)
+                    if segment.delete_ts_max != u32::MAX && segment.delete_ts_max <= ts {
+                        // Segment hint suggests edges might be deleted, but verify with tombstones
+                        // Since we didn't find it above, it's NOT deleted -> include it
+                    }
                 }
 
                 let src_u32 = src.as_int64().unwrap_or(0) as u32;
@@ -1195,6 +1272,15 @@ impl EdgeTable {
         // Step 2: Collect from mutable CSR delta (overrides segment versions)
         for (src, nbr) in delta.iter(ts) {
             let src_u32 = src.as_int64().unwrap_or(0) as u32;
+
+            // MVCC filter: check if edge was deleted
+            if let Some(&delete_ts) = self.tombstones.get(&nbr.edge_id) {
+                // Edge is marked as deleted at delete_ts
+                if delete_ts <= ts {
+                    continue;  // Skip deleted edge
+                }
+            }
+
             edge_map.insert((src_u32, nbr.edge_id), (src_u32, nbr));
         }
 
@@ -1229,6 +1315,7 @@ impl EdgeTable {
         delta: &mut CsrVariant,
         segments: &mut Vec<CsrSegment>,
         ts: Timestamp,
+        tombstones: &HashMap<EdgeId, Timestamp>,
     ) -> usize {
         let entries: Vec<_> = delta
             .iter(ts)
@@ -1242,32 +1329,60 @@ impl EdgeTable {
             return 0;
         }
 
-        // Use delta's capacity directly instead of computing from max vertex id.
-        // This avoids creating sparse offset/degree arrays when entries only reference
-        // a small set of vertices (e.g., entries from vertices 5000-5002, but delta.capacity = 10000).
-        // Reusing the original capacity is more memory-efficient for long-running systems
-        // with many freezes.
+        // Validate that all vertex IDs fit within capacity.
+        // This prevents off-by-one errors in CSR offset/degree array indexing.
+        let max_vid = entries
+            .iter()
+            .map(|(src, nbr)| {
+                let nbr_id = nbr.neighbor.as_int64().unwrap_or(0) as usize;
+                std::cmp::max(*src as usize, nbr_id)
+            })
+            .max()
+            .unwrap_or(0);
         let vertex_capacity = delta.vertex_capacity();
+        assert!(
+            max_vid < vertex_capacity,
+            "Vertex ID {} exceeds capacity {} during freeze",
+            max_vid,
+            vertex_capacity
+        );
 
-        let min_ts = entries
+        let create_ts_min = entries
             .iter()
             .map(|(_, nbr)| nbr.create_ts)
             .min()
             .unwrap_or(0);
-        let max_ts = entries
+        let create_ts_max = entries
             .iter()
             .map(|(_, nbr)| nbr.create_ts)
             .max()
             .unwrap_or(0);
+
+        // Compute deletion timestamp range from tombstones of frozen edges.
+        // For MVCC support, track when edges in this segment were deleted.
+        let (delete_ts_min, delete_ts_max) = entries
+            .iter()
+            .filter_map(|(_, nbr)| tombstones.get(&nbr.edge_id))
+            .fold((u32::MAX, 0), |(min, max), &ts| {
+                (std::cmp::min(min, ts), std::cmp::max(max, ts))
+            });
+
         let csr = Csr::from_nbr_entries(&entries, vertex_capacity);
         let frozen = entries.len();
 
-        segments.push(CsrSegment::new(csr, min_ts, max_ts));
+        segments.push(CsrSegment::new(
+            csr,
+            create_ts_min,
+            create_ts_max,
+            delete_ts_min,
+            delete_ts_max,
+        ));
         delta.clear();
         frozen
     }
 
     /// Merge CSR segments to reduce timestamp range lookup overhead.
+    /// Merge CSR segments with time threshold (uses 8MB size limit).
     ///
     /// Segments with timestamp ranges within `threshold` are merged into a single segment.
     /// This reduces:
@@ -1276,34 +1391,54 @@ impl EdgeTable {
     ///
     /// Returns the number of segments removed (before - after).
     pub fn merge_segments(&mut self, threshold: Timestamp) -> usize {
+        self.merge_segments_with_config(threshold, 8 * 1024 * 1024)
+    }
+
+    /// Merge CSR segments with time and size thresholds.
+    ///
+    /// Merges segments when:
+    /// - Time gap between segments <= time_threshold, AND
+    /// - Combined merged size <= size_threshold_bytes
+    ///
+    /// This two-dimensional strategy prevents unbounded segment size growth while
+    /// still reducing lookup overhead by combining nearby segments.
+    pub fn merge_segments_with_config(&mut self, time_threshold: Timestamp, size_threshold_bytes: usize) -> usize {
         let before = self.out_segments.len() + self.in_segments.len();
-        Self::merge_segments_in_place(&mut self.out_segments, threshold);
-        Self::merge_segments_in_place(&mut self.in_segments, threshold);
+        Self::merge_segments_in_place(&mut self.out_segments, time_threshold, size_threshold_bytes);
+        Self::merge_segments_in_place(&mut self.in_segments, time_threshold, size_threshold_bytes);
         let after = self.out_segments.len() + self.in_segments.len();
         before.saturating_sub(after)
     }
 
-    fn merge_segments_in_place(segments: &mut Vec<CsrSegment>, threshold: Timestamp) {
+    fn merge_segments_in_place(segments: &mut Vec<CsrSegment>, time_threshold: Timestamp, size_threshold: usize) {
         if segments.len() <= 1 {
             return;
         }
 
         let mut merged = Vec::new();
         let mut current_entries = Vec::new();
-        let mut current_min_ts = segments[0].min_ts;
-        let mut current_max_ts = segments[0].max_ts;
+        let mut current_create_ts_min = segments[0].create_ts_min;
+        let mut current_create_ts_max = segments[0].create_ts_max;
+        let mut current_delete_ts_min = segments[0].delete_ts_min;
+        let mut current_delete_ts_max = segments[0].delete_ts_max;
 
         for segment in segments.drain(..) {
             // Check if this segment should merge with current accumulation
-            let gap = if segment.min_ts > current_max_ts {
-                segment.min_ts - current_max_ts
-            } else if current_max_ts > segment.min_ts {
+            // based on BOTH time gap AND estimated size
+            let time_gap = if segment.create_ts_min > current_create_ts_max {
+                segment.create_ts_min - current_create_ts_max
+            } else if current_create_ts_max > segment.create_ts_min {
                 0
             } else {
-                segment.min_ts - current_max_ts
+                segment.create_ts_min - current_create_ts_max
             };
 
-            if gap <= threshold && !current_entries.is_empty() {
+            // Estimate size: number of edges * average bytes-per-edge (CSR is compact)
+            // Each edge costs ~20-30 bytes in CSR format
+            let estimated_size = (current_entries.len() + segment.csr.edge_count() as usize) * 30;
+            let size_ok = estimated_size <= size_threshold;
+
+            if time_gap <= time_threshold && size_ok && !current_entries.is_empty() {
                 // Merge: accumulate this segment's edges
                 for (src, immutable_nbr) in segment.csr.iter() {
                     let src_u32 = src.as_int64().unwrap_or(0) as u32;
@@ -1315,8 +1450,10 @@ impl EdgeTable {
                     );
                     current_entries.push((src_u32, nbr));
                 }
-                current_min_ts = current_min_ts.min(segment.min_ts);
-                current_max_ts = current_max_ts.max(segment.max_ts);
+                current_create_ts_min = current_create_ts_min.min(segment.create_ts_min);
+                current_create_ts_max = current_create_ts_max.max(segment.create_ts_max);
+                current_delete_ts_min = current_delete_ts_min.min(segment.delete_ts_min);
+                current_delete_ts_max = current_delete_ts_max.max(segment.delete_ts_max);
             } else {
                 // No merge: flush current accumulation and start new one
                 if !current_entries.is_empty() {
@@ -1328,7 +1465,13 @@ impl EdgeTable {
                         .max(1024);
 
                     let merged_csr = Csr::from_nbr_entries(&current_entries, vertex_capacity);
-                    merged.push(CsrSegment::new(merged_csr, current_min_ts, current_max_ts));
+                    merged.push(CsrSegment::new(
+                        merged_csr,
+                        current_create_ts_min,
+                        current_create_ts_max,
+                        current_delete_ts_min,
+                        current_delete_ts_max,
+                    ));
                     current_entries.clear();
                 }
 
@@ -1343,8 +1486,10 @@ impl EdgeTable {
                     );
                     current_entries.push((src_u32, nbr));
                 }
-                current_min_ts = segment.min_ts;
-                current_max_ts = segment.max_ts;
+                current_create_ts_min = segment.create_ts_min;
+                current_create_ts_max = segment.create_ts_max;
+                current_delete_ts_min = segment.delete_ts_min;
+                current_delete_ts_max = segment.delete_ts_max;
             }
         }
 
@@ -1358,7 +1503,13 @@ impl EdgeTable {
                 .max(1024);
 
             let merged_csr = Csr::from_nbr_entries(&current_entries, vertex_capacity);
-            merged.push(CsrSegment::new(merged_csr, current_min_ts, current_max_ts));
+            merged.push(CsrSegment::new(
+                merged_csr,
+                current_create_ts_min,
+                current_create_ts_max,
+                current_delete_ts_min,
+                current_delete_ts_max,
+            ));
         }
 
         *segments = merged;
@@ -1448,7 +1599,7 @@ impl<'a> EdgeTableScanIterator<'a> {
         }
 
         for segment in table.out_segments.iter().rev() {
-            if segment.min_ts > ts {
+            if segment.create_ts_min > ts {
                 continue;
             }
 

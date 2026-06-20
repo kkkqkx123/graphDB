@@ -446,7 +446,11 @@ impl MutableCsr {
         false
     }
 
-    /// Revert a deleted edge by offset position in the primary block
+    /// Revert a deleted edge by offset position in the primary block.
+    ///
+    /// Only reverts deletions that occurred at or before the given timestamp.
+    /// This maintains MVCC semantics during transaction rollback: we can only
+    /// undo deletions that happened before the rollback point.
     pub fn revert_delete_by_offset(&mut self, src_vid: u32, offset: i32, ts: Timestamp) -> bool {
         if offset < 0 {
             return false;
@@ -464,7 +468,9 @@ impl MutableCsr {
         }
 
         let nbr = &mut self.nbr_list[idx];
-        if nbr.delete_ts < u32::MAX {
+        // Only revert deletions that happened at or before rollback time.
+        // Prevents rolling back deletions that occur after the rollback point.
+        if nbr.delete_ts < u32::MAX && nbr.delete_ts <= ts {
             nbr.delete_ts = u32::MAX;
             self.edge_count.fetch_add(1, Ordering::Relaxed);
             return true;

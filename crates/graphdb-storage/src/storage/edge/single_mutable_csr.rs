@@ -271,8 +271,8 @@ impl SingleMutableCsr {
         self.delete_edge(src, edge_id, ts)
     }
 
-    pub fn revert_delete_by_offset(&mut self, src: u32, _offset: i32, ts: Timestamp) -> bool {
-        if _offset != 0 {
+    pub fn revert_delete_by_offset(&mut self, src: u32, offset: i32, ts: Timestamp) -> bool {
+        if offset != 0 {
             return false;
         }
 
@@ -284,13 +284,14 @@ impl SingleMutableCsr {
 
         let nbr = &mut self.nbr_list[src_idx];
 
-        if nbr.delete_ts == u32::MAX {
-            return false;
+        // Only revert deletions that happened at or before rollback time.
+        if nbr.delete_ts < u32::MAX && nbr.delete_ts <= ts {
+            nbr.delete_ts = u32::MAX;
+            self.edge_count.fetch_add(1, Ordering::Relaxed);
+            return true;
         }
 
-        nbr.delete_ts = u32::MAX;
-        self.edge_count.fetch_add(1, Ordering::Relaxed);
-        true
+        false
     }
 
     pub fn edges_of(&self, src: u32, ts: Timestamp) -> Vec<Nbr> {

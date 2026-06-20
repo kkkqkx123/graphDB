@@ -397,9 +397,13 @@ impl MutableCsrTrait for LabeledMutableCsr {
         if offset >= 0 {
             let lr = &ranges[0];
             let idx = lr.offset as usize + offset as usize;
-            if idx < self.nbr_list.len() && self.nbr_list[idx].delete_ts < u32::MAX {
-                self.nbr_list[idx].delete_ts = u32::MAX;
-                return true;
+            if idx < self.nbr_list.len() {
+                let nbr = &mut self.nbr_list[idx];
+                // Only revert deletions that happened at or before rollback time.
+                if nbr.delete_ts < u32::MAX && nbr.delete_ts <= ts {
+                    nbr.delete_ts = u32::MAX;
+                    return true;
+                }
             }
         }
         false
@@ -464,7 +468,7 @@ impl MutableCsrTrait for LabeledMutableCsr {
             ranges.clear();
         }
 
-        for (idx, nbr) in self.nbr_list.iter().enumerate() {
+        for idx in 0..self.nbr_list.len() {
             if let Some(src_vid) = self.find_vertex_for_edge(idx as u32) {
                 if (src_vid as usize) < self.vertex_capacity {
                     let ranges = &mut self.label_ranges[src_vid as usize];
@@ -547,7 +551,6 @@ impl<'a> Iterator for LabeledMutableCsrIterator<'a> {
             while self.range_idx < ranges.len() {
                 let range = &ranges[self.range_idx];
                 let start = range.offset as usize;
-                let end = (range.offset + range.count) as usize;
 
                 // Iterate through edges in current range
                 while self.edge_idx < (range.count as usize) {

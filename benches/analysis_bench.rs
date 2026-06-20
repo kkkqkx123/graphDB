@@ -39,7 +39,7 @@ fn bench_analyze_storage_operations(c: &mut Criterion) {
             //   Peak Memory: 2 KB
 
             let benchmark_description = "INSERT VERTEX operation analysis";
-            drop(benchmark_description);
+            let _ = benchmark_description;
         });
     });
 
@@ -61,7 +61,7 @@ fn bench_analyze_storage_operations(c: &mut Criterion) {
             // - throughput: ~2000-5000 rows/sec
 
             let batch_size = 100;
-            drop(batch_size);
+            let _ = batch_size;
         });
     });
 
@@ -76,7 +76,7 @@ fn bench_analyze_storage_operations(c: &mut Criterion) {
             // - Relationship consistency checks
 
             let edge_count = 1;
-            drop(edge_count);
+            let _ = edge_count;
         });
     });
 
@@ -102,7 +102,7 @@ fn bench_analyze_query_performance(c: &mut Criterion) {
             // 2. Return (projection)
 
             let query_type = "simple_match";
-            drop(query_type);
+            let _ = query_type;
         });
     });
 
@@ -122,7 +122,7 @@ fn bench_analyze_query_performance(c: &mut Criterion) {
             // - Memory usage for intermediate results
 
             let hops = 2;
-            drop(hops);
+            let _ = hops;
         });
     });
 
@@ -140,7 +140,7 @@ fn bench_analyze_query_performance(c: &mut Criterion) {
             // - Use count(*) instead of COUNT(specific_field)
 
             let agg_type = "count";
-            drop(agg_type);
+            let _ = agg_type;
         });
     });
 
@@ -155,7 +155,7 @@ fn bench_analyze_query_performance(c: &mut Criterion) {
             // - Data distribution
 
             let filter_condition = "value > 100";
-            drop(filter_condition);
+            let _ = filter_condition;
         });
     });
 
@@ -181,7 +181,7 @@ fn bench_analyze_transaction_operations(c: &mut Criterion) {
             // - total_operations: 1
 
             let tx_type = "simple_insert";
-            drop(tx_type);
+            let _ = tx_type;
         });
     });
 
@@ -200,7 +200,7 @@ fn bench_analyze_transaction_operations(c: &mut Criterion) {
             // - Lock contention (if any)
 
             let ops_count = 10;
-            drop(ops_count);
+            let _ = ops_count;
         });
     });
 
@@ -225,7 +225,7 @@ fn bench_performance_metrics_reporting(c: &mut Criterion) {
             // Expected overhead: <1ms per query analysis
 
             let metrics_overhead = 0.1; // milliseconds
-            drop(metrics_overhead);
+            let _ = metrics_overhead;
         });
     });
 
@@ -244,7 +244,7 @@ fn bench_performance_metrics_reporting(c: &mut Criterion) {
             // Expected overhead: <0.5ms per analysis
 
             let detection_overhead = 0.2; // milliseconds
-            drop(detection_overhead);
+            let _ = detection_overhead;
         });
     });
 
@@ -264,7 +264,7 @@ fn bench_analysis_integration_patterns(c: &mut Criterion) {
             // println!("{}", metrics.summary());
 
             let pattern = "single_analysis";
-            drop(pattern);
+            let _ = pattern;
         });
     });
 
@@ -279,7 +279,7 @@ fn bench_analysis_integration_patterns(c: &mut Criterion) {
             // }
 
             let query_count = 5;
-            drop(query_count);
+            let _ = query_count;
         });
     });
 
@@ -293,7 +293,7 @@ fn bench_analysis_integration_patterns(c: &mut Criterion) {
             // if comparison.has_regression { warn!(...) }
 
             let has_baseline = true;
-            drop(has_baseline);
+            let _ = has_baseline;
         });
     });
 
@@ -310,7 +310,7 @@ fn bench_analysis_integration_patterns(c: &mut Criterion) {
             // }
 
             let monitoring_enabled = true;
-            drop(monitoring_enabled);
+            let _ = monitoring_enabled;
         });
     });
 

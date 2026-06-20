@@ -353,8 +353,10 @@ impl MutableCsrTrait for MultiSingleMutableCsr {
 
         if (offset as usize) < count {
             let slot = base + offset as usize;
-            if self.edges[slot].delete_ts < u32::MAX {
-                self.edges[slot].delete_ts = u32::MAX;
+            let nbr = &mut self.edges[slot];
+            // Only revert deletions that happened at or before rollback time.
+            if nbr.delete_ts < u32::MAX && nbr.delete_ts <= ts {
+                nbr.delete_ts = u32::MAX;
                 return true;
             }
         }

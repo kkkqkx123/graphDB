@@ -97,23 +97,6 @@ impl CsrVariant {
         }
     }
 
-    /// Conditionally compact if fragmentation exceeds threshold
-    ///
-    /// Only applicable to `Multiple` variant; no-op for others.
-    /// See `MutableCsr::fragmentation_ratio()` for interpretation.
-    ///
-    /// # Arguments
-    /// - `threshold`: Fragmentation ratio limit (e.g., 2.5)
-    /// - `ts`: Timestamp for visibility filtering
-    /// - `reserve_ratio`: Reserve capacity ratio (e.g., 0.25)
-    pub fn maybe_compact(&mut self, threshold: f32, ts: Timestamp, reserve_ratio: f32) {
-        if let CsrVariant::Multiple(csr) = self {
-            if csr.should_compact(threshold) {
-                csr.compact_with_ts(ts, reserve_ratio);
-            }
-        }
-    }
-
     /// Get fragmentation ratio for diagnostics
     ///
     /// Returns:
@@ -126,40 +109,6 @@ impl CsrVariant {
         }
     }
 
-    /// Freeze current snapshot as an immutable CSR.
-    ///
-    /// Creates a read-only copy of the current mutable CSR at the given timestamp.
-    /// The original mutable variant is preserved for future mutations.
-    ///
-    /// # Arguments
-    /// - `ts`: Timestamp for snapshot visibility filtering
-    ///
-    /// # Returns
-    /// A new ImmutableCsr containing all edges visible at `ts`
-    pub fn freeze_snapshot(&self, ts: Timestamp) -> StorageResult<ImmutableCsr> {
-        match self {
-            CsrVariant::Multiple(csr) => {
-                ImmutableCsr::from_mutable_snapshot(csr, ts)
-            }
-            CsrVariant::Single(csr) => {
-                ImmutableCsr::from_single_snapshot(csr, ts)
-            }
-            CsrVariant::MultiSingle(csr) => {
-                ImmutableCsr::from_multi_single_snapshot(csr, ts)
-            }
-            CsrVariant::Labeled(csr) => {
-                ImmutableCsr::from_labeled_snapshot(csr, ts)
-            }
-            CsrVariant::Immutable(csr) => {
-                // Already immutable, return a clone
-                Ok(csr.clone())
-            }
-            CsrVariant::None { vertex_capacity } => {
-                // Empty snapshot
-                Ok(ImmutableCsr::builder(*vertex_capacity).build())
-            }
-        }
-    }
 }
 
 impl CsrBase for CsrVariant {
@@ -594,36 +543,5 @@ mod tests {
         let edges_0 = variant2.edges_of(0, 999);
         assert_eq!(edges_0.len(), 1);
         assert_eq!(edges_0[0].neighbor, VertexId::from_int64(1));
-    }
-
-    #[test]
-    fn test_freeze_snapshot_multiple() {
-        let mut csr = CsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
-
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 4, 1));
-        assert!(csr.insert_edge(1u32, VertexId::from_int64(3), EdgeId(102), 8, 2));
-
-        let immutable = csr.freeze_snapshot(1).unwrap();
-        assert_eq!(immutable.edge_count(), 2);
-        assert_eq!(immutable.edges_of(0).len(), 2);
-        assert_eq!(immutable.edges_of(1).len(), 0);
-    }
-
-    #[test]
-    fn test_freeze_snapshot_with_deletes() {
-        let mut csr = CsrVariant::from_strategy(EdgeStrategy::Multiple, 10, 100).unwrap();
-
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(1), EdgeId(100), 0, 1));
-        assert!(csr.insert_edge(0u32, VertexId::from_int64(2), EdgeId(101), 4, 1));
-        assert!(csr.delete_edge(0u32, EdgeId(101), 2));
-
-        let immutable1 = csr.freeze_snapshot(1).unwrap();
-        assert_eq!(immutable1.edge_count(), 2);
-
-        let immutable2 = csr.freeze_snapshot(2).unwrap();
-        assert_eq!(immutable2.edge_count(), 1);
-        assert_eq!(immutable2.edges_of(0).len(), 1);
-        assert_eq!(immutable2.edges_of(0)[0].edge_id, EdgeId(100));
     }
 }

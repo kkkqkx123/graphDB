@@ -28,9 +28,6 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 
-use crate::core::types::Timestamp;
-use crate::core::StorageResult;
-
 /// Configuration for background freezing behavior
 #[derive(Debug, Clone)]
 pub struct BackgroundFreezeConfig {
@@ -38,10 +35,6 @@ pub struct BackgroundFreezeConfig {
     pub delta_edge_threshold: u64,
     /// Check interval in milliseconds
     pub check_interval_ms: u64,
-    /// Enable automatic segment merging after freeze
-    pub enable_segment_merge: bool,
-    /// Merge segments if count >= this threshold
-    pub segment_merge_threshold: u32,
 }
 
 impl Default for BackgroundFreezeConfig {
@@ -49,8 +42,6 @@ impl Default for BackgroundFreezeConfig {
         Self {
             delta_edge_threshold: 100_000,      // 100K edges
             check_interval_ms: 5 * 60 * 1000,   // 5 minutes
-            enable_segment_merge: true,
-            segment_merge_threshold: 3,         // >= 3 segments to merge
         }
     }
 }
@@ -114,7 +105,7 @@ impl BackgroundFreezeManager {
     /// Background thread main loop
     fn background_freeze_loop(
         config: &Arc<BackgroundFreezeConfig>,
-        stats: &Arc<Mutex<FreezeStats>>,
+        _stats: &Arc<Mutex<FreezeStats>>,
         should_stop: &Arc<AtomicBool>,
     ) {
         let check_interval = Duration::from_millis(config.check_interval_ms);

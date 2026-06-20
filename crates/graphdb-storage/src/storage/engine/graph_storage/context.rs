@@ -1670,7 +1670,7 @@ impl GraphStorageContext {
 
     pub fn trigger_background_freeze(&self) -> StorageResult<()> {
             let config = CompactConfig::with_fixed_ratio(true, 2.0)
-                .enable_segment_merge(self.persistent.config.background_freeze.segment_merge_threshold);
+                .enable_segment_merge(1000);  // Default: merge segments within 1000 timestamp units
         let ts = u32::MAX;
         let mut total_frozen = 0u64;
         let mut any_frozen = false;
