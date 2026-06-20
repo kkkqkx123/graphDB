@@ -324,6 +324,46 @@ impl TransactionManager {
         Ok(txn_id)
     }
 
+    /// Check for write-set based conflicts with active transactions
+    ///
+    /// This method checks if a transaction's write set conflicts with any active write transactions.
+    /// Returns Ok(()) if no conflicts, or Err if conflicts are detected.
+    ///
+    /// Note: This is a check-at-call-time method for dynamic conflict detection.
+    pub fn check_write_set_conflict(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
+        let ctx = self
+            .active_transactions
+            .get(&txn_id)
+            .ok_or_else(|| TransactionError::transaction_not_found(txn_id))?;
+
+        if ctx.read_only {
+            return Ok(());
+        }
+
+        let txn_write_set = ctx.get_write_set();
+        if txn_write_set.is_empty() {
+            return Ok(());
+        }
+
+        for entry in self.active_transactions.iter() {
+            let (other_id, other_ctx) = entry.pair();
+
+            if other_id == &txn_id {
+                continue;
+            }
+
+            if other_ctx.read_only {
+                continue;
+            }
+
+            if ctx.has_write_conflict_with(&other_ctx) {
+                return Err(TransactionError::write_transaction_conflict());
+            }
+        }
+
+        Ok(())
+    }
+
     /// Start a new transaction (legacy API for compatibility)
     pub fn begin_transaction(
         &self,

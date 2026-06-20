@@ -96,14 +96,21 @@ impl Default for EdgeTableConfig {
 
 /// Deletion information for a CSR segment.
 ///
-/// Tracks the deletion timestamp range for edges in the segment.
+/// Tracks the deletion timestamp range and count for edges in the segment.
 /// This enables time-travel query optimizations and accurate MVCC semantics.
 #[derive(Debug, Clone, Copy)]
 enum DeletionInfo {
     /// No edges in this segment have been deleted
     NoDeletes,
     /// Some edges have been deleted in the range [min_ts, max_ts]
-    HasDeletes { min_ts: Timestamp, max_ts: Timestamp },
+    /// - min_ts: earliest deletion timestamp
+    /// - max_ts: latest deletion timestamp
+    /// - deleted_count: exact number of deleted edges (for optimization)
+    HasDeletes {
+        min_ts: Timestamp,
+        max_ts: Timestamp,
+        deleted_count: u32,
+    },
 }
 
 impl DeletionInfo {
@@ -112,7 +119,16 @@ impl DeletionInfo {
         if min == u32::MAX || max == 0 {
             DeletionInfo::NoDeletes
         } else {
-            DeletionInfo::HasDeletes { min_ts: min, max_ts: max }
+            DeletionInfo::HasDeletes { min_ts: min, max_ts: max, deleted_count: 0 }
+        }
+    }
+
+    /// Create with known deleted count (used during freeze/segment creation)
+    fn with_count(min: Timestamp, max: Timestamp, deleted_count: u32) -> Self {
+        if min == u32::MAX || max == 0 || deleted_count == 0 {
+            DeletionInfo::NoDeletes
+        } else {
+            DeletionInfo::HasDeletes { min_ts: min, max_ts: max, deleted_count }
         }
     }
 
@@ -124,19 +140,45 @@ impl DeletionInfo {
         }
     }
 
-    /// Merge two deletion infos by taking min of mins and max of maxs
+    /// Check if all edges in segment are deleted (fast path for complete deletion)
+    fn all_edges_deleted(&self, total_edge_count: u64) -> bool {
+        match self {
+            DeletionInfo::NoDeletes => false,
+            DeletionInfo::HasDeletes { deleted_count, .. } => {
+                // If deleted_count == total_edge_count, all edges are deleted
+                *deleted_count as u64 == total_edge_count
+            }
+        }
+    }
+
+    /// Get deletion percentage (0-100) for observability
+    fn deletion_percentage(&self, total_edge_count: u64) -> u32 {
+        match self {
+            DeletionInfo::NoDeletes => 0,
+            DeletionInfo::HasDeletes { deleted_count, .. } => {
+                if total_edge_count == 0 {
+                    0
+                } else {
+                    (((*deleted_count as u64) * 100) / total_edge_count) as u32
+                }
+            }
+        }
+    }
+
+    /// Merge two deletion infos by taking min of mins, max of maxs, and sum of counts
     fn merge(&self, other: &DeletionInfo) -> DeletionInfo {
         match (self, other) {
             (DeletionInfo::NoDeletes, DeletionInfo::NoDeletes) => DeletionInfo::NoDeletes,
-            (DeletionInfo::NoDeletes, DeletionInfo::HasDeletes { min_ts, max_ts }) |
-            (DeletionInfo::HasDeletes { min_ts, max_ts }, DeletionInfo::NoDeletes) => {
-                DeletionInfo::HasDeletes { min_ts: *min_ts, max_ts: *max_ts }
+            (DeletionInfo::NoDeletes, DeletionInfo::HasDeletes { min_ts, max_ts, deleted_count }) |
+            (DeletionInfo::HasDeletes { min_ts, max_ts, deleted_count }, DeletionInfo::NoDeletes) => {
+                DeletionInfo::HasDeletes { min_ts: *min_ts, max_ts: *max_ts, deleted_count: *deleted_count }
             }
-            (DeletionInfo::HasDeletes { min_ts: min1, max_ts: max1 },
-             DeletionInfo::HasDeletes { min_ts: min2, max_ts: max2 }) => {
+            (DeletionInfo::HasDeletes { min_ts: min1, max_ts: max1, deleted_count: count1 },
+             DeletionInfo::HasDeletes { min_ts: min2, max_ts: max2, deleted_count: count2 }) => {
                 DeletionInfo::HasDeletes {
                     min_ts: (*min1).min(*min2),
                     max_ts: (*max1).max(*max2),
+                    deleted_count: count1.saturating_add(*count2),
                 }
             }
         }
@@ -222,10 +264,11 @@ impl CsrSegment {
     }
 
     /// Get deletion info as (min, max) range for serialization
+    /// Note: deleted_count is not serialized here, only time range
     fn deletion_range(&self) -> (Timestamp, Timestamp) {
         match self.deletion_info {
             DeletionInfo::NoDeletes => (u32::MAX, 0),
-            DeletionInfo::HasDeletes { min_ts, max_ts } => (min_ts, max_ts),
+            DeletionInfo::HasDeletes { min_ts, max_ts, .. } => (min_ts, max_ts),
         }
     }
 
@@ -525,6 +568,20 @@ impl EdgeTable {
     #[cfg(test)]
     pub fn active_snapshot_count(&self) -> usize {
         self.active_snapshots.values().sum()
+    }
+
+    /// Get the minimum active snapshot timestamp.
+    ///
+    /// This is the earliest timestamp at which any snapshot is currently active.
+    /// All tombstones with delete_ts < this value can be safely garbage collected.
+    ///
+    /// Returns u32::MAX if no active snapshots exist.
+    pub fn get_min_active_snapshot_ts(&self) -> Timestamp {
+        self.active_snapshots
+            .keys()
+            .copied()
+            .min()
+            .unwrap_or(u32::MAX)
     }
 
     fn base_get_edge(
@@ -1586,28 +1643,84 @@ impl EdgeTable {
         removed
     }
 
-    /// Compact, freeze, and perform tombstone GC in sequence.
+    /// Compact, freeze, and perform automatic tombstone GC in sequence.
     ///
-    /// Extended version of `compact_and_freeze_with_config()` that also:
-    /// 6. Garbage collect tombstones older than min_active_snapshot_ts
-    /// 7. Supports adaptive merge triggered by high tombstone memory pressure
+    /// This is the preferred method over `compact_and_freeze_with_gc()` because it
+    /// internally computes the correct min_active_snapshot_ts instead of requiring
+    /// the caller to pass it (which is error-prone).
     ///
-    /// Call this when you know the minimum timestamp of all active snapshots.
-    /// This prevents unbounded growth of the tombstone map in long-running systems.
+    /// The sequence is:
+    /// 1. Compact: eliminate overflow fragmentation and remove old edges
+    /// 2. Freeze: convert mutable delta to immutable segment
+    /// 3. Merge: optionally combine nearby segments
+    /// 4. GC: remove tombstones older than min_active_snapshot_ts (computed internally)
+    /// 5. Update metrics
     ///
     /// # Arguments
     /// - `ts`: Current timestamp (for visibility filtering)
     /// - `config`: Configuration for compaction and merging
-    /// - `min_active_snapshot_ts`: Minimum timestamp among all active snapshots
     ///
     /// # Returns
     /// Number of edges removed during compaction
+    pub fn compact_and_freeze_with_auto_gc(
+        &mut self,
+        ts: Timestamp,
+        config: &CompactConfig,
+    ) -> usize {
+        let edge_count = self.edge_count() as usize;
+        let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
+
+        let removed = self.compact_csr_only(ts, reserve_ratio);
+        self.freeze_csr_only(ts);
+
+        if config.segment_merge_enabled {
+            let stats = self.tombstone_stats();
+            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
+            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
+        }
+
+        self.compact_properties(ts);
+
+        // Automatically compute and apply GC
+        let min_active_snapshot_ts = self.get_min_active_snapshot_ts();
+        self.gc_tombstones(min_active_snapshot_ts);
+
+        // Record tombstone statistics to metrics
+        if let Some(stats) = &self.stats_manager {
+            let tom_stats = self.tombstone_stats();
+            stats.record_tombstone_stats(
+                tom_stats.count as u64,
+                tom_stats.memory_bytes as u64,
+                tom_stats.oldest_delete_ts,
+                tom_stats.newest_delete_ts,
+                self.active_snapshots.len() as u64,
+            );
+        }
+
+        removed
+    }
+
+    /// Compact, freeze, and perform tombstone GC in sequence.
+    ///
+    /// # Deprecated
+    /// Prefer `compact_and_freeze_with_auto_gc()` which computes min_ts automatically.
+    /// This method is kept for compatibility but is error-prone when the caller
+    /// passes incorrect min_active_snapshot_ts.
     pub fn compact_and_freeze_with_gc(
         &mut self,
         ts: Timestamp,
         config: &CompactConfig,
         min_active_snapshot_ts: Timestamp,
     ) -> usize {
+        // Verify the provided min_ts matches reality (safety check)
+        let actual_min_ts = self.get_min_active_snapshot_ts();
+        debug_assert_eq!(
+            min_active_snapshot_ts, actual_min_ts,
+            "Provided min_active_snapshot_ts ({}) doesn't match actual ({}). \
+             This indicates the caller is not properly tracking active snapshots.",
+            min_active_snapshot_ts, actual_min_ts
+        );
+
         let edge_count = self.edge_count() as usize;
         let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
 
@@ -1699,6 +1812,7 @@ impl EdgeTable {
     /// 2. Mutable delta CSR (overrides segment versions with MVCC filtering)
     ///
     /// Uses HashMap deduplication to handle edges updated in both segments and delta.
+    /// Also optimizes using DeletionInfo fast paths for completely deleted segments.
     fn collect_edges_for_snapshot_mvcc(
         &self,
         delta: &CsrVariant,
@@ -1710,11 +1824,20 @@ impl EdgeTable {
         // Dedup map: (src_vid, edge_id) -> (src_vid, nbr)
         // This ensures latest version of each edge is used
         let mut edge_map: HashMap<(u32, EdgeId), (u32, Nbr)> = HashMap::new();
+        let mut _segments_skipped_by_deletion = 0usize;
 
         // Step 1: Collect from segments in reverse order (older first, newer last)
         for segment in segments.iter().rev() {
             // Skip segment if created in the future
             if segment.create_ts_min > ts {
+                continue;
+            }
+
+            // Fast path: if all edges in segment are deleted before query_ts, skip entire segment
+            // This optimization uses DeletionInfo.deleted_count to avoid scanning edges
+            if segment.deletion_info.all_deleted_before(ts)
+                && segment.deletion_info.all_edges_deleted(segment.csr.edge_count()) {
+                _segments_skipped_by_deletion += 1;
                 continue;
             }
 
@@ -1843,17 +1966,23 @@ impl EdgeTable {
 
         // Compute deletion timestamp range from tombstones of frozen edges.
         // For MVCC support, track when edges in this segment were deleted.
+        let mut deleted_count = 0u32;
         let (delete_ts_min, delete_ts_max) = entries
             .iter()
-            .filter_map(|(_, nbr)| tombstones.get(&nbr.edge_id))
-            .fold((u32::MAX, 0), |(min, max), &ts| {
+            .filter_map(|(_, nbr)| {
+                tombstones.get(&nbr.edge_id).map(|&ts| {
+                    deleted_count += 1;
+                    ts
+                })
+            })
+            .fold((u32::MAX, 0), |(min, max), ts| {
                 (std::cmp::min(min, ts), std::cmp::max(max, ts))
             });
 
         let csr = Csr::from_nbr_entries(&entries, vertex_capacity);
         let frozen = entries.len();
 
-        let deletion_info = DeletionInfo::new(delete_ts_min, delete_ts_max);
+        let deletion_info = DeletionInfo::with_count(delete_ts_min, delete_ts_max, deleted_count);
         segments.push(CsrSegment::new(
             csr,
             create_ts_min,
@@ -1936,9 +2065,10 @@ impl EdgeTable {
                 segment.create_ts_min - current_create_ts_max
             };
 
-            // Estimate size: number of edges * average bytes-per-edge (CSR is compact)
-            // Each edge costs ~20-30 bytes in CSR format
-            let estimated_size = (current_entries.len() + segment.csr.edge_count() as usize) * 30;
+            // Estimate size using strategy-specific bytes per edge
+            let total_edge_count = current_entries.len() + segment.csr.edge_count() as usize;
+            let bytes_per_edge = segment.csr.bytes_per_edge();
+            let estimated_size = total_edge_count * bytes_per_edge;
             let size_ok = estimated_size <= size_threshold;
 
             if time_gap <= time_threshold && size_ok && !current_entries.is_empty() {

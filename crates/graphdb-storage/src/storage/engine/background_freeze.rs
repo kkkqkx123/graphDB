@@ -1,53 +1,57 @@
-//! Background Delta Freezing Manager
+//! Freeze Statistics Collector
 //!
-//! Periodically converts mutable CSR deltas into immutable segments to:
-//! - Reduce memory fragmentation (no overflow blocks in immutable segments)
-//! - Lower query latency (fewer segment scans)
-//! - Improve cache locality (immutable CSRs are flatter)
+//! Collects metrics about delta freezing operations and provides
+//! configuration for freeze decision-making.
+//!
+//! Does NOT execute freezing — that's handled by GraphStorageContext
+//! via trigger_background_freeze() method.
 //!
 //! ## Design
 //!
-//! - Single background thread checks delta sizes at fixed intervals
-//! - Freezing triggered when delta edges exceed threshold
-//! - Non-blocking: freezing doesn't hold write locks on other tables
-//! - Graceful shutdown: thread joins cleanly on drop
+//! BackgroundFreezeManager provides:
+//! - Configuration for freeze thresholds (delta_edge_threshold)
+//! - Decision support (should_freeze check)
+//! - Statistics collection (record_freeze, record_delta_size)
+//!
+//! Actual freezing is triggered by:
+//! - GraphStorageContext::trigger_background_freeze() during maintenance
+//! - Checkpoint operations before persistence
+//! - HTTP API endpoint for manual triggering
 //!
 //! ## Example
 //!
 //! ```ignore
-//! let config = BackgroundFreezeConfig::default();
-//! let manager = BackgroundFreezeManager::new(storage.clone(), config);
-//! // Background thread starts automatically
-//! // On drop, thread joins gracefully
+//! let manager = BackgroundFreezeManager::new(config);
+//!
+//! // Check if freezing should be triggered
+//! if manager.should_freeze(table.delta_edge_count()) {
+//!     // Call trigger_background_freeze() externally
+//!     let frozen = table.compact_and_freeze_with_auto_gc(ts, &config);
+//!     manager.record_freeze(frozen, duration_ms);
+//! }
 //! ```
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 
 use parking_lot::Mutex;
 
-/// Configuration for background freezing behavior
+/// Configuration for freeze decision-making
 #[derive(Debug, Clone)]
 pub struct BackgroundFreezeConfig {
     /// Freeze when mutable delta edges exceed this count
     pub delta_edge_threshold: u64,
-    /// Check interval in milliseconds
-    pub check_interval_ms: u64,
 }
 
 impl Default for BackgroundFreezeConfig {
     fn default() -> Self {
         Self {
-            delta_edge_threshold: 100_000,      // 100K edges
-            check_interval_ms: 5 * 60 * 1000,   // 5 minutes
+            delta_edge_threshold: 100_000,  // 100K edges
         }
     }
 }
 
-/// Statistics about background freezing operations
-#[derive(Debug, Clone, Copy)]
+/// Statistics about freeze operations
+#[derive(Debug, Clone, Copy, Default)]
 pub struct FreezeStats {
     /// Total number of freeze operations completed
     pub freeze_count: u64,
@@ -55,78 +59,50 @@ pub struct FreezeStats {
     pub total_frozen_edges: u64,
     /// Duration of last freeze operation in milliseconds
     pub last_freeze_duration_ms: u64,
-    /// Current mutable delta edges (unfroken)
+    /// Current mutable delta edges (unfrozen)
     pub current_delta_edges: u64,
 }
 
-/// Background freezing manager
+/// Freeze decision information
+#[derive(Debug, Clone)]
+pub struct FreezeDecision {
+    pub should_freeze: bool,
+    pub current_delta_edges: u64,
+    pub threshold: u64,
+}
+
+/// Freeze statistics collector and decision maker
 ///
-/// Runs a background thread that periodically checks edge tables
-/// and freezes deltas when they exceed the configured threshold.
+/// Provides configuration, decision support, and metrics collection
+/// for delta freezing operations. The actual freezing is executed
+/// by GraphStorageContext via trigger_background_freeze().
 pub struct BackgroundFreezeManager {
     /// Configuration
     config: Arc<BackgroundFreezeConfig>,
-    /// Statistics (atomic for thread-safe reads)
+    /// Statistics (thread-safe for concurrent reads)
     stats: Arc<Mutex<FreezeStats>>,
-    /// Flag to signal shutdown
-    should_stop: Arc<AtomicBool>,
-    /// Background thread handle
-    thread_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl BackgroundFreezeManager {
-    /// Create a new background freeze manager (thread starts immediately)
+    /// Create a new freeze manager
     pub fn new(config: BackgroundFreezeConfig) -> Self {
-        let config = Arc::new(config);
-        let stats = Arc::new(Mutex::new(FreezeStats {
-            freeze_count: 0,
-            total_frozen_edges: 0,
-            last_freeze_duration_ms: 0,
-            current_delta_edges: 0,
-        }));
-        let should_stop = Arc::new(AtomicBool::new(false));
-
-        let config_clone = Arc::clone(&config);
-        let stats_clone = Arc::clone(&stats);
-        let stop_clone = Arc::clone(&should_stop);
-
-        let handle = thread::spawn(move || {
-            Self::background_freeze_loop(&config_clone, &stats_clone, &stop_clone);
-        });
-
         Self {
-            config,
-            stats,
-            should_stop,
-            thread_handle: Some(handle),
+            config: Arc::new(config),
+            stats: Arc::new(Mutex::new(FreezeStats::default())),
         }
     }
 
-    /// Background thread main loop
-    fn background_freeze_loop(
-        config: &Arc<BackgroundFreezeConfig>,
-        _stats: &Arc<Mutex<FreezeStats>>,
-        should_stop: &Arc<AtomicBool>,
-    ) {
-        let check_interval = Duration::from_millis(config.check_interval_ms);
+    /// Check if freezing should be triggered
+    pub fn should_freeze(&self, current_delta_edges: u64) -> bool {
+        current_delta_edges >= self.config.delta_edge_threshold
+    }
 
-        loop {
-            if should_stop.load(Ordering::Relaxed) {
-                log::info!("Background freeze thread shutting down");
-                break;
-            }
-
-            thread::sleep(check_interval);
-
-            // In a real implementation, this would:
-            // 1. Query current storage state
-            // 2. Iterate edge tables
-            // 3. Check delta sizes
-            // 4. Trigger freeze if threshold exceeded
-            // 5. Update statistics
-            //
-            // For now, just log heartbeat
-            log::trace!("Background freeze check cycle");
+    /// Get detailed freeze decision
+    pub fn get_freeze_decision(&self, current_delta_edges: u64) -> FreezeDecision {
+        FreezeDecision {
+            should_freeze: self.should_freeze(current_delta_edges),
+            current_delta_edges,
+            threshold: self.config.delta_edge_threshold,
         }
     }
 
@@ -135,15 +111,15 @@ impl BackgroundFreezeManager {
         *self.stats.lock()
     }
 
-    /// Manually record a freeze event (for integration with storage)
-    pub(crate) fn record_freeze(&self, delta_edges: u64, duration_ms: u64) {
+    /// Record a freeze event (called by GraphStorageContext after freezing)
+    pub(crate) fn record_freeze(&self, edges_frozen: u64, duration_ms: u64) {
         let mut stats = self.stats.lock();
         stats.freeze_count += 1;
-        stats.total_frozen_edges += delta_edges;
+        stats.total_frozen_edges += edges_frozen;
         stats.last_freeze_duration_ms = duration_ms;
     }
 
-    /// Manually record current delta size
+    /// Record current delta size (for monitoring)
     pub(crate) fn record_delta_size(&self, delta_edges: u64) {
         let mut stats = self.stats.lock();
         stats.current_delta_edges = delta_edges;
@@ -155,17 +131,9 @@ impl BackgroundFreezeManager {
     }
 }
 
-impl Drop for BackgroundFreezeManager {
-    fn drop(&mut self) {
-        // Signal shutdown
-        self.should_stop.store(true, Ordering::Release);
-
-        // Wait for thread to finish
-        if let Some(handle) = self.thread_handle.take() {
-            let _ = handle.join();
-        }
-
-        log::debug!("Background freeze manager shut down");
+impl Default for BackgroundFreezeManager {
+    fn default() -> Self {
+        Self::new(BackgroundFreezeConfig::default())
     }
 }
 
@@ -174,18 +142,51 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_manager_creation_and_drop() {
-        let config = BackgroundFreezeConfig::default();
+    fn test_freeze_decision_below_threshold() {
+        let config = BackgroundFreezeConfig {
+            delta_edge_threshold: 100_000,
+        };
         let manager = BackgroundFreezeManager::new(config);
 
-        let stats = manager.get_stats();
-        assert_eq!(stats.freeze_count, 0);
+        let decision = manager.get_freeze_decision(50_000);
+        assert!(!decision.should_freeze);
+        assert_eq!(decision.current_delta_edges, 50_000);
+        assert_eq!(decision.threshold, 100_000);
+    }
+
+    #[test]
+    fn test_freeze_decision_at_threshold() {
+        let config = BackgroundFreezeConfig {
+            delta_edge_threshold: 100_000,
+        };
+        let manager = BackgroundFreezeManager::new(config);
+
+        let decision = manager.get_freeze_decision(100_000);
+        assert!(decision.should_freeze);
+    }
+
+    #[test]
+    fn test_freeze_decision_above_threshold() {
+        let config = BackgroundFreezeConfig {
+            delta_edge_threshold: 100_000,
+        };
+        let manager = BackgroundFreezeManager::new(config);
+
+        let decision = manager.get_freeze_decision(150_000);
+        assert!(decision.should_freeze);
+    }
+
+    #[test]
+    fn test_should_freeze_method() {
+        let manager = BackgroundFreezeManager::default();
+        assert!(!manager.should_freeze(50_000));
+        assert!(manager.should_freeze(100_000));
+        assert!(manager.should_freeze(150_000));
     }
 
     #[test]
     fn test_record_freeze() {
-        let config = BackgroundFreezeConfig::default();
-        let manager = BackgroundFreezeManager::new(config);
+        let manager = BackgroundFreezeManager::default();
 
         manager.record_freeze(50_000, 100);
         let stats = manager.get_stats();
@@ -201,14 +202,48 @@ mod tests {
     }
 
     #[test]
-    fn test_graceful_shutdown() {
-        let config = BackgroundFreezeConfig {
-            check_interval_ms: 100,
-            ..Default::default()
-        };
+    fn test_record_delta_size() {
+        let manager = BackgroundFreezeManager::default();
 
+        manager.record_delta_size(12_000);
+        let stats = manager.get_stats();
+        assert_eq!(stats.current_delta_edges, 12_000);
+
+        manager.record_delta_size(25_000);
+        let stats = manager.get_stats();
+        assert_eq!(stats.current_delta_edges, 25_000);
+    }
+
+    #[test]
+    fn test_manager_creation_and_stats() {
+        let config = BackgroundFreezeConfig {
+            delta_edge_threshold: 50_000,
+        };
         let manager = BackgroundFreezeManager::new(config);
-        // Manager should drop cleanly without hanging
-        drop(manager);
+
+        let stats = manager.get_stats();
+        assert_eq!(stats.freeze_count, 0);
+        assert_eq!(stats.total_frozen_edges, 0);
+        assert_eq!(stats.current_delta_edges, 0);
+    }
+
+    #[test]
+    fn test_config_access() {
+        let config = BackgroundFreezeConfig {
+            delta_edge_threshold: 75_000,
+        };
+        let manager = BackgroundFreezeManager::new(config);
+
+        assert_eq!(manager.config().delta_edge_threshold, 75_000);
+    }
+
+    #[test]
+    fn test_default_config() {
+        let manager = BackgroundFreezeManager::default();
+        assert_eq!(
+            manager.config().delta_edge_threshold,
+            100_000,
+            "Default threshold should be 100K edges"
+        );
     }
 }

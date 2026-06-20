@@ -20,6 +20,10 @@ use crate::core::types::Timestamp;
 const RING_BUF_SIZE: u32 = 1024 * 1024;
 const RING_INDEX_MASK: u32 = RING_BUF_SIZE - 1;
 
+/// Safety check: log warning if pending operations approach ring buffer capacity.
+/// This prevents silent corruption if concurrent transactions exceed buffer size.
+const RING_BUF_WARNING_THRESHOLD: i32 = (RING_BUF_SIZE as i32) / 2;
+
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum VersionManagerError {
     #[error("Too many concurrent transactions")]
@@ -90,6 +94,8 @@ pub struct VersionManagerConfig {
     pub thread_num: i32,
     pub wait_timeout: Duration,
     pub update_acquire_timeout: Duration,
+    /// Enable partition-level conflict detection for updates (experimental)
+    pub partition_conflict_detection: bool,
 }
 
 impl Default for VersionManagerConfig {
@@ -101,6 +107,7 @@ impl Default for VersionManagerConfig {
             thread_num: 1,
             wait_timeout: Duration::from_secs(5),
             update_acquire_timeout: Duration::from_secs(10),
+            partition_conflict_detection: false,  // Disabled by default; enable for mixed workloads
         }
     }
 }
@@ -127,6 +134,11 @@ impl VersionManagerConfig {
 
     pub fn with_update_acquire_timeout(mut self, timeout: Duration) -> Self {
         self.update_acquire_timeout = timeout;
+        self
+    }
+
+    pub fn with_partition_conflict_detection(mut self, enabled: bool) -> Self {
+        self.partition_conflict_detection = enabled;
         self
     }
 }
@@ -197,6 +209,17 @@ impl VersionManager {
         loop {
             let pr = self.pending_reqs.load(Ordering::SeqCst);
             if pr >= 0 {
+                // Safety check: ensure pending_reqs won't overflow RING_BUF_SIZE
+                // This prevents timestamp collision in the ring buffer indexing
+                if pr >= (RING_BUF_SIZE as i32 - 1) {
+                    log::warn!(
+                        "Too many pending read requests: {}. Ring buffer capacity: {}. \
+                        Consider increasing max_concurrent_reads or reducing read intensity.",
+                        pr, RING_BUF_SIZE
+                    );
+                    self.condvar.wait(&mut guard);
+                    continue;
+                }
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
                 return self.read_ts.load(Ordering::SeqCst);
             }
@@ -210,6 +233,23 @@ impl VersionManager {
         loop {
             let pr = self.pending_reqs.load(Ordering::SeqCst);
             if pr >= 0 {
+                // Safety check: ensure pending_reqs won't overflow RING_BUF_SIZE
+                if pr >= (RING_BUF_SIZE as i32 - 1) {
+                    log::warn!(
+                        "Too many pending read requests: {}. Ring buffer capacity: {}.",
+                        pr, RING_BUF_SIZE
+                    );
+                    let elapsed = start.elapsed();
+                    if elapsed >= timeout {
+                        return None;
+                    }
+                    let remaining = timeout - elapsed;
+                    let result = self.condvar.wait_for(&mut guard, remaining);
+                    if result.timed_out() {
+                        return None;
+                    }
+                    continue;
+                }
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
                 return Some(self.read_ts.load(Ordering::SeqCst));
             }
@@ -237,6 +277,26 @@ impl VersionManager {
         loop {
             let pr = self.pending_reqs.load(Ordering::SeqCst);
             if pr >= 0 {
+                // Safety check: ensure pending_reqs won't overflow RING_BUF_SIZE
+                // This prevents timestamp collision in the ring buffer indexing
+                if pr >= (RING_BUF_SIZE as i32 - 1) {
+                    log::warn!(
+                        "Too many pending insert requests: {}. Ring buffer capacity: {}. \
+                        Consider increasing max_concurrent_inserts or reducing write intensity.",
+                        pr, RING_BUF_SIZE
+                    );
+                    self.condvar.wait(&mut guard);
+                    continue;
+                }
+
+                // Warning threshold for monitoring
+                if pr >= RING_BUF_WARNING_THRESHOLD {
+                    log::warn!(
+                        "Ring buffer approaching saturation: {} concurrent transactions (capacity: {})",
+                        pr, RING_BUF_SIZE
+                    );
+                }
+
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
                 return self.write_ts.fetch_add(1, Ordering::SeqCst);
             }
@@ -250,6 +310,32 @@ impl VersionManager {
         loop {
             let pr = self.pending_reqs.load(Ordering::SeqCst);
             if pr >= 0 {
+                // Safety check: ensure pending_reqs won't overflow RING_BUF_SIZE
+                if pr >= (RING_BUF_SIZE as i32 - 1) {
+                    log::warn!(
+                        "Too many pending insert requests: {}. Ring buffer capacity: {}.",
+                        pr, RING_BUF_SIZE
+                    );
+                    let elapsed = start.elapsed();
+                    if elapsed >= timeout {
+                        return None;
+                    }
+                    let remaining = timeout - elapsed;
+                    let result = self.condvar.wait_for(&mut guard, remaining);
+                    if result.timed_out() {
+                        return None;
+                    }
+                    continue;
+                }
+
+                // Warning threshold for monitoring
+                if pr >= RING_BUF_WARNING_THRESHOLD {
+                    log::warn!(
+                        "Ring buffer approaching saturation: {} concurrent transactions (capacity: {})",
+                        pr, RING_BUF_SIZE
+                    );
+                }
+
                 self.pending_reqs.fetch_add(1, Ordering::SeqCst);
                 return Some(self.write_ts.fetch_add(1, Ordering::SeqCst));
             }
@@ -290,6 +376,24 @@ impl VersionManager {
         self.acquire_update_timestamp_with_timeout(self.config.update_acquire_timeout)
     }
 
+    /// Acquire an exclusive update timestamp for a transaction.
+    ///
+    /// Current implementation (SERIALIZABLE isolation):
+    /// - Only 1 concurrent update transaction allowed (max_concurrent_updates=1 by default)
+    /// - Waits for all active read/insert transactions to complete
+    /// - Then waits for all pending operations to finish before proceeding
+    ///
+    /// This ensures perfect isolation but limits concurrency. For mixed workloads with
+    /// many reads and few updates, consider enabling partition_conflict_detection to
+    /// allow concurrent updates that don't conflict (experimental feature).
+    ///
+    /// # Performance Notes
+    /// - Single update: O(1) timestamp allocation, O(N) wait for N active reads
+    /// - Concurrent updates: Not allowed (will block)
+    /// - Read-heavy workloads: Updates are blocked; consider horizontal sharding
+    ///
+    /// Future optimization: Implement row/partition-level conflict detection to
+    /// allow non-conflicting updates to proceed concurrently.
     pub fn acquire_update_timestamp_with_timeout(
         &self,
         timeout: Duration,

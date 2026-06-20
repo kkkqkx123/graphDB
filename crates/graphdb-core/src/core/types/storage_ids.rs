@@ -468,7 +468,7 @@ impl EdgeLocation {
 }
 
 /// Edge identifier for fully identifying an edge instance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EdgeIdentifier {
     pub src_label: LabelId,
     pub src_vid: VertexId,

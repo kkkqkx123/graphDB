@@ -34,6 +34,7 @@
 pub mod cleaner;
 pub mod codec;
 pub mod compact_transaction;
+pub mod conflict;
 pub mod context;
 pub mod error;
 pub mod insert_transaction;
@@ -50,6 +51,8 @@ pub mod wal;
 pub mod context_test;
 #[cfg(test)]
 pub mod manager_test;
+#[cfg(test)]
+pub mod conflict_integration_test;
 
 pub use crate::core::mvcc::{
     InsertTimestampGuard, ReadTimestampGuard, UpdateTimestampGuard, VersionManager,
@@ -60,6 +63,7 @@ pub use cleaner::TransactionCleaner;
 pub use compact_transaction::{
     CompactTransaction, CompactTransactionError, CompactTransactionResult,
 };
+pub use conflict::{have_write_conflict, WriteSetAnalyzer, ConflictReport};
 pub use context::TransactionContext;
 pub use error::{TransactionError, TransactionErrorKind, TransactionResult};
 pub use insert_transaction::{

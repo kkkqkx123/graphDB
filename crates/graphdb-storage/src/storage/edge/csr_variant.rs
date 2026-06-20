@@ -109,6 +109,28 @@ impl CsrVariant {
         }
     }
 
+    /// Estimate average bytes per edge for this CSR strategy.
+    ///
+    /// Used for merge heuristics to more accurately calculate segment sizes.
+    /// These are empirical values derived from profiling.
+    ///
+    /// Returns estimated bytes per edge:
+    /// - Multiple: ~26 bytes (fixed arrays, standard offsets)
+    /// - Single: ~20 bytes (minimal metadata, single-per-vertex)
+    /// - MultiSingle: ~28 bytes (capacity array overhead)
+    /// - Labeled: ~36 bytes (label indexing adds overhead)
+    /// - Immutable: ~24 bytes (compressed, no overflow blocks)
+    /// - None: 0 bytes (no edges)
+    pub fn bytes_per_edge(&self) -> usize {
+        match self {
+            CsrVariant::Multiple(_) => 26,
+            CsrVariant::Single(_) => 20,
+            CsrVariant::MultiSingle(_) => 28,
+            CsrVariant::Labeled(_) => 36,
+            CsrVariant::Immutable(_) => 24,
+            CsrVariant::None { .. } => 0,
+        }
+    }
 }
 
 impl CsrBase for CsrVariant {

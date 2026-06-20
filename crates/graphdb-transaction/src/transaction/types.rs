@@ -2,6 +2,7 @@
 //!
 //! Provides core types and structures needed for transaction management
 
+use std::collections::HashSet;
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -10,6 +11,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use crate::core::stats::{MetricType, StatsManager};
+use crate::core::types::{EdgeIdentifier, VertexId};
 
 /// Transaction ID
 pub use crate::core::types::TransactionId;
@@ -479,6 +481,66 @@ impl TransactionStats {
     }
 }
 
+/// Write Set - tracks entities modified by a transaction for conflict detection
+#[derive(Debug, Clone, Default)]
+pub struct WriteSet {
+    /// Vertices modified (insert/update/delete)
+    pub vertices: HashSet<VertexId>,
+    /// Edges modified (insert/update/delete)
+    pub edges: HashSet<EdgeIdentifier>,
+}
+
+impl WriteSet {
+    /// Create an empty write set
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record a vertex write
+    pub fn record_vertex(&mut self, vid: VertexId) {
+        self.vertices.insert(vid);
+    }
+
+    /// Record an edge write
+    pub fn record_edge(&mut self, edge: EdgeIdentifier) {
+        self.edges.insert(edge);
+    }
+
+    /// Check if write set is empty
+    pub fn is_empty(&self) -> bool {
+        self.vertices.is_empty() && self.edges.is_empty()
+    }
+
+    /// Get the number of modified entities
+    pub fn size(&self) -> usize {
+        self.vertices.len() + self.edges.len()
+    }
+
+    /// Check if two write sets have any conflicting entities
+    pub fn has_conflict_with(&self, other: &WriteSet) -> bool {
+        // Conflict if same vertex is modified
+        if !self.vertices.is_disjoint(&other.vertices) {
+            return true;
+        }
+
+        // Conflict if same edge is modified
+        if !self.edges.is_disjoint(&other.edges) {
+            return true;
+        }
+
+        // Conflict if edges share a source or destination vertex
+        for edge1 in &self.edges {
+            for edge2 in &other.edges {
+                if edge1.src_vid == edge2.src_vid || edge1.dst_vid == edge2.dst_vid {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+}
+
 /// Transaction Info (for monitoring)
 #[derive(Debug, Clone)]
 pub struct TransactionInfo {
@@ -537,5 +599,52 @@ mod tests {
 
         assert_eq!(stats.active_transactions.load(Ordering::Relaxed), 0);
         assert_eq!(stats.committed_transactions.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_write_set_empty() {
+        let ws = WriteSet::new();
+        assert!(ws.is_empty());
+        assert_eq!(ws.size(), 0);
+    }
+
+    #[test]
+    fn test_write_set_record_vertex() {
+        let mut ws = WriteSet::new();
+        let vid = VertexId::from_int64(1);
+
+        ws.record_vertex(vid);
+        assert!(!ws.is_empty());
+        assert_eq!(ws.size(), 1);
+        assert!(ws.vertices.contains(&vid));
+    }
+
+    #[test]
+    fn test_write_set_conflict_same_vertex() {
+        let vid = VertexId::from_int64(1);
+
+        let mut ws1 = WriteSet::new();
+        ws1.record_vertex(vid);
+
+        let mut ws2 = WriteSet::new();
+        ws2.record_vertex(vid);
+
+        assert!(ws1.has_conflict_with(&ws2));
+        assert!(ws2.has_conflict_with(&ws1));
+    }
+
+    #[test]
+    fn test_write_set_no_conflict_different_vertices() {
+        let vid1 = VertexId::from_int64(1);
+        let vid2 = VertexId::from_int64(2);
+
+        let mut ws1 = WriteSet::new();
+        ws1.record_vertex(vid1);
+
+        let mut ws2 = WriteSet::new();
+        ws2.record_vertex(vid2);
+
+        assert!(!ws1.has_conflict_with(&ws2));
+        assert!(!ws2.has_conflict_with(&ws1));
     }
 }

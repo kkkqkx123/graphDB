@@ -509,6 +509,90 @@ fn test_shutdown_manager() {
 }
 
 #[test]
+fn test_check_write_set_conflict_no_conflict() {
+    use crate::core::types::VertexId;
+
+    let manager = create_test_manager();
+
+    // Create two write transactions with different vertex writes
+    let txn1 = manager
+        .begin_insert_transaction(TransactionOptions::default())
+        .expect("Failed to begin txn1");
+
+    let txn2 = manager
+        .begin_insert_transaction(TransactionOptions::default())
+        .expect("Failed to begin txn2");
+
+    // Record different vertex writes
+    let ctx1 = manager
+        .get_context(txn1)
+        .expect("Failed to get context 1");
+    let ctx2 = manager
+        .get_context(txn2)
+        .expect("Failed to get context 2");
+
+    let vid1 = VertexId::from_int64(1);
+    let vid2 = VertexId::from_int64(2);
+
+    ctx1.record_vertex_write(vid1);
+    ctx2.record_vertex_write(vid2);
+
+    // Check conflict - should be Ok because writes are on different vertices
+    let conflict_check = manager.check_write_set_conflict(txn1);
+    assert!(conflict_check.is_ok(), "Should be no conflict for different vertices");
+
+    manager
+        .commit_transaction(txn1)
+        .expect("Failed to commit txn1");
+    manager
+        .commit_transaction(txn2)
+        .expect("Failed to commit txn2");
+}
+
+#[test]
+fn test_check_write_set_conflict_with_conflict() {
+    use crate::core::types::VertexId;
+
+    let manager = create_test_manager();
+
+    // Create two write transactions with same vertex writes
+    let txn1 = manager
+        .begin_insert_transaction(TransactionOptions::default())
+        .expect("Failed to begin txn1");
+
+    let txn2 = manager
+        .begin_insert_transaction(TransactionOptions::default())
+        .expect("Failed to begin txn2");
+
+    // Record same vertex write
+    let ctx1 = manager
+        .get_context(txn1)
+        .expect("Failed to get context 1");
+    let ctx2 = manager
+        .get_context(txn2)
+        .expect("Failed to get context 2");
+
+    let vid = VertexId::from_int64(1);
+
+    ctx1.record_vertex_write(vid);
+    ctx2.record_vertex_write(vid);
+
+    // Check conflict - should fail because writes are on same vertex
+    let conflict_check = manager.check_write_set_conflict(txn1);
+    assert!(
+        conflict_check.is_err(),
+        "Should detect conflict for same vertex"
+    );
+
+    manager
+        .commit_transaction(txn1)
+        .expect("Failed to commit txn1");
+    manager
+        .commit_transaction(txn2)
+        .expect("Failed to commit txn2");
+}
+
+#[test]
 fn test_read_insert_transaction_types() {
     let manager = create_test_manager();
 

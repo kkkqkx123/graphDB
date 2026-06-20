@@ -1380,4 +1380,102 @@ mod tests {
             Some(&Value::BigInt(i64::MAX))
         );
     }
+
+    // ==================== Freeze Integration Tests ====================
+
+    #[test]
+    fn test_background_freeze_manager_basics() {
+        use crate::storage::engine::background_freeze::{BackgroundFreezeConfig, BackgroundFreezeManager};
+
+        let config = BackgroundFreezeConfig {
+            delta_edge_threshold: 1000,
+        };
+        let manager = BackgroundFreezeManager::new(config);
+
+        // Test should_freeze decision
+        assert!(!manager.should_freeze(500));
+        assert!(manager.should_freeze(1000));
+        assert!(manager.should_freeze(1500));
+
+        // Test record_freeze
+        manager.record_freeze(100, 50);
+        let stats = manager.get_stats();
+        assert_eq!(stats.freeze_count, 1);
+        assert_eq!(stats.total_frozen_edges, 100);
+        assert_eq!(stats.last_freeze_duration_ms, 50);
+
+        // Test record_delta_size
+        manager.record_delta_size(750);
+        let stats = manager.get_stats();
+        assert_eq!(stats.current_delta_edges, 750);
+    }
+
+    #[test]
+    fn test_trigger_background_freeze_execution() {
+        let mut storage = create_test_storage();
+        let _space_id = setup_space(&mut storage);
+        setup_person_tag(&mut storage);
+        setup_knows_edge(&mut storage);
+
+        // Insert vertices
+        let alice = VertexId::from_int64(1);
+        let bob = VertexId::from_int64(2);
+
+        let v1 = Vertex {
+            vid: alice.clone(),
+            id: 0,
+            tags: vec![Tag::new(
+                "Person".to_string(),
+                [("name".to_string(), Value::String("Alice".to_string()))]
+                    .iter()
+                    .cloned()
+                    .collect(),
+            )],
+            properties: [("name".to_string(), Value::String("Alice".to_string()))]
+                .iter()
+                .cloned()
+                .collect(),
+        };
+
+        let v2 = Vertex {
+            vid: bob.clone(),
+            id: 0,
+            tags: vec![Tag::new(
+                "Person".to_string(),
+                [("name".to_string(), Value::String("Bob".to_string()))]
+                    .iter()
+                    .cloned()
+                    .collect(),
+            )],
+            properties: [("name".to_string(), Value::String("Bob".to_string()))]
+                .iter()
+                .cloned()
+                .collect(),
+        };
+
+        storage.insert_vertex("test_space", v1).unwrap();
+        storage.insert_vertex("test_space", v2).unwrap();
+
+        // Insert edge
+        let edge = Edge {
+            src: alice,
+            dst: bob,
+            edge_type: "KNOWS".to_string(),
+            ranking: 0,
+            props: [("since".to_string(), Value::Int(2020))]
+                .iter()
+                .cloned()
+                .collect(),
+        };
+
+        storage.insert_edge("test_space", edge).unwrap();
+
+        // Trigger freeze - should succeed
+        let result = storage.trigger_background_freeze();
+        assert!(
+            result.is_ok(),
+            "Freeze should succeed: {:?}",
+            result.err()
+        );
+    }
 }

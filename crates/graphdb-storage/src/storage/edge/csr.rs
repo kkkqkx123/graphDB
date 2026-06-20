@@ -80,8 +80,18 @@ impl Csr {
         }
     }
 
+    /// Get approximate memory bytes per edge stored in this CSR.
+    ///
+    /// Used for merge heuristics and size estimation.
+    /// Csr is immutable (post-freeze), so uses average across strategies.
+    ///
+    /// Returns ~24 bytes per edge (immutable CSR storage).
+    pub fn bytes_per_edge(&self) -> usize {
+        24  // Immutable CSR uses ~24 bytes per edge (compressed format)
+    }
+
     /// Resize vertex capacity
-    pub fn resize(&mut self, new_vertex_capacity: usize) {
+    fn resize(&mut self, new_vertex_capacity: usize) {
         if new_vertex_capacity > self.vertex_capacity {
             let last_offset = *self.offsets.last().unwrap_or(&0);
             self.offsets.resize(new_vertex_capacity + 1, last_offset);
@@ -89,7 +99,6 @@ impl Csr {
         }
     }
 
-    /// Get edges of a vertex
     pub fn edges_of(&self, vid: u32) -> &[ImmutableNbr] {
         let vid_idx = vid as usize;
         if vid_idx >= self.vertex_capacity {

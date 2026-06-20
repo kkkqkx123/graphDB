@@ -1404,6 +1404,24 @@ impl GraphStorageContext {
     pub(crate) fn flush_tables_to_dir(&self, data_dir: &Path) -> StorageResult<()> {
         use std::fs;
 
+        // Ensure all deltas are frozen before persisting
+        match self.trigger_background_freeze() {
+            Ok(()) => {
+                if let Some(stats) = self.get_freeze_stats() {
+                    if stats.freeze_count > 0 {
+                        log::info!(
+                            "Pre-flush freeze: {} edges frozen in {} operations",
+                            stats.total_frozen_edges,
+                            stats.freeze_count
+                        );
+                    }
+                }
+            }
+            Err(err) => {
+                log::warn!("Pre-flush freeze failed: {}", err);
+            }
+        }
+
         let compression = self.persistent.config.flush_config.compression;
         let vertex_dir = data_dir.join("vertices");
         fs::create_dir_all(&vertex_dir)?;
@@ -1611,6 +1629,22 @@ impl GraphStorageContext {
         }
 
         self.persistent.cache_manager.clear_cache();
+
+        // Trigger background freeze to ensure all deltas are frozen
+        match self.trigger_background_freeze() {
+            Ok(()) => {
+                if let Some(stats) = self.get_freeze_stats() {
+                    log::info!(
+                        "Background freeze during compaction: {} total freezes, {} edges frozen",
+                        stats.freeze_count,
+                        stats.total_frozen_edges
+                    );
+                }
+            }
+            Err(err) => {
+                log::warn!("Background freeze during compaction failed: {}", err);
+            }
+        }
 
         log::info!(
             "Compaction completed: {} vertices, {} edges removed",

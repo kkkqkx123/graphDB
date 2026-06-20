@@ -15,6 +15,8 @@ use super::rollback::CombinedRollback;
 use super::types::*;
 use super::undo_log::{UndoLogEntry, UndoLogManager, UndoTarget};
 use super::wal::Timestamp;
+use crate::core::types::EdgeIdentifier;
+use crate::core::types::VertexId;
 
 /// Transaction Context
 ///
@@ -59,6 +61,8 @@ pub struct TransactionContext {
     undo_logs: RwLock<UndoLogManager>,
     /// Whether to enable two-phase commit
     two_phase_enabled: bool,
+    /// Write set for conflict detection
+    write_set: Mutex<WriteSet>,
 }
 
 impl fmt::Debug for TransactionContext {
@@ -159,6 +163,7 @@ impl TransactionContext {
             savepoint_manager: RwLock::new(SavepointManager::new()),
             undo_logs: RwLock::new(UndoLogManager::new()),
             two_phase_enabled: config.two_phase_commit,
+            write_set: Mutex::new(WriteSet::new()),
         }
     }
 
@@ -189,6 +194,7 @@ impl TransactionContext {
             savepoint_manager: RwLock::new(SavepointManager::new()),
             undo_logs: RwLock::new(UndoLogManager::new()),
             two_phase_enabled: config.two_phase_commit,
+            write_set: Mutex::new(WriteSet::new()),
         }
     }
 
@@ -317,6 +323,42 @@ impl TransactionContext {
     /// Whether to enable two-phase commit
     pub fn is_two_phase_enabled(&self) -> bool {
         self.two_phase_enabled
+    }
+
+    /// Record a vertex write for conflict detection
+    pub(crate) fn record_vertex_write(&self, vid: VertexId) {
+        if !self.read_only {
+            self.write_set.lock().record_vertex(vid);
+        }
+    }
+
+    /// Record an edge write for conflict detection
+    pub(crate) fn record_edge_write(&self, edge: EdgeIdentifier) {
+        if !self.read_only {
+            self.write_set.lock().record_edge(edge);
+        }
+    }
+
+    /// Get the write set for this transaction
+    pub fn get_write_set(&self) -> WriteSet {
+        self.write_set.lock().clone()
+    }
+
+    /// Check if write set is empty
+    pub fn is_write_set_empty(&self) -> bool {
+        self.write_set.lock().is_empty()
+    }
+
+    /// Get write set size (number of modified entities)
+    pub fn write_set_size(&self) -> usize {
+        self.write_set.lock().size()
+    }
+
+    /// Check if this transaction's write set conflicts with another
+    pub fn has_write_conflict_with(&self, other: &TransactionContext) -> bool {
+        let ws1 = self.write_set.lock();
+        let ws2 = other.write_set.lock();
+        ws1.has_conflict_with(&*ws2)
     }
 
     /// Check if operation can be executed
