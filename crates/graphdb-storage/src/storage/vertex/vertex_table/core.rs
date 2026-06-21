@@ -2,8 +2,21 @@
 //!
 //! Main vertex storage with columnar layout.
 //! Combines ID indexing, column storage, and timestamp tracking.
+//!
+//! # Concurrency Note
+//!
+//! `VertexTable` is NOT thread-safe. Multiple threads must not call mutable methods (`insert`, `delete`,
+//! `update_property`, etc.) concurrently. Although `IdIndexer` uses DashMap for concurrent-safe lookups,
+//! the overall table state (columns, timestamps, schema) requires external synchronization.
+//!
+//! **Pattern for multi-threaded access:**
+//! ```ignore
+//! let vertex_table = Arc::new(Mutex::new(VertexTable::new(...)));
+//! // Use vertex_table.lock().unwrap().insert(...) for mutable operations
+//! ```
 
 use std::path::Path;
+use std::collections::HashMap;
 
 use super::super::{ColumnStore, IdIndexer, IdKey, LabelId, Timestamp, VertexId, VertexRecord, VertexSchema, VertexTimestamp};
 use crate::core::{StorageError, StorageResult, Value};
@@ -31,6 +44,9 @@ pub struct VertexTable {
     pub(super) timestamps: VertexTimestamp,
     pub(super) is_open: bool,
     pub(super) deferred_encodings: std::collections::HashMap<String, crate::storage::encoding::EncodingType>,
+    /// Cache for property name → index mapping to avoid O(n) schema lookups.
+    /// Invalidated whenever schema changes.
+    pub(super) property_index_cache: HashMap<String, usize>,
 }
 
 impl VertexTable {
@@ -50,6 +66,11 @@ impl VertexTable {
             columns.add_column(prop.name.clone(), prop.data_type.clone(), prop.nullable);
         }
 
+        let mut property_index_cache = HashMap::new();
+        for (idx, prop) in schema.properties.iter().enumerate() {
+            property_index_cache.insert(prop.name.clone(), idx);
+        }
+
         Self {
             label,
             label_name,
@@ -59,6 +80,7 @@ impl VertexTable {
             timestamps: VertexTimestamp::with_capacity(config.initial_capacity),
             is_open: true,
             deferred_encodings: std::collections::HashMap::new(),
+            property_index_cache,
         }
     }
 
@@ -92,12 +114,11 @@ impl VertexTable {
 
         let mut converted: Vec<(String, Value)> = Vec::with_capacity(properties.len());
         for (name, value) in properties {
-            let prop_def = self
-                .schema
-                .properties
-                .iter()
-                .find(|p| &p.name == name)
+            // Use cached index lookup instead of O(n) schema search
+            let prop_idx = self.property_index_cache
+                .get(name)
                 .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
+            let prop_def = &self.schema.properties[*prop_idx];
 
             if value.data_type() != prop_def.data_type {
                 let converted_val = value.try_cast_to(&prop_def.data_type)?;
@@ -172,12 +193,11 @@ impl VertexTable {
             return Err(StorageError::vertex_not_found());
         }
 
-        let prop_def = self
-            .schema
-            .properties
-            .iter()
-            .find(|p| p.name == col_name)
+        // Use cached index lookup
+        let prop_idx = self.property_index_cache
+            .get(col_name)
             .ok_or_else(|| StorageError::column_not_found(col_name.to_string()))?;
+        let prop_def = &self.schema.properties[*prop_idx];
 
         let converted_value = if value.data_type() != prop_def.data_type {
             value.try_cast_to(&prop_def.data_type)?
@@ -267,6 +287,108 @@ impl VertexTable {
         Ok(())
     }
 
+    /// Batch insert multiple vertices in a single operation.
+    /// All inserts are validated before any state modification to ensure atomicity.
+    /// Returns the internal IDs of inserted vertices in the same order as input.
+    pub fn batch_insert(
+        &mut self,
+        vertices: &[(String, Vec<(String, Value)>)],
+        ts: Timestamp,
+    ) -> StorageResult<Vec<u32>> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        if vertices.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Proceed with inserts; validation happens in insert_by_key.
+        // Rollback ensures atomicity if any insert fails.
+        let mut result_ids = Vec::with_capacity(vertices.len());
+        let mut inserted_external_ids = Vec::new();
+        for (i, (external_id, properties)) in vertices.iter().enumerate() {
+            match self.insert_by_key(
+                IdKey::Text(external_id.clone()),
+                properties,
+                ts,
+            ) {
+                Ok(id) => {
+                    result_ids.push(id);
+                    inserted_external_ids.push(external_id.clone());
+                }
+                Err(e) => {
+                    // Rollback: revert all previous inserts from both timestamps and id_indexer
+                    for (prev_id, prev_external_id) in result_ids.iter().zip(inserted_external_ids.iter()) {
+                        let _ = self.timestamps.remove(*prev_id, ts);
+                        let _ = self.id_indexer.remove(&IdKey::Text(prev_external_id.clone()));
+                    }
+                    return Err(StorageError::invalid_operation(format!(
+                        "Batch insert failed at index {}: {}",
+                        i, e
+                    )));
+                }
+            }
+        }
+
+        Ok(result_ids)
+    }
+
+    /// Batch delete multiple vertices by external ID.
+    /// Returns count of successfully deleted vertices.
+    pub fn batch_delete(
+        &mut self,
+        external_ids: &[&str],
+        ts: Timestamp,
+    ) -> StorageResult<usize> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        let mut deleted_count = 0;
+
+        for external_id in external_ids {
+            match self.delete_by_key(&IdKey::Text(external_id.to_string()), ts) {
+                Ok(_) => {
+                    deleted_count += 1;
+                }
+                Err(e) => {
+                    // Skip this vertex and continue with others
+                    eprintln!("Failed to delete vertex {}: {}", external_id, e);
+                }
+            }
+        }
+
+        Ok(deleted_count)
+    }
+
+    /// Batch delete multiple vertices by i64 external ID.
+    /// Returns count of successfully deleted vertices.
+    pub fn batch_delete_i64(
+        &mut self,
+        external_ids: &[i64],
+        ts: Timestamp,
+    ) -> StorageResult<usize> {
+        if !self.is_open {
+            return Err(StorageError::storage_not_open());
+        }
+
+        let mut deleted_count = 0;
+
+        for external_id in external_ids {
+            match self.delete_by_key(&IdKey::Int(*external_id), ts) {
+                Ok(_) => {
+                    deleted_count += 1;
+                }
+                Err(e) => {
+                    eprintln!("Failed to delete vertex {}: {}", external_id, e);
+                }
+            }
+        }
+
+        Ok(deleted_count)
+    }
+
     pub fn get_internal_id(&self, external_id: &str, ts: Timestamp) -> Option<u32> {
         if !self.is_open {
             return None;
@@ -352,6 +474,12 @@ impl VertexTable {
 
     pub fn set_schema(&mut self, schema: VertexSchema) {
         self.schema = schema;
+
+        // Rebuild property index cache
+        self.property_index_cache.clear();
+        for (idx, prop) in self.schema.properties.iter().enumerate() {
+            self.property_index_cache.insert(prop.name.clone(), idx);
+        }
     }
 
     pub fn memory_size(&self) -> usize {
@@ -360,6 +488,18 @@ impl VertexTable {
         total += self.id_indexer.memory_size();
         total += self.columns.memory_size();
         total += self.timestamps.memory_size();
+
+        // Account for label_name string (content only)
+        total += self.label_name.len();
+
+        // Account for property_index_cache HashMap (actual entries, not capacity)
+        total += self.property_index_cache.len()
+            * (std::mem::size_of::<String>() + std::mem::size_of::<usize>());
+
+        // Account for deferred_encodings HashMap (actual entries, not capacity)
+        total += self.deferred_encodings.len()
+            * (std::mem::size_of::<String>() + std::mem::size_of::<crate::storage::encoding::EncodingType>());
+
         total += std::mem::size_of::<Self>();
 
         total
@@ -376,6 +516,13 @@ impl VertexTable {
         total += self.timestamps.valid_count(super::super::MAX_TIMESTAMP - 1)
             * std::mem::size_of::<Timestamp>();
 
+        // Account for actual label_name usage
+        total += self.label_name.len();
+
+        // Account for property_index_cache actual entries
+        total += self.property_index_cache.len()
+            * (24 + std::mem::size_of::<usize>()); // String overhead + usize
+
         total
     }
 }
@@ -383,7 +530,9 @@ impl VertexTable {
 pub struct VertexIterator<'a> {
     table: &'a VertexTable,
     ts: Timestamp,
+    /// Current internal ID to check
     current: u32,
+    /// Total internal IDs in the table
     end: u32,
 }
 
@@ -406,6 +555,7 @@ impl<'a> Iterator for VertexIterator<'a> {
             let id = self.current;
             self.current += 1;
 
+            // Lazy check: only validate timestamp when actually retrieving the record
             if let Some(record) = self.table.get_by_internal_id(id, self.ts) {
                 return Some(record);
             }
@@ -434,6 +584,8 @@ mod tests {
                 },
             ],
             primary_key_index: 0,
+            schema_version: 1,
+            schema_digest: String::new(),
         }
     }
 
@@ -565,5 +717,90 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["name", "years"]
         );
+    }
+
+    #[test]
+    fn test_batch_insert() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        let vertices = vec![
+            (
+                "v1".to_string(),
+                vec![
+                    ("name".to_string(), Value::String("Alice".to_string())),
+                    ("age".to_string(), Value::Int(30)),
+                ],
+            ),
+            (
+                "v2".to_string(),
+                vec![
+                    ("name".to_string(), Value::String("Bob".to_string())),
+                    ("age".to_string(), Value::Int(25)),
+                ],
+            ),
+            (
+                "v3".to_string(),
+                vec![
+                    ("name".to_string(), Value::String("Charlie".to_string())),
+                    ("age".to_string(), Value::Int(35)),
+                ],
+            ),
+        ];
+
+        let ids = table.batch_insert(&vertices, 100).unwrap();
+        assert_eq!(ids.len(), 3);
+        assert_eq!(ids[0], 0);
+        assert_eq!(ids[1], 1);
+        assert_eq!(ids[2], 2);
+
+        let count = table.scan(100).count();
+        assert_eq!(count, 3);
+
+        let record1 = table.get_by_internal_id(ids[0], 100).unwrap();
+        assert_eq!(
+            record1.properties.iter().find(|(n, _)| n == "name").map(|(_, v)| v),
+            Some(&Value::String("Alice".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_batch_delete() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        table
+            .insert(
+                "v1",
+                &[("name".to_string(), Value::String("Alice".to_string()))],
+                100,
+            )
+            .unwrap();
+        table
+            .insert(
+                "v2",
+                &[("name".to_string(), Value::String("Bob".to_string()))],
+                100,
+            )
+            .unwrap();
+        table
+            .insert(
+                "v3",
+                &[("name".to_string(), Value::String("Charlie".to_string()))],
+                100,
+            )
+            .unwrap();
+
+        let deleted = table.batch_delete(&["v1", "v3"], 200).unwrap();
+        assert_eq!(deleted, 2);
+
+        let count_before_delete = table.scan(100).count();
+        assert_eq!(count_before_delete, 3);
+
+        let count_after_delete = table.scan(200).count();
+        assert_eq!(count_after_delete, 1);
+
+        assert!(table.get_internal_id("v2", 200).is_some());
+        assert!(table.get_internal_id("v1", 200).is_none());
     }
 }

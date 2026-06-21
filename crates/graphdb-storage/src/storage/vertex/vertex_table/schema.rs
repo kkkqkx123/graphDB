@@ -1,6 +1,7 @@
 //! Vertex Table Schema Management
 //!
 //! Handles schema operations like adding, removing, and renaming properties.
+//! Schema modifications invalidate the property index cache, which is rebuilt on-demand.
 
 use crate::core::StorageResult;
 use crate::storage::types::StoragePropertyDef;
@@ -19,7 +20,14 @@ impl VertexTable {
 
         self.schema.properties.push(prop.clone());
         self.columns
-            .add_column(prop.name, prop.data_type, prop.nullable);
+            .add_column(prop.name.clone(), prop.data_type, prop.nullable);
+
+        // Update cache with new property
+        let idx = self.schema.properties.len() - 1;
+        self.property_index_cache.insert(prop.name, idx);
+
+        // Increment schema version on modification
+        self.schema.increment_version();
 
         Ok(())
     }
@@ -36,6 +44,7 @@ impl VertexTable {
             .position(|prop| prop.name == prop_name)
             .ok_or_else(|| crate::core::StorageError::column_not_found(prop_name.to_string()))?;
 
+        // GUARD: Prevent removal of primary key property
         if index == self.schema.primary_key_index {
             return Err(crate::core::StorageError::not_supported(
                 "Removing the primary key property is not supported".to_string(),
@@ -48,6 +57,18 @@ impl VertexTable {
         }
 
         self.columns.remove_column(prop_name)?;
+
+        // Rebuild cache: remove deleted property and adjust indices
+        self.property_index_cache.remove(prop_name);
+        for (name, idx) in &mut self.property_index_cache {
+            if *idx > index {
+                *idx -= 1;
+            }
+        }
+
+        // Increment schema version on modification
+        self.schema.increment_version();
+
         Ok(())
     }
 
@@ -74,6 +95,15 @@ impl VertexTable {
 
         self.schema.properties[index].name = new_name.to_string();
         self.columns.rename_column(old_name, new_name.to_string())?;
+
+        // Update cache: rename key, keep index
+        if let Some(idx) = self.property_index_cache.remove(old_name) {
+            self.property_index_cache.insert(new_name.to_string(), idx);
+        }
+
+        // Increment schema version on modification
+        self.schema.increment_version();
+
         Ok(())
     }
 }

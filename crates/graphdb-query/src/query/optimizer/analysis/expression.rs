@@ -15,7 +15,7 @@ use crate::core::Expression;
 /// Expression analysis results
 #[derive(Debug, Clone, Default)]
 pub struct ExpressionAnalysis {
-    /// 是否确定性（不含rand()、now()等非确定性函数）
+    /// Is it deterministic? (excluding non-deterministic functions such as rand() and now())
     pub is_deterministic: bool,
     /// Complexity score (0-100)
     pub complexity_score: u32,

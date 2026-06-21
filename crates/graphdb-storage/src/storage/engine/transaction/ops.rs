@@ -455,6 +455,8 @@ impl TransactionOps {
             label_name: name.to_string(),
             properties: Vec::new(),
             primary_key_index: 0,
+            schema_version: 1,
+            schema_digest: String::new(),
         };
 
         let table = VertexTable::new(label, name.to_string(), schema);

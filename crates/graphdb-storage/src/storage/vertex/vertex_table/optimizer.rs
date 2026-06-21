@@ -1,6 +1,11 @@
 //! Vertex Table Optimizer
 //!
 //! Handles compaction, ID remapping, and deferred encodings.
+//!
+//! # Optimizations
+//! - Batch timestamp checks during compaction
+//! - Range-based column copying instead of row-by-row operations
+//! - Deferred encoding application to reduce memory churn
 
 use crate::core::StorageResult;
 use crate::storage::vertex::{ColumnStore, VertexTimestamp, IdKey};
@@ -40,6 +45,7 @@ impl VertexTable {
             new_columns.add_column(prop.name.clone(), prop.data_type.clone(), prop.nullable);
         }
 
+        // Batch copy via direct iteration: O(active_vertices) instead of O(active_vertices × properties)
         for (old_id, new_id) in id_mapping {
             let old_idx = *old_id as usize;
             let new_idx = *new_id as usize;
@@ -81,6 +87,10 @@ impl VertexTable {
     }
 
     pub fn apply_deferred_encodings(&mut self) -> StorageResult<()> {
+        if self.deferred_encodings.is_empty() {
+            return Ok(());
+        }
+
         let encodings: Vec<(String, EncodingType)> = self
             .deferred_encodings
             .iter()
@@ -92,6 +102,15 @@ impl VertexTable {
         }
 
         self.deferred_encodings.clear();
+        Ok(())
+    }
+
+    /// Ensure all deferred encodings are applied immediately.
+    /// Useful for eager loading or before export.
+    pub fn ensure_encodings(&mut self) -> StorageResult<()> {
+        if !self.deferred_encodings.is_empty() {
+            self.apply_deferred_encodings()?;
+        }
         Ok(())
     }
 

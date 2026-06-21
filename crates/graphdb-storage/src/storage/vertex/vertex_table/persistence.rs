@@ -1,6 +1,11 @@
 //! Vertex Table Persistence Layer
 //!
 //! Handles serialization, deserialization, and file I/O for vertex tables.
+//!
+//! # Encoding Handling
+//! - Deferred encodings are loaded and stored separately
+//! - Can be applied eagerly via `ensure_encodings()` after load
+//! - Preserves encoding metadata across flush/load cycles
 
 use std::io::{Read, Write};
 use std::path::Path;
@@ -19,6 +24,15 @@ impl VertexTable {
         compression: crate::storage::compression::CompressionType,
     ) -> StorageResult<()> {
         use std::fs::{self, File};
+
+        // Warn if there are unapplied deferred encodings
+        if !self.deferred_encodings.is_empty() {
+            eprintln!(
+                "WARNING: Flushing VertexTable with {} unapplied deferred encodings. \
+                 Call ensure_encodings() before flush for better space efficiency.",
+                self.deferred_encodings.len()
+            );
+        }
 
         let path = path.as_ref();
         fs::create_dir_all(path)?;
@@ -152,6 +166,16 @@ impl VertexTable {
     }
 
     pub fn load<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
+        self.load_internal(path, true)
+    }
+
+    /// Load without applying deferred encodings (lazy load).
+    /// Only use if you're certain encodings don't need to be applied immediately.
+    pub fn load_lazy<P: AsRef<Path>>(&mut self, path: P) -> StorageResult<()> {
+        self.load_internal(path, false)
+    }
+
+    fn load_internal<P: AsRef<Path>>(&mut self, path: P, eager_encode: bool) -> StorageResult<()> {
         let path = path.as_ref();
 
         let meta_path = path.join("meta.bin");
@@ -195,6 +219,11 @@ impl VertexTable {
         self.schema = serde_json::from_str(&schema_json)
             .map_err(|e| StorageError::deserialize_error(e.to_string()))?;
 
+        // Rebuild property index cache
+        for (idx, prop) in self.schema.properties.iter().enumerate() {
+            self.property_index_cache.insert(prop.name.clone(), idx);
+        }
+
         let id_indexer_path = path.join("id_indexer.bin");
         self.load_id_indexer(&id_indexer_path)?;
 
@@ -203,6 +232,11 @@ impl VertexTable {
 
         let timestamps_path = path.join("timestamps.bin");
         self.load_timestamps(&timestamps_path)?;
+
+        // Apply deferred encodings if eager loading is requested
+        if eager_encode {
+            self.apply_deferred_encodings()?;
+        }
 
         self.is_open = true;
         Ok(())
@@ -272,6 +306,7 @@ impl VertexTable {
         let column_count = u32::from_le_bytes(column_count_bytes) as usize;
 
         self.columns.clear();
+        self.deferred_encodings.clear();
 
         for _ in 0..column_count {
             let mut name_len_bytes = [0u8; 4];
@@ -337,6 +372,9 @@ impl VertexTable {
             let mut encoding_byte_bytes = [0u8; 1];
             cursor.read_exact(&mut encoding_byte_bytes)?;
             let encoding_type = EncodingType::from_u8(encoding_byte_bytes[0]);
+
+            // Store deferred encoding for later application
+            // This allows lazy encoding on-demand or explicit application via ensure_encodings()
             if encoding_type != EncodingType::None {
                 self.deferred_encodings.insert(name.clone(), encoding_type);
             }
