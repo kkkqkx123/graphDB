@@ -1,6 +1,6 @@
 //! CSR Variant
 //!
-//! Enum wrapper for different CSR implementations (mutable and immutable).
+//! Enum wrapper for different CSR implementations (mutable).
 //! Provides runtime polymorphism without dynamic dispatch (dyn).
 //!
 //! # CSR Type Selection
@@ -14,13 +14,14 @@
 //!
 //! - `CsrVariant::Multiple`: Mutable CSR with dynamic capacity growth
 //! - `CsrVariant::Single`: Mutable single-edge CSR
-//! - `CsrVariant::Immutable`: Read-only CSR optimized for static snapshots
+//! - `CsrVariant::MultiSingle`: Multi-single mutable CSR
+//! - `CsrVariant::Labeled`: Label-aware mutable CSR
 //! - `CsrVariant::None`: Placeholder for relationships with no edges
 
 use crate::core::StorageResult;
 
 use super::{
-    CsrBase, EdgeId, EdgeStrategy, ImmutableCsr, LabeledMutableCsr, LabeledMutableCsrIterator,
+    CsrBase, EdgeId, EdgeStrategy, LabeledMutableCsr, LabeledMutableCsrIterator,
     MutableCsr, MutableCsrIterator, MutableCsrTrait, MultiSingleMutableCsr,
     MultiSingleMutableCsrIterator, Nbr, SingleMutableCsr, SingleMutableCsrIterator, Timestamp,
     VertexId,
@@ -50,8 +51,6 @@ pub enum CsrVariant {
     MultiSingle(MultiSingleMutableCsr),
     /// Label-aware mutable CSR: edges grouped by label for fast label-based queries
     Labeled(LabeledMutableCsr),
-    /// Immutable CSR: read-only snapshot optimized for analysis
-    Immutable(ImmutableCsr),
     /// No-edge placeholder: vertices exist but have no outgoing edges
     None { vertex_capacity: usize },
 }
@@ -93,7 +92,6 @@ impl CsrVariant {
             CsrVariant::Single(csr) => csr.clear(),
             CsrVariant::MultiSingle(csr) => csr.clear(),
             CsrVariant::Labeled(csr) => csr.clear(),
-            CsrVariant::Immutable(_) => {}, // No-op for immutable
         }
     }
 
@@ -119,7 +117,6 @@ impl CsrVariant {
     /// - Single: ~20 bytes (minimal metadata, single-per-vertex)
     /// - MultiSingle: ~28 bytes (capacity array overhead)
     /// - Labeled: ~36 bytes (label indexing adds overhead)
-    /// - Immutable: ~24 bytes (compressed, no overflow blocks)
     /// - None: 0 bytes (no edges)
     pub fn bytes_per_edge(&self) -> usize {
         match self {
@@ -127,7 +124,6 @@ impl CsrVariant {
             CsrVariant::Single(_) => 20,
             CsrVariant::MultiSingle(_) => 28,
             CsrVariant::Labeled(_) => 36,
-            CsrVariant::Immutable(_) => 24,
             CsrVariant::None { .. } => 0,
         }
     }
@@ -141,7 +137,6 @@ impl CsrBase for CsrVariant {
             CsrVariant::Single(csr) => csr.vertex_capacity(),
             CsrVariant::MultiSingle(csr) => csr.vertex_capacity(),
             CsrVariant::Labeled(csr) => csr.vertex_capacity(),
-            CsrVariant::Immutable(csr) => csr.vertex_capacity(),
         }
     }
 
@@ -152,7 +147,6 @@ impl CsrBase for CsrVariant {
             CsrVariant::Single(csr) => csr.edge_count(),
             CsrVariant::MultiSingle(csr) => csr.edge_count(),
             CsrVariant::Labeled(csr) => csr.edge_count(),
-            CsrVariant::Immutable(csr) => csr.edge_count(),
         }
     }
 
@@ -174,17 +168,12 @@ impl CsrBase for CsrVariant {
                 result
             }
             CsrVariant::MultiSingle(csr) => {
-                let mut result = vec![4u8];
+                let mut result = vec![3u8];
                 result.extend(csr.dump());
                 result
             }
             CsrVariant::Labeled(csr) => {
-                let mut result = vec![5u8];
-                result.extend(csr.dump());
-                result
-            }
-            CsrVariant::Immutable(csr) => {
-                let mut result = vec![3u8];
+                let mut result = vec![4u8];
                 result.extend(csr.dump());
                 result
             }
@@ -224,18 +213,12 @@ impl CsrBase for CsrVariant {
                 Ok(())
             }
             3 => {
-                let mut csr = ImmutableCsr::builder(0).build();
-                csr.load(&data[1..])?;
-                *self = CsrVariant::Immutable(csr);
-                Ok(())
-            }
-            4 => {
                 let mut csr = MultiSingleMutableCsr::new();
                 csr.load(&data[1..])?;
                 *self = CsrVariant::MultiSingle(csr);
                 Ok(())
             }
-            5 => {
+            4 => {
                 let mut csr = LabeledMutableCsr::new();
                 csr.load(&data[1..])?;
                 *self = CsrVariant::Labeled(csr);
@@ -271,7 +254,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Labeled(csr) => {
                 csr.insert_edge(src_vid, dst, edge_id, prop_offset, ts)
             }
-            CsrVariant::Immutable(_) => false, // Immutable: reject writes
         }
     }
 
@@ -282,7 +264,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.delete_edge(src_vid, edge_id, ts),
             CsrVariant::MultiSingle(csr) => csr.delete_edge(src_vid, edge_id, ts),
             CsrVariant::Labeled(csr) => csr.delete_edge(src_vid, edge_id, ts),
-            CsrVariant::Immutable(_) => false, // Immutable: reject writes
         }
     }
 
@@ -293,7 +274,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.delete_edge_by_dst(src_vid, dst, ts),
             CsrVariant::MultiSingle(csr) => csr.delete_edge_by_dst(src_vid, dst, ts),
             CsrVariant::Labeled(csr) => csr.delete_edge_by_dst(src_vid, dst, ts),
-            CsrVariant::Immutable(_) => false, // Immutable: reject writes
         }
     }
 
@@ -304,7 +284,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.delete_edge_by_offset(src_vid, offset, ts),
             CsrVariant::MultiSingle(csr) => csr.delete_edge_by_offset(src_vid, offset, ts),
             CsrVariant::Labeled(csr) => csr.delete_edge_by_offset(src_vid, offset, ts),
-            CsrVariant::Immutable(_) => false, // Immutable: reject writes
         }
     }
 
@@ -317,7 +296,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.revert_delete_by_offset(src_vid, offset, ts),
             CsrVariant::MultiSingle(csr) => csr.revert_delete_by_offset(src_vid, offset, ts),
             CsrVariant::Labeled(csr) => csr.revert_delete_by_offset(src_vid, offset, ts),
-            CsrVariant::Immutable(_) => false, // Immutable: reject writes
         }
     }
 
@@ -328,7 +306,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.get_edge(src_vid, dst, ts),
             CsrVariant::MultiSingle(csr) => csr.get_edge(src_vid, dst, ts),
             CsrVariant::Labeled(csr) => csr.get_edge(src_vid, dst, ts),
-            CsrVariant::Immutable(csr) => csr.get_edge(src_vid, dst, ts),
         }
     }
 
@@ -339,7 +316,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.edges_of(src_vid, ts),
             CsrVariant::MultiSingle(csr) => csr.edges_of(src_vid, ts),
             CsrVariant::Labeled(csr) => csr.edges_of(src_vid, ts),
-            CsrVariant::Immutable(csr) => csr.edges_of(src_vid), // Ignore ts for immutable
         }
     }
 
@@ -350,7 +326,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.compact_with_ts(ts, reserve_ratio),
             CsrVariant::MultiSingle(csr) => csr.compact_with_ts(ts, reserve_ratio),
             CsrVariant::Labeled(csr) => csr.compact_with_ts(ts, reserve_ratio),
-            CsrVariant::Immutable(csr) => csr.compact_with_ts(ts, reserve_ratio),
         }
     }
 
@@ -361,7 +336,6 @@ impl MutableCsrTrait for CsrVariant {
             CsrVariant::Single(csr) => csr.used_memory_size(),
             CsrVariant::MultiSingle(csr) => csr.used_memory_size(),
             CsrVariant::Labeled(csr) => csr.used_memory_size(),
-            CsrVariant::Immutable(csr) => csr.used_memory_size(),
         }
     }
 }
@@ -374,7 +348,6 @@ impl CsrVariant {
             CsrVariant::Single(csr) => CsrIterator::Single(csr.iter(ts)),
             CsrVariant::MultiSingle(csr) => CsrIterator::MultiSingle(csr.iter(ts)),
             CsrVariant::Labeled(csr) => CsrIterator::Labeled(csr.iter(ts)),
-            CsrVariant::Immutable(_) => CsrIterator::None, // TODO: Add ImmutableCsrIterator
             CsrVariant::None { .. } => CsrIterator::None,
         }
     }
@@ -514,56 +487,5 @@ mod tests {
 
         assert_eq!(csr2.edge_count(), 0);
         assert!(!csr2.insert_edge(0, VertexId::from_int64(1), EdgeId(100), 0, 1));
-    }
-
-    #[test]
-    fn test_immutable_csr_variant() {
-        use super::super::ImmutableCsr;
-
-        let mut builder = ImmutableCsr::builder(10);
-        builder.batch_put_edge(0, VertexId::from_int64(1), EdgeId(100), 0);
-        builder.batch_put_edge(0, VertexId::from_int64(2), EdgeId(101), 4);
-
-        let immutable = builder.build();
-        let variant = CsrVariant::Immutable(immutable);
-
-        assert_eq!(variant.vertex_capacity(), 10);
-        assert_eq!(variant.edge_count(), 2);
-
-        // Test get_edge
-        let edge = variant.get_edge(0, VertexId::from_int64(1), 999);
-        assert!(edge.is_some());
-        assert_eq!(edge.unwrap().edge_id, EdgeId(100));
-
-        // Test edges_of
-        let edges = variant.edges_of(0, 999);
-        assert_eq!(edges.len(), 2);
-
-        // Test write rejection
-        let mut variant_mut = variant;
-        assert!(!variant_mut.insert_edge(0, VertexId::from_int64(3), EdgeId(102), 8, 1));
-        assert!(!variant_mut.delete_edge(0, EdgeId(100), 1));
-    }
-
-    #[test]
-    fn test_immutable_csr_dump_load_variant() {
-        use super::super::ImmutableCsr;
-
-        let mut builder = ImmutableCsr::builder(5);
-        builder.batch_put_edge(0, VertexId::from_int64(1), EdgeId(100), 0);
-        builder.batch_put_edge(1, VertexId::from_int64(2), EdgeId(101), 4);
-        let immutable = builder.build();
-
-        let variant1 = CsrVariant::Immutable(immutable);
-        let data = variant1.dump();
-
-        let mut variant2 = CsrVariant::from_strategy(EdgeStrategy::Multiple, 5, 100).unwrap();
-        variant2.load(&data).unwrap();
-
-        assert_eq!(variant2.edge_count(), 2);
-
-        let edges_0 = variant2.edges_of(0, 999);
-        assert_eq!(edges_0.len(), 1);
-        assert_eq!(edges_0[0].neighbor, VertexId::from_int64(1));
     }
 }

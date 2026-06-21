@@ -121,6 +121,31 @@ impl Csr {
         edges.iter().find(|e| e.neighbor == dst)
     }
 
+    /// Get edges with their CSR positions for position-based EdgeId mapping.
+    ///
+    /// Returns (absolute_csr_position, edge) pairs. The position can be used with
+    /// a CSR position-to-entry mapping to recover segment-level EdgeIds that may be
+    /// stored separately from the edge data.
+    pub fn edges_of_with_position(&self, vid: u32) -> Vec<(usize, &ImmutableNbr)> {
+        let vid_idx = vid as usize;
+        if vid_idx >= self.vertex_capacity {
+            return Vec::new();
+        }
+
+        let start = self.offsets[vid_idx] as usize;
+        let end = self.offsets[vid_idx + 1] as usize;
+
+        if start >= self.edges.len() || end > self.edges.len() || start > end {
+            return Vec::new();
+        }
+
+        self.edges[start..end]
+            .iter()
+            .enumerate()
+            .map(|(i, edge)| (start + i, edge))
+            .collect()
+    }
+
     pub fn from_nbr_entries(entries: &[(u32, Nbr)], vertex_capacity: usize) -> Self {
         let mut csr = Self::with_capacity(vertex_capacity.max(1), entries.len());
         if entries.is_empty() {
