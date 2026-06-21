@@ -557,11 +557,29 @@ impl EdgeTableCore {
             return Vec::new();
         }
 
-        self.merged_edges_of(&self.out_csr, &self.out_segments, src, ts)
-            .into_iter()
+        let nbrs = self.merged_edges_of(&self.out_csr, &self.out_segments, src, ts);
+
+        // Optimization: prefetch all properties first to improve cache locality
+        let prop_offsets: Vec<_> = nbrs.iter().map(|nbr| nbr.prop_offset).collect();
+        if !prop_offsets.is_empty() {
+            self.properties.prefetch_batch(&prop_offsets);
+        }
+
+        nbrs.into_iter()
             .map(|nbr| {
                 let (dst_vid, rank) = Self::decode_edge_endpoint(nbr.neighbor);
-                let properties = self.properties_for_offset(nbr.prop_offset);
+                // Try fast path first, fall back to regular get if not fixed-size
+                let properties = self
+                    .properties
+                    .get_fast(nbr.prop_offset)
+                    .or_else(|| self.properties.get(nbr.prop_offset))
+                    .map(|props| {
+                        props
+                            .into_iter()
+                            .filter_map(|(k, v)| v.map(|v| (k, v)))
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
                 EdgeRecord {
                     src_vid: VertexId::from_int64(src as i64),
@@ -578,11 +596,29 @@ impl EdgeTableCore {
             return Vec::new();
         }
 
-        self.merged_edges_of(&self.in_csr, &self.in_segments, dst, ts)
-            .into_iter()
+        let nbrs = self.merged_edges_of(&self.in_csr, &self.in_segments, dst, ts);
+
+        // Optimization: prefetch all properties first to improve cache locality
+        let prop_offsets: Vec<_> = nbrs.iter().map(|nbr| nbr.prop_offset).collect();
+        if !prop_offsets.is_empty() {
+            self.properties.prefetch_batch(&prop_offsets);
+        }
+
+        nbrs.into_iter()
             .map(|nbr| {
                 let (src_vid, rank) = Self::decode_edge_endpoint(nbr.neighbor);
-                let properties = self.properties_for_offset(nbr.prop_offset);
+                // Try fast path first, fall back to regular get if not fixed-size
+                let properties = self
+                    .properties
+                    .get_fast(nbr.prop_offset)
+                    .or_else(|| self.properties.get(nbr.prop_offset))
+                    .map(|props| {
+                        props
+                            .into_iter()
+                            .filter_map(|(k, v)| v.map(|v| (k, v)))
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
                 EdgeRecord {
                     src_vid,
