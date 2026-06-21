@@ -339,3 +339,156 @@ pub fn load_properties(
 
     Ok(properties)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use super::super::super::*;
+    use crate::core::Value;
+
+    fn create_edge_table_with_props() -> super::super::super::EdgeTable {
+        let schema = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        super::super::super::EdgeTable::new(schema).unwrap()
+    }
+
+    fn create_edge_table() -> super::super::super::EdgeTable {
+        let schema = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        super::super::super::EdgeTable::new(schema).unwrap()
+    }
+
+    #[test]
+    fn test_flush_load_roundtrip() {
+        let schema = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        let mut table = super::super::super::EdgeTable::new(schema).unwrap();
+
+        let ts = 100u32;
+        table.insert_edge(1, 2, 0, &[("weight".to_string(), Value::Double(1.5))], ts).unwrap();
+        table.insert_edge(1, 3, 0, &[("weight".to_string(), Value::Double(2.5))], ts).unwrap();
+        table.insert_edge(2, 3, 0, &[("weight".to_string(), Value::Double(3.5))], ts).unwrap();
+
+        let temp_dir = std::env::temp_dir().join("edge_table_test_flush_load");
+        let _ = fs::remove_dir_all(&temp_dir);
+
+        table.flush(&temp_dir, crate::storage::compression::CompressionType::Zstd { level: 3 }).expect("flush should succeed");
+
+        let schema2 = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        let mut loaded_table = super::super::super::EdgeTable::new(schema2).unwrap();
+        loaded_table.load(&temp_dir).expect("load should succeed");
+
+        assert_eq!(loaded_table.out_edges(1, ts).len(), 2);
+        assert_eq!(loaded_table.out_edges(2, ts).len(), 1);
+        assert!(loaded_table.has_edge(1, 2, 0, ts));
+
+        let deleted = loaded_table.delete_edge(1, 3, 0, ts + 1).expect("delete_edge should work after load");
+        assert!(deleted);
+        assert!(!loaded_table.has_edge(1, 3, 0, ts + 1));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_flush_load_preserves_segments_and_tombstones() {
+        let schema = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        let mut table = super::super::super::EdgeTable::new(schema).unwrap();
+
+        table.insert_edge(1, 2, 0, &[("weight".to_string(), Value::Double(1.5))], 100).unwrap();
+        table.insert_edge(1, 3, 0, &[("weight".to_string(), Value::Double(2.5))], 110).unwrap();
+        table.freeze_csr_only(150);
+        table.delete_edge(1, 2, 0, 200).unwrap();
+
+        let temp_dir = std::env::temp_dir().join("edge_table_test_segments_tombstones");
+        let _ = fs::remove_dir_all(&temp_dir);
+
+        table.flush(&temp_dir, crate::storage::compression::CompressionType::Zstd { level: 3 }).expect("flush should succeed");
+
+        let schema2 = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        let mut loaded_table = super::super::super::EdgeTable::new(schema2).unwrap();
+        loaded_table.load(&temp_dir).expect("load should succeed");
+
+        assert_eq!(loaded_table.out_segments.len(), 1);
+        assert_eq!(loaded_table.in_segments.len(), 1);
+        assert!(loaded_table.has_edge(1, 2, 0, 150));
+        assert!(!loaded_table.has_edge(1, 2, 0, 250));
+        assert!(loaded_table.has_edge(1, 3, 0, 250));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_segment_size_estimation() {
+        let mut table = create_edge_table();
+
+        for i in 0..50 {
+            table.insert_edge(i % 10, 100 + i, 0, &[], 1000 + i as u32).unwrap();
+        }
+
+        table.freeze_csr_only(1100);
+
+        let total_bytes = table.segments_total_bytes();
+        assert!(total_bytes > 0);
+        assert!(total_bytes >= 50 * 20);
+    }
+}

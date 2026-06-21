@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use crate::transaction::wal::types::SyncPolicy;
+use crate::core::wal::types::SyncPolicy;
 
 /// Determine if a sync operation is needed based on the sync policy
 pub(crate) fn should_sync(

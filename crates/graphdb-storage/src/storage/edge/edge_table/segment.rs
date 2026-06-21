@@ -229,3 +229,65 @@ impl CsrSegment {
         csr_bytes + metadata_bytes
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::*;
+    use crate::core::Value;
+
+    fn create_edge_table_with_props() -> super::super::super::EdgeTable {
+        let schema = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        super::super::super::EdgeTable::new(schema).unwrap()
+    }
+
+    #[test]
+    fn test_deletion_info_segment_skip_optimization() {
+        let mut table = create_edge_table_with_props();
+
+        for i in 0..10 {
+            table.insert_edge(0, i, 0, &[("weight".to_string(), Value::Double(1.0))], 100).unwrap();
+        }
+
+        table.freeze_csr_only(100);
+
+        for i in 0..10 {
+            table.delete_edge(0, i, 0, 200).unwrap();
+        }
+
+        table.freeze_csr_only(200);
+
+        table.register_active_snapshot(150);
+
+        let edges_at_150 = table.out_edges(0, 150);
+        assert_eq!(edges_at_150.len(), 10);
+
+        let edges_at_250 = table.out_edges(0, 250);
+        assert_eq!(edges_at_250.len(), 0);
+
+        table.unregister_active_snapshot(150);
+    }
+
+    #[test]
+    fn test_segment_age_calculation() {
+        let mut table = create_edge_table_with_props();
+
+        for i in 0..3 {
+            table.insert_edge(0, 1, i as i64, &[], 100).unwrap();
+        }
+
+        table.freeze_csr_only(105);
+
+        assert!(table.out_segments.len() > 0 || table.in_segments.len() > 0);
+    }
+}

@@ -145,3 +145,213 @@ impl MVCCManager {
         self.active_snapshots.values().sum()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::*;
+    use crate::core::Value;
+    use crate::core::types::EdgeId;
+
+    fn create_edge_table_with_props() -> EdgeTable {
+        let schema = EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+        EdgeTable::new(schema).unwrap()
+    }
+
+    #[test]
+    fn test_gc_tombstones_basic() {
+        let mut table = create_edge_table_with_props();
+
+        table.insert_edge(0, 1, 0, &[], 100).unwrap();
+        table.insert_edge(0, 2, 0, &[], 100).unwrap();
+        table.insert_edge(0, 3, 0, &[], 100).unwrap();
+
+        table.mvcc.tombstones.insert(EdgeId(0), 200);
+        table.mvcc.tombstones.insert(EdgeId(1), 250);
+        table.mvcc.tombstones.insert(EdgeId(2), 300);
+
+        assert_eq!(table.mvcc.tombstones.len(), 3);
+
+        let removed = table.mvcc.gc_tombstones(220);
+        assert_eq!(removed, 1);
+        assert_eq!(table.mvcc.tombstones.len(), 2);
+
+        let removed = table.mvcc.gc_tombstones(260);
+        assert_eq!(removed, 1);
+        assert_eq!(table.mvcc.tombstones.len(), 1);
+
+        let removed = table.mvcc.gc_tombstones(310);
+        assert_eq!(removed, 1);
+        assert_eq!(table.mvcc.tombstones.len(), 0);
+    }
+
+    #[test]
+    fn test_gc_tombstones_preserves_active_snapshots() {
+        let mut table = create_edge_table_with_props();
+
+        table.mvcc.tombstones.insert(EdgeId(0), 200);
+        assert_eq!(table.mvcc.tombstones.len(), 1);
+
+        let removed = table.mvcc.gc_tombstones(151);
+        assert_eq!(removed, 0);
+        assert_eq!(table.mvcc.tombstones.len(), 1);
+
+        let removed = table.mvcc.gc_tombstones(201);
+        assert_eq!(removed, 1);
+        assert_eq!(table.mvcc.tombstones.len(), 0);
+    }
+
+    #[test]
+    fn test_tombstones_gc_multiple_edges() {
+        let mut table = create_edge_table_with_props();
+
+        for i in 0..10 {
+            table.mvcc.tombstones.insert(EdgeId(i), 100 + (i as u32 * 10));
+        }
+
+        assert_eq!(table.mvcc.tombstones.len(), 10);
+
+        let removed = table.mvcc.gc_tombstones(150);
+        assert_eq!(removed, 5);
+        assert_eq!(table.mvcc.tombstones.len(), 5);
+
+        for &delete_ts in table.mvcc.tombstones.values() {
+            assert!(delete_ts >= 150);
+        }
+    }
+
+    #[test]
+    fn test_auto_gc_with_snapshot_lifecycle() {
+        let mut table = create_edge_table_with_props();
+
+        table.insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100).unwrap();
+
+        table.freeze_csr_only(125);
+
+        table.delete_edge(0, 1, 0, 150).unwrap();
+
+        let stats_before = table.mvcc.tombstone_stats();
+        assert_eq!(stats_before.count, 1);
+
+        table.mvcc.register_active_snapshot(100);
+        table.mvcc.register_active_snapshot(100);
+        table.mvcc.register_active_snapshot(120);
+
+        let count_after_first = table.mvcc.unregister_active_snapshot(100);
+        assert_eq!(count_after_first, 1);
+
+        let stats_after_first = table.mvcc.tombstone_stats();
+        assert_eq!(stats_after_first.count, 1);
+
+        let count_after_second = table.mvcc.unregister_active_snapshot(100);
+        assert_eq!(count_after_second, 0);
+
+        let count_120 = table.mvcc.unregister_active_snapshot(120);
+        assert_eq!(count_120, 0);
+
+        let stats_after_gc = table.mvcc.tombstone_stats();
+        assert_eq!(stats_after_gc.count, 0);
+    }
+
+    #[test]
+    fn test_mvcc_metrics_gc_count() {
+        use crate::core::stats::{MetricType, StatsManager};
+        use std::sync::Arc;
+
+        let mut table = create_edge_table_with_props();
+
+        let stats_manager = Arc::new(StatsManager::new());
+        table.set_stats_manager(stats_manager.clone());
+
+        for i in 0..5 {
+            table.insert_edge(0, 1, i as i64, &[("weight".to_string(), Value::Double(i as f64))], i as u32).unwrap();
+        }
+
+        table.delete_edge(0, 1, 0, 2).unwrap();
+        table.delete_edge(0, 1, 1, 3).unwrap();
+
+        table.mvcc.register_active_snapshot(1);
+        table.mvcc.register_active_snapshot(4);
+
+        let initial_gc_count = stats_manager.get_value(MetricType::TombstoneGCCount).unwrap_or(0);
+
+        let _ = table.mvcc.gc_tombstones(2);
+
+        let after_gc_count = stats_manager.get_value(MetricType::TombstoneGCCount).unwrap_or(0);
+        assert_eq!(after_gc_count, initial_gc_count + 1);
+    }
+
+    #[test]
+    fn test_mvcc_metrics_tombstone_count() {
+        use crate::core::stats::{MetricType, StatsManager};
+        use std::sync::Arc;
+
+        let mut table = create_edge_table_with_props();
+
+        let stats_manager = Arc::new(StatsManager::new());
+        table.set_stats_manager(stats_manager.clone());
+
+        for i in 0..5 {
+            table.insert_edge(0, 1, i as i64, &[("weight".to_string(), Value::Double(i as f64))], i as u32).unwrap();
+        }
+
+        table.freeze_csr_only(5);
+
+        table.delete_edge(0, 1, 0, 10).unwrap();
+        table.delete_edge(0, 1, 1, 11).unwrap();
+        table.delete_edge(0, 1, 2, 12).unwrap();
+
+        let tom_stats = table.mvcc.tombstone_stats();
+        assert_eq!(tom_stats.count, 3);
+
+        stats_manager.record_tombstone_stats(
+            tom_stats.count as u64,
+            tom_stats.memory_bytes as u64,
+            tom_stats.oldest_delete_ts,
+            tom_stats.newest_delete_ts,
+            1,
+        );
+
+        let tombstone_count = stats_manager.get_value(MetricType::TombstoneCount).unwrap_or(0);
+        assert_eq!(tombstone_count, 3);
+
+        let tombstone_memory = stats_manager.get_value(MetricType::TombstoneMemoryBytes).unwrap_or(0);
+        assert!(tombstone_memory > 0);
+    }
+
+    #[test]
+    fn test_mvcc_metrics_active_snapshots() {
+        use crate::core::stats::{MetricType, StatsManager};
+        use std::sync::Arc;
+
+        let mut table = create_edge_table_with_props();
+
+        let stats_manager = Arc::new(StatsManager::new());
+        table.set_stats_manager(stats_manager.clone());
+
+        table.mvcc.register_active_snapshot(1);
+        stats_manager.record_active_snapshots(1);
+        let count1 = stats_manager.get_value(MetricType::TombstoneActiveSnapshots).unwrap_or(0);
+        assert_eq!(count1, 1);
+
+        table.mvcc.register_active_snapshot(2);
+        stats_manager.record_active_snapshots(2);
+        let count2 = stats_manager.get_value(MetricType::TombstoneActiveSnapshots).unwrap_or(0);
+        assert_eq!(count2, 2);
+
+        table.mvcc.unregister_active_snapshot(1);
+        stats_manager.record_active_snapshots(1);
+        let count3 = stats_manager.get_value(MetricType::TombstoneActiveSnapshots).unwrap_or(0);
+        assert_eq!(count3, 1);
+    }
+}

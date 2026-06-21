@@ -6,7 +6,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use super::types::{
+use crate::core::wal::types::{
     Lsn, RecordType, UpdateWalUnit, WalCompression, WalError, WalFileHeader, WalHeader,
     WalRecoveryMode, WalResult, WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE,
 };
@@ -926,7 +926,7 @@ impl WalParserFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transaction::wal::types::WalConfig;
+    use crate::core::wal::types::WalConfig;
     use crate::transaction::wal::writer::{LocalWalWriter, WalWriter};
     use crate::transaction::wal::WalOpType;
     use tempfile::TempDir;

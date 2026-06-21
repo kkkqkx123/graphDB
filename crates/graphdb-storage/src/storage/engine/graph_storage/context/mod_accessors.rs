@@ -155,7 +155,7 @@ impl GraphStorageContext {
 
     pub(crate) fn append_wal_redo<T: serde::Serialize>(
         &self,
-        op_type: crate::transaction::wal::types::WalOpType,
+        op_type: crate::core::wal::types::WalOpType,
         timestamp: Timestamp,
         redo: &T,
     ) -> crate::core::StorageResult<()> {
@@ -174,7 +174,7 @@ impl GraphStorageContext {
 
     pub(crate) fn defer_edge_insert(
         &self,
-        edge: crate::transaction::wal::types::InsertEdgeRedo,
+        edge: crate::core::wal::redo::InsertEdgeRedo,
         ts: Timestamp,
     ) {
         self.runtime.deferred_wal_ops.push_edge(edge, ts);
@@ -182,7 +182,7 @@ impl GraphStorageContext {
 
     pub(crate) fn defer_edge_delete(
         &self,
-        delete: crate::transaction::wal::types::DeleteEdgeRedo,
+        delete: crate::core::wal::redo::DeleteEdgeRedo,
         ts: Timestamp,
     ) {
         self.runtime.deferred_wal_ops.push_delete(delete, ts);
@@ -190,13 +190,13 @@ impl GraphStorageContext {
 
     pub(crate) fn take_deferred_edge_inserts(
         &self,
-    ) -> Vec<(crate::transaction::wal::types::InsertEdgeRedo, Timestamp)> {
+    ) -> Vec<(crate::core::wal::redo::InsertEdgeRedo, Timestamp)> {
         self.runtime.deferred_wal_ops.drain_edges()
     }
 
     pub(crate) fn take_deferred_edge_deletes(
         &self,
-    ) -> Vec<(crate::transaction::wal::types::DeleteEdgeRedo, Timestamp)> {
+    ) -> Vec<(crate::core::wal::redo::DeleteEdgeRedo, Timestamp)> {
         self.runtime.deferred_wal_ops.drain_deletes()
     }
 }

@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use postcard::{from_bytes, to_allocvec};
 
 use super::read_transaction::RELEASED_TIMESTAMP;
-use super::wal::types::{InsertEdgeRedo, InsertVertexRedo, WalHeader, WalOpType};
+use crate::core::wal::redo::{InsertEdgeRedo, InsertVertexRedo};
+use crate::core::wal::types::{WalHeader, WalOpType};
 use super::wal::writer::WalWriter;
 use super::wal::{EdgeId, LabelId, Timestamp};
 use super::mvcc::{VersionManager, VersionManagerError};

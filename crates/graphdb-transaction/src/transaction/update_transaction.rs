@@ -16,10 +16,11 @@ use super::undo_log::{
     DeleteEdgePropUndo, DeleteVertexPropUndo, PropertyValue, RelatedEdgeInfo, UndoLogEntry,
     UndoLogError, UndoLogManager, UndoTarget,
 };
-use super::wal::types::{
+use crate::core::wal::redo::{
     CreateEdgeTypeRedo, CreateVertexTypeRedo, DeleteEdgeRedo, DeleteVertexRedo, UpdateEdgePropRedo,
-    UpdateVertexPropRedo, WalHeader, WalOpType,
+    UpdateVertexPropRedo,
 };
+use crate::core::wal::types::{WalHeader, WalOpType};
 use super::wal::writer::WalWriter;
 use super::wal::{ColumnId, LabelId, Timestamp, VertexId};
 use super::mvcc::{VersionManager, VersionManagerError};

@@ -213,6 +213,100 @@ impl WalFileHeader {
         }
     }
 
+    /// Serialize header to fixed-size byte array (safe, stack-allocated)
+    pub fn as_bytes_array(&self) -> [u8; 64] {
+        let mut bytes = [0u8; 64];
+        let mut offset = 0;
+
+        bytes[offset..offset+4].copy_from_slice(&self.magic.to_le_bytes());
+        offset += 4;
+
+        bytes[offset..offset+4].copy_from_slice(&self.version.to_le_bytes());
+        offset += 4;
+
+        bytes[offset..offset+8].copy_from_slice(&self.checkpoint_seq.to_le_bytes());
+        offset += 8;
+
+        bytes[offset..offset+8].copy_from_slice(&self.start_lsn.to_le_bytes());
+        offset += 8;
+
+        bytes[offset..offset+4].copy_from_slice(&self.salt1.to_le_bytes());
+        offset += 4;
+
+        bytes[offset..offset+4].copy_from_slice(&self.salt2.to_le_bytes());
+        offset += 4;
+
+        bytes[offset..offset+8].copy_from_slice(&self.created_at.to_le_bytes());
+        offset += 8;
+
+        bytes[offset..offset+4].copy_from_slice(&self.thread_id.to_le_bytes());
+        offset += 4;
+
+        bytes[offset..offset+20].copy_from_slice(&self.reserved);
+
+        bytes
+    }
+
+    /// Serialize header to byte vector (safe, heap-allocated when needed)
+    pub fn as_bytes_safe(&self) -> Vec<u8> {
+        self.as_bytes_array().to_vec()
+    }
+
+    /// Deserialize from byte slice (safe implementation)
+    pub fn from_bytes_safe(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() < Self::SIZE {
+            return None;
+        }
+
+        let mut offset = 0;
+
+        let magic = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+        offset += 4;
+
+        let version = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+        offset += 4;
+
+        let checkpoint_seq = u64::from_le_bytes(bytes[offset..offset+8].try_into().ok()?);
+        offset += 8;
+
+        let start_lsn = u64::from_le_bytes(bytes[offset..offset+8].try_into().ok()?);
+        offset += 8;
+
+        let salt1 = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+        offset += 4;
+
+        let salt2 = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+        offset += 4;
+
+        let created_at = u64::from_le_bytes(bytes[offset..offset+8].try_into().ok()?);
+        offset += 8;
+
+        let thread_id = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+        offset += 4;
+
+        let mut reserved = [0u8; 20];
+        reserved.copy_from_slice(&bytes[offset..offset+20]);
+
+        Some(Self {
+            magic,
+            version,
+            checkpoint_seq,
+            start_lsn,
+            salt1,
+            salt2,
+            created_at,
+            thread_id,
+            reserved,
+        })
+    }
+
+
+    /// Get bytes reference (unsafe but documented)
+    ///
+    /// # Safety
+    /// This is safe because WalFileHeader is repr(C) with fixed-size fields.
+    /// Use as_bytes_safe() for a guaranteed safe alternative.
+    #[deprecated(since = "0.2.0", note = "Use as_bytes_safe() instead")]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
             std::slice::from_raw_parts(
@@ -222,6 +316,12 @@ impl WalFileHeader {
         }
     }
 
+    /// Deserialize from bytes (unsafe but documented)
+    ///
+    /// # Safety
+    /// This is safe only if the input comes from a properly serialized WalFileHeader.
+    /// Use from_bytes_safe() for a guaranteed safe alternative.
+    #[deprecated(since = "0.2.0", note = "Use from_bytes_safe() instead")]
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() < Self::SIZE {
             return None;
@@ -373,6 +473,106 @@ impl WalHeader {
         self.record_type != RecordType::Full
     }
 
+    /// Serialize header to fixed-size byte array (safe, stack-allocated)
+    pub fn as_bytes_array(&self) -> [u8; 40] {
+        let mut bytes = [0u8; 40];
+        let mut offset = 0;
+
+        bytes[offset..offset+4].copy_from_slice(&self.length.to_le_bytes());
+        offset += 4;
+
+        bytes[offset] = self.op_type;
+        offset += 1;
+
+        bytes[offset] = self.is_update as u8;
+        offset += 1;
+
+        bytes[offset] = self.record_type as u8;
+        offset += 1;
+
+        bytes[offset] = 0; // padding for alignment
+        offset += 1;
+
+        bytes[offset..offset+2].copy_from_slice(&self.flags.to_le_bytes());
+        offset += 2;
+
+        // timestamp is u32, not u64
+        bytes[offset..offset+4].copy_from_slice(&self.timestamp.to_le_bytes());
+        offset += 4;
+
+        bytes[offset..offset+8].copy_from_slice(&self.lsn.to_le_bytes());
+        offset += 8;
+
+        bytes[offset..offset+8].copy_from_slice(&self.prev_lsn.to_le_bytes());
+        offset += 8;
+
+        bytes[offset..offset+4].copy_from_slice(&self.checksum.to_le_bytes());
+
+        bytes
+    }
+
+    /// Serialize header to byte vector (safe, heap-allocated when needed)
+    pub fn as_bytes_safe(&self) -> Vec<u8> {
+        self.as_bytes_array().to_vec()
+    }
+
+    /// Deserialize from byte slice (safe implementation)
+    pub fn from_bytes_safe(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() < Self::SIZE {
+            return None;
+        }
+
+        let mut offset = 0;
+
+        let length = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+        offset += 4;
+
+        let op_type = bytes[offset];
+        offset += 1;
+
+        let is_update = bytes[offset] != 0;
+        offset += 1;
+
+        let record_type = RecordType::from_u8(bytes[offset]);
+        offset += 1;
+
+        // Skip padding
+        offset += 1;
+
+        let flags = u16::from_le_bytes(bytes[offset..offset+2].try_into().ok()?);
+        offset += 2;
+
+        // timestamp is u32, not u64
+        let timestamp = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+        offset += 4;
+
+        let lsn = u64::from_le_bytes(bytes[offset..offset+8].try_into().ok()?);
+        offset += 8;
+
+        let prev_lsn = u64::from_le_bytes(bytes[offset..offset+8].try_into().ok()?);
+        offset += 8;
+
+        let checksum = u32::from_le_bytes(bytes[offset..offset+4].try_into().ok()?);
+
+        Some(Self {
+            length,
+            op_type,
+            is_update,
+            record_type,
+            flags,
+            timestamp,
+            lsn,
+            prev_lsn,
+            checksum,
+        })
+    }
+
+    /// Get bytes reference (unsafe but documented)
+    ///
+    /// # Safety
+    /// This is safe because WalHeader is repr(C) with fixed-size fields.
+    /// Use as_bytes_safe() for a guaranteed safe alternative.
+    #[deprecated(since = "0.2.0", note = "Use as_bytes_safe() instead")]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
             std::slice::from_raw_parts(
@@ -382,6 +582,12 @@ impl WalHeader {
         }
     }
 
+    /// Deserialize from bytes (unsafe but documented)
+    ///
+    /// # Safety
+    /// This is safe only if the input comes from a properly serialized WalHeader.
+    /// Use from_bytes_safe() for a guaranteed safe alternative.
+    #[deprecated(since = "0.2.0", note = "Use from_bytes_safe() instead")]
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() < Self::SIZE {
             return None;

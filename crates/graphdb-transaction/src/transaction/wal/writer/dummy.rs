@@ -2,8 +2,8 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use super::traits::WalWriter;
-use crate::transaction::wal::types::WalResult;
+use crate::core::wal::traits::WalWriter;
+use crate::core::wal::types::WalResult;
 
 /// Dummy WAL writer (no-op, for read-only mode)
 pub struct DummyWalWriter {

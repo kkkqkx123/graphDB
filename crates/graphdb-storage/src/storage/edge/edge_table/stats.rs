@@ -161,3 +161,131 @@ pub struct MergeMetricsResult {
     pub metrics: MergeMetrics,
     pub segments_reduced: usize,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::Value;
+    use crate::core::types::EdgeId;
+
+    fn create_edge_table() -> super::super::super::EdgeTable {
+        let schema = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![],
+            oe_strategy: super::super::super::EdgeStrategy::Multiple,
+            ie_strategy: super::super::super::EdgeStrategy::Multiple,
+        };
+        super::super::super::EdgeTable::new(schema).unwrap()
+    }
+
+    fn create_edge_table_with_props() -> super::super::super::EdgeTable {
+        let schema = super::super::super::EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![crate::storage::types::StoragePropertyDef::new(
+                "weight".to_string(),
+                crate::core::types::DataType::Double,
+            )],
+            oe_strategy: super::super::super::EdgeStrategy::Multiple,
+            ie_strategy: super::super::super::EdgeStrategy::Multiple,
+        };
+        super::super::super::EdgeTable::new(schema).unwrap()
+    }
+
+    #[test]
+    fn test_deletion_ratio() {
+        let mut stats = DeletionStats::default();
+
+        assert_eq!(stats.deletion_ratio(), 0.0);
+        assert_eq!(stats.deletion_percentage(), 0.0);
+        assert!(!stats.is_significant());
+
+        stats.total_frozen_edges = 100;
+        stats.total_deleted_edges = 50;
+        assert_eq!(stats.deletion_ratio(), 0.5);
+        assert_eq!(stats.deletion_percentage(), 50.0);
+        assert!(stats.is_significant());
+
+        stats.total_deleted_edges = 5;
+        assert_eq!(stats.deletion_ratio(), 0.05);
+        assert_eq!(stats.deletion_percentage(), 5.0);
+        assert!(!stats.is_significant());
+    }
+
+    #[test]
+    fn test_tombstone_stats_accuracy() {
+        let mut table = create_edge_table_with_props();
+
+        table.insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.0))], 50).unwrap();
+        table.insert_edge(0, 2, 0, &[("weight".to_string(), Value::Double(2.0))], 100).unwrap();
+        table.insert_edge(0, 3, 0, &[("weight".to_string(), Value::Double(3.0))], 150).unwrap();
+
+        table.freeze_csr_only(160);
+
+        table.delete_edge(0, 1, 0, 200).unwrap();
+        table.delete_edge(0, 2, 0, 250).unwrap();
+        table.delete_edge(0, 3, 0, 300).unwrap();
+
+        let stats = table.tombstone_stats();
+        assert_eq!(stats.count, 3);
+        assert!(stats.memory_bytes > 0);
+        assert_eq!(stats.oldest_delete_ts, Some(200));
+        assert_eq!(stats.newest_delete_ts, Some(300));
+    }
+
+    #[test]
+    fn test_deletion_stats_tracking() {
+        let mut table = create_edge_table();
+
+        for i in 0..5 {
+            table.insert_edge(0, 1, i as i64, &[("weight".to_string(), Value::Double(i as f64))], 100 + i as u32).unwrap();
+        }
+
+        let stats = table.deletion_stats();
+        assert_eq!(stats.total_deleted_edges, 0);
+        assert_eq!(stats.segments_with_deletions, 0);
+        assert_eq!(stats.completely_deleted_segments, 0);
+        assert_eq!(stats.deletion_percentage(), 0.0);
+
+        table.freeze_csr_only(105);
+
+        let stats = table.deletion_stats();
+        assert_eq!(stats.total_frozen_edges, 10);
+
+        table.delete_edge(0, 1, 0, 110).unwrap();
+        table.delete_edge(0, 1, 1, 111).unwrap();
+
+        let stats = table.deletion_stats();
+        assert_eq!(stats.total_deleted_edges, 0);
+
+        table.freeze_csr_only(115);
+
+        let stats = table.deletion_stats();
+        assert!(stats.deletion_percentage() >= 0.0);
+    }
+
+    #[test]
+    fn test_deletion_stats_complete_segment_deletion() {
+        let mut table = create_edge_table();
+
+        for i in 0..3 {
+            table.insert_edge(0, 1, i as i64, &[], 100).unwrap();
+        }
+
+        table.freeze_csr_only(105);
+
+        for i in 0..3 {
+            table.delete_edge(0, 1, i as i64, 110).unwrap();
+        }
+
+        table.freeze_csr_only(115);
+
+        let stats = table.deletion_stats();
+        assert!(stats.total_frozen_edges > 0);
+    }
+}

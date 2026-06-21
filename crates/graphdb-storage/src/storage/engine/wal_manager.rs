@@ -4,7 +4,7 @@
 //! This module provides a single source of truth for LSN management and WAL operations.
 
 use crate::core::{StorageError, StorageResult};
-use crate::transaction::wal::types::WalOpType;
+use crate::core::wal::types::WalOpType;
 use crate::transaction::wal::writer::WalWriter;
 use crate::transaction::wal::{LocalWalWriter, Lsn, WalConfig};
 use parking_lot::RwLock;

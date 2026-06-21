@@ -9,10 +9,10 @@ use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Verte
 use crate::storage::engine::params::{EdgeOperationParams, InsertEdgeParams};
 use crate::storage::index::index_data_manager::VertexIndexOps;
 use crate::transaction::codec::value_to_bytes;
-use crate::transaction::wal::types::{
+use crate::core::wal::redo::{
     DeleteEdgeRedo, DeleteVertexRedo, InsertEdgeRedo, InsertVertexRedo, UpdateVertexPropRedo,
-    WalOpType,
 };
+use crate::core::wal::types::WalOpType;
 
 use super::context::GraphStorageContext;
 use super::ops::{edge_label_id, endpoint_label_id, tag_label_id};

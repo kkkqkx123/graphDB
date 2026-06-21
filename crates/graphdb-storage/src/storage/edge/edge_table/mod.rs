@@ -567,5 +567,64 @@ impl EdgeTable {
 }
 
 #[cfg(test)]
-#[path = "edge_table_tests.rs"]
-mod tests;
+mod core_tests;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::VertexId;
+    use crate::core::Value;
+
+    fn create_test_schema() -> EdgeSchema {
+        EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        }
+    }
+
+    #[test]
+    fn test_freeze_csr_preserves_reads() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        table
+            .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
+            .unwrap();
+        table
+            .insert_edge(0, 2, 0, &[("weight".to_string(), Value::Double(2.5))], 110)
+            .unwrap();
+
+        let before = table.scan(150);
+        let frozen = table.freeze_csr_only(150);
+        let after = table.scan(150);
+
+        assert_eq!(frozen, 4);
+        assert_eq!(table.out_segments.len(), 1);
+        assert_eq!(table.in_segments.len(), 1);
+        assert_eq!(before.len(), after.len());
+        assert!(table.has_edge(0, 1, 0, 150));
+        assert!(table.has_edge(0, 2, 0, 150));
+    }
+
+    #[test]
+    fn test_delete_base_segment_uses_tombstone() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        table.insert_edge(0, 1, 0, &[], 100).unwrap();
+        table.freeze_csr_only(150);
+
+        assert!(table.delete_edge(0, 1, 0, 200).unwrap());
+        assert!(table.has_edge(0, 1, 0, 150));
+        assert!(!table.has_edge(0, 1, 0, 250));
+        assert_eq!(table.scan(250).len(), 0);
+    }
+}

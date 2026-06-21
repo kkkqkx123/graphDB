@@ -47,8 +47,12 @@
 pub mod checkpoint;
 pub mod parser;
 pub mod recovery;
-pub mod types;
 pub mod writer;
+
+// Direct imports from core WAL layer
+pub use crate::core::wal::redo::*;
+pub use crate::core::wal::types::*;
+pub use crate::core::wal::traits::*;
 
 pub use crate::core::types::{TableId, TableTracker, TableTrackerConfig, TableType};
 pub use checkpoint::{Checkpoint, CheckpointManager, CheckpointMode, CheckpointResult};
@@ -57,17 +61,6 @@ pub use parser::{
     WalParserFactory,
 };
 pub use recovery::{RecoveryApplier, RecoveryConfig, RecoveryManager, RecoveryStats};
-pub use types::{
-    align_to_block, block_padding_needed, blocks_needed, is_block_aligned, AddEdgePropRedo,
-    AddVertexPropRedo, AlterSpaceCommentRedo, ArchiveMode, ClearSpaceRedo, CompactRedo,
-    CompressionLevel, CreateEdgeTypeRedo, CreateSpaceRedo, CreateVertexTypeRedo,
-    DeleteEdgePropRedo, DeleteEdgeRedo, DeleteEdgeTypeRedo, DeleteVertexPropRedo, DeleteVertexRedo,
-    DeleteVertexTypeRedo, DropSpaceRedo, InsertEdgeRedo, InsertVertexRedo, Lsn, RecordType,
-    RenameEdgePropRedo, RenameVertexPropRedo, SyncPolicy, TransactionId, UpdateEdgePropRedo,
-    UpdateVertexPropRedo, UpdateWalUnit, WalCompression, WalConfig, WalContentUnit, WalError,
-    WalFileHeader, WalHeader, WalOpType, WalRecoveryMode, WalResult, WalStats, WAL_BLOCK_SIZE,
-    WAL_FILE_HEADER_SIZE, WAL_HEADER_SIZE, WAL_MAGIC, WAL_MAX_RECORD_SIZE, WAL_VERSION,
-};
 
 // Re-export fundamental types from core for backward compatibility
 pub use crate::core::types::{ColumnId, EdgeId, LabelId, Timestamp, VertexId};

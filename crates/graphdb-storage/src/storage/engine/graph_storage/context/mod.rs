@@ -182,9 +182,9 @@ impl GraphStoragePersistent {
 /// Used to handle edge operations that depend on vertex existence.
 struct DeferredWalOps {
     /// Deferred edge insertions (InsertEdgeRedo, Timestamp)
-    edges: Arc<Mutex<Vec<(crate::transaction::wal::types::InsertEdgeRedo, Timestamp)>>>,
+    edges: Arc<Mutex<Vec<(crate::core::wal::redo::InsertEdgeRedo, Timestamp)>>>,
     /// Deferred edge deletions (DeleteEdgeRedo, Timestamp)
-    deletes: Arc<Mutex<Vec<(crate::transaction::wal::types::DeleteEdgeRedo, Timestamp)>>>,
+    deletes: Arc<Mutex<Vec<(crate::core::wal::redo::DeleteEdgeRedo, Timestamp)>>>,
 }
 
 impl DeferredWalOps {
@@ -195,19 +195,19 @@ impl DeferredWalOps {
         }
     }
 
-    fn push_edge(&self, edge: crate::transaction::wal::types::InsertEdgeRedo, ts: Timestamp) {
+    fn push_edge(&self, edge: crate::core::wal::redo::InsertEdgeRedo, ts: Timestamp) {
         self.edges.lock().push((edge, ts));
     }
 
-    fn push_delete(&self, delete: crate::transaction::wal::types::DeleteEdgeRedo, ts: Timestamp) {
+    fn push_delete(&self, delete: crate::core::wal::redo::DeleteEdgeRedo, ts: Timestamp) {
         self.deletes.lock().push((delete, ts));
     }
 
-    fn drain_edges(&self) -> Vec<(crate::transaction::wal::types::InsertEdgeRedo, Timestamp)> {
+    fn drain_edges(&self) -> Vec<(crate::core::wal::redo::InsertEdgeRedo, Timestamp)> {
         self.edges.lock().drain(..).collect()
     }
 
-    fn drain_deletes(&self) -> Vec<(crate::transaction::wal::types::DeleteEdgeRedo, Timestamp)> {
+    fn drain_deletes(&self) -> Vec<(crate::core::wal::redo::DeleteEdgeRedo, Timestamp)> {
         self.deletes.lock().drain(..).collect()
     }
 

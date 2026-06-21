@@ -466,3 +466,246 @@ pub fn merge_aggressive(
         edges_processed: total_edges,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::*;
+    use super::super::config::LSMSegmentLevel;
+
+    fn create_test_schema() -> EdgeSchema {
+        EdgeSchema {
+            label_id: 0,
+            label_name: "knows".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
+        }
+    }
+
+    #[test]
+    fn test_aggressive_merge_triggered_at_max_segments() {
+        let mut config = EdgeTableConfig::default();
+        config.max_segments_per_direction = 3;
+        let max_segments = config.max_segments_per_direction;
+        let schema = create_test_schema();
+        let mut table = EdgeTable::with_config(schema, config).unwrap();
+
+        for t in 0..5 {
+            for src in 0..10 {
+                table.insert_edge(src as u32, src as u32 + 1, t as i64, &[], t as u32).unwrap();
+            }
+            table.freeze_csr_only(t as u32);
+        }
+
+        let total_segments = table.out_segments.len() + table.in_segments.len();
+        assert!(
+            total_segments <= max_segments * 2,
+            "Total segments {} should not exceed max limit {}",
+            total_segments,
+            max_segments * 2
+        );
+    }
+
+    #[test]
+    fn test_aggressive_merge_preserves_correctness() {
+        let mut config = EdgeTableConfig::default();
+        config.max_segments_per_direction = 2;
+        let schema = create_test_schema();
+        let mut table = EdgeTable::with_config(schema, config).unwrap();
+
+        for t in 0..4 {
+            for src in 0..5 {
+                let dst = src + 1;
+                table.insert_edge(src as u32, dst as u32, t as i64, &[], t as u32).unwrap();
+            }
+            table.freeze_csr_only(t as u32);
+        }
+
+        let snapshot = table.export_snapshot(u32::MAX).unwrap();
+        for src in 0..5 {
+            let edges = snapshot.get_out_edges(src as u32);
+            assert!(!edges.is_empty(), "Snapshot should contain edges from {}", src);
+        }
+
+        let total_edges: usize = table.out_segments.iter().map(|s| s.csr.edge_count() as usize).sum();
+        assert!(total_edges > 0, "Segments should contain edges after aggressive merge");
+    }
+
+    #[test]
+    fn test_merge_metrics_basic() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        for i in 0..5 {
+            table.insert_edge(i, i + 1, 0, &[], 100 + i).unwrap();
+        }
+        table.freeze_csr_only(105);
+
+        for i in 5..10 {
+            table.insert_edge(i, i + 1, 0, &[], 110 + i).unwrap();
+        }
+        table.freeze_csr_only(120);
+
+        let result = table.merge_segments_with_config(50, 8 * 1024 * 1024);
+        let metrics = result.metrics;
+
+        assert!(metrics.segments_before > 0);
+        assert!(metrics.segments_after <= metrics.segments_before);
+        assert!(metrics.edges_merged > 0);
+        assert!(metrics.duration_ms < 1_000_000);
+    }
+
+    #[test]
+    fn test_merge_metrics_edge_count_accuracy() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        let edge_count = 20;
+        for i in 0..edge_count {
+            let src = i % 5;
+            let dst = (i / 5) + 5;
+            table.insert_edge(src, dst, 0, &[], 100 + (i as u32)).unwrap();
+        }
+        table.freeze_csr_only(100 + edge_count as u32);
+
+        for i in 0..10 {
+            let src = (i + 10) % 5;
+            let dst = 20 + i;
+            table.insert_edge(src, dst, 0, &[], 200 + (i as u32)).unwrap();
+        }
+        table.freeze_csr_only(210);
+
+        let result = table.merge_segments_with_config(500, 8 * 1024 * 1024);
+        let metrics = result.metrics;
+
+        assert!(
+            metrics.edges_merged >= 20,
+            "Should have merged at least 20 edges, got {}",
+            metrics.edges_merged
+        );
+    }
+
+    #[test]
+    fn test_merge_metrics_performance_tracking() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        for i in 0..100 {
+            let src = i % 20;
+            let dst = 100 + (i / 20) * 20 + i % 20;
+            table.insert_edge(src, dst, 0, &[], 1000 + (i as u32)).unwrap();
+        }
+        table.freeze_csr_only(1100);
+
+        for i in 0..50 {
+            let src = (i + 5) % 20;
+            let dst = 500 + i;
+            table.insert_edge(src, dst, 0, &[], 2000 + (i as u32)).unwrap();
+        }
+        table.freeze_csr_only(2050);
+
+        let result = table.merge_segments_with_config(100, 8 * 1024 * 1024);
+        let metrics = result.metrics;
+
+        assert!(metrics.segments_before > 0);
+        assert!(metrics.edges_merged > 0);
+        assert!(metrics.duration_ms < 1000);
+    }
+
+    #[test]
+    fn test_lsm_tiered_merge() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        for batch in 0..5 {
+            for i in 0..10 {
+                table
+                    .insert_edge(0, 1, (batch * 100 + i) as i64, &[], 100 + batch as u32)
+                    .unwrap();
+            }
+            table.freeze_csr_only(105 + batch as u32);
+        }
+
+        let initial_count = table.out_segments.len() + table.in_segments.len();
+        assert!(initial_count > 0);
+
+        let _merged = table.merge_segments_lsm_tiered(120);
+
+        let final_count = table.out_segments.len() + table.in_segments.len();
+        assert!(final_count <= initial_count, "LSM tiering should not increase segment count");
+    }
+
+    #[test]
+    fn test_lsm_segment_level_classification() {
+        assert_eq!(LSMSegmentLevel::for_size(500_000), LSMSegmentLevel::L0);
+        assert_eq!(LSMSegmentLevel::for_size(5 * 1024 * 1024), LSMSegmentLevel::L1);
+        assert_eq!(LSMSegmentLevel::for_size(16 * 1024 * 1024), LSMSegmentLevel::L2);
+        assert_eq!(LSMSegmentLevel::for_size(50 * 1024 * 1024), LSMSegmentLevel::L3Plus);
+
+        assert_eq!(LSMSegmentLevel::L0.merge_trigger_count(), 4);
+        assert_eq!(LSMSegmentLevel::L1.merge_trigger_count(), 3);
+        assert_eq!(LSMSegmentLevel::L2.merge_trigger_count(), 2);
+        assert_eq!(LSMSegmentLevel::L3Plus.merge_trigger_count(), 2);
+
+        assert!(LSMSegmentLevel::L0.merge_target_size() < LSMSegmentLevel::L1.merge_target_size());
+        assert!(LSMSegmentLevel::L1.merge_target_size() < LSMSegmentLevel::L2.merge_target_size());
+        assert!(LSMSegmentLevel::L2.merge_target_size() < LSMSegmentLevel::L3Plus.merge_target_size());
+    }
+
+    #[test]
+    fn test_merge_stats_tracking() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        let stats = table.merge_stats();
+        assert_eq!(stats.total_merge_operations, 0);
+        assert_eq!(stats.total_segments_merged, 0);
+        assert_eq!(stats.total_edges_merged, 0);
+        assert!(!stats.segment_count_pressure());
+
+        for batch in 0..3 {
+            for i in 0..5 {
+                table
+                    .insert_edge(0, 1, (batch * 10 + i) as i64, &[], 100 + batch as u32)
+                    .unwrap();
+            }
+            table.freeze_csr_only(105 + batch as u32);
+        }
+
+        let initial_count = table.out_segments.len() + table.in_segments.len();
+        assert!(initial_count > 0);
+
+        let _merged = table.merge_segments_adaptive(120, 10);
+
+        let stats = table.merge_stats();
+        if _merged > 0 {
+            assert!(stats.total_merge_operations > 0);
+            assert!(stats.avg_merge_time_ms() >= 0.0);
+        }
+    }
+
+    #[test]
+    fn test_adaptive_merge_strategy() {
+        let schema = create_test_schema();
+        let mut table = EdgeTable::new(schema).unwrap();
+
+        for batch in 0..3 {
+            for i in 0..5 {
+                table
+                    .insert_edge(0, 1, (batch * 10 + i) as i64, &[], 100 + batch as u32)
+                    .unwrap();
+            }
+            table.freeze_csr_only(105 + batch as u32);
+        }
+
+        let initial_segments = table.out_segments.len() + table.in_segments.len();
+        assert!(initial_segments > 0);
+
+        let _merged = table.merge_segments_adaptive(120, 10);
+
+        let final_segments = table.out_segments.len() + table.in_segments.len();
+        assert!(final_segments <= initial_segments, "Merge should reduce or maintain segment count");
+    }
+}

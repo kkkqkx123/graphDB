@@ -1,6 +1,6 @@
 //! WAL compression strategy
 
-use crate::transaction::wal::types::{WalCompression, WalConfig, WalError, WalResult};
+use crate::core::wal::types::{WalCompression, WalConfig, WalError, WalResult};
 
 /// Compression strategy trait
 pub(crate) trait Compressor: Send + Sync {

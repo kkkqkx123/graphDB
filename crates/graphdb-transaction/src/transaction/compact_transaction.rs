@@ -5,7 +5,7 @@
 //! including CSR compaction and removal of old versions.
 
 use super::read_transaction::RELEASED_TIMESTAMP;
-use super::wal::types::WalHeader;
+use crate::core::wal::types::WalHeader;
 use super::wal::writer::WalWriter;
 use super::wal::Timestamp;
 use super::mvcc::{VersionManager, VersionManagerError};
@@ -118,7 +118,7 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
             return Ok(());
         }
 
-        let header = WalHeader::new(super::wal::types::WalOpType::Compact, self.timestamp, 0);
+        let header = WalHeader::new(crate::core::wal::types::WalOpType::Compact, self.timestamp, 0);
         let header_bytes = header.as_bytes();
         self.wal_buffer[..WalHeader::SIZE].copy_from_slice(header_bytes);
 
