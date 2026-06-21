@@ -359,3 +359,125 @@ fn test_p0_multi_edge_segment_delete_consistency() {
     assert_eq!(table.out_edges(src, 200).len(), 1);
     assert_eq!(table.in_edges(dst, 200).len(), 1);
 }
+
+#[test]
+fn test_write_backpressure_triggers_freeze() {
+    use crate::core::stats::StatsManager;
+    use std::sync::Arc;
+
+    let schema = create_test_schema();
+    let mut config = EdgeTableConfig::default();
+    // Set very small backpressure limit (1MB) to trigger easily
+    config.max_mutable_csr_bytes = 1024 * 1024;
+
+    let mut table = EdgeTable::with_config(schema, config).unwrap();
+
+    // Set up stats manager to record metrics
+    let stats = Arc::new(StatsManager::new());
+    table.set_stats_manager(stats.clone());
+
+    let initial_segments = table.out_segments.len();
+
+    // Insert many edges to trigger backpressure
+    for src in 0..100 {
+        for dst in 0..50 {
+            for rank in 0..2 {
+                let _ = table.insert_edge(
+                    src,
+                    dst,
+                    rank as i64,
+                    &[("weight".to_string(), Value::Double(1.5))],
+                    100,
+                );
+            }
+        }
+    }
+
+    // Check that freeze was triggered (segments should be created)
+    let final_segments = table.out_segments.len();
+    assert!(
+        final_segments > initial_segments,
+        "Backpressure should trigger freeze and create segments"
+    );
+
+    // Verify metrics were recorded
+    let freeze_count = stats.get_value(crate::core::stats::MetricType::MutableCsrFreezeCount);
+    assert!(
+        freeze_count.is_some() && freeze_count.unwrap() > 0,
+        "Freeze count should be recorded"
+    );
+
+    let mutable_size = stats.get_value(crate::core::stats::MetricType::MutableCsrBytes);
+    assert!(
+        mutable_size.is_some(),
+        "Mutable CSR size should be recorded"
+    );
+}
+
+#[test]
+fn test_write_backpressure_disabled() {
+    use crate::core::stats::StatsManager;
+    use std::sync::Arc;
+
+    let schema = create_test_schema();
+    let mut config = EdgeTableConfig::default();
+    // Disable backpressure
+    config.max_mutable_csr_bytes = 0;
+
+    let mut table = EdgeTable::with_config(schema, config).unwrap();
+    let stats = Arc::new(StatsManager::new());
+    table.set_stats_manager(stats.clone());
+
+    let initial_segments = table.out_segments.len();
+
+    // Insert many edges
+    for src in 0..50 {
+        for dst in 0..50 {
+            let _ = table.insert_edge(
+                src,
+                dst,
+                0,
+                &[("weight".to_string(), Value::Double(1.5))],
+                100,
+            );
+        }
+    }
+
+    // Without backpressure, no freeze should be triggered during inserts
+    // (unless it hits max_segments_per_direction limit)
+    let final_segments = table.out_segments.len();
+
+    // Verify no freeze was triggered from backpressure
+    // (segments might exist from other freezes, but not from backpressure)
+    let freeze_count = stats.get_value(crate::core::stats::MetricType::MutableCsrFreezeCount)
+        .unwrap_or(0);
+    // Should be 0 since backpressure is disabled
+    assert_eq!(freeze_count, 0, "No freeze should occur when backpressure is disabled");
+}
+
+#[test]
+fn test_mutable_csr_memory_size() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let initial_size = table.mutable_csr_memory_size();
+
+    // Insert an edge
+    table
+        .insert_edge(0, 1, 0, &[("weight".to_string(), Value::Double(1.5))], 100)
+        .unwrap();
+
+    let after_insert_size = table.mutable_csr_memory_size();
+    assert!(
+        after_insert_size >= initial_size,
+        "Mutable CSR size should increase after insertion"
+    );
+
+    // After freeze, mutable CSR should be cleared
+    table.freeze_csr_only(150);
+    let after_freeze_size = table.mutable_csr_memory_size();
+    assert!(
+        after_freeze_size < after_insert_size,
+        "Mutable CSR size should decrease after freeze"
+    );
+}

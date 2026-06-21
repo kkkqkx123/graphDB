@@ -117,6 +117,10 @@ pub enum MetricType {
     TombstoneOldestTsMin,
     TombstoneNewestTsMax,
     TombstoneActiveSnapshots,
+    // Write Backpressure metrics (Mutable CSR monitoring)
+    MutableCsrBytes,
+    MutableCsrFreezeCount,
+    MutableCsrPeakBytes,
 }
 
 /// metric
@@ -1033,6 +1037,24 @@ impl StatsManager {
     /// Increment tombstone garbage collection counter
     pub fn record_tombstone_gc(&self) {
         self.add_value(MetricType::TombstoneGCCount);
+    }
+
+    /// Record mutable CSR backpressure metrics
+    pub fn record_mutable_csr_backpressure(&self, current_bytes: u64, peak_bytes: u64) {
+        self.set_value(MetricType::MutableCsrBytes, current_bytes);
+        // Update peak if current exceeds previous peak
+        if let Some(prev_peak) = self.get_value(MetricType::MutableCsrPeakBytes) {
+            if current_bytes > prev_peak {
+                self.set_value(MetricType::MutableCsrPeakBytes, current_bytes);
+            }
+        } else {
+            self.set_value(MetricType::MutableCsrPeakBytes, peak_bytes);
+        }
+    }
+
+    /// Increment mutable CSR freeze counter
+    pub fn record_mutable_csr_freeze(&self) {
+        self.add_value(MetricType::MutableCsrFreezeCount);
     }
 }
 

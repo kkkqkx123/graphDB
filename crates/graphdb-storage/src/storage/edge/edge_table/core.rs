@@ -18,6 +18,9 @@ pub struct EdgeTableConfig {
     pub initial_vertex_capacity: usize,
     pub initial_edge_capacity: usize,
     pub max_segments_per_direction: usize,
+    /// Write backpressure: max size of mutable CSR (in bytes) before triggering freeze.
+    /// Set to 0 to disable. Typical value: 100MB (100 * 1024 * 1024).
+    pub max_mutable_csr_bytes: usize,
 }
 
 impl Default for EdgeTableConfig {
@@ -26,6 +29,8 @@ impl Default for EdgeTableConfig {
             initial_vertex_capacity: 4096,
             initial_edge_capacity: 4096,
             max_segments_per_direction: 100,
+            // Default: 100MB per direction
+            max_mutable_csr_bytes: 100 * 1024 * 1024,
         }
     }
 }
@@ -444,6 +449,9 @@ impl EdgeTableCore {
                 dst, src, rank
             )));
         }
+
+        // Check write backpressure after successful insertion
+        self.check_and_apply_write_backpressure(ts);
 
         Ok(())
     }
@@ -935,6 +943,40 @@ impl EdgeTableCore {
         total += self.properties.used_memory_size();
 
         total
+    }
+
+    /// Get mutable CSR memory usage (out_csr + in_csr)
+    pub fn mutable_csr_memory_size(&self) -> usize {
+        self.out_csr.used_memory_size() + self.in_csr.used_memory_size()
+    }
+
+    /// Check write backpressure and trigger freeze if necessary.
+    /// Returns true if a freeze was triggered.
+    pub fn check_and_apply_write_backpressure(&mut self, current_ts: Timestamp) -> bool {
+        if self.config.max_mutable_csr_bytes == 0 {
+            return false; // Backpressure disabled
+        }
+
+        let mutable_size = self.mutable_csr_memory_size();
+
+        // Record current metrics
+        if let Some(stats) = &self.stats_manager {
+            stats.record_mutable_csr_backpressure(mutable_size as u64, mutable_size as u64);
+        }
+
+        if mutable_size > self.config.max_mutable_csr_bytes {
+            // Trigger freeze
+            let _frozen = self.freeze_csr_only(current_ts);
+
+            // Record freeze event
+            if let Some(stats) = &self.stats_manager {
+                stats.record_mutable_csr_freeze();
+            }
+
+            return true;
+        }
+
+        false
     }
 }
 
