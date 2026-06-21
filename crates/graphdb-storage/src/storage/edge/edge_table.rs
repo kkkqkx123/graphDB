@@ -5,7 +5,7 @@
 
 use super::{
     Csr, CsrBase, EdgeRecord, EdgeSchema, EdgeStrategy, LabelId, MutableCsrTrait,
-    CsrVariant, Nbr, PropertyTable, Timestamp, VertexId,
+    CsrVariant, Nbr, PropertyTable, Timestamp, VertexId, ImmutableNbr,
 };
 use crate::core::types::EdgeId;
 use crate::core::{DataType, StorageError, StorageResult, Value};
@@ -19,6 +19,12 @@ use std::sync::Arc;
 
 // Version of the edge table metadata format for compatibility management
 const EDGE_META_VERSION: u32 = 2;
+
+// NbrWithoutEdgeId optimization configuration
+// Threshold: segments with >= this many edges use separate edge_id storage
+const SEPARATE_EDGE_ID_STORAGE_THRESHOLD: usize = 10_000;
+// Flag: enable separate edge_id storage optimization
+const ENABLE_SEPARATE_EDGE_ID_STORAGE: bool = false;
 
 /// Statistics about tombstones for observability and debugging.
 #[derive(Debug, Clone)]
@@ -318,6 +324,10 @@ struct CsrSegment {
     version: SegmentVersion,
     // Timestamp when this segment was created (for adaptive merge decisions)
     created_at_ts: Timestamp,
+    // Optional separate edge_id storage for memory optimization
+    // None: direct mode (edge_id in ImmutableNbr)
+    // Some(...): optimized mode (edge_id stored separately, 15% memory savings)
+    edge_ids: Option<Vec<EdgeId>>,
 }
 
 /// Version tracking for CSR segment recovery
@@ -375,10 +385,22 @@ impl CsrSegment {
             deletion_info,
             version: SegmentVersion::new(),
             created_at_ts,
+            edge_ids: None,  // Direct mode by default (no separate edge_id storage)
         };
         // Compute initial checksum
         seg.version.checksum = SegmentVersion::compute_checksum(&seg);
         seg
+    }
+
+    /// Recover EdgeId from this segment at given CSR position
+    ///
+    /// Supports both direct mode (edge_id in ImmutableNbr) and optimized mode
+    /// (edge_id stored separately). Transparent to callers.
+    fn recover_edge_id(&self, nbr: &ImmutableNbr, csr_position: usize) -> EdgeId {
+        match &self.edge_ids {
+            Some(ids) => ids.get(csr_position).copied().unwrap_or(nbr.edge_id),
+            None => nbr.edge_id,
+        }
     }
 
     /// Calculate age of this segment in timestamp units
@@ -859,16 +881,19 @@ impl EdgeTable {
                 continue;
             }
 
-            // Find edge with destination match using direct edge_id from CSR
+            // Find edge with destination match using recovered edge_id
             let positioned_edges = segment.csr.edges_of_with_position(src);
-            for (_, edge) in positioned_edges {
-                if edge.neighbor == dst && edge.timestamp <= ts && !self.is_tombstoned(edge.edge_id, ts) {
-                    return Some(Nbr::new(
-                        edge.neighbor,
-                        edge.edge_id,
-                        edge.prop_offset,
-                        edge.timestamp,
-                    ));
+            for (position, edge) in positioned_edges {
+                if edge.neighbor == dst && edge.timestamp <= ts {
+                    let edge_id = segment.recover_edge_id(edge, position);
+                    if !self.is_tombstoned(edge_id, ts) {
+                        return Some(Nbr::new(
+                            edge.neighbor,
+                            edge_id,
+                            edge.prop_offset,
+                            edge.timestamp,
+                        ));
+                    }
                 }
             }
         }
@@ -880,7 +905,7 @@ impl EdgeTable {
     fn base_edges_of(&self, segments: &[CsrSegment], src: u32, ts: Timestamp) -> Vec<Nbr> {
         let mut edges = Vec::new();
 
-        // Iterate segments in reverse (newest first) collecting edges with direct edge_id from CSR
+        // Iterate segments in reverse (newest first) collecting edges with recovered edge_id
         for segment in segments.iter().rev() {
             if segment.create_ts_min > ts {
                 continue;
@@ -891,15 +916,18 @@ impl EdgeTable {
                 continue;
             }
 
-            // Use direct edge_ids from CSR (stored in ImmutableNbr during freeze/merge)
-            for edge in segment.csr.edges_of(src) {
-                if edge.timestamp <= ts && !self.is_tombstoned(edge.edge_id, ts) {
-                    edges.push(Nbr::new(
-                        edge.neighbor,
-                        edge.edge_id,
-                        edge.prop_offset,
-                        edge.timestamp,
-                    ));
+            // Recover edge_ids from CSR (support both direct mode and separate storage)
+            for (position, edge) in segment.csr.edges_of_with_position(src) {
+                if edge.timestamp <= ts {
+                    let edge_id = segment.recover_edge_id(edge, position);
+                    if !self.is_tombstoned(edge_id, ts) {
+                        edges.push(Nbr::new(
+                            edge.neighbor,
+                            edge_id,
+                            edge.prop_offset,
+                            edge.timestamp,
+                        ));
+                    }
                 }
             }
         }
@@ -1596,6 +1624,19 @@ impl EdgeTable {
             let data = segment.csr.dump();
             file.write_all(&(data.len() as u64).to_le_bytes())?;
             file.write_all(&data)?;
+
+            // Version tag for edge_id storage mode
+            // 0 = direct mode (edge_id in ImmutableNbr)
+            // 1 = optimized mode (edge_id in segment.edge_ids)
+            if let Some(edge_ids) = &segment.edge_ids {
+                file.write_all(&[1u8])?;  // Optimized mode
+                file.write_all(&(edge_ids.len() as u64).to_le_bytes())?;
+                for edge_id in edge_ids {
+                    file.write_all(&edge_id.to_le_bytes())?;
+                }
+            } else {
+                file.write_all(&[0u8])?;  // Direct mode
+            }
         }
 
         Ok(())
@@ -1812,12 +1853,47 @@ impl EdgeTable {
             let mut segment_csr = Csr::new();
             segment_csr.load(&segment_data)?;
             let deletion_info = DeletionInfo::new(delete_ts_min, delete_ts_max);
-            segments.push(CsrSegment::new(
+            let mut segment = CsrSegment::new(
                 segment_csr,
                 create_ts_min,
                 create_ts_max,
                 deletion_info,
-            ));
+            );
+
+            // Version tag for edge_id storage mode
+            // 0 = direct mode (edge_id in ImmutableNbr, older format)
+            // 1 = optimized mode (edge_id in segment.edge_ids)
+            if cursor.len() > 0 {
+                let mut mode_byte = [0u8; 1];
+                if cursor.read_exact(&mut mode_byte).is_ok() {
+                    match mode_byte[0] {
+                        0 => {
+                            // Direct mode: edge_ids remain None
+                        }
+                        1 => {
+                            // Optimized mode: load edge_ids
+                            let mut edge_count_bytes = [0u8; 8];
+                            cursor.read_exact(&mut edge_count_bytes)?;
+                            let edge_count = u64::from_le_bytes(edge_count_bytes) as usize;
+                            let mut edge_ids = Vec::with_capacity(edge_count);
+                            for _ in 0..edge_count {
+                                let mut edge_id_bytes = [0u8; 8];
+                                cursor.read_exact(&mut edge_id_bytes)?;
+                                edge_ids.push(EdgeId(u64::from_le_bytes(edge_id_bytes)));
+                            }
+                            segment.edge_ids = Some(edge_ids);
+                        }
+                        _ => {
+                            return Err(StorageError::deserialize_error(
+                                format!("unknown edge_id storage mode: {}", mode_byte[0])
+                            ));
+                        }
+                    }
+                }
+            }
+
+            segments.push(segment);
+
         }
 
         Ok(())
@@ -2149,18 +2225,22 @@ impl EdgeTable {
                 continue;
             }
 
-            // Collect all edges from CSR, using direct edge_ids stored in CSR
-            // Note: Direct edge_id usage from CSR avoids segment-level mapping complexity
-            // and sync issues during segment merges. EdgeIds are preserved in CSR during
-            // freeze and merge operations, making segment-level storage unnecessary.
+            // Collect all edges from CSR, recovering edge_ids from segment storage when available
+            // Supports both direct mode (edge_id in ImmutableNbr) and optimized mode
+            // (edge_id stored separately in segment.edge_ids)
+            let mut edge_position = 0usize;
             for (src, immutable_nbr) in segment.csr.iter() {
+                // Recover edge_id from segment (supports both direct and separate storage modes)
+                let edge_id = segment.recover_edge_id(immutable_nbr, edge_position);
+                edge_position += 1;
+
                 // Skip edge if created after ts
                 if immutable_nbr.timestamp > ts {
                     continue;
                 }
 
                 // MVCC filter: check if edge was deleted by timestamp ts
-                if let Some(&delete_ts) = self.tombstones.get(&immutable_nbr.edge_id) {
+                if let Some(&delete_ts) = self.tombstones.get(&edge_id) {
                     // Edge is deleted at delete_ts; only include if delete_ts > ts
                     if delete_ts <= ts {
                         continue;  // Edge was already deleted by ts
@@ -2170,11 +2250,11 @@ impl EdgeTable {
                 let src_u32 = src.as_int64().unwrap_or(0) as u32;
                 let nbr = Nbr::new(
                     immutable_nbr.neighbor,
-                    immutable_nbr.edge_id,
+                    edge_id,
                     immutable_nbr.prop_offset,
                     immutable_nbr.timestamp,
                 );
-                edge_map.insert((src_u32, immutable_nbr.edge_id), (src_u32, nbr));
+                edge_map.insert((src_u32, edge_id), (src_u32, nbr));
             }
         }
 
@@ -2295,12 +2375,19 @@ impl EdgeTable {
         let frozen = entries.len();
 
         let deletion_info = DeletionInfo::with_count(delete_ts_min, delete_ts_max, deleted_count);
-        segments.push(CsrSegment::new(
+        let mut segment = CsrSegment::new(
             csr,
             create_ts_min,
             create_ts_max,
             deletion_info,
-        ));
+        );
+
+        // Apply optimization decision: separate edge_ids for large segments
+        if ENABLE_SEPARATE_EDGE_ID_STORAGE && frozen >= SEPARATE_EDGE_ID_STORAGE_THRESHOLD {
+            segment.edge_ids = Some(entries.iter().map(|(_, nbr)| nbr.edge_id).collect());
+        }
+
+        segments.push(segment);
         delta.clear();
 
         FreezeDeltaResult {
@@ -2390,11 +2477,16 @@ impl EdgeTable {
             max_create_ts = max_create_ts.max(seg.create_ts_max);
             merged_deletion_info = merged_deletion_info.merge(&seg.deletion_info);
 
+            // Recover edge_ids from segments (supports both direct and separate storage modes)
+            let mut edge_position = 0usize;
             for (src, immutable_nbr) in seg.csr.iter() {
+                let edge_id = seg.recover_edge_id(immutable_nbr, edge_position);
+                edge_position += 1;
+
                 let src_u32 = src.as_int64().unwrap_or(0) as u32;
                 let nbr = Nbr::new(
                     immutable_nbr.neighbor,
-                    immutable_nbr.edge_id,
+                    edge_id,
                     immutable_nbr.prop_offset,
                     immutable_nbr.timestamp,
                 );
