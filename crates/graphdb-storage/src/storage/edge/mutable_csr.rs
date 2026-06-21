@@ -2,9 +2,10 @@
 //!
 //! Two-level CSR with append-only overflow for O(1) amortized vertex expansion.
 //! Primary blocks are stored contiguously in `nbr_list` (flat CSR layout).
-//! Overflow edges are stored in a per-vertex `SmallVec<[Nbr; OVERFLOW_INLINE]>` for
-//! cache-friendly iteration. When a vertex's primary block is full, new edges
-//! spill to its overflow buffer, avoiding O(n) splice on the main array.
+//! Overflow edges are stored in a contiguous region at the end of `nbr_list`,
+//! tracked per-vertex via `overflow_starts`/`overflow_counts`/`overflow_capacities`.
+//! When a vertex's primary block is full, new edges spill to its overflow buffer,
+//! avoiding O(n) splice on the main array.
 //!
 //! # Overflow Block Fragmentation
 //!

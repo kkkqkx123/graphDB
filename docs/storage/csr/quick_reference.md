@@ -4,26 +4,28 @@
 
 ```
 Do you have a one-to-one relationship (spouse, current_employer)?
-├─ YES → Use SingleMutableCsr (O(1) access, memory efficient)
-│        ⚠️ WARNING: Requires monotonic timestamp ordering
-└─ NO → Continue
+  YES -> Use SingleMutableCsr (O(1) access, memory efficient)
+         WARNING: Requires monotonic timestamp ordering
+  NO  -> Continue
 
-Do you have multi-label edges (same src→dst with different types)?
-├─ YES → Use LabeledMutableCsr (O(log K) label lookup)
-└─ NO → Continue
+Do you have multi-label edges (same src->dst with different types)?
+  YES -> Use LabeledMutableCsr (O(log K) label lookup)
+  NO  -> Continue
 
 Do you need a general multi-edge relationship (friends, follows)?
-├─ YES → Use MutableCsr (default, most flexible)
-└─ NO → Continue
+  YES -> Use MutableCsr (default, most flexible)
+  NO  -> Continue
+
+Do you have a known bounded edges per vertex (< 1K)?
+  YES -> Use MultiSingleMutableCsr
+  NO  -> Continue
 
 Do you store any edges at all?
-├─ NO → Use None (placeholder, zero memory)
-└─ YES → Already covered above
+  NO  -> Use None (placeholder, zero memory)
+  YES -> Already covered above
 
-// Special cases (manual creation needed):
-- Fixed-size bounded edges per vertex? → MultiSingleMutableCsr
-- Read-only snapshot? → ImmutableCsr
-- Batch-loaded analytical data? → ImmutableCsr
+// Special case:
+// - Read-only snapshot / batch-loaded data? -> Immutable Csr (not in CsrVariant)
 ```
 
 ## Code Examples
@@ -43,15 +45,26 @@ let csr = CsrVariant::from_strategy(
 // Create Single variant (one-to-one)
 let csr = CsrVariant::from_strategy(
     EdgeStrategy::Single,
-    1000,
-    10000,  // ignored for Single
+    1000,      // ignored for Single
+    10000,
+)?;
+
+// Create MultiSingle variant (bounded capacity)
+let csr = CsrVariant::from_strategy(
+    EdgeStrategy::MultiSingle { max_edges: 4 },
+    1000, 10000,
+)?;
+
+// Create Labeled variant (multi-label)
+let csr = CsrVariant::from_strategy(
+    EdgeStrategy::Labeled,
+    1000, 10000,
 )?;
 
 // Create None variant (placeholder)
 let csr = CsrVariant::from_strategy(
     EdgeStrategy::None,
-    1000,
-    10000,  // ignored for None
+    1000, 10000,  // ignored for None
 )?;
 ```
 
@@ -108,14 +121,7 @@ csr.revert_delete_by_offset(0u32, 0, 5);
 let ratio = csr.fragmentation_ratio();
 println!("Fragmentation: {:.2}x", ratio);
 
-// Compact if fragmented (Multiple variant only)
-csr.maybe_compact(
-    2.5,   // threshold: compact if ratio > 2.5
-    5,     // timestamp: remove edges with ts > 5
-    0.25,  // reserve: keep 25% extra capacity
-);
-
-// Manual compact
+// Manual compact (Multiple variant only does real compaction)
 let removed = csr.compact_with_ts(5, 0.25);
 println!("Removed {} edges", removed);
 ```
@@ -162,7 +168,7 @@ impl Nbr {
 }
 ```
 
-### ImmutableNbr (for ImmutableCsr)
+### ImmutableNbr (for Immutable Csr)
 ```rust
 pub struct ImmutableNbr {
     pub neighbor: VertexId,
@@ -182,6 +188,16 @@ pub struct EdgeSchema {
     pub properties: Vec<StoragePropertyDef>,
     pub oe_strategy: EdgeStrategy,  // Outgoing direction CSR
     pub ie_strategy: EdgeStrategy,  // Incoming direction CSR
+}
+```
+
+### NbrWithoutEdgeId
+```rust
+pub struct NbrWithoutEdgeId {
+    pub neighbor: VertexId,
+    pub prop_offset: u32,
+    pub create_ts: Timestamp,
+    pub delete_ts: Timestamp,
 }
 ```
 
@@ -207,7 +223,7 @@ pub trait MutableCsrTrait: CsrBase {
     fn revert_delete_by_offset(...) -> bool;
     fn get_edge(...) -> Option<Nbr>;
     fn edges_of(...) -> Vec<Nbr>;
-    fn compact_with_ts(...) -> usize;
+    fn compact_with_ts(...) -> usize { 0 }  // default no-op
     fn used_memory_size(&self) -> usize;
 }
 ```
@@ -216,78 +232,80 @@ pub trait MutableCsrTrait: CsrBase {
 
 | File | Contains |
 |------|----------|
-| `csr_variant.rs` | CsrVariant enum, dispatch logic, serialization tags |
+| `csr_variant.rs` | CsrVariant enum, dispatch macros, serialization tags |
 | `csr_trait.rs` | CsrBase, MutableCsrTrait trait definitions |
 | `mutable_csr.rs` | Multiple variant (two-level with overflow) |
 | `single_mutable_csr.rs` | Single variant (O(1) direct array) |
-| `multi_single_mutable_csr.rs` | MultiSingle variant (bounded blocks) |
+| `multi_single_mutable_csr.rs` | MultiSingle variant (bounded slots) |
 | `labeled_mutable_csr.rs` | Labeled variant (label-grouped edges) |
-| `immutable_csr.rs` | Immutable variant (flat, read-only) |
+| `csr.rs` | Immutable variant (flat, read-only) |
 | `fragmentation_stats.rs` | Metrics collection |
-| `edge_table.rs` | EdgeTable (out_csr + in_csr + properties) |
+| `edge_table/mod.rs` | EdgeTable (out_csr + in_csr + segments + properties) |
 | `property_table.rs` | Edge property storage |
+| `bloom_filter.rs` | Bloom filter |
 
 ## Common Pitfalls
 
 ### 1. Forgetting Timestamp Filtering
 ```rust
-// ❌ Wrong: May return deleted edges
+// Wrong: May return deleted edges
 let edges = csr.edges_of(0, u32::MAX);
 
-// ✅ Correct: Respects soft-delete
+// Correct: Respects soft-delete
 let edges = csr.edges_of(0, current_ts);
 ```
 
 ### 2. Ignoring SingleMutableCsr Concurrency Limitation
 ```rust
-// ❌ Wrong: Non-monotonic timestamps silently rejected
+// Wrong: Non-monotonic timestamps silently rejected
 insert_edge(v, dst1, ts=100);
 insert_edge(v, dst2, ts=99);   // Silently rejected!
 
-// ✅ Correct: Ensure monotonic ordering or use MutableCsr
+// Correct: Ensure monotonic ordering or use MutableCsr
 ```
 
 ### 3. Not Compacting High-Fragmentation CSRs
 ```rust
-// ❌ Wrong: Serialization bloats to 5x size
+// Wrong: Serialization bloats to 5x size
 let data = csr.dump();  // If ratio > 2.0
 
-// ✅ Correct: Compact before serialization
+// Correct: Compact before serialization
 if csr.fragmentation_ratio() > 1.5 {
     csr.compact_with_ts(ts, 0.25);
 }
 let data = csr.dump();
 ```
 
-### 4. Assuming Immutable Respects Timestamps
+### 4. Forgetting Offset is 0-indexed
 ```rust
-// ❌ Wrong: ImmutableCsr ignores ts parameter
-let edges = immutable_csr.edges_of(0, 5);  // Ignores ts=5
-
-// ✅ Correct: ImmutableCsr is a fixed snapshot
-// Use MutableCsr if time-travel queries needed
-```
-
-### 5. Forgetting Offset is 0-indexed
-```rust
-// ❌ Wrong: Offset 1 means 2nd edge, not 1st
+// Wrong: Offset 1 means 2nd edge, not 1st
 csr.delete_edge_by_offset(0, 1, ts);  // Deletes 2nd edge!
 
-// ✅ Correct: Offset 0 = 1st edge
+// Correct: Offset 0 = 1st edge
 csr.delete_edge_by_offset(0, 0, ts);  // Deletes 1st edge
+```
+
+### 5. MultiSingle Capacity Limit
+```rust
+// Wrong: Assuming unlimited edges per vertex
+for i in 0..100 {
+    csr.insert_edge(0, dsts[i], ids[i], 0, 1);  // May fail silently
+}
+
+// Correct: Check return value and plan around max_edges
 ```
 
 ## Performance Characteristics
 
 ### Lookup Complexity
 
-| Operation | Multiple | Single | Labeled | Immutable |
-|-----------|----------|--------|---------|-----------|
-| `get_edge` | O(degree) | O(1) | O(log K) | O(1) |
-| `edges_of` | O(degree) | O(1) | O(degree) | O(degree) |
-| `insert_edge` | O(1)* | O(1) | O(log K) | N/A |
-| `delete_edge` | O(degree) | O(1) | O(log K) | N/A |
-| `compact_with_ts` | O(V+E) | N/A | O(V+E) | N/A |
+| Operation | Multiple | Single | MultiSingle | Labeled | Immutable (Csr) |
+|-----------|----------|--------|-------------|---------|-----------------|
+| `get_edge` | O(degree) | O(1) | O(degree) | O(K + degree) | O(degree) |
+| `edges_of` | O(degree) | O(1) | O(degree) | O(degree) | O(degree) |
+| `insert_edge` | O(1)* | O(1) | O(degree) | O(K) | N/A |
+| `delete_edge` | O(degree) | O(1) | O(degree) | O(N) | N/A |
+| `compact_with_ts` | O(V+E) | N/A | O(V*K) | O(N) | N/A |
 
 *MutableCsr: O(1) amortized, worst-case O(degree) when expanding overflow
 
@@ -298,25 +316,11 @@ csr.delete_edge_by_offset(0, 0, ts);  // Deletes 1st edge
 | Multiple | O(E + V) | Yes (overflow blocks) |
 | Single | O(V) | No |
 | MultiSingle | O(V * K) | No (fixed blocks) |
-| Labeled | O(E + V*log K) | Minimal |
-| Immutable | O(E + V) | No (flat) |
+| Labeled | O(E + V*K) | Minimal |
+| Immutable (Csr) | O(E + V) | No (flat) |
 | None | O(1) | No |
 
 ## Testing
-
-### Unit Tests Location
-
-```
-crates/graphdb-storage/src/storage/edge/csr_variant.rs:#[cfg(test)]
-```
-
-Tests cover:
-- ✅ Basic insertion/deletion
-- ✅ Timestamp visibility filtering
-- ✅ Fragmentation & compaction
-- ✅ Serialization round-trip
-- ✅ All variant types
-- ✅ Edge cases (empty, full, overflow)
 
 ### Running Tests
 
@@ -338,4 +342,3 @@ cargo test --lib -- --nocapture --test-threads=1
 - [Dispatch](dispatch.md) - Runtime selection & polymorphism
 - [Fragmentation](fragmentation.md) - Memory management & compaction
 - **[Quick Reference](quick_reference.md)** - This file
-

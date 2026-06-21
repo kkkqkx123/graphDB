@@ -2,13 +2,13 @@
 
 ## Overview
 
-CSR selection happens at relationship creation time via the `EdgeStrategy` enum. Different strategies map to different CSR implementations, and all are wrapped in a single `CsrVariant` enum for runtime dispatch without virtual function overhead.
+CSR selection happens at relationship creation time via the `EdgeStrategy` enum. All strategies map to different CSR implementations, and all are wrapped in a single `CsrVariant` enum for runtime dispatch without virtual function overhead.
 
 ## Entry Points
 
-### 1. CsrVariant::from_strategy() - Primary Factory
+### CsrVariant::from_strategy() - Primary Factory
 
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:61-76`
+**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:140`
 
 ```rust
 pub fn from_strategy(
@@ -18,11 +18,18 @@ pub fn from_strategy(
 ) -> StorageResult<Self> {
     match strategy {
         EdgeStrategy::Multiple => Ok(CsrVariant::Multiple(MutableCsr::with_capacity(
-            vertex_capacity,
-            edge_capacity,
+            vertex_capacity, edge_capacity,
         ))),
         EdgeStrategy::Single => Ok(CsrVariant::Single(SingleMutableCsr::with_capacity(
             vertex_capacity,
+        ))),
+        EdgeStrategy::MultiSingle { max_edges } => {
+            Ok(CsrVariant::MultiSingle(MultiSingleMutableCsr::with_capacity(
+                vertex_capacity, max_edges,
+            )))
+        }
+        EdgeStrategy::Labeled => Ok(CsrVariant::Labeled(LabeledMutableCsr::with_capacity(
+            vertex_capacity, edge_capacity,
         ))),
         EdgeStrategy::None => Ok(CsrVariant::None { vertex_capacity }),
     }
@@ -34,167 +41,114 @@ pub fn from_strategy(
 ```
 EdgeStrategy enum
     │
-    ├─ Multiple ──→ MutableCsr::with_capacity(vc, ec)
-    │               (two-level CSR with overflow)
+    ├─ Multiple ────→ MutableCsr (two-level CSR with overflow)
     │
-    ├─ Single ────→ SingleMutableCsr::with_capacity(vc)
-    │               (O(1) direct array)
+    ├─ Single ──────→ SingleMutableCsr (O(1) direct array)
     │
-    └─ None ──────→ CsrVariant::None { vertex_capacity }
-                    (placeholder, zero edges)
+    ├─ MultiSingle ─→ MultiSingleMutableCsr (fixed-capacity slots)
     │
-    └─→ CsrVariant enum (runtime dispatch)
+    ├─ Labeled ─────→ LabeledMutableCsr (label-grouped edges)
+    │
+    └─ None ────────→ CsrVariant::None (placeholder, zero edges)
 ```
 
-## CsrVariant Enum Structure
+## CsrVariant Enum
 
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:44-57`
+**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:125`
 
 ```rust
 pub enum CsrVariant {
-    /// Multi-edge mutable CSR: each vertex can have multiple outgoing edges
     Multiple(MutableCsr),
-    /// Single-edge mutable CSR: each vertex has at most one outgoing edge
     Single(SingleMutableCsr),
-    /// Multi-single mutable CSR: each vertex has multiple outgoing edges (limited by capacity)
     MultiSingle(MultiSingleMutableCsr),
-    /// Label-aware mutable CSR: edges grouped by label for fast label-based queries
     Labeled(LabeledMutableCsr),
-    /// Immutable CSR: read-only snapshot optimized for analysis
-    Immutable(ImmutableCsr),
-    /// No-edge placeholder: vertices exist but have no outgoing edges
     None { vertex_capacity: usize },
 }
 ```
 
-### Current Status
+All 5 variants are fully wired via `from_strategy()`. The immutable `Csr` (read-only frozen segments) is managed separately by `CsrSegment` in `edge_table/`, not part of `CsrVariant`.
 
-- ✅ `Multiple`, `Single`, `None` - fully wired via `from_strategy()`
-- ⚠️ `MultiSingle`, `Labeled`, `Immutable` - defined but **not dispatched** from `from_strategy()`
-  - These are created directly or via internal builders
-  - Future: may add enum variants to `EdgeStrategy` for first-class support
+## Dispatch Logic: Macros
 
-## Dispatch Logic: Method Routing
+Dispatch uses two macros to eliminate boilerplate:
 
-### Pattern 1: Mutable Operations (Insert/Delete/Query)
+```rust
+/// Dispatch mutable method calls to the underlying CSR variant.
+/// Returns $default for None variant.
+macro_rules! dispatch {
+    ($self:expr, $method:ident($($arg:expr),+) -> $default:expr) => {
+        match $self {
+            CsrVariant::Multiple(csr) => csr.$method($($arg),+),
+            CsrVariant::Single(csr) => csr.$method($($arg),+),
+            CsrVariant::MultiSingle(csr) => csr.$method($($arg),+),
+            CsrVariant::Labeled(csr) => csr.$method($($arg),+),
+            CsrVariant::None { .. } => $default,
+        }
+    };
+}
 
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:235-260`
+/// Same pattern for read-only (immutable borrow) dispatch
+macro_rules! dispatch_immutable { /* identical match structure */ }
+```
+
+### Pattern 1: Mutable Operations
+
+**Location**: `csr_variant.rs:308`
 
 ```rust
 impl MutableCsrTrait for CsrVariant {
-    fn insert_edge(
-        &mut self,
-        src_vid: u32,
-        dst: VertexId,
-        edge_id: EdgeId,
-        prop_offset: u32,
-        ts: Timestamp,
-    ) -> bool {
-        match self {
-            CsrVariant::None { .. } => false,  // Reject all inserts
-            CsrVariant::Multiple(csr) => {
-                csr.insert_edge(src_vid, dst, edge_id, prop_offset, ts)
-            }
-            CsrVariant::Single(csr) => {
-                csr.insert_edge(src_vid, dst, edge_id, prop_offset, ts)
-            }
-            CsrVariant::MultiSingle(csr) => {
-                csr.insert_edge(src_vid, dst, edge_id, prop_offset, ts)
-            }
-            CsrVariant::Labeled(csr) => {
-                csr.insert_edge(src_vid, dst, edge_id, prop_offset, ts)
-            }
-            CsrVariant::Immutable(_) => false,  // Immutable: reject writes
-        }
+    fn insert_edge(&mut self, src_vid: u32, dst: VertexId,
+                   edge_id: EdgeId, prop_offset: u32, ts: Timestamp) -> bool {
+        dispatch!(self, insert_edge(src_vid, dst, edge_id, prop_offset, ts) -> false)
     }
-    // Similar for delete_edge, delete_edge_by_dst, etc.
+    fn delete_edge(&mut self, src_vid: u32, edge_id: EdgeId, ts: Timestamp) -> bool {
+        dispatch!(self, delete_edge(src_vid, edge_id, ts) -> false)
+    }
+    fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+        dispatch!(self, compact_with_ts(ts, reserve_ratio) -> 0)
+    }
+    // ... all other mutable methods
 }
 ```
 
 **Key Points**:
-- Match-based dispatch (no vtable)
-- `None` variant always rejects (returns `false`)
-- `Immutable` variant rejects all writes
-- Mutable variants forward to their implementation
+- Macro-expanded match dispatch (no vtable)
+- `None` variant always returns the `$default` value (reject all writes)
+- All 4 mutable variants (`Multiple`, `Single`, `MultiSingle`, `Labeled`) forward to their implementations
 
-### Pattern 2: Read Operations (Queries)
+### Pattern 2: Read Operations
 
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:308-328`
+**Location**: `csr_variant.rs:336`
 
 ```rust
 fn get_edge(&self, src_vid: u32, dst: VertexId, ts: Timestamp) -> Option<Nbr> {
-    match self {
-        CsrVariant::None { .. } => None,
-        CsrVariant::Multiple(csr) => csr.get_edge(src_vid, dst, ts),
-        CsrVariant::Single(csr) => csr.get_edge(src_vid, dst, ts),
-        CsrVariant::MultiSingle(csr) => csr.get_edge(src_vid, dst, ts),
-        CsrVariant::Labeled(csr) => csr.get_edge(src_vid, dst, ts),
-        CsrVariant::Immutable(csr) => csr.get_edge(src_vid, dst, ts),
-    }
+    dispatch_immutable!(self, get_edge(src_vid, dst, ts) -> None)
 }
-
 fn edges_of(&self, src_vid: u32, ts: Timestamp) -> Vec<Nbr> {
-    match self {
-        CsrVariant::None { .. } => Vec::new(),
-        CsrVariant::Multiple(csr) => csr.edges_of(src_vid, ts),
-        CsrVariant::Single(csr) => csr.edges_of(src_vid, ts),
-        CsrVariant::MultiSingle(csr) => csr.edges_of(src_vid, ts),
-        CsrVariant::Labeled(csr) => csr.edges_of(src_vid, ts),
-        CsrVariant::Immutable(csr) => csr.edges_of(src_vid),  // Note: ts ignored
-    }
+    dispatch_immutable!(self, edges_of(src_vid, ts) -> Vec::new())
 }
 ```
-
-**Key Points**:
-- `None` returns empty/None (no edges)
-- `Immutable` ignores timestamp (snapshot is fixed)
-- Mutable variants respect timestamp for visibility
 
 ### Pattern 3: Base Operations (Serialization, Memory)
 
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:121-150`
+**Location**: `csr_variant.rs:212`
 
-```rust
-impl CsrBase for CsrVariant {
-    fn vertex_capacity(&self) -> usize {
-        match self {
-            CsrVariant::None { vertex_capacity } => *vertex_capacity,
-            CsrVariant::Multiple(csr) => csr.vertex_capacity(),
-            // ... others forward to implementation
-        }
-    }
+Serialization uses variant-specific tags:
 
-    fn dump(&self) -> Vec<u8> {
-        match self {
-            CsrVariant::None { vertex_capacity } => {
-                let mut result = vec![0u8];  // Tag: 0 = None
-                result.extend((*vertex_capacity as u64).to_le_bytes());
-                result
-            }
-            CsrVariant::Multiple(csr) => {
-                let mut result = vec![1u8];  // Tag: 1 = Multiple
-                result.extend(csr.dump());
-                result
-            }
-            // ... others with tags 2-5
-        }
-    }
-}
+```
+Tag   Variant
+0     None
+1     Multiple
+2     Single
+3     MultiSingle
+4     Labeled
 ```
 
-**Serialization Tags**:
-```
-0 = None
-1 = Multiple
-2 = Single
-3 = Immutable
-4 = MultiSingle
-5 = Labeled
-```
+`dump()` prepends the tag byte; `load()` dispatches based on the first byte.
 
 ### Pattern 4: Iterator Dispatch
 
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:355-393`
+**Location**: `csr_variant.rs:361`
 
 ```rust
 pub fn iter(&self, ts: Timestamp) -> CsrIterator<'_> {
@@ -203,7 +157,6 @@ pub fn iter(&self, ts: Timestamp) -> CsrIterator<'_> {
         CsrVariant::Single(csr) => CsrIterator::Single(csr.iter(ts)),
         CsrVariant::MultiSingle(csr) => CsrIterator::MultiSingle(csr.iter(ts)),
         CsrVariant::Labeled(csr) => CsrIterator::Labeled(csr.iter(ts)),
-        CsrVariant::Immutable(_) => CsrIterator::None,  // TODO: Add ImmutableCsrIterator
         CsrVariant::None { .. } => CsrIterator::None,
     }
 }
@@ -217,29 +170,9 @@ pub enum CsrIterator<'a> {
 }
 ```
 
-**Note**: `ImmutableCsrIterator` is a TODO (line 361).
-
 ## Integration: EdgeSchema → EdgeTable → CsrVariant
 
-### 1. EdgeSchema Definition
-
-**Location**: `crates/graphdb-storage/src/storage/edge/mod.rs:111-119`
-
-```rust
-pub struct EdgeSchema {
-    pub label_id: LabelId,
-    pub label_name: String,
-    pub src_label: LabelId,
-    pub dst_label: LabelId,
-    pub properties: Vec<StoragePropertyDef>,
-    pub oe_strategy: EdgeStrategy,  // Outgoing direction
-    pub ie_strategy: EdgeStrategy,  // Incoming direction
-}
-```
-
-### 2. EdgeTable Creation
-
-**Location**: (typically in storage initialization)
+### EdgeTable Creation
 
 ```
 EdgeSchema.oe_strategy ──┐
@@ -250,117 +183,56 @@ EdgeSchema.ie_strategy ──┐
                          ├─→ CsrVariant::from_strategy() → in_csr
 EdgeSchema.ie_capacity ──┘
 
-EdgeTable {
-    out_csr: CsrVariant,
-    in_csr: CsrVariant,
-    prop_table: PropertyTable,
-    ...
-}
+EdgeTable { out_csr, in_csr, prop_table, ... }
 ```
 
-### 3. Query Execution
+### Query Execution
 
 ```
-Query("traverse edges") 
+Query("traverse edges")
     │
     ├─→ EdgeTable.edges_of(src, ts)
     │   │
-    │   └─→ out_csr.edges_of(src, ts)  // Dispatch via CsrVariant
+    │   └─→ out_csr.edges_of(src, ts)  // dispatch via CsrVariant
     │       │
-    │       ├─ If Multiple ──→ scan primary + overflow
-    │       ├─ If Single ────→ O(1) direct access
-    │       ├─ If Immutable ─→ direct array lookup
-    │       └─ If None ──────→ empty vec
+    │       ├─ Multiple ──→ scan primary + overflow
+    │       ├─ Single ────→ O(1) direct access
+    │       ├─ MultiSingle → scan fixed slots
+    │       ├─ Labeled ───→ scan label-grouped blocks
+    │       └─ None ──────→ empty vec
     │
     └─→ Fetch edge properties from PropertyTable
 ```
 
 ## Compaction & Maintenance
 
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:99-105`
+`compact_with_ts()` is dispatched generically:
 
 ```rust
-pub fn maybe_compact(&mut self, threshold: f32, ts: Timestamp, reserve_ratio: f32) {
-    if let CsrVariant::Multiple(csr) = self {
-        if csr.should_compact(threshold) {
-            csr.compact_with_ts(ts, reserve_ratio);
-        }
-    }
+fn compact_with_ts(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
+    dispatch!(self, compact_with_ts(ts, reserve_ratio) -> 0)
 }
 ```
 
-**Behavior**:
-- Only `Multiple` variant performs compaction
-- Other variants are no-ops
-- Triggered when `fragmentation_ratio() > threshold`
+**Behavior per variant**:
+| Variant | Behavior |
+|---------|----------|
+| `Multiple` | Full compaction: merges overflow, removes soft-deleted edges |
+| `Single` | No-op (no fragmentation, direct array) |
+| `MultiSingle` | Removes tombstoned edges by shifting within fixed slots |
+| `Labeled` | Removes tombstoned edges, rebuilds label ranges |
+| `None` | No-op (zero edges) |
 
-## Fragmentation Status
-
-**Location**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs:112-117`
+Fragmentation diagnostics (only meaningful for `Multiple`):
 
 ```rust
 pub fn fragmentation_ratio(&self) -> f32 {
     match self {
         CsrVariant::Multiple(csr) => csr.fragmentation_ratio(),
-        _ => 0.0,  // Others have no fragmentation
+        _ => 0.0,
     }
 }
 ```
-
----
-
-## Future Extensions
-
-### Adding MultiSingle to EdgeStrategy (Future)
-
-Current approach (manual creation):
-```rust
-// Not available via from_strategy()
-let ms = CsrVariant::MultiSingle(MultiSingleMutableCsr::with_capacity(1000, 100));
-```
-
-Proposed approach:
-```rust
-pub enum EdgeStrategy {
-    None,
-    Single,
-    #[default]
-    Multiple,
-    MultiSingle { max_edges_per_vertex: usize },  // Future
-    Labeled,                                       // Future
-}
-
-// Then from_strategy() becomes:
-match strategy {
-    EdgeStrategy::MultiSingle { max_edges } => {
-        CsrVariant::MultiSingle(
-            MultiSingleMutableCsr::with_capacity(vc, max_edges)
-        )
-    }
-    // ...
-}
-```
-
-### Adding Immutable Creation
-
-```rust
-pub fn to_immutable(&self, ts: Timestamp) -> StorageResult<CsrVariant> {
-    match self {
-        CsrVariant::Multiple(csr) => {
-            let immutable = ImmutableCsr::from_snapshot(csr, ts)?;
-            Ok(CsrVariant::Immutable(immutable))
-        }
-        // For others, convert to Multiple first then to Immutable
-        _ => {
-            // Convert to flat snapshot
-            let immutable = ImmutableCsr::from_snapshot(...)?;
-            Ok(CsrVariant::Immutable(immutable))
-        }
-    }
-}
-```
-
----
 
 ## Design Principles
 
@@ -376,13 +248,11 @@ pub fn to_immutable(&self, ts: Timestamp) -> StorageResult<CsrVariant> {
 
 ### 3. Graceful Degradation
 - `None` variant accepts strategy but rejects operations
-- `Immutable` variant accepts queries but rejects writes
 - Consistent `false`/`None`/empty behavior for rejected ops
 
 ### 4. Extensibility
 - Adding new variant only requires:
   1. New struct implementing traits
-  2. Match arm in `CsrVariant` methods
+  2. Match arm macro invocation in dispatch macros
   3. Serialization tag in `dump()`/`load()`
-- No changes to trait definitions needed
-
+- Macros minimize boilerplate across 4 mutable variants

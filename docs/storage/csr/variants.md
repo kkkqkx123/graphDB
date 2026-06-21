@@ -11,16 +11,16 @@ Standard multi-edge CSR for general cases where vertices can have many outgoing 
 
 ```
 Memory Layout:
-┌─────────────────────────────┐
-│  Vertex 0  │ Vertex 1 │ ...  │  Primary blocks (contiguous)
-└─────────────────────────────┘
-         │
-         └──► Overflows (append-only at end)
-              ┌────────────────┐
-              │  Overflow V0   │
-              │  Overflow V1   │
-              │  ...           │
-              └────────────────┘
++-----------------------------+
+|  Vertex 0  | Vertex 1 | ... |  Primary blocks (contiguous)
++-----------------------------+
+         |
+         +--> Overflows (append-only at end)
+              +----------------+
+              |  Overflow V0   |
+              |  Overflow V1   |
+              |  ...           |
+              +----------------+
 ```
 
 ### Data Structures
@@ -31,16 +31,18 @@ pub struct MutableCsr {
     adj_offsets: Vec<u32>,           // Where each vertex's edges start
     primary_capacities: Vec<u32>,    // Preallocated size per vertex
     degrees: Vec<u32>,               // Actual edge count per vertex
-    overflow_starts: Vec<u32>,       // Where overflow block begins (if any)
-    overflow_capacities: Vec<u32>,   // Overflow size per vertex
-    edge_count: AtomicU64,           // Total edge count
+    overflow_starts: Vec<u32>,       // Where overflow block begins (NO_OVERFLOW = none)
+    overflow_counts: Vec<u32>,       // Edge count in overflow
+    overflow_capacities: Vec<u32>,   // Overflow capacity per vertex
+    edge_count: AtomicU64,           // Total active edge count
     vertex_capacity: usize,
+    total_edge_capacity: usize,
 }
 ```
 
 ### Two-Level Storage Strategy
 
-**Primary Block**: 
+**Primary Block**:
 - Fixed pre-allocated space for each vertex (default: 4 edges)
 - Located at `adj_offsets[v]` with size `primary_capacities[v]`
 - Fast insertion if space available
@@ -48,58 +50,39 @@ pub struct MutableCsr {
 **Overflow Block**:
 - Created when primary fills up
 - Appended to the end of `nbr_list`
-- Grows dynamically via `expand_vertex_capacity()`
+- Grows dynamically via `expand_vertex_capacity()` (doubles capacity)
 
 ### Insertion Logic
 
 ```
 insert_edge(src, dst, edge_id, prop_offset, ts):
-  1. Check if edge already exists (duplicate detection)
-  2. If primary block has space:
-     → Write to primary block
+  1. Check duplicate: neighbor + active (delete_ts == u32::MAX)
+  2. If primary has space and no overflow allocated:
+     -> Write to primary block
   3. Else:
-     → Allocate overflow block
-     → Copy overflow (if exists) to new location
-     → Append new edge
-  4. Update degree counter
-  5. Increment edge_count
+     -> If no overflow or overflow full: expand_vertex_capacity()
+     -> Write to overflow block
+  4. Update degree counter, increment edge_count
 ```
 
 ### Fragmentation
 
 **When does it occur?**
 - Each `expand_vertex_capacity()` for a vertex allocates new space at the end of `nbr_list`
-- Old overflow block becomes unreachable → internal fragmentation
-
-**Cumulative effect**:
-- Repeated expansions accumulate zombie blocks
-- Memory wasted, but queries unaffected (only access via current pointer)
+- Old overflow block becomes unreachable -> internal fragmentation
 
 **Detection**:
 ```rust
-csr.fragmentation_ratio()  // Returns waste_bytes / total_bytes
-                           // e.g., 2.5 = 2.5x overhead
+csr.fragmentation_ratio()  // Returns nbr_list.len() / active_edges
 ```
 
 ### Compaction
 
-**Trigger**:
-```rust
-csr.maybe_compact(threshold: f32, ts: Timestamp, reserve_ratio: f32)
-```
-- Only compacts if `fragmentation_ratio() > threshold`
-
 **Operation**:
 - O(V + E) time, O(E) space
 - Merges primary + overflow into flat CSR
-- Removes soft-deleted edges (where `create_ts > ts`)
-- Reserves `reserve_ratio` free space for future growth
-
-**Example**:
-```rust
-// Compact if wasting > 2.5x memory, keep 25% reserve
-csr.maybe_compact(2.5, current_ts, 0.25);
-```
+- Removes soft-deleted edges (delete_ts < u32::MAX)
+- Reserves `reserve_ratio` free space for future growth per vertex
 
 ### Operations Complexity
 
@@ -129,9 +112,9 @@ Optimized for one-to-one relationships where each vertex has **at most one outgo
 
 ```
 Direct array indexing:
-┌───┬───┬───┬───┐
-│ V0│ V1│ V2│ V3│  nbr_list (one Nbr per vertex)
-└───┴───┴───┴───┘
++---+---+---+---+
+| V0| V1| V2| V3|  nbr_list (one Nbr per vertex)
++---+---+---+---+
  0   1   2   3
 ```
 
@@ -154,7 +137,7 @@ pub struct SingleMutableCsr {
 | `get_edge` | O(1) |
 | `edges_of` | O(1) |
 
-### ⚠️ Concurrency Limitation
+### Concurrency Limitation
 
 **Critical**: This CSR does NOT support concurrent writes at the same timestamp.
 
@@ -165,15 +148,14 @@ pub struct SingleMutableCsr {
 
 **Example**:
 ```
-T1: insert_edge(v0, v1, ts=100) ✓ succeeds
-T2: insert_edge(v0, v2, ts=99)  ✗ rejected (99 < 100)
-T3: insert_edge(v0, v3, ts=100) ✗ rejected (100 == 100, not >)
+T1: insert_edge(v0, v1, ts=100) succeeds
+T2: insert_edge(v0, v2, ts=99)  rejected (99 < 100)
+T3: insert_edge(v0, v3, ts=100) rejected (100 == 100, not >)
 ```
 
 **Workarounds**:
 1. Ensure timestamp monotonicity at upper layers (WAL, transaction log)
 2. Use `MutableCsr` if concurrent writes needed
-3. Design system where updates are strictly ordered
 
 ---
 
@@ -182,37 +164,48 @@ T3: insert_edge(v0, v3, ts=100) ✗ rejected (100 == 100, not >)
 **File**: `crates/graphdb-storage/src/storage/edge/multi_single_mutable_csr.rs`
 
 ### Purpose
-Hybrid approach: each vertex has multiple edges, but limited to a fixed capacity per vertex.
+Each vertex has multiple edges, but limited to a fixed capacity per vertex.
 
 ### Use Case
 - Memory-constrained scenarios
 - Known upper bound on edges per vertex
-- Faster allocation than unbounded `MutableCsr`
 
 ### Layout
 
 ```
-Fixed blocks per vertex:
-┌──────────┐  ┌──────────┐  ┌──────────┐
-│ Vertex 0 │  │ Vertex 1 │  │ Vertex 2 │
-│(cap: K)  │  │(cap: K)  │  │(cap: K)  │
-└──────────┘  └──────────┘  └──────────┘
+Flat array with stride = edges_per_vertex:
++---------+---------+---------+
+| V0[0..N)| V1[0..N)| V2[0..N)|  ...
++---------+---------+---------+
+counts = [2, 1, 3, ...]
 ```
 
 ### Data Structures
 
 ```rust
 pub struct MultiSingleMutableCsr {
-    edges: Vec<Vec<Nbr>>,        // Fixed-size vec per vertex
-    vertex_capacity: usize,
-    max_edges_per_vertex: usize, // Fixed limit
+    edges: Vec<Nbr>,                 // Flat array with vertex stride
+    edges_per_vertex: usize,         // Fixed capacity per vertex
+    counts: Vec<u32>,               // Active edge count per vertex
     edge_count: AtomicU64,
+    vertex_capacity: usize,
 }
 ```
 
 ### Insertion Behavior
-- Returns `false` if vertex's edge count reaches `max_edges_per_vertex`
+- Returns `false` if vertex's edge count reaches `edges_per_vertex`
 - No overflow, strict capacity
+- Updates existing edge with same dst if ts is newer
+
+### Operations Complexity
+
+| Operation | Complexity | Notes |
+|-----------|-----------|-------|
+| `insert_edge` | O(degree) | Duplicate check + linear scan |
+| `delete_edge` (by ID) | O(degree) | Scans vertex block |
+| `get_edge` | O(degree) | Linear scan |
+| `edges_of` | O(degree) | Returns valid edges |
+| `compact_with_ts` | O(degree) | Shifts within fixed blocks |
 
 ---
 
@@ -226,15 +219,14 @@ Multi-label CSR where edges from the same source-destination pair may have diffe
 ### Use Case
 - Multi-label graphs (e.g., "friend", "colleague", "family" on same pair)
 - Efficient label-filtered traversal
-- GraphQL queries with label conditions
 
 ### Layout
 
 ```
 Label-grouped storage:
-┌─────────────────────────────────┐
-│ nbr_list (flattened by label)  │
-└─────────────────────────────────┘
++---------------------------------+
+| nbr_list (flattened by label)  |
++---------------------------------+
 
 Per-vertex mapping:
 label_ranges[v] = [
@@ -249,7 +241,7 @@ label_ranges[v] = [
 ```rust
 pub struct LabeledMutableCsr {
     nbr_list: Vec<Nbr>,                    // All edges, flat
-    label_ranges: Vec<Vec<LabelRange>>,    // Label → (offset, count) per vertex
+    label_ranges: Vec<Vec<LabelRange>>,    // Label -> (offset, count) per vertex
     degrees: Vec<u32>,                     // Total edges per vertex
     edge_count: AtomicU64,
     vertex_capacity: usize,
@@ -266,50 +258,46 @@ struct LabelRange {
 
 | Operation | Complexity | Notes |
 |-----------|-----------|-------|
-| `insert_edge` | O(log K) | K = distinct labels at vertex |
-| `get_edge` (by label) | O(log K) | Binary search on label ranges |
+| `insert_edge` (with label) | O(K) | K = distinct labels at vertex (linear scan, then sort) |
+| `get_edge` (by label) | O(K + degree) | Linear scan on label ranges |
 | `edges_of` (all) | O(degree) | Return all label groups |
+
+Note: The basic `MutableCsrTrait::insert_edge()` (without label) assigns label 0.
 
 ---
 
-## 5. ImmutableCsr (Immutable Variant)
+## 5. Immutable Csr
 
-**File**: `crates/graphdb-storage/src/storage/edge/immutable_csr.rs`
+**File**: `crates/graphdb-storage/src/storage/edge/csr.rs`
 
 ### Purpose
-Read-only, compact snapshot of a mutable CSR for:
+Read-only, compact snapshot for:
 - Static analysis
 - Batch-loaded data
-- Persistent storage format
-- Fast analytical queries
+- Persistent storage format (frozen segments)
 
 ### Layout
 
 ```
 Flat CSR (no overflow, no fragmentation):
-┌────────────────────────────────┐
-│  All edges, contiguous         │  nbr_list (Box<[Nbr]>)
-└────────────────────────────────┘
++--------------------------------+
+|  All edges, contiguous          |  edges (Vec<ImmutableNbr>)
++--------------------------------+
 
 Offset array:
-┌────────────┐
-│ Offsets[V] │  adj_offsets (Box<[u32]>)
-│ Last entry │  = total edge count
-└────────────┘
-
-Degrees:
-┌──────────────┐
-│ Degrees[V]   │  degrees (Box<[u32]>)
-└──────────────┘
++----------------+
+| Offsets[V]     |  offsets (Vec<u32>)
+| Last entry     |  = total edge count
++----------------+
 ```
 
 ### Data Structures
 
 ```rust
-pub struct ImmutableCsr {
-    nbr_list: Box<[Nbr]>,       // Immutable slice, no Vec overhead
-    adj_offsets: Box<[u32]>,    // Where each vertex's edges start
-    degrees: Box<[u32]>,        // Edge count per vertex
+pub struct Csr {
+    offsets: Vec<u32>,           // Where each vertex's edges start
+    edges: Vec<ImmutableNbr>,   // Contiguous edge data
+    edge_count: AtomicU64,
     vertex_capacity: usize,
 }
 ```
@@ -318,49 +306,42 @@ pub struct ImmutableCsr {
 
 | Aspect | Mutable | Immutable |
 |--------|---------|-----------|
-| **Storage** | Vec (growable) | Box<[T]> (fixed) |
-| **Fragmentation** | Yes (overflow blocks) | No (flat layout) |
-| **Mutations** | `insert_edge`, `delete_edge` | None (build-only) |
-| **Build phase** | Incremental | `batch_put_edge()` then `build()` |
-| **Memory** | Higher (capacity > usage) | Lower (capacity == usage) |
-| **Lookup** | O(degree) | O(degree) |
+| Storage | Vec (growable) with overflow | Vec (compact, no overflow) |
+| Neighbor type | `Nbr` (with delete_ts) | `ImmutableNbr` (single timestamp) |
+| Fragmentation | Yes (overflow blocks) | No (flat layout) |
+| Mutations | `insert_edge`, `delete_edge` | Build-only (`batch_put_edges_with_timestamps`) |
+| Memory | Higher (capacity > usage) | Lower (capacity == usage) |
+| Lookup | O(degree) with timestamp | O(degree) snapshot |
 
 ### Construction
 
 ```rust
-// From snapshot
-let immutable = ImmutableCsr::from_snapshot(&mutable_csr, snapshot_ts);
+// From mutable entries
+let csr = Csr::from_nbr_entries(&entries, vertex_capacity);
 
-// From scratch
-let mut builder = ImmutableCsr::builder(1000);
-builder.batch_put_edge(0, dst_vid, edge_id, prop_offset);
-builder.batch_put_edge(0, dst_vid2, edge_id2, prop_offset2);
-let immutable = builder.build();
+// With batch builder
+csr.batch_put_edges_with_timestamps(
+    &src_list, &dst_list, &edge_ids, &prop_offsets, &timestamps,
+);
 ```
 
 ### Operations
 
 | Operation | Behavior |
 |-----------|----------|
-| `get_edge` | Direct array lookup, ignores timestamp (immutable snapshot) |
-| `edges_of` | Returns all edges, O(degree) |
+| `get_edge` | Direct array lookup, no timestamp filtering |
+| `edges_of` | Returns all edges slice, O(degree) |
 | `dump` / `load` | Serialization of flat layout |
-| `insert_edge` | Returns `false` (read-only) |
-| `delete_edge` | Returns `false` (read-only) |
+| `insert_edge` | Not available (read-only) |
 
 ---
 
 ## 6. None (Placeholder Variant)
 
-**File**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs` (lines 56, 81, 321-362)
+**File**: `crates/graphdb-storage/src/storage/edge/csr_variant.rs`
 
 ### Purpose
 Placeholder for relationships with **no edges stored**.
-
-### Use Case
-- Directed relationships where only the schema exists
-- Zero-cost edge storage
-- Placeholder in polymorphic context
 
 ### Data Structure
 
@@ -391,17 +372,17 @@ load(): Deserializes vertex_capacity, recreates None variant
 
 ## Trait Implementation Matrix
 
-| Trait Method | Multiple | Single | MultiSingle | Labeled | Immutable | None |
-|--------------|----------|--------|-------------|---------|-----------|------|
-| `vertex_capacity` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `edge_count` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ (0) |
-| `dump` / `load` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `insert_edge` | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
-| `delete_edge` | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
-| `get_edge` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
-| `edges_of` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ (empty) |
-| `compact_with_ts` | ✓ | ✓ (no-op) | ✓ | ✓ | ✓ | ✓ (no-op) |
-| `used_memory_size` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Trait Method | Multiple | Single | MultiSingle | Labeled | Immutable (Csr) | None |
+|--------------|----------|--------|-------------|---------|-----------------|------|
+| `vertex_capacity` | Yes | Yes | Yes | Yes | Yes | Yes |
+| `edge_count` | Yes | Yes | Yes | Yes | Yes | Yes (0) |
+| `dump` / `load` | Yes | Yes | Yes | Yes | Yes | Yes |
+| `insert_edge` | Yes | Yes | Yes | Yes | N/A | No |
+| `delete_edge` | Yes | Yes | Yes | Yes | N/A | No |
+| `get_edge` | Yes | Yes | Yes | Yes | Yes | No |
+| `edges_of` | Yes | Yes | Yes | Yes | Yes | Yes (empty) |
+| `compact_with_ts` | Yes | No-op | Yes | Yes | N/A | No-op |
+| `used_memory_size` | Yes | Yes | Yes | Yes | Yes | Yes |
 
 ---
 
@@ -411,8 +392,7 @@ load(): Deserializes vertex_capacity, recreates None variant
 |----------|---------|--------|
 | "Friends" (multi-edge, general) | `Multiple` | Default, handles any case |
 | "Spouse" (one-to-one) | `Single` | O(1) access, memory efficient |
-| "Followers" (bounded multi-edge, ~1K per vertex) | `MultiSingle` | Fixed memory, faster allocation |
-| "Collaborates on [project/paper/team]" (multi-label) | `Labeled` | Efficient label filtering |
-| Analytical snapshot, batch-loaded data | `Immutable` | Flat, compact, read-only |
+| "Followers" (bounded multi-edge, ~1K per vertex) | `MultiSingle` | Fixed memory, predictable layout |
+| "Collaborates on project/paper/team" (multi-label) | `Labeled` | Efficient label filtering |
+| Analytical snapshot, batch-loaded data | `Immutable` (Csr) | Flat, compact, read-only |
 | Schema exists but no actual edges stored | `None` | Zero overhead |
-

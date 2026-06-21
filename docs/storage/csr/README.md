@@ -8,8 +8,8 @@ Complete documentation of CSR architecture, variants, dispatch logic, and memory
 - **[Quick Reference](quick_reference.md)** — Code examples, API reference, common pitfalls
 
 ### For Understanding
-- **[Overview](overview.md)** — What is CSR, why 6 variants, trait hierarchy
-- **[Variants](variants.md)** — Deep dive into each implementation (Multiple, Single, MultiSingle, Labeled, Immutable, None)
+- **[Overview](overview.md)** — What is CSR, why variants, trait hierarchy
+- **[Variants](variants.md)** — Deep dive into each implementation (Multiple, Single, MultiSingle, Labeled, None, Immutable)
 - **[Dispatch Logic](dispatch.md)** — How CSR is selected, created, and polymorphically dispatched
 
 ### For Optimization & Maintenance
@@ -27,7 +27,7 @@ Compressed Sparse Row is a memory-efficient representation of sparse adjacency l
 
 Space: O(V + E) instead of O(V²)
 
-### Six Variants
+### Variants
 
 | Variant | Storage | Lookups | Use Case |
 |---------|---------|---------|----------|
@@ -35,19 +35,20 @@ Space: O(V + E) instead of O(V²)
 | **Single** | Direct array | O(1) | One-to-one relationships |
 | **MultiSingle** | Fixed-size blocks | O(degree) | Bounded multi-edge |
 | **Labeled** | Label-grouped | O(log K) | Multi-label edges |
-| **Immutable** | Flat, read-only | O(degree) | Snapshots, batch-loaded |
+| **Immutable** (Csr) | Flat, read-only | O(degree) | Snapshots, batch-loaded |
 | **None** | Placeholder | - | No edges stored |
+
+Note: Immutable `Csr` is managed separately by `EdgeTable`/`CsrSegment`, not part of `CsrVariant`.
 
 ### Runtime Polymorphism: CsrVariant
 
-All 6 variants wrapped in a single enum for zero-vtable dispatch:
+5 mutable variants wrapped in a single enum for zero-vtable dispatch:
 ```rust
 pub enum CsrVariant {
     Multiple(MutableCsr),
     Single(SingleMutableCsr),
     MultiSingle(MultiSingleMutableCsr),
     Labeled(LabeledMutableCsr),
-    Immutable(ImmutableCsr),
     None { vertex_capacity: usize },
 }
 ```
@@ -79,16 +80,22 @@ MutableCsrTrait (Mutable variants)
 
 ```
 crates/graphdb-storage/src/storage/edge/
-├── csr_variant.rs              # Enum wrapper & dispatch
-├── csr_trait.rs                # Trait definitions
-├── mutable_csr.rs              # Multiple variant
+├── csr_variant.rs              # Enum wrapper & dispatch macros
+├── csr_trait.rs                # Trait definitions (CsrBase, MutableCsrTrait)
+├── csr.rs                      # Immutable CSR (frozen segments)
+├── mutable_csr.rs              # Multiple variant (two-level with overflow)
 ├── single_mutable_csr.rs       # Single variant
 ├── multi_single_mutable_csr.rs # MultiSingle variant
 ├── labeled_mutable_csr.rs      # Labeled variant
-├── immutable_csr.rs            # Immutable variant
 ├── fragmentation_stats.rs      # Metrics
-├── edge_table.rs               # EdgeTable (combines out/in CSRs)
-└── property_table.rs           # Edge properties
+├── edge_table/                 # EdgeTable (combines out/in CSRs)
+│   ├── mod.rs
+│   ├── core.rs
+│   ├── segment.rs
+│   └── snapshot.rs
+├── property_table.rs           # Edge properties
+├── bloom_filter.rs             # Bloom filter
+└── mod.rs                      # Module re-exports
 ```
 
 ---
@@ -96,27 +103,27 @@ crates/graphdb-storage/src/storage/edge/
 ## Key Design Decisions
 
 ### 1. Enum-Based Dispatch (No Vtable)
-✅ Inline-friendly, compiler can optimize  
-✅ Type-safe at compile time via pattern matching  
-✅ Preserves monomorphic code generation  
+- Inline-friendly, compiler can optimize
+- Type-safe at compile time via pattern matching
+- Uses `dispatch!` and `dispatch_immutable!` macros to reduce boilerplate
 
 ### 2. Two-Level Storage (MutableCsr)
-✅ O(1) amortized insertion (no reshuffle)  
-⚠️ Internal fragmentation over time  
-✓ Mitigated via compaction  
+- O(1) amortized insertion (no reshuffle)
+- Internal fragmentation over time from overflow blocks
+- Mitigated via compaction
 
 ### 3. Timestamp Versioning (Soft-Delete)
-✅ MVCC support (multiple snapshots)  
-✅ Fast deletion (mark, not remove)  
-✅ Time-travel queries possible  
+- MVCC support (multiple snapshots)
+- Fast deletion (mark, not remove)
+- Time-travel queries possible
 
 ### 4. Single for One-to-One
-✅ O(1) access, minimal memory  
-⚠️ Requires monotonic timestamp ordering  
+- O(1) access, minimal memory
+- Requires monotonic timestamp ordering
 
 ### 5. Labeled for Multi-Label
-✅ O(log K) label-filtered traversal  
-✅ Compact label storage  
+- O(log K) label-filtered traversal
+- Compact label storage
 
 ---
 
@@ -128,7 +135,7 @@ crates/graphdb-storage/src/storage/edge/
 | One-to-one relationship (spouse, employer) | Single | O(1) lookup, minimal memory |
 | Known bounded edges per vertex (< 1K) | MultiSingle | Fixed allocation, efficient |
 | Multi-label same source-destination | Labeled | Efficient label filtering |
-| Batch-loaded analytical data | Immutable | Flat, compact, read-only |
+| Batch-loaded analytical data | Immutable (Csr) | Flat, compact, read-only |
 | Schema exists but no edges stored | None | Zero overhead |
 
 ---
@@ -163,17 +170,17 @@ if csr.fragmentation_ratio() > 2.5 {
 
 ## Critical Warnings
 
-### ⚠️ SingleMutableCsr Concurrency
-Single variant does NOT support concurrent writes at same timestamp. Ensure monotonic ordering or use Multiple variant.
+### SingleMutableCsr Concurrency
+Single variant does NOT support concurrent writes at the same timestamp. Ensure monotonic ordering or use Multiple variant.
 
-### ⚠️ Fragmentation in Multiple Variant
+### Fragmentation in Multiple Variant
 Repeated overflow expansions create internal fragmentation. Monitor `fragmentation_ratio()` and compact when needed.
 
-### ⚠️ Timestamp Filtering Required
+### Timestamp Filtering Required
 All queries must pass timestamp. Omitting or using `u32::MAX` may include deleted edges.
 
-### ⚠️ Immutable is Read-Only
-ImmutableCsr rejects all write operations. Use MutableCsr for mutable workloads.
+### Immutable Csr is Read-Only
+Immutable `Csr` rejects all write operations. Use `MutableCsr` for mutable workloads.
 
 ---
 
@@ -195,7 +202,7 @@ ImmutableCsr rejects all write operations. Use MutableCsr for mutable workloads.
 - [ ] Monitor fragmentation growth rate
 
 ### OLAP / Analytics
-- [ ] Convert to ImmutableCsr if snapshot needed
+- [ ] Convert to Immutable Csr if snapshot needed
 - [ ] Compact before export to reduce size
 - [ ] Consider time-travel queries with timestamps
 
@@ -229,17 +236,17 @@ for (vid, nbr) in csr.iter(timestamp) {
 
 ## Testing
 
-Unit tests in `csr_variant.rs`:
-- ✅ Multiple, Single, MultiSingle, None, Immutable variants
-- ✅ Insertion, deletion, query operations
-- ✅ Timestamp visibility filtering
-- ✅ Serialization round-trip
-- ✅ Compaction behavior
-- ✅ Edge cases (empty, full, overflow)
+Unit tests in `csr_variant.rs`, `mutable_csr.rs`, `single_mutable_csr.rs`, `multi_single_mutable_csr.rs`, `labeled_mutable_csr.rs`, `csr.rs`:
+- All variants: Multiple, Single, MultiSingle, Labeled, None, Immutable
+- Insertion, deletion, query operations
+- Timestamp visibility filtering
+- Serialization round-trip
+- Compaction behavior
+- Edge cases (empty, full, overflow)
 
 Run:
 ```bash
-cargo test --lib storage::edge::csr_variant -- --nocapture
+cargo test --lib storage::edge -- --nocapture
 ```
 
 ---
@@ -258,4 +265,4 @@ cargo test --lib storage::edge::csr_variant -- --nocapture
 - `docs/storage/` — Overall storage architecture
 - `crates/graphdb-storage/src/storage/edge/` — Implementation source
 - AGENTS.md — Project conventions (no backward compatibility requirements)
-
+- `ANALYSIS.md` — CSDispatch strategy analysis, performance, and improvement priorities

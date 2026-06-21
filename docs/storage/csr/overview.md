@@ -11,18 +11,20 @@ Instead of storing edges as a dense adjacency matrix, CSR stores them as:
 
 This reduces memory usage from O(V²) to O(V + E).
 
-## Current CSR Variants
+## CSR Variants
 
-GraphDB supports **6 CSR variants**, selected per relationship type:
+GraphDB supports CSR variants, selected per relationship type:
 
 | Variant | Type | Use Case | Complexity | Key Feature |
 |---------|------|----------|-----------|-------------|
 | `Multiple` | Mutable | Multi-edge relationships (general case) | O(degree) lookup | Two-level (primary + overflow) |
 | `Single` | Mutable | One-to-one relationships | O(1) lookup | Direct array indexing |
-| `MultiSingle` | Mutable | Multi-edge with limited capacity | O(degree) lookup | Fixed-size blocks per vertex |
+| `MultiSingle` | Mutable | Multi-edge with limited capacity | O(degree) lookup | Fixed-size slots per vertex |
 | `Labeled` | Mutable | Multi-label edges | O(log K) label lookup | Label-grouped storage |
-| `Immutable` | Read-only | Snapshots & batch-loaded data | O(degree) lookup | Flat layout, no fragmentation |
 | `None` | Placeholder | No edges stored | - | Zero memory overhead |
+| `Immutable` (Csr) | Read-only | Snapshots & batch-loaded data | O(degree) lookup | Flat layout, no fragmentation |
+
+The first 5 variants are part of `CsrVariant` enum. The immutable `Csr` is used separately by `EdgeTable` for frozen segments.
 
 ## Selection via EdgeStrategy
 
@@ -30,10 +32,12 @@ The `EdgeStrategy` enum controls which variant is created for each direction (ou
 
 ```rust
 pub enum EdgeStrategy {
-    None,      // No edges stored
-    Single,    // Use SingleMutableCsr (one edge per vertex)
+    None,                    // No edges stored
+    Single,                  // Use SingleMutableCsr (one edge per vertex)
     #[default]
-    Multiple,  // Use MutableCsr (multi-edge)
+    Multiple,                // Use MutableCsr (multi-edge)
+    MultiSingle { max_edges: usize },  // Use MultiSingleMutableCsr (bounded capacity)
+    Labeled,                 // Use LabeledMutableCsr (label-aware)
 }
 ```
 
@@ -67,15 +71,15 @@ Extended by all mutable variants:
 - `compact_with_ts()` - defragmentation
 - `used_memory_size()` - memory estimation
 
-### ImmutableCsr
-Read-only interface (no mutations):
+### Csr (Immutable)
+Read-only `CsrBase` implementation (no mutations):
 - `get_edge()` - lookup
 - `edges_of()` - get all neighbors
 - `dump()` / `load()` - serialization
 
 ## Runtime Polymorphism: CsrVariant
 
-All 6 variants are wrapped in a **single enum** `CsrVariant` for runtime dispatch:
+All 5 mutable variants are wrapped in a single enum `CsrVariant` for runtime dispatch:
 
 ```rust
 pub enum CsrVariant {
@@ -83,16 +87,17 @@ pub enum CsrVariant {
     Single(SingleMutableCsr),
     MultiSingle(MultiSingleMutableCsr),
     Labeled(LabeledMutableCsr),
-    Immutable(ImmutableCsr),
     None { vertex_capacity: usize },
 }
 ```
 
 This design:
-- ✅ Avoids `dyn` trait objects (no vtable overhead)
-- ✅ Enables inline branching (compiler can optimize)
-- ✅ Preserves type safety at compile time
-- ✅ Allows runtime selection per relationship
+- Avoids `dyn` trait objects (no vtable overhead)
+- Enables inline branching (compiler can optimize)
+- Preserves type safety at compile time
+- Allows runtime selection per relationship
+
+Dispatch is implemented via `dispatch!`/`dispatch_immutable!` macros to minimize boilerplate.
 
 ## Timestamp & Versioning
 
@@ -139,16 +144,21 @@ See [Fragmentation & Compaction](fragmentation.md) for details.
 ```
 crates/graphdb-storage/src/storage/edge/
 ├── csr_trait.rs              # Trait definitions (CsrBase, MutableCsrTrait)
-├── csr_variant.rs            # Enum wrapper, dispatch logic
+├── csr_variant.rs            # Enum wrapper, dispatch logic, dispatch macros
 ├── mutable_csr.rs            # Multiple variant (two-level with overflow)
 ├── single_mutable_csr.rs     # Single variant (O(1) direct array)
-├── multi_single_mutable_csr.rs  # MultiSingle variant
+├── multi_single_mutable_csr.rs  # MultiSingle variant (fixed slots)
 ├── labeled_mutable_csr.rs    # Labeled variant (label-grouped)
-├── immutable_csr.rs          # Immutable variant (flat, read-only)
-├── csr.rs                    # (legacy, may be merged)
+├── csr.rs                    # Immutable variant (flat, read-only)
 ├── fragmentation_stats.rs    # Metrics reporting
-├── edge_table.rs             # EdgeTable combines out/in CSRs + properties
-└── property_table.rs         # Edge property storage
+├── edge_table/               # EdgeTable (combines out/in CSRs + properties)
+│   ├── mod.rs
+│   ├── core.rs
+│   ├── segment.rs
+│   └── snapshot.rs
+├── property_table.rs         # Edge property storage
+├── bloom_filter.rs           # Bloom filter
+└── mod.rs                    # Module root, re-exports
 ```
 
 ## Next Steps
