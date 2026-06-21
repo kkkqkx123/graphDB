@@ -76,6 +76,10 @@ impl ColumnStats {
 pub struct CompressionConfig {
     pub min_rows_for_compression: usize,
     pub max_dictionary_size: usize,
+    pub string_min_rows: usize,
+    pub int_min_rows: usize,
+    pub float_min_rows: usize,
+    pub skip_high_cardinality_short_strings: bool,
 }
 
 impl Default for CompressionConfig {
@@ -83,6 +87,10 @@ impl Default for CompressionConfig {
         Self {
             min_rows_for_compression: 100,
             max_dictionary_size: 10000,
+            string_min_rows: 50,
+            int_min_rows: 20,
+            float_min_rows: 100,
+            skip_high_cardinality_short_strings: true,
         }
     }
 }
@@ -104,10 +112,6 @@ impl CompressionSelector {
     }
 
     pub fn select(&self, stats: &ColumnStats) -> EncodingType {
-        if stats.row_count < self.config.min_rows_for_compression {
-            return EncodingType::None;
-        }
-
         match stats.data_type {
             DataType::String => self.select_string_encoding(stats),
             DataType::Int | DataType::SmallInt | DataType::BigInt => {
@@ -120,6 +124,10 @@ impl CompressionSelector {
     }
 
     fn select_string_encoding(&self, stats: &ColumnStats) -> EncodingType {
+        if stats.row_count < self.config.string_min_rows {
+            return EncodingType::None;
+        }
+
         let cardinality_ratio = stats.cardinality_ratio();
 
         if cardinality_ratio < 0.5 && stats.distinct_count < self.config.max_dictionary_size {
@@ -136,10 +144,21 @@ impl CompressionSelector {
             return EncodingType::Fsst;
         }
 
+        if self.config.skip_high_cardinality_short_strings
+            && cardinality_ratio > 0.8
+            && stats.avg_length < 20.0
+        {
+            return EncodingType::None;
+        }
+
         EncodingType::None
     }
 
     fn select_int_encoding(&self, stats: &ColumnStats) -> EncodingType {
+        if stats.row_count < self.config.int_min_rows {
+            return EncodingType::None;
+        }
+
         let run_ratio = stats.run_ratio();
 
         if run_ratio < 0.3 {
@@ -162,7 +181,7 @@ impl CompressionSelector {
     }
 
     fn select_float_encoding(&self, stats: &ColumnStats) -> EncodingType {
-        if stats.row_count < self.config.min_rows_for_compression {
+        if stats.row_count < self.config.float_min_rows {
             return EncodingType::None;
         }
 

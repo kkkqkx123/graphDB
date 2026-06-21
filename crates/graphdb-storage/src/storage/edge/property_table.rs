@@ -1,40 +1,19 @@
 //! Property Table for Edges
 //!
-//! Stores edge properties using columnar storage for all values.
-//! All property values (regardless of size) are stored using the same columnar format
-//! that vertex properties use, ensuring consistency and enabling compression
-//! and predicate pushdown for all columns.
+//! Stores edge properties using row-oriented storage.
+//! Each property record is a serialized byte sequence, enabling fast access
+//! and simplified property updates without re-encoding.
 
 use std::collections::HashSet;
+use std::io::{Cursor, Read};
 
-use crate::core::{DataType, DateValue, NullType, StorageError, StorageResult, Value};
-use crate::storage::encoding::{CompressionConfig, CompressionSelector, EncodingType};
+use crate::core::{DataType, DateValue, StorageError, StorageResult, Value};
 use crate::storage::naming::NameIndexer;
-use crate::storage::persistence::{read_header, read_u32_le, read_u64_le, section, write_header};
+use crate::storage::persistence::{read_header, read_u32_le, section, write_header};
 use crate::storage::types::PropertyId;
-use crate::storage::vertex::column_store::Column;
-
-/// Check that at least `needed` bytes remain in data starting at offset
-fn check_remaining(data: &[u8], offset: usize, needed: usize) -> StorageResult<()> {
-    let end = offset + needed;
-    if end > data.len() {
-        Err(StorageError::deserialize_error(format!(
-            "unexpected end of data: needed {} bytes, have {} at offset {}",
-            needed,
-            data.len(),
-            offset
-        )))
-    } else {
-        Ok(())
-    }
-}
-
 
 /// Sentinel value meaning "no properties"
 pub const PROP_OFFSET_NONE: u32 = 0;
-
-/// Default row group size (similar to DuckDB's 2048 rows)
-pub const DEFAULT_ROW_GROUP_SIZE: usize = 2048;
 
 /// Convert a property offset to a row index
 /// Offset 0 is the sentinel for "no properties", so row index = offset - 1
@@ -57,7 +36,6 @@ pub struct PropertySchema {
     pub prop_id: i32,
     pub data_type: DataType,
     pub nullable: bool,
-    pub encoding: Option<EncodingType>,
 }
 
 impl PropertySchema {
@@ -67,7 +45,6 @@ impl PropertySchema {
             prop_id,
             data_type,
             nullable: false,
-            encoding: None,
         }
     }
 
@@ -75,34 +52,15 @@ impl PropertySchema {
         self.nullable = nullable;
         self
     }
-
-    pub fn with_encoding(mut self, encoding: EncodingType) -> Self {
-        self.encoding = Some(encoding);
-        self
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RowGroup {
-    pub start_row: usize,
-    pub end_row: usize,
-}
-
-impl RowGroup {
-    pub fn new(start_row: usize, end_row: usize) -> Self {
-        Self { start_row, end_row }
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct PropertyTable {
     schema: Vec<PropertySchema>,
     name_indexer: NameIndexer,
-    columns: Vec<Column>,
+    records: Vec<Vec<u8>>,
     row_count: usize,
     free_list: Vec<u32>,
-    row_groups: Vec<RowGroup>,
-    row_group_size: usize,
 }
 
 impl PropertyTable {
@@ -110,11 +68,9 @@ impl PropertyTable {
         Self {
             schema: Vec::new(),
             name_indexer: NameIndexer::new(),
-            columns: Vec::new(),
+            records: Vec::new(),
             row_count: 0,
             free_list: Vec::new(),
-            row_groups: Vec::new(),
-            row_group_size: DEFAULT_ROW_GROUP_SIZE,
         }
     }
 
@@ -122,11 +78,9 @@ impl PropertyTable {
         Self {
             schema: Vec::new(),
             name_indexer: NameIndexer::with_capacity(capacity),
-            columns: Vec::new(),
+            records: Vec::new(),
             row_count: 0,
             free_list: Vec::with_capacity(capacity),
-            row_groups: Vec::new(),
-            row_group_size: DEFAULT_ROW_GROUP_SIZE,
         }
     }
 
@@ -136,7 +90,12 @@ impl PropertyTable {
         data_type: DataType,
         nullable: bool,
     ) -> PropertyId {
-        self.add_property_with_encoding(name, data_type, nullable, None)
+        let prop_id = PropertyId::new(self.schema.len() as u16);
+        let schema = PropertySchema::new(name.clone(), prop_id.as_usize() as i32, data_type)
+            .nullable(nullable);
+        self.name_indexer.register(name.clone());
+        self.schema.push(schema);
+        prop_id
     }
 
     pub fn add_property_with_encoding(
@@ -144,21 +103,9 @@ impl PropertyTable {
         name: String,
         data_type: DataType,
         nullable: bool,
-        encoding: Option<EncodingType>,
+        _encoding: Option<()>,
     ) -> PropertyId {
-        let prop_id = PropertyId::new(self.schema.len() as u16);
-        let schema =
-            PropertySchema::new(name.clone(), prop_id.as_usize() as i32, data_type.clone())
-                .nullable(nullable)
-                .with_encoding(encoding.unwrap_or(EncodingType::None));
-        self.name_indexer.register(name.clone());
-        self.schema.push(schema);
-
-        let mut column = Column::new(name, prop_id.as_usize() as i32, data_type, nullable);
-        column.resize(self.row_count);
-        self.columns.push(column);
-
-        prop_id
+        self.add_property(name, data_type, nullable)
     }
 
     pub fn remove_property(&mut self, name: &str) -> StorageResult<()> {
@@ -169,16 +116,10 @@ impl PropertyTable {
             .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
 
         self.schema.remove(index);
-        self.columns.remove(index);
-
         self.name_indexer.clear();
         for (idx, schema) in self.schema.iter_mut().enumerate() {
             schema.prop_id = idx as i32;
             self.name_indexer.register(schema.name.clone());
-        }
-
-        for (idx, column) in self.columns.iter_mut().enumerate() {
-            column.col_id = idx as i32;
         }
 
         Ok(())
@@ -196,7 +137,6 @@ impl PropertyTable {
             .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?;
 
         self.schema[index].name = new_name.to_string();
-        self.columns[index].name = new_name.to_string();
 
         self.name_indexer.clear();
         for (idx, schema) in self.schema.iter_mut().enumerate() {
@@ -207,185 +147,202 @@ impl PropertyTable {
         Ok(())
     }
 
-    pub fn apply_encoding(
-        &mut self,
-        prop_id: PropertyId,
-        encoding: EncodingType,
-    ) -> StorageResult<()> {
-        let col_idx = prop_id.as_usize();
-        if col_idx >= self.columns.len() {
-            return Err(StorageError::column_not_found(format!(
-                "prop_id={}",
-                prop_id
-            )));
-        }
-
-        let column = &mut self.columns[col_idx];
-        match encoding {
-            EncodingType::Dictionary => column.apply_dictionary_encoding()?,
-            EncodingType::Rle => column.apply_rle_encoding()?,
-            EncodingType::BitPacking => column.apply_bitpacking_encoding()?,
-            EncodingType::Fsst => column.apply_fsst_encoding(1024)?,
-            EncodingType::Alp => column.apply_alp_encoding()?,
-            EncodingType::None => {}
-        }
-
-        if let Some(schema) = self.schema.get_mut(col_idx) {
-            schema.encoding = Some(encoding);
-        }
-
+    pub fn apply_encoding(&mut self, _prop_id: PropertyId, _encoding: ()) -> StorageResult<()> {
         Ok(())
     }
 
-    pub fn auto_apply_encodings(&mut self, config: Option<CompressionConfig>) -> StorageResult<()> {
-        let selector = match config {
-            Some(c) => CompressionSelector::with_config(c),
-            None => CompressionSelector::new(),
-        };
+    pub fn auto_apply_encodings(&mut self, _config: Option<()>) -> StorageResult<()> {
+        Ok(())
+    }
 
-        for (col_idx, col) in self.columns.iter_mut().enumerate() {
-            if col.is_empty() {
+    fn serialize_row(&self, values: &[(String, Value)]) -> StorageResult<Vec<u8>> {
+        let mut buffer = Vec::new();
+
+        for schema in &self.schema {
+            let value = values
+                .iter()
+                .find(|(k, _)| k == &schema.name)
+                .map(|(_, v)| v.clone());
+
+            self.serialize_value(&mut buffer, value.as_ref(), &schema)?;
+        }
+
+        Ok(buffer)
+    }
+
+    fn serialize_value(&self, buffer: &mut Vec<u8>, value: Option<&Value>, schema: &PropertySchema) -> StorageResult<()> {
+        match value {
+            None => {
+                buffer.push(0); // null marker
+            }
+            Some(val) => {
+                buffer.push(1); // not null marker
+                match &schema.data_type {
+                    DataType::Bool => {
+                        if let Value::Bool(b) = val {
+                            buffer.push(if *b { 1 } else { 0 });
+                        }
+                    }
+                    DataType::SmallInt => {
+                        if let Value::SmallInt(i) = val {
+                            buffer.extend_from_slice(&i.to_le_bytes());
+                        }
+                    }
+                    DataType::Int => {
+                        if let Value::Int(i) = val {
+                            buffer.extend_from_slice(&i.to_le_bytes());
+                        }
+                    }
+                    DataType::BigInt => {
+                        if let Value::BigInt(i) = val {
+                            buffer.extend_from_slice(&i.to_le_bytes());
+                        }
+                    }
+                    DataType::Float => {
+                        if let Value::Float(f) = val {
+                            buffer.extend_from_slice(&f.to_le_bytes());
+                        }
+                    }
+                    DataType::Double => {
+                        if let Value::Double(d) = val {
+                            buffer.extend_from_slice(&d.to_le_bytes());
+                        }
+                    }
+                    DataType::String => {
+                        if let Value::String(s) = val {
+                            let s_bytes = s.as_bytes();
+                            buffer.extend_from_slice(&(s_bytes.len() as u32).to_le_bytes());
+                            buffer.extend_from_slice(s_bytes);
+                        }
+                    }
+                    DataType::Date => {
+                        if let Value::Date(d) = val {
+                            buffer.extend_from_slice(&d.year.to_le_bytes());
+                            buffer.extend_from_slice(&d.month.to_le_bytes());
+                            buffer.extend_from_slice(&d.day.to_le_bytes());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn deserialize_row(&self, record: &[u8]) -> StorageResult<Vec<(String, Option<Value>)>> {
+        let mut cursor = Cursor::new(record);
+        let mut result = Vec::new();
+
+        for schema in &self.schema {
+            let mut null_marker = [0u8; 1];
+            if cursor.read_exact(&mut null_marker).is_err() {
+                result.push((schema.name.clone(), None));
                 continue;
             }
 
-            let stats = col.compute_stats();
-            let encoding = selector.select(&stats);
-
-            match encoding {
-                EncodingType::Fsst => {
-                    if col.data_type == DataType::String {
-                        col.apply_fsst_encoding(1024)?;
-                        if let Some(schema) = self.schema.get_mut(col_idx) {
-                            schema.encoding = Some(EncodingType::Fsst);
-                        }
-                    }
-                }
-                EncodingType::Dictionary => {
-                    col.apply_dictionary_encoding()?;
-                    if let Some(schema) = self.schema.get_mut(col_idx) {
-                        schema.encoding = Some(EncodingType::Dictionary);
-                    }
-                }
-                EncodingType::Rle => {
-                    col.apply_rle_encoding()?;
-                    if let Some(schema) = self.schema.get_mut(col_idx) {
-                        schema.encoding = Some(EncodingType::Rle);
-                    }
-                }
-                EncodingType::BitPacking => {
-                    col.apply_bitpacking_encoding()?;
-                    if let Some(schema) = self.schema.get_mut(col_idx) {
-                        schema.encoding = Some(EncodingType::BitPacking);
-                    }
-                }
-                EncodingType::Alp => {
-                    col.apply_alp_encoding()?;
-                    if let Some(schema) = self.schema.get_mut(col_idx) {
-                        schema.encoding = Some(EncodingType::Alp);
-                    }
-                }
-                EncodingType::None => {}
+            if null_marker[0] == 0 {
+                result.push((schema.name.clone(), None));
+            } else {
+                let value = self.deserialize_value(&mut cursor, &schema.data_type)?;
+                result.push((schema.name.clone(), value));
             }
         }
 
-        Ok(())
+        Ok(result)
+    }
+
+    fn deserialize_value(&self, cursor: &mut Cursor<&[u8]>, data_type: &DataType) -> StorageResult<Option<Value>> {
+        match data_type {
+            DataType::Bool => {
+                let mut b = [0u8; 1];
+                cursor.read_exact(&mut b)?;
+                Ok(Some(Value::Bool(b[0] != 0)))
+            }
+            DataType::SmallInt => {
+                let mut buf = [0u8; 2];
+                cursor.read_exact(&mut buf)?;
+                Ok(Some(Value::SmallInt(i16::from_le_bytes(buf))))
+            }
+            DataType::Int => {
+                let mut buf = [0u8; 4];
+                cursor.read_exact(&mut buf)?;
+                Ok(Some(Value::Int(i32::from_le_bytes(buf))))
+            }
+            DataType::BigInt => {
+                let mut buf = [0u8; 8];
+                cursor.read_exact(&mut buf)?;
+                Ok(Some(Value::BigInt(i64::from_le_bytes(buf))))
+            }
+            DataType::Float => {
+                let mut buf = [0u8; 4];
+                cursor.read_exact(&mut buf)?;
+                Ok(Some(Value::Float(f32::from_le_bytes(buf))))
+            }
+            DataType::Double => {
+                let mut buf = [0u8; 8];
+                cursor.read_exact(&mut buf)?;
+                Ok(Some(Value::Double(f64::from_le_bytes(buf))))
+            }
+            DataType::String => {
+                let mut len_buf = [0u8; 4];
+                cursor.read_exact(&mut len_buf)?;
+                let len = u32::from_le_bytes(len_buf) as usize;
+                let mut str_buf = vec![0u8; len];
+                cursor.read_exact(&mut str_buf)?;
+                Ok(Some(Value::String(String::from_utf8_lossy(&str_buf).to_string())))
+            }
+            DataType::Date => {
+                let mut buf = [0u8; 10];
+                cursor.read_exact(&mut buf[..4])?;
+                let year = i32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+                cursor.read_exact(&mut buf[..4])?;
+                let month = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+                cursor.read_exact(&mut buf[..4])?;
+                let day = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+                Ok(Some(Value::Date(DateValue { year, month, day })))
+            }
+            _ => Ok(None),
+        }
     }
 
     pub fn insert(&mut self, values: &[(String, Value)]) -> StorageResult<u32> {
+        let record = self.serialize_row(values)?;
+
         let offset = if let Some(free) = self.free_list.pop() {
-            // Clear all columns for this reused offset to prevent stale data
-            self.clear_row(free);
+            self.records[(free - 1) as usize] = record;
             free
         } else {
             let new_offset = prop_index_to_offset(self.row_count);
+            self.records.push(record);
             self.row_count += 1;
-            for col in &mut self.columns {
-                col.resize(self.row_count);
-            }
-            self.ensure_row_group();
             new_offset
         };
 
-        self.update(offset, values)?;
         Ok(offset)
     }
 
-    /// Clear all column values at the given offset for reuse.
-    /// Nullable columns are set to None; non-nullable columns are reset to the zero value of their type.
-    fn clear_row(&mut self, offset: u32) {
-        let row_idx = match prop_offset_to_index(offset) {
-            Some(idx) => idx,
-            None => return,
-        };
-        if row_idx >= self.row_count {
-            return;
-        }
-
-        for col_idx in 0..self.columns.len() {
-            let col = &self.columns[col_idx];
-            if col.nullable {
-                let _ = self.columns[col_idx].set(row_idx, None);
-            } else {
-                let zero = Self::zero_value_for_type(&col.data_type);
-                let _ = self.columns[col_idx].set(row_idx, Some(&zero));
-            }
-        }
-    }
-
-    /// Return a zero value for the given DataType used to reset non-nullable columns.
-    fn zero_value_for_type(data_type: &DataType) -> Value {
-        match data_type {
-            DataType::Bool => Value::Bool(false),
-            DataType::SmallInt => Value::SmallInt(0),
-            DataType::Int => Value::Int(0),
-            DataType::BigInt => Value::BigInt(0),
-            DataType::Float => Value::Float(0.0),
-            DataType::Double => Value::Double(0.0),
-            DataType::String => Value::String(String::new()),
-            DataType::Date => Value::Date(DateValue {
-                year: 0,
-                month: 0,
-                day: 0,
-            }),
-            _ => Value::Null(NullType::Null),
-        }
-    }
-
-    fn ensure_row_group(&mut self) {
-        if self.columns.is_empty() {
-            return;
-        }
-
-        let current_row = self.row_count - 1;
-        let group_index = current_row / self.row_group_size;
-        let group_start = group_index * self.row_group_size;
-        let group_end = ((group_index + 1) * self.row_group_size).min(self.row_count);
-
-        match self.row_groups.last_mut() {
-            Some(last_group) if last_group.start_row == group_start => {
-                last_group.end_row = group_end;
-            }
-            _ => {
-                self.row_groups.push(RowGroup::new(group_start, group_end));
-            }
-        }
-    }
-
     pub fn update(&mut self, offset: u32, values: &[(String, Value)]) -> StorageResult<()> {
-        let row_idx =
-            prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
+        let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
         if row_idx >= self.row_count {
             return Err(StorageError::invalid_offset(offset));
         }
 
+        let current_values = self.deserialize_row(&self.records[row_idx])?;
+        let mut merged_values: Vec<(String, Value)> = current_values
+            .into_iter()
+            .filter_map(|(name, val)| val.map(|v| (name, v)))
+            .collect();
+
         for (name, value) in values {
-            if let Some(col_idx) = self.name_indexer.get_id(name) {
-                let col_idx = col_idx.as_usize();
-                if col_idx < self.columns.len() {
-                    self.columns[col_idx].set(row_idx, Some(value))?;
-                }
+            if let Some(pos) = merged_values.iter().position(|(n, _)| n == name) {
+                merged_values[pos] = (name.clone(), value.clone());
+            } else {
+                merged_values.push((name.clone(), value.clone()));
             }
         }
+
+        let record = self.serialize_row(&merged_values)?;
+        self.records[row_idx] = record;
 
         Ok(())
     }
@@ -396,14 +353,7 @@ impl PropertyTable {
             return None;
         }
 
-        Some(
-            self.columns
-                .iter()
-                .map(|col| {
-                    (col.name.clone(), col.get(row_idx))
-                })
-                .collect(),
-        )
+        self.deserialize_row(&self.records[row_idx]).ok()
     }
 
     pub fn set_property(
@@ -412,21 +362,32 @@ impl PropertyTable {
         name: &str,
         value: Option<Value>,
     ) -> StorageResult<()> {
-        let col_idx = self
-            .name_indexer
-            .get_id(name)
-            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
-        let col_idx = col_idx.as_usize();
-
-        let row_idx =
-            prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
+        let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
         if row_idx >= self.row_count {
             return Err(StorageError::invalid_offset(offset));
         }
 
-        if col_idx < self.columns.len() {
-            self.columns[col_idx].set(row_idx, value.as_ref())?;
+        if !self.has_property(name) {
+            return Err(StorageError::column_not_found(name.to_string()));
         }
+
+        let mut merged_values = Vec::new();
+        if let Some(props) = self.get(offset) {
+            for (n, v) in props {
+                if n != name {
+                    if let Some(val) = v {
+                        merged_values.push((n, val));
+                    }
+                }
+            }
+        }
+
+        if let Some(val) = value {
+            merged_values.push((name.to_string(), val));
+        }
+
+        let record = self.serialize_row(&merged_values)?;
+        self.records[row_idx] = record;
 
         Ok(())
     }
@@ -438,22 +399,11 @@ impl PropertyTable {
         value: Option<Value>,
     ) -> StorageResult<()> {
         let col_idx = prop_id.as_usize();
-        let row_idx =
-            prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
-        if row_idx >= self.row_count {
-            return Err(StorageError::invalid_offset(offset));
+        if col_idx >= self.schema.len() {
+            return Err(StorageError::column_not_found(format!("prop_id={}", prop_id)));
         }
 
-        if col_idx >= self.columns.len() {
-            return Err(StorageError::column_not_found(format!(
-                "prop_id={}",
-                prop_id
-            )));
-        }
-
-        self.columns[col_idx].set(row_idx, value.as_ref())?;
-
-        Ok(())
+        self.set_property(offset, &self.schema[col_idx].name.clone(), value)
     }
 
     pub fn delete(&mut self, offset: u32) -> bool {
@@ -465,9 +415,7 @@ impl PropertyTable {
             return false;
         }
 
-        for col_idx in 0..self.columns.len() {
-            let _ = self.columns[col_idx].set(row_idx, None);
-        }
+        self.records[row_idx].clear();
         self.free_list.push(offset);
         true
     }
@@ -479,14 +427,10 @@ impl PropertyTable {
     pub fn dump(&self) -> Vec<u8> {
         let mut result = Vec::new();
 
-        // Header: magic + version + section_id
         write_header(&mut result, section::PROPERTY_TABLE);
 
-        // Placeholder for CRC32 checksum (written at the end)
         let checksum_pos = result.len();
         result.extend_from_slice(&[0u8; 4]);
-
-        // --- payload starts here ---
 
         result.extend_from_slice(&(self.schema.len() as u32).to_le_bytes());
         for prop in &self.schema {
@@ -496,47 +440,14 @@ impl PropertyTable {
             result.extend_from_slice(&prop.prop_id.to_le_bytes());
             result.push(prop.data_type.as_u8());
             result.push(if prop.nullable { 1 } else { 0 });
-            result.push(prop.encoding.unwrap_or(EncodingType::None) as u8);
         }
 
         result.extend_from_slice(&(self.row_count as u32).to_le_bytes());
+        result.extend_from_slice(&(self.records.len() as u32).to_le_bytes());
 
-        // RowGroup-level sharding: write column data per RowGroup
-        let column_count = self.columns.len() as u32;
-        result.extend_from_slice(&column_count.to_le_bytes());
-        result.extend_from_slice(&(self.row_groups.len() as u32).to_le_bytes());
-
-        // Write RowGroup headers first
-        for rg in &self.row_groups {
-            result.extend_from_slice(&(rg.start_row as u32).to_le_bytes());
-            result.extend_from_slice(&(rg.end_row as u32).to_le_bytes());
-        }
-
-        // Write column data for each RowGroup
-        for rg in &self.row_groups {
-            for col in &self.columns {
-                let (data, offsets, bitmap) = col.get_flush_data_range(rg.start_row, rg.end_row);
-
-                result.extend_from_slice(&(data.len() as u32).to_le_bytes());
-                result.extend_from_slice(&data);
-
-                let offsets_count = offsets.len() as u32;
-                result.extend_from_slice(&offsets_count.to_le_bytes());
-                for &off in &offsets {
-                    result.extend_from_slice(&off.to_le_bytes());
-                }
-
-                if let Some(bitmap) = bitmap {
-                    result.push(1);
-                    let bitmap_bit_len = bitmap.len() as u32;
-                    let bitmap_bytes = bitmap.as_raw_slice();
-                    result.extend_from_slice(&bitmap_bit_len.to_le_bytes());
-                    result.extend_from_slice(&(bitmap_bytes.len() as u32).to_le_bytes());
-                    result.extend_from_slice(bitmap_bytes);
-                } else {
-                    result.push(0);
-                }
-            }
+        for record in &self.records {
+            result.extend_from_slice(&(record.len() as u32).to_le_bytes());
+            result.extend_from_slice(record);
         }
 
         result.extend_from_slice(&(self.free_list.len() as u32).to_le_bytes());
@@ -544,15 +455,6 @@ impl PropertyTable {
             result.extend_from_slice(&off.to_le_bytes());
         }
 
-        result.extend_from_slice(&(self.row_groups.len() as u32).to_le_bytes());
-        for rg in &self.row_groups {
-            result.extend_from_slice(&(rg.start_row as u32).to_le_bytes());
-            result.extend_from_slice(&(rg.end_row as u32).to_le_bytes());
-        }
-
-        // --- payload ends here ---
-
-        // Compute and write CRC32 checksum over the payload
         let checksum = crc32fast::hash(&result[checksum_pos + 4..]);
         result[checksum_pos..checksum_pos + 4].copy_from_slice(&checksum.to_le_bytes());
 
@@ -564,7 +466,6 @@ impl PropertyTable {
             return Ok(());
         }
 
-        // Validate header: magic + version + section_id
         let mut cursor = data;
         let (_version, section_id) = read_header(&mut cursor)?;
         if section_id != section::PROPERTY_TABLE {
@@ -575,7 +476,6 @@ impl PropertyTable {
             )));
         }
 
-        // Read and verify CRC32 checksum
         if cursor.len() < 4 {
             return Err(StorageError::deserialize_error(
                 "PropertyTable data too short for checksum",
@@ -593,7 +493,6 @@ impl PropertyTable {
             )));
         }
 
-        // Shadow `data` with the payload slice so existing code works unchanged
         let data = payload;
         let mut offset = 0usize;
 
@@ -601,12 +500,12 @@ impl PropertyTable {
 
         self.schema.clear();
         self.name_indexer.clear();
-        self.columns.clear();
 
         for _ in 0..schema_len {
             let name_len = read_u32_le(data, &mut offset)? as usize;
-
-            check_remaining(data, offset, name_len)?;
+            if offset + name_len > data.len() {
+                return Err(StorageError::deserialize_error("unexpected end of data"));
+            }
             let name = String::from_utf8_lossy(&data[offset..offset + name_len]).to_string();
             offset += name_len;
 
@@ -619,207 +518,60 @@ impl PropertyTable {
             offset += 1;
             let nullable = data[offset] == 1;
             offset += 1;
-            let encoding_byte = data[offset];
-            offset += 1;
 
-            let encoding = match encoding_byte {
-                1 => Some(EncodingType::Dictionary),
-                2 => Some(EncodingType::Rle),
-                3 => Some(EncodingType::BitPacking),
-                4 => Some(EncodingType::Fsst),
-                5 => Some(EncodingType::Alp),
-                _ => None,
-            };
-
-            let prop_schema = PropertySchema::new(name.clone(), prop_id, data_type.clone())
-                .nullable(nullable)
-                .with_encoding(encoding.unwrap_or(EncodingType::None));
+            let prop_schema = PropertySchema::new(name.clone(), prop_id, data_type).nullable(nullable);
             self.name_indexer.register(name.clone());
             self.schema.push(prop_schema);
-
-            let column = Column::new(name, prop_id, data_type, nullable);
-            self.columns.push(column);
         }
 
         let rows_len = read_u32_le(data, &mut offset)? as usize;
-
-        self.row_count = 0;
-
-        for col in &mut self.columns {
-            col.clear();
-        }
-
-        // RowGroup-level format: read RowGroup count, headers, then data per RowGroup
-        let column_count = read_u32_le(data, &mut offset)? as usize;
-        let row_group_count = read_u32_le(data, &mut offset)? as usize;
-
-        // Read RowGroup headers
-        let mut loaded_row_groups: Vec<(usize, usize)> = Vec::with_capacity(row_group_count);
-        for _ in 0..row_group_count {
-            let start_row = read_u32_le(data, &mut offset)? as usize;
-            let end_row = read_u32_le(data, &mut offset)? as usize;
-            loaded_row_groups.push((start_row, end_row));
-        }
-
-        // Per-column accumulators for merging RowGroup data
-        struct ColumnAccum {
-            data: Vec<u8>,
-            offsets: Vec<u64>,
-            bitmap_bytes: Vec<u8>,
-            bitmap_bit_len: usize,
-        }
-
-        let mut col_accums: Vec<ColumnAccum> = (0..column_count.min(self.columns.len()))
-            .map(|_| ColumnAccum {
-                data: Vec::new(),
-                offsets: Vec::new(),
-                bitmap_bytes: Vec::new(),
-                bitmap_bit_len: 0,
-            })
-            .collect();
-
-        // Read data for each RowGroup
-        for _ in 0..row_group_count {
-            for col_idx in 0..column_count.min(self.columns.len()) {
-                let data_len = read_u32_le(data, &mut offset)? as usize;
-                check_remaining(data, offset, data_len)?;
-                let col_data = &data[offset..offset + data_len];
-                offset += data_len;
-
-                let offsets_count = read_u32_le(data, &mut offset)? as usize;
-                let mut rg_offsets = Vec::with_capacity(offsets_count);
-                for _ in 0..offsets_count {
-                    rg_offsets.push(read_u64_le(data, &mut offset)?);
-                }
-
-                let has_bitmap = data[offset] == 1;
-                offset += 1;
-
-                let (rg_bitmap_bytes, rg_bitmap_bit_len) = if has_bitmap {
-                    let bitmap_bit_len = read_u32_le(data, &mut offset)? as usize;
-                    let bitmap_bytes_len = read_u32_le(data, &mut offset)? as usize;
-                    check_remaining(data, offset, bitmap_bytes_len)?;
-                    let bytes = data[offset..offset + bitmap_bytes_len].to_vec();
-                    offset += bitmap_bytes_len;
-                    (bytes, bitmap_bit_len)
-                } else {
-                    (Vec::new(), 0)
-                };
-
-                if col_idx < col_accums.len() {
-                    let accum = &mut col_accums[col_idx];
-                    // Adjust offsets relative to previous accumulated data length
-                    let base = accum.data.len() as u64;
-                    for off in rg_offsets {
-                        if off != u64::MAX {
-                            accum.offsets.push(off + base);
-                        } else {
-                            accum.offsets.push(u64::MAX);
-                        }
-                    }
-                    accum.data.extend_from_slice(col_data);
-                    accum.bitmap_bytes.extend_from_slice(&rg_bitmap_bytes);
-                    accum.bitmap_bit_len += rg_bitmap_bit_len;
-                }
-            }
-        }
-
-        // Load merged column data into columns
-        for (col_idx, accum) in col_accums.iter().enumerate() {
-            let bitmap_raw = if accum.bitmap_bit_len > 0 {
-                Some(accum.bitmap_bytes.clone())
-            } else {
-                None
-            };
-            self.columns[col_idx].load_data_from_raw(
-                accum.data.clone(),
-                accum.offsets.clone(),
-                bitmap_raw,
-                accum.bitmap_bit_len,
-            );
-        }
+        let records_len = read_u32_le(data, &mut offset)? as usize;
 
         self.row_count = rows_len;
+        self.records.clear();
+
+        for _ in 0..records_len {
+            let record_len = read_u32_le(data, &mut offset)? as usize;
+            if offset + record_len > data.len() {
+                return Err(StorageError::deserialize_error("unexpected end of data"));
+            }
+            let record = data[offset..offset + record_len].to_vec();
+            offset += record_len;
+            self.records.push(record);
+        }
 
         let free_list_len = read_u32_le(data, &mut offset)? as usize;
-
         self.free_list.clear();
         for _ in 0..free_list_len {
             self.free_list.push(read_u32_le(data, &mut offset)?);
-        }
-
-        // Build row_groups from loaded headers
-        self.row_groups.clear();
-        for (start_row, end_row) in &loaded_row_groups {
-            self.row_groups.push(RowGroup::new(*start_row, *end_row));
-        }
-
-        // Re-apply column encodings from persisted schema metadata
-        let encoding_restore: Vec<(PropertyId, EncodingType)> = self
-            .schema
-            .iter()
-            .enumerate()
-            .filter_map(|(col_idx, schema)| {
-                schema.encoding.and_then(|enc| {
-                    if enc != EncodingType::None && col_idx < self.columns.len() {
-                        Some((PropertyId::new(schema.prop_id as u16), enc))
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect();
-        for (prop_id, enc) in encoding_restore {
-            self.apply_encoding(prop_id, enc)?;
         }
 
         Ok(())
     }
 
     pub fn compact(&mut self, valid_offsets: &HashSet<u32>) {
-        let mut new_columns: Vec<Column> = Vec::with_capacity(self.columns.len());
+        let mut new_records = Vec::new();
         let mut new_row_count = 0;
-
-        for col in &self.columns {
-            let new_col = Column::new(
-                col.name.clone(),
-                col.col_id,
-                col.data_type.clone(),
-                col.nullable,
-            );
-            new_columns.push(new_col);
-        }
+        let mut offset_mapping = std::collections::HashMap::new();
 
         for old_row_idx in 0..self.row_count {
             let old_offset = prop_index_to_offset(old_row_idx);
             if valid_offsets.contains(&old_offset) {
-                for (col_idx, col) in self.columns.iter().enumerate() {
-                    let value = col.get(old_row_idx);
-                    let _ = new_columns[col_idx].set(new_row_count, value.as_ref());
-                }
+                offset_mapping.insert(old_offset, prop_index_to_offset(new_row_count));
+                new_records.push(self.records[old_row_idx].clone());
                 new_row_count += 1;
             }
         }
 
-        self.columns = new_columns;
+        self.records = new_records;
         self.row_count = new_row_count;
         self.free_list.clear();
-
-        self.row_groups.clear();
-        let mut group_start = 0;
-        while group_start < self.row_count {
-            let group_end = (group_start + self.row_group_size).min(self.row_count);
-            self.row_groups.push(RowGroup::new(group_start, group_end));
-            group_start = group_end;
-        }
-
-        let _ = self.auto_apply_encodings(None);
     }
 
     pub fn used_memory_size(&self) -> usize {
         let mut total = 0;
-        for col in &self.columns {
-            total += col.used_memory_size();
+        for record in &self.records {
+            total += record.len();
         }
         total + std::mem::size_of::<Self>()
     }

@@ -36,6 +36,7 @@ pub struct VertexTable {
     columns: ColumnStore,
     timestamps: VertexTimestamp,
     is_open: bool,
+    deferred_encodings: std::collections::HashMap<String, EncodingType>,
 }
 
 impl VertexTable {
@@ -63,6 +64,7 @@ impl VertexTable {
             columns,
             timestamps: VertexTimestamp::with_capacity(config.initial_capacity),
             is_open: true,
+            deferred_encodings: std::collections::HashMap::new(),
         }
     }
 
@@ -436,11 +438,12 @@ impl VertexTable {
             if new_count < old_count && new_count < self.columns.row_count() {
                 self.columns.resize(new_count);
             }
+            let _ = self.apply_deferred_encodings();
             return;
         }
         self.remap_columns(&id_mapping);
         self.remap_timestamps(&id_mapping);
-        let _ = self.columns.auto_apply_encodings(None);
+        let _ = self.apply_deferred_encodings();
     }
 
     fn remap_columns(&mut self, id_mapping: &std::collections::HashMap<u32, u32>) {
@@ -833,8 +836,7 @@ impl VertexTable {
             cursor.read_exact(&mut encoding_byte_bytes)?;
             let encoding_type = EncodingType::from_u8(encoding_byte_bytes[0]);
             if encoding_type != EncodingType::None {
-                self.columns
-                    .apply_encoding_to_column(&name, encoding_type)?;
+                self.deferred_encodings.insert(name.clone(), encoding_type);
             }
         }
 
@@ -873,6 +875,22 @@ impl VertexTable {
 
         self.timestamps.load(&timestamps);
 
+        self.is_open = true;
+        Ok(())
+    }
+
+    pub fn apply_deferred_encodings(&mut self) -> StorageResult<()> {
+        let encodings: Vec<(String, EncodingType)> = self
+            .deferred_encodings
+            .iter()
+            .map(|(k, v)| (k.clone(), *v))
+            .collect();
+
+        for (col_name, encoding_type) in encodings {
+            self.columns.apply_encoding_to_column(&col_name, encoding_type)?;
+        }
+
+        self.deferred_encodings.clear();
         Ok(())
     }
 
