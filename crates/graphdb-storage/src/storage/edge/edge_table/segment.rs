@@ -267,7 +267,7 @@ mod tests {
 
         table.freeze_csr_only(200);
 
-        table.register_active_snapshot(150);
+        table.mvcc.register_active_snapshot(150);
 
         let edges_at_150 = table.out_edges(0, 150);
         assert_eq!(edges_at_150.len(), 10);
@@ -275,7 +275,7 @@ mod tests {
         let edges_at_250 = table.out_edges(0, 250);
         assert_eq!(edges_at_250.len(), 0);
 
-        table.unregister_active_snapshot(150);
+        table.mvcc.unregister_active_snapshot(150);
     }
 
     #[test]

@@ -1,6 +1,7 @@
 use super::*;
-use crate::core::types::VertexId;
+use crate::core::types::{VertexId, DataType};
 use crate::core::Value;
+use crate::storage::types::StoragePropertyDef;
 
 fn create_test_schema() -> EdgeSchema {
     EdgeSchema {

@@ -265,17 +265,13 @@ mod tests {
 
     #[test]
     fn test_mvcc_metrics_gc_count() {
-        use crate::core::stats::{MetricType, StatsManager};
-        use std::sync::Arc;
-
         let mut table = create_edge_table_with_props();
-
-        let stats_manager = Arc::new(StatsManager::new());
-        table.set_stats_manager(stats_manager.clone());
 
         for i in 0..5 {
             table.insert_edge(0, 1, i as i64, &[("weight".to_string(), Value::Double(i as f64))], i as u32).unwrap();
         }
+
+        table.freeze_csr_only(5);
 
         table.delete_edge(0, 1, 0, 2).unwrap();
         table.delete_edge(0, 1, 1, 3).unwrap();
@@ -283,12 +279,11 @@ mod tests {
         table.mvcc.register_active_snapshot(1);
         table.mvcc.register_active_snapshot(4);
 
-        let initial_gc_count = stats_manager.get_value(MetricType::TombstoneGCCount).unwrap_or(0);
+        assert_eq!(table.mvcc.tombstones.len(), 2);
 
-        let _ = table.mvcc.gc_tombstones(2);
-
-        let after_gc_count = stats_manager.get_value(MetricType::TombstoneGCCount).unwrap_or(0);
-        assert_eq!(after_gc_count, initial_gc_count + 1);
+        let removed = table.mvcc.gc_tombstones(3);
+        assert_eq!(removed, 1);
+        assert_eq!(table.mvcc.tombstones.len(), 1);
     }
 
     #[test]
@@ -331,27 +326,15 @@ mod tests {
 
     #[test]
     fn test_mvcc_metrics_active_snapshots() {
-        use crate::core::stats::{MetricType, StatsManager};
-        use std::sync::Arc;
-
         let mut table = create_edge_table_with_props();
 
-        let stats_manager = Arc::new(StatsManager::new());
-        table.set_stats_manager(stats_manager.clone());
-
         table.mvcc.register_active_snapshot(1);
-        stats_manager.record_active_snapshots(1);
-        let count1 = stats_manager.get_value(MetricType::TombstoneActiveSnapshots).unwrap_or(0);
-        assert_eq!(count1, 1);
+        assert_eq!(table.mvcc.active_snapshot_count(), 1);
 
         table.mvcc.register_active_snapshot(2);
-        stats_manager.record_active_snapshots(2);
-        let count2 = stats_manager.get_value(MetricType::TombstoneActiveSnapshots).unwrap_or(0);
-        assert_eq!(count2, 2);
+        assert_eq!(table.mvcc.active_snapshot_count(), 2);
 
         table.mvcc.unregister_active_snapshot(1);
-        stats_manager.record_active_snapshots(1);
-        let count3 = stats_manager.get_value(MetricType::TombstoneActiveSnapshots).unwrap_or(0);
-        assert_eq!(count3, 1);
+        assert_eq!(table.mvcc.active_snapshot_count(), 1);
     }
 }

@@ -165,36 +165,39 @@ pub struct MergeMetricsResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::{EdgeTable, EdgeSchema, EdgeStrategy};
     use crate::core::Value;
     use crate::core::types::EdgeId;
+    use crate::core::types::DataType;
+    use crate::storage::types::StoragePropertyDef;
 
-    fn create_edge_table() -> super::super::super::EdgeTable {
-        let schema = super::super::super::EdgeSchema {
+    fn create_edge_table() -> EdgeTable {
+        let schema = EdgeSchema {
             label_id: 0,
             label_name: "knows".to_string(),
             src_label: 0,
             dst_label: 0,
             properties: vec![],
-            oe_strategy: super::super::super::EdgeStrategy::Multiple,
-            ie_strategy: super::super::super::EdgeStrategy::Multiple,
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
         };
-        super::super::super::EdgeTable::new(schema).unwrap()
+        EdgeTable::new(schema).unwrap()
     }
 
-    fn create_edge_table_with_props() -> super::super::super::EdgeTable {
-        let schema = super::super::super::EdgeSchema {
+    fn create_edge_table_with_props() -> EdgeTable {
+        let schema = EdgeSchema {
             label_id: 0,
             label_name: "knows".to_string(),
             src_label: 0,
             dst_label: 0,
-            properties: vec![crate::storage::types::StoragePropertyDef::new(
+            properties: vec![StoragePropertyDef::new(
                 "weight".to_string(),
-                crate::core::types::DataType::Double,
+                DataType::Double,
             )],
-            oe_strategy: super::super::super::EdgeStrategy::Multiple,
-            ie_strategy: super::super::super::EdgeStrategy::Multiple,
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Multiple,
         };
-        super::super::super::EdgeTable::new(schema).unwrap()
+        EdgeTable::new(schema).unwrap()
     }
 
     #[test]
@@ -231,7 +234,7 @@ mod tests {
         table.delete_edge(0, 2, 0, 250).unwrap();
         table.delete_edge(0, 3, 0, 300).unwrap();
 
-        let stats = table.tombstone_stats();
+        let stats = table.mvcc.tombstone_stats();
         assert_eq!(stats.count, 3);
         assert!(stats.memory_bytes > 0);
         assert_eq!(stats.oldest_delete_ts, Some(200));
@@ -240,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_deletion_stats_tracking() {
-        let mut table = create_edge_table();
+        let mut table = create_edge_table_with_props();
 
         for i in 0..5 {
             table.insert_edge(0, 1, i as i64, &[("weight".to_string(), Value::Double(i as f64))], 100 + i as u32).unwrap();

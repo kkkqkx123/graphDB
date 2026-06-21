@@ -12,6 +12,32 @@ use crate::storage::naming::NameIndexer;
 use crate::storage::persistence::{read_header, read_u32_le, section, write_header};
 use crate::storage::types::PropertyId;
 
+// Varint encoding for compact string lengths
+fn encode_varint(mut value: u32, buffer: &mut Vec<u8>) {
+    while value >= 128 {
+        buffer.push((value as u8) | 0x80);
+        value >>= 7;
+    }
+    buffer.push(value as u8);
+}
+
+fn decode_varint(cursor: &mut Cursor<&[u8]>) -> StorageResult<u32> {
+    let mut result = 0u32;
+    let mut shift = 0;
+    loop {
+        let mut b = [0u8; 1];
+        cursor.read_exact(&mut b).map_err(|_| {
+            StorageError::deserialize_error("failed to decode varint")
+        })?;
+        result |= ((b[0] & 0x7F) as u32) << shift;
+        if b[0] < 128 {
+            break;
+        }
+        shift += 7;
+    }
+    Ok(result)
+}
+
 /// Sentinel value meaning "no properties"
 pub const PROP_OFFSET_NONE: u32 = 0;
 
@@ -58,7 +84,8 @@ impl PropertySchema {
 pub struct PropertyTable {
     schema: Vec<PropertySchema>,
     name_indexer: NameIndexer,
-    records: Vec<Vec<u8>>,
+    buffer: Vec<u8>,                       // single contiguous buffer
+    row_offsets: Vec<Option<(usize, usize)>>, // (offset, size) or None if deleted
     row_count: usize,
     free_list: Vec<u32>,
 }
@@ -68,7 +95,8 @@ impl PropertyTable {
         Self {
             schema: Vec::new(),
             name_indexer: NameIndexer::new(),
-            records: Vec::new(),
+            buffer: Vec::new(),
+            row_offsets: Vec::new(),
             row_count: 0,
             free_list: Vec::new(),
         }
@@ -78,9 +106,10 @@ impl PropertyTable {
         Self {
             schema: Vec::new(),
             name_indexer: NameIndexer::with_capacity(capacity),
-            records: Vec::new(),
+            buffer: Vec::with_capacity(capacity * 128),
+            row_offsets: Vec::with_capacity(capacity),
             row_count: 0,
-            free_list: Vec::with_capacity(capacity),
+            free_list: Vec::with_capacity(capacity / 10),
         }
     }
 
@@ -170,6 +199,22 @@ impl PropertyTable {
         Ok(buffer)
     }
 
+    fn serialize_row_with_nulls(&self, values: &[(String, Option<Value>)]) -> StorageResult<Vec<u8>> {
+        let mut buffer = Vec::new();
+
+        for schema in &self.schema {
+            let value = values
+                .iter()
+                .find(|(k, _)| k == &schema.name)
+                .map(|(_, v)| v.clone())
+                .flatten();
+
+            self.serialize_value(&mut buffer, value.as_ref(), &schema)?;
+        }
+
+        Ok(buffer)
+    }
+
     fn serialize_value(&self, buffer: &mut Vec<u8>, value: Option<&Value>, schema: &PropertySchema) -> StorageResult<()> {
         match value {
             None => {
@@ -211,7 +256,7 @@ impl PropertyTable {
                     DataType::String => {
                         if let Value::String(s) = val {
                             let s_bytes = s.as_bytes();
-                            buffer.extend_from_slice(&(s_bytes.len() as u32).to_le_bytes());
+                            encode_varint(s_bytes.len() as u32, buffer);
                             buffer.extend_from_slice(s_bytes);
                         }
                     }
@@ -284,9 +329,7 @@ impl PropertyTable {
                 Ok(Some(Value::Double(f64::from_le_bytes(buf))))
             }
             DataType::String => {
-                let mut len_buf = [0u8; 4];
-                cursor.read_exact(&mut len_buf)?;
-                let len = u32::from_le_bytes(len_buf) as usize;
+                let len = decode_varint(cursor)? as usize;
                 let mut str_buf = vec![0u8; len];
                 cursor.read_exact(&mut str_buf)?;
                 Ok(Some(Value::String(String::from_utf8_lossy(&str_buf).to_string())))
@@ -307,13 +350,19 @@ impl PropertyTable {
 
     pub fn insert(&mut self, values: &[(String, Value)]) -> StorageResult<u32> {
         let record = self.serialize_row(values)?;
+        let record_size = record.len();
 
         let offset = if let Some(free) = self.free_list.pop() {
-            self.records[(free - 1) as usize] = record;
+            let row_idx = (free - 1) as usize;
+            let buf_offset = self.buffer.len();
+            self.buffer.extend_from_slice(&record);
+            self.row_offsets[row_idx] = Some((buf_offset, record_size));
             free
         } else {
+            let buf_offset = self.buffer.len();
+            self.buffer.extend_from_slice(&record);
             let new_offset = prop_index_to_offset(self.row_count);
-            self.records.push(record);
+            self.row_offsets.push(Some((buf_offset, record_size)));
             self.row_count += 1;
             new_offset
         };
@@ -327,22 +376,24 @@ impl PropertyTable {
             return Err(StorageError::invalid_offset(offset));
         }
 
-        let current_values = self.deserialize_row(&self.records[row_idx])?;
-        let mut merged_values: Vec<(String, Value)> = current_values
-            .into_iter()
-            .filter_map(|(name, val)| val.map(|v| (name, v)))
-            .collect();
+        let (buf_offset, _) = self.row_offsets[row_idx].ok_or_else(|| StorageError::invalid_offset(offset))?;
+        let current_data = &self.buffer[buf_offset..];
+        let current_values = self.deserialize_row(current_data)?;
+        let mut merged_values: Vec<(String, Option<Value>)> = current_values;
 
         for (name, value) in values {
             if let Some(pos) = merged_values.iter().position(|(n, _)| n == name) {
-                merged_values[pos] = (name.clone(), value.clone());
+                merged_values[pos] = (name.clone(), Some(value.clone()));
             } else {
-                merged_values.push((name.clone(), value.clone()));
+                merged_values.push((name.clone(), Some(value.clone())));
             }
         }
 
-        let record = self.serialize_row(&merged_values)?;
-        self.records[row_idx] = record;
+        let new_record = self.serialize_row_with_nulls(&merged_values)?;
+        let new_size = new_record.len();
+        let new_buf_offset = self.buffer.len();
+        self.buffer.extend_from_slice(&new_record);
+        self.row_offsets[row_idx] = Some((new_buf_offset, new_size));
 
         Ok(())
     }
@@ -353,7 +404,9 @@ impl PropertyTable {
             return None;
         }
 
-        self.deserialize_row(&self.records[row_idx]).ok()
+        let (buf_offset, _) = self.row_offsets[row_idx]?;
+        let record_data = &self.buffer[buf_offset..];
+        self.deserialize_row(record_data).ok()
     }
 
     pub fn set_property(
@@ -371,23 +424,22 @@ impl PropertyTable {
             return Err(StorageError::column_not_found(name.to_string()));
         }
 
-        let mut merged_values = Vec::new();
+        let mut merged_values: Vec<(String, Option<Value>)> = Vec::new();
         if let Some(props) = self.get(offset) {
             for (n, v) in props {
                 if n != name {
-                    if let Some(val) = v {
-                        merged_values.push((n, val));
-                    }
+                    merged_values.push((n, v));
+                } else {
+                    merged_values.push((n, value.clone()));
                 }
             }
         }
 
-        if let Some(val) = value {
-            merged_values.push((name.to_string(), val));
-        }
-
-        let record = self.serialize_row(&merged_values)?;
-        self.records[row_idx] = record;
+        let new_record = self.serialize_row_with_nulls(&merged_values)?;
+        let new_size = new_record.len();
+        let new_buf_offset = self.buffer.len();
+        self.buffer.extend_from_slice(&new_record);
+        self.row_offsets[row_idx] = Some((new_buf_offset, new_size));
 
         Ok(())
     }
@@ -415,7 +467,7 @@ impl PropertyTable {
             return false;
         }
 
-        self.records[row_idx].clear();
+        self.row_offsets[row_idx] = None;
         self.free_list.push(offset);
         true
     }
@@ -443,11 +495,24 @@ impl PropertyTable {
         }
 
         result.extend_from_slice(&(self.row_count as u32).to_le_bytes());
-        result.extend_from_slice(&(self.records.len() as u32).to_le_bytes());
 
-        for record in &self.records {
-            result.extend_from_slice(&(record.len() as u32).to_le_bytes());
-            result.extend_from_slice(record);
+        // Store buffer size and data
+        result.extend_from_slice(&(self.buffer.len() as u32).to_le_bytes());
+        result.extend_from_slice(&self.buffer);
+
+        // Store row offsets
+        result.extend_from_slice(&(self.row_offsets.len() as u32).to_le_bytes());
+        for offset_info in &self.row_offsets {
+            match offset_info {
+                Some((buf_offset, size)) => {
+                    result.push(1); // marker: has data
+                    result.extend_from_slice(&(*buf_offset as u32).to_le_bytes());
+                    result.extend_from_slice(&(*size as u32).to_le_bytes());
+                }
+                None => {
+                    result.push(0); // marker: deleted
+                }
+            }
         }
 
         result.extend_from_slice(&(self.free_list.len() as u32).to_le_bytes());
@@ -524,20 +589,32 @@ impl PropertyTable {
             self.schema.push(prop_schema);
         }
 
-        let rows_len = read_u32_le(data, &mut offset)? as usize;
-        let records_len = read_u32_le(data, &mut offset)? as usize;
+        self.row_count = read_u32_le(data, &mut offset)? as usize;
 
-        self.row_count = rows_len;
-        self.records.clear();
+        // Load buffer
+        let buffer_len = read_u32_le(data, &mut offset)? as usize;
+        if offset + buffer_len > data.len() {
+            return Err(StorageError::deserialize_error("unexpected end of data"));
+        }
+        self.buffer = data[offset..offset + buffer_len].to_vec();
+        offset += buffer_len;
 
-        for _ in 0..records_len {
-            let record_len = read_u32_le(data, &mut offset)? as usize;
-            if offset + record_len > data.len() {
+        // Load row offsets
+        let row_offsets_len = read_u32_le(data, &mut offset)? as usize;
+        self.row_offsets.clear();
+        for _ in 0..row_offsets_len {
+            if offset >= data.len() {
                 return Err(StorageError::deserialize_error("unexpected end of data"));
             }
-            let record = data[offset..offset + record_len].to_vec();
-            offset += record_len;
-            self.records.push(record);
+            let marker = data[offset];
+            offset += 1;
+            if marker == 1 {
+                let buf_offset = read_u32_le(data, &mut offset)? as usize;
+                let size = read_u32_le(data, &mut offset)? as usize;
+                self.row_offsets.push(Some((buf_offset, size)));
+            } else {
+                self.row_offsets.push(None);
+            }
         }
 
         let free_list_len = read_u32_le(data, &mut offset)? as usize;
@@ -550,30 +627,35 @@ impl PropertyTable {
     }
 
     pub fn compact(&mut self, valid_offsets: &HashSet<u32>) {
-        let mut new_records = Vec::new();
-        let mut new_row_count = 0;
+        let mut new_buffer = Vec::new();
+        let mut new_row_offsets = Vec::new();
         let mut offset_mapping = std::collections::HashMap::new();
 
         for old_row_idx in 0..self.row_count {
             let old_offset = prop_index_to_offset(old_row_idx);
             if valid_offsets.contains(&old_offset) {
-                offset_mapping.insert(old_offset, prop_index_to_offset(new_row_count));
-                new_records.push(self.records[old_row_idx].clone());
-                new_row_count += 1;
+                if let Some((buf_offset, size)) = self.row_offsets[old_row_idx] {
+                    let new_buf_offset = new_buffer.len();
+                    new_buffer.extend_from_slice(&self.buffer[buf_offset..buf_offset + size]);
+                    new_row_offsets.push(Some((new_buf_offset, size)));
+                    offset_mapping.insert(old_offset, prop_index_to_offset(new_row_offsets.len() - 1));
+                } else {
+                    new_row_offsets.push(None);
+                }
             }
         }
 
-        self.records = new_records;
-        self.row_count = new_row_count;
+        self.buffer = new_buffer;
+        self.row_offsets = new_row_offsets;
+        self.row_count = offset_mapping.len();
         self.free_list.clear();
     }
 
     pub fn used_memory_size(&self) -> usize {
-        let mut total = 0;
-        for record in &self.records {
-            total += record.len();
-        }
-        total + std::mem::size_of::<Self>()
+        let mut total = self.buffer.len();
+        total += self.row_offsets.len() * std::mem::size_of::<Option<(usize, usize)>>();
+        total += std::mem::size_of::<Self>();
+        total
     }
 }
 
