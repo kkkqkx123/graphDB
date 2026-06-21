@@ -1369,4 +1369,297 @@ fn test_adaptive_merge_strategy() {
     assert!(final_segments <= initial_segments, "Merge should reduce or maintain segment count");
 }
 
+/// Test reverse index consistency: inserting an edge should be visible in both out_edges and in_edges
+#[test]
+fn test_reverse_index_consistency_insert() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let src = 0u32;
+    let dst = 1u32;
+    let rank = 10i64;
+    let ts = 100u32;
+
+    // Insert edge src -> dst
+    table
+        .insert_edge(src, dst, rank, &[("weight".to_string(), Value::Double(2.5))], ts)
+        .unwrap();
+
+    // Verify out_edges (forward direction)
+    let out = table.out_edges(src, ts);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].src_vid, VertexId::from_int64(src as i64));
+    assert_eq!(out[0].dst_vid, VertexId::from_int64(dst as i64));
+    assert_eq!(out[0].rank, rank);
+
+    // Verify in_edges (reverse direction - critical for consistency)
+    let in_edges = table.in_edges(dst, ts);
+    assert_eq!(in_edges.len(), 1);
+    assert_eq!(in_edges[0].src_vid, VertexId::from_int64(src as i64));
+    assert_eq!(in_edges[0].dst_vid, VertexId::from_int64(dst as i64));
+    assert_eq!(in_edges[0].rank, rank);
+}
+
+/// Test reverse index consistency: deleting an edge should be removed from both CSRs
+#[test]
+fn test_reverse_index_consistency_delete() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let src = 0u32;
+    let dst = 1u32;
+    let rank = 10i64;
+
+    // Insert edge
+    table
+        .insert_edge(src, dst, rank, &[("weight".to_string(), Value::Double(2.5))], 100)
+        .unwrap();
+
+    // Delete edge
+    let deleted = table.delete_edge(src, dst, rank, 200).unwrap();
+    assert!(deleted);
+
+    // Verify out_edges returns empty (forward direction)
+    let out = table.out_edges(src, 200);
+    assert_eq!(out.len(), 0);
+
+    // Verify in_edges returns empty (reverse direction - critical for consistency)
+    let in_edges = table.in_edges(dst, 200);
+    assert_eq!(in_edges.len(), 0);
+
+    // Verify old timestamp still sees the edge
+    let out_old = table.out_edges(src, 100);
+    assert_eq!(out_old.len(), 1);
+
+    let in_old = table.in_edges(dst, 100);
+    assert_eq!(in_old.len(), 1);
+}
+
+/// Test multiple parallel edges maintain reverse index consistency
+#[test]
+fn test_reverse_index_consistency_parallel_edges() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let src = 0u32;
+    let dst = 1u32;
+
+    // Insert 3 parallel edges
+    for rank in 0..3 {
+        table
+            .insert_edge(src, dst, rank, &[("weight".to_string(), Value::Double(rank as f64))], 100)
+            .unwrap();
+    }
+
+    // Verify out_edges returns all 3
+    let out = table.out_edges(src, 100);
+    assert_eq!(out.len(), 3);
+
+    // Verify in_edges also returns all 3 (reverse index consistency)
+    let in_edges = table.in_edges(dst, 100);
+    assert_eq!(in_edges.len(), 3);
+
+    // Delete middle edge
+    let deleted = table.delete_edge(src, dst, 1, 200).unwrap();
+    assert!(deleted);
+
+    // Verify both out_edges and in_edges show 2 remaining
+    let out_after = table.out_edges(src, 200);
+    assert_eq!(out_after.len(), 2);
+
+    let in_after = table.in_edges(dst, 200);
+    assert_eq!(in_after.len(), 2);
+}
+
+/// Test that schema validation prevents invalid strategies
+#[test]
+fn test_schema_validation_rejects_both_none() {
+    let invalid_schema = EdgeSchema {
+        label_id: 0,
+        label_name: "invalid".to_string(),
+        src_label: 0,
+        dst_label: 0,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::None,
+        ie_strategy: EdgeStrategy::None,
+    };
+
+    let result = EdgeTable::new(invalid_schema);
+    assert!(result.is_err());
+}
+
+/// Test that schema validation allows single direction
+#[test]
+fn test_schema_validation_allows_oe_only() {
+    let schema = EdgeSchema {
+        label_id: 0,
+        label_name: "one_way".to_string(),
+        src_label: 0,
+        dst_label: 0,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::None,
+    };
+
+    let result = EdgeTable::new(schema);
+    assert!(result.is_ok());
+}
+
+/// P0验证1: Schema策略验证真正防止了不匹配
+#[test]
+fn test_p0_schema_validation_prevents_invalid_strategies() {
+    // 场景：同时禁用oe和ie会被拒绝
+    let invalid = EdgeSchema {
+        label_id: 0,
+        label_name: "invalid".to_string(),
+        src_label: 0,
+        dst_label: 0,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::None,
+        ie_strategy: EdgeStrategy::None,
+    };
+
+    let result = EdgeTable::new(invalid);
+    assert!(result.is_err(), "Both strategies None should be rejected");
+
+    // 场景：只启用oe被接受
+    let oe_only = EdgeSchema {
+        label_id: 1,
+        label_name: "oe_only".to_string(),
+        src_label: 0,
+        dst_label: 0,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::None,
+    };
+    assert!(EdgeTable::new(oe_only).is_ok());
+
+    // 场景：只启用ie被接受
+    let ie_only = EdgeSchema {
+        label_id: 2,
+        label_name: "ie_only".to_string(),
+        src_label: 0,
+        dst_label: 0,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::None,
+        ie_strategy: EdgeStrategy::Multiple,
+    };
+    assert!(EdgeTable::new(ie_only).is_ok());
+
+    // 场景：两者都启用被接受
+    let both = EdgeSchema {
+        label_id: 3,
+        label_name: "both".to_string(),
+        src_label: 0,
+        dst_label: 0,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::Multiple,
+    };
+    assert!(EdgeTable::new(both).is_ok());
+}
+
+/// P0验证2: Segment删除时的反向索引同步
+/// 验证删除冻结层边时，out_segments和in_segments都被正确处理
+#[test]
+fn test_p0_segment_reverse_index_sync_on_delete() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let src = 5u32;
+    let dst = 10u32;
+    let rank = 100i64;
+
+    // 1. 插入边
+    table
+        .insert_edge(src, dst, rank, &[("weight".to_string(), Value::Double(1.5))], 100)
+        .unwrap();
+
+    // 2. 验证边在out_csr和in_csr中都存在
+    assert!(table.has_edge(src, dst, rank, 100));
+    let out_before = table.out_edges(src, 100);
+    let in_before = table.in_edges(dst, 100);
+    assert_eq!(out_before.len(), 1);
+    assert_eq!(in_before.len(), 1);
+
+    // 3. 冻结边（从mutable移到segment）
+    table.freeze_csr_only(150);
+
+    // 4. 验证冻结后边仍然可见
+    let out_after_freeze = table.out_edges(src, 150);
+    let in_after_freeze = table.in_edges(dst, 150);
+    assert_eq!(out_after_freeze.len(), 1, "Edge should be visible after freeze in out");
+    assert_eq!(in_after_freeze.len(), 1, "Edge should be visible after freeze in in");
+
+    // 5. 删除冻结的边
+    let deleted = table.delete_edge(src, dst, rank, 200).unwrap();
+    assert!(deleted, "Edge should be found and deleted");
+
+    // 6. 验证删除后在两个方向都不可见
+    let out_after_delete = table.out_edges(src, 200);
+    let in_after_delete = table.in_edges(dst, 200);
+
+    assert_eq!(
+        out_after_delete.len(),
+        0,
+        "Edge should not be visible in out_edges after delete in segment"
+    );
+    assert_eq!(
+        in_after_delete.len(),
+        0,
+        "Edge should not be visible in in_edges after delete in segment (reverse index sync)"
+    );
+
+    // 7. 验证旧时间戳仍然可见
+    let out_old = table.out_edges(src, 150);
+    let in_old = table.in_edges(dst, 150);
+    assert_eq!(out_old.len(), 1, "Edge should be visible at ts=150");
+    assert_eq!(in_old.len(), 1, "Reverse edge should be visible at ts=150");
+}
+
+/// P0综合验证：多条边的段删除一致性
+#[test]
+fn test_p0_multi_edge_segment_delete_consistency() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let src = 0u32;
+    let dst = 1u32;
+
+    // 插入3条平行边
+    for rank in 0..3 {
+        table
+            .insert_edge(src, dst, rank, &[("weight".to_string(), Value::Double(rank as f64))], 100)
+            .unwrap();
+    }
+
+    // 冻结
+    table.freeze_csr_only(150);
+
+    assert_eq!(table.out_edges(src, 150).len(), 3);
+    assert_eq!(table.in_edges(dst, 150).len(), 3);
+
+    // 删除中间的边
+    table.delete_edge(src, dst, 1, 200).unwrap();
+
+    // 验证两个方向都只剩2条边
+    assert_eq!(
+        table.out_edges(src, 200).len(),
+        2,
+        "out_edges should have 2 edges after deleting rank=1"
+    );
+    assert_eq!(
+        table.in_edges(dst, 200).len(),
+        2,
+        "in_edges should have 2 edges after deleting rank=1 (reverse index sync)"
+    );
+
+    // 删除另一条边
+    table.delete_edge(src, dst, 0, 200).unwrap();
+
+    // 验证两个方向都只剩1条边
+    assert_eq!(table.out_edges(src, 200).len(), 1);
+    assert_eq!(table.in_edges(dst, 200).len(), 1);
+}
+
 

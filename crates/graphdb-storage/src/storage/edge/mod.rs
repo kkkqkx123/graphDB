@@ -117,6 +117,19 @@ pub struct EdgeSchema {
     pub ie_strategy: EdgeStrategy,
 }
 
+impl EdgeSchema {
+    /// Validate that the schema has compatible CSR strategies.
+    /// At least one of out-edge or in-edge must be enabled (not None).
+    pub fn validate(&self) -> crate::core::StorageResult<()> {
+        if self.oe_strategy == EdgeStrategy::None && self.ie_strategy == EdgeStrategy::None {
+            return Err(crate::core::StorageError::invalid_operation(
+                format!("EdgeSchema '{}': both oe_strategy and ie_strategy are None", self.label_name),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Nbr {
     pub neighbor: VertexId,
@@ -188,5 +201,75 @@ impl ImmutableNbr {
             prop_offset,
             timestamp,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_edge_schema_validation_both_none() {
+        let schema = EdgeSchema {
+            label_id: 0,
+            label_name: "invalid_edge".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![],
+            oe_strategy: EdgeStrategy::None,
+            ie_strategy: EdgeStrategy::None,
+        };
+
+        let result = schema.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("both oe_strategy and ie_strategy are None"));
+    }
+
+    #[test]
+    fn test_edge_schema_validation_oe_only() {
+        let schema = EdgeSchema {
+            label_id: 0,
+            label_name: "valid_edge".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::None,
+        };
+
+        let result = schema.validate();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_edge_schema_validation_ie_only() {
+        let schema = EdgeSchema {
+            label_id: 0,
+            label_name: "valid_edge".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![],
+            oe_strategy: EdgeStrategy::None,
+            ie_strategy: EdgeStrategy::Multiple,
+        };
+
+        let result = schema.validate();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_edge_schema_validation_both_enabled() {
+        let schema = EdgeSchema {
+            label_id: 0,
+            label_name: "valid_edge".to_string(),
+            src_label: 0,
+            dst_label: 0,
+            properties: vec![],
+            oe_strategy: EdgeStrategy::Multiple,
+            ie_strategy: EdgeStrategy::Single,
+        };
+
+        let result = schema.validate();
+        assert!(result.is_ok());
     }
 }

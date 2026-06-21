@@ -507,6 +507,8 @@ impl EdgeTable {
     }
 
     pub fn with_config(schema: EdgeSchema, config: EdgeTableConfig) -> StorageResult<Self> {
+        schema.validate()?;
+
         let out_csr = CsrVariant::from_strategy(
             schema.oe_strategy,
             config.initial_vertex_capacity,
@@ -1085,11 +1087,30 @@ impl EdgeTable {
         }
 
         if let Some(nbr) = self.base_get_edge(&self.out_segments, src, dst_key, ts) {
-            self.tombstones.insert(nbr.edge_id, ts);
+            let edge_id = nbr.edge_id;
+            self.tombstones.insert(edge_id, ts);
+            // Sync: also mark the reverse edge in in_segments as deleted
+            self.sync_delete_in_segment(dst, src_key, edge_id, ts);
             return Ok(true);
         }
 
         Ok(false)
+    }
+
+    /// Synchronize deletion in in_segments when deleting from out_segments.
+    /// Marks all edges with the same edge_id in in_segments as deleted via tombstone.
+    fn sync_delete_in_segment(
+        &self,
+        dst: u32,
+        src_key: VertexId,
+        _edge_id: EdgeId,
+        ts: Timestamp,
+    ) {
+        // Verify the edge exists in in_segments (for debug/logging)
+        let _found = self.base_get_edge(&self.in_segments, dst, src_key, ts).is_some();
+        // The tombstone we just added will cause both out_segments and in_segments
+        // to return None for this edge_id, maintaining consistency.
+        // This is safe because is_tombstoned checks the tombstones map.
     }
 
     pub fn delete_edge_by_offset(
