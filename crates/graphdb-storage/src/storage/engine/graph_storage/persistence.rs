@@ -48,7 +48,7 @@ fn restore_full_state_from_disk(ctx: &GraphStorageContext) -> StorageResult<()> 
 
 pub(crate) fn bootstrap_from_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
     load_schema_and_index_metadata(ctx)?;
-    super::schema_adapter::ensure_graph_types_from_schema(ctx)?;
+    super::schema_writer::ensure_graph_types_from_schema(ctx)?;
 
     let checkpoint_info = load_latest_checkpoint(ctx)?;
     if let Some(ref info) = checkpoint_info {
@@ -313,7 +313,7 @@ pub(crate) fn compact_transactional(
 
 pub(crate) fn load_from_disk(ctx: &GraphStorageContext) -> StorageResult<()> {
     load_schema_and_index_metadata(ctx)?;
-    super::schema_adapter::ensure_graph_types_from_schema(ctx)?;
+    super::schema_writer::ensure_graph_types_from_schema(ctx)?;
     restore_full_state_from_disk(ctx)
 }
 

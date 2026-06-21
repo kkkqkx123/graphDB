@@ -2446,7 +2446,7 @@ impl EdgeTable {
 
         let mut to_remove = Vec::new();
 
-        for (remove_idx, idx) in to_merge.iter().enumerate() {
+        for idx in &to_merge {
             let seg = &segments[*idx];
             min_create_ts = min_create_ts.min(seg.create_ts_min);
             max_create_ts = max_create_ts.max(seg.create_ts_max);

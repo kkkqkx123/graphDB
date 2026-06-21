@@ -342,7 +342,7 @@ impl TransactionContext {
     pub fn has_write_conflict_with(&self, other: &TransactionContext) -> bool {
         let ws1 = self.write_set.lock();
         let ws2 = other.write_set.lock();
-        ws1.has_conflict_with(&*ws2)
+        ws1.has_conflict_with(&ws2)
     }
 
     /// Check if operation can be executed

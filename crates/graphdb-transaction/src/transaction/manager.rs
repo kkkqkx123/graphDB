@@ -356,7 +356,7 @@ impl TransactionManager {
                 continue;
             }
 
-            if ctx.has_write_conflict_with(&other_ctx) {
+            if ctx.has_write_conflict_with(other_ctx) {
                 return Err(TransactionError::write_transaction_conflict());
             }
         }

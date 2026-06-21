@@ -72,44 +72,15 @@ pub(crate) fn drop_space(ctx: &GraphStorageContext, space: &str) -> StorageResul
     )?;
 
     for tag in tags {
-        let _ = ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
+        ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name))?;
     }
     for et in edge_types {
-        let _ = ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
+        ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name))?;
     }
 
     ctx.schema_manager().drop_space(space)
 }
 
-pub(crate) fn get_space(
-    ctx: &GraphStorageContext,
-    space: &str,
-) -> StorageResult<Option<SpaceInfo>> {
-    ctx.schema_manager().get_space(space)
-}
-
-pub(crate) fn get_space_by_id(
-    ctx: &GraphStorageContext,
-    space_id: u64,
-) -> StorageResult<Option<SpaceInfo>> {
-    ctx.schema_manager().get_space_by_id(space_id)
-}
-
-pub(crate) fn list_spaces(ctx: &GraphStorageContext) -> StorageResult<Vec<SpaceInfo>> {
-    ctx.schema_manager().list_spaces()
-}
-
-pub(crate) fn get_space_id(ctx: &GraphStorageContext, space: &str) -> StorageResult<u64> {
-    ctx.schema_manager().get_space_id(space)
-}
-
-pub(crate) fn space_exists(ctx: &GraphStorageContext, space: &str) -> bool {
-    ctx.schema_manager()
-        .get_space(space)
-        .ok()
-        .flatten()
-        .is_some()
-}
 
 pub(crate) fn clear_space(ctx: &GraphStorageContext, space: &str) -> StorageResult<bool> {
     let Some(space_info) = ctx.schema_manager().get_space(space)? else {
@@ -128,10 +99,10 @@ pub(crate) fn clear_space(ctx: &GraphStorageContext, space: &str) -> StorageResu
     )?;
 
     for tag in tags {
-        let _ = ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
+        ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name))?;
     }
     for et in edge_types {
-        let _ = ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name));
+        ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name))?;
     }
 
     ctx.schema_manager().clear_space(space)
@@ -227,22 +198,11 @@ pub(crate) fn drop_tag(
         },
     )?;
 
-    let _ = ctx.drop_vertex_type(&vertex_type_storage_name(space_id, tag_name));
+    ctx.drop_vertex_type(&vertex_type_storage_name(space_id, tag_name))?;
 
     ctx.schema_manager().drop_tag(space, tag_name)
 }
 
-pub(crate) fn get_tag(
-    ctx: &GraphStorageContext,
-    space: &str,
-    tag_name: &str,
-) -> StorageResult<Option<TagInfo>> {
-    ctx.schema_manager().get_tag(space, tag_name)
-}
-
-pub(crate) fn list_tags(ctx: &GraphStorageContext, space: &str) -> StorageResult<Vec<TagInfo>> {
-    ctx.schema_manager().list_tags(space)
-}
 
 pub(crate) fn alter_tag(
     ctx: &GraphStorageContext,
@@ -384,25 +344,11 @@ pub(crate) fn drop_edge_type(
         },
     )?;
 
-    let _ = ctx.drop_edge_type(&edge_type_storage_name(space_id, edge_type_name));
+    ctx.drop_edge_type(&edge_type_storage_name(space_id, edge_type_name))?;
 
     ctx.schema_manager().drop_edge_type(space, edge_type_name)
 }
 
-pub(crate) fn get_edge_type(
-    ctx: &GraphStorageContext,
-    space: &str,
-    edge_type_name: &str,
-) -> StorageResult<Option<EdgeTypeInfo>> {
-    ctx.schema_manager().get_edge_type(space, edge_type_name)
-}
-
-pub(crate) fn list_edge_types(
-    ctx: &GraphStorageContext,
-    space: &str,
-) -> StorageResult<Vec<EdgeTypeInfo>> {
-    ctx.schema_manager().list_edge_types(space)
-}
 
 pub(crate) fn ensure_graph_types_from_schema(ctx: &GraphStorageContext) -> StorageResult<()> {
     for space in ctx.schema_manager().list_spaces()? {
