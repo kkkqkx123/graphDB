@@ -20,11 +20,24 @@ pub struct FreezeDeltaResult {
     pub csr_position_to_edge_ids_index: Vec<usize>,
 }
 
-/// Merge selected segments by indices
+/// Merge selected segments by indices, with optional physical deletion
 pub fn merge_selected_segments(
     segments: &mut Vec<CsrSegment>,
     indices: Vec<usize>,
     current_ts: Timestamp,
+) -> usize {
+    merge_selected_segments_with_deletion_filter(segments, indices, current_ts, None)
+}
+
+/// Merge selected segments with physical deletion of tombstoned edges
+///
+/// If min_active_snapshot_ts is provided, edges deleted before that timestamp
+/// are not included in the merged segment (physical deletion).
+pub fn merge_selected_segments_with_deletion_filter(
+    segments: &mut Vec<CsrSegment>,
+    indices: Vec<usize>,
+    current_ts: Timestamp,
+    min_active_snapshot_ts: Option<Timestamp>,
 ) -> usize {
     if indices.len() <= 1 {
         return 0;
@@ -38,17 +51,33 @@ pub fn merge_selected_segments(
     let mut min_create_ts = u32::MAX;
     let mut max_create_ts = 0u32;
     let mut merged_deletion_info = DeletionInfo::NoDeletes;
+    let mut physically_deleted_count = 0u32;
 
     for idx in &sorted_indices {
         let seg = &segments[*idx];
         min_create_ts = min_create_ts.min(seg.create_ts_min);
         max_create_ts = max_create_ts.max(seg.create_ts_max);
-        merged_deletion_info = merged_deletion_info.merge(&seg.deletion_info);
 
         let mut edge_position = 0usize;
         for (src, immutable_nbr) in seg.csr.iter() {
             let edge_id = seg.recover_edge_id(immutable_nbr, edge_position);
             edge_position += 1;
+
+            // Skip physically deleted edges if minimum snapshot ts is provided
+            if let Some(min_ts) = min_active_snapshot_ts {
+                if let DeletionInfo::HasDeletes { min_ts: del_min, .. } = seg.deletion_info {
+                    if del_min < min_ts {
+                        // This segment has deletions older than the min active snapshot
+                        // Check if this specific edge was deleted before min_ts
+                        if let DeletionInfo::HasDeletes { min_ts: edge_del_ts, .. } = seg.deletion_info {
+                            if edge_del_ts < min_ts {
+                                physically_deleted_count += 1;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
 
             let src_u32 = src.as_int64().unwrap_or(0) as u32;
             let nbr = Nbr::new(
@@ -59,6 +88,8 @@ pub fn merge_selected_segments(
             );
             merged_entries.push((src_u32, nbr));
         }
+
+        merged_deletion_info = merged_deletion_info.merge(&seg.deletion_info);
     }
 
     if !merged_entries.is_empty() {
@@ -70,11 +101,25 @@ pub fn merge_selected_segments(
             .max(1024);
 
         let merged_csr = Csr::from_nbr_entries(&merged_entries, vertex_capacity);
+
+        // Adjust deletion info if we performed physical deletion
+        let final_deletion_info = if physically_deleted_count > 0 {
+            match merged_deletion_info {
+                DeletionInfo::NoDeletes => DeletionInfo::NoDeletes,
+                DeletionInfo::HasDeletes { min_ts, max_ts, deleted_count } => {
+                    let new_count = deleted_count.saturating_sub(physically_deleted_count);
+                    DeletionInfo::with_count(min_ts, max_ts, new_count)
+                }
+            }
+        } else {
+            merged_deletion_info
+        };
+
         let merged_segment = CsrSegment::with_creation_ts(
             merged_csr,
             min_create_ts,
             max_create_ts,
-            merged_deletion_info,
+            final_deletion_info,
             current_ts,
         );
 

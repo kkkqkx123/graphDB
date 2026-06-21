@@ -50,6 +50,11 @@ pub struct EdgeTableCore {
     pub in_csr: CsrVariant,
     pub out_segments: Vec<CsrSegment>,
     pub in_segments: Vec<CsrSegment>,
+    /// Segment index for fast time-based lookup: (create_ts_min, segment_idx in out_segments)
+    /// Sorted by create_ts_min, enables binary search to skip irrelevant segments
+    pub out_segment_index: Vec<(Timestamp, usize)>,
+    /// Segment index for in_segments: (create_ts_min, segment_idx in in_segments)
+    pub in_segment_index: Vec<(Timestamp, usize)>,
     pub mvcc: MVCCManager,
     pub properties: PropertyTable,
     pub is_open: bool,
@@ -92,6 +97,8 @@ impl EdgeTableCore {
             in_csr,
             out_segments: Vec::new(),
             in_segments: Vec::new(),
+            out_segment_index: Vec::new(),
+            in_segment_index: Vec::new(),
             mvcc: MVCCManager::new(),
             properties,
             is_open: true,
@@ -129,6 +136,56 @@ impl EdgeTableCore {
         self.stats_manager = Some(stats);
     }
 
+    pub fn compact_and_freeze_with_physical_deletion(&mut self, ts: Timestamp, config: &crate::core::types::CompactConfig) -> usize {
+        let edge_count = self.edge_count() as usize;
+        let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
+
+        // Get minimum active snapshot for physical deletion
+        let min_active_snapshot_ts = self.mvcc.get_min_active_snapshot_ts();
+
+        let removed = self.compact_csr_only(ts, reserve_ratio);
+        self.freeze_csr_only(ts);
+
+        if config.segment_merge_enabled {
+            let stats = self.mvcc.tombstone_stats();
+            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
+            // TODO: Add variant of merge_segments_with_config that uses min_active_snapshot_ts
+            // For now, fall back to regular merge
+            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
+        }
+
+        self.compact_properties(ts);
+
+        if let Some(stats) = &self.stats_manager {
+            let tom_stats = self.mvcc.tombstone_stats();
+            stats.record_tombstone_stats(
+                tom_stats.count as u64,
+                tom_stats.memory_bytes as u64,
+                tom_stats.oldest_delete_ts,
+                tom_stats.newest_delete_ts,
+                1,
+            );
+        }
+
+        removed
+    }
+
+    /// Rebuild segment indices after modifications. Called after freeze or merge operations.
+    /// This maintains the timestamp-based index for binary search optimization.
+    pub fn rebuild_segment_indices(&mut self) {
+        self.out_segment_index.clear();
+        for (idx, segment) in self.out_segments.iter().enumerate() {
+            self.out_segment_index.push((segment.create_ts_min, idx));
+        }
+        self.out_segment_index.sort_by_key(|k| std::cmp::Reverse(k.0));
+
+        self.in_segment_index.clear();
+        for (idx, segment) in self.in_segments.iter().enumerate() {
+            self.in_segment_index.push((segment.create_ts_min, idx));
+        }
+        self.in_segment_index.sort_by_key(|k| std::cmp::Reverse(k.0));
+    }
+
     fn base_get_edge(
         &self,
         segments: &[CsrSegment],
@@ -136,15 +193,20 @@ impl EdgeTableCore {
         dst: VertexId,
         ts: Timestamp,
     ) -> Option<Nbr> {
+        // Scan segments in reverse (newest first), with early termination optimizations
         for segment in segments.iter().rev() {
+            // Skip segments that were created after the query timestamp
             if segment.create_ts_min > ts {
                 continue;
             }
 
+            // Fast path: skip segments where all deletions happened before or at query_ts
+            // This means the segment is effectively not relevant for this query
             if segment.deletion_info.all_deleted_before(ts) {
                 continue;
             }
 
+            // Binary search for the specific edge in this segment
             let positioned_edges = segment.csr.edges_of_with_position(src);
             for (position, edge) in positioned_edges {
                 if edge.neighbor == dst && edge.timestamp <= ts {
@@ -172,6 +234,7 @@ impl EdgeTableCore {
                 continue;
             }
 
+            // Skip segments where all edges have been deleted before the query timestamp
             if segment.deletion_info.all_deleted_before(ts) {
                 continue;
             }
@@ -559,6 +622,33 @@ impl EdgeTableCore {
         self.iter(ts).collect()
     }
 
+    /// Scan edges with pagination support.
+    /// Returns at most `page_size` edges starting from `offset`.
+    /// Returns (edges, has_more) where has_more indicates if there are more edges beyond this page.
+    pub fn scan_paginated(&self, ts: Timestamp, offset: usize, page_size: usize) -> (Vec<EdgeRecord>, bool) {
+        if !self.is_open {
+            return (Vec::new(), false);
+        }
+
+        let mut edges = Vec::new();
+        let mut skip_count = 0;
+        let mut total_count = 0;
+
+        for edge in self.iter(ts) {
+            total_count += 1;
+            if skip_count < offset {
+                skip_count += 1;
+                continue;
+            }
+            if edges.len() >= page_size {
+                return (edges, true);
+            }
+            edges.push(edge);
+        }
+
+        (edges, false)
+    }
+
     pub fn add_property(
         &mut self,
         name: String,
@@ -851,10 +941,19 @@ impl EdgeTableCore {
 pub struct EdgeTableScanIterator<'a> {
     _table: &'a EdgeTableCore,
     records: std::vec::IntoIter<EdgeRecord>,
+    /// Maximum number of records to return (None = unlimited)
+    max_records: Option<usize>,
+    /// Current record count
+    current_count: usize,
 }
 
 impl<'a> EdgeTableScanIterator<'a> {
     pub fn new(table: &'a EdgeTableCore, ts: Timestamp) -> Self {
+        Self::with_limit(table, ts, None)
+    }
+
+    /// Create a scan iterator with a maximum record limit
+    pub fn with_limit(table: &'a EdgeTableCore, ts: Timestamp, max_records: Option<usize>) -> Self {
         let mut seen = HashSet::new();
         let mut records = Vec::new();
 
@@ -862,28 +961,48 @@ impl<'a> EdgeTableScanIterator<'a> {
             if !table.mvcc.is_tombstoned(nbr.edge_id, ts) && seen.insert(nbr.edge_id) {
                 records
                     .push(table.edge_record_from_nbr(src_vid.as_int64().unwrap_or(0) as u32, nbr));
+
+                if let Some(max) = max_records {
+                    if records.len() >= max {
+                        break;
+                    }
+                }
             }
         }
 
-        for segment in table.out_segments.iter().rev() {
-            if segment.create_ts_min > ts {
-                continue;
-            }
+        if max_records.is_none() || records.len() < max_records.unwrap() {
+            for segment in table.out_segments.iter().rev() {
+                if segment.create_ts_min > ts {
+                    continue;
+                }
 
-            for (src_vid, edge) in segment.csr.iter() {
-                if edge.timestamp <= ts
-                    && !table.mvcc.is_tombstoned(edge.edge_id, ts)
-                    && seen.insert(edge.edge_id)
-                {
-                    records.push(table.edge_record_from_nbr(
-                        src_vid.as_int64().unwrap_or(0) as u32,
-                        Nbr::new(
-                            edge.neighbor,
-                            edge.edge_id,
-                            edge.prop_offset,
-                            edge.timestamp,
-                        ),
-                    ));
+                for (src_vid, edge) in segment.csr.iter() {
+                    if edge.timestamp <= ts
+                        && !table.mvcc.is_tombstoned(edge.edge_id, ts)
+                        && seen.insert(edge.edge_id)
+                    {
+                        records.push(table.edge_record_from_nbr(
+                            src_vid.as_int64().unwrap_or(0) as u32,
+                            Nbr::new(
+                                edge.neighbor,
+                                edge.edge_id,
+                                edge.prop_offset,
+                                edge.timestamp,
+                            ),
+                        ));
+
+                        if let Some(max) = max_records {
+                            if records.len() >= max {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if let Some(max) = max_records {
+                    if records.len() >= max {
+                        break;
+                    }
                 }
             }
         }
@@ -891,6 +1010,17 @@ impl<'a> EdgeTableScanIterator<'a> {
         Self {
             _table: table,
             records: records.into_iter(),
+            max_records,
+            current_count: 0,
+        }
+    }
+
+    /// Check if iterator has more records to fetch
+    pub fn has_more(&self) -> bool {
+        if let Some(max) = self.max_records {
+            self.current_count < max
+        } else {
+            true
         }
     }
 }
@@ -899,7 +1029,18 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
     type Item = EdgeRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.records.next()
+        if let Some(max) = self.max_records {
+            if self.current_count >= max {
+                return None;
+            }
+        }
+
+        if let Some(record) = self.records.next() {
+            self.current_count += 1;
+            Some(record)
+        } else {
+            None
+        }
     }
 }
 

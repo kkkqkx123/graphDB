@@ -63,13 +63,18 @@ impl EdgeTable {
 
         self.mvcc.segment_tombstones.extend(self.mvcc.pending_segment_deletions.drain());
 
+        // Rebuild indices after segments are modified
+        self.rebuild_segment_indices();
+
         let total_frozen = out_result.frozen_count + in_result.frozen_count;
 
         if self.out_segments.len() >= self.config.max_segments_per_direction {
             let _ = merge::merge_aggressive(&mut self.out_segments, 8 * 1024 * 1024);
+            self.rebuild_segment_indices();
         }
         if self.in_segments.len() >= self.config.max_segments_per_direction {
             let _ = merge::merge_aggressive(&mut self.in_segments, 8 * 1024 * 1024);
+            self.rebuild_segment_indices();
         }
 
         total_frozen
@@ -391,6 +396,7 @@ impl EdgeTable {
         let total_reduced = out_reduced + in_reduced;
         if total_reduced > 0 {
             let duration_ms = start.elapsed().as_millis() as u64;
+            self.rebuild_segment_indices();
             // Record metrics if needed
         }
 
@@ -406,6 +412,7 @@ impl EdgeTable {
         let total_reduced = out_reduced + in_reduced;
         if total_reduced > 0 {
             let duration_ms = start.elapsed().as_millis() as u64;
+            self.rebuild_segment_indices();
         }
 
         total_reduced
@@ -422,6 +429,10 @@ impl EdgeTable {
         let segments_after = self.out_segments.len() + self.in_segments.len();
         let total_edges = out_metrics.edges_processed + in_metrics.edges_processed;
         let duration_ms = start.elapsed().as_millis() as u64;
+
+        if segments_before != segments_after {
+            self.rebuild_segment_indices();
+        }
 
         MergeMetricsResult {
             metrics: MergeMetrics {

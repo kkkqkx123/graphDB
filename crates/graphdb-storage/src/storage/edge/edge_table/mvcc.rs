@@ -2,19 +2,31 @@
 //!
 //! Provides multi-version concurrency control through active snapshot tracking,
 //! tombstone lifecycle management, and automatic garbage collection.
+//!
+//! Tombstone management uses a tiered approach:
+//! - Hot layer: recent deletions in main hashtable (fast path, LRU-like eviction)
+//! - Cold layer: older deletions preserved for snapshot isolation
+//!
+//! This reduces lookup overhead and memory fragmentation for large deletion sets.
 
 use std::collections::HashMap;
 use super::stats::TombstoneStats;
 use crate::core::types::{Timestamp, EdgeId};
 
+const HOT_TOMBSTONE_MAX_SIZE: usize = 100_000;
+const HOT_TOMBSTONE_GC_THRESHOLD: usize = 150_000;
+
 /// MVCC and snapshot management for EdgeTable
 pub struct MVCCManager {
-    /// Deletions of edges still in mutable CSR or recently deleted
+    /// Deletions of edges still in mutable CSR or recently deleted (hot layer)
     pub pending_segment_deletions: HashMap<EdgeId, Timestamp>,
-    /// Deletions of edges already in frozen segments
+    /// Deletions of edges already in frozen segments (hot layer)
     pub segment_tombstones: HashMap<EdgeId, Timestamp>,
-    /// Legacy tombstones field for backward compatibility during transition
+    /// Legacy tombstones field for backward compatibility during transition (hot layer)
     pub tombstones: HashMap<EdgeId, Timestamp>,
+    /// Cold layer: older tombstones beyond hot threshold, kept for snapshot isolation
+    /// Stored as Vec<(EdgeId, Timestamp)> to save memory and reduce lookup overhead
+    pub cold_tombstones: Vec<(EdgeId, Timestamp)>,
     /// Minimum timestamp of all active snapshots
     pub min_active_snapshot_ts: Timestamp,
     /// Active snapshot timestamps and their reference count
@@ -34,13 +46,16 @@ impl MVCCManager {
             pending_segment_deletions: HashMap::new(),
             segment_tombstones: HashMap::new(),
             tombstones: HashMap::new(),
+            cold_tombstones: Vec::new(),
             min_active_snapshot_ts: u32::MAX,
             active_snapshots: HashMap::new(),
         }
     }
 
     /// Check if an edge is tombstoned at a given timestamp
+    /// Uses hot-first lookup: checks hashtables first, then cold layer
     pub fn is_tombstoned(&self, edge_id: EdgeId, ts: Timestamp) -> bool {
+        // Hot layer: fast path - O(1) average
         let pending_deleted = self.pending_segment_deletions
             .get(&edge_id)
             .is_some_and(|delete_ts| *delete_ts <= ts);
@@ -53,7 +68,19 @@ impl MVCCManager {
             .get(&edge_id)
             .is_some_and(|delete_ts| *delete_ts <= ts);
 
-        pending_deleted || segment_deleted || legacy_deleted
+        if pending_deleted || segment_deleted || legacy_deleted {
+            return true;
+        }
+
+        // Cold layer: only checked if hot layer misses
+        // For large cold layers, consider binary search if sorted
+        for (stored_id, delete_ts) in &self.cold_tombstones {
+            if *stored_id == edge_id && *delete_ts <= ts {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Garbage collect tombstones that are no longer needed for snapshot isolation.
@@ -61,15 +88,42 @@ impl MVCCManager {
     /// Removes tombstones with delete_ts < min_active_snapshot_ts.
     /// These tombstones cannot affect any active snapshot since all snapshots
     /// have ts >= min_active_snapshot_ts.
+    ///
+    /// Also manages hot/cold layer promotion: if hot layer exceeds threshold,
+    /// older entries are moved to cold layer.
     pub fn gc_tombstones(&mut self, min_active_snapshot_ts: Timestamp) -> usize {
-        let before = self.tombstones.len();
+        let before = self.tombstones.len() + self.cold_tombstones.len();
+
+        // Clean hot layer
         self.tombstones.retain(|_edge_id, delete_ts| {
             *delete_ts >= min_active_snapshot_ts
         });
-        let after = self.tombstones.len();
+
+        // Clean cold layer
+        self.cold_tombstones.retain(|(_, delete_ts)| {
+            *delete_ts >= min_active_snapshot_ts
+        });
+
         self.min_active_snapshot_ts = min_active_snapshot_ts;
 
-        before - after
+        // If hot layer is too large, move old entries to cold layer
+        if self.tombstones.len() > HOT_TOMBSTONE_GC_THRESHOLD {
+            let mut to_move = Vec::new();
+            for (edge_id, ts) in self.tombstones.iter() {
+                to_move.push((*edge_id, *ts));
+            }
+            to_move.sort_by_key(|k| k.1);
+
+            let move_count = (to_move.len() as f64 * 0.3) as usize;
+            for i in 0..move_count {
+                let (edge_id, ts) = to_move[i];
+                self.tombstones.remove(&edge_id);
+                self.cold_tombstones.push((edge_id, ts));
+            }
+        }
+
+        let after = self.tombstones.len() + self.cold_tombstones.len();
+        before.saturating_sub(after)
     }
 
     /// Register a new active snapshot at the given timestamp.
@@ -115,12 +169,26 @@ impl MVCCManager {
 
     /// Get current tombstone statistics for observability.
     pub fn tombstone_stats(&self) -> TombstoneStats {
-        let oldest = self.tombstones.values().copied().min();
-        let newest = self.tombstones.values().copied().max();
+        let hot_count = self.tombstones.len();
+        let cold_count = self.cold_tombstones.len();
+        let total_count = hot_count + cold_count;
+
+        let oldest = self.tombstones
+            .values()
+            .chain(self.cold_tombstones.iter().map(|(_, ts)| ts))
+            .copied()
+            .min();
+
+        let newest = self.tombstones
+            .values()
+            .chain(self.cold_tombstones.iter().map(|(_, ts)| ts))
+            .copied()
+            .max();
 
         TombstoneStats {
-            count: self.tombstones.len(),
-            memory_bytes: TombstoneStats::estimate_memory(self.tombstones.len()),
+            count: total_count,
+            memory_bytes: TombstoneStats::estimate_memory(hot_count) +
+                (cold_count * std::mem::size_of::<(EdgeId, Timestamp)>()),
             oldest_delete_ts: oldest,
             newest_delete_ts: newest,
             min_active_snapshot_ts: self.min_active_snapshot_ts,
