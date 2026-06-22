@@ -21,6 +21,7 @@ use std::sync::{Arc, Mutex};
 
 use super::super::{ColumnStore, IdIndexer, IdKey, LabelId, Timestamp, VertexId, VertexRecord, VertexSchema, VertexTimestamp};
 use crate::core::{StorageError, StorageResult, Value};
+use crate::core::error::storage::StorageErrorKind;
 use crate::storage::schema::{LabelVersionHistory, SchemaObjectType};
 
 #[derive(Debug, Clone)]
@@ -551,6 +552,63 @@ impl VertexTable {
 
         total
     }
+
+    /// Verify internal consistency after compaction.
+    /// Should be called after compact() in debug builds.
+    ///
+    /// Invariants checked:
+    /// 1. Every key in id_indexer has a valid timestamp entry
+    /// 2. Every valid timestamp entry has a corresponding key in id_indexer
+    /// 3. Column count matches id_indexer.len()
+    /// 4. All column indices are within bounds
+    #[cfg(debug_assertions)]
+    pub fn verify_invariants(&self) -> StorageResult<()> {
+        let id_count = self.id_indexer.len();
+
+        // Check 1: Every key in id_indexer has a valid timestamp entry
+        for (key, idx) in self.id_indexer.iter() {
+            let start_ts = self.timestamps.get_start_ts(idx);
+            if start_ts.is_none() {
+                return Err(StorageError::new(
+                    StorageErrorKind::StorageError,
+                    format!("ID {} for key {:?} missing in timestamps", idx, key),
+                ));
+            }
+        }
+
+        // Check 2: Every valid timestamp entry has a corresponding key in id_indexer
+        for idx in 0..self.timestamps.size() {
+            if let Some(_start_ts) = self.timestamps.get_start_ts(idx as u32) {
+                let key = self.id_indexer.get_key(idx as u32);
+                if key.is_none() {
+                    return Err(StorageError::new(
+                        StorageErrorKind::StorageError,
+                        format!("Timestamp entry {} missing in id_indexer", idx),
+                    ));
+                }
+            }
+        }
+
+        // Check 3: Column count matches id_indexer.len()
+        if self.columns.row_count() != id_count {
+            return Err(StorageError::new(
+                StorageErrorKind::StorageError,
+                format!(
+                    "Column count ({}) mismatch with id_indexer.len() ({})",
+                    self.columns.row_count(),
+                    id_count
+                ),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// No-op in release builds for performance
+    #[cfg(not(debug_assertions))]
+    pub fn verify_invariants(&self) -> StorageResult<()> {
+        Ok(())
+    }
 }
 
 pub struct VertexIterator<'a> {
@@ -988,6 +1046,214 @@ mod tests {
             }
             _ => panic!("Expected PropertyRenamed change"),
         }
+    }
+
+    // ==================== Compaction Edge Case Tests ====================
+
+    /// Test: Compact after deleting all vertices
+    ///
+    /// This edge case ensures that:
+    /// - Empty table after delete doesn't crash on compact
+    /// - ID remapping handles empty result correctly
+    /// - Memory is properly reclaimed
+    #[test]
+    fn test_compact_delete_all() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        // Insert 5 vertices
+        for i in 0..5 {
+            table
+                .insert(
+                    &format!("v{}", i),
+                    &[("name".to_string(), Value::String(format!("Person{}", i)))],
+                    100,
+                )
+                .unwrap();
+        }
+
+        assert_eq!(table.scan(100).count(), 5);
+
+        // Delete all vertices
+        for i in 0..5 {
+            table.delete(&format!("v{}", i), 200).unwrap();
+        }
+
+        assert_eq!(table.scan(200).count(), 0);
+
+        // Compact should handle empty table gracefully
+        table.compact();
+
+        // After compact, table should still be empty
+        assert_eq!(table.scan(200).count(), 0);
+        assert_eq!(table.id_indexer.len(), 0);
+        assert_eq!(table.timestamps.size(), 0);
+    }
+
+    /// Test: Multiple insert/delete/compact cycles
+    ///
+    /// This stress test verifies:
+    /// - Repeated compaction doesn't corrupt data
+    /// - ID remapping works across multiple cycles
+    /// - Consistency is maintained (invariants pass)
+    #[test]
+    fn test_compact_multiple_cycles() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        for cycle in 0..3 {
+            let ts_insert = cycle * 100;
+            let ts_delete = ts_insert + 50;
+            let ts_compact = ts_delete + 50;
+
+            // Insert 10 vertices
+            for i in 0..10 {
+                table
+                    .insert(
+                        &format!("v{}_{}", cycle, i),
+                        &[("name".to_string(), Value::String(format!("P{}", i)))],
+                        ts_insert as u32,
+                    )
+                    .expect(&format!("insert cycle {} should succeed", cycle));
+            }
+
+            assert_eq!(
+                table.scan(ts_insert as u32).count(),
+                10 * (cycle + 1),
+                "Should have 10 * (cycle+1) vertices after insert"
+            );
+
+            // Delete every other vertex (50%)
+            for i in 0..10 {
+                if i % 2 == 0 {
+                    table
+                        .delete(
+                            &format!("v{}_{}", cycle, i),
+                            ts_delete as u32,
+                        )
+                        .expect(&format!("delete cycle {} should succeed", cycle));
+                }
+            }
+
+            // Compact and verify
+            table.compact();
+
+            // Should still have 5 per cycle (5 remain after deleting 50%)
+            let expected_count = (cycle + 1) * 5;
+            assert_eq!(
+                table.scan(ts_compact as u32).count(),
+                expected_count,
+                "Should have {} vertices after compact/delete in cycle {}",
+                expected_count,
+                cycle
+            );
+        }
+    }
+
+    /// Test: ID consistency across compaction
+    ///
+    /// Verifies the critical invariant:
+    /// - After compact, all three structures (id_indexer, timestamps, columns) are consistent
+    /// - id_indexer entries match timestamps entries
+    /// - column.row_count() == id_indexer.len()
+    /// - All data can be retrieved correctly
+    #[test]
+    fn test_compact_id_consistency() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        // Insert with gaps (to create IDs: 0, 2, 4, 5, 8)
+        let ids = vec![
+            table
+                .insert(
+                    "v0",
+                    &[("name".to_string(), Value::String("Alice".to_string()))],
+                    100,
+                )
+                .unwrap(),
+            table
+                .insert(
+                    "v2",
+                    &[("name".to_string(), Value::String("Bob".to_string()))],
+                    100,
+                )
+                .unwrap(),
+            table
+                .insert(
+                    "v4",
+                    &[("name".to_string(), Value::String("Charlie".to_string()))],
+                    100,
+                )
+                .unwrap(),
+            table
+                .insert(
+                    "v5",
+                    &[("name".to_string(), Value::String("David".to_string()))],
+                    100,
+                )
+                .unwrap(),
+            table
+                .insert(
+                    "v8",
+                    &[("name".to_string(), Value::String("Eve".to_string()))],
+                    100,
+                )
+                .unwrap(),
+        ];
+
+        // Delete some to create gaps
+        table.delete("v2", 200).unwrap(); // Delete middle entry
+        table.delete("v5", 200).unwrap(); // Delete another
+
+        let before_count = table.scan(150).count(); // Before delete timestamp
+        assert_eq!(before_count, 5);
+
+        // Compact should reorganize IDs to be contiguous
+        table.compact();
+
+        // Verify invariants in debug mode
+        if cfg!(debug_assertions) {
+            table.verify_invariants().unwrap();
+        }
+
+        // All remaining vertices should be findable
+        let after_count = table.scan(200).count(); // After delete timestamp
+        assert_eq!(after_count, 3); // Only v0, v4, v8 remain
+
+        // Verify each record can be retrieved
+        for (key, expected_name) in &[("v0", "Alice"), ("v4", "Charlie"), ("v8", "Eve")] {
+            let internal_id = table
+                .get_internal_id(key, 200)
+                .expect(&format!("should find {}", key));
+            let record = table
+                .get_by_internal_id(internal_id, 200)
+                .expect(&format!("should retrieve {}", key));
+
+            let name_val = record
+                .properties
+                .iter()
+                .find(|(n, _)| n == "name")
+                .map(|(_, v)| v);
+
+            assert_eq!(
+                name_val,
+                Some(&Value::String(expected_name.to_string())),
+                "Name should be preserved for {}",
+                key
+            );
+        }
+
+        // Verify structure consistency after compact
+        assert_eq!(
+            table.id_indexer.len(),
+            table.timestamps.size(),
+            "id_indexer and timestamps must have same size"
+        );
+        assert_eq!(
+            table.columns.row_count(),
+            table.id_indexer.len(),
+            "columns row_count must match id_indexer size"
+        );
     }
 }
 

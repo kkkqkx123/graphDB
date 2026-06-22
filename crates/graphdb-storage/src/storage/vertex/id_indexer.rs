@@ -243,10 +243,130 @@ impl IdIndexer {
         self.memory_usage() + std::mem::size_of::<Self>()
     }
 
-    /// Compact the indexer (no-op for concurrent version; kept for compatibility).
-    /// The concurrent version doesn't have fragmentation issues like the old sequential version.
+    /// Compact the indexer by removing gaps and returning ID remapping.
+    ///
+    /// Reorganizes IDs to be contiguous starting from 0.
+    /// Returns a mapping of old_id → new_id for all IDs that moved.
+    ///
+    /// # Responsibility in Compaction
+    ///
+    /// This is the AUTHORITATIVE mapping source during compaction.
+    /// All other structures (VertexTimestamp, ColumnStore) must follow this mapping.
+    ///
+    /// **Why this matters:**
+    /// - id_indexer owns the Key↔ID mapping (primary responsibility)
+    /// - Other structures index by ID, so they must be updated when IDs change
+    /// - This method returns the mapping so VertexTable can propagate it
+    ///
+    /// # Example
+    ///
+    /// If we have IDs {0, 2, 5} with keys ["a", "c", "f"],
+    /// compaction returns {2→1, 5→2}, so:
+    /// - Key "a" stays at ID 0
+    /// - Key "c" moves from ID 2 to ID 1
+    /// - Key "f" moves from ID 5 to ID 2
+    ///
+    /// # Algorithm
+    ///
+    /// 1. Collect all live (ID, Key) pairs from key_to_index
+    /// 2. Sort by old ID to maintain stable ordering
+    /// 3. Assign new sequential IDs (0, 1, 2, ...)
+    /// 4. Compute mapping only for IDs that moved (optimization)
+    /// 5. Rebuild internal structures if any mapping exists
+    /// 6. Return mapping for propagation to VertexTimestamp and ColumnStore
+    ///
+    /// # Correctness Invariants
+    ///
+    /// After compact():
+    /// - All IDs are in range [0, live_count)
+    /// - No gaps in ID sequence
+    /// - All keys are preserved (no data loss)
+    /// - External callers can use returned mapping to update dependent structures
+    ///
+    /// # Concurrency Note
+    ///
+    /// This method holds Mutex while rebuilding.
+    /// Safe for concurrent reads (lock is brief), but not safe with concurrent inserts.
+    /// Use outside of transaction for safety.
+    ///
+    /// # Performance
+    ///
+    /// - O(n) where n = number of live IDs
+    /// - O(n log n) for sorting
+    /// - Practical: allocates new vectors, old memory is reclaimed
+    ///
+    /// # Why Return Mapping?
+    ///
+    /// This design allows VertexTable to:
+    /// 1. Get the mapping: `let mapping = id_indexer.compact()?;`
+    /// 2. Apply it to timestamps: `self.remap_timestamps(&mapping);`
+    /// 3. Apply it to columns: `self.remap_columns(&mapping);`
+    /// 4. Verify consistency: `self.verify_invariants()?;`
+    ///
+    /// If id_indexer did everything, it would need to know about VertexTimestamp
+    /// and ColumnStore, violating module boundaries. This design keeps concerns separate.
     pub fn compact(&self) -> StorageResult<std::collections::HashMap<u32, u32>> {
-        Ok(std::collections::HashMap::new())
+        // Get snapshot of all live IDs and keys
+        let entries: Vec<(u32, IdKey)> = self
+            .key_to_index
+            .iter()
+            .map(|ref_multi| (*ref_multi.value(), ref_multi.key().clone()))
+            .collect();
+
+        if entries.is_empty() {
+            // No entries, nothing to compact
+            return Ok(std::collections::HashMap::new());
+        }
+
+        // Sort by old ID to maintain stable ordering
+        let mut entries = entries;
+        entries.sort_by_key(|(old_id, _)| *old_id);
+
+        // Compute mapping: old_id → new_id
+        let mut mapping = std::collections::HashMap::new();
+        for (new_id, (old_id, _)) in entries.iter().enumerate() {
+            let new_id_u32 = new_id as u32;
+            if *old_id != new_id_u32 {
+                mapping.insert(*old_id, new_id_u32);
+            }
+        }
+
+        // If no IDs moved, no need to rebuild
+        if mapping.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        // Rebuild internal structures with new IDs
+        self.rebuild_with_mapping(&entries)?;
+
+        Ok(mapping)
+    }
+
+    /// Internal: Rebuild id_indexer with remapped IDs
+    /// Called only from compact()
+    ///
+    /// # Arguments
+    /// * `entries` - Entries sorted by old ID, with new IDs assigned sequentially
+    fn rebuild_with_mapping(&self, entries: &[(u32, IdKey)]) -> StorageResult<()> {
+        // Rebuild keys array
+        let mut new_keys = vec![None; entries.len()];
+        for (new_id, (_, key)) in entries.iter().enumerate() {
+            new_keys[new_id] = Some(key.clone());
+        }
+
+        // Update the keys Mutex
+        {
+            let mut keys = self.keys.lock();
+            *keys = new_keys;
+        }
+
+        // Clear and rebuild key_to_index with new IDs
+        self.key_to_index.clear();
+        for (new_id, (_, key)) in entries.iter().enumerate() {
+            self.key_to_index.insert(key.clone(), new_id as u32);
+        }
+
+        Ok(())
     }
 
     /// Set the key at a specific index (compatibility method for loader).

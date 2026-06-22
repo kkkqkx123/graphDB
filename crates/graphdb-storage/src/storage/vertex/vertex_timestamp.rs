@@ -104,38 +104,40 @@ impl VertexTimestamp {
         self.end_ts.clear();
     }
 
-    pub fn compact(&mut self) {
-        let mut write_idx = 0;
-        for read_idx in 0..self.start_ts.len() {
-            if self.end_ts[read_idx] == MAX_TIMESTAMP {
-                if write_idx != read_idx {
-                    self.start_ts[write_idx] = self.start_ts[read_idx];
-                    self.end_ts[write_idx] = self.end_ts[read_idx];
-                }
-                write_idx += 1;
-            }
-        }
-        self.start_ts.truncate(write_idx);
-        self.end_ts.truncate(write_idx);
-    }
-
-    /// Compact and return the ID remapping (old_id -> new_id)
-    pub fn compact_with_mapping(&mut self) -> std::collections::HashMap<u32, u32> {
+    /// Compact and return the ID remapping (old_id → new_id)
+    ///
+    /// Removes deleted entries (those with end_ts != MAX_TIMESTAMP) and
+    /// compacts the arrays to remove gaps. Returns a mapping of IDs that moved.
+    ///
+    /// # Returns
+    /// HashMap mapping old_id → new_id for IDs that were repositioned.
+    /// Empty map if no IDs moved.
+    pub fn compact(&mut self) -> std::collections::HashMap<u32, u32> {
         let mut mapping = std::collections::HashMap::new();
         let mut write_idx = 0;
+
+        // Keep only entries that are still valid (end_ts == MAX_TIMESTAMP)
         for read_idx in 0..self.start_ts.len() {
             if self.end_ts[read_idx] == MAX_TIMESTAMP {
+                // This entry is still valid, keep it
                 if write_idx != read_idx {
                     self.start_ts[write_idx] = self.start_ts[read_idx];
                     self.end_ts[write_idx] = self.end_ts[read_idx];
+                    mapping.insert(read_idx as u32, write_idx as u32);
                 }
-                mapping.insert(read_idx as u32, write_idx as u32);
                 write_idx += 1;
             }
         }
+
         self.start_ts.truncate(write_idx);
         self.end_ts.truncate(write_idx);
         mapping
+    }
+
+    /// Compact without returning mapping (for backward compatibility)
+    #[deprecated = "use compact() instead, which now returns the mapping"]
+    pub fn compact_without_mapping(&mut self) {
+        let _ = self.compact();
     }
 
     pub fn dump(&self) -> Vec<Timestamp> {
