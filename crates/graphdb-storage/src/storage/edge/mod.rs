@@ -123,10 +123,106 @@ impl EdgeSchema {
     pub fn validate(&self) -> crate::core::StorageResult<()> {
         if self.oe_strategy == EdgeStrategy::None && self.ie_strategy == EdgeStrategy::None {
             return Err(crate::core::StorageError::invalid_operation(
-                format!("EdgeSchema '{}': both oe_strategy and ie_strategy are None", self.label_name),
+                format!("EdgeSchema '{}': both oe_strategy and ie_strategy are None. \
+                         At least one direction must be enabled", self.label_name),
             ));
         }
         Ok(())
+    }
+
+    /// Validate schema at creation time
+    /// Ensures property names are valid and edge types are well-formed
+    pub fn validate_on_creation(&self) -> crate::core::StorageResult<()> {
+        // Validate edge name
+        if self.label_name.is_empty() {
+            return Err(crate::core::StorageError::invalid_operation(
+                "Edge type name cannot be empty".to_string(),
+            ));
+        }
+
+        Self::validate_identifier_internal(&self.label_name)?;
+
+        // Validate strategy compatibility
+        self.validate()?;
+
+        // Validate property names are unique and valid
+        let mut seen_names = std::collections::HashSet::new();
+        for prop in &self.properties {
+            if !seen_names.insert(&prop.name) {
+                return Err(crate::core::StorageError::invalid_operation(
+                    format!("Duplicate property name in edge type '{}': '{}'",
+                            self.label_name, prop.name),
+                ));
+            }
+
+            // Validate property name format
+            if prop.name.is_empty() {
+                return Err(crate::core::StorageError::invalid_operation(
+                    format!("Property name cannot be empty in edge type '{}'",
+                            self.label_name),
+                ));
+            }
+
+            Self::validate_identifier_internal(&prop.name)?;
+
+            // Validate property data types are not Empty or Null
+            Self::validate_property_type_internal(&prop.data_type, &prop.name)?;
+        }
+
+        Ok(())
+    }
+
+    /// Validate that an identifier (name) follows valid rules
+    fn validate_identifier_internal(name: &str) -> crate::core::StorageResult<()> {
+        let first_char = match name.chars().next() {
+            Some(c) => c,
+            None => return Err(crate::core::StorageError::invalid_operation(
+                "Identifier cannot be empty".to_string(),
+            )),
+        };
+
+        if !first_char.is_ascii_alphabetic() && first_char != '_' {
+            return Err(crate::core::StorageError::invalid_operation(format!(
+                "Identifier '{}' must start with ASCII letter or underscore, got '{}'",
+                name, first_char
+            )));
+        }
+
+        for (i, c) in name.chars().enumerate() {
+            if !c.is_ascii_alphanumeric() && c != '_' {
+                return Err(crate::core::StorageError::invalid_operation(format!(
+                    "Identifier '{}' contains invalid character '{}' at position {}. \
+                     Only ASCII letters, digits, and underscores are allowed.",
+                    name, c, i
+                )));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate that a property data type is allowed
+    fn validate_property_type_internal(
+        data_type: &crate::core::DataType,
+        prop_name: &str,
+    ) -> crate::core::StorageResult<()> {
+        use crate::core::DataType;
+
+        match data_type {
+            DataType::Empty => {
+                return Err(crate::core::StorageError::invalid_operation(format!(
+                    "Property '{}' cannot have type Empty - properties must have valid types",
+                    prop_name
+                )));
+            }
+            DataType::Null => {
+                return Err(crate::core::StorageError::invalid_operation(format!(
+                    "Property '{}' cannot have type Null - use nullable=true instead",
+                    prop_name
+                )));
+            }
+            _ => Ok(()),
+        }
     }
 }
 

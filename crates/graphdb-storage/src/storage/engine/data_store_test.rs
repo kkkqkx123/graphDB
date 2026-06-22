@@ -140,6 +140,8 @@ mod tests {
                 label_name: "Person".to_string(),
                 properties: vec![],
                 primary_key_index: 0,
+                schema_version: 1,
+                schema_digest: String::new(),
             },
         );
         ds.vertex_tables().write().insert(label_id, table);
@@ -161,6 +163,8 @@ mod tests {
                 label_name: "Temp".to_string(),
                 properties: vec![],
                 primary_key_index: 0,
+                schema_version: 1,
+                schema_digest: String::new(),
             },
         );
         ds.vertex_tables().write().insert(label_id, table);

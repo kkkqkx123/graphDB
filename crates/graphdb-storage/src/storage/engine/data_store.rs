@@ -40,6 +40,10 @@ pub struct GraphDataStore {
     edge_label_names: RwLock<HashMap<String, LabelId>>,
     vertex_label_counter: RwLock<LabelId>,
     edge_label_counter: RwLock<LabelId>,
+    /// Reverse index: edge_label -> list of EdgeTableKeys
+    /// Enables O(1) lookup of all tables for a given edge label
+    /// Significantly improves performance of edge property operations
+    edge_label_index: RwLock<HashMap<LabelId, Vec<EdgeTableKey>>>,
 }
 
 impl GraphDataStore {
@@ -51,6 +55,7 @@ impl GraphDataStore {
             edge_label_names: RwLock::new(HashMap::new()),
             vertex_label_counter: RwLock::new(0),
             edge_label_counter: RwLock::new(0),
+            edge_label_index: RwLock::new(HashMap::new()),
         }
     }
 
@@ -76,6 +81,10 @@ impl GraphDataStore {
 
     pub(crate) fn edge_label_counter(&self) -> &RwLock<LabelId> {
         &self.edge_label_counter
+    }
+
+    pub(crate) fn edge_label_index(&self) -> &RwLock<HashMap<LabelId, Vec<EdgeTableKey>>> {
+        &self.edge_label_index
     }
 }
 

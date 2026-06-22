@@ -43,6 +43,11 @@ pub fn create_vertex_type(
         schema_digest: String::new(),
     };
 
+    // Validate schema at creation time
+    schema
+        .validate_on_creation()
+        .map_err(|e| StorageError::invalid_operation(e))?;
+
     let table = VertexTable::new(label_id, name.to_string(), schema);
     ctx.data_store()
         .vertex_tables()
@@ -99,6 +104,11 @@ pub fn create_vertex_type_with_id(
         schema_version: 1,
         schema_digest: String::new(),
     };
+
+    // Validate schema at creation time
+    schema
+        .validate_on_creation()
+        .map_err(|e| StorageError::invalid_operation(e))?;
 
     let table = VertexTable::new(label_id, name.to_string(), schema);
     ctx.data_store()
@@ -165,12 +175,24 @@ pub fn create_edge_type(
         ie_strategy,
     };
 
+    // Validate schema at creation time
+    schema.validate_on_creation()?;
+
     let mut table = EdgeTable::new(schema)?;
     if let Some(stats) = ctx.stats_manager() {
         table.set_stats_manager(stats.clone());
     }
     let key = EdgeTableKey::new(src_label, dst_label, label_id);
     ctx.data_store().edge_tables().write().insert(key, table);
+
+    // Update reverse index for O(1) lookup on edge property operations
+    ctx.data_store()
+        .edge_label_index()
+        .write()
+        .entry(label_id)
+        .or_insert_with(Vec::new)
+        .push(key);
+
     edge_label_names.insert(name.to_string(), label_id);
 
     Ok(label_id)
@@ -230,12 +252,24 @@ pub fn create_edge_type_with_id(
         ie_strategy: params.ie_strategy,
     };
 
+    // Validate schema at creation time
+    schema.validate_on_creation()?;
+
     let mut table = EdgeTable::new(schema)?;
     if let Some(stats) = ctx.stats_manager() {
         table.set_stats_manager(stats.clone());
     }
     let key = EdgeTableKey::new(params.src_label, params.dst_label, label_id);
     ctx.data_store().edge_tables().write().insert(key, table);
+
+    // Update reverse index for O(1) lookup on edge property operations
+    ctx.data_store()
+        .edge_label_index()
+        .write()
+        .entry(label_id)
+        .or_insert_with(Vec::new)
+        .push(key);
+
     edge_label_names.insert(params.name.to_string(), label_id);
 
     Ok(label_id)
@@ -254,10 +288,32 @@ pub fn drop_vertex_type(ctx: &GraphStorageContext, name: &str) -> StorageResult<
     };
 
     ctx.data_store().vertex_tables().write().remove(&label_id);
-    ctx.data_store()
-        .edge_tables()
-        .write()
-        .retain(|key, _table| key.src_label != label_id && key.dst_label != label_id);
+
+    // Collect edge tables to remove (those with this vertex as src or dst)
+    let keys_to_remove = {
+        let edge_tables = ctx.data_store().edge_tables().read();
+        edge_tables
+            .keys()
+            .filter(|key| key.src_label == label_id || key.dst_label == label_id)
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+
+    // Remove the edge tables and their index entries
+    let mut edge_tables = ctx.data_store().edge_tables().write();
+    let mut edge_label_index = ctx.data_store().edge_label_index().write();
+
+    for key in keys_to_remove {
+        edge_tables.remove(&key);
+        // Clean up the index: remove key from the edge_label's vector
+        if let Some(keys_vec) = edge_label_index.get_mut(&key.edge_label) {
+            keys_vec.retain(|k| k != &key);
+            // If the vector is now empty, remove the entry entirely
+            if keys_vec.is_empty() {
+                edge_label_index.remove(&key.edge_label);
+            }
+        }
+    }
 
     ctx.invalidate_vertex_cache(label_id);
 
@@ -276,10 +332,18 @@ pub fn drop_edge_type(ctx: &GraphStorageContext, name: &str) -> StorageResult<()
             .ok_or_else(|| StorageError::label_not_found(name.to_string()))?
     };
 
-    ctx.data_store()
-        .edge_tables()
+    // Use reverse index for O(1) lookup instead of O(N) full table scan
+    let keys_to_remove = ctx
+        .data_store()
+        .edge_label_index()
         .write()
-        .retain(|_key, _table| _key.edge_label != label_id);
+        .remove(&label_id)
+        .unwrap_or_default();
+
+    let mut edge_tables = ctx.data_store().edge_tables().write();
+    for key in keys_to_remove {
+        edge_tables.remove(&key);
+    }
 
     Ok(())
 }
@@ -347,21 +411,19 @@ pub fn add_edge_property(
         return Err(StorageError::storage_not_open());
     }
 
+    // Use reverse index for O(1) lookup instead of O(N) full table scan
+    let edge_label_index = ctx.data_store().edge_label_index().read();
+    let keys = edge_label_index
+        .get(&edge_label)
+        .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", edge_label)))?
+        .clone();
+    drop(edge_label_index);
+
     let mut edge_tables = ctx.data_store().edge_tables().write();
-    let mut updated = false;
-
-    for (key, table) in edge_tables.iter_mut() {
-        if key.edge_label == edge_label {
+    for key in keys {
+        if let Some(table) = edge_tables.get_mut(&key) {
             table.add_property(prop.name.clone(), prop.data_type.clone(), prop.nullable)?;
-            updated = true;
         }
-    }
-
-    if !updated {
-        return Err(StorageError::label_not_found(format!(
-            "edge label {}",
-            edge_label
-        )));
     }
 
     Ok(())
@@ -376,21 +438,19 @@ pub fn delete_edge_property(
         return Err(StorageError::storage_not_open());
     }
 
+    // Use reverse index for O(1) lookup instead of O(N) full table scan
+    let edge_label_index = ctx.data_store().edge_label_index().read();
+    let keys = edge_label_index
+        .get(&edge_label)
+        .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", edge_label)))?
+        .clone();
+    drop(edge_label_index);
+
     let mut edge_tables = ctx.data_store().edge_tables().write();
-    let mut updated = false;
-
-    for table in edge_tables.values_mut() {
-        if table.label() == edge_label {
+    for key in keys {
+        if let Some(table) = edge_tables.get_mut(&key) {
             table.remove_property(prop_name)?;
-            updated = true;
         }
-    }
-
-    if !updated {
-        return Err(StorageError::label_not_found(format!(
-            "edge label {}",
-            edge_label
-        )));
     }
 
     Ok(())
@@ -406,21 +466,19 @@ pub fn rename_edge_property(
         return Err(StorageError::storage_not_open());
     }
 
+    // Use reverse index for O(1) lookup instead of O(N) full table scan
+    let edge_label_index = ctx.data_store().edge_label_index().read();
+    let keys = edge_label_index
+        .get(&edge_label)
+        .ok_or_else(|| StorageError::label_not_found(format!("edge label {}", edge_label)))?
+        .clone();
+    drop(edge_label_index);
+
     let mut edge_tables = ctx.data_store().edge_tables().write();
-    let mut updated = false;
-
-    for table in edge_tables.values_mut() {
-        if table.label() == edge_label {
+    for key in keys {
+        if let Some(table) = edge_tables.get_mut(&key) {
             table.rename_property(old_name, new_name)?;
-            updated = true;
         }
-    }
-
-    if !updated {
-        return Err(StorageError::label_not_found(format!(
-            "edge label {}",
-            edge_label
-        )));
     }
 
     Ok(())
@@ -654,5 +712,209 @@ mod tests {
             StoragePropertyDef::new("email".to_string(), DataType::String),
         );
         assert!(result.is_err());
+    }
+
+    // ====== New Validation Tests ======
+
+    #[test]
+    fn test_primary_key_type_validation_valid_types() {
+        let ctx = GraphStorageContext::new();
+
+        // Test valid key types
+        let valid_types = vec![
+            ("Bool", DataType::Bool),
+            ("SmallInt", DataType::SmallInt),
+            ("Int", DataType::Int),
+            ("BigInt", DataType::BigInt),
+            ("Float", DataType::Float),
+            ("Double", DataType::Double),
+            ("String", DataType::String),
+            ("Uuid", DataType::Uuid),
+            ("Date", DataType::Date),
+            ("DateTime", DataType::DateTime),
+        ];
+
+        for (idx, (type_name, data_type)) in valid_types.into_iter().enumerate() {
+            let label_id = ctx
+                .create_vertex_type(
+                    &format!("Type{}", idx),
+                    vec![StoragePropertyDef::new("id".to_string(), data_type)],
+                    "id",
+                )
+                .expect(&format!("Should accept {} as primary key type", type_name));
+            assert_eq!(label_id, idx as u32);
+        }
+    }
+
+    #[test]
+    fn test_primary_key_type_validation_invalid_types() {
+        let ctx = GraphStorageContext::new();
+
+        // Test invalid key types - composite/complex types
+        let invalid_types = vec![
+            ("List", DataType::List),
+            ("Map", DataType::Map),
+            ("Set", DataType::Set),
+            ("Vertex", DataType::Vertex),
+            ("Edge", DataType::Edge),
+            ("Path", DataType::Path),
+            ("Vector", DataType::Vector),
+        ];
+
+        for (type_name, data_type) in invalid_types {
+            let result = ctx.create_vertex_type(
+                &format!("BadType{}", type_name),
+                vec![StoragePropertyDef::new("id".to_string(), data_type)],
+                "id",
+            );
+            assert!(
+                result.is_err(),
+                "Should reject {} as primary key type",
+                type_name
+            );
+        }
+    }
+
+    #[test]
+    fn test_property_type_empty_invalid() {
+        let ctx = GraphStorageContext::new();
+        let result = ctx.create_vertex_type(
+            "BadSchema",
+            vec![
+                StoragePropertyDef::new("id".to_string(), DataType::String),
+                StoragePropertyDef {
+                    name: "bad_prop".to_string(),
+                    data_type: DataType::Empty,
+                    nullable: false,
+                    default_value: None,
+                },
+            ],
+            "id",
+        );
+        assert!(result.is_err(), "Should reject Empty type property");
+    }
+
+    #[test]
+    fn test_property_type_null_invalid() {
+        let ctx = GraphStorageContext::new();
+        let result = ctx.create_vertex_type(
+            "BadSchema",
+            vec![
+                StoragePropertyDef::new("id".to_string(), DataType::String),
+                StoragePropertyDef {
+                    name: "bad_prop".to_string(),
+                    data_type: DataType::Null,
+                    nullable: false,
+                    default_value: None,
+                },
+            ],
+            "id",
+        );
+        assert!(result.is_err(), "Should reject Null type property");
+    }
+
+    #[test]
+    fn test_invalid_property_names() {
+        let ctx = GraphStorageContext::new();
+
+        // Test property name starting with number
+        let result = ctx.create_vertex_type(
+            "BadNames",
+            vec![
+                StoragePropertyDef::new("id".to_string(), DataType::String),
+                StoragePropertyDef::new("123prop".to_string(), DataType::String),
+            ],
+            "id",
+        );
+        assert!(result.is_err(), "Property name should not start with number");
+
+        // Test property name with invalid characters
+        let result = ctx.create_vertex_type(
+            "BadNames2",
+            vec![
+                StoragePropertyDef::new("id".to_string(), DataType::String),
+                StoragePropertyDef::new("prop-name".to_string(), DataType::String),
+            ],
+            "id",
+        );
+        assert!(result.is_err(), "Property name should not contain hyphens");
+    }
+
+    #[test]
+    fn test_valid_property_names() {
+        let ctx = GraphStorageContext::new();
+
+        // Valid names: starting with letter or underscore, containing alphanumeric and underscore
+        let label_id = ctx
+            .create_vertex_type(
+                "ValidNames",
+                vec![
+                    StoragePropertyDef::new("id".to_string(), DataType::String),
+                    StoragePropertyDef::new("_internal".to_string(), DataType::String),
+                    StoragePropertyDef::new("field_2".to_string(), DataType::String),
+                    StoragePropertyDef::new("CamelCase".to_string(), DataType::String),
+                ],
+                "id",
+            )
+            .expect("All property names are valid");
+        assert!(label_id >= 0);  // Just check it was created successfully
+    }
+
+    #[test]
+    fn test_edge_schema_both_strategies_none() {
+        let ctx = GraphStorageContext::new();
+        // Create vertex types first
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+
+        // Try to create edge with both strategies None
+        let result = ctx.create_edge_type(
+            "BadEdge",
+            0,
+            0,
+            vec![],
+            EdgeStrategy::None,
+            EdgeStrategy::None,
+        );
+        assert!(result.is_err(), "Edge cannot have both strategies as None");
+    }
+
+    #[test]
+    fn test_edge_property_type_validation() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+
+        // Create edge with valid properties
+        let label_id = ctx
+            .create_edge_type(
+                "ValidEdge",
+                0,
+                0,
+                vec![
+                    StoragePropertyDef::new("weight".to_string(), DataType::Double),
+                    StoragePropertyDef::new("since".to_string(), DataType::DateTime),
+                ],
+                EdgeStrategy::Multiple,
+                EdgeStrategy::Multiple,
+            )
+            .expect("Edge with valid properties");
+        assert_eq!(label_id, 0);
+
+        // Try edge with Empty type property
+        let result = ctx.create_edge_type(
+            "BadEdge",
+            0,
+            0,
+            vec![StoragePropertyDef {
+                name: "bad".to_string(),
+                data_type: DataType::Empty,
+                nullable: false,
+                default_value: None,
+            }],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
+        );
+        assert!(result.is_err(), "Edge should reject Empty type property");
     }
 }

@@ -32,6 +32,25 @@ fn append_schema_redo<T: serde::Serialize>(
     result
 }
 
+/// Helper to safely execute schema operations with WAL
+/// This pattern ensures: validate -> execute -> WAL record
+/// If execution fails, no WAL record is written
+fn execute_with_wal<F, T: serde::Serialize>(
+    ctx: &GraphStorageContext,
+    op_type: WalOpType,
+    redo_data: &T,
+    mut execute_fn: F,
+) -> StorageResult<()>
+where
+    F: FnMut() -> StorageResult<()>,
+{
+    // Execute the operation first
+    execute_fn()?;
+
+    // Only if successful, append WAL record
+    append_schema_redo(ctx, op_type, redo_data)
+}
+
 pub(crate) fn create_space(
     ctx: &GraphStorageContext,
     space: &mut SpaceInfo,
@@ -144,18 +163,13 @@ pub(crate) fn create_tag(
     }
     let tag_id = ctx.schema_manager().peek_next_tag_id();
 
-    append_schema_redo(
-        ctx,
-        WalOpType::CreateVertexType,
-        &CreateVertexTypeRedo {
-            space_name: space.to_string(),
-            label_id: Some(tag_id),
-            label_name: tag.tag_name.clone(),
-            schema: schema_properties(&tag.properties),
-        },
-    )?;
-
-    let tag_id = ctx.schema_manager().create_tag(space, tag)?;
+    // Prepare WAL data before executing storage changes
+    let wal_redo = CreateVertexTypeRedo {
+        space_name: space.to_string(),
+        label_id: Some(tag_id),
+        label_name: tag.tag_name.clone(),
+        schema: schema_properties(&tag.properties),
+    };
 
     let properties: Vec<StoragePropertyDef> = tag
         .properties
@@ -169,14 +183,30 @@ pub(crate) fn create_tag(
         .map(|p| p.name.as_str())
         .unwrap_or("id");
 
+    let vertex_type_name = vertex_type_storage_name(space_id, &tag.tag_name);
+
+    // IMPORTANT: Transaction order (fixed from previous implementation):
+    // 1. Create in schema_manager first (metadata update)
+    // 2. Create in storage_engine (memory structures)
+    // 3. Only if both succeed, append WAL record
+    //
+    // This ensures: if create_tag_internal fails, no WAL is written
+    // If create_vertex_type fails, schema_manager can be rolled back manually if needed
+    // The WAL record is only written when all changes are committed
+
+    let tag_id_returned = ctx.schema_manager().create_tag(space, tag)?;
+
     ctx.create_vertex_type_with_id(
-        &vertex_type_storage_name(space_id, &tag.tag_name),
-        tag_id,
+        &vertex_type_name,
+        tag_id_returned,
         properties,
         primary_key,
     )?;
 
-    Ok(tag_id)
+    // Only append WAL after successful execution
+    append_schema_redo(ctx, WalOpType::CreateVertexType, &wal_redo)?;
+
+    Ok(tag_id_returned)
 }
 
 pub(crate) fn drop_tag(
@@ -217,13 +247,33 @@ pub(crate) fn alter_tag(
         .get_tag(space, tag_name)?
         .ok_or_else(|| StorageError::label_not_found(tag_name.to_string()))?;
 
+    // Execute modifications in schema_manager first
+    let result = ctx.schema_manager()
+        .alter_tag(space, tag_name, additions.clone(), deletions.clone())?;
+
+    if !result {
+        return Ok(false);
+    }
+
+    // Then apply to storage engine
+    if let Some(label_id) = tag_label_id(ctx, space, tag_name)? {
+        for deletion in &deletions {
+            ctx.delete_vertex_property(label_id, deletion)?;
+        }
+        for prop in &additions {
+            let storage_prop = StoragePropertyDef::from_core(prop);
+            ctx.add_vertex_property(label_id, storage_prop)?;
+        }
+    }
+
+    // Only append WAL records after successful execution
     if !deletions.is_empty() {
         append_schema_redo(
             ctx,
             WalOpType::DeleteVertexProp,
             &DeleteVertexPropRedo {
                 label: tag.tag_id,
-                prop_names: deletions.clone(),
+                prop_names: deletions,
             },
         )?;
     }
@@ -237,24 +287,6 @@ pub(crate) fn alter_tag(
                 properties: schema_properties(&additions),
             },
         )?;
-    }
-
-    let result =
-        ctx.schema_manager()
-            .alter_tag(space, tag_name, additions.clone(), deletions.clone())?;
-
-    if !result {
-        return Ok(false);
-    }
-
-    if let Some(label_id) = tag_label_id(ctx, space, tag_name)? {
-        for deletion in &deletions {
-            ctx.delete_vertex_property(label_id, deletion)?;
-        }
-        for prop in additions {
-            let storage_prop = StoragePropertyDef::from_core(&prop);
-            ctx.add_vertex_property(label_id, storage_prop)?;
-        }
     }
 
     Ok(true)
@@ -288,19 +320,17 @@ pub(crate) fn create_edge_type(
         })?;
     let edge_type_id = ctx.schema_manager().peek_next_edge_type_id();
 
-    append_schema_redo(
-        ctx,
-        WalOpType::CreateEdgeType,
-        &CreateEdgeTypeRedo {
-            space_name: space.to_string(),
-            label_id: Some(edge_type_id),
-            src_label: edge_type.src_tag_name.clone(),
-            dst_label: edge_type.dst_tag_name.clone(),
-            edge_label: edge_type.edge_type_name.clone(),
-            schema: schema_properties(&edge_type.properties),
-        },
-    )?;
+    // Prepare WAL data before executing storage changes
+    let wal_redo = CreateEdgeTypeRedo {
+        space_name: space.to_string(),
+        label_id: Some(edge_type_id),
+        src_label: edge_type.src_tag_name.clone(),
+        dst_label: edge_type.dst_tag_name.clone(),
+        edge_label: edge_type.edge_type_name.clone(),
+        schema: schema_properties(&edge_type.properties),
+    };
 
+    // Fixed transaction order: execute storage operations before WAL
     let edge_type_id = ctx.schema_manager().create_edge_type(space, edge_type)?;
 
     let properties: Vec<StoragePropertyDef> = edge_type
@@ -308,6 +338,7 @@ pub(crate) fn create_edge_type(
         .iter()
         .map(StoragePropertyDef::from_core)
         .collect();
+
     ctx.create_edge_type_with_id(
         CreateEdgeTypeParams {
             name: &edge_type_storage_name(space_id, &edge_type.edge_type_name),
@@ -319,6 +350,9 @@ pub(crate) fn create_edge_type(
         },
         edge_type_id,
     )?;
+
+    // Only append WAL after successful execution
+    append_schema_redo(ctx, WalOpType::CreateEdgeType, &wal_redo)?;
 
     Ok(edge_type_id)
 }

@@ -23,6 +23,8 @@ mod tests {
                 StoragePropertyDef::new("age".to_string(), crate::core::DataType::BigInt),
             ],
             primary_key_index: 0,
+            schema_version: 1,
+            schema_digest: String::new(),
         };
         VertexTable::new(label, name.to_string(), schema)
     }
