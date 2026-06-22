@@ -184,6 +184,7 @@ mod tests {
             )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
         };
         super::super::super::EdgeTable::new(schema).unwrap()
     }

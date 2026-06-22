@@ -40,7 +40,6 @@ pub fn create_vertex_type(
         properties,
         primary_key_index,
         schema_version: 1,
-        schema_digest: String::new(),
     };
 
     // Validate schema at creation time
@@ -102,7 +101,6 @@ pub fn create_vertex_type_with_id(
         properties,
         primary_key_index,
         schema_version: 1,
-        schema_digest: String::new(),
     };
 
     // Validate schema at creation time
@@ -173,6 +171,7 @@ pub fn create_edge_type(
         properties,
         oe_strategy,
         ie_strategy,
+        schema_version: 1,
     };
 
     // Validate schema at creation time
@@ -250,6 +249,7 @@ pub fn create_edge_type_with_id(
         properties: params.properties,
         oe_strategy: params.oe_strategy,
         ie_strategy: params.ie_strategy,
+        schema_version: 1,
     };
 
     // Validate schema at creation time
@@ -916,5 +916,318 @@ mod tests {
             EdgeStrategy::Multiple,
         );
         assert!(result.is_err(), "Edge should reject Empty type property");
+    }
+
+    #[test]
+    fn test_add_vertex_property_increments_version() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+
+        // Check initial version is 1
+        let initial_version = ctx
+            .data_store()
+            .vertex_tables()
+            .read()
+            .get(&0)
+            .unwrap()
+            .schema()
+            .schema_version;
+        assert_eq!(initial_version, 1, "Initial version should be 1");
+
+        // Add property and verify version incremented
+        ctx.add_vertex_property(
+            0,
+            StoragePropertyDef::new("email".to_string(), DataType::String),
+        )
+        .expect("add_vertex_property should succeed");
+
+        let updated_version = ctx
+            .data_store()
+            .vertex_tables()
+            .read()
+            .get(&0)
+            .unwrap()
+            .schema()
+            .schema_version;
+        assert_eq!(
+            updated_version, 2,
+            "Version should increment to 2 after add_property"
+        );
+    }
+
+    #[test]
+    fn test_delete_vertex_property_increments_version() {
+        let ctx = GraphStorageContext::new();
+        let props = vec![
+            StoragePropertyDef::new("name".to_string(), DataType::String),
+            StoragePropertyDef::new("age".to_string(), DataType::BigInt),
+        ];
+        ctx.create_vertex_type("Person", props, "name")
+            .expect("create_vertex_type should succeed");
+
+        let v1 = ctx
+            .data_store()
+            .vertex_tables()
+            .read()
+            .get(&0)
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        ctx.delete_vertex_property(0, "age")
+            .expect("delete_vertex_property should succeed");
+
+        let v2 = ctx
+            .data_store()
+            .vertex_tables()
+            .read()
+            .get(&0)
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        assert_eq!(v2, v1 + 1, "Version should increment after delete_property");
+    }
+
+    #[test]
+    fn test_rename_vertex_property_increments_version() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+
+        let v1 = ctx
+            .data_store()
+            .vertex_tables()
+            .read()
+            .get(&0)
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        ctx.rename_vertex_property(0, "name", "full_name")
+            .expect("rename_vertex_property should succeed");
+
+        let v2 = ctx
+            .data_store()
+            .vertex_tables()
+            .read()
+            .get(&0)
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        assert_eq!(v2, v1 + 1, "Version should increment after rename_property");
+    }
+
+    #[test]
+    fn test_vertex_schema_version_increments_sequentially() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+
+        for expected_version in 2..=5 {
+            ctx.add_vertex_property(
+                0,
+                StoragePropertyDef::new(
+                    format!("prop{}", expected_version),
+                    DataType::String,
+                ),
+            )
+            .expect("add_vertex_property should succeed");
+
+            let actual_version = ctx
+                .data_store()
+                .vertex_tables()
+                .read()
+                .get(&0)
+                .unwrap()
+                .schema()
+                .schema_version;
+
+            assert_eq!(
+                actual_version, expected_version,
+                "Version should increment sequentially"
+            );
+        }
+    }
+
+    #[test]
+    fn test_add_edge_property_increments_version() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.create_edge_type(
+            "KNOWS",
+            0,
+            0,
+            vec![],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
+        )
+        .expect("create_edge_type should succeed");
+
+        // Check initial version is 1
+        let initial_version = ctx
+            .data_store()
+            .edge_tables()
+            .read()
+            .values()
+            .next()
+            .unwrap()
+            .schema()
+            .schema_version;
+        assert_eq!(initial_version, 1, "Initial version should be 1");
+
+        ctx.add_edge_property(
+            0,
+            StoragePropertyDef::new("weight".to_string(), DataType::Double),
+        )
+        .expect("add_edge_property should succeed");
+
+        let updated_version = ctx
+            .data_store()
+            .edge_tables()
+            .read()
+            .values()
+            .next()
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        assert_eq!(
+            updated_version, 2,
+            "Version should increment to 2 after add_edge_property"
+        );
+    }
+
+    #[test]
+    fn test_delete_edge_property_increments_version() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.create_edge_type(
+            "KNOWS",
+            0,
+            0,
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
+        )
+        .expect("create_edge_type should succeed");
+
+        let v1 = ctx
+            .data_store()
+            .edge_tables()
+            .read()
+            .values()
+            .next()
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        ctx.delete_edge_property(0, "weight")
+            .expect("delete_edge_property should succeed");
+
+        let v2 = ctx
+            .data_store()
+            .edge_tables()
+            .read()
+            .values()
+            .next()
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        assert_eq!(v2, v1 + 1, "Version should increment after delete_edge_property");
+    }
+
+    #[test]
+    fn test_rename_edge_property_increments_version() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.create_edge_type(
+            "KNOWS",
+            0,
+            0,
+            vec![StoragePropertyDef::new(
+                "weight".to_string(),
+                DataType::Double,
+            )],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
+        )
+        .expect("create_edge_type should succeed");
+
+        let v1 = ctx
+            .data_store()
+            .edge_tables()
+            .read()
+            .values()
+            .next()
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        ctx.rename_edge_property(0, "weight", "strength")
+            .expect("rename_edge_property should succeed");
+
+        let v2 = ctx
+            .data_store()
+            .edge_tables()
+            .read()
+            .values()
+            .next()
+            .unwrap()
+            .schema()
+            .schema_version;
+
+        assert_eq!(v2, v1 + 1, "Version should increment after rename_edge_property");
+    }
+
+    #[test]
+    fn test_edge_schema_version_increments_sequentially() {
+        let ctx = GraphStorageContext::new();
+        ctx.create_vertex_type("Person", name_prop(), "name")
+            .expect("create_vertex_type should succeed");
+        ctx.create_edge_type(
+            "KNOWS",
+            0,
+            0,
+            vec![],
+            EdgeStrategy::Multiple,
+            EdgeStrategy::Multiple,
+        )
+        .expect("create_edge_type should succeed");
+
+        for expected_version in 2..=4 {
+            ctx.add_edge_property(
+                0,
+                StoragePropertyDef::new(
+                    format!("prop{}", expected_version),
+                    DataType::String,
+                ),
+            )
+            .expect("add_edge_property should succeed");
+
+            let actual_version = ctx
+                .data_store()
+                .edge_tables()
+                .read()
+                .values()
+                .next()
+                .unwrap()
+                .schema()
+                .schema_version;
+
+            assert_eq!(
+                actual_version, expected_version,
+                "Edge version should increment sequentially"
+            );
+        }
     }
 }

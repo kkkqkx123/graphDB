@@ -24,7 +24,6 @@ mod tests {
             ],
             primary_key_index: 0,
             schema_version: 1,
-            schema_digest: String::new(),
         };
         VertexTable::new(label, name.to_string(), schema)
     }
@@ -46,6 +45,7 @@ mod tests {
             )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+            schema_version: 1,
         };
         EdgeTable::new(schema).expect("Failed to create EdgeTable")
     }

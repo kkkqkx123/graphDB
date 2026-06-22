@@ -456,7 +456,6 @@ impl TransactionOps {
             properties: Vec::new(),
             primary_key_index: 0,
             schema_version: 1,
-            schema_digest: String::new(),
         };
 
         let table = VertexTable::new(label, name.to_string(), schema);
@@ -497,6 +496,7 @@ impl TransactionOps {
             properties: Vec::new(),
             oe_strategy: crate::storage::edge::EdgeStrategy::Multiple,
             ie_strategy: crate::storage::edge::EdgeStrategy::Multiple,
+            schema_version: 1,
         };
 
         let table = crate::storage::edge::EdgeTable::new(schema)
@@ -521,6 +521,7 @@ impl TransactionOps {
 
         if let Some(table) = vertex_tables.get_mut(&label_id) {
             let mut new_schema = table.schema().clone();
+            let old_version = new_schema.schema_version;
             for (current, original) in current_names.iter().zip(original_names.iter()) {
                 if let Some(prop) = new_schema
                     .properties
@@ -530,7 +531,7 @@ impl TransactionOps {
                     prop.name = original.clone();
                 }
             }
-            table.set_schema(new_schema);
+            table.set_schema_with_version(new_schema, old_version);
         }
 
         Ok(())
@@ -562,6 +563,7 @@ impl TransactionOps {
         let key = EdgeTableKey::new(src_label_id, dst_label_id, edge_label_id);
         if let Some(table) = edge_tables.get_mut(&key) {
             let mut new_schema = table.schema().clone();
+            let old_version = new_schema.schema_version;
             for (current, original) in current_names.iter().zip(original_names.iter()) {
                 if let Some(prop) = new_schema
                     .properties
@@ -571,7 +573,7 @@ impl TransactionOps {
                     prop.name = original.clone();
                 }
             }
-            table.set_schema(new_schema);
+            table.set_schema_with_version(new_schema, old_version);
         }
 
         Ok(())
@@ -593,11 +595,12 @@ impl TransactionOps {
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let mut schema = table.schema().clone();
+        let old_version = schema.schema_version;
         for prop_name in prop_names {
             schema.properties.retain(|p| p.name != *prop_name);
         }
 
-        table.set_schema(schema);
+        table.set_schema_with_version(schema, old_version);
 
         Ok(())
     }
@@ -630,11 +633,12 @@ impl TransactionOps {
             .ok_or(UndoLogError::LabelNotFound(0))?;
 
         let mut schema = table.schema().clone();
+        let old_version = schema.schema_version;
         for prop_name in prop_names {
             schema.properties.retain(|p| p.name != *prop_name);
         }
 
-        table.set_schema(schema);
+        table.set_schema_with_version(schema, old_version);
 
         Ok(())
     }

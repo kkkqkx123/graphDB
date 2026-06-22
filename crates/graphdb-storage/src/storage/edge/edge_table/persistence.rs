@@ -358,6 +358,7 @@ mod tests {
             )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
         };
         super::super::super::EdgeTable::new(schema).unwrap()
     }
@@ -371,6 +372,7 @@ mod tests {
             properties: vec![],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
         };
         super::super::super::EdgeTable::new(schema).unwrap()
     }
@@ -388,6 +390,7 @@ mod tests {
             )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
         };
         let mut table = super::super::super::EdgeTable::new(schema).unwrap();
 
@@ -412,6 +415,7 @@ mod tests {
             )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
         };
         let mut loaded_table = super::super::super::EdgeTable::new(schema2).unwrap();
         loaded_table.load(&temp_dir).expect("load should succeed");
@@ -440,6 +444,7 @@ mod tests {
             )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
         };
         let mut table = super::super::super::EdgeTable::new(schema).unwrap();
 
@@ -464,6 +469,7 @@ mod tests {
             )],
             oe_strategy: EdgeStrategy::Multiple,
             ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
         };
         let mut loaded_table = super::super::super::EdgeTable::new(schema2).unwrap();
         loaded_table.load(&temp_dir).expect("load should succeed");

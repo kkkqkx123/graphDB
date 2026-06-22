@@ -712,6 +712,8 @@ impl EdgeTableCore {
         self.schema
             .properties
             .push(StoragePropertyDef::new(name, data_type));
+        // Increment schema version when property is added
+        self.schema.increment_version();
         Ok(())
     }
 
@@ -727,8 +729,12 @@ impl EdgeTableCore {
             .position(|prop| prop.name == name)
             .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
 
-        self.schema.properties.remove(index);
+        // Remove from properties first (potentially failing operation)
         self.properties.remove_property(name)?;
+        // Only modify schema if properties removal succeeded
+        self.schema.properties.remove(index);
+        // Increment schema version when property is removed
+        self.schema.increment_version();
         Ok(())
     }
 
@@ -753,8 +759,12 @@ impl EdgeTableCore {
             .position(|prop| prop.name == old_name)
             .ok_or_else(|| StorageError::column_not_found(old_name.to_string()))?;
 
-        self.schema.properties[index].name = new_name.to_string();
+        // Rename in properties first (potentially failing operation)
         self.properties.rename_property(old_name, new_name)?;
+        // Only modify schema if properties rename succeeded
+        self.schema.properties[index].name = new_name.to_string();
+        // Increment schema version when property is renamed
+        self.schema.increment_version();
         Ok(())
     }
 
@@ -847,7 +857,17 @@ impl EdgeTableCore {
         &self.schema
     }
 
+    pub(crate) fn schema_mut(&mut self) -> &mut EdgeSchema {
+        &mut self.schema
+    }
+
     pub fn set_schema(&mut self, schema: EdgeSchema) {
+        self.schema = schema;
+    }
+
+    /// Set schema with explicit version number (used for undo operations)
+    pub fn set_schema_with_version(&mut self, mut schema: EdgeSchema, new_version: u64) {
+        schema.schema_version = new_version;
         self.schema = schema;
     }
 

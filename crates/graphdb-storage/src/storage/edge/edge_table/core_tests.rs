@@ -15,6 +15,7 @@ fn create_test_schema() -> EdgeSchema {
         )],
         oe_strategy: EdgeStrategy::Multiple,
         ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
     }
 }
 

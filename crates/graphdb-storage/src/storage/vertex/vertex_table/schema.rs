@@ -18,9 +18,12 @@ impl VertexTable {
             return Err(crate::core::StorageError::column_already_exists(prop.name.clone()));
         }
 
-        self.schema.properties.push(prop.clone());
+        // Add to columns first (potentially failing operation)
         self.columns
-            .add_column(prop.name.clone(), prop.data_type, prop.nullable);
+            .add_column(prop.name.clone(), prop.data_type.clone(), prop.nullable);
+
+        // Only modify schema if columns addition succeeded
+        self.schema.properties.push(prop.clone());
 
         // Update cache with new property
         let idx = self.schema.properties.len() - 1;
@@ -51,12 +54,14 @@ impl VertexTable {
             ));
         }
 
+        // Remove from columns first (potentially failing operation)
+        self.columns.remove_column(prop_name)?;
+
+        // Only modify schema if columns removal succeeded
         self.schema.properties.remove(index);
         if index < self.schema.primary_key_index {
             self.schema.primary_key_index -= 1;
         }
-
-        self.columns.remove_column(prop_name)?;
 
         // Rebuild cache: remove deleted property and adjust indices
         self.property_index_cache.remove(prop_name);
@@ -93,8 +98,11 @@ impl VertexTable {
             .position(|prop| prop.name == old_name)
             .ok_or_else(|| crate::core::StorageError::column_not_found(old_name.to_string()))?;
 
-        self.schema.properties[index].name = new_name.to_string();
+        // Rename in columns first (potentially failing operation)
         self.columns.rename_column(old_name, new_name.to_string())?;
+
+        // Only modify schema if columns rename succeeded
+        self.schema.properties[index].name = new_name.to_string();
 
         // Update cache: rename key, keep index
         if let Some(idx) = self.property_index_cache.remove(old_name) {

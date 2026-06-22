@@ -472,6 +472,10 @@ impl VertexTable {
         &self.schema
     }
 
+    pub(crate) fn schema_mut(&mut self) -> &mut VertexSchema {
+        &mut self.schema
+    }
+
     pub fn set_schema(&mut self, schema: VertexSchema) {
         self.schema = schema;
 
@@ -480,6 +484,19 @@ impl VertexTable {
         for (idx, prop) in self.schema.properties.iter().enumerate() {
             self.property_index_cache.insert(prop.name.clone(), idx);
         }
+    }
+
+    /// Set schema with explicit version number (used for undo operations)
+    pub fn set_schema_with_version(&mut self, mut schema: VertexSchema, new_version: u64) {
+        schema.schema_version = new_version;
+
+        // Rebuild property index cache
+        self.property_index_cache.clear();
+        for (idx, prop) in self.schema.properties.iter().enumerate() {
+            self.property_index_cache.insert(prop.name.clone(), idx);
+        }
+
+        self.schema = schema;
     }
 
     pub fn memory_size(&self) -> usize {
@@ -585,7 +602,6 @@ mod tests {
             ],
             primary_key_index: 0,
             schema_version: 1,
-            schema_digest: String::new(),
         }
     }
 

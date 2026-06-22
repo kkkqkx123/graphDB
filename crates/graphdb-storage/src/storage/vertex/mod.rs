@@ -67,6 +67,11 @@ impl VertexRecord {
     }
 }
 
+/// Default schema version (1) for new schemas and deserialization
+fn default_schema_version() -> u64 {
+    1
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VertexSchema {
     pub label_id: LabelId,
@@ -74,11 +79,8 @@ pub struct VertexSchema {
     pub properties: Vec<StoragePropertyDef>,
     pub primary_key_index: usize,
     /// Schema version for migration tracking
-    #[serde(default)]
-    pub schema_version: u32,
-    /// SHA256 hash of the schema definition for integrity checking
-    #[serde(default)]
-    pub schema_digest: String,
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u64,
 }
 
 impl VertexSchema {
@@ -86,7 +88,7 @@ impl VertexSchema {
     /// Returns Ok(()) if valid, Err with description if there are issues.
     ///
     /// Note: This method must be called explicitly by callers to enforce version checking.
-    pub fn validate(&self, expected_version: u32) -> Result<(), String> {
+    pub fn validate(&self, expected_version: u64) -> Result<(), String> {
         if self.schema_version != expected_version {
             return Err(format!(
                 "Schema version mismatch: expected {}, got {}",
