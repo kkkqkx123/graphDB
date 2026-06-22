@@ -1081,13 +1081,15 @@ mod tests {
 
         assert_eq!(table.scan(200).count(), 0);
 
-        // Compact should handle empty table gracefully
-        table.compact();
+        // Use compact_with_ts_collect to remove entries deleted before ts 300
+        // This clears all deleted entries from id_indexer before compaction
+        let removed = table.compact_with_ts_collect(300).expect("compact_with_ts_collect should succeed");
+        assert_eq!(removed.len(), 5, "Should have removed 5 deleted entries");
 
-        // After compact, table should still be empty
+        // After compact_with_ts_collect, table should be empty
         assert_eq!(table.scan(200).count(), 0);
-        assert_eq!(table.id_indexer.len(), 0);
-        assert_eq!(table.timestamps.size(), 0);
+        assert_eq!(table.id_indexer.len(), 0, "id_indexer should be empty after removing all deleted entries");
+        assert_eq!(table.timestamps.size(), 0, "timestamps should be empty after removing all deleted entries");
     }
 
     /// Test: Multiple insert/delete/compact cycles
@@ -1106,6 +1108,9 @@ mod tests {
             let ts_delete = ts_insert + 50;
             let ts_compact = ts_delete + 50;
 
+            eprintln!("=== Cycle {} ===", cycle);
+            eprintln!("Before insert: id_indexer.len() = {}", table.id_indexer.len());
+
             // Insert 10 vertices
             for i in 0..10 {
                 table
@@ -1117,10 +1122,33 @@ mod tests {
                     .expect(&format!("insert cycle {} should succeed", cycle));
             }
 
+            eprintln!("After insert: id_indexer.len() = {}", table.id_indexer.len());
+            let scan_count = table.scan(ts_insert as u32).count();
+            eprintln!("After insert: scan({}) count = {}", ts_insert, scan_count);
+
+            // After inserting in this cycle, count visible vertices at ts_insert
+            // Vertices from previous cycles that were deleted before this cycle are not visible
+            let mut expected_after_insert = 0;
+            for i in 0..=cycle {
+                let ts_cycle_delete = i * 100 + 50;
+                if (ts_insert as u32) > (ts_cycle_delete as u32) {
+                    // This cycle's vertices were deleted before ts_insert, only 50% remain
+                    expected_after_insert += 5;
+                } else if i == cycle {
+                    // This is the current cycle, all 10 newly inserted are visible
+                    expected_after_insert += 10;
+                } else {
+                    // Previous cycle, all 10 were visible before their deletion
+                    expected_after_insert += 10;
+                }
+            }
+
             assert_eq!(
-                table.scan(ts_insert as u32).count(),
-                10 * (cycle + 1),
-                "Should have 10 * (cycle+1) vertices after insert"
+                scan_count,
+                expected_after_insert,
+                "Should have {} vertices after insert at cycle {}",
+                expected_after_insert,
+                cycle
             );
 
             // Delete every other vertex (50%)
@@ -1135,13 +1163,35 @@ mod tests {
                 }
             }
 
-            // Compact and verify
-            table.compact();
+            eprintln!("After delete: id_indexer.len() = {}", table.id_indexer.len());
 
-            // Should still have 5 per cycle (5 remain after deleting 50%)
-            let expected_count = (cycle + 1) * 5;
+            // Compact and verify
+            table.compact_coordinated().expect(&format!("compact cycle {} should succeed", cycle));
+
+            eprintln!("After compact: id_indexer.len() = {}", table.id_indexer.len());
+
+            // At ts_compact: see vertices that were alive before deletion
+            // Cycle 0: 10 inserted, 5 deleted (end_ts=50), so 5 still visible at ts_compact=100
+            // Cycle 1: 5 still visible + 5 deleted at ts_delete=150, so all 5 alive at ts_compact=200
+            // etc.
+            // Total: sum of alive vertices from all cycles up to now
+            let mut expected_count = 0;
+            for i in 0..=cycle {
+                let ts_cycle_delete = i * 100 + 50;
+                if ts_compact > ts_cycle_delete {
+                    // At this cycle, 50% were deleted, 50% remain
+                    expected_count += 5;
+                } else {
+                    // At this cycle, all 10 are still alive
+                    expected_count += 10;
+                }
+            }
+
+            let final_scan = table.scan(ts_compact as u32).count();
+            eprintln!("After compact: scan({}) count = {} (expected {})", ts_compact, final_scan, expected_count);
+
             assert_eq!(
-                table.scan(ts_compact as u32).count(),
+                final_scan,
                 expected_count,
                 "Should have {} vertices after compact/delete in cycle {}",
                 expected_count,
@@ -1209,7 +1259,7 @@ mod tests {
         assert_eq!(before_count, 5);
 
         // Compact should reorganize IDs to be contiguous
-        table.compact();
+        table.compact_coordinated().expect("compact should succeed");
 
         // Verify invariants in debug mode
         if cfg!(debug_assertions) {

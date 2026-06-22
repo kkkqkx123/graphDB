@@ -1,16 +1,24 @@
 //! ID Indexer
 //!
 //! Maps external IDs (strings or integers) to internal vertex IDs.
-//! Provides O(1) concurrent-safe lookup in both directions.
+//! Provides O(1) lookup in both directions.
 //!
-//! Features:
-//! - Concurrent-safe: DashMap enables lock-free sharded access
-//! - Dynamic expansion: automatically grows when capacity is reached
-//! - Zero-copy insertion: supports concurrent inserts from multiple threads
+//! # Architecture
+//!
+//! This module uses a two-level design:
+//!
+//! - **IdManager**: Core business logic for ID management
+//!   - Bidirectional mapping between external IDs and internal indices
+//!   - Compact/remapping algorithm
+//!   - Uses HashMap for storage (no unnecessary concurrency)
+//!
+//! - **IdIndexer**: Simple wrapper for API consistency
+//!   - All operations are single-threaded at runtime
+//!   - External synchronization via GraphDataStore's RwLock ensures correctness
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use parking_lot::Mutex;
 
 use crate::core::error::{StorageError, StorageResult};
@@ -115,22 +123,195 @@ impl IdIndexerConfig {
     }
 }
 
-/// Concurrent ID indexer using DashMap for lock-free sharded access.
+/// Core bidirectional mapping between external IDs and internal indices.
 ///
-/// Provides concurrent-safe O(1) lookup with automatic sharding (typically 16 shards).
-/// Suitable for high-concurrency workloads like batch_insert_vertices and scan_vertices.
+/// This struct manages the fundamental lookup operations:
+/// - Key → ID mapping (via HashMap)
+/// - ID → Key reverse mapping (via Vec)
 ///
-/// # Example
+/// IdManager is the authoritative source for ID management logic.
+#[derive(Debug)]
+pub struct IdManager {
+    keys: Vec<Option<IdKey>>,
+    key_to_id: HashMap<IdKey, u32>,
+    config: IdIndexerConfig,
+}
+
+impl IdManager {
+    pub fn new() -> Self {
+        Self::with_config(IdIndexerConfig::default())
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self::with_config(IdIndexerConfig::default().with_initial_capacity(capacity))
+    }
+
+    pub fn with_config(config: IdIndexerConfig) -> Self {
+        let capacity = config.initial_capacity.min(config.max_capacity);
+        Self {
+            keys: Vec::with_capacity(capacity),
+            key_to_id: HashMap::with_capacity(capacity),
+            config,
+        }
+    }
+
+    pub fn insert(&mut self, key: IdKey) -> StorageResult<u32> {
+        if self.key_to_id.contains_key(&key) {
+            return Err(StorageError::vertex_already_exists(format!("{:?}", key)));
+        }
+
+        if self.keys.len() >= self.config.max_capacity {
+            return Err(StorageError::capacity_exceeded());
+        }
+
+        if self.keys.len() >= self.keys.capacity() {
+            let current_capacity = self.keys.capacity();
+            if current_capacity >= self.config.max_capacity {
+                return Err(StorageError::capacity_exceeded());
+            }
+
+            let new_capacity = ((current_capacity as f64 * self.config.growth_factor) as usize)
+                .min(self.config.max_capacity)
+                .max(current_capacity + 1);
+            self.keys.reserve(new_capacity - current_capacity);
+        }
+
+        let index = self.keys.len() as u32;
+        self.keys.push(Some(key.clone()));
+        self.key_to_id.insert(key, index);
+
+        Ok(index)
+    }
+
+    pub fn get_id(&self, key: &IdKey) -> Option<u32> {
+        self.key_to_id.get(key).copied()
+    }
+
+    pub fn get_key(&self, index: u32) -> Option<IdKey> {
+        self.keys.get(index as usize)?.as_ref().cloned()
+    }
+
+    pub fn contains(&self, key: &IdKey) -> bool {
+        self.key_to_id.contains_key(key)
+    }
+
+    pub fn len(&self) -> usize {
+        self.key_to_id.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.key_to_id.is_empty()
+    }
+
+    pub fn remove(&mut self, key: &IdKey) -> Option<u32> {
+        self.key_to_id.remove(key).map(|idx| {
+            if (idx as usize) < self.keys.len() {
+                self.keys[idx as usize] = None;
+            }
+            idx
+        })
+    }
+
+    pub fn iter(&self) -> Vec<(IdKey, u32)> {
+        self.key_to_id
+            .iter()
+            .map(|(key, &idx)| (key.clone(), idx))
+            .collect()
+    }
+
+    pub fn clear(&mut self) {
+        self.key_to_id.clear();
+        self.keys.clear();
+    }
+
+    pub fn compact(&mut self) -> StorageResult<HashMap<u32, u32>> {
+        let entries: Vec<(u32, IdKey)> = self
+            .key_to_id
+            .iter()
+            .map(|(key, &idx)| (idx, key.clone()))
+            .collect();
+
+        if entries.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut entries = entries;
+        entries.sort_by_key(|(old_id, _)| *old_id);
+
+        let mut mapping = HashMap::new();
+        for (new_id, (old_id, _)) in entries.iter().enumerate() {
+            let new_id_u32 = new_id as u32;
+            if *old_id != new_id_u32 {
+                mapping.insert(*old_id, new_id_u32);
+            }
+        }
+
+        if mapping.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        self.rebuild_with_mapping(&entries)?;
+
+        Ok(mapping)
+    }
+
+    fn rebuild_with_mapping(&mut self, entries: &[(u32, IdKey)]) -> StorageResult<()> {
+        let mut new_keys = vec![None; entries.len()];
+        for (new_id, (_, key)) in entries.iter().enumerate() {
+            new_keys[new_id] = Some(key.clone());
+        }
+
+        let mut new_key_to_id = HashMap::with_capacity(entries.len());
+        for (new_id, (_, key)) in entries.iter().enumerate() {
+            new_key_to_id.insert(key.clone(), new_id as u32);
+        }
+
+        self.keys = new_keys;
+        self.key_to_id = new_key_to_id;
+
+        Ok(())
+    }
+
+    pub fn set_at(&mut self, index: u32, key: IdKey) {
+        if self.key_to_id.contains_key(&key) {
+            return;
+        }
+        while self.keys.len() <= index as usize {
+            self.keys.push(None);
+        }
+        self.keys[index as usize] = Some(key.clone());
+        self.key_to_id.insert(key, index);
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        let keys_size = self.keys.capacity() * std::mem::size_of::<Option<IdKey>>();
+        let map_estimate = self.key_to_id.len()
+            * (std::mem::size_of::<IdKey>() + std::mem::size_of::<u32>());
+        keys_size + map_estimate
+    }
+
+    pub fn memory_size(&self) -> usize {
+        self.memory_usage() + std::mem::size_of::<Self>()
+    }
+}
+
+impl Default for IdManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// ID indexer wrapper for simple, single-threaded ID management.
 ///
-/// ```ignore
-/// let indexer = IdIndexer::new();
-/// let idx = indexer.insert(IdKey::Text("v1".to_string()))?;
-/// assert_eq!(indexer.get_index(&IdKey::Text("v1".to_string())), Some(idx));
-/// ```
+/// Although this struct is cloneable (contains Arc), actual concurrent access
+/// is prevented by the external RwLock in GraphDataStore. All operations
+/// are effectively single-threaded.
+///
+/// This design removes unnecessary DashMap overhead while keeping the interface
+/// unchanged for compatibility.
 #[derive(Debug, Clone)]
 pub struct IdIndexer {
-    key_to_index: Arc<DashMap<IdKey, u32>>,
-    keys: Arc<Mutex<Vec<Option<IdKey>>>>,
+    manager: Arc<Mutex<IdManager>>,
     config: IdIndexerConfig,
 }
 
@@ -144,244 +325,75 @@ impl IdIndexer {
     }
 
     pub fn with_config(config: IdIndexerConfig) -> Self {
-        let capacity = config.initial_capacity.min(config.max_capacity);
         Self {
-            key_to_index: Arc::new(DashMap::with_capacity(capacity)),
-            keys: Arc::new(Mutex::new(Vec::with_capacity(capacity))),
+            manager: Arc::new(Mutex::new(IdManager::with_config(config.clone()))),
             config,
         }
     }
 
-    /// Insert a key and return its internal ID.
-    /// Concurrent-safe: multiple threads can insert simultaneously.
     pub fn insert(&self, key: IdKey) -> StorageResult<u32> {
-        if self.key_to_index.contains_key(&key) {
-            return Err(StorageError::vertex_already_exists(format!("{:?}", key)));
-        }
-
-        let mut keys = self.keys.lock();
-        if keys.len() >= self.config.max_capacity {
-            return Err(StorageError::capacity_exceeded());
-        }
-
-        if keys.len() >= keys.capacity() {
-            let current_capacity = keys.capacity();
-            if current_capacity >= self.config.max_capacity {
-                return Err(StorageError::capacity_exceeded());
-            }
-
-            let new_capacity = ((current_capacity as f64 * self.config.growth_factor) as usize)
-                .min(self.config.max_capacity)
-                .max(current_capacity + 1);
-            keys.reserve(new_capacity - current_capacity);
-        }
-
-        let index = keys.len() as u32;
-        keys.push(Some(key.clone()));
-        self.key_to_index.insert(key, index);
-
-        Ok(index)
+        let mut manager = self.manager.lock();
+        manager.insert(key)
     }
 
-    /// Get the internal ID for a given key (lock-free read).
     pub fn get_index(&self, key: &IdKey) -> Option<u32> {
-        self.key_to_index.get(key).map(|ref_multi| *ref_multi)
+        let manager = self.manager.lock();
+        manager.get_id(key)
     }
 
-    /// Get the key for a given internal ID.
     pub fn get_key(&self, index: u32) -> Option<IdKey> {
-        let keys = self.keys.lock();
-        keys.get(index as usize)?.as_ref().cloned()
+        let manager = self.manager.lock();
+        manager.get_key(index)
     }
 
     pub fn contains(&self, key: &IdKey) -> bool {
-        self.key_to_index.contains_key(key)
+        let manager = self.manager.lock();
+        manager.contains(key)
     }
 
     pub fn len(&self) -> usize {
-        self.key_to_index.len()
+        let manager = self.manager.lock();
+        manager.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.key_to_index.is_empty()
+        let manager = self.manager.lock();
+        manager.is_empty()
     }
 
-    /// Remove a key and return its ID.
     pub fn remove(&self, key: &IdKey) -> Option<u32> {
-        self.key_to_index.remove(key).map(|(_, idx)| {
-            let mut keys = self.keys.lock();
-            if (idx as usize) < keys.len() {
-                keys[idx as usize] = None;
-            }
-            idx
-        })
+        let mut manager = self.manager.lock();
+        manager.remove(key)
     }
 
-    /// Iterate over all active entries (key, index).
-    /// Note: returns a snapshot; mutations during iteration are not reflected.
     pub fn iter(&self) -> Vec<(IdKey, u32)> {
-        self.key_to_index
-            .iter()
-            .map(|ref_multi| (ref_multi.key().clone(), *ref_multi.value()))
-            .collect()
+        let manager = self.manager.lock();
+        manager.iter()
     }
 
     pub fn clear(&self) {
-        self.key_to_index.clear();
-        self.keys.lock().clear();
+        let mut manager = self.manager.lock();
+        manager.clear();
     }
 
     pub fn memory_usage(&self) -> usize {
-        let keys = self.keys.lock();
-        let keys_size = keys.capacity() * std::mem::size_of::<Option<IdKey>>();
-        let map_estimate = self.key_to_index.len()
-            * (std::mem::size_of::<IdKey>() + std::mem::size_of::<u32>());
-        keys_size + map_estimate
+        let manager = self.manager.lock();
+        manager.memory_usage()
     }
 
     pub fn memory_size(&self) -> usize {
-        self.memory_usage() + std::mem::size_of::<Self>()
+        let manager = self.manager.lock();
+        manager.memory_size() + std::mem::size_of::<Self>()
     }
 
-    /// Compact the indexer by removing gaps and returning ID remapping.
-    ///
-    /// Reorganizes IDs to be contiguous starting from 0.
-    /// Returns a mapping of old_id → new_id for all IDs that moved.
-    ///
-    /// # Responsibility in Compaction
-    ///
-    /// This is the AUTHORITATIVE mapping source during compaction.
-    /// All other structures (VertexTimestamp, ColumnStore) must follow this mapping.
-    ///
-    /// **Why this matters:**
-    /// - id_indexer owns the Key↔ID mapping (primary responsibility)
-    /// - Other structures index by ID, so they must be updated when IDs change
-    /// - This method returns the mapping so VertexTable can propagate it
-    ///
-    /// # Example
-    ///
-    /// If we have IDs {0, 2, 5} with keys ["a", "c", "f"],
-    /// compaction returns {2→1, 5→2}, so:
-    /// - Key "a" stays at ID 0
-    /// - Key "c" moves from ID 2 to ID 1
-    /// - Key "f" moves from ID 5 to ID 2
-    ///
-    /// # Algorithm
-    ///
-    /// 1. Collect all live (ID, Key) pairs from key_to_index
-    /// 2. Sort by old ID to maintain stable ordering
-    /// 3. Assign new sequential IDs (0, 1, 2, ...)
-    /// 4. Compute mapping only for IDs that moved (optimization)
-    /// 5. Rebuild internal structures if any mapping exists
-    /// 6. Return mapping for propagation to VertexTimestamp and ColumnStore
-    ///
-    /// # Correctness Invariants
-    ///
-    /// After compact():
-    /// - All IDs are in range [0, live_count)
-    /// - No gaps in ID sequence
-    /// - All keys are preserved (no data loss)
-    /// - External callers can use returned mapping to update dependent structures
-    ///
-    /// # Concurrency Note
-    ///
-    /// This method holds Mutex while rebuilding.
-    /// Safe for concurrent reads (lock is brief), but not safe with concurrent inserts.
-    /// Use outside of transaction for safety.
-    ///
-    /// # Performance
-    ///
-    /// - O(n) where n = number of live IDs
-    /// - O(n log n) for sorting
-    /// - Practical: allocates new vectors, old memory is reclaimed
-    ///
-    /// # Why Return Mapping?
-    ///
-    /// This design allows VertexTable to:
-    /// 1. Get the mapping: `let mapping = id_indexer.compact()?;`
-    /// 2. Apply it to timestamps: `self.remap_timestamps(&mapping);`
-    /// 3. Apply it to columns: `self.remap_columns(&mapping);`
-    /// 4. Verify consistency: `self.verify_invariants()?;`
-    ///
-    /// If id_indexer did everything, it would need to know about VertexTimestamp
-    /// and ColumnStore, violating module boundaries. This design keeps concerns separate.
-    pub fn compact(&self) -> StorageResult<std::collections::HashMap<u32, u32>> {
-        // Get snapshot of all live IDs and keys
-        let entries: Vec<(u32, IdKey)> = self
-            .key_to_index
-            .iter()
-            .map(|ref_multi| (*ref_multi.value(), ref_multi.key().clone()))
-            .collect();
-
-        if entries.is_empty() {
-            // No entries, nothing to compact
-            return Ok(std::collections::HashMap::new());
-        }
-
-        // Sort by old ID to maintain stable ordering
-        let mut entries = entries;
-        entries.sort_by_key(|(old_id, _)| *old_id);
-
-        // Compute mapping: old_id → new_id
-        let mut mapping = std::collections::HashMap::new();
-        for (new_id, (old_id, _)) in entries.iter().enumerate() {
-            let new_id_u32 = new_id as u32;
-            if *old_id != new_id_u32 {
-                mapping.insert(*old_id, new_id_u32);
-            }
-        }
-
-        // If no IDs moved, no need to rebuild
-        if mapping.is_empty() {
-            return Ok(std::collections::HashMap::new());
-        }
-
-        // Rebuild internal structures with new IDs
-        self.rebuild_with_mapping(&entries)?;
-
-        Ok(mapping)
+    pub fn compact(&self) -> StorageResult<HashMap<u32, u32>> {
+        let mut manager = self.manager.lock();
+        manager.compact()
     }
 
-    /// Internal: Rebuild id_indexer with remapped IDs
-    /// Called only from compact()
-    ///
-    /// # Arguments
-    /// * `entries` - Entries sorted by old ID, with new IDs assigned sequentially
-    fn rebuild_with_mapping(&self, entries: &[(u32, IdKey)]) -> StorageResult<()> {
-        // Rebuild keys array
-        let mut new_keys = vec![None; entries.len()];
-        for (new_id, (_, key)) in entries.iter().enumerate() {
-            new_keys[new_id] = Some(key.clone());
-        }
-
-        // Update the keys Mutex
-        {
-            let mut keys = self.keys.lock();
-            *keys = new_keys;
-        }
-
-        // Clear and rebuild key_to_index with new IDs
-        self.key_to_index.clear();
-        for (new_id, (_, key)) in entries.iter().enumerate() {
-            self.key_to_index.insert(key.clone(), new_id as u32);
-        }
-
-        Ok(())
-    }
-
-    /// Set the key at a specific index (compatibility method for loader).
     pub fn set_at(&self, index: u32, key: IdKey) {
-        if self.key_to_index.contains_key(&key) {
-            return;
-        }
-        {
-            let mut keys = self.keys.lock();
-            while keys.len() <= index as usize {
-                keys.push(None);
-            }
-            keys[index as usize] = Some(key.clone());
-        }
-        self.key_to_index.insert(key, index);
+        let mut manager = self.manager.lock();
+        manager.set_at(index, key);
     }
 }
 

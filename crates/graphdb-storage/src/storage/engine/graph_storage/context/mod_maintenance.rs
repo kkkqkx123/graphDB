@@ -32,9 +32,15 @@ impl GraphStorageContext {
 
             for &label_id in &vertex_labels {
                 let table = vertex_tables.get_mut(&label_id).expect("label must exist");
-                let removed = table.compact_with_ts_collect(ts);
-                if !removed.is_empty() {
-                    last_compacted_vertices.push((label_id, removed));
+                match table.compact_with_ts_collect(ts) {
+                    Ok(removed) => {
+                        if !removed.is_empty() {
+                            last_compacted_vertices.push((label_id, removed));
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to compact vertex table {}: {}", label_id, e);
+                    }
                 }
             }
         }
